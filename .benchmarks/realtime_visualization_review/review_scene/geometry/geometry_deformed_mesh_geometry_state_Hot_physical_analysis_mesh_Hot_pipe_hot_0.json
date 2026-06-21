@@ -1,0 +1,41 @@
+{
+  "asset_id": "geometry:deformed_mesh:geometry_state:Hot:physical:analysis_mesh:Hot:pipe_hot_0",
+  "bounds": [
+    0.0,
+    0.05,
+    0.0,
+    2.0,
+    0.05,
+    0.0
+  ],
+  "format": "polyline",
+  "generation_config": {
+    "element_id": "pipe_hot_0",
+    "geometry_state_id": "geometry_state:Hot:physical",
+    "load_case": "Hot",
+    "mesh_id": "analysis_mesh:Hot",
+    "node_ids": [
+      "N0",
+      "N1"
+    ],
+    "points": [
+      [
+        0.0,
+        0.05,
+        0.0
+      ],
+      [
+        2.0,
+        0.05,
+        0.0
+      ]
+    ],
+    "result_state_id": "result_state:Hot:review_mock",
+    "source": "tuba.deformed_analysis_mesh.element",
+    "visual_scale": 1.0
+  },
+  "hash": "sha256:4cdf18b81b0cfa4792412aba44b4d3d7b9fa9451b7874cb13deec4ccb32a4cca",
+  "object_ids": [
+    "object:deformed_mesh:geometry_state:Hot:physical:analysis_mesh:Hot:pipe_hot_0"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "asset_id": "geometry:obstacle:rack_member_0",
+  "bounds": [
+    0.9,
+    0.11,
+    -0.12,
+    1.1,
+    0.25,
+    0.12
+  ],
+  "format": "cuboid",
+  "generation_config": {
+    "entity_ref": "obstacle:rack_member_0",
+    "obstacle": {
+      "id": "rack_member_0",
+      "max_point": [
+        1.1,
+        0.25,
+        0.12
+      ],
+      "min_point": [
+        0.9,
+        0.11,
+        -0.12
+      ],
+      "type": "cuboid"
+    },
+    "source": "tuba.obstacle"
+  },
+  "hash": "sha256:908422212d337c0ef5a2575046ee6f5562e9b142101ebd0a0ed42720014a6f87",
+  "object_ids": [
+    "object:obstacle:rack_member_0"
+  ]
+}

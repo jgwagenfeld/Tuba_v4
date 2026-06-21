@@ -1,0 +1,12 @@
+[
+  {
+    "id": "asset:proposal_pipe",
+    "format": "polyline",
+    "bounds": [0, 0, 0, 2, 0, 0],
+    "object_ids": ["object:proposal_pipe"],
+    "generation_config": {
+      "points": [[0, 0, 0], [2, 0, 0]],
+      "source": "patch-preview-fixture"
+    }
+  }
+]

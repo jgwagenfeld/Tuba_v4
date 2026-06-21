@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tuba"
+version = "4.0.0"
+description = "AI-ready piping stress analysis & routing library"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Jan-Georg Wagenfeld" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy>=1.20",
+    "scipy>=1.7",
+    "meshio>=5.0",
+    "pyvista>=0.38",
+    "jsonschema>=4.0",
+    "gmsh>=4.11",
+    "trimesh>=4.0",
+    "python-fcl>=0.7.0",
+]
+
+[project.optional-dependencies]
+notebook-viz = [
+    "jupyterlab>=3",
+    "ipywidgets",
+    "pyvista[all]>=0.48",
+    "trame>=3",
+    "trame-vtk>=2",
+    "trame-vuetify>=3",
+    "jupyter-server-proxy",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tuba*"]
+
+[tool.setuptools.package-data]
+"tuba.sections" = ["data/*.input", "data/*.output"]

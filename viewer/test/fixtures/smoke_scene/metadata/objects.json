@@ -1,0 +1,9 @@
+[
+  { "id": "object:pipe", "entity_ref": "element:pipe_0", "kind": "pipe", "name": "Pipe", "geometry_asset_id": "asset:tube" },
+  { "id": "object:mesh-line", "entity_ref": "analysis:beam_0", "kind": "analysis_mesh_element", "name": "Beam", "geometry_asset_id": "asset:polyline" },
+  { "id": "object:support", "entity_ref": "support:S0", "kind": "support", "name": "Support", "geometry_asset_id": "asset:point" },
+  { "id": "object:reaction", "entity_ref": "node:N0", "kind": "reaction_vector", "name": "Reaction", "geometry_asset_id": "asset:vector" },
+  { "id": "object:clash", "entity_ref": "issue:clash", "kind": "clash_marker", "name": "Clash", "geometry_asset_id": "asset:marker" },
+  { "id": "object:envelope", "entity_ref": "element:pipe_0", "kind": "physical_envelope", "name": "Envelope", "geometry_asset_id": "asset:aabb" },
+  { "id": "object:plate", "entity_ref": "mesh:plate", "kind": "analysis_mesh_element", "name": "Plate", "geometry_asset_id": "asset:mesh" }
+]

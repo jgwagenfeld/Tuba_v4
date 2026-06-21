@@ -1,0 +1,16 @@
+[
+  {
+    "id": "overlay:agent_proposal:live_preview",
+    "kind": "agent_proposal",
+    "name": "Proposal live_preview",
+    "object_ids": ["object:proposal_pipe"],
+    "entity_refs": ["element:pipe_str_0"],
+    "visible": true,
+    "data": {
+      "proposal_id": "live_preview",
+      "agent_id": "live_preview",
+      "approval_state": "pending",
+      "created_entity_refs": ["element:pipe_str_0"]
+    }
+  }
+]

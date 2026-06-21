@@ -1,0 +1,4 @@
+[
+  { "id": "overlay:stress", "kind": "solver_result", "name": "Stress", "object_ids": ["object:pipe"], "data": { "field": "max_von_mises", "unit": "Pa", "values": { "object:pipe": 57000000 } }, "visible": true },
+  { "id": "overlay:clash", "kind": "clash", "name": "Clash", "object_ids": ["object:pipe", "object:clash"], "visible": true }
+]

@@ -1,0 +1,33 @@
+{
+  "asset_id": "geometry:element:pipe_24",
+  "bounds": [
+    23.95,
+    -0.05,
+    -0.05,
+    25.05,
+    0.05,
+    0.05
+  ],
+  "format": "tube",
+  "generation_config": {
+    "entity_ref": "element:pipe_24",
+    "points": [
+      [
+        24.0,
+        0.0,
+        0.0
+      ],
+      [
+        25.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "radius_m": 0.05,
+    "source": "tuba.element"
+  },
+  "hash": "sha256:499dceccf464f81213e978ce1d1c9aa0594fab6d3e3984f2e4fbd9b3f2ec00b0",
+  "object_ids": [
+    "object:element:pipe_24"
+  ]
+}

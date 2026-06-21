@@ -1,0 +1,7 @@
+{
+  "object:proposal_pipe": {
+    "entity_ref": "element:pipe_str_0",
+    "kind": "proposal_added",
+    "geometry_asset_id": "asset:proposal_pipe"
+  }
+}

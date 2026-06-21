@@ -1,0 +1,42 @@
+[
+  {
+    "id": "object:element:pipe_smoke",
+    "entity_ref": "element:pipe_smoke",
+    "kind": "pipe",
+    "name": "Smoke pipe",
+    "geometry_asset_id": "geometry:element:pipe_smoke",
+    "metadata": { "section": "Pipe80" }
+  },
+  {
+    "id": "object:obstacle:rack_member_smoke",
+    "entity_ref": "obstacle:rack_member_smoke",
+    "kind": "obstacle",
+    "name": "Rack member",
+    "geometry_asset_id": "geometry:obstacle:rack_member_smoke",
+    "metadata": { "type": "cuboid" }
+  },
+  {
+    "id": "object:issue:clash:pipe_smoke:rack_member_smoke",
+    "entity_ref": "issue:clash:pipe_smoke:rack_member_smoke",
+    "kind": "clash_marker",
+    "name": "Operating clash",
+    "geometry_asset_id": "geometry:issue:clash:pipe_smoke:rack_member_smoke",
+    "metadata": { "issue_id": "issue:clash:pipe_smoke:rack_member_smoke" }
+  },
+  {
+    "id": "object:analysis_mesh:smoke:element:pipe_smoke",
+    "entity_ref": "analysis_mesh:smoke:element:pipe_smoke",
+    "kind": "analysis_mesh_element",
+    "name": "Smoke mesh element",
+    "geometry_asset_id": "geometry:analysis_mesh:smoke:element:pipe_smoke",
+    "metadata": { "mesh_id": "analysis_mesh:smoke" }
+  },
+  {
+    "id": "object:solver_result:reaction:Hot:N0",
+    "entity_ref": "solver_result:reaction:Hot:N0",
+    "kind": "reaction_vector",
+    "name": "N0 reaction",
+    "geometry_asset_id": "geometry:solver_result:reaction:Hot:N0",
+    "metadata": { "result_type": "reaction", "load_case": "Hot" }
+  }
+]

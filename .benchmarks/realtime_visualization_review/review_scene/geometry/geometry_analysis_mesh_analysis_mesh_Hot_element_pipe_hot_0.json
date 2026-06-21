@@ -1,0 +1,43 @@
+{
+  "asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_hot_0",
+  "bounds": [
+    0.0,
+    0.0,
+    0.0,
+    2.0,
+    0.0,
+    0.0
+  ],
+  "format": "polyline",
+  "generation_config": {
+    "element_id": "pipe_hot_0",
+    "groups": [
+      "AllPipes",
+      "PipeStraights"
+    ],
+    "mesh_id": "analysis_mesh:Hot",
+    "node_ids": [
+      "N0",
+      "N1"
+    ],
+    "points": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        2.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "role": "native_element",
+    "source": "tuba.analysis_mesh.element",
+    "source_ref": "element:pipe_hot_0"
+  },
+  "hash": "sha256:9184abf9b97513b0ef425bfb12a4710fea8eed9016ef8cd129951a6e5e7272d6",
+  "object_ids": [
+    "object:analysis_mesh:analysis_mesh:Hot:element:pipe_hot_0"
+  ]
+}

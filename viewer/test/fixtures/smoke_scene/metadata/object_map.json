@@ -1,0 +1,4 @@
+{
+  "object:pipe": { "entity_ref": "element:pipe_0" },
+  "object:clash": { "entity_ref": "issue:clash" }
+}

@@ -1,0 +1,3 @@
+[
+  { "id": "overlay:clash", "kind": "clash", "name": "Clash", "object_ids": ["object:cold", "object:clash"], "visible": true }
+]

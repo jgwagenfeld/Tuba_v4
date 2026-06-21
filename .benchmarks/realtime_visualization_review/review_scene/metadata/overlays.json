@@ -1,0 +1,410 @@
+[
+  {
+    "data": {
+      "cold_distance_m": 0.11,
+      "distance_m": 0.06,
+      "envelope_type": "insulation",
+      "geometry_state": "geometry_state:Hot:physical",
+      "grouping": {
+        "envelope_type": "insulation",
+        "geometry_state": "geometry_state:Hot:physical",
+        "load_case": "Hot",
+        "object_pair": [
+          "element:pipe_hot_0",
+          "obstacle:rack_member_0"
+        ],
+        "result_state_id": "result_state:Hot:review_mock",
+        "severity": "operating_only_hard"
+      },
+      "introduced_by_deformation": true,
+      "involved_object_ids": [
+        "object:element:pipe_hot_0",
+        "object:obstacle:rack_member_0"
+      ],
+      "issue_ids": [
+        "issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+      ],
+      "load_case": "Hot",
+      "metadata": {
+        "cold_distance_m": 0.11,
+        "displacement_source": "result_state:Hot:review_mock",
+        "envelope_type": "insulation",
+        "geometry_state": "geometry_state:Hot:physical",
+        "introduced_by_deformation": true,
+        "load_case": "Hot",
+        "operating_distance_m": 0.06,
+        "result_state_id": "result_state:Hot:review_mock",
+        "safety_factor": 1.0
+      },
+      "object_pair": [
+        "element:pipe_hot_0",
+        "obstacle:rack_member_0"
+      ],
+      "operating_distance_m": 0.06,
+      "penetration_m": 0.020000000000000004,
+      "result_state_id": "result_state:Hot:review_mock",
+      "severity": "operating_only_hard"
+    },
+    "entity_refs": [
+      "element:pipe_hot_0",
+      "obstacle:rack_member_0"
+    ],
+    "id": "overlay:clash:issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+    "kind": "clash",
+    "name": "Clash element:pipe_hot_0 vs obstacle:rack_member_0",
+    "object_ids": [
+      "object:element:pipe_hot_0",
+      "object:obstacle:rack_member_0",
+      "object:issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "element_results": {
+        "pipe_hot_0": {
+          "forces_n1": [
+            0.0,
+            120.0,
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ],
+          "forces_n2": [
+            0.0,
+            -120.0,
+            0.0,
+            0.0,
+            0.0,
+            -25.0
+          ],
+          "max_von_mises": 57000000.0,
+          "von_mises_n1": 42000000.0,
+          "von_mises_n2": 57000000.0
+        }
+      },
+      "files": {
+        "manifest": ".benchmarks\\realtime_visualization_review\\code_aster\\study_manifest.json"
+      },
+      "id": "result_state:Hot:review_mock",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "metadata": {
+        "source": "realtime_visualization_review_mock_result_state"
+      },
+      "model_revision": 0,
+      "node_displacements": {
+        "N0": [
+          0.0,
+          0.05,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "N1": [
+          0.0,
+          0.05,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "node_reactions": {
+        "N0": [
+          1000.0,
+          250.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "solver_name": "Code_Aster",
+      "study_id": "analysis_study:Hot"
+    },
+    "id": "overlay:result_state:result_state:Hot:review_mock",
+    "kind": "result_state",
+    "name": "Result state Hot",
+    "object_ids": [
+      "object:result_state:result_state:Hot:review_mock"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "element_results": {
+        "object:element:pipe_hot_0": {
+          "force_unit": "N",
+          "forces_n1": [
+            0.0,
+            120.0,
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ],
+          "forces_n2": [
+            0.0,
+            -120.0,
+            0.0,
+            0.0,
+            0.0,
+            -25.0
+          ],
+          "max_von_mises": 57000000.0,
+          "moment_unit": "N*m",
+          "stress_unit": "Pa",
+          "von_mises_n1": 42000000.0,
+          "von_mises_n2": 57000000.0
+        }
+      },
+      "field": "max_von_mises",
+      "hotspots": [
+        {
+          "object_id": "object:element:pipe_hot_0",
+          "unit": "Pa",
+          "value": 57000000.0
+        }
+      ],
+      "legend": {
+        "color_map": "turbo",
+        "field": "max_von_mises",
+        "range": {
+          "max": 57000000.0,
+          "min": 57000000.0
+        },
+        "thresholds": {
+          "critical": 1.0,
+          "warning": 0.8
+        },
+        "unit": "Pa"
+      },
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "range": {
+        "max": 57000000.0,
+        "min": 57000000.0
+      },
+      "result_state_id": "result_state:Hot:review_mock",
+      "result_type": "stress",
+      "study_id": "analysis_study:Hot",
+      "unit": "Pa",
+      "utilization_values": {},
+      "values": {
+        "object:element:pipe_hot_0": 57000000.0
+      }
+    },
+    "entity_refs": [
+      "element:pipe_hot_0"
+    ],
+    "id": "overlay:solver_result:stress:result_state:Hot:review_mock",
+    "kind": "solver_result",
+    "name": "Stress Hot",
+    "object_ids": [
+      "object:element:pipe_hot_0"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "legend": {
+        "color_map": "viridis",
+        "field": "displacement_magnitude",
+        "range": {
+          "max": 0.05,
+          "min": 0.05
+        },
+        "thresholds": {},
+        "unit": "m"
+      },
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "result_state_id": "result_state:Hot:review_mock",
+      "result_type": "displacement",
+      "study_id": "analysis_study:Hot",
+      "values": {
+        "N0": 0.05,
+        "N1": 0.05
+      },
+      "vectors": [
+        {
+          "displacement_m": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "end": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "magnitude_m": 0.05,
+          "node_id": "N0",
+          "object_ids": [
+            "object:element:pipe_hot_0"
+          ],
+          "rotation_rad": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "displacement_m": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "end": [
+            2.0,
+            0.05,
+            0.0
+          ],
+          "magnitude_m": 0.05,
+          "node_id": "N1",
+          "object_ids": [
+            "object:element:pipe_hot_0"
+          ],
+          "rotation_rad": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "start": [
+            2.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    "id": "overlay:solver_result:displacement:result_state:Hot:review_mock",
+    "kind": "solver_result",
+    "name": "Displacement Hot",
+    "object_ids": [
+      "object:element:pipe_hot_0"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "legend": {
+        "color_map": "magma",
+        "field": "reaction_force_magnitude",
+        "range": {
+          "max": 1030.7764064044152,
+          "min": 1030.7764064044152
+        },
+        "thresholds": {},
+        "unit": "N"
+      },
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "result_state_id": "result_state:Hot:review_mock",
+      "result_type": "reaction",
+      "study_id": "analysis_study:Hot",
+      "values": {
+        "N0": 1030.7764064044152
+      },
+      "vectors": [
+        {
+          "end": [
+            1.0,
+            0.25,
+            0.0
+          ],
+          "magnitude_n": 1030.7764064044152,
+          "node_id": "N0",
+          "object_ids": [
+            "object:element:pipe_hot_0"
+          ],
+          "reaction_force_n": [
+            1000.0,
+            250.0,
+            0.0
+          ],
+          "reaction_moment_nm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    "id": "overlay:solver_result:reaction:result_state:Hot:review_mock",
+    "kind": "solver_result",
+    "name": "Reactions Hot",
+    "object_ids": [
+      "object:element:pipe_hot_0"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "displacement_scale": 1.0,
+      "id": "geometry_state:cold",
+      "model_revision": 0,
+      "purpose": "engineering",
+      "safety_factor": 1.0,
+      "state_type": "cold"
+    },
+    "id": "overlay:geometry_state:geometry_state:cold",
+    "kind": "geometry_state",
+    "name": "Geometry state geometry_state:cold",
+    "object_ids": [
+      "object:geometry_state:geometry_state:cold"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "displacement_scale": 1.0,
+      "id": "geometry_state:Hot:physical",
+      "load_case": "Hot",
+      "model_revision": 0,
+      "purpose": "engineering",
+      "result_state_id": "result_state:Hot:review_mock",
+      "safety_factor": 1.0,
+      "state_type": "operating"
+    },
+    "id": "overlay:geometry_state:geometry_state:Hot:physical",
+    "kind": "geometry_state",
+    "name": "Geometry state geometry_state:Hot:physical",
+    "object_ids": [
+      "object:geometry_state:geometry_state:Hot:physical"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "displacement_scale": 50.0,
+      "id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "model_revision": 0,
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:review_mock",
+      "safety_factor": 1.0,
+      "state_type": "deformed"
+    },
+    "id": "overlay:geometry_state:geometry_state:Hot:visual_x50",
+    "kind": "geometry_state",
+    "name": "Geometry state geometry_state:Hot:visual_x50",
+    "object_ids": [
+      "object:geometry_state:geometry_state:Hot:visual_x50"
+    ],
+    "visible": true
+  }
+]

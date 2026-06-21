@@ -1,0 +1,4 @@
+{
+  "object:cold": { "entity_ref": "element:cold" },
+  "object:clash": { "entity_ref": "issue:clash" }
+}

@@ -1,0 +1,5 @@
+[
+  { "id": "asset:pipe", "format": "tube", "bounds": [-0.08, -0.08, -0.08, 2.08, 0.08, 0.08], "object_ids": ["object:pipe"], "generation_config": { "points": [[0, 0, 0], [2, 0, 0]], "radius_m": 0.08 } },
+  { "id": "asset:clash", "format": "marker", "bounds": [1, 0.08, 0, 1, 0.08, 0], "object_ids": ["object:clash"], "generation_config": { "point": [1, 0.08, 0], "issue_id": "issue:clash:pipe:rack" } },
+  { "id": "asset:mesh", "format": "polyline", "bounds": [0, 0.2, 0, 2, 0.2, 0], "object_ids": ["object:mesh"], "generation_config": { "points": [[0, 0.2, 0], [2, 0.2, 0]] } }
+]

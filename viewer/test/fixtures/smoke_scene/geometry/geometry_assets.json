@@ -1,0 +1,54 @@
+[
+  {
+    "id": "asset:tube",
+    "format": "tube",
+    "bounds": [-0.08, -0.08, -0.08, 2.08, 0.08, 0.08],
+    "object_ids": ["object:pipe"],
+    "generation_config": { "points": [[0, 0, 0], [2, 0, 0]], "radius_m": 0.08 }
+  },
+  {
+    "id": "asset:polyline",
+    "format": "polyline",
+    "bounds": [0, 0.25, 0, 2, 0.25, 0],
+    "object_ids": ["object:mesh-line"],
+    "generation_config": { "points": [[0, 0.25, 0], [2, 0.25, 0]] }
+  },
+  {
+    "id": "asset:point",
+    "format": "point",
+    "bounds": [0, 0, 0, 0, 0, 0],
+    "object_ids": ["object:support"],
+    "generation_config": { "point": [0, 0, 0] }
+  },
+  {
+    "id": "asset:vector",
+    "format": "vector",
+    "bounds": [0, 0, 0, 0, 0, 1],
+    "object_ids": ["object:reaction"],
+    "generation_config": { "start": [0, 0, 0], "end": [0, 0, 1] }
+  },
+  {
+    "id": "asset:marker",
+    "format": "marker",
+    "bounds": [1, 0.05, 0, 1, 0.05, 0],
+    "object_ids": ["object:clash"],
+    "generation_config": { "point": [1, 0.05, 0], "issue_id": "issue:clash" }
+  },
+  {
+    "id": "asset:aabb",
+    "format": "aabb",
+    "bounds": [0.8, -0.2, -0.2, 1.2, 0.2, 0.2],
+    "object_ids": ["object:envelope"],
+    "generation_config": {}
+  },
+  {
+    "id": "asset:mesh",
+    "format": "mesh",
+    "bounds": [0, 0, 0.4, 0.4, 0.4, 0.4],
+    "object_ids": ["object:plate"],
+    "generation_config": {
+      "vertices": [[0, 0, 0.4], [0.4, 0, 0.4], [0, 0.4, 0.4]],
+      "triangles": [[0, 1, 2]]
+    }
+  }
+]

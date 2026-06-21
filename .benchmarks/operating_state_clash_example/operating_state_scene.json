@@ -1,0 +1,613 @@
+{
+  "agent_proposals": [],
+  "coordinate_system": {
+    "up_axis": "Z"
+  },
+  "created_at": "2026-06-21T08:23:51.886052Z",
+  "diagnostics": [],
+  "geometry_assets": [
+    {
+      "bounds": [
+        -0.08,
+        -0.08,
+        -0.08,
+        2.08,
+        0.08,
+        0.08
+      ],
+      "format": "tube",
+      "generation_config": {
+        "entity_ref": "element:pipe_hot_0",
+        "points": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            2.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "radius_m": 0.08,
+        "source": "tuba.element"
+      },
+      "id": "geometry:element:pipe_hot_0",
+      "object_ids": [
+        "object:element:pipe_hot_0"
+      ],
+      "uri": ""
+    },
+    {
+      "bounds": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "format": "point",
+      "generation_config": {
+        "entity_ref": "support:support_anchor_0",
+        "point": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "source": "tuba.support"
+      },
+      "id": "geometry:support:support_anchor_0",
+      "object_ids": [
+        "object:support:support_anchor_0"
+      ],
+      "uri": ""
+    },
+    {
+      "bounds": [
+        0.9,
+        0.11,
+        -0.12,
+        1.1,
+        0.25,
+        0.12
+      ],
+      "format": "cuboid",
+      "generation_config": {
+        "entity_ref": "obstacle:rack_member_0",
+        "obstacle": {
+          "id": "rack_member_0",
+          "max_point": [
+            1.1,
+            0.25,
+            0.12
+          ],
+          "min_point": [
+            0.9,
+            0.11,
+            -0.12
+          ],
+          "type": "cuboid"
+        },
+        "source": "tuba.obstacle"
+      },
+      "id": "geometry:obstacle:rack_member_0",
+      "object_ids": [
+        "object:obstacle:rack_member_0"
+      ],
+      "uri": ""
+    },
+    {
+      "bounds": [
+        1.1000000006202204,
+        0.05,
+        0.0,
+        1.1000000006202204,
+        0.05,
+        0.0
+      ],
+      "format": "point",
+      "generation_config": {
+        "clash": {
+          "diagnostics": [],
+          "distance_m": 0.06,
+          "left": {
+            "id": "pipe_hot_0",
+            "kind": "element"
+          },
+          "location": [
+            1.1000000006202204,
+            0.05,
+            0.0
+          ],
+          "metadata": {
+            "cold_distance_m": 0.11,
+            "displacement_source": "result_state:Hot:mock",
+            "envelope_type": "insulation",
+            "geometry_state": "geometry_state:Hot:physical",
+            "introduced_by_deformation": true,
+            "load_case": "Hot",
+            "operating_distance_m": 0.06,
+            "result_state_id": "result_state:Hot:mock",
+            "safety_factor": 1.0
+          },
+          "penetration_m": 0.020000000000000004,
+          "right": {
+            "id": "rack_member_0",
+            "kind": "obstacle"
+          },
+          "severity": "operating_only_hard"
+        },
+        "issue_id": "issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+        "point": [
+          1.1000000006202204,
+          0.05,
+          0.0
+        ],
+        "source": "tuba.clash"
+      },
+      "id": "geometry:issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+      "object_ids": [
+        "object:issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+      ],
+      "uri": ""
+    }
+  ],
+  "issues": [
+    {
+      "description": "operating_only_hard clash with penetration 0.02 m and distance 0.06 m.",
+      "entity_refs": [
+        "element:pipe_hot_0",
+        "obstacle:rack_member_0"
+      ],
+      "external_refs": {
+        "bcf": {
+          "labels": [
+            "tuba",
+            "clash",
+            "operating_only_hard"
+          ],
+          "related_entity_refs": [
+            "element:pipe_hot_0",
+            "obstacle:rack_member_0"
+          ],
+          "topic_status": "Open",
+          "topic_type": "Clash"
+        },
+        "clash": {
+          "diagnostics": [],
+          "distance_m": 0.06,
+          "left": {
+            "id": "pipe_hot_0",
+            "kind": "element"
+          },
+          "location": [
+            1.1000000006202204,
+            0.05,
+            0.0
+          ],
+          "metadata": {
+            "cold_distance_m": 0.11,
+            "displacement_source": "result_state:Hot:mock",
+            "envelope_type": "insulation",
+            "geometry_state": "geometry_state:Hot:physical",
+            "introduced_by_deformation": true,
+            "load_case": "Hot",
+            "operating_distance_m": 0.06,
+            "result_state_id": "result_state:Hot:mock",
+            "safety_factor": 1.0
+          },
+          "penetration_m": 0.020000000000000004,
+          "right": {
+            "id": "rack_member_0",
+            "kind": "obstacle"
+          },
+          "severity": "operating_only_hard"
+        }
+      },
+      "id": "issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+      "severity": "error",
+      "source_report_id": "clash",
+      "status": "open",
+      "title": "element:pipe_hot_0 clashes with obstacle:rack_member_0",
+      "type": "clash",
+      "view_id": "view:issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+    }
+  ],
+  "materials": [],
+  "model_id": "OperatingStateClashExample",
+  "objects": [
+    {
+      "entity_ref": "element:pipe_hot_0",
+      "geometry_asset_id": "geometry:element:pipe_hot_0",
+      "id": "object:element:pipe_hot_0",
+      "kind": "pipe",
+      "metadata": {
+        "attributes": {
+          "insulation": "mw_30"
+        },
+        "element_type": "pipe_straight",
+        "groups": [],
+        "insulation": {
+          "cost_per_m": 0.0,
+          "density_kg_m3": 110.0,
+          "id": "mw_30",
+          "material": "mineral_wool",
+          "thickness_m": 0.03
+        },
+        "material": "Steel",
+        "nodes": [
+          "N0",
+          "N1"
+        ],
+        "section": "DN100"
+      },
+      "name": "pipe_hot_0",
+      "physical": {
+        "bare_od_m": 0.1,
+        "bare_radius_m": 0.05,
+        "effective_od_m": 0.16,
+        "effective_radius_m": 0.08,
+        "element_id": "pipe_hot_0",
+        "insulation_cost_per_m": 0.0,
+        "insulation_mass_kg_per_m": 1.3477432483900211,
+        "insulation_spec_id": "mw_30",
+        "insulation_thickness_m": 0.03,
+        "insulation_volume_m3_per_m": 0.012252211349000192,
+        "mass_kg_per_m": 23.54309534600192,
+        "material": "Steel",
+        "metal_area_m2": 0.002827433388230815,
+        "pipe_mass_kg_per_m": 22.1953520976119,
+        "section": "DN100",
+        "surface_area_m2_per_m": 0.5026548245743669,
+        "wind_diameter_m": 0.16
+      },
+      "quantities": {
+        "element_id": "pipe_hot_0",
+        "insulation_cost": 0.0,
+        "insulation_mass_kg": 2.6954864967800423,
+        "insulation_volume_m3": 0.024504422698000385,
+        "insulation_volume_m3_per_m": 0.012252211349000192,
+        "length_m": 2.0,
+        "mass_kg_per_m": 23.54309534600192,
+        "pipe_mass_kg": 44.3907041952238,
+        "surface_area_m2": 1.0053096491487339,
+        "total_mass_kg": 47.08619069200384,
+        "wind_projected_area_m2": 0.32
+      }
+    },
+    {
+      "entity_ref": "support:support_anchor_0",
+      "geometry_asset_id": "geometry:support:support_anchor_0",
+      "id": "object:support:support_anchor_0",
+      "kind": "support",
+      "metadata": {
+        "node": "N0",
+        "support_type": "anchor"
+      },
+      "name": "support_anchor_0"
+    },
+    {
+      "entity_ref": "obstacle:rack_member_0",
+      "geometry_asset_id": "geometry:obstacle:rack_member_0",
+      "id": "object:obstacle:rack_member_0",
+      "kind": "obstacle",
+      "metadata": {
+        "id": "rack_member_0",
+        "max_point": [
+          1.1,
+          0.25,
+          0.12
+        ],
+        "min_point": [
+          0.9,
+          0.11,
+          -0.12
+        ],
+        "type": "cuboid"
+      },
+      "name": "rack_member_0"
+    },
+    {
+      "geometry_asset_id": "geometry:issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+      "id": "object:issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+      "kind": "clash_marker",
+      "metadata": {
+        "clash_metadata": {
+          "cold_distance_m": 0.11,
+          "displacement_source": "result_state:Hot:mock",
+          "envelope_type": "insulation",
+          "geometry_state": "geometry_state:Hot:physical",
+          "introduced_by_deformation": true,
+          "load_case": "Hot",
+          "operating_distance_m": 0.06,
+          "result_state_id": "result_state:Hot:mock",
+          "safety_factor": 1.0
+        },
+        "diagnostics": [],
+        "distance_m": 0.06,
+        "envelope_source": {
+          "entity_ref": "element:pipe_hot_0",
+          "insulation_id": "mw_30",
+          "material": "mineral_wool",
+          "thickness_m": 0.03,
+          "type": "insulation"
+        },
+        "issue_id": "issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+        "left": "element:pipe_hot_0",
+        "penetration_m": 0.020000000000000004,
+        "right": "obstacle:rack_member_0",
+        "severity": "operating_only_hard"
+      },
+      "name": "Clash element:pipe_hot_0 vs obstacle:rack_member_0"
+    },
+    {
+      "id": "object:result_state:result_state:Hot:mock",
+      "kind": "result_state",
+      "metadata": {
+        "element_result_count": 0,
+        "load_case": "Hot",
+        "mesh_id": "analysis_mesh:Hot",
+        "model_revision": 0,
+        "node_count": 2,
+        "result_state_id": "result_state:Hot:mock",
+        "solver_name": "Code_Aster",
+        "study_id": "analysis_study:Hot"
+      },
+      "name": "Result state Hot",
+      "source": {
+        "tuba_result_state": {
+          "element_results": {},
+          "files": {
+            "manifest": ".benchmarks\\operating_state_clash_example\\code_aster\\study_manifest.json"
+          },
+          "id": "result_state:Hot:mock",
+          "load_case": "Hot",
+          "mesh_id": "analysis_mesh:Hot",
+          "metadata": {
+            "source": "mock_result_state_for_example"
+          },
+          "model_revision": 0,
+          "node_displacements": {
+            "N0": [
+              0.0,
+              0.05,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "N1": [
+              0.0,
+              0.05,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "node_reactions": {
+            "N0": [
+              1000.0,
+              250.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "solver_name": "Code_Aster",
+          "study_id": "analysis_study:Hot"
+        }
+      }
+    },
+    {
+      "id": "object:geometry_state:geometry_state:cold",
+      "kind": "geometry_state",
+      "metadata": {
+        "displacement_scale": 1.0,
+        "geometry_state_id": "geometry_state:cold",
+        "load_case": null,
+        "purpose": "engineering",
+        "result_state_id": null,
+        "safety_factor": 1.0,
+        "state_type": "cold"
+      },
+      "name": "Geometry state geometry_state:cold",
+      "source": {
+        "tuba_geometry_state": {
+          "displacement_scale": 1.0,
+          "id": "geometry_state:cold",
+          "model_revision": 0,
+          "purpose": "engineering",
+          "safety_factor": 1.0,
+          "state_type": "cold"
+        }
+      }
+    },
+    {
+      "id": "object:geometry_state:geometry_state:Hot:physical",
+      "kind": "geometry_state",
+      "metadata": {
+        "displacement_scale": 1.0,
+        "geometry_state_id": "geometry_state:Hot:physical",
+        "load_case": "Hot",
+        "purpose": "engineering",
+        "result_state_id": "result_state:Hot:mock",
+        "safety_factor": 1.0,
+        "state_type": "operating"
+      },
+      "name": "Geometry state geometry_state:Hot:physical",
+      "source": {
+        "tuba_geometry_state": {
+          "displacement_scale": 1.0,
+          "id": "geometry_state:Hot:physical",
+          "load_case": "Hot",
+          "model_revision": 0,
+          "purpose": "engineering",
+          "result_state_id": "result_state:Hot:mock",
+          "safety_factor": 1.0,
+          "state_type": "operating"
+        }
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "data": {
+        "distance_m": 0.06,
+        "issue_ids": [
+          "issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+        ],
+        "metadata": {
+          "cold_distance_m": 0.11,
+          "displacement_source": "result_state:Hot:mock",
+          "envelope_type": "insulation",
+          "geometry_state": "geometry_state:Hot:physical",
+          "introduced_by_deformation": true,
+          "load_case": "Hot",
+          "operating_distance_m": 0.06,
+          "result_state_id": "result_state:Hot:mock",
+          "safety_factor": 1.0
+        },
+        "penetration_m": 0.020000000000000004,
+        "severity": "operating_only_hard"
+      },
+      "entity_refs": [
+        "element:pipe_hot_0",
+        "obstacle:rack_member_0"
+      ],
+      "id": "overlay:clash:issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+      "kind": "clash",
+      "name": "Clash element:pipe_hot_0 vs obstacle:rack_member_0",
+      "object_ids": [
+        "object:element:pipe_hot_0",
+        "object:obstacle:rack_member_0",
+        "object:issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+      ],
+      "visible": true
+    },
+    {
+      "data": {
+        "element_results": {},
+        "files": {
+          "manifest": ".benchmarks\\operating_state_clash_example\\code_aster\\study_manifest.json"
+        },
+        "id": "result_state:Hot:mock",
+        "load_case": "Hot",
+        "mesh_id": "analysis_mesh:Hot",
+        "metadata": {
+          "source": "mock_result_state_for_example"
+        },
+        "model_revision": 0,
+        "node_displacements": {
+          "N0": [
+            0.0,
+            0.05,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "N1": [
+            0.0,
+            0.05,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "node_reactions": {
+          "N0": [
+            1000.0,
+            250.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "solver_name": "Code_Aster",
+        "study_id": "analysis_study:Hot"
+      },
+      "id": "overlay:result_state:result_state:Hot:mock",
+      "kind": "result_state",
+      "name": "Result state Hot",
+      "object_ids": [
+        "object:result_state:result_state:Hot:mock"
+      ],
+      "visible": true
+    },
+    {
+      "data": {
+        "displacement_scale": 1.0,
+        "id": "geometry_state:cold",
+        "model_revision": 0,
+        "purpose": "engineering",
+        "safety_factor": 1.0,
+        "state_type": "cold"
+      },
+      "id": "overlay:geometry_state:geometry_state:cold",
+      "kind": "geometry_state",
+      "name": "Geometry state geometry_state:cold",
+      "object_ids": [
+        "object:geometry_state:geometry_state:cold"
+      ],
+      "visible": true
+    },
+    {
+      "data": {
+        "displacement_scale": 1.0,
+        "id": "geometry_state:Hot:physical",
+        "load_case": "Hot",
+        "model_revision": 0,
+        "purpose": "engineering",
+        "result_state_id": "result_state:Hot:mock",
+        "safety_factor": 1.0,
+        "state_type": "operating"
+      },
+      "id": "overlay:geometry_state:geometry_state:Hot:physical",
+      "kind": "geometry_state",
+      "name": "Geometry state geometry_state:Hot:physical",
+      "object_ids": [
+        "object:geometry_state:geometry_state:Hot:physical"
+      ],
+      "visible": true
+    }
+  ],
+  "route_reviews": [],
+  "scene_diffs": [],
+  "scene_id": "scene:OperatingStateClashExample",
+  "schema_version": "visualization.scene.v1",
+  "styles": [],
+  "units": {
+    "length": "m",
+    "mass": "kg"
+  },
+  "views": [
+    {
+      "active_overlay_ids": [
+        "overlay:clash:issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+      ],
+      "camera": {
+        "distance": 2.0,
+        "mode": "orbit",
+        "target": [
+          1.1000000006202204,
+          0.05,
+          0.0
+        ]
+      },
+      "id": "view:issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+      "issue_id": "issue:clash:element:pipe_hot_0:obstacle:rack_member_0",
+      "name": "element:pipe_hot_0 clashes with obstacle:rack_member_0",
+      "selected_object_ids": [
+        "object:element:pipe_hot_0",
+        "object:obstacle:rack_member_0",
+        "object:issue:clash:element:pipe_hot_0:obstacle:rack_member_0"
+      ]
+    }
+  ]
+}

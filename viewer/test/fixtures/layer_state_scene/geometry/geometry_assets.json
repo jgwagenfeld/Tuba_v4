@@ -1,0 +1,23 @@
+[
+  {
+    "id": "asset:cold",
+    "format": "tube",
+    "bounds": [-0.06, -0.06, -0.06, 2.06, 0.06, 0.06],
+    "object_ids": ["object:cold"],
+    "generation_config": { "points": [[0, 0, 0], [2, 0, 0]], "radius_m": 0.06 }
+  },
+  {
+    "id": "asset:deformed",
+    "format": "polyline",
+    "bounds": [0, 0.4, 0, 2, 0.4, 0],
+    "object_ids": ["object:deformed"],
+    "generation_config": { "points": [[0, 0.4, 0], [2, 0.4, 0]] }
+  },
+  {
+    "id": "asset:clash",
+    "format": "marker",
+    "bounds": [1, 0.08, 0, 1, 0.08, 0],
+    "object_ids": ["object:clash"],
+    "generation_config": { "point": [1, 0.08, 0], "issue_id": "issue:clash" }
+  }
+]
