@@ -560,6 +560,7 @@ npm --prefix viewer test
   - assign insulation.
   - export Code_Aster study manifest.
   - use mock or imported result state.
+  - import existing Code_Aster result artifacts into `ResultState` where parser-readable output tables exist.
   - create operating geometry state.
   - build deformed envelopes.
   - run operating clash.
@@ -575,6 +576,7 @@ npm --prefix viewer test
 **Acceptance Criteria:**
 
 - Example runs without Code_Aster using mock results.
+- Existing Code_Aster artifact directories can be reviewed without re-running Code_Aster.
 - Docs explain when Code_Aster is required and when mock/export-only paths are enough.
 - Agents can follow the example without direct mutation of `TubaModel`.
 
@@ -582,6 +584,7 @@ npm --prefix viewer test
 
 ```powershell
 .\.venv\Scripts\python.exe examples\operating_state_clash.py
+.\.venv\Scripts\python.exe examples\code_aster_artifact_review.py
 ```
 
 ## CA16 - Final Release Gate
@@ -637,7 +640,7 @@ Python model generation
   -> insulation/support/rack semantics
   -> cheap cold checks
   -> Code_Aster study manifest
-  -> solver results or mock results
+  -> solver results, imported artifacts, or mock results
   -> ResultState
   -> physical operating GeometryState
   -> deformed envelopes

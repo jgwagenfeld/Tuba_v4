@@ -109,6 +109,11 @@ The distinction between visual and physical deformation is critical:
 
 This fits the current solver adapter. `CodeAsterSolver` already generates `.mail`, `.comm`, and `.export`, handles pipe and beam-like elements, applies thermal expansion through temperature/reference-temperature load cases, writes `DEPL`, `SIEQ_ELNO`, `EFFO_ELNO`, and `FORC_NODA`, and parses displacements, reactions, forces, and stresses into `FEAResults`.
 
+Real Code_Aster connection has two levels:
+
+1. **Study export / solve handoff:** `CodeAsterSolver.export_analysis_study()` writes `.mail`, `.comm`, `.export`, and `study_manifest.json`. This is the deterministic handoff to Code_Aster and does not require the solver to be installed.
+2. **Artifact import / review:** `import_code_aster_artifacts()` reads an existing Code_Aster output directory and turns `study_depl.csv`, `study_effo.csv`, `study_reac.csv`, `study_sieq.csv`, optional `study.rmed`, and `study_manifest.json` into `FEAResults`, `ResultState`, and `AnalysisMesh` context for visualization and downstream checks.
+
 The missing architectural layer is traceability. Code_Aster analysis meshes can contain generated nodes and elements that do not exist in the native model, especially bend intermediate nodes. Those generated mesh entities need source mapping back to native `EntityRef` values. Without that, deformed clash checks for bends and complex supports degrade to endpoint interpolation.
 
 Operating-state clash detection should therefore use:
@@ -125,6 +130,7 @@ The dedicated implementation specification is in `.agents/SPECS/code-aster-opera
 Implemented operating-state APIs:
 
 - `CodeAsterSolver.export_analysis_study()` writes `.mail`, `.comm`, `.export`, and `study_manifest.json` without executing Code_Aster.
+- `import_code_aster_artifacts()` imports existing parser-readable Code_Aster result artifacts into `FEAResults`, `ResultState`, and optional `AnalysisMesh` provenance without executing Code_Aster.
 - `ResultState` persists native and generated analysis-node displacement, reaction, force, stress, file, and parser-diagnostic data.
 - `GeometryState` separates cold, physical operating, and visual deformed states. Engineering states require displacement scale `1.0`.
 - `build_deformed_envelopes()` creates bare, insulation, clearance, maintenance, and wind envelopes from solver displacement and physical attributes.
@@ -133,11 +139,17 @@ Implemented operating-state APIs:
 - `export_bcf_topics()` exports operating clash metadata for coordination review.
 - `python -m tuba.benchmarks deformed-clash --size smoke` checks broadphase pruning and envelope cache reuse.
 
-The runnable developer example is `examples/operating_state_clash.py`. It uses export-only Code_Aster study generation plus a mock `ResultState`, so it can run on machines without a Code_Aster installation.
+The runnable developer examples are:
+
+- `examples/operating_state_clash.py`, which uses export-only Code_Aster study generation plus a mock `ResultState`.
+- `examples/code_aster_artifact_review.py`, which writes a portable set of solver-style result tables, imports them through the real artifact path, and emits a visualization scene bundle.
+
+Both examples can run on machines without a Code_Aster installation. A developer-local integration run can replace the sample CSV tables with files produced by the real solver.
 
 Troubleshooting notes:
 
 - If generated bend mesh-node results are missing, bend projection falls back to endpoint interpolation and emits `bend_displacement_interpolated`.
+- If `study_manifest.json` is missing during artifact import, Tuba can still parse native-node result tables but reports incomplete analysis-mesh provenance.
 - If a visual deformed state is passed into engineering clash detection, the check fails instead of silently using visual scale.
 - If an exported manifest has no generated bend nodes, inspect whether the model actually contains `pipe_bend` elements and whether the export path was created by `export_analysis_study()`.
 - If IFC GUIDs are missing during BCF/IFC coordination export, the internal clash result is still valid; only external element identity is incomplete.

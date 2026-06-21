@@ -144,6 +144,12 @@ Portable examples should call `CodeAsterSolver.export_analysis_study()` and then
 
 **Implication:** Documentation and agent smoke checks can validate the full downstream operating-state workflow on any development machine, while real solver execution remains an integration step.
 
+### D24 - Existing Code_Aster Artifact Directories Can Become ResultState
+
+Tuba should treat an existing Code_Aster work directory as a first-class input when it contains the exported `study_manifest.json` plus parser-readable result tables such as `study_depl.csv`, `study_effo.csv`, `study_reac.csv`, and `study_sieq.csv`.
+
+**Implication:** Visualization, geometry states, deformed envelopes, and operating clash review can be driven from real solver artifacts without re-running Code_Aster in unit tests. If the manifest is missing, the importer may still parse result tables but must emit a provenance diagnostic.
+
 ## Open Decisions
 
 1. Should large `ResultState` fields remain JSON dictionaries initially, or should array-backed compressed artifacts be introduced immediately for large models?

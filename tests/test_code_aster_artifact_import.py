@@ -59,7 +59,8 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             overlay for overlay in scene.overlays if overlay.kind == "solver_result" and overlay.data["result_type"] == "displacement"
         )
         self.assertEqual(stress.data["values"]["object:element:pipe_0"], 120.0e6)
-        self.assertEqual(displacement.data["vectors"][n1][:3], [0.0, 0.015, 0.0])
+        n1_vector = next(vector for vector in displacement.data["vectors"] if vector["node_id"] == n1)
+        self.assertEqual(n1_vector["displacement_m"], [0.0, 0.015, 0.0])
 
     def test_artifact_review_example_writes_scene_bundle(self):
         from examples.code_aster_artifact_review import run_example

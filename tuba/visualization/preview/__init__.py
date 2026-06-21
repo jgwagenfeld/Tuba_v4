@@ -9,6 +9,7 @@ import hashlib
 import http.server
 import json
 import os
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -332,15 +333,69 @@ class PreviewServer:
 
     def _run_preview(self) -> PreviewRunResult:
         self.revision += 1
-        result = run_preview_once(
-            self.script_path,
-            self.out_dir,
-            revision=self.revision,
-            timeout_s=self.timeout_s,
-            bundle_url=self.base_url or None,
-        )
+        result = self._run_preview_in_process()
         self.broker.publish_all(result.events)
         return result
+
+    def _run_preview_in_process(self) -> PreviewRunResult:
+        run_id = f"preview:{uuid.uuid4().hex}"
+        started = time.monotonic()
+        events: list[dict[str, Any]] = [{"type": "run_started", "run_id": run_id}]
+        try:
+            _reset_output_capture()
+            namespace = runpy.run_path(str(self.script_path), run_name="__main__")
+            outputs = _consume_output_capture()
+            output = outputs[-1] if outputs else _output_from_namespace(namespace)
+            scene = _scene_from_output(output, namespace)
+            bundle = write_scene_bundle(scene, self.out_dir)
+            elapsed_s = time.monotonic() - started
+            events.append(
+                {
+                    "type": "scene_reloaded",
+                    "run_id": run_id,
+                    "bundle_url": self.base_url or None,
+                    "bundle_revision": self.revision,
+                    "scene_id": scene.scene_id,
+                    "objects": len(scene.objects),
+                    "issues": len(scene.issues),
+                }
+            )
+            events.append({"type": "run_finished", "run_id": run_id, "status": "success", "elapsed_s": elapsed_s})
+            return PreviewRunResult(
+                success=True,
+                events=events,
+                scene=scene,
+                bundle=bundle,
+                elapsed_s=elapsed_s,
+                run_id=run_id,
+            )
+        except Exception as exc:
+            diagnostic = _diagnostic("visualization.preview.python_error", str(exc), target=str(self.script_path))
+            scene = _diagnostic_scene(diagnostic)
+            bundle = write_scene_bundle(scene, self.out_dir)
+            elapsed_s = time.monotonic() - started
+            events.append({"type": "diagnostic", "run_id": run_id, "diagnostic": diagnostic.to_dict()})
+            events.append(
+                {
+                    "type": "scene_reloaded",
+                    "run_id": run_id,
+                    "bundle_url": self.base_url or None,
+                    "bundle_revision": self.revision,
+                    "scene_id": scene.scene_id,
+                    "objects": 0,
+                    "issues": 0,
+                }
+            )
+            events.append({"type": "run_finished", "run_id": run_id, "status": "failed", "elapsed_s": elapsed_s})
+            return PreviewRunResult(
+                success=False,
+                events=events,
+                diagnostics=[diagnostic],
+                scene=scene,
+                bundle=bundle,
+                elapsed_s=elapsed_s,
+                run_id=run_id,
+            )
 
     def _mtime_ns(self) -> int:
         try:
@@ -528,7 +583,7 @@ def _preview_subprocess_timeout(timeout_s: float) -> float:
     timeout = float(timeout_s)
     if timeout < 1.0:
         return timeout
-    return timeout + 15.0
+    return timeout + 45.0
 
 
 def _diagnostic_scene(diagnostic: SceneDiagnostic) -> VisualizationScene:

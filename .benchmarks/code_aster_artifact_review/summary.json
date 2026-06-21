@@ -1,0 +1,16 @@
+{
+  "artifact_dir": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts",
+  "bundle_root": ".benchmarks\\code_aster_artifact_review\\review_scene",
+  "counts": {
+    "scene_geometry_assets": 11,
+    "scene_issues": 0,
+    "scene_objects": 14,
+    "scene_overlays": 6
+  },
+  "diagnostics": [],
+  "project_name": "CodeAsterArtifactReview",
+  "result_source": "code_aster_artifact_tables",
+  "result_state_id": "result_state:Hot",
+  "scene": ".benchmarks\\code_aster_artifact_review\\review_scene\\scene.json",
+  "study_id": "analysis_study:Hot"
+}

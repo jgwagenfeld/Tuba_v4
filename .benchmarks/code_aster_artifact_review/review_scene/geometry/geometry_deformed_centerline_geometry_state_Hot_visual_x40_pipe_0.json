@@ -1,0 +1,40 @@
+{
+  "asset_id": "geometry:deformed_centerline:geometry_state:Hot:visual_x40:pipe_0",
+  "bounds": [
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.48,
+    0.0
+  ],
+  "format": "polyline",
+  "generation_config": {
+    "entity_ref": "element:pipe_0",
+    "geometry_state_id": "geometry_state:Hot:visual_x40",
+    "load_case": "Hot",
+    "points": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.48,
+        0.0
+      ]
+    ],
+    "result_state_id": "result_state:Hot",
+    "source": "tuba.deformed_centerline",
+    "source_mesh_nodes": [
+      "N0",
+      "N1"
+    ],
+    "visual_scale": 40.0
+  },
+  "hash": "sha256:64925081ae83f49093002c97d97f8c35af6fc0ac36c48e2e776f075a7c0ab267",
+  "object_ids": [
+    "object:deformed_centerline:geometry_state:Hot:visual_x40:pipe_0"
+  ]
+}

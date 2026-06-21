@@ -15,7 +15,7 @@ TubaModel cold design
   -> AnalysisStudy
   -> AnalysisMesh with source mapping
   -> Code_Aster solve
-  -> FEAResults in memory
+  -> FEAResults in memory or imported from existing solver artifacts
   -> ResultState for persistence and traceability
   -> GeometryState for cold / operating / deformed states
   -> DeformedEnvelope cache
@@ -291,6 +291,16 @@ result_state = result_state_from_fea_results(
     results=fea_results,
 )
 ```
+
+Existing solver artifacts are also valid inputs. `import_code_aster_artifacts(model=model, work_dir=...)` should:
+
+- read `study_manifest.json` into `AnalysisStudy` and `AnalysisMesh` when present.
+- parse `study_depl.csv`, `study_effo.csv`, `study_reac.csv`, and `study_sieq.csv` through the same Code_Aster parser used after solver execution.
+- preserve optional artifact file paths such as `study.rmed`, `stdout.log`, and `stderr.log`.
+- return `FEAResults`, `ResultState`, analysis mesh provenance, and diagnostics.
+- avoid executing Code_Aster, so unit tests remain portable.
+
+When no manifest exists, the importer may still parse native-node result tables, but it must mark provenance as incomplete and emit a diagnostic.
 
 This step:
 
@@ -766,6 +776,7 @@ tuba/visualization/builders.py
 - Existing tests pass.
 - Existing `CodeAsterSolver.export_study()` behavior remains compatible.
 - Export-only Code_Aster tests do not require Code_Aster installation.
+- Existing Code_Aster artifact directories can be imported into `ResultState` without executing Code_Aster.
 - Study manifest records all generated bend mesh nodes and segment elements.
 - `FEAResults` converts to `ResultState`.
 - `ResultState` roundtrips through JSON.

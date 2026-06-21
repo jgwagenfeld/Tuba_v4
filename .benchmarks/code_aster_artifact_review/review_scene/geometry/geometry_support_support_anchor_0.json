@@ -1,0 +1,25 @@
+{
+  "asset_id": "geometry:support:support_anchor_0",
+  "bounds": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "format": "point",
+  "generation_config": {
+    "entity_ref": "support:support_anchor_0",
+    "point": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "source": "tuba.support"
+  },
+  "hash": "sha256:9aa4281519df25b2e95b6244781dbfe8f16462d37df55f97d79bf37d4c7a3146",
+  "object_ids": [
+    "object:support:support_anchor_0"
+  ]
+}
