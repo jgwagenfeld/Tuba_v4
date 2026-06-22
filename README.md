@@ -129,6 +129,18 @@ load-path reports, rules, and BOM export.
 See [`docs/future_ready_architecture.md`](docs/future_ready_architecture.md)
 for the implemented layers and extension points.
 
+## IFC And External Interop
+
+Tuba exports pipe runs as IFC pipe systems while keeping `TubaModel` as the
+source of truth. Pipe flow elements are emitted as `IfcPipeSegment` and
+`IfcPipeFitting` products grouped by an `IfcDistributionSystem`. Tuba property
+sets carry section, material, bend, support, stress, and operating-state
+metadata for round-trip and coordination review.
+
+`ada-py` is treated as an optional interoperability bridge, not a core
+dependency. See [`docs/architecture/adapy-alignment.md`](docs/architecture/adapy-alignment.md)
+before enabling the optional bridge.
+
 ## Reusable Fragments And Agent Workflows
 
 Reusable local-coordinate assemblies are represented as `ModelFragment` objects

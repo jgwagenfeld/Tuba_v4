@@ -114,6 +114,12 @@ Real Code_Aster connection has two levels:
 1. **Study export / solve handoff:** `CodeAsterSolver.export_analysis_study()` writes `.mail`, `.comm`, `.export`, and `study_manifest.json`. This is the deterministic handoff to Code_Aster and does not require the solver to be installed.
 2. **Artifact import / review:** `import_code_aster_artifacts()` reads an existing Code_Aster output directory and turns `study_depl.csv`, `study_effo.csv`, `study_reac.csv`, `study_sieq.csv`, optional `study.rmed`, and `study_manifest.json` into `FEAResults`, `ResultState`, and `AnalysisMesh` context for visualization and downstream checks.
 
+Code_Aster exports also include `study_tuba_fem.json`, a Tuba-owned sidecar
+that records solver name mapping and native lineage. This sidecar is the bridge
+between Code_Aster solver names and stable `EntityRef` values. It is required
+for robust result projection when solver group names must be shortened or when
+generated analysis mesh entities do not exist in the native model.
+
 The missing architectural layer is traceability. Code_Aster analysis meshes can contain generated nodes and elements that do not exist in the native model, especially bend intermediate nodes. Those generated mesh entities need source mapping back to native `EntityRef` values. Without that, deformed clash checks for bends and complex supports degrade to endpoint interpolation.
 
 Operating-state clash detection should therefore use:
