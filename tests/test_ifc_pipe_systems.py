@@ -89,3 +89,19 @@ class TestIfcPipeSystems(unittest.TestCase):
         self.assertEqual(values["SectionName"], "DN100")
         self.assertAlmostEqual(values["OuterDiameterM"], 0.1143)
         self.assertAlmostEqual(values["WallThicknessM"], 0.00602)
+
+    def test_import_preserves_pipe_section_dimensions_and_bend_metadata(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "pipes.ifc"
+            IfcExporter().export_model(self._model(), path)
+            imported = __import__("tuba.external.ifc", fromlist=["IfcImporter"]).IfcImporter().import_model(path)
+
+        self.assertIn("DN100", imported.sections)
+        section = imported.sections["DN100"]
+        self.assertAlmostEqual(section.OD, 0.1143)
+        self.assertAlmostEqual(section.WT, 0.00602)
+
+        bends = [elem for elem in imported.elements if elem.type == "pipe_bend"]
+        self.assertEqual(len(bends), 1)
+        self.assertAlmostEqual(bends[0].bend_radius, 0.25)
+        self.assertAlmostEqual(bends[0].bend_angle, 90.0)

@@ -572,6 +572,29 @@ class IfcImporter:
                 pass
             return "StandardPipe"
 
+        def get_pset_values(product, pset_name: str) -> dict[str, object]:
+            values = {}
+            for definition in getattr(product, "IsDefinedBy", []):
+                if not definition.is_a("IfcRelDefinesByProperties"):
+                    continue
+                pset = definition.RelatingPropertyDefinition
+                if not pset.is_a("IfcPropertySet") or pset.Name != pset_name:
+                    continue
+                for prop in pset.HasProperties:
+                    if prop.is_a("IfcPropertySingleValue") and prop.NominalValue is not None:
+                        values[prop.Name] = prop.NominalValue.wrappedValue
+            return values
+
+        def get_or_create_pipe_section(pipe_props: dict[str, object]) -> str:
+            sec_name = str(pipe_props.get("SectionName", "StandardPipe"))
+            if sec_name not in model.sections and "OuterDiameterM" in pipe_props and "WallThicknessM" in pipe_props:
+                model.add_pipe_section(
+                    sec_name,
+                    OD=float(pipe_props["OuterDiameterM"]),
+                    WT=float(pipe_props["WallThicknessM"]),
+                )
+            return sec_name
+
         def extract_points_from_representation(product) -> Optional[List[np.ndarray]]:
             reprs = product.Representation
             if not reprs:
@@ -635,8 +658,9 @@ class IfcImporter:
         for pipe in ifc_file.by_type("IfcPipeSegment"):
             pts = extract_points_from_representation(pipe)
             if pts and len(pts) >= 2:
-                mat = get_element_material(pipe)
-                sec_name = "StandardPipe"
+                pipe_props = get_pset_values(pipe, "Pset_TubaPipe")
+                mat = str(pipe_props.get("MaterialName", get_element_material(pipe)))
+                sec_name = get_or_create_pipe_section(pipe_props)
 
                 for idx in range(len(pts) - 1):
                     n1 = get_or_create_node(pts[idx])
@@ -654,20 +678,25 @@ class IfcImporter:
         for fitting in ifc_file.by_type("IfcPipeFitting"):
             pts = extract_points_from_representation(fitting)
             if pts and len(pts) >= 2:
-                mat = get_element_material(fitting)
-                for idx in range(len(pts) - 1):
-                    n1 = get_or_create_node(pts[idx])
-                    n2 = get_or_create_node(pts[idx + 1])
-                    model.add_element(
-                        id=f"pipe_bend_{elem_counter}",
-                        type="pipe_bend",
-                        n1=n1,
-                        n2=n2,
-                        section="StandardPipe",
-                        material=mat,
-                        bend_radius=0.15
-                    )
-                    elem_counter += 1
+                pipe_props = get_pset_values(fitting, "Pset_TubaPipe")
+                bend_props = get_pset_values(fitting, "Pset_TubaPipeBend")
+                mat = str(pipe_props.get("MaterialName", get_element_material(fitting)))
+                sec_name = get_or_create_pipe_section(pipe_props)
+                bend_radius = float(bend_props.get("BendRadiusM", 0.15))
+                bend_angle = float(bend_props.get("BendAngleDeg", 90.0))
+                n1 = get_or_create_node(pts[0])
+                n2 = get_or_create_node(pts[-1])
+                model.add_element(
+                    id=f"pipe_bend_{elem_counter}",
+                    type="pipe_bend",
+                    n1=n1,
+                    n2=n2,
+                    section=sec_name,
+                    material=mat,
+                    bend_radius=bend_radius,
+                    bend_angle=bend_angle,
+                )
+                elem_counter += 1
 
         # 2. Import Beams and Columns
         for beam in list(ifc_file.by_type("IfcBeam")) + list(ifc_file.by_type("IfcColumn")):
