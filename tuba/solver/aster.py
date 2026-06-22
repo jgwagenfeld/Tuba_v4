@@ -261,6 +261,7 @@ class CodeAsterSolver(BaseSolver):
         comm_path = wdir / "study.comm"
         export_path = wdir / "study.export"
         manifest_path = wdir / "study_manifest.json"
+        sidecar_path = wdir / "study_tuba_fem.json"
 
         mesh_id = f"analysis_mesh:{load_case_name}"
         analysis_mesh = self._write_mail(
@@ -271,6 +272,23 @@ class CodeAsterSolver(BaseSolver):
         )
         if analysis_mesh is None:
             raise RuntimeError("Analysis mesh provenance was not collected.")
+        from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar
+
+        solver_names = list(analysis_mesh.groups.keys()) + list(analysis_mesh.elements.keys())
+        name_map = build_solver_name_map(solver_names)
+        lineage = {
+            name_map[element_id]: str(source.source_ref)
+            for element_id, source in analysis_mesh.element_sources.items()
+            if element_id in name_map
+        }
+        dump_solver_sidecar(
+            sidecar_path,
+            solver_name=self.SOLVER_NAME,
+            load_case=load_case_name,
+            analysis_mesh_id=analysis_mesh.id,
+            name_map=name_map,
+            lineage=lineage,
+        )
         self._write_comm(model, load_case, comm_path)
         self._write_export(wdir)
 
@@ -285,6 +303,7 @@ class CodeAsterSolver(BaseSolver):
                 "comm": str(comm_path),
                 "export": str(export_path),
                 "manifest": str(manifest_path),
+                "sidecar": str(sidecar_path),
             },
             mesh_id=analysis_mesh.id,
             metadata={"project_name": model.project_name},
