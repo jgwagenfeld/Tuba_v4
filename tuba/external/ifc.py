@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Any
 
 import numpy as np
 
-from tuba.external.ifc_mapping import ifc_property
+from tuba.external.ifc_mapping import IfcGuidRegistry, ifc_property
+from tuba.external.ifc_pipes import export_pipe_products
 
 if TYPE_CHECKING:
     from tuba.model import TubaModel
@@ -69,6 +70,8 @@ class IfcExporter:
 
         # Store product objects created
         created_elements: Dict[str, ifcopenshell.entity_instance] = {}
+        registry = IfcGuidRegistry()
+        created_elements.update(export_pipe_products(ifc_file, model, storey, project, registry))
 
         # Default 2D position for profiles
         origin_2d = ifc_file.create_entity("IfcCartesianPoint", Coordinates=[0.0, 0.0])
@@ -76,6 +79,9 @@ class IfcExporter:
 
         # 2. Export elements (pipes, bends, beams, etc.)
         for elem in model.elements:
+            if elem.type in ("pipe_straight", "pipe_bend"):
+                continue
+
             p1 = model.nodes[elem.n1].coords
             p2 = model.nodes[elem.n2].coords
 
