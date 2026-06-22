@@ -63,6 +63,18 @@ def _create_pipe_product(ifc_file: Any, model: Any, elem: Any, context: Any, reg
         Description=f"Material: {elem.material}, Section: {elem.section}",
         **kwargs,
     )
+    section = model.sections[elem.section]
+    add_property_set(
+        ifc_file,
+        product,
+        "Pset_TubaPipe",
+        [
+            ifc_property(ifc_file, "SectionName", elem.section),
+            ifc_property(ifc_file, "MaterialName", elem.material),
+            ifc_property(ifc_file, "OuterDiameterM", float(section.OD)),
+            ifc_property(ifc_file, "WallThicknessM", float(section.WT)),
+        ],
+    )
     axis_points = _pipe_axis_points(model, elem)
     body = _swept_disk_body(ifc_file, model, elem, axis_points)
     axis = ifc_file.create_entity(
@@ -94,10 +106,34 @@ def _create_pipe_product(ifc_file: Any, model: Any, elem: Any, context: Any, reg
 
 
 def _pipe_axis_points(model: Any, elem: Any) -> list[np.ndarray]:
-    p1 = np.asarray(model.nodes[elem.n1].coords, dtype=float)
-    p2 = np.asarray(model.nodes[elem.n2].coords, dtype=float)
-    return [p1, p2]
+    if elem.type != "pipe_bend" or elem.bend_radius is None or elem.bend_angle is None:
+        return [
+            np.asarray(model.nodes[elem.n1].coords, dtype=float),
+            np.asarray(model.nodes[elem.n2].coords, dtype=float),
+        ]
 
+    from tuba.solver.aster import CodeAsterSolver
+
+    center, axis, r1, theta = CodeAsterSolver._get_bend_geometry(model, elem)
+    steps = 8
+    points = []
+    for index in range(steps + 1):
+        t = index / steps
+        angle = theta * t
+        rotated = _rotate_about_axis(r1, axis, angle)
+        points.append(center + rotated)
+    return points
+
+
+def _rotate_about_axis(vector: np.ndarray, axis: np.ndarray, angle: float) -> np.ndarray:
+    axis = np.asarray(axis, dtype=float)
+    axis = axis / np.linalg.norm(axis)
+    vector = np.asarray(vector, dtype=float)
+    return (
+        vector * np.cos(angle)
+        + np.cross(axis, vector) * np.sin(angle)
+        + axis * np.dot(axis, vector) * (1.0 - np.cos(angle))
+    )
 
 def _swept_disk_body(ifc_file: Any, model: Any, elem: Any, axis_points: list[np.ndarray]) -> Any:
     section = model.sections[elem.section]

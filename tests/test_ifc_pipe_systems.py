@@ -60,3 +60,32 @@ class TestIfcPipeSystems(unittest.TestCase):
         identifiers = {rep.RepresentationIdentifier for rep in product.Representation.Representations}
         self.assertIn("Axis", identifiers)
         self.assertIn("Body", identifiers)
+
+    def test_pipe_bend_body_uses_more_than_two_axis_points(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "pipes.ifc"
+            IfcExporter().export_model(self._model(), path)
+            f = ifcopenshell.open(str(path))
+
+        bend = next(p for p in f.by_type("IfcPipeFitting") if p.Name == "pipe_bend_0")
+        axis_rep = next(rep for rep in bend.Representation.Representations if rep.RepresentationIdentifier == "Axis")
+        polyline = axis_rep.Items[0]
+        self.assertGreater(len(polyline.Points), 2)
+
+    def test_pipe_section_properties_are_exported(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "pipes.ifc"
+            IfcExporter().export_model(self._model(), path)
+            f = ifcopenshell.open(str(path))
+
+        segment = next(p for p in f.by_type("IfcPipeSegment") if p.Name == "pipe_0")
+        psets = [
+            rel.RelatingPropertyDefinition
+            for rel in segment.IsDefinedBy
+            if rel.is_a("IfcRelDefinesByProperties")
+        ]
+        pipe_pset = next(pset for pset in psets if pset.Name == "Pset_TubaPipe")
+        values = {prop.Name: prop.NominalValue.wrappedValue for prop in pipe_pset.HasProperties}
+        self.assertEqual(values["SectionName"], "DN100")
+        self.assertAlmostEqual(values["OuterDiameterM"], 0.1143)
+        self.assertAlmostEqual(values["WallThicknessM"], 0.00602)
