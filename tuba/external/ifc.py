@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Any
 
 import numpy as np
 
+from tuba.external.ifc_mapping import ifc_property
+
 if TYPE_CHECKING:
     from tuba.model import TubaModel
     from tuba.solver.base import FEAResults
@@ -463,15 +465,7 @@ class IfcExporter:
 
 
 def _ifc_property(ifc_file: Any, name: str, value: Any) -> Any:
-    if isinstance(value, bool):
-        nominal = ifc_file.create_entity("IfcBoolean", bool(value))
-    elif isinstance(value, int):
-        nominal = ifc_file.create_entity("IfcInteger", int(value))
-    elif isinstance(value, float):
-        nominal = ifc_file.create_entity("IfcReal", float(value))
-    else:
-        nominal = ifc_file.create_entity("IfcLabel", "" if value is None else str(value))
-    return ifc_file.create_entity("IfcPropertySingleValue", Name=name, NominalValue=nominal)
+    return ifc_property(ifc_file, name, value)
 
 
 def _first_clash_metadata(clashes: list[Any], key: str, default: Any) -> Any:
