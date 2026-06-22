@@ -30,6 +30,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+code-aster-rmed = [
+    "h5py>=3.10",
+]
 notebook-viz = [
     "jupyterlab>=3",
     "ipywidgets",

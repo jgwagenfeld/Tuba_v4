@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +43,33 @@ def import_code_aster_artifacts(
     results = CodeAsterSolver().parse_result_artifacts(model, root, loaded_study.load_case)
     result_state = result_state_from_fea_results(model=model, study=loaded_study, results=results)
     result_state = _with_artifact_files(result_state, _artifact_files(root, loaded_study))
+    rmed_path = root / "study.rmed"
+    if rmed_path.exists():
+        try:
+            from tuba.analysis.rmed import read_rmed_mesh_summary
+
+            result_state = replace(
+                result_state,
+                metadata={**result_state.metadata, "rmed_summary": read_rmed_mesh_summary(rmed_path)},
+            )
+        except ImportError as exc:
+            diagnostics.append(
+                _diagnostic(
+                    "visualization.code_aster_artifacts.rmed_optional_dependency",
+                    str(exc),
+                    str(rmed_path),
+                    severity="warning",
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            diagnostics.append(
+                _diagnostic(
+                    "visualization.code_aster_artifacts.rmed_read_failed",
+                    str(exc),
+                    str(rmed_path),
+                    severity="warning",
+                )
+            )
     return CodeAsterArtifactImport(
         study=loaded_study,
         analysis_mesh=analysis_mesh,
