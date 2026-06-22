@@ -75,6 +75,29 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
 
         self.assertEqual(str(out_dir), tmpdir)
 
+    def test_export_analysis_study_shortens_long_solver_group_names(self):
+        model = Model(project_name="LongNames")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        long_id = "pipe_segment_with_a_name_that_exceeds_code_aster_limit"
+        model.add_element(id=long_id, type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.define_load_case("Hot", gravity=True)
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            root = Path(study.work_dir)
+            mail = (root / "study.mail").read_text(encoding="utf-8")
+            comm = (root / "study.comm").read_text(encoding="utf-8")
+            sidecar = json.loads((root / "study_tuba_fem.json").read_text(encoding="utf-8"))
+
+        short_name = sidecar["name_map"][long_id]
+        self.assertLessEqual(len(short_name), 24)
+        self.assertIn(short_name, mail)
+        self.assertIn(short_name, comm)
+        self.assertNotIn(long_id, mail)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -272,10 +272,11 @@ class CodeAsterSolver(BaseSolver):
         )
         if analysis_mesh is None:
             raise RuntimeError("Analysis mesh provenance was not collected.")
-        from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar
+        from tuba.solver.aster_sidecar import SolverNameMap, build_solver_name_map, dump_solver_sidecar
 
         solver_names = list(analysis_mesh.groups.keys()) + list(analysis_mesh.elements.keys())
         name_map = build_solver_name_map(solver_names)
+        solver_name_map = SolverNameMap(name_map)
         lineage = {
             name_map[element_id]: str(source.source_ref)
             for element_id, source in analysis_mesh.element_sources.items()
@@ -289,7 +290,8 @@ class CodeAsterSolver(BaseSolver):
             name_map=name_map,
             lineage=lineage,
         )
-        self._write_comm(model, load_case, comm_path)
+        self._write_mail(model, mail_path, name_map=solver_name_map)
+        self._write_comm(model, load_case, comm_path, name_map=solver_name_map)
         self._write_export(wdir)
 
         study = AnalysisStudy(
@@ -330,6 +332,7 @@ class CodeAsterSolver(BaseSolver):
         *,
         analysis_mesh_id: str | None = None,
         model_revision: int = 0,
+        name_map: Callable[[str], str] | None = None,
     ) -> AnalysisMesh | None:
         """Generate the Code_Aster plain-text mesh file.
 
@@ -343,6 +346,7 @@ class CodeAsterSolver(BaseSolver):
         """
         lines: List[str] = []
         N = self._BEND_SEGMENTS  # shorthand
+        map_name = name_map or (lambda value: value)
 
         # --- Ordered node / element lists ---------------------------------
         node_ids = list(model.nodes.keys())
@@ -402,7 +406,7 @@ class CodeAsterSolver(BaseSolver):
         if straight_elems:
             lines.append("SEG2")
             for elem in straight_elems:
-                lines.append(f"  {elem.id}  {elem.n1}  {elem.n2}")
+                lines.append(f"  {map_name(elem.id)}  {elem.n1}  {elem.n2}")
             lines.append("FINSF")
             lines.append("")
 
@@ -411,15 +415,15 @@ class CodeAsterSolver(BaseSolver):
             lines.append("SEG2")
             for elem in bend_elems:
                 lines.append(
-                    f"  {elem.id}_s0  {elem.n1}  {elem.id}_n1"
+                    f"  {map_name(f'{elem.id}_s0')}  {elem.n1}  {elem.id}_n1"
                 )
                 for i in range(1, N - 1):
                     lines.append(
-                        f"  {elem.id}_s{i}  "
+                        f"  {map_name(f'{elem.id}_s{i}')}  "
                         f"{elem.id}_n{i}  {elem.id}_n{i + 1}"
                     )
                 lines.append(
-                    f"  {elem.id}_s{N - 1}  "
+                    f"  {map_name(f'{elem.id}_s{N - 1}')}  "
                     f"{elem.id}_n{N - 1}  {elem.n2}"
                 )
             lines.append("FINSF")
@@ -427,18 +431,18 @@ class CodeAsterSolver(BaseSolver):
 
         # --- GROUP_MA NOM=PipeStraights -----------------------------------
         if pipe_straights:
-            lines.append("GROUP_MA NOM=PipeStraights")
+            lines.append(f"GROUP_MA NOM={map_name('PipeStraights')}")
             for elem in pipe_straights:
-                lines.append(f"  {elem.id}")
+                lines.append(f"  {map_name(elem.id)}")
             lines.append("FINSF")
             lines.append("")
 
         # --- GROUP_MA NOM=PipeElbows --------------------------------------
         if bend_elems:
-            lines.append("GROUP_MA NOM=PipeElbows")
+            lines.append(f"GROUP_MA NOM={map_name('PipeElbows')}")
             for elem in bend_elems:
                 for i in range(N):
-                    lines.append(f"  {elem.id}_s{i}")
+                    lines.append(f"  {map_name(f'{elem.id}_s{i}')}")
             lines.append("FINSF")
             lines.append("")
 
@@ -450,55 +454,55 @@ class CodeAsterSolver(BaseSolver):
             all_pipe_ids.extend([f"{e.id}_s{i}" for i in range(N)])
 
         if all_pipe_ids:
-            lines.append("GROUP_MA NOM=AllPipes")
+            lines.append(f"GROUP_MA NOM={map_name('AllPipes')}")
             for eid in all_pipe_ids:
-                lines.append(f"  {eid}")
+                lines.append(f"  {map_name(eid)}")
             lines.append("FINSF")
             lines.append("")
 
         # --- GROUP_MA NOM=G_TUBE (for beams) ------------------------------
         if beam_elems:
-            lines.append("GROUP_MA NOM=G_TUBE")
+            lines.append(f"GROUP_MA NOM={map_name('G_TUBE')}")
             for elem in beam_elems:
-                lines.append(f"  {elem.id}")
+                lines.append(f"  {map_name(elem.id)}")
             lines.append("FINSF")
             lines.append("")
 
         # --- GROUP_MA NOM=G_BAR (for bars) --------------------------------
         if bar_elems:
-            lines.append("GROUP_MA NOM=G_BAR")
+            lines.append(f"GROUP_MA NOM={map_name('G_BAR')}")
             for elem in bar_elems:
-                lines.append(f"  {elem.id}")
+                lines.append(f"  {map_name(elem.id)}")
             lines.append("FINSF")
             lines.append("")
 
         # --- GROUP_MA NOM=G_CABLE (for cables) ----------------------------
         if cable_elems:
-            lines.append("GROUP_MA NOM=G_CABLE")
+            lines.append(f"GROUP_MA NOM={map_name('G_CABLE')}")
             for elem in cable_elems:
-                lines.append(f"  {elem.id}")
+                lines.append(f"  {map_name(elem.id)}")
             lines.append("FINSF")
             lines.append("")
 
         # --- Per-element groups (for COUDE assignment) --------------------
         for elem in bend_elems:
-            lines.append(f"GROUP_MA NOM={elem.id}")
+            lines.append(f"GROUP_MA NOM={map_name(elem.id)}")
             for i in range(N):
-                lines.append(f"  {elem.id}_s{i}")
+                lines.append(f"  {map_name(f'{elem.id}_s{i}')}")
             lines.append("FINSF")
             lines.append("")
 
         # --- GROUP_NO for supports ----------------------------------------
         for sup in model.supports:
             grp_name = f"GN_{sup.node}"
-            lines.append(f"GROUP_NO NOM={grp_name}")
+            lines.append(f"GROUP_NO NOM={map_name(grp_name)}")
             lines.append(f"  {sup.node}")
             lines.append("FINSF")
             lines.append("")
 
         # --- All support nodes group --------------------------------------
         if model.supports:
-            lines.append("GROUP_NO NOM=AllSupports")
+            lines.append(f"GROUP_NO NOM={map_name('AllSupports')}")
             for sup in model.supports:
                 lines.append(f"  {sup.node}")
             lines.append("FINSF")
@@ -806,6 +810,8 @@ class CodeAsterSolver(BaseSolver):
         model: TubaModel,
         load_case: LoadCase,
         path: Path,
+        *,
+        name_map: Callable[[str], str] | None = None,
     ) -> None:
         """Generate the Code_Aster command file for static piping analysis.
 
@@ -820,6 +826,7 @@ class CodeAsterSolver(BaseSolver):
 
         straight_elems = pipe_straights + beam_elems + bar_elems + cable_elems
         bend_elems = pipe_bends
+        map_name = name_map or (lambda value: value)
 
         # Collect unique materials referenced by elements
         used_mat_names = sorted({e.material for e in model.elements})
@@ -863,7 +870,7 @@ class CodeAsterSolver(BaseSolver):
             w("    CREA_POI1=(")
             for s in model.supports:
                 if (s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None)) or s.mass > 0.0:
-                    w(f"        _F(NOM_GROUP_MA='DIS_{s.node}', NOM_NOEUD='{s.node}'),")
+                    w(f"        _F(NOM_GROUP_MA='{map_name(f'DIS_{s.node}')}', NOM_NOEUD='{s.node}'),")
             w("    ),")
             w(");")
         else:
@@ -879,32 +886,32 @@ class CodeAsterSolver(BaseSolver):
         w("    AFFE=(")
         if pipe_straights or pipe_bends:
             w("        _F(")
-            w("            GROUP_MA='AllPipes',")
+            w(f"            GROUP_MA='{map_name('AllPipes')}',")
             w("            PHENOMENE='MECANIQUE',")
             w("            MODELISATION='TUYAU_3M',")
             w("        ),")
         if beam_elems:
             w("        _F(")
-            w("            GROUP_MA='G_TUBE',")
+            w(f"            GROUP_MA='{map_name('G_TUBE')}',")
             w("            PHENOMENE='MECANIQUE',")
             w("            MODELISATION='POU_D_T',")
             w("        ),")
         if bar_elems:
             w("        _F(")
-            w("            GROUP_MA='G_BAR',")
+            w(f"            GROUP_MA='{map_name('G_BAR')}',")
             w("            PHENOMENE='MECANIQUE',")
             w("            MODELISATION='BARRE',")
             w("        ),")
         if cable_elems:
             w("        _F(")
-            w("            GROUP_MA='G_CABLE',")
+            w(f"            GROUP_MA='{map_name('G_CABLE')}',")
             w("            PHENOMENE='MECANIQUE',")
             w("            MODELISATION='CABLE',")
             w("        ),")
         for s in model.supports:
             if (s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None)) or s.mass > 0.0:
                 w("        _F(")
-                w(f"            GROUP_MA='DIS_{s.node}',")
+                w(f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',")
                 w("            PHENOMENE='MECANIQUE',")
                 w("            MODELISATION='DIS_TR',")
                 w("        ),")
@@ -955,7 +962,7 @@ class CodeAsterSolver(BaseSolver):
                 else:
                     expanded_ids.append(elem.id)
 
-            group_list = ", ".join(f"'{eid}'" for eid in expanded_ids)
+            group_list = ", ".join(f"'{map_name(eid)}'" for eid in expanded_ids)
             if set(elem_ids) == {e.id for e in model.elements}:
                 group_spec = "TOUT='OUI',"
             else:
@@ -990,8 +997,8 @@ class CodeAsterSolver(BaseSolver):
             sec_straights = [e.id for e in straight_elems if e.section == sec_name and e.type in ("pipe_straight", "beam")]
             
             if sec_straights:
-                group_list = ", ".join(f"'{eid}'" for eid in sec_straights)
-                grp = f"({group_list})" if len(sec_straights) > 1 else f"'{sec_straights[0]}'"
+                group_list = ", ".join(f"'{map_name(eid)}'" for eid in sec_straights)
+                grp = f"({group_list})" if len(sec_straights) > 1 else f"'{map_name(sec_straights[0])}'"
                 
                 if isinstance(sec, PipeSection) or isinstance(sec, BarSection):
                     r_ext = sec.OD / 2.0
@@ -1056,7 +1063,7 @@ class CodeAsterSolver(BaseSolver):
                 rc = elem.bend_radius if elem.bend_radius else r_ext * 1.5
                 coude_entries.append(
                     f"        _F(\n"
-                    f"            GROUP_MA='{elem.id}',\n"
+                    f"            GROUP_MA='{map_name(elem.id)}',\n"
                     f"            SECTION='CERCLE',\n"
                     f"            CARA=('R', 'EP'),\n"
                     f"            VALE=({r_ext:.8E}, {ep:.8E}),\n"
@@ -1076,8 +1083,8 @@ class CodeAsterSolver(BaseSolver):
             sec = model.sections[sec_name]
             sec_bars = [e.id for e in straight_elems if e.section == sec_name and e.type == "bar"]
             if sec_bars:
-                group_list = ", ".join(f"'{eid}'" for eid in sec_bars)
-                grp = f"({group_list})" if len(sec_bars) > 1 else f"'{sec_bars[0]}'"
+                group_list = ", ".join(f"'{map_name(eid)}'" for eid in sec_bars)
+                grp = f"({group_list})" if len(sec_bars) > 1 else f"'{map_name(sec_bars[0])}'"
                 r_ext = sec.OD / 2.0
                 ep = sec.WT if hasattr(sec, "WT") else 0.0
                 if ep == 0.0:
@@ -1102,8 +1109,8 @@ class CodeAsterSolver(BaseSolver):
             sec = model.sections[sec_name]
             sec_cables = [e.id for e in straight_elems if e.section == sec_name and e.type == "cable"]
             if sec_cables:
-                group_list = ", ".join(f"'{eid}'" for eid in sec_cables)
-                grp = f"({group_list})" if len(sec_cables) > 1 else f"'{sec_cables[0]}'"
+                group_list = ", ".join(f"'{map_name(eid)}'" for eid in sec_cables)
+                grp = f"({group_list})" if len(sec_cables) > 1 else f"'{map_name(sec_cables[0])}'"
                 area = sec.area
                 pret = sec.pretension
                 cable_entries.append(
@@ -1136,7 +1143,7 @@ class CodeAsterSolver(BaseSolver):
                         k[1] = val
                 discret_entries.append(
                     f"        _F(\n"
-                    f"            GROUP_MA='DIS_{s.node}',\n"
+                    f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
                     f"            REPERE='GLOBAL',\n"
                     f"            CARA='K_TR_D_L',\n"
                     f"            VALE=({k[0]:.8E}, {k[1]:.8E}, {k[2]:.8E}, {k[3]:.8E}, {k[4]:.8E}, {k[5]:.8E}),\n"
@@ -1145,7 +1152,7 @@ class CodeAsterSolver(BaseSolver):
             if s.mass > 0.0:
                 discret_entries.append(
                     f"        _F(\n"
-                    f"            GROUP_MA='DIS_{s.node}',\n"
+                    f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
                     f"            CARA='M_T_D_L',\n"
                     f"            VALE=({s.mass:.8E}, {s.mass:.8E}, {s.mass:.8E}, 0.0, 0.0, 0.0),\n"
                     f"        ),"
@@ -1161,7 +1168,7 @@ class CodeAsterSolver(BaseSolver):
         if pipe_straights or pipe_bends:
             orientation_entries.append(
                 "        _F(\n"
-                "            GROUP_MA='AllPipes',\n"
+                f"            GROUP_MA='{map_name('AllPipes')}',\n"
                 "            CARA='GENE_TUYAU',\n"
                 "            VALE=(0.0, 0.0, 1.0),\n"
                 "        ),"
@@ -1171,7 +1178,7 @@ class CodeAsterSolver(BaseSolver):
                 angle = getattr(elem, "twist_angle", 0.0)
                 orientation_entries.append(
                     f"        _F(\n"
-                    f"            GROUP_MA='{elem.id}',\n"
+                    f"            GROUP_MA='{map_name(elem.id)}',\n"
                     f"            CARA='ANGL_VRIL',\n"
                     f"            VALE={angle:.4f},\n"
                     f"        ),"
@@ -1192,7 +1199,7 @@ class CodeAsterSolver(BaseSolver):
         w("# ----- Boundary conditions -----")
         active_bcs = []
         for i, sup in enumerate(model.supports):
-            grp_name = f"GN_{sup.node}"
+            grp_name = map_name(f"GN_{sup.node}")
             char_name = f"BC_{i}"
 
             write_bc = False
@@ -1303,7 +1310,7 @@ class CodeAsterSolver(BaseSolver):
             w("PRESSURE = AFFE_CHAR_MECA(")
             w("    MODELE=MODELE,")
             w("    FORCE_TUYAU=_F(")
-            w("        GROUP_MA='AllPipes',")
+            w(f"        GROUP_MA='{map_name('AllPipes')}',")
             w(f"        PRES={load_case.internal_pressure:.6E},")
             w("    ),")
             w(");")
@@ -1366,7 +1373,7 @@ class CodeAsterSolver(BaseSolver):
             w("    ZONE=(")
             for sup in model.supports:
                 if sup.type == "rest":
-                    grp_name = f"GN_{sup.node}"
+                    grp_name = map_name(f"GN_{sup.node}")
                     cmp_name = "DY"
                     if sup.direction:
                         dof_map = {0: "DX", 1: "DY", 2: "DZ"}

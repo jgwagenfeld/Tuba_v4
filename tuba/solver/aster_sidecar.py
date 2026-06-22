@@ -11,6 +11,14 @@ from typing import Iterable
 MAX_ASTER_NAME_LEN = 24
 
 
+class SolverNameMap:
+    def __init__(self, mapping: dict[str, str] | None = None):
+        self.mapping = dict(mapping or {})
+
+    def __call__(self, name: str) -> str:
+        return self.mapping.get(name, name)
+
+
 def build_solver_name_map(names: Iterable[str]) -> dict[str, str]:
     mapping: dict[str, str] = {}
     used: set[str] = set()
