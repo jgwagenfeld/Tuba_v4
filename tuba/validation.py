@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from typing import Any
 
 import numpy as np
 
@@ -10,6 +11,9 @@ from tuba.attributes import coerce_entity_ref
 from tuba.model import BarSection, CableSection, IBeamSection, PipeSection, RectangularSection, TubaModel
 from tuba.placements import placement_frame_id, resolve_placement_frame
 from tuba.refs import resolve_entity_ref
+
+
+_PIPE_TO_PORT_OPTIONS = {"3D_TUYAU", "3D_POU", "COQ_TUYAU", "COQ_POU"}
 
 
 class ModelValidationError(ValueError):
@@ -69,6 +73,8 @@ def validate_model(model: TubaModel) -> None:
             )
         if assignment.key == "insulation" and assignment.value not in model.specs.get("insulation", {}):
             errors.append(f"Attribute 'insulation' references missing spec {assignment.value!r}.")
+
+    _validate_mixed_records(model, errors)
 
     if errors:
         raise ModelValidationError("\n".join(errors))
@@ -134,3 +140,201 @@ def _validate_section(name: str, section, errors: list[str]) -> None:
             errors.append(f"I-beam section {name!r} profile_name must not be empty.")
     else:
         errors.append(f"Section {name!r} has unsupported type {type(section).__name__}.")
+
+
+def _validate_mixed_records(model: TubaModel, errors: list[str]) -> None:
+    _validate_record_keys_and_ids("cad_assets", model.cad_assets, errors)
+    _validate_record_keys_and_ids("imported_components", model.imported_components, errors)
+    _validate_record_keys_and_ids("analysis_regions", model.analysis_regions, errors)
+    _validate_record_keys_and_ids("ports", model.ports, errors)
+    _validate_record_keys_and_ids("mesh_groups", model.mesh_groups, errors)
+    _validate_record_keys_and_ids("couplings", model.couplings, errors)
+
+    _validate_imported_components(model, errors)
+    _validate_analysis_regions(model, errors)
+    _validate_ports(model, errors)
+    _validate_mesh_groups(model, errors)
+    _validate_couplings(model, errors)
+
+
+def _validate_record_keys_and_ids(record_name: str, records: dict[str, Any], errors: list[str]) -> None:
+    for key, record in records.items():
+        if key != getattr(record, "id", None):
+            errors.append(
+                f"{record_name} key {key!r} does not match record id {getattr(record, 'id', None)!r}."
+            )
+
+
+def _validate_imported_components(model: TubaModel, errors: list[str]) -> None:
+    for component_id, component in model.imported_components.items():
+        if component.asset.kind != "cad_asset":
+            errors.append(
+                f"Imported component {component_id!r} references non-cad asset {component.asset!r}."
+            )
+        try:
+            resolve_entity_ref(model, component.asset)
+        except KeyError:
+            errors.append(
+                f"Imported component {component_id!r} references missing cad asset {component.asset!r}."
+            )
+
+
+def _validate_analysis_regions(model: TubaModel, errors: list[str]) -> None:
+    for region_id, region in model.analysis_regions.items():
+        if region.owner.kind != "component":
+            errors.append(
+                f"Analysis region {region_id!r} owner must be a component, got {region.owner.kind!r}."
+            )
+        elif region.owner.id not in model.imported_components:
+            errors.append(
+                f"Analysis region {region_id!r} references missing owner {region.owner!r}."
+            )
+
+        if region.material not in model.materials:
+            errors.append(
+                f"Analysis region {region_id!r} references missing material {region.material!r}."
+            )
+
+        if region.role == "solid_3d" and region.code_aster_modelisation != "3D":
+            errors.append(
+                f"Analysis region {region_id!r} is solid_3d but has modelisation "
+                f"{region.code_aster_modelisation!r}."
+            )
+
+
+def _validate_ports(model: TubaModel, errors: list[str]) -> None:
+    for port_id, port in model.ports.items():
+        if port.owner.kind != "component":
+            errors.append(f"Port {port_id!r} owner must be a component, got {port.owner.kind!r}.")
+        elif port.owner.id not in model.imported_components:
+            errors.append(f"Port {port_id!r} references missing owner {port.owner!r}.")
+
+        if port.status == "confirmed" and not port.face_group:
+            errors.append(f"Port {port_id!r} is confirmed but missing face_group.")
+
+
+def _validate_mesh_groups(model: TubaModel, errors: list[str]) -> None:
+    for group_id, mesh_group in model.mesh_groups.items():
+        try:
+            resolve_entity_ref(model, mesh_group.owner)
+        except KeyError:
+            errors.append(
+                f"Mesh group {group_id!r} references missing owner {mesh_group.owner!r}."
+            )
+
+
+def _validate_couplings(model: TubaModel, errors: list[str]) -> None:
+    element_ids = {element.id for element in model.elements}
+    for coupling_id, coupling in model.couplings.items():
+        if coupling.kind == "pipe_to_solid_port":
+            if coupling.code_aster_keyword != "LIAISON_ELEM":
+                errors.append(
+                    f"Coupling {coupling_id!r} pipe_to_solid_port must use Code_Aster keyword "
+                    "'LIAISON_ELEM'."
+                )
+            if coupling.code_aster_option not in _PIPE_TO_PORT_OPTIONS:
+                errors.append(
+                    f"Coupling {coupling_id!r} has unsupported pipe-to-port option "
+                    f"{coupling.code_aster_option!r}."
+                )
+
+        if coupling.source.kind != "element":
+            errors.append(
+                f"Coupling {coupling_id!r} source must be an element, got {coupling.source.kind!r}."
+            )
+        elif coupling.source.id not in element_ids:
+            errors.append(
+                f"Coupling {coupling_id!r} references missing source element {coupling.source.id!r}."
+            )
+
+        if coupling.source_node.kind != "node":
+            errors.append(
+                f"Coupling {coupling_id!r} source node must be a node, got {coupling.source_node.kind!r}."
+            )
+        elif coupling.source_node.id not in model.nodes:
+            errors.append(
+                f"Coupling {coupling_id!r} references missing source node {coupling.source_node.id!r}."
+            )
+
+        if coupling.target.kind != "port":
+            errors.append(f"Coupling {coupling_id!r} target must be a port, got {coupling.target.kind!r}.")
+        else:
+            try:
+                port = resolve_entity_ref(model, coupling.target)
+            except KeyError:
+                errors.append(
+                    f"Coupling {coupling_id!r} references missing target port {coupling.target.id!r}."
+                )
+            else:
+                if port.status != "confirmed":
+                    errors.append(
+                        f"Coupling {coupling_id!r} target port {coupling.target.id!r} is not confirmed."
+                    )
+
+        if (
+            coupling.kind == "pipe_to_solid_port"
+            and coupling.code_aster_keyword == "LIAISON_ELEM"
+            and coupling.code_aster_option == "3D_TUYAU"
+        ):
+            _validate_pipe_to_solid_port(model, coupling_id, coupling, errors)
+
+
+def _validate_pipe_to_solid_port(
+    model: TubaModel,
+    coupling_id: str,
+    coupling: Any,
+    errors: list[str],
+) -> None:
+    if (
+        coupling.source.kind != "element"
+        or coupling.source_node.kind != "node"
+        or coupling.target.kind != "port"
+    ):
+        return
+
+    try:
+        source = resolve_entity_ref(model, coupling.source)
+    except KeyError:
+        return
+    source_node_id = coupling.source_node.id
+    if source.type not in {"pipe_straight", "pipe_bend"}:
+        errors.append(
+            f"Coupling {coupling_id!r} source element {source.id!r} must be pipe_straight or pipe_bend "
+            f"for 3D_TUYAU."
+        )
+
+    if source_node_id not in {source.n1, source.n2}:
+        errors.append(
+            f"Coupling {coupling_id!r} source node {source_node_id!r} must be endpoint of element {source.id!r}."
+        )
+
+    try:
+        port = resolve_entity_ref(model, coupling.target)
+    except KeyError:
+        return
+
+    has_solid_region = any(
+        region.owner == port.owner and region.role == "solid_3d"
+        for region in model.analysis_regions.values()
+    )
+    if not has_solid_region:
+        errors.append(
+            f"Coupling {coupling_id!r} target port {coupling.target.id!r} has no solid_3d analysis region owner."
+        )
+
+    section = model.sections.get(source.section)
+    if section is None:
+        return
+    if not hasattr(section, "OD"):
+        errors.append(
+            f"Coupling {coupling_id!r} source section {source.section!r} has no OD for diameter comparison."
+        )
+        return
+
+    pipe_radius = float(section.OD) / 2.0
+    tolerance = max(0.001, pipe_radius * 0.02)
+    if abs(pipe_radius - port.radius) > tolerance:
+        errors.append(
+            f"Coupling {coupling_id!r} pipe/port diameter mismatch for "
+            f"{source.id!r} and {port.id!r}."
+        )

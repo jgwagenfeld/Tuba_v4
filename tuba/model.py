@@ -30,6 +30,7 @@ from tuba.mixed import (
     MeshGroup,
     Port,
 )
+from tuba.refs import EntityRef, resolve_entity_ref
 
 
 # ---------------------------------------------------------------------------
@@ -406,6 +407,81 @@ class TubaModel:
         self.couplings[coupling.id] = coupling
         return coupling
 
+    def connect_pipe_to_port(
+        self,
+        *,
+        pipe: str | EntityRef,
+        node: str | EntityRef,
+        port: str | EntityRef,
+        method: str = "3D_TUYAU",
+        id: str | None = None,
+    ) -> CouplingSpec:
+        """Create a pipe-to-port coupling with basic structural checks."""
+        pipe_ref = coerce_entity_ref(pipe)
+        node_ref = coerce_entity_ref(node)
+        port_ref = coerce_entity_ref(port)
+
+        if pipe_ref.kind != "element":
+            raise ValueError(f"pipe reference must target an element, got {pipe_ref.kind!r}.")
+        if node_ref.kind != "node":
+            raise ValueError(f"node reference must target a node, got {node_ref.kind!r}.")
+        if port_ref.kind != "port":
+            raise ValueError(f"port reference must target a port, got {port_ref.kind!r}.")
+
+        if method not in {"3D_TUYAU", "3D_POU", "COQ_TUYAU", "COQ_POU"}:
+            raise ValueError(f"Unsupported coupling method {method!r}.")
+
+        try:
+            element = resolve_entity_ref(self, pipe_ref)
+        except KeyError as exc:
+            raise ValueError(f"Unknown pipe element {pipe_ref!r}.") from exc
+        if element.type not in {"pipe_straight", "pipe_bend"}:
+            raise ValueError(
+                f"Element {element.id!r} type {element.type!r} is not valid for pipe-port coupling."
+            )
+
+        if node_ref.id not in {element.n1, element.n2}:
+            raise ValueError(
+                f"Node {node_ref.id!r} is not an endpoint of element {element.id!r}."
+            )
+
+        try:
+            port_entity = resolve_entity_ref(self, port_ref)
+        except KeyError as exc:
+            raise ValueError(f"Unknown port {port_ref!r}.") from exc
+
+        if not port_entity.face_group:
+            raise ValueError(f"Port {port_ref.id!r} must define a face_group.")
+
+        try:
+            section = self.sections[element.section]
+        except KeyError as exc:
+            raise ValueError(
+                f"Element {element.id!r} references missing section {element.section!r}."
+            ) from exc
+
+        if not hasattr(section, "OD"):
+            raise ValueError(
+                f"Section {element.section!r} does not define an OD for diameter comparison."
+            )
+
+        pipe_radius = float(section.OD) / 2.0
+        tolerance = max(0.001, pipe_radius * 0.02)
+        if abs(pipe_radius - port_entity.radius) > tolerance:
+            raise ValueError(
+                "Port diameter mismatch: pipe section OD and port radius differ beyond tolerance."
+            )
+
+        coupling_id = id or f"coupling_{len(self.couplings)}"
+        return self.add_coupling(
+            id=coupling_id,
+            kind="pipe_to_solid_port",
+            source=pipe_ref,
+            source_node=node_ref,
+            target=port_ref,
+            code_aster_keyword="LIAISON_ELEM",
+            code_aster_option=method,
+        )
 
     # -- Nodes ---------------------------------------------------------------
 
