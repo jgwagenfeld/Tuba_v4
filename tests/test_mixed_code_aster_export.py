@@ -156,6 +156,35 @@ class TestMixedCodeAsterExport(unittest.TestCase):
         self.assertIn("F mmed study.med D 20", export_text)
         self.assertNotIn(str(Path(study.work_dir)), export_text)
 
+    def test_med_file_is_nonempty_for_mixed_export(self):
+        model = build_mixed_fixture()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
+                study = MixedCodeAsterStudyExporter().export_analysis_study(model, "Hot", tmpdir)
+            except RuntimeError as exc:
+                if isinstance(exc.__cause__, ImportError):
+                    self.skipTest(str(exc))
+                raise
+            med_path = Path(study.input_files["med"])
+            self.assertEqual(med_path.name, "study.med")
+            self.assertTrue(med_path.exists())
+            med_size = med_path.stat().st_size
+
+        self.assertGreater(med_size, 0)
+
+    def test_med_writer_failure_blocks_manifest(self):
+        model = build_mixed_fixture()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            exporter = MixedCodeAsterStudyExporter()
+            exporter._write_med_with_meshio = lambda model, path: (_ for _ in ()).throw(
+                RuntimeError("MED writer failed")
+            )
+            with self.assertRaisesRegex(RuntimeError, "MED writer failed"):
+                exporter.export_analysis_study(model, "Hot", tmpdir)
+            self.assertFalse((Path(tmpdir) / "study_manifest.json").exists())
+            self.assertFalse((Path(tmpdir) / "study_tuba_fem.json").exists())
+            self.assertFalse((Path(tmpdir) / "study.comm").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
