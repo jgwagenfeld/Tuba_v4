@@ -364,3 +364,22 @@ class MixedCodeAsterStudyExporter:
             "ports": {key: value.to_dict() for key, value in model.ports.items()},
             "couplings": {key: value.to_dict() for key, value in model.couplings.items()},
         }
+
+
+def load_mixed_sidecar_diagnostics(path: str | Path) -> dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    mixed = payload.get("mixed_analysis", {})
+    if not isinstance(mixed, dict) or not mixed:
+        raise ValueError("Sidecar does not contain mixed_analysis diagnostics.")
+    refs: list[str] = []
+    refs.extend(f"cad_asset:{key}" for key in mixed.get("cad_assets", {}))
+    refs.extend(f"component:{key}" for key in mixed.get("components", {}))
+    refs.extend(f"analysis_region:{key}" for key in mixed.get("analysis_regions", {}))
+    refs.extend(f"port:{key}" for key in mixed.get("ports", {}))
+    refs.extend(f"coupling:{key}" for key in mixed.get("couplings", {}))
+    return {
+        "result_status": "export_only",
+        "refs": refs,
+        "lineage": dict(payload.get("lineage", {})),
+        "analysis_mesh_id": payload.get("analysis_mesh_id"),
+    }

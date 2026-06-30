@@ -271,6 +271,34 @@ class TestMixedCodeAsterExport(unittest.TestCase):
 
         self.assertEqual(study.metadata["mixed_analysis"], True)
 
+    def test_mixed_sidecar_can_be_read_for_review_diagnostics(self):
+        from tuba.solver.mixed_study import load_mixed_sidecar_diagnostics
+
+        model = build_mixed_fixture()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            study = MixedCodeAsterStudyExporter().export_analysis_study(model, "Hot", tmpdir)
+            diagnostics = load_mixed_sidecar_diagnostics(study.input_files["sidecar"])
+
+        self.assertIn("component:component_pump_body", diagnostics["refs"])
+        self.assertIn("port:port_pump_nozzle_a", diagnostics["refs"])
+        self.assertIn("coupling:coupling_pipe_to_pump_a", diagnostics["refs"])
+        self.assertEqual(diagnostics["analysis_mesh_id"], "analysis_mesh:mixed")
+        self.assertEqual(diagnostics["lineage"]["G_PORT_FACE"], "port:port_pump_nozzle_a")
+        self.assertEqual(diagnostics["result_status"], "export_only")
+
+    def test_mixed_sidecar_diagnostics_rejects_non_mixed_sidecar(self):
+        from tuba.solver.mixed_study import load_mixed_sidecar_diagnostics
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sidecar_path = Path(tmpdir) / "study_tuba_fem.json"
+            sidecar_path.write_text(
+                json.dumps({"schema_version": 1, "lineage": {}}),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "mixed_analysis"):
+                load_mixed_sidecar_diagnostics(sidecar_path)
+
 
 if __name__ == "__main__":
     unittest.main()
