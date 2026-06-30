@@ -332,6 +332,17 @@ class CodeAsterSolver(BaseSolver):
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
         return study
 
+    def export_mixed_analysis_study(
+        self,
+        model: TubaModel,
+        load_case_name: str,
+        output_dir: str | Path,
+    ) -> AnalysisStudy:
+        """Generate a MED-backed mixed Code_Aster study without running the solver."""
+        from tuba.solver.mixed_study import MixedCodeAsterStudyExporter
+
+        return MixedCodeAsterStudyExporter().export_analysis_study(model, load_case_name, output_dir)
+
     def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> FEAResults:
         """Execute an already-exported Code_Aster analysis study and parse its artifacts."""
         work_dir = Path(study.work_dir)

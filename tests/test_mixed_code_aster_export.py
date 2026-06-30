@@ -259,6 +259,18 @@ class TestMixedCodeAsterExport(unittest.TestCase):
 
             self.assertTrue(Path(study.input_files["med"]).exists())
 
+    def test_code_aster_solver_delegates_mixed_export(self):
+        from tuba.solver.aster import CodeAsterSolver
+
+        model = build_mixed_fixture()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_mixed_analysis_study(model, "Hot", tmpdir)
+            self.assertTrue(Path(study.input_files["med"]).exists())
+            self.assertTrue(Path(study.input_files["comm"]).exists())
+            self.assertTrue(Path(study.input_files["sidecar"]).exists())
+
+        self.assertEqual(study.metadata["mixed_analysis"], True)
+
 
 if __name__ == "__main__":
     unittest.main()
