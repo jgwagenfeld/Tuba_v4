@@ -9,6 +9,7 @@ from typing import Any
 from tuba.coordinates import CoordinateSystem
 from tuba.model import TubaModel
 from tuba.patches import AddElement, AddNode, AddSupport, ModelPatch, ModelTransaction
+from tuba.placements import PlacementAssignment, PlacementFrame
 
 
 @dataclass
@@ -73,6 +74,21 @@ def place_fragment(
             "supports": list(range(start_support_count, start_support_count + result.support_count)),
             "metadata": copy.deepcopy(fragment.metadata),
         }
+        model.placement_frames[name] = PlacementFrame.from_coordinate_system(
+            name,
+            coordinate_system,
+            frame_type="assembly",
+            source="fragment",
+            metadata={"fragment": fragment.name},
+        )
+        model.placement_assignments.append(
+            PlacementAssignment(
+                target=f"group:{name}",
+                frame=f"placement_frame:{name}",
+                role="object_placement",
+                source="fragment",
+            )
+        )
         model.validate()
         return PlacementResult(group_name=name, node_ids=result.node_ids, element_ids=result.element_ids)
     except Exception:

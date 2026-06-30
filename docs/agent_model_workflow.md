@@ -39,6 +39,19 @@ model.validate()
 
 The fragment remains editable as a local object. The parent model stores a named group for GUI selection and solver export remains based on ordinary nodes and elements.
 
+## IFC-Style Placement Frames
+
+Placed fragments may also create a named `PlacementFrame`. The parent model still stores node coordinates in model-global Cartesian coordinates, but the frame is retained for GUI selection, IFC export, import provenance, and repeatable local editing.
+
+Use explicit frames when authoring local coordinates:
+
+```python
+frame = model.placement_frames["rack_A"]
+global_point = model.to_global_point((1.0, 0.0, 0.0), frame="placement_frame:rack_A")
+```
+
+Do not assume node coordinates are local just because a placement assignment exists.
+
 ## Contracts
 
 - Placement names are unique. Reusing a group name raises `ValueError` and rolls the parent model back.

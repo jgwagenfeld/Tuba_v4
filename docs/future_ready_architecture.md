@@ -8,6 +8,8 @@ This document summarizes the architecture added for semantic geometry generation
 
 IFC is an exchange adapter, not the internal clash or routing interface. Internal algorithms work against `TubaModel`, `EntityRef`, physical envelopes, route plans, and structured result types. IFC/BOM export consumes those semantics after model data is ready.
 
+Coordinate handling follows IFC placement semantics without making IFC the internal model. Native nodes remain in the model-global Cartesian frame; optional placement frames preserve site, assembly, product, and imported local placements for authoring and exchange.
+
 The next architecture step is to make Tuba explicitly multidomain. Piping and support structure should both be first-class. A rack, support frame, beam, column, clamp, shoe, support reaction, and load-transfer path cannot remain only metadata on a pipe if route optimization is expected to compare detours against added structure.
 
 ## Main Layers
@@ -88,6 +90,17 @@ The detailed package roadmap is in `.agents/TODOS/multidomain-ifc-aware-data-mod
 ## Code_Aster And Deformed Clash Workflow
 
 Code_Aster remains the core solver. The data-model expansion should not replace it; it should make solver input and output traceable enough for optimization, visualization, and clash checks.
+
+### Expansion Aware Autorouting
+
+Hot-line routing needs explicit expansion-loop space, not only clash-free
+shortest paths. Tuba treats these routes as candidate generation reviewed
+through routing spaces, generated U-loop candidates, reserved envelopes, and
+`SolverAcceptanceCriteria` evidence. Today the scorer enforces expansion ratio,
+sustained ratio, and anchor reaction; nozzle, displacement, and clearance limits
+remain typed review/future fields. Solver execution may be export-only or run
+locally; neither path replaces engineer review. See
+[Expansion Aware Autorouting](architecture/expansion-aware-autorouting.md).
 
 Recommended lifecycle:
 

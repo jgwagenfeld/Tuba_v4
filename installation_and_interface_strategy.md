@@ -24,7 +24,7 @@ uv venv
 ### WSL2 Solver Environment (`conda`)
 Install Miniforge inside WSL2 to manage the compiled Code_Aster solver binaries:
 ```bash
-wsl conda install -c conda-forge code-aster
+wsl -d Ubuntu bash -lc "source ~/miniforge3/etc/profile.d/conda.sh && conda create -n tuba-code-aster -c conda-forge code-aster"
 ```
 
 ---
@@ -56,6 +56,20 @@ By removing the dependency on the 4GB+ Salome-Meca GUI bundle, we make Tuba v4 l
 
 ## 2. Setting Up Code_Aster Headless (The Easy Way)
 
+For Tuba v4 production workflows, Code_Aster is a required external solver
+runtime. On Windows, the recommended developer setup is Code_Aster from
+conda-forge inside a named WSL2 Ubuntu distro, exposed to Tuba through
+`TUBA_CODE_ASTER_EXEC_METHOD=wsl` and `TUBA_CODE_ASTER_WSL_DISTRO=Ubuntu`.
+Use `TUBA_CODE_ASTER_PYTHON` only when that Python executable is directly
+executable by the process running Tuba, for example when Tuba itself runs inside
+Linux/WSL. A direct `run_aster` command and Docker remain fallback execution
+methods.
+
+Use the canonical walkthrough in
+[`docs/code_aster_installation.md`](docs/code_aster_installation.md). It covers
+Miniforge, the `tuba-code-aster` conda environment, the WSL `run_aster` wrapper,
+and the real Tuba smoke test.
+
 Instead of the painful Salome-Meca graphical installations, Tuba v4 will automate execution using standard package managers under Windows Subsystem for Linux (WSL2) or Docker containers.
 
 ### Method A: WSL2 + Conda-Forge (Recommended for Windows Users)
@@ -75,11 +89,12 @@ WSL2 is built directly into Windows 10/11. The installation of Code_Aster can be
    # Install Code_Aster
    conda config --add channels conda-forge
    conda config --set channel_priority strict
-   conda install -y code-aster
+   conda create -y -n tuba-code-aster -c conda-forge code-aster
    ```
 3. **Execution**: Tuba triggers Code_Aster from Windows without user intervention by calling:
    ```powershell
-   wsl conda run -n base aster study.export
+   $env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
+   $env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"
    ```
 
 ### Method B: Docker Container
@@ -125,15 +140,8 @@ with model.pipe(section="4inch_sch40", material="P265GH") as builder:
 # 3. Define Load Cases (Operating conditions)
 model.define_load_case("hot_op", gravity=True, pressure=1.5e6, temperature=200.0)
 
-# 4. Run calculations using one of the pluggable backends
-# No Code_Aster needed for default, fast feedback calculations:
-results = model.solve(solver="internal") 
-
-# Or use CalculiX (runs natively on Windows):
-# results = model.solve(solver="calculix")
-
-# Or run high-fidelity Code_Aster via headless WSL/Docker:
-# results = model.solve(solver="code_aster")
+# 4. Run the required Code_Aster evaluation.
+results = model.solve(solver="code_aster")
 
 # 5. Check Code Compliance (ASME B31.3 / EN 13480)
 compliance = results.check_compliance(standard="ASME_B31.3")

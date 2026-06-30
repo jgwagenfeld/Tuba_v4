@@ -51,6 +51,67 @@ class TestRoutingReport(unittest.TestCase):
             self.assertIn("FakeSolver", text)
             self.assertNotIn("not checked in report writer", text)
 
+    def test_single_route_report_includes_expansion_review_metadata(self):
+        request = PipeRouteRequest(
+            id="P-100",
+            start=RouteEndpoint(id="A", point=(0.0, 0.0, 0.0)),
+            goal=RouteEndpoint(id="B", point=(2.0, 0.0, 0.0)),
+            section="PipeSec",
+            material="Steel",
+        )
+        candidate = PipeRouteCandidate(
+            request_id="P-100",
+            points=[(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 1.0, 0.0)],
+            segments=[
+                RouteSegment(start=(0.0, 0.0, 0.0), end=(1.0, 0.0, 0.0), kind="straight"),
+                RouteSegment(start=(1.0, 0.0, 0.0), end=(1.0, 1.0, 0.0), kind="straight"),
+                RouteSegment(start=(1.0, 1.0, 0.0), end=(2.0, 1.0, 0.0), kind="straight"),
+            ],
+            cost=4.0,
+            cost_breakdown={"length": 4.0, "bends": 2},
+            metadata={
+                "route_family": "u_loop",
+                "expansion_loop": {"width_m": 2.0, "depth_m": 1.0, "plane": "xy"},
+                "solver_acceptance": {"accepted": False, "failed_checks": ["expansion_ratio"]},
+            },
+        )
+        result = PipeRouteResult(request=request, candidates=[candidate], selected_index=0, diagnostics=[])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = write_route_report(result, tmpdir)
+            text = report_path.read_text(encoding="utf-8")
+
+        self.assertIn("Route family: `u_loop`", text)
+        self.assertIn("Expansion loop", text)
+        self.assertIn("Solver acceptance: `False`", text)
+        self.assertIn("expansion_ratio", text)
+
+    def test_single_route_report_omits_none_for_partial_expansion_metadata(self):
+        request = PipeRouteRequest(
+            id="P-100",
+            start=RouteEndpoint(id="A", point=(0.0, 0.0, 0.0)),
+            goal=RouteEndpoint(id="B", point=(2.0, 0.0, 0.0)),
+            section="PipeSec",
+            material="Steel",
+            constraints=RoutingConstraints(min_bend_radius=0.5),
+        )
+        candidate = PipeRouteCandidate(
+            request_id="P-100",
+            points=[(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            segments=[RouteSegment(start=(0.0, 0.0, 0.0), end=(2.0, 0.0, 0.0), kind="straight")],
+            cost=2.0,
+            cost_breakdown={"length": 2.0, "bends": 0},
+            metadata={"expansion_loop": {"width_m": 2.0}},
+        )
+        result = PipeRouteResult(request=request, candidates=[candidate], selected_index=0, diagnostics=[])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = write_route_report(result, tmpdir)
+            text = report_path.read_text(encoding="utf-8")
+
+        self.assertIn("Expansion loop", text)
+        self.assertNotIn("`None`", text)
+
     def test_network_report_lists_unresolved_conflicts(self):
         request = PipeRouteRequest(
             id="P-100",

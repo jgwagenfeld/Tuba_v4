@@ -80,6 +80,9 @@ class RoutingGrid:
                 p2 = model.nodes[elem.n2].coords
                 grid._mark_segment(p1, p2, radius)
 
+        if request.routing_space is not None:
+            grid._apply_routing_space(request.routing_space)
+
         # Connection cells must remain usable even when tying into existing pipe.
         grid.unblock(grid.world_to_index(request.start.point))
         grid.unblock(grid.world_to_index(request.goal.point))
@@ -195,6 +198,27 @@ class RoutingGrid:
                         dist = np.linalg.norm(p - closest)
                     if dist <= radius + self.cell_size * 0.5:
                         self.occupancy[ix, iy, iz] = True
+
+    def _apply_routing_space(self, space) -> None:
+        for idx in np.ndindex(self.shape):
+            point = self.index_to_world(idx)
+            zone = space.classify_point(point)
+            if zone is None:
+                if space.policy == "require_allowed":
+                    self.occupancy[idx] = True
+                continue
+            if zone.kind in {"forbidden", "reserved"}:
+                self.occupancy[idx] = True
+            elif zone.kind == "preferred":
+                self.penalties[idx] += float(zone.penalty)
+            elif zone.kind == "allowed" and space.policy == "prefer_allowed":
+                self.penalties[idx] += float(zone.penalty)
+        self._normalize_penalties()
+
+    def _normalize_penalties(self) -> None:
+        min_penalty = float(np.min(self.penalties))
+        if min_penalty < 0.0:
+            self.penalties -= min_penalty
 
 
 def _compute_bounds(

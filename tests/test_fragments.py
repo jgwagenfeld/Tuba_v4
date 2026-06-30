@@ -115,6 +115,32 @@ class TestModelFragment(unittest.TestCase):
         self.assertIn("conflicts", str(ctx.exception))
         self.assertEqual(parent.to_dict(), before)
 
+    def test_fragment_placement_creates_ifc_style_frame_metadata(self):
+        fragment = ModelFragment("rack_template")
+        fragment.model.add_material("Steel", E=2.0e11, nu=0.3)
+        fragment.model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        with fragment.pipe(section="PipeSec", material="Steel") as b:
+            b.start([0.0, 0.0, 0.0]).run(1.0)
+
+        parent = Model(project_name="Parent")
+        placement = CoordinateSystem(
+            origin=(10.0, 20.0, 0.0),
+            x_axis=(0.0, 1.0, 0.0),
+            y_axis=(-1.0, 0.0, 0.0),
+            z_axis=(0.0, 0.0, 1.0),
+        )
+
+        parent.place_fragment(fragment, placement, name="rack_A")
+
+        self.assertIn("rack_A", parent.placement_frames)
+        self.assertEqual(parent.placement_frames["rack_A"].frame_type, "assembly")
+        self.assertTrue(
+            any(
+                item.target == "group:rack_A" and item.frame == "placement_frame:rack_A"
+                for item in parent.placement_assignments
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

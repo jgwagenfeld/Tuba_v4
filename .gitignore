@@ -12,6 +12,14 @@ htmlcov/
 venv/
 env/
 
+# External source checkouts/downloads
+/adapy/
+/adapy-main/
+/adapy-main.zip
+/ada-py/
+/ada-py-main/
+/ada-py-main.zip
+
 build/
 dist/
 *.egg-info/

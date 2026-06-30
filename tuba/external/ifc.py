@@ -13,7 +13,13 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Any
 import numpy as np
 
 from tuba.external.ifc_mapping import IfcGuidRegistry, ifc_property
+from tuba.external.ifc_placements import (
+    create_local_placement,
+    frame_from_local_placement,
+    placement_for_target,
+)
 from tuba.external.ifc_pipes import export_pipe_products
+from tuba.placements import PlacementAssignment
 
 if TYPE_CHECKING:
     from tuba.model import TubaModel
@@ -106,6 +112,9 @@ class IfcExporter:
                 Name=elem.id,
                 Description=f"Material: {elem.material}, Section: {elem.section}"
             )
+            frame = placement_for_target(model, f"element:{elem.id}")
+            if frame is not None:
+                ifc_elem.ObjectPlacement = create_local_placement(ifc_file, frame)
             created_elements[elem.id] = ifc_elem
 
             # Spatial containment relation (contained in storey)
@@ -274,6 +283,10 @@ class IfcExporter:
                 Name=f"Support_{sup.node}_{i}",
                 Description=f"Type: {sup.type}"
             )
+            support_ref = f"support:{sup.id}" if sup.id is not None else None
+            frame = placement_for_target(model, support_ref) if support_ref is not None else None
+            if frame is not None:
+                ifc_sup.ObjectPlacement = create_local_placement(ifc_file, frame)
 
             # Contained in storey
             ifc_file.create_entity(
@@ -341,6 +354,9 @@ class IfcExporter:
                 Name=obs_id,
                 Description=f"Obstacle type: {obs_type}"
             )
+            frame = placement_for_target(model, f"obstacle:{obs_id}")
+            if frame is not None:
+                ifc_obs.ObjectPlacement = create_local_placement(ifc_file, frame)
 
             # Contained in storey
             ifc_file.create_entity(
@@ -653,6 +669,23 @@ class IfcImporter:
                     break
             return coords
 
+        def preserve_product_placement(product, target: str) -> None:
+            placement = getattr(product, "ObjectPlacement", None)
+            if placement is None or not placement.is_a("IfcLocalPlacement"):
+                return
+            frame_id = f"ifc_product_{product.id()}_placement"
+            if frame_id not in model.placement_frames:
+                model.placement_frames[frame_id] = frame_from_local_placement(frame_id, placement)
+            model.placement_assignments.append(
+                PlacementAssignment(
+                    target=target,
+                    frame=f"placement_frame:{frame_id}",
+                    role="object_placement",
+                    source="ifc",
+                    metadata={"ifc_product_id": int(product.id())},
+                )
+            )
+
         # 1. Import Pipe segments and fittings
         elem_counter = 0
         for pipe in ifc_file.by_type("IfcPipeSegment"):
@@ -665,14 +698,16 @@ class IfcImporter:
                 for idx in range(len(pts) - 1):
                     n1 = get_or_create_node(pts[idx])
                     n2 = get_or_create_node(pts[idx + 1])
+                    element_id = f"pipe_str_{elem_counter}"
                     model.add_element(
-                        id=f"pipe_str_{elem_counter}",
+                        id=element_id,
                         type="pipe_straight",
                         n1=n1,
                         n2=n2,
                         section=sec_name,
                         material=mat
                     )
+                    preserve_product_placement(pipe, f"element:{element_id}")
                     elem_counter += 1
 
         for fitting in ifc_file.by_type("IfcPipeFitting"):
@@ -686,8 +721,9 @@ class IfcImporter:
                 bend_angle = float(bend_props.get("BendAngleDeg", 90.0))
                 n1 = get_or_create_node(pts[0])
                 n2 = get_or_create_node(pts[-1])
+                element_id = f"pipe_bend_{elem_counter}"
                 model.add_element(
-                    id=f"pipe_bend_{elem_counter}",
+                    id=element_id,
                     type="pipe_bend",
                     n1=n1,
                     n2=n2,
@@ -696,6 +732,7 @@ class IfcImporter:
                     bend_radius=bend_radius,
                     bend_angle=bend_angle,
                 )
+                preserve_product_placement(fitting, f"element:{element_id}")
                 elem_counter += 1
 
         # 2. Import Beams and Columns
@@ -717,14 +754,16 @@ class IfcImporter:
                 for idx in range(len(pts) - 1):
                     n1 = get_or_create_node(pts[idx])
                     n2 = get_or_create_node(pts[idx + 1])
+                    element_id = f"beam_{elem_counter}"
                     model.add_element(
-                        id=f"beam_{elem_counter}",
+                        id=element_id,
                         type="beam",
                         n1=n1,
                         n2=n2,
                         section=sec_name,
                         material=mat
                     )
+                    preserve_product_placement(beam, f"element:{element_id}")
                     elem_counter += 1
 
         # 3. Import Supports (IfcMechanicalFastener)

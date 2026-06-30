@@ -35,6 +35,7 @@ def build_route_plotter(
     show_existing_model: bool = True,
     show_obstacles: bool = True,
     show_endpoints: bool = True,
+    show_reserved_envelopes: bool = True,
     off_screen: bool = False,
 ) -> "pv.Plotter":
     """Build a PyVista plotter for interactive route review."""
@@ -63,6 +64,14 @@ def build_route_plotter(
         radius = _route_radius(model, request, selected)
         opacity = 1.0 if selected else 0.35
         _add_candidate(plotter, candidate, color=color, radius=radius, opacity=opacity, label=f"candidate {idx}")
+        if show_reserved_envelopes:
+            _add_reserved_envelope(
+                plotter,
+                candidate,
+                color="#1b9e77" if selected else color,
+                opacity=0.16 if selected else 0.07,
+                label=f"candidate {idx} reserved envelope" if selected else None,
+            )
 
     plotter.add_axes()
     plotter.show_grid(color="#d0d5dd")
@@ -174,6 +183,51 @@ def _add_endpoint(plotter: "pv.Plotter", point: Point3D, color: str, label: str)
         point_color=color,
         shape_opacity=0.35,
     )
+
+
+def _add_reserved_envelope(
+    plotter: "pv.Plotter",
+    candidate: PipeRouteCandidate,
+    *,
+    color: str,
+    opacity: float,
+    label: str | None,
+) -> None:
+    bounds = _reserved_envelope_bounds(candidate)
+    if bounds is None:
+        return
+    min_point, max_point = bounds
+    center = (min_point + max_point) / 2.0
+    lengths = max_point - min_point
+    box = pv.Cube(center=center, x_length=lengths[0], y_length=lengths[1], z_length=lengths[2])
+    plotter.add_mesh(
+        box,
+        color=color,
+        opacity=opacity,
+        show_edges=True,
+        edge_color=color,
+        label=label,
+    )
+
+
+def _reserved_envelope_bounds(candidate: PipeRouteCandidate) -> tuple[np.ndarray, np.ndarray] | None:
+    envelope = candidate.metadata.get("reserved_envelope")
+    if not isinstance(envelope, dict):
+        return None
+    try:
+        min_point = np.asarray(envelope["min_point"], dtype=float)
+        max_point = np.asarray(envelope["max_point"], dtype=float)
+    except (KeyError, TypeError, ValueError):
+        return None
+    if min_point.shape != (3,) or max_point.shape != (3,):
+        return None
+    if not np.all(np.isfinite(min_point)) or not np.all(np.isfinite(max_point)):
+        return None
+    lo = np.minimum(min_point, max_point)
+    hi = np.maximum(min_point, max_point)
+    if np.any(hi <= lo):
+        return None
+    return lo, hi
 
 
 def _route_radius(model: TubaModel, request: PipeRouteRequest | None, selected: bool) -> float:

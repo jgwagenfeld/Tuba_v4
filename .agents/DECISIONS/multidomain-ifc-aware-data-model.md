@@ -137,6 +137,20 @@ Adding relationships, ports, assemblies, and external identities can make naive 
 - Derived caches check revision before reuse.
 - Benchmarks become required acceptance gates.
 
+## Decision 9 - Coordinate Frames Follow IFC Placement Semantics Without Making IFC Internal
+
+Tuba will model named coordinate frames as IFC-style local placements: a frame has an origin, an axis, a reference direction, and optionally a parent frame. These frames can be assigned to assemblies, products, imported context, support components, and authoring workflows.
+
+Native node coordinates remain model-global Cartesian coordinates. Placement frames are used for authoring, provenance, IFC import/export, visualization context, and explicit directional references. They do not make native nodes local and they do not require IFC roundtrips for routing, clash checks, or solver export.
+
+### Consequences
+
+- `CoordinateSystem` stays the math primitive for point/vector transforms.
+- `PlacementFrame` and `PlacementAssignment` become first-class optional model records.
+- IFC import resolves placement chains into global node coordinates and preserves original placement metadata.
+- IFC export can emit `IfcLocalPlacement` hierarchies where supported.
+- Solver/export paths must reject unsupported local references instead of silently treating them as global.
+
 ## Rejected Option - Store Everything As Generic Attributes
 
 This would be quick but would fail for routing, load transfer, IFC mapping, validation, and performance.
@@ -148,6 +162,10 @@ This would make exchange easier in the short term but would slow optimization lo
 ## Rejected Option - Replace The Whole Model In One Migration
 
 This is too risky. The current test suite and working APIs are valuable. The migration must be additive, package-based, and compatibility-first.
+
+## Rejected Option - Store Native Nodes In Local Or Survey Coordinates
+
+This would make solver export, clash checks, routing, and result projection harder to reason about. Local/survey/radial coordinates are authoring and exchange views; authoritative node coordinates stay in the model-global Cartesian frame.
 
 ## Decision Status
 

@@ -39,6 +39,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertEqual(result_state.load_case, "Hot")
         self.assertEqual(result_state.node_displacements[n1][:3], (0.0, 0.015, 0.0))
         self.assertEqual(result_state.node_reactions[n0][:3], (1000.0, 0.0, -250.0))
+        self.assertEqual(result_state.element_results["pipe_0"]["forces_n1"][:3], [10.0, 20.0, 30.0])
         self.assertEqual(result_state.element_results["pipe_0"]["max_von_mises"], 120.0e6)
         self.assertIn("study_depl.csv", result_state.files["depl"])
         self.assertEqual(artifact.diagnostics, [])
@@ -89,7 +90,7 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
     (work_dir / "study_effo.csv").write_text(
         "\n".join(
             [
-                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ",
+                "MAILLE,NOEUD,NXX,VY,VZ,MT,MFY,MFZ",
                 f"pipe_0,{n0},10.0,20.0,30.0,1.0,2.0,3.0",
                 f"pipe_0,{n1},11.0,21.0,31.0,4.0,5.0,6.0",
             ]

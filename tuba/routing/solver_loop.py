@@ -16,6 +16,10 @@ from tuba.solver.base import FEAResults
 from tuba.solver.aster import CodeAsterSolver
 
 
+_SOLVER_ACCEPTANCE_DIAGNOSTIC_PREFIX = "Solver acceptance failed:"
+_SOLVER_ACCEPTANCE_RESTORE_VALID_ATTR = "_solver_acceptance_restore_valid"
+
+
 @dataclass
 class SolverLoopConfig:
     run_solver: bool = False
@@ -45,10 +49,12 @@ class SolverLoopScorer:
         ranked = [score_candidate(candidate, model, request) for candidate in candidates]
         ranked.sort(key=lambda c: c.cost)
 
+        for candidate in ranked:
+            _reset_solver_result_metadata(candidate)
+
         for idx, candidate in enumerate(ranked[: config.max_solver_candidates]):
             study_dir = Path(config.work_root) / request.id / f"candidate_{idx}"
-            candidate.metadata.setdefault("solver", {})
-            candidate.metadata["solver"].update(
+            candidate.metadata["solver"] = (
                 {
                     "study_dir": str(study_dir),
                     "solver_ran": False,
@@ -68,11 +74,19 @@ class SolverLoopScorer:
                     results = solver.solve(temp_model, config.load_case)
                     candidate.metadata["solver"]["solver_ran"] = True
                     candidate.metadata["solver"]["solver_name"] = results.solver_name
-                    _attach_solver_result_metadata(candidate, temp_model, results, self.compliance_evaluator)
+                    _attach_solver_result_metadata(
+                        candidate,
+                        temp_model,
+                        results,
+                        self.compliance_evaluator,
+                        request.solver_acceptance,
+                    )
             except Exception as exc:  # noqa: BLE001 - diagnostics should survive failed candidates
                 candidate.diagnostics.append(f"Solver loop failed: {exc}")
                 if config.strict:
                     raise
+        if any("solver_acceptance" in candidate.metadata for candidate in ranked):
+            ranked.sort(key=lambda c: (not c.is_valid, c.cost))
         return ranked
 
 
@@ -81,6 +95,7 @@ def _attach_solver_result_metadata(
     model: TubaModel,
     results: FEAResults,
     evaluator: ASMEB313Evaluator,
+    criteria=None,
 ) -> None:
     report = evaluator.evaluate(model, results)
     candidate.metadata["compliance"] = {
@@ -98,6 +113,58 @@ def _attach_solver_result_metadata(
         node_id: _vector_to_list(node.displacement)
         for node_id, node in results.node_results.items()
     }
+    _attach_solver_acceptance(candidate, criteria)
+
+
+def _attach_solver_acceptance(candidate: PipeRouteCandidate, criteria) -> None:
+    _clear_solver_acceptance(candidate)
+
+    if criteria is None:
+        return
+
+    compliance = candidate.metadata.get("compliance", {})
+    failed: list[str] = []
+    if compliance.get("worst_expansion_ratio", 0.0) > criteria.max_expansion_ratio:
+        failed.append("expansion_ratio")
+    if compliance.get("worst_sustained_ratio", 0.0) > criteria.max_sustained_ratio:
+        failed.append("sustained_ratio")
+
+    max_reaction = 0.0
+    for vector in candidate.metadata.get("reactions", {}).values():
+        force = vector[:3]
+        max_reaction = max(max_reaction, float(sum(component * component for component in force) ** 0.5))
+    if max_reaction > criteria.max_anchor_reaction_n:
+        failed.append("anchor_reaction")
+
+    candidate.metadata["solver_acceptance"] = {
+        "accepted": not failed,
+        "failed_checks": failed,
+        "max_reaction_n": max_reaction,
+    }
+    if failed:
+        setattr(candidate, _SOLVER_ACCEPTANCE_RESTORE_VALID_ATTR, candidate.is_valid)
+        candidate.is_valid = False
+        candidate.diagnostics.append(f"{_SOLVER_ACCEPTANCE_DIAGNOSTIC_PREFIX} " + ", ".join(failed))
+
+
+def _reset_solver_result_metadata(candidate: PipeRouteCandidate) -> None:
+    _clear_solver_acceptance(candidate)
+    for key in ("solver", "compliance", "reactions", "displacements"):
+        candidate.metadata.pop(key, None)
+
+
+def _clear_solver_acceptance(candidate: PipeRouteCandidate) -> None:
+    restored_valid = getattr(candidate, _SOLVER_ACCEPTANCE_RESTORE_VALID_ATTR, None)
+    if restored_valid is not None:
+        candidate.is_valid = bool(restored_valid)
+        delattr(candidate, _SOLVER_ACCEPTANCE_RESTORE_VALID_ATTR)
+    candidate.metadata.pop("solver_acceptance", None)
+    candidate.metadata.pop("_solver_acceptance_restore_valid", None)
+    candidate.diagnostics = [
+        diagnostic
+        for diagnostic in candidate.diagnostics
+        if not diagnostic.startswith(_SOLVER_ACCEPTANCE_DIAGNOSTIC_PREFIX)
+    ]
 
 
 def _vector_to_list(vector) -> list[float]:

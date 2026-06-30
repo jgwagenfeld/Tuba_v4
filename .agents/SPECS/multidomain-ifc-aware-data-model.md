@@ -115,6 +115,52 @@ IFC separates physical products such as beams and columns from structural analys
 - support reactions and load transfer live in `LoadTransfer` / `StructuralAnalysisSnapshot`.
 - solver-specific results remain result objects, not core authoritative geometry.
 
+### IFC-Style Placement And Coordinate Frames
+
+IFC's placement model is the right pattern for global/local coordinate handling. Products carry an `ObjectPlacement`; local placements may be relative to parent placements; a 3D axis placement is defined by a location, an axis, and a reference direction. Tuba should adopt this structure natively, while keeping solver-facing nodes in one authoritative global Cartesian model frame.
+
+Required native concepts:
+
+```text
+CoordinateSystem
+PlacementFrame
+PlacementAssignment
+FrameReference
+```
+
+Core rules:
+
+- `TubaModel.nodes[*].coords` remain stored in model-global Cartesian coordinates.
+- `CoordinateSystem` remains a right-handed orthonormal Cartesian basis with point and vector transforms.
+- `PlacementFrame` represents a named local placement, optionally relative to a parent frame or entity.
+- `PlacementFrame` should map directly to IFC `IfcLocalPlacement` plus `IfcAxis2Placement3D`.
+- Frame composition must be deterministic: parent frame transform multiplied by local frame transform.
+- Authoring APIs may accept local coordinates only when the reference frame is explicit.
+- Solver export consumes global coordinates and explicit transformed global vectors unless the backend natively supports a declared local reference.
+- IFC export should preserve placement hierarchy where possible instead of emitting every product as an unrelated absolute object.
+- IFC import should resolve chained local placements into global coordinates for nodes and should preserve the original placement chain as `PlacementFrame` and `ExternalIdentity` metadata.
+
+Frame taxonomy:
+
+| Frame type | Purpose | Storage rule |
+| --- | --- | --- |
+| `model_global` | Tuba source-of-truth coordinate frame | implicit singleton |
+| `site` / `survey` | BIM/site exchange coordinates and large-offset mapping | optional `PlacementFrame` |
+| `assembly` | rack bay, skid, module, pipe spool, support frame | `PlacementFrame` tied to `Assembly` |
+| `product` | IFC-style product occurrence placement | optional `PlacementAssignment` |
+| `route_local` | pipe-builder cursor frame, local X is current pipe tangent | derived/ephemeral unless explicitly captured |
+| `element_local` | pipe/beam local axis and section orientation | derived from element geometry plus orientation metadata |
+| `support_local` | support hardware or restraint reference direction | explicit only when used by supports/loads |
+
+Tuba should support different user-facing coordinate inputs as adapters, not as separate core geometry storage:
+
+- Cartesian: first-class and persisted.
+- Offset/station/elevation: converted through a named frame or route frame.
+- Cylindrical/radial grids: accepted for plant/rack authoring when linked to a named frame, then converted to Cartesian.
+- Survey coordinates: accepted through a site/survey transform, then converted to model-global.
+
+Do not store native nodes in cylindrical, spherical, or survey coordinates. Preserve the authoring frame and original input only as metadata/provenance.
+
 ## Target Data Model
 
 ### `AnalysisStudy`
@@ -260,6 +306,82 @@ model.entity_records: dict[str, EntityRecord]
 ```
 
 Key format is `str(EntityRef)`.
+
+### `PlacementFrame`
+
+Named local coordinate system using IFC-style relative placement semantics.
+
+```python
+@dataclass(frozen=True)
+class PlacementFrame:
+    id: str
+    origin: tuple[float, float, float]
+    axis: tuple[float, float, float] = (0.0, 0.0, 1.0)
+    ref_direction: tuple[float, float, float] = (1.0, 0.0, 0.0)
+    parent: EntityRef | None = None
+    frame_type: str = "generic"          # site, assembly, product, route_local, element_local, support_local
+    source: str | None = None            # native, ifc, user, agent, import
+    metadata: dict[str, Any] = field(default_factory=dict)
+```
+
+Semantics:
+
+- `origin`, `axis`, and `ref_direction` are relative to `parent` when `parent` is set.
+- `axis` is the local Z direction, matching IFC `IfcAxis2Placement3D.Axis`.
+- `ref_direction` is the local X direction, matching IFC `IfcAxis2Placement3D.RefDirection`.
+- local Y is computed as `axis cross ref_direction` after orthonormalization and right-handed validation.
+- `CoordinateSystem` remains the math object used to transform points/vectors once a placement chain is resolved.
+
+Storage:
+
+```python
+model.placement_frames: dict[str, PlacementFrame]
+```
+
+Indexes:
+
+```text
+placement_frame_by_id
+placement_frames_by_parent
+placement_frames_by_type
+```
+
+Required helpers:
+
+```python
+model.add_placement_frame(...)
+model.resolve_placement_frame(frame_ref) -> CoordinateSystem
+model.to_global_point(point, frame=None)
+model.to_global_vector(vector, frame=None)
+model.to_local_point(point, frame)
+```
+
+### `PlacementAssignment`
+
+Optional occurrence-to-frame link for products, assemblies, support components, context geometry, and imported IFC products.
+
+```python
+@dataclass(frozen=True)
+class PlacementAssignment:
+    target: EntityRef
+    frame: EntityRef
+    role: str = "object_placement"       # object_placement, authoring_frame, result_frame, import_frame
+    source: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+```
+
+Storage:
+
+```python
+model.placement_assignments: list[PlacementAssignment]
+```
+
+Rules:
+
+- A target may have at most one `object_placement` assignment per source system.
+- Multiple authoring/provenance frames may be recorded when useful.
+- A `PlacementAssignment` must never imply that node coordinates are local; native nodes remain global.
+- IFC export may choose relative placement from `PlacementAssignment` while still deriving geometry from global nodes.
 
 ### `ExternalIdentity`
 
@@ -519,6 +641,8 @@ Required export profiles:
 
 | Tuba object | Preferred IFC target |
 | --- | --- |
+| placement frame | `IfcLocalPlacement` plus `IfcAxis2Placement3D` |
+| product placement assignment | `IfcProduct.ObjectPlacement` |
 | pipe straight element | `IfcPipeSegment` |
 | pipe bend/fitting | `IfcPipeFitting` |
 | pipe endpoint/nozzle | `IfcDistributionPort` |
@@ -530,6 +654,7 @@ Required export profiles:
 
 | Tuba object | Preferred IFC target |
 | --- | --- |
+| rack/support frame placement | `IfcLocalPlacement` relative to site/building/storey or parent assembly |
 | horizontal rack member | `IfcBeam` |
 | vertical rack member | `IfcColumn` |
 | generic brace/member | `IfcMember` |
@@ -554,6 +679,8 @@ Add these top-level optional keys:
 {
   "schema_version": "0.5",
   "entity_records": {},
+  "placement_frames": {},
+  "placement_assignments": [],
   "external_identities": [],
   "relationships": [],
   "ports": {},
@@ -577,6 +704,9 @@ Backwards compatibility:
 Add patch operations in small increments:
 
 - `SetEntityRecord`
+- `AddPlacementFrame`
+- `AssignPlacement`
+- `RemovePlacementAssignment`
 - `SetExternalIdentity`
 - `AddRelationship`
 - `RemoveRelationship`
@@ -601,6 +731,10 @@ Patch requirements:
 Core validation:
 
 - All `EntityRef` targets resolve or are explicitly marked external/context.
+- Placement frames form an acyclic parent graph.
+- Placement frame axes are finite, nonzero, orthogonal after validation, and right-handed.
+- Placement assignments reference existing targets and frames.
+- A target cannot have duplicate `object_placement` assignments for the same source.
 - No duplicate entity IDs within a kind.
 - No duplicate IFC GUID for different targets in the same model.
 - Port owner exists.
@@ -627,6 +761,9 @@ Engineering validation:
 IFC validation:
 
 - IFC GUIDs are stable across repeated exports.
+- IFC local placement chains resolve to the same global coordinates used by native nodes within tolerance.
+- IFC import preserves product placement metadata even when native geometry is flattened to global nodes.
+- IFC export diagnostics report when a native placement cannot be represented as `IfcLocalPlacement`.
 - IFC entity mapping exists or fallback is explicit.
 - IFC property sets contain units where values need units.
 - IFC export profile determines whether insulation is property-only or geometry.
@@ -657,6 +794,9 @@ support_by_id
 support_component_by_id
 assembly_by_id
 port_by_id
+placement_frame_by_id
+placement_frames_by_parent
+placement_assignments_by_target
 relationships_by_source
 relationships_by_target
 relationships_by_type
@@ -771,6 +911,8 @@ Version 1 keeps the current public API working:
 - `model.elements`
 - `model.supports`
 - `model.groups`
+- `model.placement_frames`
+- `model.placement_assignments`
 - `model.specs`
 - `model.attributes`
 - existing JSON fixtures
@@ -805,6 +947,10 @@ Do not replace solver `Support` immediately.
 - New model JSON roundtrips all new keys.
 - Existing `RackBay` still works.
 - A rack bay is represented as both native assembly and compatibility group.
+- A rack bay can carry an IFC-style placement frame, and member nodes still serialize as global coordinates.
+- Chained placement frames roundtrip through JSON and resolve to deterministic global transforms.
+- IFC export can emit product local placements relative to site/storey/assembly frames.
+- IFC import resolves local placement chains into global nodes and preserves frame metadata.
 - A pipe support can link to a physical support component and rack member.
 - A load transfer can be traced from pipe/support to rack member.
 - Route cost model can include added structural cost and support cost.
@@ -824,6 +970,8 @@ Do not replace solver `Support` immediately.
 Unit tests:
 
 - `EntityRecord` serialization.
+- `PlacementFrame` serialization, frame composition, cycle detection, and point/vector transforms.
+- `PlacementAssignment` serialization and duplicate object-placement validation.
 - `ExternalIdentity` registry lookup and duplicate detection.
 - `ModelRelationship` serialization and adjacency indexes.
 - `Port` serialization and connection validation.
@@ -843,6 +991,7 @@ Integration tests:
 - route optimizer evaluates detour versus structural addition.
 - visualization scene includes assemblies, ports, relationships, load paths, and IFC GUIDs.
 - IFC export/import preserves stable identity and custom property sets.
+- IFC export/import preserves placement hierarchy where supported and resolves geometry to the same global points.
 - BCF issue export references involved IFC GUIDs.
 - Code_Aster export study writes mesh source mapping.
 - Mock solver results create a `ResultState`.
@@ -867,6 +1016,9 @@ Benchmark tests:
 5. Whether IFC export should target IFC4 initially or move to IFC4.3 once IfcOpenShell project support is stable for our needed entities.
 6. Whether to persist indexes or always rebuild them lazily.
 7. Whether bSDD URIs should be bundled in static mappings or optional remote lookup.
+8. Whether element-local frames should be persisted for all elements or computed on demand from geometry plus orientation metadata.
+9. Whether imported IFC placements should always create `PlacementFrame` records or only when the placement is non-identity/nontrivial.
+10. Whether route-local authoring frames should be persisted by default or only captured when an agent/user explicitly names them.
 
 ## Reference Sources
 
@@ -877,3 +1029,5 @@ Benchmark tests:
 - IFC 4.3 `IfcElementAssembly`: https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcElementAssembly.htm
 - IFC 4.3 `IfcDistributionPort`: https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcDistributionPort.htm
 - IFC 4.3 `IfcStructuralAnalysisModel`: https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcStructuralAnalysisModel.htm
+- IFC 4.3 `IfcLocalPlacement`: https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcLocalPlacement.htm
+- IFC 4.3 `IfcAxis2Placement3D`: https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcAxis2Placement3D.htm

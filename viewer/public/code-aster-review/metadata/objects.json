@@ -1,0 +1,501 @@
+[
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:element:pipe_0",
+    "id": "object:element:pipe_0",
+    "kind": "pipe",
+    "metadata": {
+      "element_type": "pipe_straight",
+      "groups": [],
+      "material": "Steel",
+      "nodes": [
+        "N0",
+        "N1"
+      ],
+      "section": "PipeSec"
+    },
+    "name": "pipe_0",
+    "physical": {
+      "bare_od_m": 0.1,
+      "bare_radius_m": 0.05,
+      "effective_od_m": 0.1,
+      "effective_radius_m": 0.05,
+      "element_id": "pipe_0",
+      "insulation_cost_per_m": 0.0,
+      "insulation_mass_kg_per_m": 0.0,
+      "insulation_spec_id": null,
+      "insulation_thickness_m": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "mass_kg_per_m": 22.1953520976119,
+      "material": "Steel",
+      "metal_area_m2": 0.002827433388230815,
+      "pipe_mass_kg_per_m": 22.1953520976119,
+      "section": "PipeSec",
+      "surface_area_m2_per_m": 0.3141592653589793,
+      "wind_diameter_m": 0.1
+    },
+    "quantities": {
+      "element_id": "pipe_0",
+      "insulation_cost": 0.0,
+      "insulation_mass_kg": 0.0,
+      "insulation_volume_m3": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "length_m": 1.0,
+      "mass_kg_per_m": 22.1953520976119,
+      "pipe_mass_kg": 22.1953520976119,
+      "surface_area_m2": 0.3141592653589793,
+      "total_mass_kg": 22.1953520976119,
+      "wind_projected_area_m2": 0.1
+    }
+  },
+  {
+    "entity_ref": "support:support_anchor_0",
+    "geometry_asset_id": "geometry:support:support_anchor_0",
+    "id": "object:support:support_anchor_0",
+    "kind": "support",
+    "metadata": {
+      "node": "N0",
+      "support_type": "anchor"
+    },
+    "name": "support_anchor_0"
+  },
+  {
+    "id": "object:result_state:result_state:Hot",
+    "kind": "result_state",
+    "metadata": {
+      "element_result_count": 1,
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_count": 2,
+      "result_state_id": "result_state:Hot",
+      "solver_name": "Code_Aster",
+      "study_id": "analysis_study:Hot"
+    },
+    "name": "Result state Hot",
+    "source": {
+      "tuba_result_state": {
+        "element_results": {
+          "pipe_0": {
+            "forces_n1": [
+              8.0,
+              15.0,
+              20.0,
+              1.0,
+              2.0,
+              3.0
+            ],
+            "forces_n2": [
+              9.0,
+              16.0,
+              21.0,
+              4.0,
+              5.0,
+              6.0
+            ],
+            "max_von_mises": 118000000.0,
+            "von_mises_n1": 76000000.0,
+            "von_mises_n2": 118000000.0
+          }
+        },
+        "files": {
+          "comm": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study.comm",
+          "depl": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study_depl.csv",
+          "effo": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study_effo.csv",
+          "export": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study.export",
+          "mail": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study.mail",
+          "manifest": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study_manifest.json",
+          "reac": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study_reac.csv",
+          "sieq": ".benchmarks\\code_aster_artifact_review\\code_aster_artifacts\\study_sieq.csv"
+        },
+        "id": "result_state:Hot",
+        "load_case": "Hot",
+        "mesh_id": "analysis_mesh:Hot",
+        "metadata": {
+          "source": "code_aster_artifact_tables"
+        },
+        "model_revision": 0,
+        "node_displacements": {
+          "N0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "N1": [
+            0.0,
+            0.012,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "node_reactions": {
+          "N0": [
+            900.0,
+            0.0,
+            -300.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "solver_name": "Code_Aster",
+        "study_id": "analysis_study:Hot"
+      }
+    }
+  },
+  {
+    "id": "object:geometry_state:geometry_state:Hot:physical",
+    "kind": "geometry_state",
+    "metadata": {
+      "displacement_scale": 1.0,
+      "geometry_state_id": "geometry_state:Hot:physical",
+      "load_case": "Hot",
+      "purpose": "engineering",
+      "result_state_id": "result_state:Hot",
+      "safety_factor": 1.0,
+      "state_type": "operating"
+    },
+    "name": "Geometry state geometry_state:Hot:physical",
+    "source": {
+      "tuba_geometry_state": {
+        "displacement_scale": 1.0,
+        "id": "geometry_state:Hot:physical",
+        "load_case": "Hot",
+        "model_revision": 0,
+        "purpose": "engineering",
+        "result_state_id": "result_state:Hot",
+        "safety_factor": 1.0,
+        "state_type": "operating"
+      }
+    }
+  },
+  {
+    "id": "object:geometry_state:geometry_state:Hot:visual_x40",
+    "kind": "geometry_state",
+    "metadata": {
+      "displacement_scale": 40.0,
+      "geometry_state_id": "geometry_state:Hot:visual_x40",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot",
+      "safety_factor": 1.0,
+      "state_type": "deformed"
+    },
+    "name": "Geometry state geometry_state:Hot:visual_x40",
+    "source": {
+      "tuba_geometry_state": {
+        "displacement_scale": 40.0,
+        "id": "geometry_state:Hot:visual_x40",
+        "load_case": "Hot",
+        "model_revision": 0,
+        "purpose": "visualization",
+        "result_state_id": "result_state:Hot",
+        "safety_factor": 1.0,
+        "state_type": "deformed"
+      }
+    }
+  },
+  {
+    "entity_ref": "node:N0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N0",
+    "group_ids": [
+      "AllSupports",
+      "GN_N0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:N0",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllSupports",
+      "analysis_mesh:group:GN_N0"
+    ],
+    "metadata": {
+      "coordinates": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "groups": [
+        "AllSupports",
+        "GN_N0"
+      ],
+      "member_id": "N0",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "role": "native_node",
+      "solver_name": "Code_Aster",
+      "source_ref": "node:N0"
+    },
+    "name": "N0 (native_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "N0",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "node:N1",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N1",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:N1",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "groups": [],
+      "member_id": "N1",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "role": "native_node",
+      "solver_name": "Code_Aster",
+      "source_ref": "node:N1"
+    },
+    "name": "N1 (native_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "N1",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_0",
+    "group_ids": [
+      "AllPipes",
+      "PipeStraights"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_0",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:PipeStraights"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "PipeStraights"
+      ],
+      "member_id": "pipe_0",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "N0",
+        "N1"
+      ],
+      "role": "native_element",
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_0"
+    },
+    "name": "pipe_0 (native_element)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_0",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:deformed_centerline:geometry_state:Hot:physical:pipe_0",
+    "id": "object:deformed_centerline:geometry_state:Hot:physical:pipe_0",
+    "kind": "deformed_centerline",
+    "layer_ids": [
+      "deformed:physical_centerline"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 1.0,
+      "entity_ref": "element:pipe_0",
+      "geometry_state_id": "geometry_state:Hot:physical",
+      "load_case": "Hot",
+      "purpose": "engineering",
+      "result_state_id": "result_state:Hot",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "state_type": "operating",
+      "visual_scale": 1.0
+    },
+    "name": "pipe_0 geometry_state:Hot:physical centerline"
+  },
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:physical:element:pipe_0:insulation",
+    "id": "object:deformed_envelope:geometry_state:Hot:physical:element:pipe_0:insulation",
+    "kind": "deformed_envelope",
+    "layer_ids": [
+      "deformed:physical_envelope"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 1.0,
+      "entity_ref": "element:pipe_0",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:physical",
+      "load_case": "Hot",
+      "purpose": "engineering",
+      "radius_m": 0.05,
+      "result_state_id": "result_state:Hot",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "state_type": "operating",
+      "visual_scale": 1.0
+    },
+    "name": "element:pipe_0 geometry_state:Hot:physical insulation"
+  },
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:physical:analysis_mesh:Hot:pipe_0",
+    "group_ids": [
+      "AllPipes",
+      "PipeStraights"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:physical:analysis_mesh:Hot:pipe_0",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:PipeStraights"
+    ],
+    "metadata": {
+      "displacement_scale": 1.0,
+      "element_id": "pipe_0",
+      "geometry_state_id": "geometry_state:Hot:physical",
+      "groups": [
+        "AllPipes",
+        "PipeStraights"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N0",
+        "N1"
+      ],
+      "purpose": "engineering",
+      "result_state_id": "result_state:Hot",
+      "role": "native_element",
+      "safety_factor": 1.0,
+      "source_ref": "element:pipe_0",
+      "state_type": "operating",
+      "visual_scale": 1.0
+    },
+    "name": "pipe_0 geometry_state:Hot:physical warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:deformed_centerline:geometry_state:Hot:visual_x40:pipe_0",
+    "id": "object:deformed_centerline:geometry_state:Hot:visual_x40:pipe_0",
+    "kind": "deformed_centerline",
+    "layer_ids": [
+      "deformed:visual_centerline"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 40.0,
+      "entity_ref": "element:pipe_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x40",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 40.0
+    },
+    "name": "pipe_0 geometry_state:Hot:visual_x40 centerline"
+  },
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x40:element:pipe_0:insulation",
+    "id": "object:deformed_envelope:geometry_state:Hot:visual_x40:element:pipe_0:insulation",
+    "kind": "deformed_envelope",
+    "layer_ids": [
+      "deformed:visual_envelope"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 40.0,
+      "entity_ref": "element:pipe_0",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:visual_x40",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "radius_m": 0.05,
+      "result_state_id": "result_state:Hot",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 40.0
+    },
+    "name": "element:pipe_0 geometry_state:Hot:visual_x40 insulation"
+  },
+  {
+    "entity_ref": "element:pipe_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x40:analysis_mesh:Hot:pipe_0",
+    "group_ids": [
+      "AllPipes",
+      "PipeStraights"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x40:analysis_mesh:Hot:pipe_0",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:PipeStraights"
+    ],
+    "metadata": {
+      "displacement_scale": 40.0,
+      "element_id": "pipe_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x40",
+      "groups": [
+        "AllPipes",
+        "PipeStraights"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N0",
+        "N1"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot",
+      "role": "native_element",
+      "safety_factor": 1.0,
+      "source_ref": "element:pipe_0",
+      "state_type": "deformed",
+      "visual_scale": 40.0
+    },
+    "name": "pipe_0 geometry_state:Hot:visual_x40 warped mesh"
+  }
+]

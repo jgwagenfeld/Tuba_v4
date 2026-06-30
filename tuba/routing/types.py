@@ -66,6 +66,9 @@ class PipeRouteRequest:
     preferred_waypoints: tuple[Point3D, ...] = ()
     forbidden_zones: tuple[str, ...] = ()
     preferred_zones: tuple[str, ...] = ()
+    routing_space: Any | None = None
+    thermal_requirements: Any | None = None
+    solver_acceptance: Any | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

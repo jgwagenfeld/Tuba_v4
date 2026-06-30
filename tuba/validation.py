@@ -6,7 +6,9 @@ from collections import Counter
 
 import numpy as np
 
+from tuba.attributes import coerce_entity_ref
 from tuba.model import BarSection, CableSection, IBeamSection, PipeSection, RectangularSection, TubaModel
+from tuba.placements import placement_frame_id, resolve_placement_frame
 from tuba.refs import resolve_entity_ref
 
 
@@ -54,6 +56,9 @@ def validate_model(model: TubaModel) -> None:
             if element_id not in element_ids:
                 errors.append(f"Group {group_name!r} references missing element {element_id!r}.")
 
+    _validate_placement_frames(model, errors)
+    _validate_placement_assignments(model, errors)
+
     for assignment in getattr(model, "attributes", []):
         try:
             resolve_entity_ref(model, assignment.target)
@@ -67,6 +72,44 @@ def validate_model(model: TubaModel) -> None:
 
     if errors:
         raise ModelValidationError("\n".join(errors))
+
+
+def _validate_placement_frames(model: TubaModel, errors: list[str]) -> None:
+    frames = getattr(model, "placement_frames", {})
+    for frame_id, frame in frames.items():
+        if frame_id != frame.id:
+            errors.append(f"Placement frame key {frame_id!r} does not match id {frame.id!r}.")
+        try:
+            frame.to_coordinate_system()
+        except Exception as exc:  # noqa: BLE001 - collect all validation errors
+            errors.append(f"Placement frame {frame_id!r} is invalid: {exc}")
+        parent_id = placement_frame_id(frame.parent)
+        if parent_id is not None and parent_id not in frames:
+            errors.append(f"Placement frame {frame_id!r} references missing parent {parent_id!r}.")
+
+    for frame_id in frames:
+        try:
+            resolve_placement_frame(frame_id, frames)
+        except Exception as exc:  # noqa: BLE001 - collect all validation errors
+            errors.append(f"Placement frame cycle or resolution error at {frame_id!r}: {exc}")
+
+
+def _validate_placement_assignments(model: TubaModel, errors: list[str]) -> None:
+    frames = getattr(model, "placement_frames", {})
+    seen: set[tuple[str, str | None]] = set()
+    for assignment in getattr(model, "placement_assignments", []):
+        frame_id = placement_frame_id(assignment.frame)
+        if frame_id not in frames:
+            errors.append(f"Placement assignment references missing frame {assignment.frame!r}.")
+        try:
+            resolve_entity_ref(model, coerce_entity_ref(assignment.target))
+        except Exception:  # noqa: BLE001 - collect all validation errors
+            errors.append(f"Placement assignment references missing target {assignment.target!r}.")
+        if assignment.role == "object_placement":
+            key = (assignment.target, assignment.source)
+            if key in seen:
+                errors.append(f"Duplicate object placement assignment for {assignment.target!r}.")
+            seen.add(key)
 
 
 def _validate_section(name: str, section, errors: list[str]) -> None:

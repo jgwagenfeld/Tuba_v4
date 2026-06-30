@@ -8,7 +8,7 @@ elements on the parent TubaModel.
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -151,22 +151,61 @@ class PipingBuilder:
         self,
         type: str,
         direction: Optional[List[float]] = None,
+        stiffness: Optional[float] = None,
         stiffness_matrix: Optional[List[float]] = None,
         blocked_dof: Optional[List[Any]] = None,
         mass: float = 0.0,
         friction_coefficient: float = 0.0,
     ) -> "PipingBuilder":
         """Attach a support to the last created node."""
+        if type == "spring" and stiffness is not None and stiffness_matrix is None and direction is None:
+            raise ValueError(
+                "Spring supports require a direction with scalar stiffness, "
+                "or use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz]. "
+                "For v2-style springs, call spring(x=..., y=..., z=..., rx=..., ry=..., rz=...)."
+            )
         self.model.add_support(
             self.last_node_id,
             type,
             direction=direction,
+            stiffness=stiffness,
             stiffness_matrix=stiffness_matrix,
             blocked_dof=blocked_dof,
             mass=mass,
             friction_coefficient=friction_coefficient,
         )
         return self
+
+    def spring(
+        self,
+        x: float = 0.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        rx: float = 0.0,
+        ry: float = 0.0,
+        rz: float = 0.0,
+        reference: str = "global",
+    ) -> "PipingBuilder":
+        """Attach a v2-style six-DOF spring to the last created node."""
+        if reference != "global":
+            raise ValueError("Spring reference must be 'global'; local spring references are not implemented in v4.")
+        return self.add_support(
+            type="spring",
+            stiffness_matrix=[x, y, z, rx, ry, rz],
+        )
+
+    def Spring(
+        self,
+        x: float = 0.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        rx: float = 0.0,
+        ry: float = 0.0,
+        rz: float = 0.0,
+        reference: str = "global",
+    ) -> "PipingBuilder":
+        """Compatibility alias matching the v2 command name."""
+        return self.spring(x=x, y=y, z=z, rx=rx, ry=ry, rz=rz, reference=reference)
 
     def run_element(self, length: float, element_type: str = "pipe_straight", twist_angle: float = 0.0) -> "PipingBuilder":
         """Extend a segment of *length* [m] in the current direction with a specific element type."""

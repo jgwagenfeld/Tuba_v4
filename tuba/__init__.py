@@ -21,17 +21,21 @@ from tuba.model import (
 )
 from tuba.builder import PipingBuilder
 from tuba.coordinates import CoordinateSystem
+from tuba.placements import PlacementAssignment, PlacementFrame
 from tuba.fragments import ModelFragment, PlacementResult, place_fragment
 from tuba.patches import (
     AddElement,
     AddInsulationSpec,
     AddNode,
+    AddPlacementFrame,
     AddSupport,
     AssignAttribute,
+    AssignPlacement,
     CreateGroup,
     ModelPatch,
     ModelTransaction,
     PatchResult,
+    RemovePlacementAssignment,
 )
 from tuba.attributes import AttributeAssignment, InsulationSpec
 from tuba.assemblies import RackBay
@@ -57,18 +61,23 @@ def write_model_benchmark_summary(*args, **kwargs):
 __all__ = [
     "Model",
     "CoordinateSystem",
+    "PlacementAssignment",
+    "PlacementFrame",
     "ModelFragment",
     "PlacementResult",
     "place_fragment",
     "AddElement",
     "AddInsulationSpec",
     "AddNode",
+    "AddPlacementFrame",
     "AddSupport",
     "AssignAttribute",
+    "AssignPlacement",
     "CreateGroup",
     "ModelPatch",
     "ModelTransaction",
     "PatchResult",
+    "RemovePlacementAssignment",
     "AttributeAssignment",
     "InsulationSpec",
     "RackBay",

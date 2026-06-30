@@ -7,6 +7,7 @@ from tuba import Model, Material, PipeSection, PipingBuilder
 from tuba.solver.base import FEAResults, NodeResult, ElementResult
 from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
 from tuba.compliance.asme_b313 import ASMEB313Evaluator
+from tuba.routing.optimizer import GeneticSupportPlacer, LLMSupportOptimizer
 from tuba.visualizer.pipeline import build_mesh_from_model, inflate_tubes
 
 
@@ -147,6 +148,45 @@ class TestModelAndBuilder(unittest.TestCase):
             loaded_ids = [e.id for e in loaded.elements]
             self.assertEqual(len(loaded_ids), len(set(loaded_ids)))
             self.assertIn("pipe_str_3", loaded_ids)
+
+    def test_builder_v2_style_spring_uses_stiffness_matrix(self):
+        model = Model(project_name="V2StyleSpring")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+
+        with model.pipe(section="PipeSec", material="Steel") as b:
+            b.start([0, 0, 0])
+            b.spring(y=1.5e6)
+
+        self.assertEqual(len(model.supports), 1)
+        self.assertEqual(model.supports[0].type, "spring")
+        self.assertEqual(model.supports[0].stiffness_matrix, [0.0, 1.5e6, 0.0, 0.0, 0.0, 0.0])
+        self.assertIsNone(model.supports[0].stiffness)
+
+    def test_optimizer_llm_spring_suggestions_use_stiffness_matrix(self):
+        model = Model(project_name="LLMSpring")
+        model.add_node(np.array([0.0, 0.0, 0.0]))
+
+        optimizer = LLMSupportOptimizer()
+        logs = optimizer.apply_llm_suggestions(
+            model,
+            '[{"action": "ADD", "node": "N0", "type": "spring", "y": 150000.0}]',
+        )
+
+        self.assertEqual(logs, ["Added spring support at node N0"])
+        self.assertEqual(model.supports[0].stiffness_matrix, [0.0, 150000.0, 0.0, 0.0, 0.0, 0.0])
+        self.assertIsNone(model.supports[0].stiffness)
+
+    def test_genetic_support_placer_spring_gene_uses_stiffness_matrix(self):
+        model = Model(project_name="GeneticSpring")
+        model.add_support(node="N0", type="anchor")
+
+        placer = GeneticSupportPlacer()
+        placer._apply_chromosome(model, ["N1"], np.array([3]))
+
+        spring = next(s for s in model.supports if s.type == "spring")
+        self.assertEqual(spring.stiffness_matrix, [0.0, 200000.0, 0.0, 0.0, 0.0, 0.0])
+        self.assertIsNone(spring.stiffness)
 
     def test_load_case_ref_temperature_roundtrip(self):
         model = Model(project_name="LoadCaseRoundtrip")
@@ -412,7 +452,14 @@ class TestCodeAsterSolver(unittest.TestCase):
             self.assertTrue((out_dir / "study.export").exists())
 
             # Read content to ensure f-strings worked
+            mail_content = (out_dir / "study.mail").read_text(encoding="utf-8")
             comm_content = (out_dir / "study.comm").read_text(encoding="utf-8")
+            self.assertIn("SEG3", mail_content)
+            self.assertIn("pipe_str_0_mid", mail_content)
+            self.assertIn("GROUP_NO NOM=PipeOrientationNodes", mail_content)
+            self.assertIn("GROUP_MA NOM=SEC_PipeSec", mail_content)
+            self.assertIn("GROUP_NO='PipeOrientationNodes'", comm_content)
+            self.assertIn("GROUP_MA='SEC_PipeSec'", comm_content)
             self.assertIn("VALE=1.500000E+02", comm_content)
             self.assertIn("PRES=1.500000E+06", comm_content)
 
@@ -459,7 +506,7 @@ class TestCodeAsterSolver(unittest.TestCase):
             b.start([6.5, 0, 0]).beam(1.0)
             
         # Add supports with stiffness, blocked DOFs, and masses
-        model.add_support(node="N1", type="spring", stiffness=1.5e6)
+        model.add_support(node="N1", type="spring", stiffness_matrix=[0.0, 1.5e6, 0.0, 0.0, 0.0, 0.0])
         model.add_support(node="N2", type="custom", blocked_dof=[1, 1, 0, 0, 0, 1])
         model.add_support(node="N3", type="spring", stiffness_matrix=[1e5, 2e5, 3e5, 0.0, 0.0, 0.0])
         model.add_support(node="N4", type="rest", mass=50.0)
@@ -483,6 +530,8 @@ class TestCodeAsterSolver(unittest.TestCase):
             self.assertIn("MODELISATION='BARRE'", comm)
             self.assertIn("MODELISATION='CABLE'", comm)
             self.assertIn("MODELISATION='DIS_TR'", comm)
+            self.assertIn("SEG3", mail)
+            self.assertIn("SEG2", mail)
 
             # Check section definitions
             self.assertIn("SECTION='CERCLE'", comm)

@@ -166,6 +166,14 @@ MODEL_SCHEMA_V4 = {
         "obstacles": {"type": "array"},
         "tees": {"type": "object"},
         "groups": {"type": "object"},
+        "placement_frames": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/placementFrame"},
+        },
+        "placement_assignments": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/placementAssignment"},
+        },
         "specs": {
             "type": "object",
             "properties": {
@@ -244,6 +252,7 @@ MODEL_SCHEMA_V4 = {
                         "material",
                         "section",
                         "load_case",
+                        "placement_frame",
                         "cad_asset",
                         "component",
                         "analysis_region",
@@ -253,6 +262,33 @@ MODEL_SCHEMA_V4 = {
                     ]
                 },
                 "id": {"type": "string", "minLength": 1},
+            },
+            "additionalProperties": False,
+        },
+        "placementFrame": {
+            "type": "object",
+            "required": ["id", "origin"],
+            "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "origin": {"$ref": "#/$defs/vector3"},
+                "axis": {"$ref": "#/$defs/vector3"},
+                "ref_direction": {"$ref": "#/$defs/vector3"},
+                "parent": {"type": "string"},
+                "frame_type": {"type": "string"},
+                "source": {"type": "string"},
+                "metadata": {"type": "object"},
+            },
+            "additionalProperties": False,
+        },
+        "placementAssignment": {
+            "type": "object",
+            "required": ["target", "frame"],
+            "properties": {
+                "target": {"type": "string", "pattern": "^[^:]+:.+$"},
+                "frame": {"type": "string", "pattern": "^placement_frame:.+$"},
+                "role": {"type": "string"},
+                "source": {"type": "string"},
+                "metadata": {"type": "object"},
             },
             "additionalProperties": False,
         },
@@ -460,6 +496,46 @@ PATCH_SCHEMA_V1 = {
                     },
                     {
                         "type": "object",
+                        "required": ["op", "id", "origin"],
+                        "properties": {
+                            "op": {"const": "add_placement_frame"},
+                            "id": {"type": "string", "minLength": 1},
+                            "origin": {"$ref": "#/$defs/vector3"},
+                            "axis": {"$ref": "#/$defs/vector3"},
+                            "ref_direction": {"$ref": "#/$defs/vector3"},
+                            "parent": {"type": "string"},
+                            "frame_type": {"type": "string"},
+                            "source": {"type": "string"},
+                            "metadata": {"type": "object"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    {
+                        "type": "object",
+                        "required": ["op", "target", "frame"],
+                        "properties": {
+                            "op": {"const": "assign_placement"},
+                            "target": {"type": "string", "pattern": "^[^:]+:.+$"},
+                            "frame": {"type": "string", "pattern": "^placement_frame:.+$"},
+                            "role": {"type": "string"},
+                            "source": {"type": "string"},
+                            "metadata": {"type": "object"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    {
+                        "type": "object",
+                        "required": ["op", "target"],
+                        "properties": {
+                            "op": {"const": "remove_placement_assignment"},
+                            "target": {"type": "string", "pattern": "^[^:]+:.+$"},
+                            "role": {"type": "string"},
+                            "source": {"type": "string"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    {
+                        "type": "object",
                         "required": ["op", "name"],
                         "properties": {
                             "op": {"const": "create_group"},
@@ -511,6 +587,7 @@ PATCH_SCHEMA_V1 = {
                         "material",
                         "section",
                         "load_case",
+                        "placement_frame",
                         "cad_asset",
                         "component",
                         "analysis_region",

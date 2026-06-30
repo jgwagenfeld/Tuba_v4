@@ -2,6 +2,70 @@
 
 AI-ready piping stress analysis & routing library.
 
+## Core Workflow
+
+Tuba v4 is built around one non-optional engineering workflow:
+
+1. Define the piping structure in Tuba.
+2. Evaluate the model with Code_Aster.
+3. Display, review, and report processed Code_Aster results.
+
+Generating `.comm`, `.mail`, and `.export` files is only the solver handoff.
+It is not a completed evaluation. Production stress, displacement, reaction,
+thermal-expansion, operating-state clash, compliance, and result visualization
+workflows must run Code_Aster or import real Code_Aster result artifacts before
+showing solver results. If Code_Aster is unavailable, Tuba should stop with a
+clear runtime/setup blocker rather than substitute mock values.
+
+## Code_Aster Runtime
+
+Code_Aster execution is required for production stress, displacement, reaction,
+compliance, operating-state clash, and result visualization workflows.
+Exporting `.comm`, `.mail`, and `.export` files is only the solver handoff; the
+engineering evaluation is incomplete until Code_Aster has executed and Tuba has
+imported the generated artifacts.
+
+Run the runtime doctor:
+
+```powershell
+.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor
+```
+
+Equivalent module form: `python -m tuba.solver.code_aster_doctor`.
+
+Full Windows/WSL installation walkthrough:
+[`docs/code_aster_installation.md`](docs/code_aster_installation.md).
+
+Preferred Windows/WSL setup:
+
+```powershell
+$env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
+$env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"
+```
+
+Use `TUBA_CODE_ASTER_PYTHON` only when the configured Python executable is
+directly executable by the Tuba process, for example when Tuba itself runs
+inside Linux/WSL:
+
+```powershell
+$env:TUBA_CODE_ASTER_PYTHON = "<host-executable Python that can import run_aster>"
+```
+
+Fallback setup:
+
+```powershell
+$env:TUBA_CODE_ASTER_RUNNER = "run_aster"
+```
+
+Real solver smoke:
+
+```powershell
+$env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
+$env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"
+$env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
+.\.venv\Scripts\python.exe -m unittest tests.integration.test_code_aster_real_smoke -v
+```
+
 ## Installation
 
 ```bash
@@ -23,11 +87,23 @@ applies the selected route to the model, and writes Markdown/JSON reports.
 ```powershell
 .\.venv\Scripts\python.exe examples\autoroute_single_pipe.py
 .\.venv\Scripts\python.exe examples\autoroute_network.py
+.\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py
 ```
 
 Expected outputs are written below `routing_reports/`, including
 `route_report.md`, `route_result.json`, and `studies/<pipe>/candidate_*/study.*`
 files when study export is enabled.
+
+For hot lines, `examples\autoroute_expansion_loop.py` combines a
+`ThermalRouteRequirement` with an `ExpansionAwareRouter` and explicit expansion
+loop specs. It also sets `SolverAcceptanceCriteria` and uses
+`SolverLoopConfig(run_solver=False, export_study=True)` so the example produces
+route-geometry reports and Code_Aster study files for review. That mode is a
+development handoff only: engineering evaluation is incomplete until the study
+is solved with Code_Aster and the generated result artifacts are imported. The
+demo keeps normal movement constraints and selects the U-loop because its
+geometry is lower cost than the valid grid detour around the equipment
+envelope.
 
 For interactive Jupyter review, install the optional PyVista/Trame notebook
 stack and open the notebook:
@@ -35,6 +111,7 @@ stack and open the notebook:
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"
 jupyter lab notebooks\autorouting_quick_iteration.ipynb
+jupyter lab notebooks\08_expansion_aware_autorouting.ipynb
 ```
 
 ```python
@@ -82,8 +159,9 @@ as obstacles for later routes. Supported order strategies are `given`,
 Candidate review can be extended with `SolverLoopScorer`. With
 `SolverLoopConfig(run_solver=False, export_study=True)`, Tuba exports Code_Aster
 study folders for the highest-ranked candidates without launching Code_Aster.
-This provides reviewable `.comm`, `.mail`, and `.export` files for engineering
-checks or downstream solver automation.
+This provides reviewable `.comm`, `.mail`, and `.export` files for solver
+handoff and debugging. It is not a completed engineering evaluation until
+Code_Aster has run and Tuba has imported the generated result artifacts.
 
 Current autorouting scope:
 
@@ -110,8 +188,9 @@ Troubleshooting:
 - `outside routing grid bounds`: explicit bounds do not include the endpoint.
 - `Routing grid has ... exceeding max_cells`: increase `cell_size`, reduce the
   design volume, or raise `max_cells` deliberately.
-- Solver unavailable: use `run_solver=False`; study export and cheap ranking
-  still work.
+- Solver unavailable: configure a Code_Aster runtime before displaying or
+  reporting solver results. `run_solver=False` is acceptable only for authoring,
+  export inspection, and CI-safe diagnostics.
 - HTML visualization dependencies missing: Markdown/JSON reports remain the
   supported headless review output.
 

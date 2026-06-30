@@ -18,6 +18,7 @@ ENTITY_REF_KINDS = frozenset(
         "material",
         "section",
         "load_case",
+        "placement_frame",
         "cad_asset",
         "component",
         "analysis_region",
@@ -92,6 +93,9 @@ def resolve_entity_ref(model: Any, ref: EntityRef) -> Any:
     if ref.kind == "route":
         routes = getattr(model, "routes", {})
         return _lookup_mapping(routes, ref)
+    if ref.kind == "placement_frame":
+        placement_frames = getattr(model, "placement_frames", {})
+        return _lookup_mapping(placement_frames, ref)
     if ref.kind == "cad_asset":
         return _lookup_mapping(getattr(model, "cad_assets", {}), ref)
     if ref.kind == "component":

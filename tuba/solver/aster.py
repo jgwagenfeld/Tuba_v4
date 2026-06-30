@@ -12,13 +12,13 @@ The ``.comm`` file follows the Tuba v2 TUBA_COMM_BASE pattern and uses the
 from __future__ import annotations
 
 import logging
+import hashlib
 import json
 import os
 import re
-import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 
@@ -38,6 +38,7 @@ from tuba.solver.base import (
     FEAResults,
     NodeResult,
 )
+from tuba.solver.code_aster_runtime import CodeAsterRuntimeConfig, run_code_aster_export
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
 from tuba.refs import EntityRef
 
@@ -46,6 +47,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+class _SegmentMidpoint(NamedTuple):
+    node_id: str
+    start_node_id: str
+    end_node_id: str
+    source_element_id: str
+    segment_index: int
+    coords: np.ndarray
 
 def _node_label(node_id: str) -> str:
     """Convert a Tuba node id (``'N0'``, ``'N12'``) to a plain numeric label.
@@ -61,18 +71,6 @@ def _elem_label(elem_id: str) -> str:
     return elem_id.lstrip("E")
 
 
-def _win_to_wsl(win_path: Path) -> str:
-    """Translate a Windows path to its WSL equivalent.
-
-    ``D:\\work\\study`` → ``/mnt/d/work/study``
-    """
-    posix = win_path.as_posix()  # D:/work/study
-    if len(posix) >= 2 and posix[1] == ":":
-        drive = posix[0].lower()
-        return f"/mnt/{drive}{posix[2:]}"
-    return posix
-
-
 # ---------------------------------------------------------------------------
 # Solver
 # ---------------------------------------------------------------------------
@@ -85,13 +83,22 @@ class CodeAsterSolver(BaseSolver):
     work_dir : str or Path, optional
         Explicit working directory.  If *None* a temporary directory is
         created for each :meth:`solve` invocation.
-    exec_method : ``'wsl'`` | ``'docker'``
-        How to invoke Code_Aster.  ``'wsl'`` (default) assumes ``as_run``
-        is available inside Windows Subsystem for Linux.  ``'docker'``
-        launches a container from *docker_image*.
+    exec_method : ``'auto'`` | ``'python_bridge'`` | ``'command'`` | ``'wsl'`` | ``'docker'``
+        How to invoke Code_Aster.  ``'auto'`` tries WSL first and falls back to
+        Docker when no WSL runner is installed. ``'wsl'`` runs the study inside
+        Windows Subsystem for Linux. ``'docker'`` launches a container from
+        *docker_image*.
+    wsl_distro : str, optional
+        WSL distro name passed to ``wsl -d <name>``.  Defaults to
+        ``TUBA_CODE_ASTER_WSL_DISTRO`` when set.
     docker_image : str, optional
-        Docker image name, e.g. ``'codeaster/codeaster:stable'``.
-        Required when *exec_method* is ``'docker'``.
+        Docker image name, e.g. ``'simvia/code_aster:stable'``.
+        Required when *exec_method* is ``'docker'`` or the auto Docker fallback
+        is used.
+    runner_command : str, optional
+        Shell command used inside WSL or the container before ``study.export``.
+        When omitted, Tuba tries ``as_run``, ``aster``, and the documented
+        ``conda run -n base aster`` path.
     """
 
     # Name reported in :class:`FEAResults`
@@ -100,12 +107,20 @@ class CodeAsterSolver(BaseSolver):
     def __init__(
         self,
         work_dir: Optional[str] = None,
-        exec_method: str = "wsl",
+        exec_method: Optional[str] = None,
         docker_image: Optional[str] = None,
+        wsl_distro: Optional[str] = None,
+        runner_command: Optional[str] = None,
+        bridge_python: Optional[str] = None,
+        timeout_seconds: int = 7200,
     ) -> None:
         self.work_dir = Path(work_dir) if work_dir else None
-        self.exec_method = exec_method
-        self.docker_image = docker_image or "codeaster/codeaster:stable"
+        self.exec_method = exec_method or os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto")
+        self.docker_image = docker_image or os.environ.get("TUBA_CODE_ASTER_DOCKER_IMAGE") or "simvia/code_aster:stable"
+        self.wsl_distro = wsl_distro or os.environ.get("TUBA_CODE_ASTER_WSL_DISTRO")
+        self.runner_command = runner_command or os.environ.get("TUBA_CODE_ASTER_RUNNER")
+        self.bridge_python = bridge_python or os.environ.get("TUBA_CODE_ASTER_PYTHON")
+        self.timeout_seconds = timeout_seconds
 
     # ==================================================================
     # Public API
@@ -317,12 +332,19 @@ class CodeAsterSolver(BaseSolver):
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
         return study
 
+    def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> FEAResults:
+        """Execute an already-exported Code_Aster analysis study and parse its artifacts."""
+        work_dir = Path(study.work_dir)
+        self._execute(work_dir)
+        return self.parse_result_artifacts(model, work_dir, study.load_case)
+
 
     # ==================================================================
     # Mesh generation (.mail)
     # ==================================================================
 
-    # Number of SEG2 segments per pipe bend element.
+    # Number of linear subdivisions per pipe bend element before writing
+    # each solver segment as a quadratic SEG3 pipe element.
     _BEND_SEGMENTS = 16
 
     def _write_mail(
@@ -337,8 +359,9 @@ class CodeAsterSolver(BaseSolver):
         """Generate the Code_Aster plain-text mesh file.
 
         Uses the **Gmsh OCC kernel** to construct proper circular arcs
-        for pipe bends and discretise them into SEG2 elements.  Straight
-        pipes are represented as single SEG2 elements.
+        for pipe bends and discretise them into quadratic SEG3 pipe elements.
+        Straight pipes are represented as single SEG3 elements.  Non-pipe
+        beams, bars, and cables remain SEG2 line elements.
 
         The mesh is written in the Aster native format
         (``FORMAT='ASTER'``) so that ``LIRE_MAILLAGE`` can read it
@@ -368,6 +391,13 @@ class CodeAsterSolver(BaseSolver):
             bend_intermediate = self._compute_bend_nodes_gmsh(
                 model, bend_elems, N
             )
+        pipe_midpoints = self._pipe_straight_midpoint_nodes(model, pipe_straights)
+        bend_segment_midpoints = self._pipe_bend_segment_midpoint_nodes(
+            model,
+            pipe_bends,
+            bend_intermediate,
+            N,
+        )
 
         analysis_mesh = None
         if analysis_mesh_id is not None:
@@ -382,6 +412,8 @@ class CodeAsterSolver(BaseSolver):
                 bar_elems=bar_elems,
                 cable_elems=cable_elems,
                 bend_intermediate=bend_intermediate,
+                pipe_midpoints=pipe_midpoints,
+                bend_segment_midpoints=bend_segment_midpoints,
                 mail_path=path,
                 n_segments=N,
             )
@@ -399,33 +431,51 @@ class CodeAsterSolver(BaseSolver):
                     f"  {name}  {coord[0]:+.10E}  "
                     f"{coord[1]:+.10E}  {coord[2]:+.10E}"
                 )
+        for midpoint in pipe_midpoints.values():
+            coord = midpoint.coords
+            lines.append(
+                f"  {midpoint.node_id}  {coord[0]:+.10E}  "
+                f"{coord[1]:+.10E}  {coord[2]:+.10E}"
+            )
+        for midpoint in bend_segment_midpoints.values():
+            coord = midpoint.coords
+            lines.append(
+                f"  {midpoint.node_id}  {coord[0]:+.10E}  "
+                f"{coord[1]:+.10E}  {coord[2]:+.10E}"
+            )
         lines.append("FINSF")
         lines.append("")
 
-        # --- SEG2 for straights -------------------------------------------
-        if straight_elems:
+        # --- SEG3 for pipe straights --------------------------------------
+        if pipe_straights:
+            lines.append("SEG3")
+            for elem in pipe_straights:
+                midpoint = pipe_midpoints[elem.id]
+                lines.append(
+                    f"  {map_name(elem.id)}  {elem.n1}  {elem.n2}  {midpoint.node_id}"
+                )
+            lines.append("FINSF")
+            lines.append("")
+
+        # --- SEG2 for non-pipe line elements ------------------------------
+        non_pipe_straights = beam_elems + bar_elems + cable_elems
+        if non_pipe_straights:
             lines.append("SEG2")
-            for elem in straight_elems:
+            for elem in non_pipe_straights:
                 lines.append(f"  {map_name(elem.id)}  {elem.n1}  {elem.n2}")
             lines.append("FINSF")
             lines.append("")
 
-        # --- SEG2 for bends -----------------------------------------------
+        # --- SEG3 for bend subdivisions -----------------------------------
         if bend_elems:
-            lines.append("SEG2")
+            lines.append("SEG3")
             for elem in bend_elems:
-                lines.append(
-                    f"  {map_name(f'{elem.id}_s0')}  {elem.n1}  {elem.id}_n1"
-                )
-                for i in range(1, N - 1):
+                for segment_id, _, _ in self._bend_segment_node_pairs(elem, N):
+                    midpoint = bend_segment_midpoints[segment_id]
                     lines.append(
-                        f"  {map_name(f'{elem.id}_s{i}')}  "
-                        f"{elem.id}_n{i}  {elem.id}_n{i + 1}"
+                        f"  {map_name(segment_id)}  {midpoint.start_node_id}  "
+                        f"{midpoint.end_node_id}  {midpoint.node_id}"
                     )
-                lines.append(
-                    f"  {map_name(f'{elem.id}_s{N - 1}')}  "
-                    f"{elem.id}_n{N - 1}  {elem.n2}"
-                )
             lines.append("FINSF")
             lines.append("")
 
@@ -457,6 +507,29 @@ class CodeAsterSolver(BaseSolver):
             lines.append(f"GROUP_MA NOM={map_name('AllPipes')}")
             for eid in all_pipe_ids:
                 lines.append(f"  {map_name(eid)}")
+            lines.append("FINSF")
+            lines.append("")
+
+        pipe_orientation_nodes: list[str] = []
+        for elem in pipe_straights:
+            pipe_orientation_nodes.append(elem.n1)
+        for elem in bend_elems:
+            pipe_orientation_nodes.append(elem.n1)
+        if pipe_orientation_nodes:
+            lines.append(f"GROUP_NO NOM={map_name('PipeOrientationNodes')}")
+            for node_id in dict.fromkeys(pipe_orientation_nodes):
+                lines.append(f"  {node_id}")
+            lines.append("FINSF")
+            lines.append("")
+
+        poutre_line_elems = pipe_straights + beam_elems
+        section_group_members: dict[str, list[str]] = {}
+        for elem in poutre_line_elems:
+            section_group_members.setdefault(elem.section, []).append(elem.id)
+        for section_name, element_ids in section_group_members.items():
+            lines.append(f"GROUP_MA NOM={map_name(self._section_group_name(section_name))}")
+            for element_id in element_ids:
+                lines.append(f"  {map_name(element_id)}")
             lines.append("FINSF")
             lines.append("")
 
@@ -530,6 +603,8 @@ class CodeAsterSolver(BaseSolver):
         bar_elems: list[Element],
         cable_elems: list[Element],
         bend_intermediate: dict[str, list[tuple[str, np.ndarray]]],
+        pipe_midpoints: dict[str, _SegmentMidpoint],
+        bend_segment_midpoints: dict[str, _SegmentMidpoint],
         mail_path: Path,
         n_segments: int,
     ) -> AnalysisMesh:
@@ -554,6 +629,26 @@ class CodeAsterSolver(BaseSolver):
                     parametric_t=index / n_segments,
                     segment_index=index,
                 )
+
+        for midpoint in pipe_midpoints.values():
+            nodes[midpoint.node_id] = tuple(float(value) for value in midpoint.coords)
+            node_sources[midpoint.node_id] = MeshNodeSource(
+                node_id=midpoint.node_id,
+                source_ref=EntityRef("element", midpoint.source_element_id),
+                role="generated_pipe_mid_node",
+                parametric_t=0.5,
+                segment_index=0,
+            )
+
+        for midpoint in bend_segment_midpoints.values():
+            nodes[midpoint.node_id] = tuple(float(value) for value in midpoint.coords)
+            node_sources[midpoint.node_id] = MeshNodeSource(
+                node_id=midpoint.node_id,
+                source_ref=EntityRef("element", midpoint.source_element_id),
+                role="generated_bend_mid_node",
+                parametric_t=(midpoint.segment_index + 0.5) / n_segments,
+                segment_index=midpoint.segment_index,
+            )
 
         elements: dict[str, tuple[str, ...]] = {}
         element_sources: dict[str, MeshElementSource] = {}
@@ -595,6 +690,15 @@ class CodeAsterSolver(BaseSolver):
         all_pipe_ids.extend(f"{elem.id}_s{index}" for elem in pipe_bends for index in range(n_segments))
         if all_pipe_ids:
             groups["AllPipes"] = tuple(all_pipe_ids)
+        pipe_orientation_nodes = [elem.n1 for elem in pipe_straights]
+        pipe_orientation_nodes.extend(elem.n1 for elem in pipe_bends)
+        if pipe_orientation_nodes:
+            groups["PipeOrientationNodes"] = tuple(dict.fromkeys(pipe_orientation_nodes))
+        section_group_members: dict[str, list[str]] = {}
+        for elem in pipe_straights + beam_elems:
+            section_group_members.setdefault(elem.section, []).append(elem.id)
+        for section_name, element_ids in section_group_members.items():
+            groups[self._section_group_name(section_name)] = tuple(element_ids)
         if beam_elems:
             groups["G_TUBE"] = tuple(elem.id for elem in beam_elems)
         if bar_elems:
@@ -619,6 +723,88 @@ class CodeAsterSolver(BaseSolver):
             element_sources=element_sources,
             files={"mail": str(mail_path)},
         )
+
+    def _pipe_straight_midpoint_nodes(
+        self,
+        model: TubaModel,
+        pipe_straights: list[Element],
+    ) -> dict[str, _SegmentMidpoint]:
+        midpoints: dict[str, _SegmentMidpoint] = {}
+        for elem in pipe_straights:
+            start = self._analysis_node_coords(model, {}, elem.n1)
+            end = self._analysis_node_coords(model, {}, elem.n2)
+            midpoints[elem.id] = _SegmentMidpoint(
+                node_id=self._generated_midpoint_node_id(elem.id),
+                start_node_id=elem.n1,
+                end_node_id=elem.n2,
+                source_element_id=elem.id,
+                segment_index=0,
+                coords=(start + end) / 2.0,
+            )
+        return midpoints
+
+    def _pipe_bend_segment_midpoint_nodes(
+        self,
+        model: TubaModel,
+        pipe_bends: list[Element],
+        bend_intermediate: dict[str, list[tuple[str, np.ndarray]]],
+        n_segments: int,
+    ) -> dict[str, _SegmentMidpoint]:
+        midpoints: dict[str, _SegmentMidpoint] = {}
+        for elem in pipe_bends:
+            for segment_index, (segment_id, start_id, end_id) in enumerate(
+                self._bend_segment_node_pairs(elem, n_segments)
+            ):
+                start = self._analysis_node_coords(model, bend_intermediate, start_id)
+                end = self._analysis_node_coords(model, bend_intermediate, end_id)
+                midpoints[segment_id] = _SegmentMidpoint(
+                    node_id=self._generated_midpoint_node_id(segment_id),
+                    start_node_id=start_id,
+                    end_node_id=end_id,
+                    source_element_id=elem.id,
+                    segment_index=segment_index,
+                    coords=(start + end) / 2.0,
+                )
+        return midpoints
+
+    @staticmethod
+    def _bend_segment_node_pairs(elem: Element, n_segments: int) -> list[tuple[str, str, str]]:
+        pairs = [(f"{elem.id}_s0", elem.n1, f"{elem.id}_n1")]
+        for index in range(1, n_segments - 1):
+            pairs.append((f"{elem.id}_s{index}", f"{elem.id}_n{index}", f"{elem.id}_n{index + 1}"))
+        pairs.append((f"{elem.id}_s{n_segments - 1}", f"{elem.id}_n{n_segments - 1}", elem.n2))
+        return pairs
+
+    @staticmethod
+    def _generated_midpoint_node_id(base_id: str) -> str:
+        node_id = f"{base_id}_mid"
+        if len(node_id) <= 24:
+            return node_id
+        digest = hashlib.sha1(node_id.encode("utf-8")).hexdigest()[:8].upper()
+        return f"N_{digest}"
+
+    @staticmethod
+    def _section_group_name(section_name: str) -> str:
+        safe = re.sub(r"[^A-Za-z0-9_]", "_", section_name)
+        group_name = f"SEC_{safe}"
+        if len(group_name) <= 24:
+            return group_name
+        digest = hashlib.sha1(group_name.encode("utf-8")).hexdigest()[:8].upper()
+        return f"SEC_{digest}"
+
+    @staticmethod
+    def _analysis_node_coords(
+        model: TubaModel,
+        generated_nodes: dict[str, list[tuple[str, np.ndarray]]],
+        node_id: str,
+    ) -> np.ndarray:
+        if node_id in model.nodes:
+            return np.asarray(model.nodes[node_id].coords, dtype=float)
+        for nodes in generated_nodes.values():
+            for generated_id, coords in nodes:
+                if generated_id == node_id:
+                    return np.asarray(coords, dtype=float)
+        raise KeyError(f"Node {node_id!r} is not present in model or generated bend nodes.")
 
     # ------------------------------------------------------------------
     # Gmsh-based bend node computation
@@ -962,11 +1148,11 @@ class CodeAsterSolver(BaseSolver):
                 else:
                     expanded_ids.append(elem.id)
 
-            group_list = ", ".join(f"'{map_name(eid)}'" for eid in expanded_ids)
+            maille_list = ", ".join(f"'{map_name(eid)}'" for eid in expanded_ids)
             if set(elem_ids) == {e.id for e in model.elements}:
                 group_spec = "TOUT='OUI',"
             else:
-                group_spec = f"GROUP_MA=({group_list}),"
+                group_spec = f"MAILLE=({maille_list}),"
             affe_entries.append(
                 f"        _F(\n"
                 f"            {group_spec}\n"
@@ -997,15 +1183,14 @@ class CodeAsterSolver(BaseSolver):
             sec_straights = [e.id for e in straight_elems if e.section == sec_name and e.type in ("pipe_straight", "beam")]
             
             if sec_straights:
-                group_list = ", ".join(f"'{map_name(eid)}'" for eid in sec_straights)
-                grp = f"({group_list})" if len(sec_straights) > 1 else f"'{map_name(sec_straights[0])}'"
+                section_group = f"'{map_name(self._section_group_name(sec_name))}'"
                 
                 if isinstance(sec, PipeSection) or isinstance(sec, BarSection):
                     r_ext = sec.OD / 2.0
                     ep = sec.WT
                     poutre_entries.append(
                         f"        _F(\n"
-                        f"            GROUP_MA={grp},\n"
+                        f"            GROUP_MA={section_group},\n"
                         f"            SECTION='CERCLE',\n"
                         f"            CARA=('R', 'EP'),\n"
                         f"            VALE=({r_ext:.8E}, {ep:.8E}),\n"
@@ -1019,7 +1204,7 @@ class CodeAsterSolver(BaseSolver):
                     if t_y == 0.0 and t_z == 0.0:
                         poutre_entries.append(
                             f"        _F(\n"
-                            f"            GROUP_MA={grp},\n"
+                            f"            GROUP_MA={section_group},\n"
                             f"            SECTION='RECTANGLE',\n"
                             f"            CARA=('HY', 'HZ'),\n"
                             f"            VALE=({h_y:.8E}, {h_z:.8E}),\n"
@@ -1028,7 +1213,7 @@ class CodeAsterSolver(BaseSolver):
                     else:
                         poutre_entries.append(
                             f"        _F(\n"
-                            f"            GROUP_MA={grp},\n"
+                            f"            GROUP_MA={section_group},\n"
                             f"            SECTION='RECTANGLE',\n"
                             f"            CARA=('HY', 'HZ', 'EPY', 'EPZ'),\n"
                             f"            VALE=({h_y:.8E}, {h_z:.8E}, {t_y:.8E}, {t_z:.8E}),\n"
@@ -1040,7 +1225,7 @@ class CodeAsterSolver(BaseSolver):
                     vals = [p.get(k, 0.0) for k in beamCaraStr]
                     poutre_entries.append(
                         f"        _F(\n"
-                        f"            GROUP_MA={grp},\n"
+                        f"            GROUP_MA={section_group},\n"
                         f"            SECTION='GENERALE',\n"
                         f"            CARA=({', '.join(repr(k) for k in beamCaraStr)}),\n"
                         f"            VALE=({', '.join(f'{v:.8E}' for v in vals)}),\n"
@@ -1140,7 +1325,10 @@ class CodeAsterSolver(BaseSolver):
                             if abs(v) > 1e-12:
                                 k[idx] = val
                     else:
-                        k[1] = val
+                        raise ValueError(
+                            f"Spring support at node {s.node} uses scalar stiffness without direction. "
+                            "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
+                        )
                 discret_entries.append(
                     f"        _F(\n"
                     f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
@@ -1168,7 +1356,7 @@ class CodeAsterSolver(BaseSolver):
         if pipe_straights or pipe_bends:
             orientation_entries.append(
                 "        _F(\n"
-                f"            GROUP_MA='{map_name('AllPipes')}',\n"
+                f"            GROUP_NO='{map_name('PipeOrientationNodes')}',\n"
                 "            CARA='GENE_TUYAU',\n"
                 "            VALE=(0.0, 0.0, 1.0),\n"
                 "        ),"
@@ -1334,17 +1522,6 @@ class CodeAsterSolver(BaseSolver):
             w("    ),")
             w(");")
             w()
-            w("TEMP_REF = CREA_CHAMP(")
-            w("    TYPE_CHAM='NOEU_TEMP_R',")
-            w("    OPERATION='AFFE',")
-            w("    MAILLAGE=MAIL,")
-            w("    AFFE=_F(")
-            w("        TOUT='OUI',")
-            w(f"        NOM_CMP='TEMP',")
-            w(f"        VALE={load_case.ref_temperature:.6E},")
-            w("    ),")
-            w(");")
-            w()
 
             # Rebuild CHMAT with thermal reference
             w("CHMAT = AFFE_MATERIAU(")
@@ -1357,7 +1534,7 @@ class CodeAsterSolver(BaseSolver):
             w("        TOUT='OUI',")
             w("        NOM_VARC='TEMP',")
             w("        CHAM_GD=TEMP_FIELD,")
-            w("        CHAM_REF=TEMP_REF,")
+            w(f"        VALE_REF={load_case.ref_temperature:.6E},")
             w("    ),")
             w(");")
             w()
@@ -1438,7 +1615,7 @@ class CodeAsterSolver(BaseSolver):
         w("RESU = CALC_CHAMP(")
         w("    reuse=RESU,")
         w("    RESULTAT=RESU,")
-        w("    CONTRAINTE=('EFFO_ELNO', 'SIEQ_ELNO'),")
+        w("    CONTRAINTE=('EFGE_ELNO', 'SIEQ_ELNO'),")
         w("    FORCE='FORC_NODA',")
         w(");")
         w()
@@ -1452,7 +1629,7 @@ class CodeAsterSolver(BaseSolver):
         w("    UNITE=80,")
         w("    RESU=_F(")
         w("        RESULTAT=RESU,")
-        w("        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFFO_ELNO', 'FORC_NODA'),")
+        w("        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),")
         w("    ),")
         w(");")
         w()
@@ -1460,11 +1637,11 @@ class CodeAsterSolver(BaseSolver):
         # ==============================================================
         # CREA_TABLE + IMPR_TABLE — parseable text output
         # ==============================================================
-        w("# ----- Text table for EFFO_ELNO -----")
+        w("# ----- Text table for EFGE_ELNO -----")
         w("TAB_EFFO = CREA_TABLE(")
         w("    RESU=_F(")
         w("        RESULTAT=RESU,")
-        w("        NOM_CHAM='EFFO_ELNO',")
+        w("        NOM_CHAM='EFGE_ELNO',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),")
         if is_nonlinear:
@@ -1585,72 +1762,17 @@ class CodeAsterSolver(BaseSolver):
     # ==================================================================
 
     def _execute(self, work_dir: Path) -> None:
-        """Invoke Code_Aster and wait for completion.
-
-        Parameters
-        ----------
-        work_dir : Path
-            Directory containing ``study.export``.
-
-        Raises
-        ------
-        RuntimeError
-            If the solver exits with a non-zero return code.
-        FileNotFoundError
-            If the required executable / container is not available.
-        """
+        """Invoke Code_Aster on the generated study files."""
         export_file = work_dir / "study.export"
-        if not export_file.exists():
-            raise FileNotFoundError(f"Export file not found: {export_file}")
-
-        if self.exec_method == "wsl":
-            wsl_path = _win_to_wsl(work_dir)
-            cmd = [
-                "wsl", "bash", "-c",
-                f"cd {wsl_path} && as_run study.export",
-            ]
-        elif self.exec_method == "docker":
-            wsl_path = _win_to_wsl(work_dir)
-            cmd = [
-                "docker", "run", "--rm",
-                "-v", f"{work_dir}:/work",
-                "-w", "/work",
-                self.docker_image,
-                "as_run", "study.export",
-            ]
-        else:
-            raise ValueError(
-                f"Unknown exec_method '{self.exec_method}'. "
-                f"Supported: 'wsl', 'docker'."
-            )
-
-        logger.info("Executing: %s", " ".join(cmd))
-
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=7200,  # 2-hour safeguard
+        config = CodeAsterRuntimeConfig(
+            exec_method=self.exec_method,
+            docker_image=self.docker_image,
+            wsl_distro=self.wsl_distro,
+            runner_command=self.runner_command,
+            bridge_python=self.bridge_python,
+            timeout_seconds=self.timeout_seconds,
         )
-
-        # Write stdout/stderr for debugging
-        (work_dir / "stdout.log").write_text(result.stdout, encoding="utf-8")
-        (work_dir / "stderr.log").write_text(result.stderr, encoding="utf-8")
-
-        if result.returncode != 0:
-            # Include last 40 lines of message file if available
-            mess_file = work_dir / "study.mess"
-            tail = ""
-            if mess_file.exists():
-                mess_lines = mess_file.read_text(encoding="utf-8", errors="replace").splitlines()
-                tail = "\n".join(mess_lines[-40:])
-            raise RuntimeError(
-                f"Code_Aster failed with return code {result.returncode}.\n"
-                f"stderr: {result.stderr[-500:]}\n"
-                f"--- Last lines of study.mess ---\n{tail}"
-            )
-
-        logger.info("Code_Aster finished successfully.")
+        run_code_aster_export(export_file, work_dir, config)
 
     # ==================================================================
     # Result parsing
@@ -1784,7 +1906,7 @@ class CodeAsterSolver(BaseSolver):
         work_dir: Path,
         results: FEAResults,
     ) -> None:
-        """Parse internal-force table (unit 38, ``EFFO_ELNO``).
+        """Parse internal-force table (unit 38, ``EFGE_ELNO``).
 
         Each row contains ``MAILLE`` (element) and ``NOEUD`` (node).
         For a SEG2 element there are exactly two rows — one per end-node.
@@ -1810,7 +1932,7 @@ class CodeAsterSolver(BaseSolver):
                 continue
             try:
                 forces = np.array([
-                    float(row.get("N", 0)),
+                    float(row.get("N", row.get("NXX", 0))),
                     float(row.get("VY", 0)),
                     float(row.get("VZ", 0)),
                     float(row.get("MT", 0)),

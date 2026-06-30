@@ -114,7 +114,7 @@ def export_ply(
 
     scalar_key = "VMIS"
     if scalar_key in tubes.point_data:
-        import matplotlib.cm as cm
+        import matplotlib
         import matplotlib.colors as mcolors
 
         values = tubes.point_data[scalar_key]
@@ -122,7 +122,7 @@ def export_ply(
             norm = mcolors.Normalize(vmin=values.min(), vmax=values.max())
         else:
             norm = mcolors.Normalize(vmin=0, vmax=1)
-        colormap = cm.get_cmap(cmap)
+        colormap = matplotlib.colormaps.get_cmap(cmap)
         colors = (colormap(norm(values))[:, :3] * 255).astype(np.uint8)
         tubes.point_data["RGB"] = colors
 

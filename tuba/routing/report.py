@@ -79,6 +79,31 @@ def _single_route_markdown(result: PipeRouteResult) -> str:
             clash_status = "; ".join(selected.diagnostics)
         lines.append(f"- Clash status: `{clash_status}`")
 
+        metadata = selected.metadata
+        route_family = metadata.get("route_family")
+        if route_family:
+            lines.append(f"- Route family: `{route_family}`")
+        expansion_loop = metadata.get("expansion_loop", {})
+        if expansion_loop:
+            expansion_fields = []
+            width = expansion_loop.get("width_m")
+            if width is not None:
+                expansion_fields.append(f"width `{width}` m")
+            depth = expansion_loop.get("depth_m")
+            if depth is not None:
+                expansion_fields.append(f"depth `{depth}` m")
+            plane = expansion_loop.get("plane")
+            if plane is not None:
+                expansion_fields.append(f"plane `{plane}`")
+            loop_text = ", ".join(expansion_fields) if expansion_fields else "not provided"
+            lines.append(f"- Expansion loop: {loop_text}")
+        solver_acceptance = metadata.get("solver_acceptance", {})
+        if solver_acceptance:
+            lines.append(f"- Solver acceptance: `{solver_acceptance.get('accepted')}`")
+            failed_checks = solver_acceptance.get("failed_checks") or []
+            checks_text = ", ".join(str(check) for check in failed_checks) if failed_checks else "none"
+            lines.append(f"- Failed checks: `{checks_text}`")
+
         lines.extend(["", "## Support Spans", ""])
         spans = _support_spans(selected.points)
         if spans:
@@ -88,8 +113,8 @@ def _single_route_markdown(result: PipeRouteResult) -> str:
             lines.append("- No straight spans found.")
 
         lines.extend(["", "## Solver / Compliance", ""])
-        solver = selected.metadata.get("solver", {})
-        compliance = selected.metadata.get("compliance", {})
+        solver = metadata.get("solver", {})
+        compliance = metadata.get("compliance", {})
         if solver:
             lines.append(f"- Solver ran: `{solver.get('solver_ran', False)}`")
             if solver.get("solver_name"):

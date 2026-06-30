@@ -67,10 +67,17 @@ class NetworkRouter:
             )
         for conflict in unresolved:
             p1, p2 = conflict["pipes"]
-            diagnostics.append(
-                f"unresolved route conflict between {p1} and {p2}: "
-                f"distance {conflict['distance']:.6g} < required {conflict['required_clearance']:.6g}."
-            )
+            if conflict.get("type") == "reserved_envelope":
+                diagnostics.append(
+                    f"unresolved reserved envelope conflict between {p1} and {p2}: "
+                    f"route {conflict['route_id']} segment {conflict['route_segment']} intrudes into "
+                    f"{conflict['reserved_envelope_owner']} reserved envelope."
+                )
+            else:
+                diagnostics.append(
+                    f"unresolved route conflict between {p1} and {p2}: "
+                    f"distance {conflict['distance']:.6g} < required {conflict['required_clearance']:.6g}."
+                )
 
         return NetworkRouteResult(
             request=request,
@@ -172,6 +179,7 @@ def detect_candidate_conflicts(
         for right_idx in range(left_idx + 1, len(items)):
             id_b, cand_b = items[right_idx]
             required = _required_clearance(id_a, id_b, clearance, model, requests)
+            pair_conflict = False
             for seg_a_idx, (a0, a1) in enumerate(zip(cand_a.points, cand_a.points[1:])):
                 for seg_b_idx, (b0, b1) in enumerate(zip(cand_b.points, cand_b.points[1:])):
                     dist, pa, pb = _segment_distance(
@@ -194,10 +202,109 @@ def detect_candidate_conflicts(
                             "point_b": (float(pb[0]), float(pb[1]), float(pb[2])),
                         }
                     )
+                    pair_conflict = True
                     break
-                if conflicts and conflicts[-1]["pipes"] == (id_a, id_b):
+                if pair_conflict:
                     break
+            if pair_conflict:
+                continue
+            reserved_conflict = _reserved_envelope_conflict(id_a, cand_a, id_b, cand_b)
+            if reserved_conflict is not None:
+                conflicts.append(reserved_conflict)
     return conflicts
+
+
+def _reserved_envelope_conflict(
+    id_a: str,
+    cand_a: PipeRouteCandidate,
+    id_b: str,
+    cand_b: PipeRouteCandidate,
+) -> dict | None:
+    conflict = _route_intrudes_reserved_envelope(id_a, cand_a, id_b, cand_b)
+    if conflict is not None:
+        return conflict
+    return _route_intrudes_reserved_envelope(id_b, cand_b, id_a, cand_a)
+
+
+def _route_intrudes_reserved_envelope(
+    envelope_owner_id: str,
+    envelope_owner: PipeRouteCandidate,
+    route_id: str,
+    route: PipeRouteCandidate,
+) -> dict | None:
+    envelope = envelope_owner.metadata.get("reserved_envelope")
+    bounds = _reserved_envelope_bounds(envelope)
+    if bounds is None:
+        return None
+
+    min_point, max_point = bounds
+    for segment_idx, (start, end) in enumerate(zip(route.points, route.points[1:])):
+        start_arr = np.asarray(start, dtype=float)
+        end_arr = np.asarray(end, dtype=float)
+        if not _segment_intrudes_aabb(start_arr, end_arr, min_point, max_point):
+            continue
+        return {
+            "type": "reserved_envelope",
+            "pipes": (envelope_owner_id, route_id),
+            "segments": (None, segment_idx),
+            "reserved_envelope_owner": envelope_owner_id,
+            "route_id": route_id,
+            "route_segment": segment_idx,
+            "envelope": {
+                "min_point": _point_tuple(min_point),
+                "max_point": _point_tuple(max_point),
+            },
+            "segment_start": _point_tuple(start_arr),
+            "segment_end": _point_tuple(end_arr),
+        }
+    return None
+
+
+def _reserved_envelope_bounds(envelope: object) -> tuple[np.ndarray, np.ndarray] | None:
+    if not isinstance(envelope, dict):
+        return None
+    try:
+        min_point = np.asarray(envelope["min_point"], dtype=float)
+        max_point = np.asarray(envelope["max_point"], dtype=float)
+    except (KeyError, TypeError, ValueError):
+        return None
+    if min_point.shape != (3,) or max_point.shape != (3,):
+        return None
+    if not np.all(np.isfinite(min_point)) or not np.all(np.isfinite(max_point)):
+        return None
+    return np.minimum(min_point, max_point), np.maximum(min_point, max_point)
+
+
+def _segment_intrudes_aabb(
+    start: np.ndarray,
+    end: np.ndarray,
+    min_point: np.ndarray,
+    max_point: np.ndarray,
+) -> bool:
+    eps = 1e-9
+    inner_min = min_point + eps
+    inner_max = max_point - eps
+    if np.any(inner_min > inner_max):
+        return False
+
+    direction = end - start
+    t_min = 0.0
+    t_max = 1.0
+    for axis in range(3):
+        delta = float(direction[axis])
+        if abs(delta) <= 1e-12:
+            if start[axis] <= inner_min[axis] or start[axis] >= inner_max[axis]:
+                return False
+            continue
+        t1 = float((inner_min[axis] - start[axis]) / delta)
+        t2 = float((inner_max[axis] - start[axis]) / delta)
+        axis_min = min(t1, t2)
+        axis_max = max(t1, t2)
+        t_min = max(t_min, axis_min)
+        t_max = min(t_max, axis_max)
+        if t_min > t_max:
+            return False
+    return t_min <= 1.0 and t_max >= 0.0
 
 
 def _required_clearance(
@@ -293,3 +400,7 @@ def _safe_unit(vec: np.ndarray) -> np.ndarray:
     if norm <= 1e-12:
         return np.zeros(3)
     return vec / norm
+
+
+def _point_tuple(point: np.ndarray) -> tuple[float, float, float]:
+    return (float(point[0]), float(point[1]), float(point[2]))

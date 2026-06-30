@@ -1,7 +1,9 @@
 import json
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from tuba import Model
 from tuba.analysis import AnalysisMesh, AnalysisStudy
@@ -95,8 +97,73 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         short_name = sidecar["name_map"][long_id]
         self.assertLessEqual(len(short_name), 24)
         self.assertIn(short_name, mail)
-        self.assertIn(short_name, comm)
         self.assertNotIn(long_id, mail)
+        self.assertNotIn(long_id, comm)
+
+    def test_solver_execute_delegates_to_code_aster_runtime(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study.export").write_text("", encoding="utf-8")
+            captured = {}
+
+            def fake_run_code_aster_export(export_file, work_dir, config):
+                captured["export_file"] = export_file
+                captured["work_dir"] = work_dir
+                captured["config"] = config
+                return object()
+
+            with patch("tuba.solver.aster.run_code_aster_export", fake_run_code_aster_export):
+                CodeAsterSolver(
+                    work_dir=tmpdir,
+                    exec_method="python_bridge",
+                    bridge_python="/opt/aster/bin/python",
+                )._execute(root)
+
+        self.assertEqual(captured["export_file"], root / "study.export")
+        self.assertEqual(captured["work_dir"], root)
+        self.assertEqual(captured["config"].exec_method, "python_bridge")
+        self.assertEqual(captured["config"].bridge_python, "/opt/aster/bin/python")
+
+    def test_solver_preserves_runner_command_compatibility(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study.export").write_text("", encoding="utf-8")
+            captured = {}
+
+            def fake_run_code_aster_export(export_file, work_dir, config):
+                captured["config"] = config
+                return object()
+
+            with patch("tuba.solver.aster.run_code_aster_export", fake_run_code_aster_export):
+                CodeAsterSolver(
+                    work_dir=tmpdir,
+                    exec_method="command",
+                    runner_command="conda run -n aster run_aster",
+                )._execute(root)
+
+        self.assertEqual(captured["config"].exec_method, "command")
+        self.assertEqual(captured["config"].runner_command, "conda run -n aster run_aster")
+
+    def test_solver_reads_code_aster_environment_defaults(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study.export").write_text("", encoding="utf-8")
+            captured = {}
+
+            def fake_run_code_aster_export(export_file, work_dir, config):
+                captured["config"] = config
+                return object()
+
+            env = {
+                "TUBA_CODE_ASTER_EXEC_METHOD": "wsl",
+                "TUBA_CODE_ASTER_WSL_DISTRO": "Ubuntu",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                with patch("tuba.solver.aster.run_code_aster_export", fake_run_code_aster_export):
+                    CodeAsterSolver(work_dir=tmpdir)._execute(root)
+
+        self.assertEqual(captured["config"].exec_method, "wsl")
+        self.assertEqual(captured["config"].wsl_distro, "Ubuntu")
 
 
 if __name__ == "__main__":

@@ -198,7 +198,8 @@ class LLMSupportOptimizer(BasePipingOptimizer):
                 {
                     "node": s.node,
                     "type": s.type,
-                    "direction": s.direction
+                    "direction": s.direction,
+                    "stiffness_matrix": s.stiffness_matrix,
                 }
                 for s in model.supports
             ],
@@ -206,13 +207,38 @@ class LLMSupportOptimizer(BasePipingOptimizer):
         }
         return json.dumps(context, indent=2)
 
+    def _spring_stiffness_matrix_from_suggestion(self, suggestion: Dict[str, Any]) -> Optional[List[float]]:
+        """Return an explicit six-DOF spring matrix from an LLM suggestion."""
+        matrix = suggestion.get("stiffness_matrix")
+        if matrix is not None:
+            if len(matrix) != 6:
+                raise ValueError("stiffness_matrix must contain six values.")
+            return [float(value) for value in matrix]
+
+        v2_components = [suggestion.get(key, 0.0) for key in ("x", "y", "z", "rx", "ry", "rz")]
+        if any(value not in (None, 0, 0.0) for value in v2_components):
+            return [float(value or 0.0) for value in v2_components]
+
+        stiffness = suggestion.get("stiffness")
+        if stiffness is None:
+            return None
+
+        direction = suggestion.get("direction")
+        if not direction:
+            raise ValueError("spring stiffness requires stiffness_matrix, v2 components, or direction.")
+        matrix = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        for idx, value in enumerate(direction[:3]):
+            if abs(float(value)) > 1e-12:
+                matrix[idx] = float(stiffness)
+        return matrix
+
     def apply_llm_suggestions(self, model: TubaModel, suggestions_json: str) -> List[str]:
         """Applies a list of support updates suggested by the LLM.
 
         Example Suggestions JSON:
         [
             {"action": "ADD", "node": "N14", "type": "rest", "direction": [0.0, 1.0, 0.0]},
-            {"action": "MODIFY", "node": "N5", "type": "spring", "stiffness": 150000.0},
+            {"action": "MODIFY", "node": "N5", "type": "spring", "stiffness_matrix": [0.0, 150000.0, 0.0, 0.0, 0.0, 0.0]},
             {"action": "DELETE", "node": "N2"}
         ]
         """
@@ -227,7 +253,11 @@ class LLMSupportOptimizer(BasePipingOptimizer):
             node = sug.get("node")
             sup_type = sug.get("type")
             direction = sug.get("direction")
-            stiffness = sug.get("stiffness")
+            try:
+                stiffness_matrix = self._spring_stiffness_matrix_from_suggestion(sug) if sup_type == "spring" else None
+            except ValueError as e:
+                logs.append(f"{action} spring support at node {node} rejected: {e}")
+                continue
 
             if action == "ADD":
                 if not node or not sup_type:
@@ -235,7 +265,7 @@ class LLMSupportOptimizer(BasePipingOptimizer):
                     continue
                 # Ensure no duplicate support
                 model.supports = [s for s in model.supports if s.node != node]
-                model.add_support(node=node, type=sup_type, direction=direction, stiffness=stiffness)
+                model.add_support(node=node, type=sup_type, direction=direction, stiffness_matrix=stiffness_matrix)
                 logs.append(f"Added {sup_type} support at node {node}")
 
             elif action == "MODIFY":
@@ -244,7 +274,9 @@ class LLMSupportOptimizer(BasePipingOptimizer):
                     if s.node == node:
                         if sup_type: s.type = sup_type
                         if direction: s.direction = direction
-                        if stiffness: s.stiffness = stiffness
+                        if stiffness_matrix:
+                            s.stiffness = None
+                            s.stiffness_matrix = stiffness_matrix
                         found = True
                         logs.append(f"Modified support at node {node}")
                         break
@@ -274,3 +306,147 @@ class LLMSupportOptimizer(BasePipingOptimizer):
             results = None
             
         return model, results
+
+
+class GeneticSupportPlacer(BasePipingOptimizer):
+    """Genetic Algorithm optimizer for support type and location selection.
+
+    Encodes support configurations as binary chromosomes where each candidate
+    location can be: no support (0), rest (1), guide (2), or spring (3).
+    Evolves a population over generations using tournament selection, uniform
+    crossover, and random mutation to minimise the objective evaluator score.
+    """
+
+    SUPPORT_GENES = [None, "rest", "guide", "spring"]
+
+    def __init__(
+        self,
+        solver_name: str = "code_aster",
+        population_size: int = 20,
+        generations: int = 30,
+        mutation_rate: float = 0.15,
+        tournament_size: int = 3,
+    ) -> None:
+        super().__init__(solver_name)
+        self.population_size = population_size
+        self.generations = generations
+        self.mutation_rate = mutation_rate
+        self.tournament_size = tournament_size
+
+    def _get_candidate_nodes(self, model: TubaModel) -> List[str]:
+        """Returns interior pipe nodes that are eligible for support placement."""
+        anchor_nodes = {s.node for s in model.supports if s.type == "anchor"}
+        pipe_nodes = []
+        for elem in model.elements:
+            if elem.type in ("pipe_straight", "pipe_bend"):
+                for nid in (elem.n1, elem.n2):
+                    if nid not in anchor_nodes and nid not in pipe_nodes:
+                        pipe_nodes.append(nid)
+        return pipe_nodes
+
+    def _encode_chromosome(self, length: int) -> np.ndarray:
+        """Random chromosome: array of ints in [0, 3]."""
+        return np.random.randint(0, len(self.SUPPORT_GENES), size=length)
+
+    def _apply_chromosome(
+        self, model: TubaModel, candidate_nodes: List[str], chromosome: np.ndarray
+    ) -> None:
+        """Clear non-anchor supports, then apply chromosome encoding."""
+        model.supports = [s for s in model.supports if s.type == "anchor"]
+        supported = {s.node for s in model.supports}
+        for i, gene in enumerate(chromosome):
+            sup_type = self.SUPPORT_GENES[gene]
+            if sup_type is not None and candidate_nodes[i] not in supported:
+                kwargs: Dict[str, Any] = {"node": candidate_nodes[i], "type": sup_type}
+                if sup_type == "rest":
+                    kwargs["direction"] = [0.0, 1.0, 0.0]
+                elif sup_type == "guide":
+                    kwargs["direction"] = [1.0, 0.0, 1.0]
+                elif sup_type == "spring":
+                    kwargs["stiffness_matrix"] = [0.0, 200_000.0, 0.0, 0.0, 0.0, 0.0]
+                model.add_support(**kwargs)
+
+    def _tournament_select(
+        self, population: List[np.ndarray], scores: List[float]
+    ) -> np.ndarray:
+        """Select a parent via tournament selection."""
+        indices = np.random.choice(len(population), size=self.tournament_size, replace=False)
+        best = min(indices, key=lambda i: scores[i])
+        return population[best].copy()
+
+    def _crossover(self, p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
+        """Uniform crossover."""
+        mask = np.random.randint(0, 2, size=len(p1)).astype(bool)
+        child = np.where(mask, p1, p2)
+        return child
+
+    def _mutate(self, chromosome: np.ndarray) -> np.ndarray:
+        """Random gene mutation."""
+        for i in range(len(chromosome)):
+            if np.random.random() < self.mutation_rate:
+                chromosome[i] = np.random.randint(0, len(self.SUPPORT_GENES))
+        return chromosome
+
+    def optimize(
+        self,
+        model: TubaModel,
+        evaluator: ObjectiveEvaluator,
+        **kwargs,
+    ) -> Tuple[TubaModel, Optional[FEAResults]]:
+        """Run the genetic algorithm optimisation loop.
+
+        Returns the model configured with the best-scoring support layout and
+        the corresponding FEA results.
+        """
+        import copy
+
+        candidate_nodes = self._get_candidate_nodes(model)
+        n_genes = len(candidate_nodes)
+        if n_genes == 0:
+            return model, None
+
+        # Initialise population
+        population = [self._encode_chromosome(n_genes) for _ in range(self.population_size)]
+        best_chromosome = population[0].copy()
+        best_score = float("inf")
+        best_results: Optional[FEAResults] = None
+        history: List[float] = []
+
+        for gen in range(self.generations):
+            scores: List[float] = []
+
+            for chromosome in population:
+                temp_model = copy.deepcopy(model)
+                self._apply_chromosome(temp_model, candidate_nodes, chromosome)
+
+                try:
+                    results = temp_model.solve(solver=self.solver_name)
+                except Exception:
+                    scores.append(float("inf"))
+                    continue
+
+                score = evaluator.evaluate_model(temp_model, results)
+                scores.append(score)
+
+                if score < best_score:
+                    best_score = score
+                    best_chromosome = chromosome.copy()
+                    best_results = results
+
+            history.append(best_score)
+
+            # Breed next generation
+            next_pop: List[np.ndarray] = [best_chromosome.copy()]  # elitism
+            while len(next_pop) < self.population_size:
+                p1 = self._tournament_select(population, scores)
+                p2 = self._tournament_select(population, scores)
+                child = self._crossover(p1, p2)
+                child = self._mutate(child)
+                next_pop.append(child)
+
+            population = next_pop
+
+        # Apply best configuration to the original model
+        self._apply_chromosome(model, candidate_nodes, best_chromosome)
+        self._history = history
+        return model, best_results

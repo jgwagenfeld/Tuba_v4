@@ -5,8 +5,10 @@ from tuba.patches import (
     AddElement,
     AddInsulationSpec,
     AddNode,
+    AddPlacementFrame,
     AddSupport,
     AssignAttribute,
+    AssignPlacement,
     CreateGroup,
     ModelPatch,
     ModelTransaction,
@@ -228,6 +230,33 @@ class TestModelPatch(unittest.TestCase):
         self.assertEqual(len(model.nodes), 0)
         self.assertEqual(len(model.elements), 0)
         self.assertEqual(model.attributes, [])
+
+    def test_patch_adds_placement_frame_and_assignment(self):
+        model = Model("PatchPlacement")
+        model.groups["rack_A"] = {"name": "rack_A", "nodes": [], "elements": [], "supports": []}
+        patch = ModelPatch(
+            operations=[
+                AddPlacementFrame(id="rack_A_frame", origin=(1.0, 2.0, 3.0), frame_type="assembly"),
+                AssignPlacement(target="group:rack_A", frame="placement_frame:rack_A_frame", source="native"),
+            ]
+        )
+
+        ModelTransaction(model).apply(patch)
+
+        self.assertIn("rack_A_frame", model.placement_frames)
+        self.assertEqual(model.placement_assignments[0].target, "group:rack_A")
+
+    def test_placement_patch_serializes_and_loads(self):
+        patch = ModelPatch(
+            operations=[
+                AddPlacementFrame(id="site", origin=(100.0, 0.0, 0.0), frame_type="site"),
+                AssignPlacement(target="group:rack_A", frame="placement_frame:site", source="ifc"),
+            ]
+        )
+
+        loaded = ModelPatch.from_dict(patch.to_dict())
+
+        self.assertEqual(loaded.to_dict(), patch.to_dict())
 
 
 if __name__ == "__main__":

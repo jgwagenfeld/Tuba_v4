@@ -9,6 +9,7 @@ import numpy as np
 
 from tuba.attributes import coerce_entity_ref
 from tuba.model import TubaModel
+from tuba.placements import PlacementAssignment, PlacementFrame
 from tuba.validation import validate_model
 
 
@@ -58,6 +59,34 @@ class AddInsulationSpec:
 
 
 @dataclass(frozen=True)
+class AddPlacementFrame:
+    id: str
+    origin: Sequence[float]
+    axis: Sequence[float] = (0.0, 0.0, 1.0)
+    ref_direction: Sequence[float] = (1.0, 0.0, 0.0)
+    parent: str | None = None
+    frame_type: str = "generic"
+    source: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class AssignPlacement:
+    target: str
+    frame: str
+    role: str = "object_placement"
+    source: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class RemovePlacementAssignment:
+    target: str
+    role: str = "object_placement"
+    source: str | None = None
+
+
+@dataclass(frozen=True)
 class CreateGroup:
     name: str
     nodes: list[str] = field(default_factory=list)
@@ -75,7 +104,17 @@ class AssignAttribute:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-PatchOperation = AddNode | AddElement | AddSupport | AddInsulationSpec | CreateGroup | AssignAttribute
+PatchOperation = (
+    AddNode
+    | AddElement
+    | AddSupport
+    | AddInsulationSpec
+    | AddPlacementFrame
+    | AssignPlacement
+    | RemovePlacementAssignment
+    | CreateGroup
+    | AssignAttribute
+)
 KNOWN_ELEMENT_TYPES = {"pipe_straight", "pipe_bend", "beam", "bar", "cable"}
 
 
@@ -109,6 +148,12 @@ class ModelPatch:
                 operations.append(AddSupport(**payload))
             elif operation_type == "add_insulation_spec":
                 operations.append(AddInsulationSpec(**payload))
+            elif operation_type == "add_placement_frame":
+                operations.append(AddPlacementFrame(**payload))
+            elif operation_type == "assign_placement":
+                operations.append(AssignPlacement(**payload))
+            elif operation_type == "remove_placement_assignment":
+                operations.append(RemovePlacementAssignment(**payload))
             elif operation_type == "create_group":
                 operations.append(CreateGroup(**payload))
             elif operation_type == "assign_attribute":
@@ -151,6 +196,12 @@ class ModelTransaction:
                 elif isinstance(operation, AddInsulationSpec):
                     self._apply_add_insulation_spec(operation)
                     result.spec_count += 1
+                elif isinstance(operation, AddPlacementFrame):
+                    self._apply_add_placement_frame(operation)
+                elif isinstance(operation, AssignPlacement):
+                    self._apply_assign_placement(operation, result)
+                elif isinstance(operation, RemovePlacementAssignment):
+                    self._apply_remove_placement_assignment(operation)
                 elif isinstance(operation, CreateGroup):
                     self._apply_create_group(operation, result)
                     result.group_names.append(operation.name)
@@ -217,6 +268,42 @@ class ModelTransaction:
             metadata=operation.metadata,
         )
 
+    def _apply_add_placement_frame(self, operation: AddPlacementFrame) -> None:
+        self.model.add_placement_frame(
+            PlacementFrame(
+                id=operation.id,
+                origin=tuple(float(value) for value in operation.origin),
+                axis=tuple(float(value) for value in operation.axis),
+                ref_direction=tuple(float(value) for value in operation.ref_direction),
+                parent=operation.parent,
+                frame_type=operation.frame_type,
+                source=operation.source,
+                metadata=operation.metadata,
+            )
+        )
+
+    def _apply_assign_placement(self, operation: AssignPlacement, result: PatchResult) -> None:
+        self.model.assign_placement(
+            PlacementAssignment(
+                target=_resolve_metadata_refs(operation.target, result),
+                frame=operation.frame,
+                role=operation.role,
+                source=operation.source,
+                metadata=operation.metadata,
+            )
+        )
+
+    def _apply_remove_placement_assignment(self, operation: RemovePlacementAssignment) -> None:
+        self.model.placement_assignments = [
+            assignment
+            for assignment in self.model.placement_assignments
+            if not (
+                assignment.target == operation.target
+                and assignment.role == operation.role
+                and assignment.source == operation.source
+            )
+        ]
+
     def _apply_create_group(self, operation: CreateGroup, result: PatchResult) -> None:
         if operation.name in self.model.groups:
             raise ValueError(f"Group {operation.name!r} already exists.")
@@ -280,6 +367,12 @@ def _operation_to_dict(operation: PatchOperation) -> dict[str, Any]:
         operation_type = "add_support"
     elif isinstance(operation, AddInsulationSpec):
         operation_type = "add_insulation_spec"
+    elif isinstance(operation, AddPlacementFrame):
+        operation_type = "add_placement_frame"
+    elif isinstance(operation, AssignPlacement):
+        operation_type = "assign_placement"
+    elif isinstance(operation, RemovePlacementAssignment):
+        operation_type = "remove_placement_assignment"
     elif isinstance(operation, CreateGroup):
         operation_type = "create_group"
     elif isinstance(operation, AssignAttribute):

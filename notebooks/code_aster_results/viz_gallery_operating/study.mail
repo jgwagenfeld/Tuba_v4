@@ -1,0 +1,221 @@
+COOR_3D
+  N0  +0.0000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N1  +3.0000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N2  +3.3000000000E+00  +3.0000000000E-01  +0.0000000000E+00
+  N3  +3.3000000000E+00  +2.3000000000E+00  +0.0000000000E+00
+  N4  +3.3000000000E+00  +2.6000000000E+00  +3.0000000000E-01
+  N5  +3.3000000000E+00  +2.6000000000E+00  +2.3000000000E+00
+  pipe_bend_0_n1  +3.0294051421E+00  +1.4445819983E-03  +0.0000000000E+00
+  pipe_bend_0_n2  +3.0585270966E+00  +5.7644158790E-03  +0.0000000000E+00
+  pipe_bend_0_n3  +3.0870854032E+00  +1.2917899280E-02  +0.0000000000E+00
+  pipe_bend_0_n4  +3.1148050297E+00  +2.2836140247E-02  +0.0000000000E+00
+  pipe_bend_0_n5  +3.1414190210E+00  +3.5423620695E-02  +0.0000000000E+00
+  pipe_bend_0_n6  +3.1666710699E+00  +5.0559116309E-02  +0.0000000000E+00
+  pipe_bend_0_n7  +3.1903179852E+00  +6.8096863991E-02  +0.0000000000E+00
+  pipe_bend_0_n8  +3.2121320344E+00  +8.7867965644E-02  +0.0000000000E+00
+  pipe_bend_0_n9  +3.2319031360E+00  +1.0968201475E-01  +0.0000000000E+00
+  pipe_bend_0_n10  +3.2494408837E+00  +1.3332893009E-01  +0.0000000000E+00
+  pipe_bend_0_n11  +3.2645763793E+00  +1.5858097895E-01  +0.0000000000E+00
+  pipe_bend_0_n12  +3.2771638598E+00  +1.8519497029E-01  +0.0000000000E+00
+  pipe_bend_0_n13  +3.2870821007E+00  +2.1291459682E-01  +0.0000000000E+00
+  pipe_bend_0_n14  +3.2942355841E+00  +2.4147290340E-01  +0.0000000000E+00
+  pipe_bend_0_n15  +3.2985554180E+00  +2.7059485790E-01  +0.0000000000E+00
+  pipe_bend_1_n1  +3.3000000000E+00  +2.3294051421E+00  +1.4445819983E-03
+  pipe_bend_1_n2  +3.3000000000E+00  +2.3585270966E+00  +5.7644158790E-03
+  pipe_bend_1_n3  +3.3000000000E+00  +2.3870854032E+00  +1.2917899280E-02
+  pipe_bend_1_n4  +3.3000000000E+00  +2.4148050297E+00  +2.2836140247E-02
+  pipe_bend_1_n5  +3.3000000000E+00  +2.4414190210E+00  +3.5423620695E-02
+  pipe_bend_1_n6  +3.3000000000E+00  +2.4666710699E+00  +5.0559116309E-02
+  pipe_bend_1_n7  +3.3000000000E+00  +2.4903179852E+00  +6.8096863991E-02
+  pipe_bend_1_n8  +3.3000000000E+00  +2.5121320344E+00  +8.7867965644E-02
+  pipe_bend_1_n9  +3.3000000000E+00  +2.5319031360E+00  +1.0968201475E-01
+  pipe_bend_1_n10  +3.3000000000E+00  +2.5494408837E+00  +1.3332893009E-01
+  pipe_bend_1_n11  +3.3000000000E+00  +2.5645763793E+00  +1.5858097895E-01
+  pipe_bend_1_n12  +3.3000000000E+00  +2.5771638598E+00  +1.8519497029E-01
+  pipe_bend_1_n13  +3.3000000000E+00  +2.5870821007E+00  +2.1291459682E-01
+  pipe_bend_1_n14  +3.3000000000E+00  +2.5942355841E+00  +2.4147290340E-01
+  pipe_bend_1_n15  +3.3000000000E+00  +2.5985554180E+00  +2.7059485790E-01
+FINSF
+
+SEG2
+  pipe_str_0  N0  N1
+  pipe_str_1  N2  N3
+  pipe_str_2  N4  N5
+FINSF
+
+SEG2
+  pipe_bend_0_s0  N1  pipe_bend_0_n1
+  pipe_bend_0_s1  pipe_bend_0_n1  pipe_bend_0_n2
+  pipe_bend_0_s2  pipe_bend_0_n2  pipe_bend_0_n3
+  pipe_bend_0_s3  pipe_bend_0_n3  pipe_bend_0_n4
+  pipe_bend_0_s4  pipe_bend_0_n4  pipe_bend_0_n5
+  pipe_bend_0_s5  pipe_bend_0_n5  pipe_bend_0_n6
+  pipe_bend_0_s6  pipe_bend_0_n6  pipe_bend_0_n7
+  pipe_bend_0_s7  pipe_bend_0_n7  pipe_bend_0_n8
+  pipe_bend_0_s8  pipe_bend_0_n8  pipe_bend_0_n9
+  pipe_bend_0_s9  pipe_bend_0_n9  pipe_bend_0_n10
+  pipe_bend_0_s10  pipe_bend_0_n10  pipe_bend_0_n11
+  pipe_bend_0_s11  pipe_bend_0_n11  pipe_bend_0_n12
+  pipe_bend_0_s12  pipe_bend_0_n12  pipe_bend_0_n13
+  pipe_bend_0_s13  pipe_bend_0_n13  pipe_bend_0_n14
+  pipe_bend_0_s14  pipe_bend_0_n14  pipe_bend_0_n15
+  pipe_bend_0_s15  pipe_bend_0_n15  N2
+  pipe_bend_1_s0  N3  pipe_bend_1_n1
+  pipe_bend_1_s1  pipe_bend_1_n1  pipe_bend_1_n2
+  pipe_bend_1_s2  pipe_bend_1_n2  pipe_bend_1_n3
+  pipe_bend_1_s3  pipe_bend_1_n3  pipe_bend_1_n4
+  pipe_bend_1_s4  pipe_bend_1_n4  pipe_bend_1_n5
+  pipe_bend_1_s5  pipe_bend_1_n5  pipe_bend_1_n6
+  pipe_bend_1_s6  pipe_bend_1_n6  pipe_bend_1_n7
+  pipe_bend_1_s7  pipe_bend_1_n7  pipe_bend_1_n8
+  pipe_bend_1_s8  pipe_bend_1_n8  pipe_bend_1_n9
+  pipe_bend_1_s9  pipe_bend_1_n9  pipe_bend_1_n10
+  pipe_bend_1_s10  pipe_bend_1_n10  pipe_bend_1_n11
+  pipe_bend_1_s11  pipe_bend_1_n11  pipe_bend_1_n12
+  pipe_bend_1_s12  pipe_bend_1_n12  pipe_bend_1_n13
+  pipe_bend_1_s13  pipe_bend_1_n13  pipe_bend_1_n14
+  pipe_bend_1_s14  pipe_bend_1_n14  pipe_bend_1_n15
+  pipe_bend_1_s15  pipe_bend_1_n15  N4
+FINSF
+
+GROUP_MA NOM=PipeStraights
+  pipe_str_0
+  pipe_str_1
+  pipe_str_2
+FINSF
+
+GROUP_MA NOM=PipeElbows
+  pipe_bend_0_s0
+  pipe_bend_0_s1
+  pipe_bend_0_s2
+  pipe_bend_0_s3
+  pipe_bend_0_s4
+  pipe_bend_0_s5
+  pipe_bend_0_s6
+  pipe_bend_0_s7
+  pipe_bend_0_s8
+  pipe_bend_0_s9
+  pipe_bend_0_s10
+  pipe_bend_0_s11
+  pipe_bend_0_s12
+  pipe_bend_0_s13
+  pipe_bend_0_s14
+  pipe_bend_0_s15
+  pipe_bend_1_s0
+  pipe_bend_1_s1
+  pipe_bend_1_s2
+  pipe_bend_1_s3
+  pipe_bend_1_s4
+  pipe_bend_1_s5
+  pipe_bend_1_s6
+  pipe_bend_1_s7
+  pipe_bend_1_s8
+  pipe_bend_1_s9
+  pipe_bend_1_s10
+  pipe_bend_1_s11
+  pipe_bend_1_s12
+  pipe_bend_1_s13
+  pipe_bend_1_s14
+  pipe_bend_1_s15
+FINSF
+
+GROUP_MA NOM=AllPipes
+  pipe_str_0
+  pipe_str_1
+  pipe_str_2
+  pipe_bend_0_s0
+  pipe_bend_0_s1
+  pipe_bend_0_s2
+  pipe_bend_0_s3
+  pipe_bend_0_s4
+  pipe_bend_0_s5
+  pipe_bend_0_s6
+  pipe_bend_0_s7
+  pipe_bend_0_s8
+  pipe_bend_0_s9
+  pipe_bend_0_s10
+  pipe_bend_0_s11
+  pipe_bend_0_s12
+  pipe_bend_0_s13
+  pipe_bend_0_s14
+  pipe_bend_0_s15
+  pipe_bend_1_s0
+  pipe_bend_1_s1
+  pipe_bend_1_s2
+  pipe_bend_1_s3
+  pipe_bend_1_s4
+  pipe_bend_1_s5
+  pipe_bend_1_s6
+  pipe_bend_1_s7
+  pipe_bend_1_s8
+  pipe_bend_1_s9
+  pipe_bend_1_s10
+  pipe_bend_1_s11
+  pipe_bend_1_s12
+  pipe_bend_1_s13
+  pipe_bend_1_s14
+  pipe_bend_1_s15
+FINSF
+
+GROUP_MA NOM=pipe_bend_0
+  pipe_bend_0_s0
+  pipe_bend_0_s1
+  pipe_bend_0_s2
+  pipe_bend_0_s3
+  pipe_bend_0_s4
+  pipe_bend_0_s5
+  pipe_bend_0_s6
+  pipe_bend_0_s7
+  pipe_bend_0_s8
+  pipe_bend_0_s9
+  pipe_bend_0_s10
+  pipe_bend_0_s11
+  pipe_bend_0_s12
+  pipe_bend_0_s13
+  pipe_bend_0_s14
+  pipe_bend_0_s15
+FINSF
+
+GROUP_MA NOM=pipe_bend_1
+  pipe_bend_1_s0
+  pipe_bend_1_s1
+  pipe_bend_1_s2
+  pipe_bend_1_s3
+  pipe_bend_1_s4
+  pipe_bend_1_s5
+  pipe_bend_1_s6
+  pipe_bend_1_s7
+  pipe_bend_1_s8
+  pipe_bend_1_s9
+  pipe_bend_1_s10
+  pipe_bend_1_s11
+  pipe_bend_1_s12
+  pipe_bend_1_s13
+  pipe_bend_1_s14
+  pipe_bend_1_s15
+FINSF
+
+GROUP_NO NOM=GN_N0
+  N0
+FINSF
+
+GROUP_NO NOM=GN_N1
+  N1
+FINSF
+
+GROUP_NO NOM=GN_N3
+  N3
+FINSF
+
+GROUP_NO NOM=GN_N5
+  N5
+FINSF
+
+GROUP_NO NOM=AllSupports
+  N0
+  N1
+  N3
+  N5
+FINSF
+
+FIN

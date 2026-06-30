@@ -8,6 +8,7 @@ import ifcopenshell.guid
 import numpy as np
 
 from tuba.external.ifc_mapping import IfcGuidRegistry, add_property_set, ifc_property
+from tuba.external.ifc_placements import create_local_placement, placement_for_target
 
 
 def export_pipe_products(ifc_file: Any, model: Any, storey: Any, project_context: Any, registry: IfcGuidRegistry) -> dict[str, Any]:
@@ -63,6 +64,9 @@ def _create_pipe_product(ifc_file: Any, model: Any, elem: Any, context: Any, reg
         Description=f"Material: {elem.material}, Section: {elem.section}",
         **kwargs,
     )
+    frame = placement_for_target(model, f"element:{elem.id}")
+    if frame is not None:
+        product.ObjectPlacement = create_local_placement(ifc_file, frame)
     section = model.sections[elem.section]
     add_property_set(
         ifc_file,

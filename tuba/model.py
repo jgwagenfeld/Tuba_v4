@@ -20,6 +20,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from tuba.attributes import AttributeAssignment, InsulationSpec, coerce_entity_ref
+from tuba.coordinates import CoordinateSystem
+from tuba.placements import PlacementAssignment, PlacementFrame, resolve_placement_frame
 from tuba.mixed import (
     AnalysisRegion,
     CadAsset,
@@ -222,7 +224,7 @@ class Element:
     """A 1-D structural element connecting two nodes."""
 
     id: str
-    type: str  # "pipe_straight" | "pipe_bend"
+    type: str  # "pipe_straight" | "pipe_bend" | "beam" | "bar" | "cable"
     n1: str  # start node id
     n2: str  # end node id
     section: str  # PipeSection name
@@ -286,6 +288,8 @@ class TubaModel:
         self.tees: Dict[str, Dict[str, Any]] = {}
         self.obstacles: List[Dict[str, Any]] = []
         self.groups: Dict[str, Dict[str, Any]] = {}
+        self.placement_frames: Dict[str, PlacementFrame] = {}
+        self.placement_assignments: List[PlacementAssignment] = []
         self.specs: Dict[str, Dict[str, Any]] = {}
         self.attributes: List[AttributeAssignment] = []
         self.cad_assets: Dict[str, CadAsset] = {}
@@ -369,7 +373,6 @@ class TubaModel:
         sec = IBeamSection.load_from_db(name=name, profile_name=profile_name)
         self.sections[name] = sec
         return sec
-
 
     # -- Mixed-analysis records ----------------------------------------------
 
@@ -691,6 +694,41 @@ class TubaModel:
 
         return place_fragment(self, fragment, coordinate_system, name=name)
 
+    # -- Placement frames ----------------------------------------------------
+
+    def add_placement_frame(self, frame: PlacementFrame) -> PlacementFrame:
+        """Register a named local placement frame."""
+        if frame.id in self.placement_frames:
+            raise ValueError(f"Placement frame {frame.id!r} already exists.")
+        self.placement_frames[frame.id] = frame
+        return frame
+
+    def assign_placement(self, assignment: PlacementAssignment) -> PlacementAssignment:
+        """Assign an entity to a placement frame."""
+        self.placement_assignments.append(assignment)
+        return assignment
+
+    def resolve_placement_frame(self, frame: str) -> CoordinateSystem:
+        """Resolve a placement frame ref into a model-global coordinate system."""
+        frame_id = frame.split(":", 1)[1] if frame.startswith("placement_frame:") else frame
+        return resolve_placement_frame(frame_id, self.placement_frames)
+
+    def to_global_point(self, point, frame: str | None = None) -> np.ndarray:
+        """Transform a point from a named frame to model-global coordinates."""
+        if frame is None:
+            return np.asarray(point, dtype=float)
+        return self.resolve_placement_frame(frame).to_global_point(point)
+
+    def to_global_vector(self, vector, frame: str | None = None) -> np.ndarray:
+        """Transform a vector from a named frame to model-global coordinates."""
+        if frame is None:
+            return np.asarray(vector, dtype=float)
+        return self.resolve_placement_frame(frame).to_global_vector(vector)
+
+    def to_local_point(self, point, frame: str) -> np.ndarray:
+        """Transform a model-global point into a named local frame."""
+        return self.resolve_placement_frame(frame).to_local_point(point)
+
     # -- Solver dispatch -----------------------------------------------------
 
     def solve(self, solver: str = "code_aster", load_case: Optional[str] = None, **kwargs):
@@ -824,14 +862,40 @@ class TubaModel:
             "obstacles": self.obstacles,
             "tees": self.tees,
             "groups": self.groups,
+            "placement_frames": {
+                frame_id: frame.to_dict()
+                for frame_id, frame in self.placement_frames.items()
+            },
+            "placement_assignments": [
+                assignment.to_dict()
+                for assignment in self.placement_assignments
+            ],
             "specs": _serialize_specs(self.specs),
             "attributes": [assignment.to_dict() for assignment in self.attributes],
-            "cad_assets": {asset_id: asset.to_dict() for asset_id, asset in self.cad_assets.items()},
-            "imported_components": {component_id: component.to_dict() for component_id, component in self.imported_components.items()},
-            "analysis_regions": {region_id: region.to_dict() for region_id, region in self.analysis_regions.items()},
-            "ports": {port_id: port.to_dict() for port_id, port in self.ports.items()},
-            "mesh_groups": {group_id: mesh_group.to_dict() for group_id, mesh_group in self.mesh_groups.items()},
-            "couplings": {coupling_id: coupling.to_dict() for coupling_id, coupling in self.couplings.items()},
+            "cad_assets": {
+                asset_id: asset.to_dict()
+                for asset_id, asset in self.cad_assets.items()
+            },
+            "imported_components": {
+                component_id: component.to_dict()
+                for component_id, component in self.imported_components.items()
+            },
+            "analysis_regions": {
+                region_id: region.to_dict()
+                for region_id, region in self.analysis_regions.items()
+            },
+            "ports": {
+                port_id: port.to_dict()
+                for port_id, port in self.ports.items()
+            },
+            "mesh_groups": {
+                group_id: mesh_group.to_dict()
+                for group_id, mesh_group in self.mesh_groups.items()
+            },
+            "couplings": {
+                coupling_id: coupling.to_dict()
+                for coupling_id, coupling in self.couplings.items()
+            },
         }
 
     def to_json(self, path: Optional[str] = None, indent: int = 2) -> str:
@@ -929,34 +993,42 @@ class TubaModel:
             )
 
         model.groups = data.get("groups", {})
+        model.placement_frames = {
+            frame_id: PlacementFrame.from_dict(frame_data)
+            for frame_id, frame_data in data.get("placement_frames", {}).items()
+        }
+        model.placement_assignments = [
+            PlacementAssignment.from_dict(item)
+            for item in data.get("placement_assignments", [])
+        ]
         model.specs = _deserialize_specs(data.get("specs", {}))
         model.attributes = [
             AttributeAssignment.from_dict(assignment)
             for assignment in data.get("attributes", [])
         ]
         model.cad_assets = {
-            asset_id: CadAsset.from_dict(asset_data)
-            for asset_id, asset_data in data.get("cad_assets", {}).items()
+            asset_id: CadAsset.from_dict(asset)
+            for asset_id, asset in data.get("cad_assets", {}).items()
         }
         model.imported_components = {
-            component_id: ImportedComponent.from_dict(component_data)
-            for component_id, component_data in data.get("imported_components", {}).items()
+            component_id: ImportedComponent.from_dict(component)
+            for component_id, component in data.get("imported_components", {}).items()
         }
         model.analysis_regions = {
-            region_id: AnalysisRegion.from_dict(region_data)
-            for region_id, region_data in data.get("analysis_regions", {}).items()
+            region_id: AnalysisRegion.from_dict(region)
+            for region_id, region in data.get("analysis_regions", {}).items()
         }
         model.ports = {
-            port_id: Port.from_dict(port_data)
-            for port_id, port_data in data.get("ports", {}).items()
+            port_id: Port.from_dict(port)
+            for port_id, port in data.get("ports", {}).items()
         }
         model.mesh_groups = {
-            group_id: MeshGroup.from_dict(group_data)
-            for group_id, group_data in data.get("mesh_groups", {}).items()
+            group_id: MeshGroup.from_dict(mesh_group)
+            for group_id, mesh_group in data.get("mesh_groups", {}).items()
         }
         model.couplings = {
-            coupling_id: CouplingSpec.from_dict(coupling_data)
-            for coupling_id, coupling_data in data.get("couplings", {}).items()
+            coupling_id: CouplingSpec.from_dict(coupling)
+            for coupling_id, coupling in data.get("couplings", {}).items()
         }
 
         return model
