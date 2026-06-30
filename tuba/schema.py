@@ -202,6 +202,30 @@ MODEL_SCHEMA_V4 = {
                 "additionalProperties": True,
             },
         },
+        "cad_assets": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/cadAsset"},
+        },
+        "imported_components": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/importedComponent"},
+        },
+        "analysis_regions": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/analysisRegion"},
+        },
+        "ports": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/port"},
+        },
+        "mesh_groups": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/meshGroup"},
+        },
+        "couplings": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/couplingSpec"},
+        },
     },
     "$defs": {
         "entityRef": {
@@ -220,9 +244,133 @@ MODEL_SCHEMA_V4 = {
                         "material",
                         "section",
                         "load_case",
+                        "cad_asset",
+                        "component",
+                        "analysis_region",
+                        "port",
+                        "mesh_group",
+                        "coupling",
                     ]
                 },
                 "id": {"type": "string", "minLength": 1},
+            },
+            "additionalProperties": False,
+        },
+        "entityRefLike": {
+            "oneOf": [
+                {
+                    "type": "string",
+                    "pattern": (
+                        "^(node|element|support|obstacle|group|assembly|route|"
+                        "material|section|load_case|placement_frame|cad_asset|"
+                        "component|analysis_region|port|mesh_group|coupling):.+$"
+                    ),
+                },
+                {"$ref": "#/$defs/entityRef"},
+            ]
+        },
+        "cadAsset": {
+            "type": "object",
+            "required": ["id", "source_path"],
+            "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "source_path": {"type": "string", "minLength": 1},
+                "source_format": {"type": "string", "minLength": 1},
+                "unit_scale_to_m": {"type": "number", "exclusiveMinimum": 0.0},
+                "placement": {"type": "object"},
+                "content_digest": {"type": "string"},
+                "importer": {"type": "string", "minLength": 1},
+                "metadata": {"type": "object"},
+            },
+            "additionalProperties": False,
+        },
+        "importedComponent": {
+            "type": "object",
+            "required": ["id", "asset"],
+            "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "asset": {"$ref": "#/$defs/entityRefLike"},
+                "name": {"type": "string"},
+                "role": {"type": "string"},
+                "status": {"type": "string"},
+                "metadata": {"type": "object"},
+            },
+            "additionalProperties": False,
+        },
+        "analysisRegion": {
+            "type": "object",
+            "required": [
+                "id",
+                "owner",
+                "role",
+                "code_aster_modelisation",
+                "material",
+                "mesh_group",
+            ],
+            "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "owner": {"$ref": "#/$defs/entityRefLike"},
+                "role": {"type": "string", "minLength": 1},
+                "code_aster_modelisation": {"type": "string", "minLength": 1},
+                "material": {"type": "string", "minLength": 1},
+                "mesh_group": {"type": "string", "minLength": 1},
+                "element_order": {"type": "integer", "minimum": 1},
+                "status": {"type": "string"},
+                "metadata": {"type": "object"},
+            },
+            "additionalProperties": False,
+        },
+        "port": {
+            "type": "object",
+            "required": ["id", "owner", "kind", "position", "axis", "radius"],
+            "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "owner": {"$ref": "#/$defs/entityRefLike"},
+                "kind": {"type": "string", "minLength": 1},
+                "position": {"$ref": "#/$defs/vector3"},
+                "axis": {"$ref": "#/$defs/vector3"},
+                "radius": {"type": "number", "exclusiveMinimum": 0.0},
+                "face_group": {"type": "string"},
+                "edge_group": {"type": "string"},
+                "status": {"type": "string"},
+                "metadata": {"type": "object"},
+            },
+            "additionalProperties": False,
+        },
+        "meshGroup": {
+            "type": "object",
+            "required": ["id", "owner", "solver_name", "dimension"],
+            "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "owner": {"$ref": "#/$defs/entityRefLike"},
+                "solver_name": {"type": "string", "minLength": 1},
+                "dimension": {"type": "integer", "minimum": 0, "maximum": 3},
+                "members": {"type": "array", "items": {"type": "string", "minLength": 1}},
+                "metadata": {"type": "object"},
+            },
+            "additionalProperties": False,
+        },
+        "couplingSpec": {
+            "type": "object",
+            "required": [
+                "id",
+                "kind",
+                "source",
+                "source_node",
+                "target",
+                "code_aster_keyword",
+                "code_aster_option",
+            ],
+            "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "kind": {"type": "string", "minLength": 1},
+                "source": {"$ref": "#/$defs/entityRefLike"},
+                "source_node": {"$ref": "#/$defs/entityRefLike"},
+                "target": {"$ref": "#/$defs/entityRefLike"},
+                "code_aster_keyword": {"type": "string", "minLength": 1},
+                "code_aster_option": {"type": "string", "minLength": 1},
+                "status": {"type": "string"},
+                "metadata": {"type": "object"},
             },
             "additionalProperties": False,
         },
@@ -363,6 +511,12 @@ PATCH_SCHEMA_V1 = {
                         "material",
                         "section",
                         "load_case",
+                        "cad_asset",
+                        "component",
+                        "analysis_region",
+                        "port",
+                        "mesh_group",
+                        "coupling",
                     ]
                 },
                 "id": {"type": "string", "minLength": 1},

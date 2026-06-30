@@ -20,6 +20,14 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from tuba.attributes import AttributeAssignment, InsulationSpec, coerce_entity_ref
+from tuba.mixed import (
+    AnalysisRegion,
+    CadAsset,
+    CouplingSpec,
+    ImportedComponent,
+    MeshGroup,
+    Port,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +288,12 @@ class TubaModel:
         self.groups: Dict[str, Dict[str, Any]] = {}
         self.specs: Dict[str, Dict[str, Any]] = {}
         self.attributes: List[AttributeAssignment] = []
+        self.cad_assets: Dict[str, CadAsset] = {}
+        self.imported_components: Dict[str, ImportedComponent] = {}
+        self.analysis_regions: Dict[str, AnalysisRegion] = {}
+        self.ports: Dict[str, Port] = {}
+        self.mesh_groups: Dict[str, MeshGroup] = {}
+        self.couplings: Dict[str, CouplingSpec] = {}
 
         self._node_counter: int = 0
         self._element_counters: Dict[str, int] = {}
@@ -355,6 +369,39 @@ class TubaModel:
         sec = IBeamSection.load_from_db(name=name, profile_name=profile_name)
         self.sections[name] = sec
         return sec
+
+
+    # -- Mixed-analysis records ----------------------------------------------
+
+    def add_cad_asset(self, **kwargs) -> CadAsset:
+        asset = CadAsset(**kwargs)
+        self.cad_assets[asset.id] = asset
+        return asset
+
+    def add_imported_component(self, **kwargs) -> ImportedComponent:
+        component = ImportedComponent(**kwargs)
+        self.imported_components[component.id] = component
+        return component
+
+    def add_analysis_region(self, **kwargs) -> AnalysisRegion:
+        region = AnalysisRegion(**kwargs)
+        self.analysis_regions[region.id] = region
+        return region
+
+    def add_port(self, **kwargs) -> Port:
+        port = Port(**kwargs)
+        self.ports[port.id] = port
+        return port
+
+    def add_mesh_group(self, **kwargs) -> MeshGroup:
+        mesh_group = MeshGroup(**kwargs)
+        self.mesh_groups[mesh_group.id] = mesh_group
+        return mesh_group
+
+    def add_coupling(self, **kwargs) -> CouplingSpec:
+        coupling = CouplingSpec(**kwargs)
+        self.couplings[coupling.id] = coupling
+        return coupling
 
 
     # -- Nodes ---------------------------------------------------------------
@@ -779,6 +826,12 @@ class TubaModel:
             "groups": self.groups,
             "specs": _serialize_specs(self.specs),
             "attributes": [assignment.to_dict() for assignment in self.attributes],
+            "cad_assets": {asset_id: asset.to_dict() for asset_id, asset in self.cad_assets.items()},
+            "imported_components": {component_id: component.to_dict() for component_id, component in self.imported_components.items()},
+            "analysis_regions": {region_id: region.to_dict() for region_id, region in self.analysis_regions.items()},
+            "ports": {port_id: port.to_dict() for port_id, port in self.ports.items()},
+            "mesh_groups": {group_id: mesh_group.to_dict() for group_id, mesh_group in self.mesh_groups.items()},
+            "couplings": {coupling_id: coupling.to_dict() for coupling_id, coupling in self.couplings.items()},
         }
 
     def to_json(self, path: Optional[str] = None, indent: int = 2) -> str:
@@ -881,6 +934,30 @@ class TubaModel:
             AttributeAssignment.from_dict(assignment)
             for assignment in data.get("attributes", [])
         ]
+        model.cad_assets = {
+            asset_id: CadAsset.from_dict(asset_data)
+            for asset_id, asset_data in data.get("cad_assets", {}).items()
+        }
+        model.imported_components = {
+            component_id: ImportedComponent.from_dict(component_data)
+            for component_id, component_data in data.get("imported_components", {}).items()
+        }
+        model.analysis_regions = {
+            region_id: AnalysisRegion.from_dict(region_data)
+            for region_id, region_data in data.get("analysis_regions", {}).items()
+        }
+        model.ports = {
+            port_id: Port.from_dict(port_data)
+            for port_id, port_data in data.get("ports", {}).items()
+        }
+        model.mesh_groups = {
+            group_id: MeshGroup.from_dict(group_data)
+            for group_id, group_data in data.get("mesh_groups", {}).items()
+        }
+        model.couplings = {
+            coupling_id: CouplingSpec.from_dict(coupling_data)
+            for coupling_id, coupling_data in data.get("couplings", {}).items()
+        }
 
         return model
 
