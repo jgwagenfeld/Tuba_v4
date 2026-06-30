@@ -469,7 +469,8 @@ Mixed-study export must fail before writing a solver study when:
 - Gmsh/MED export drops a physical group;
 - the selected coupling requires element order or topology that the mesh does
   not satisfy;
-- Code_Aster runtime is required for displayed results but unavailable.
+- result import, display, or engineering-result claims are requested while
+  Code_Aster runtime or solved artifacts are unavailable.
 
 Warnings should be emitted, not hidden, when:
 
@@ -670,5 +671,6 @@ project or per coupling once real fixtures reveal better domain limits.
 - SALOME SMESH import/export and MED: https://docs.salome-platform.org/latest/gui/SMESH/importing_exporting_meshes.html
 - Existing v4 architecture: `docs/future_ready_architecture.md`
 - Existing adapy boundary: `docs/architecture/adapy-alignment.md`
+- Implementation architecture summary: `docs/architecture/step-mixed-code-aster.md`
 - TUBA_V2 mixed reference:
   `TUBA_V2/tutorials/000_Testing/x_008_TUYAU_3d/008_TUYAU_3D_K_M_F_aster.comm`
