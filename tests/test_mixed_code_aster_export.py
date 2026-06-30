@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import tempfile
 import unittest
@@ -67,6 +68,23 @@ def build_mixed_fixture() -> Model:
         id="coupling_pipe_to_pump_a",
     )
     return model
+
+
+def write_box_step(path: Path) -> bool:
+    if importlib.util.find_spec("gmsh") is None:
+        return False
+
+    import gmsh
+
+    gmsh.initialize()
+    try:
+        gmsh.model.add("box_step_fixture")
+        gmsh.model.occ.addBox(0.95, -0.05, -0.05, 0.1, 0.1, 0.1)
+        gmsh.model.occ.synchronize()
+        gmsh.write(str(path))
+    finally:
+        gmsh.finalize()
+    return True
 
 
 class TestMixedCodeAsterExport(unittest.TestCase):
@@ -184,6 +202,62 @@ class TestMixedCodeAsterExport(unittest.TestCase):
             self.assertFalse((Path(tmpdir) / "study_manifest.json").exists())
             self.assertFalse((Path(tmpdir) / "study_tuba_fem.json").exists())
             self.assertFalse((Path(tmpdir) / "study.comm").exists())
+
+    def test_gmsh_writer_exports_step_volume_when_available(self):
+        if importlib.util.find_spec("meshio") is None:
+            self.skipTest("meshio is required to inspect mixed MED output.")
+        import meshio
+
+        model = build_mixed_fixture()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            step_path = Path(tmpdir) / "box.step"
+            if not write_box_step(step_path):
+                self.skipTest("gmsh is required for STEP volume MED export.")
+            model.cad_assets["cad_asset_0"] = model.cad_assets["cad_asset_0"].__class__(
+                **{
+                    **model.cad_assets["cad_asset_0"].to_dict(),
+                    "source_path": str(step_path),
+                    "content_digest": "sha256:box",
+                }
+            )
+            study = MixedCodeAsterStudyExporter().export_analysis_study(model, "Hot", tmpdir)
+            med_path = Path(study.input_files["med"])
+            mesh = meshio.read(med_path)
+
+        volume_cell_types = {
+            "tetra",
+            "tetra10",
+            "hexahedron",
+            "hexahedron20",
+            "wedge",
+            "wedge15",
+            "pyramid",
+            "pyramid13",
+        }
+        self.assertTrue(
+            any(cell_block.type in volume_cell_types for cell_block in mesh.cells),
+            [cell_block.type for cell_block in mesh.cells],
+        )
+
+    def test_existing_non_step_asset_uses_meshio_fallback(self):
+        model = build_mixed_fixture()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            asset_path = Path(tmpdir) / "equipment.ifc"
+            asset_path.write_text("not a step file", encoding="utf-8")
+            model.cad_assets["cad_asset_0"] = model.cad_assets["cad_asset_0"].__class__(
+                **{
+                    **model.cad_assets["cad_asset_0"].to_dict(),
+                    "source_path": str(asset_path),
+                    "source_format": "IFC",
+                }
+            )
+            exporter = MixedCodeAsterStudyExporter()
+            exporter._write_med_with_gmsh = lambda model, path: (_ for _ in ()).throw(
+                RuntimeError("gmsh should not run")
+            )
+            study = exporter.export_analysis_study(model, "Hot", tmpdir)
+
+            self.assertTrue(Path(study.input_files["med"]).exists())
 
 
 if __name__ == "__main__":
