@@ -45,6 +45,7 @@ def dump_solver_sidecar(
     analysis_mesh_id: str,
     name_map: dict[str, str],
     lineage: dict[str, str],
+    mixed_analysis: dict | None = None,
 ) -> None:
     payload = {
         "schema_version": 1,
@@ -54,4 +55,6 @@ def dump_solver_sidecar(
         "name_map": dict(sorted(name_map.items())),
         "lineage": dict(sorted(lineage.items())),
     }
+    if mixed_analysis is not None:
+        payload["mixed_analysis"] = mixed_analysis
     Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
