@@ -1,0 +1,29 @@
+{
+  "asset_id": "geometry:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n12",
+  "bounds": [
+    3.3000000000000003,
+    2.577163859753386,
+    0.185194970290473,
+    3.3000000000000003,
+    2.577163859753386,
+    0.185194970290473
+  ],
+  "format": "point",
+  "generation_config": {
+    "groups": [],
+    "mesh_id": "analysis_mesh:Operating",
+    "node_id": "pipe_bend_1_n12",
+    "point": [
+      3.3000000000000003,
+      2.577163859753386,
+      0.185194970290473
+    ],
+    "role": "generated_bend_node",
+    "source": "tuba.analysis_mesh.node",
+    "source_ref": "element:pipe_bend_1"
+  },
+  "hash": "sha256:2414e725bde88cf2843eef413ab70ccc6fc2a1024855d8e39c0e9f35a7a0f1e0",
+  "object_ids": [
+    "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n12"
+  ]
+}

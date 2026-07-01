@@ -3,17 +3,23 @@ from unittest.mock import Mock, patch
 
 
 class TestNotebookBackendSelection(unittest.TestCase):
-    def test_defaults_to_zoomable_client_backend(self):
+    def test_defaults_to_zoomable_embedded_html_backend(self):
         from tuba.visualizer.notebook import resolve_notebook_backend
 
         with patch.dict("os.environ", {}, clear=True):
-            self.assertEqual(resolve_notebook_backend(), "client")
+            self.assertEqual(resolve_notebook_backend(), "html")
 
     def test_environment_override_wins(self):
         from tuba.visualizer.notebook import resolve_notebook_backend
 
         with patch.dict("os.environ", {"TUBA_NOTEBOOK_BACKEND": "static"}, clear=True):
             self.assertEqual(resolve_notebook_backend(), "static")
+
+    def test_environment_can_select_client_backend(self):
+        from tuba.visualizer.notebook import resolve_notebook_backend
+
+        with patch.dict("os.environ", {"TUBA_NOTEBOOK_BACKEND": "client"}, clear=True):
+            self.assertEqual(resolve_notebook_backend(), "client")
 
     def test_ci_defaults_to_static_backend(self):
         from tuba.visualizer.notebook import resolve_notebook_backend

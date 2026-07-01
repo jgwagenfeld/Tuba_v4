@@ -4,11 +4,13 @@
 
 Tuba v4 is a Code_Aster-backed piping engineering workflow:
 
+The whole point of Tuba v4 is to define piping structure, evaluate it with Code_Aster, and display processed results.
+
 1. Define the piping structure in Tuba.
 2. Evaluate the model with Code_Aster.
 3. Display, review, and report the processed Code_Aster results.
 
-Code_Aster execution is not optional for production stress, displacement,
+Code_Aster is not optional for production stress, displacement,
 reaction, thermal-expansion, operating-state clash, compliance, or result
 visualization workflows. Export-only paths are development and diagnostic
 surfaces only.

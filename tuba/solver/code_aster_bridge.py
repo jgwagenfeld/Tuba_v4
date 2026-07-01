@@ -39,10 +39,14 @@ def _run_export_with_cli(export_path: Path, workdir: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python code_aster_bridge.py")
-    parser.add_argument("--export", required=True, help="Path to study.export")
+    parser.add_argument("export_positional", nargs="?", help="Path to study.export")
+    parser.add_argument("--export", default=None, help="Path to study.export")
     parser.add_argument("--workdir", default=None, help="Directory containing Code_Aster study files")
     args = parser.parse_args(argv)
-    export_path = Path(args.export)
+    export_arg = args.export or args.export_positional
+    if not export_arg:
+        parser.error("study.export path is required")
+    export_path = Path(export_arg)
     workdir = Path(args.workdir) if args.workdir else export_path.parent
     return run_export(export_path, workdir)
 

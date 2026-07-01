@@ -212,7 +212,7 @@ Run from the Windows repo root:
 $env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
 $env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"
 $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
-.\.venv\Scripts\python.exe -m unittest tests.integration.test_code_aster_real_smoke -v
+.\.venv\Scripts\python.exe -m unittest tests.test_code_aster_real_smoke -v
 ```
 
 Expected:
@@ -239,16 +239,22 @@ Recommended notebook environment:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"
-jupyter lab notebooks\03_stress_analysis_and_compliance.ipynb
+jupyter lab notebooks\00_welcome_and_setup.ipynb
 ```
 
-Set notebook runtime constants to:
+Notebook result cells configure the default runtime through
+`configure_code_aster_notebook_runtime()`. The standard Windows/WSL defaults
+are:
 
 ```python
-CODE_ASTER_EXEC_METHOD = "wsl"
-CODE_ASTER_DOCKER_IMAGE = None
-RUN_CODE_ASTER = True
+CODE_ASTER_RUNTIME = configure_code_aster_notebook_runtime(
+    exec_method="wsl",
+    wsl_distro="Ubuntu",
+)
 ```
+
+Use `notebooks\03_stress_analysis_and_compliance.ipynb` for the detailed stress
+and ASME B31.3 lesson after the quick welcome workflow is running.
 
 ## Docker Fallback
 
@@ -265,7 +271,7 @@ Run with Docker:
 ```powershell
 $env:TUBA_CODE_ASTER_EXEC_METHOD = "docker"
 $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
-.\.venv\Scripts\python.exe -m unittest tests.integration.test_code_aster_real_smoke -v
+.\.venv\Scripts\python.exe -m unittest tests.test_code_aster_real_smoke -v
 ```
 
 If Docker pulls a public image, pin the image name in docs and CI before relying

@@ -10,6 +10,7 @@ from tuba.analysis import AnalysisMesh, AnalysisStudy
 from tuba.routing.adapter import apply_candidate_to_model
 from tuba.routing.postprocess import build_segments
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, RouteEndpoint, RoutingConstraints
+from tuba.solver.base import FEAResults
 from tuba.solver.aster import CodeAsterSolver
 
 
@@ -100,6 +101,164 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertNotIn(long_id, mail)
         self.assertNotIn(long_id, comm)
 
+    def test_export_analysis_study_uses_code_aster_safe_mesh_labels(self):
+        model = self._model_with_bend_and_structure()
+        bend = next(element for element in model.elements if element.type == "pipe_bend")
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            root = Path(study.work_dir)
+            mail = (root / "study.mail").read_text(encoding="utf-8")
+            sidecar = json.loads((root / "study_tuba_fem.json").read_text(encoding="utf-8"))
+            node_label_map, element_label_map = CodeAsterSolver._read_solver_label_maps(root)
+
+        coor_labels: list[str] = []
+        element_labels: list[str] = []
+        block: str | None = None
+        for raw_line in mail.splitlines():
+            line = raw_line.strip()
+            if line == "COOR_3D":
+                block = "nodes"
+                continue
+            if line in {"SEG2", "SEG3"}:
+                block = "elements"
+                continue
+            if line == "FINSF":
+                block = None
+                continue
+            if line == "FIN" or line.startswith("GROUP_") or not line:
+                block = None if line.startswith("GROUP_") else block
+                continue
+            if block == "nodes":
+                coor_labels.append(line.split()[0])
+            elif block == "elements":
+                element_labels.append(line.split()[0])
+
+        self.assertEqual(len(coor_labels), len({label[:8] for label in coor_labels}))
+        self.assertEqual(len(element_labels), len({label[:8] for label in element_labels}))
+
+        original_bend_node = f"{bend.id}_n1"
+        solver_bend_node = sidecar["name_map"][original_bend_node]
+        self.assertLessEqual(len(solver_bend_node), 8)
+        self.assertIn(solver_bend_node, mail)
+        self.assertNotIn(original_bend_node, mail)
+        self.assertEqual(node_label_map[solver_bend_node], original_bend_node)
+
+        original_bend_segment = f"{bend.id}_s0"
+        solver_bend_segment = sidecar["name_map"][original_bend_segment]
+        self.assertLessEqual(len(solver_bend_segment), 8)
+        self.assertEqual(element_label_map[solver_bend_segment], original_bend_segment)
+
+    def test_export_analysis_study_writes_supported_bend_cara_syntax(self):
+        model = self._model_with_bend_and_structure()
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("SECTION='COUDE'", comm)
+        self.assertNotIn("    COUDE=(", comm)
+        self.assertNotIn("COUDE=_F", comm)
+
+    def test_export_analysis_study_uses_group_material_assignment_syntax(self):
+        model = self._model_with_bend_and_structure()
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("TOUT='OUI',", comm)
+        self.assertNotIn("MAILLE=", comm)
+
+    def test_export_analysis_study_writes_individual_groups_for_straight_elements(self):
+        model = self._model_with_bend_and_structure()
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            root = Path(study.work_dir)
+            mail = (root / "study.mail").read_text(encoding="utf-8")
+            sidecar = json.loads((root / "study_tuba_fem.json").read_text(encoding="utf-8"))
+
+        solver_beam_name = sidecar["name_map"]["rack_beam_0"]
+        self.assertIn(f"GROUP_MA NOM={solver_beam_name}", mail)
+
+    def test_export_analysis_study_uses_single_pipe_orientation_node(self):
+        model = self._model_with_bend_and_structure()
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            root = Path(study.work_dir)
+            mail = (root / "study.mail").read_text(encoding="utf-8")
+            sidecar = json.loads((root / "study_tuba_fem.json").read_text(encoding="utf-8"))
+
+        solver_group_name = sidecar["name_map"]["PipeOrientationNodes"]
+        group_lines: list[str] = []
+        in_group = False
+        for raw_line in mail.splitlines():
+            line = raw_line.strip()
+            if line == f"GROUP_NO NOM={solver_group_name}":
+                in_group = True
+                continue
+            if in_group and line == "FINSF":
+                break
+            if in_group and line:
+                group_lines.append(line)
+
+        self.assertEqual(len(group_lines), 1)
+
+    def test_export_analysis_study_writes_required_unilateral_contact_coefficients(self):
+        model = self._model_with_bend_and_structure()
+        model.add_support("N1", type="rest")
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);", comm)
+        self.assertIn("UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);", comm)
+        self.assertIn("COEF_IMPO=UNIL_ZERO", comm)
+        self.assertIn("COEF_MULT=UNIL_ONE", comm)
+
+    def test_export_analysis_study_restrains_pipe_warping_at_nonlinear_rest(self):
+        model = Model(project_name="WarpingRest")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.add_support(n0, type="anchor")
+        model.add_support(n1, type="rest")
+        model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("WO=0.0", comm)
+        self.assertIn("CONTACT=contact", comm)
+
+    def test_export_analysis_study_ramps_temperature_for_nonlinear_thermal_case(self):
+        model = Model(project_name="ThermalRamp")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.add_support(n0, type="anchor")
+        model.add_support(n1, type="rest")
+        model.define_load_case("Hot", gravity=True, temperature=150.0, ref_temperature=20.0)
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("TEMP_REF_FIELD = CREA_CHAMP(", comm)
+        self.assertIn("TEMP_HOT_FIELD = CREA_CHAMP(", comm)
+        self.assertIn("TEMP_EVOL = CREA_RESU(", comm)
+        self.assertIn("TYPE_RESU='EVOL_THER'", comm)
+        self.assertIn("EVOL=TEMP_EVOL,", comm)
+        self.assertNotIn("CHAM_GD=TEMP_FIELD", comm)
+
     def test_solver_execute_delegates_to_code_aster_runtime(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -164,6 +323,29 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
 
         self.assertEqual(captured["config"].exec_method, "wsl")
         self.assertEqual(captured["config"].wsl_distro, "Ubuntu")
+
+    def test_rmed_loader_reads_rmed_with_med_format(self):
+        calls = []
+
+        class FakeMesh:
+            points = [(0.0, 0.0, 0.0)]
+
+        class FakeMeshio:
+            @staticmethod
+            def read(path, *, file_format=None):
+                calls.append((Path(path).name, file_format))
+                return FakeMesh()
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study.rmed").write_bytes(b"fake-med-content")
+            results = FEAResults(solver_name="Code_Aster")
+
+            with patch.dict("sys.modules", {"meshio": FakeMeshio}):
+                CodeAsterSolver._try_load_rmed(root, results)
+
+        self.assertEqual(calls, [("study.rmed", "med")])
+        self.assertIsInstance(results.raw_mesh, FakeMesh)
 
 
 if __name__ == "__main__":

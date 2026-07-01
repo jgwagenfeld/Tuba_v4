@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tuba import Model
-from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
+from tuba.analysis.code_aster_notebook import configure_code_aster_notebook_runtime, load_or_run_code_aster_results
 from tuba.solver.aster import CodeAsterSolver
 
 
@@ -25,10 +25,11 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
         class SolverThatWritesTables:
             instances = []
 
-            def __init__(self, work_dir=None, exec_method="wsl", docker_image=None):
+            def __init__(self, work_dir=None, exec_method="wsl", docker_image=None, wsl_distro=None):
                 self.work_dir = Path(work_dir)
                 self.exec_method = exec_method
                 self.docker_image = docker_image
+                self.wsl_distro = wsl_distro
                 self.ran_exported_study = False
                 self.instances.append(self)
 
@@ -68,10 +69,11 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
         class CapturingSolver:
             instances = []
 
-            def __init__(self, work_dir=None, exec_method="wsl", docker_image=None):
+            def __init__(self, work_dir=None, exec_method="wsl", docker_image=None, wsl_distro=None):
                 self.work_dir = Path(work_dir)
                 self.exec_method = exec_method
                 self.docker_image = docker_image
+                self.wsl_distro = wsl_distro
                 self.instances.append(self)
 
             def export_analysis_study(self, model, load_case_name, output_dir):
@@ -85,6 +87,52 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
                 load_or_run_code_aster_results(model, "Hot", tmpdir, solver_factory=CapturingSolver)
 
         self.assertEqual(CapturingSolver.instances[0].exec_method, "auto")
+
+    def test_notebook_loader_passes_wsl_distro_to_solver(self):
+        model, _n0, _n1 = self._model()
+
+        class CapturingSolver:
+            instances = []
+
+            def __init__(self, work_dir=None, exec_method="auto", docker_image=None, wsl_distro=None):
+                self.work_dir = Path(work_dir)
+                self.exec_method = exec_method
+                self.docker_image = docker_image
+                self.wsl_distro = wsl_distro
+                self.instances.append(self)
+
+            def export_analysis_study(self, model, load_case_name, output_dir):
+                return CodeAsterSolver(work_dir=output_dir).export_analysis_study(model, load_case_name, output_dir)
+
+            def solve_exported_study(self, model, study):
+                raise RuntimeError("test stops before solver execution")
+
+        with TemporaryDirectory() as tmpdir:
+            with self.assertRaises(RuntimeError):
+                load_or_run_code_aster_results(
+                    model,
+                    "Hot",
+                    tmpdir,
+                    exec_method="wsl",
+                    wsl_distro="Ubuntu",
+                    solver_factory=CapturingSolver,
+                )
+
+        self.assertEqual(CapturingSolver.instances[0].exec_method, "wsl")
+        self.assertEqual(CapturingSolver.instances[0].wsl_distro, "Ubuntu")
+
+    def test_configure_notebook_runtime_sets_wsl_environment_defaults(self):
+        import os
+        from unittest.mock import patch
+
+        with patch.dict(os.environ, {}, clear=True):
+            runtime = configure_code_aster_notebook_runtime()
+            self.assertEqual(os.environ["TUBA_CODE_ASTER_EXEC_METHOD"], "wsl")
+            self.assertEqual(os.environ["TUBA_CODE_ASTER_WSL_DISTRO"], "Ubuntu")
+
+        self.assertEqual(runtime.exec_method, "wsl")
+        self.assertEqual(runtime.wsl_distro, "Ubuntu")
+        self.assertIsNone(runtime.docker_image)
 
 
 def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:

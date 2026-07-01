@@ -1,0 +1,40 @@
+{
+  "asset_id": "geometry:deformed_centerline:geometry_state:Operating:visual_x50:pipe_str_2",
+  "bounds": [
+    3.3000000000000003,
+    2.6,
+    0.14593349999999994,
+    3.7462100000000005,
+    2.62836205,
+    2.3
+  ],
+  "format": "polyline",
+  "generation_config": {
+    "entity_ref": "element:pipe_str_2",
+    "geometry_state_id": "geometry_state:Operating:visual_x50",
+    "load_case": "Operating",
+    "points": [
+      [
+        3.7462100000000005,
+        2.62836205,
+        0.14593349999999994
+      ],
+      [
+        3.3000000000000003,
+        2.6,
+        2.3
+      ]
+    ],
+    "result_state_id": "result_state:Operating",
+    "source": "tuba.deformed_centerline",
+    "source_mesh_nodes": [
+      "N4",
+      "N5"
+    ],
+    "visual_scale": 50.0
+  },
+  "hash": "sha256:d5a93279a5843fea171ccb427f894d5e5a66aab0313e70a25d2f01dcbe87ed59",
+  "object_ids": [
+    "object:deformed_centerline:geometry_state:Operating:visual_x50:pipe_str_2"
+  ]
+}

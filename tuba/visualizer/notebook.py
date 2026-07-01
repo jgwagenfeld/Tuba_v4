@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-INTERACTIVE_NOTEBOOK_BACKEND = "client"
+INTERACTIVE_NOTEBOOK_BACKEND = "html"
 STATIC_NOTEBOOK_BACKEND = "static"
 NOTEBOOK_BACKEND_ENV = "TUBA_NOTEBOOK_BACKEND"
 
@@ -19,9 +19,10 @@ def resolve_notebook_backend(
 ) -> str:
     """Return the PyVista notebook backend for this process.
 
-    Local notebooks default to the zoomable client backend. CI and explicitly
-    headless runs default to static output so nbconvert checks stay reliable.
-    Set ``TUBA_NOTEBOOK_BACKEND`` to override either mode.
+    Local notebooks default to a zoomable embedded HTML scene. That avoids
+    front-end/proxy failures with localhost-backed trame client iframes. CI and
+    explicitly headless runs default to static output so nbconvert checks stay
+    reliable. Set ``TUBA_NOTEBOOK_BACKEND`` to override either mode.
     """
 
     values = os.environ if env is None else env

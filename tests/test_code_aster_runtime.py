@@ -14,97 +14,131 @@ from tuba.solver.code_aster_runtime import (
 
 
 class TestCodeAsterRuntime(unittest.TestCase):
-    def test_env_python_bridge_has_first_priority_in_auto_mode(self):
-        env = {"TUBA_CODE_ASTER_PYTHON": "/opt/aster/bin/python"}
-        config = CodeAsterRuntimeConfig(exec_method="auto", env=env)
-
-        candidates = discover_code_aster_runtimes(config)
-
-        self.assertEqual(candidates[0].kind, "python_bridge")
-        self.assertEqual(candidates[0].command, ("/opt/aster/bin/python",))
-        self.assertTrue(candidates[0].available)
-
-    def test_python_bridge_command_runs_local_bridge_script(self):
-        config = CodeAsterRuntimeConfig(exec_method="python_bridge", bridge_python="/opt/aster/bin/python", env={})
-        candidate = select_code_aster_runtime(config)
-
+    def test_wsl_command_uses_configured_distro_and_run_aster(self):
         with TemporaryDirectory() as tmpdir:
-            cmd = build_code_aster_command(candidate, Path(tmpdir) / "study.export", Path(tmpdir))
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
 
-        self.assertEqual(cmd[0], "/opt/aster/bin/python")
-        self.assertTrue(cmd[1].endswith("code_aster_bridge.py"))
-        self.assertIn("--export", cmd)
-        self.assertIn("study.export", cmd)
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu"),
+            )
 
-    def test_explicit_runner_command_builds_shell_runner(self):
-        config = CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster", env={})
-        candidate = select_code_aster_runtime(config)
+        self.assertEqual(command[:4], ["wsl", "-d", "Ubuntu", "--"])
+        self.assertIn("run_aster study.export", command[-1])
+        self.assertIsNone(cwd)
 
+    def test_command_mode_runs_configured_runner_in_work_dir(self):
         with TemporaryDirectory() as tmpdir:
-            cmd = build_code_aster_command(candidate, Path(tmpdir) / "study.export", Path(tmpdir))
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
 
-        self.assertEqual(cmd[:2], ["run_aster", "study.export"])
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="command", runner_command="conda run -n tuba-code-aster run_aster"),
+            )
 
-    def test_wsl_command_uses_posix_workdir_and_runner_detection(self):
-        config = CodeAsterRuntimeConfig(exec_method="wsl", env={})
-        candidate = select_code_aster_runtime(config)
+        self.assertEqual(command, ["conda", "run", "-n", "tuba-code-aster", "run_aster", "study.export"])
+        self.assertEqual(cwd, root)
 
-        cmd = build_code_aster_command(
-            candidate,
-            Path("D:/Gitprojects/Tuba_v4/code_aster_study/study.export"),
-            Path("D:/Gitprojects/Tuba_v4/code_aster_study"),
-        )
+    def test_explicit_command_mode_defaults_to_run_aster(self):
+        candidate = select_code_aster_runtime(CodeAsterRuntimeConfig(exec_method="command", env={}))
 
-        self.assertEqual(cmd[:3], ["wsl", "bash", "-lc"])
-        self.assertIn("/mnt/d/Gitprojects/Tuba_v4/code_aster_study", cmd[3])
-        self.assertIn("run_aster study.export", cmd[3])
-        self.assertIn("as_run study.export", cmd[3])
+        self.assertEqual(candidate.command, ("run_aster",))
 
-    def test_wsl_command_can_target_explicit_distro(self):
-        config = CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={})
-        candidate = select_code_aster_runtime(config)
+    def test_python_bridge_uses_requested_python_executable(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
 
-        cmd = build_code_aster_command(
-            candidate,
-            Path("D:/Gitprojects/Tuba_v4/code_aster_study/study.export"),
-            Path("D:/Gitprojects/Tuba_v4/code_aster_study"),
-        )
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="python_bridge", bridge_python="/opt/codeaster/bin/python"),
+            )
 
-        self.assertEqual(cmd[:5], ["wsl", "-d", "Ubuntu", "--", "bash"])
-        self.assertEqual(cmd[5], "-lc")
-        self.assertIn("/mnt/d/Gitprojects/Tuba_v4/code_aster_study", cmd[6])
+        self.assertEqual(command[0], "/opt/codeaster/bin/python")
+        self.assertTrue(command[1].endswith("code_aster_bridge.py"))
+        self.assertEqual(command[-1], "study.export")
+        self.assertEqual(cwd, root)
 
-    def test_wsl_distro_can_come_from_environment(self):
-        env = {"TUBA_CODE_ASTER_WSL_DISTRO": "Ubuntu"}
-        config = CodeAsterRuntimeConfig(exec_method="wsl", env=env)
+    def test_discovery_uses_environment_defaults(self):
+        env = {
+            "TUBA_CODE_ASTER_EXEC_METHOD": "wsl",
+            "TUBA_CODE_ASTER_WSL_DISTRO": "Ubuntu",
+            "TUBA_CODE_ASTER_RUNNER_COMMAND": "run_aster",
+        }
 
-        candidate = select_code_aster_runtime(config)
+        candidates = discover_code_aster_runtimes(CodeAsterRuntimeConfig(env=env))
+        wsl = next(candidate for candidate in candidates if candidate.method == "wsl")
+        command = next(candidate for candidate in candidates if candidate.method == "command")
 
-        self.assertEqual(candidate.command, ("wsl", "-d", "Ubuntu", "--"))
+        self.assertEqual(wsl.command[:4], ("wsl", "-d", "Ubuntu", "--"))
+        self.assertEqual(command.command, ("run_aster",))
+
+    def test_auto_without_runner_does_not_claim_host_command_runtime(self):
+        candidates = discover_code_aster_runtimes(CodeAsterRuntimeConfig(exec_method="auto", env={}))
+
+        self.assertNotIn("command", {candidate.kind for candidate in candidates})
 
     def test_docker_command_mounts_workdir(self):
-        config = CodeAsterRuntimeConfig(exec_method="docker", docker_image="local/code-aster:dev", env={})
-        candidate = select_code_aster_runtime(config)
-
         with TemporaryDirectory() as tmpdir:
-            cmd = build_code_aster_command(candidate, Path(tmpdir) / "study.export", Path(tmpdir))
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
 
-        self.assertEqual(cmd[:3], ["docker", "run", "--rm"])
-        self.assertIn("local/code-aster:dev", cmd)
-        self.assertIn("study.export", cmd[-1])
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="docker", docker_image="local/code-aster:dev", env={}),
+            )
+
+        self.assertEqual(command[:3], ["docker", "run", "--rm"])
+        self.assertIn("local/code-aster:dev", command)
+        self.assertIn("study.export", command[-1])
+        self.assertIsNone(cwd)
+
+    def test_run_writes_utf8_logs_and_raises_with_message_tail(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+            (root / "study.mess").write_text("line 1\nfatal solver error\n", encoding="utf-8")
+
+            def fake_run(cmd, **_kwargs):
+                return subprocess.CompletedProcess(cmd, 2, stdout="solver stdout", stderr="solver stderr")
+
+            with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+                with self.assertRaisesRegex(RuntimeError, "fatal solver error"):
+                    run_code_aster_export(
+                        export_file,
+                        root,
+                        CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster"),
+                    )
+
+            self.assertEqual((root / "stdout.log").read_text(encoding="utf-8"), "solver stdout")
+            self.assertEqual((root / "stderr.log").read_text(encoding="utf-8"), "solver stderr")
 
     def test_run_code_aster_export_writes_per_runtime_logs(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             export_file = root / "study.export"
             export_file.write_text("", encoding="utf-8")
-            config = CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster", env={})
 
             def fake_run(cmd, **_kwargs):
                 return subprocess.CompletedProcess(cmd, 0, stdout="solver stdout", stderr="solver stderr")
 
             with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
-                execution = run_code_aster_export(export_file, root, config)
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster", env={}),
+                )
 
             self.assertEqual(execution.returncode, 0)
             self.assertEqual(execution.runtime.kind, "command")
@@ -116,7 +150,6 @@ class TestCodeAsterRuntime(unittest.TestCase):
             root = Path(tmpdir)
             export_file = root / "study.export"
             export_file.write_text("", encoding="utf-8")
-            config = CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster", env={})
             captured = {}
 
             def fake_run(cmd, **kwargs):
@@ -124,7 +157,11 @@ class TestCodeAsterRuntime(unittest.TestCase):
                 return subprocess.CompletedProcess(cmd, 0, stdout=None, stderr=None)
 
             with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
-                execution = run_code_aster_export(export_file, root, config)
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster", env={}),
+                )
 
             self.assertEqual(captured["kwargs"]["encoding"], "utf-8")
             self.assertEqual(captured["kwargs"]["errors"], "replace")
@@ -136,7 +173,6 @@ class TestCodeAsterRuntime(unittest.TestCase):
             root = Path(tmpdir)
             export_file = root / "study.export"
             export_file.write_text("", encoding="utf-8")
-            config = CodeAsterRuntimeConfig(exec_method="auto", docker_image="local/code-aster:dev", env={})
             calls = []
 
             def fake_run(cmd, **_kwargs):
@@ -146,7 +182,11 @@ class TestCodeAsterRuntime(unittest.TestCase):
                 return subprocess.CompletedProcess(cmd, 0, stdout="docker ok", stderr="")
 
             with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
-                execution = run_code_aster_export(export_file, root, config)
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="auto", docker_image="local/code-aster:dev", env={}),
+                )
 
         self.assertEqual(execution.runtime.kind, "docker")
         self.assertEqual(len(calls), 2)
@@ -156,7 +196,6 @@ class TestCodeAsterRuntime(unittest.TestCase):
             root = Path(tmpdir)
             export_file = root / "study.export"
             export_file.write_text("", encoding="utf-8")
-            config = CodeAsterRuntimeConfig(exec_method="auto", docker_image="local/code-aster:dev", env={})
             calls = []
 
             def fake_run(cmd, **_kwargs):
@@ -166,11 +205,16 @@ class TestCodeAsterRuntime(unittest.TestCase):
                 return subprocess.CompletedProcess(cmd, 0, stdout="docker ok", stderr="")
 
             with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
-                execution = run_code_aster_export(export_file, root, config)
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="auto", docker_image="local/code-aster:dev", env={}),
+                )
+            missing_wsl_log = (root / "stderr.wsl.log").read_text(encoding="utf-8")
 
-            self.assertEqual(execution.runtime.kind, "docker")
-            self.assertIn("wsl executable not found", (root / "stderr.wsl.log").read_text(encoding="utf-8"))
-            self.assertEqual(len(calls), 2)
+        self.assertEqual(execution.runtime.kind, "docker")
+        self.assertEqual(len(calls), 2)
+        self.assertIn("wsl executable not found", missing_wsl_log)
 
 
 if __name__ == "__main__":

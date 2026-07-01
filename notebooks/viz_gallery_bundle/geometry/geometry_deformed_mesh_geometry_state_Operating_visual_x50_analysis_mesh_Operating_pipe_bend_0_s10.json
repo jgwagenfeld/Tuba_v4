@@ -1,0 +1,41 @@
+{
+  "asset_id": "geometry:deformed_mesh:geometry_state:Operating:visual_x50:analysis_mesh:Operating:pipe_bend_0_s10",
+  "bounds": [
+    3.3429248836907637,
+    0.0050579300941193395,
+    0.001613945,
+    3.3729388793045065,
+    0.023868478952200622,
+    0.00284607
+  ],
+  "format": "polyline",
+  "generation_config": {
+    "element_id": "pipe_bend_0_s10",
+    "geometry_state_id": "geometry_state:Operating:visual_x50",
+    "load_case": "Operating",
+    "mesh_id": "analysis_mesh:Operating",
+    "node_ids": [
+      "pipe_bend_0_n10",
+      "pipe_bend_0_n11"
+    ],
+    "points": [
+      [
+        3.3429248836907637,
+        0.0050579300941193395,
+        0.00284607
+      ],
+      [
+        3.3729388793045065,
+        0.023868478952200622,
+        0.001613945
+      ]
+    ],
+    "result_state_id": "result_state:Operating",
+    "source": "tuba.deformed_analysis_mesh.element",
+    "visual_scale": 50.0
+  },
+  "hash": "sha256:99176ce6031bfdc89e642ed603e6e90633640c372c15380bec731af861e4f1e4",
+  "object_ids": [
+    "object:deformed_mesh:geometry_state:Operating:visual_x50:analysis_mesh:Operating:pipe_bend_0_s10"
+  ]
+}

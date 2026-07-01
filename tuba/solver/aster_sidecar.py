@@ -19,19 +19,29 @@ class SolverNameMap:
         return self.mapping.get(name, name)
 
 
-def build_solver_name_map(names: Iterable[str]) -> dict[str, str]:
+def _hashed_solver_name(name: str, *, max_length: int, used: set[str]) -> str:
+    if max_length < 2:
+        raise ValueError("max_length must allow at least a prefix and one digest character.")
+    prefix = "G_" if max_length >= 10 else "G"
+    digest_chars = max_length - len(prefix)
+    attempt = 0
+    while True:
+        seed = name if attempt == 0 else f"{name}:{attempt}"
+        digest = hashlib.sha1(seed.encode("utf-8")).hexdigest().upper()
+        mapped = f"{prefix}{digest[:digest_chars]}"
+        if mapped not in used:
+            return mapped
+        attempt += 1
+
+
+def build_solver_name_map(names: Iterable[str], *, max_length: int = MAX_ASTER_NAME_LEN) -> dict[str, str]:
     mapping: dict[str, str] = {}
     used: set[str] = set()
     for name in names:
-        if len(name) <= MAX_ASTER_NAME_LEN and name not in used:
+        if len(name) <= max_length and name not in used:
             mapped = name
         else:
-            digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:8].upper()
-            mapped = f"G_{digest}"
-            suffix = 1
-            while mapped in used:
-                mapped = f"G_{digest[:6]}_{suffix:02d}"
-                suffix += 1
+            mapped = _hashed_solver_name(name, max_length=max_length, used=used)
         mapping[name] = mapped
         used.add(mapped)
     return mapping

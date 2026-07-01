@@ -1,0 +1,42 @@
+{
+  "asset_id": "geometry:deformed_envelope:geometry_state:Operating:visual_x50:element:pipe_str_0:insulation",
+  "bounds": [
+    -0.05715,
+    -0.05715,
+    -0.05715,
+    3.05715,
+    0.05715,
+    0.05715
+  ],
+  "format": "tube",
+  "generation_config": {
+    "entity_ref": "element:pipe_str_0",
+    "envelope_type": "insulation",
+    "geometry_state_id": "geometry_state:Operating:visual_x50",
+    "load_case": "Operating",
+    "points": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        3.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "radius_m": 0.05715,
+    "result_state_id": "result_state:Operating",
+    "source": "tuba.deformed_envelope",
+    "source_mesh_nodes": [
+      "N0",
+      "N1"
+    ],
+    "visual_scale": 50.0
+  },
+  "hash": "sha256:6af53acb5302d1c523852b02ac0e6e9f5571b758226154c31efe2430013a30cc",
+  "object_ids": [
+    "object:deformed_envelope:geometry_state:Operating:visual_x50:element:pipe_str_0:insulation"
+  ]
+}

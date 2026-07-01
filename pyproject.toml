@@ -33,6 +33,9 @@ dependencies = [
 code-aster-rmed = [
     "h5py>=3.10",
 ]
+ifc = [
+    "ifcopenshell>=0.8",
+]
 notebook-viz = [
     "jupyterlab>=3",
     "ipywidgets",

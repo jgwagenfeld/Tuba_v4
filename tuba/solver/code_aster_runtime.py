@@ -32,6 +32,10 @@ class CodeAsterRuntimeCandidate:
     available: bool = True
     reason: str | None = None
 
+    @property
+    def method(self) -> str:
+        return self.kind
+
 
 @dataclass(frozen=True)
 class CodeAsterExecution:
@@ -46,13 +50,17 @@ def discover_code_aster_runtimes(config: CodeAsterRuntimeConfig) -> list[CodeAst
     methods = _requested_methods(config.exec_method)
     candidates: list[CodeAsterRuntimeCandidate] = []
     bridge_python = config.bridge_python or config.env.get("TUBA_CODE_ASTER_PYTHON")
-    runner_command = config.runner_command or config.env.get("TUBA_CODE_ASTER_RUNNER")
+    runner_command = (
+        config.runner_command
+        or config.env.get("TUBA_CODE_ASTER_RUNNER_COMMAND")
+        or config.env.get("TUBA_CODE_ASTER_RUNNER")
+    )
     wsl_distro = config.wsl_distro or config.env.get("TUBA_CODE_ASTER_WSL_DISTRO")
 
     if "python_bridge" in methods and bridge_python:
         candidates.append(CodeAsterRuntimeCandidate("python_bridge", (bridge_python,)))
-    if "command" in methods and runner_command:
-        candidates.append(CodeAsterRuntimeCandidate("command", tuple(shlex.split(runner_command))))
+    if "command" in methods and (runner_command or config.exec_method == "command"):
+        candidates.append(CodeAsterRuntimeCandidate("command", tuple(shlex.split(runner_command or "run_aster"))))
     if "wsl" in methods:
         command = ("wsl", "-d", wsl_distro, "--") if wsl_distro else ("wsl",)
         candidates.append(CodeAsterRuntimeCandidate("wsl", command))
@@ -84,21 +92,50 @@ def select_code_aster_runtime(config: CodeAsterRuntimeConfig) -> CodeAsterRuntim
 
 
 def build_code_aster_command(
+    export_file_or_candidate: Path | CodeAsterRuntimeCandidate,
+    work_dir_or_export_file: Path,
+    config_or_work_dir: CodeAsterRuntimeConfig | Path,
+    *,
+    docker_image: str = DEFAULT_DOCKER_IMAGE,
+) -> tuple[list[str], Path | None] | list[str]:
+    """Build the command used to execute a Code_Aster export.
+
+    The public API accepts ``(export_file, work_dir, config)`` and returns
+    ``(command, cwd)``.  The candidate-based form is kept for compatibility
+    with older internal callers.
+    """
+    if isinstance(export_file_or_candidate, CodeAsterRuntimeCandidate):
+        candidate = export_file_or_candidate
+        export_file = work_dir_or_export_file
+        work_dir = Path(config_or_work_dir)
+        command, _cwd = _build_command_for_candidate(candidate, export_file, work_dir, docker_image=docker_image)
+        return command
+
+    export_file = export_file_or_candidate
+    work_dir = work_dir_or_export_file
+    config = config_or_work_dir
+    if not isinstance(config, CodeAsterRuntimeConfig):
+        raise TypeError("build_code_aster_command expected CodeAsterRuntimeConfig as the third argument.")
+    candidate = select_code_aster_runtime(config)
+    return _build_command_for_candidate(candidate, export_file, work_dir, docker_image=config.docker_image)
+
+
+def _build_command_for_candidate(
     candidate: CodeAsterRuntimeCandidate,
     export_file: Path,
     work_dir: Path,
     *,
     docker_image: str = DEFAULT_DOCKER_IMAGE,
-) -> list[str]:
+) -> tuple[list[str], Path | None]:
     export_name = export_file.name
     if candidate.kind == "python_bridge":
         bridge_script = Path(__file__).with_name("code_aster_bridge.py").resolve()
-        return [*candidate.command, str(bridge_script), "--export", export_name, "--workdir", str(work_dir)]
+        return [*candidate.command, str(bridge_script), export_name], work_dir
     if candidate.kind == "command":
-        return [*candidate.command, export_name]
+        return [*candidate.command, export_name], work_dir
     if candidate.kind == "wsl":
         wsl_dir = _win_to_wsl(work_dir)
-        return [*candidate.command, "bash", "-lc", f"cd {shlex.quote(wsl_dir)} && {_runner_detection_script(export_name)}"]
+        return [*candidate.command, "bash", "-lc", f"cd {shlex.quote(wsl_dir)} && {_runner_detection_script(export_name)}"], None
     if candidate.kind == "docker":
         image = candidate.command[-1] if candidate.command else docker_image
         return [
@@ -113,7 +150,7 @@ def build_code_aster_command(
             "sh",
             "-lc",
             _runner_detection_script(export_name),
-        ]
+        ], None
     raise ValueError(f"Unsupported Code_Aster runtime kind: {candidate.kind}")
 
 
@@ -125,11 +162,11 @@ def run_code_aster_export(export_file: Path, work_dir: Path, config: CodeAsterRu
     for candidate in discover_code_aster_runtimes(config):
         if not candidate.available:
             continue
-        command = build_code_aster_command(candidate, export_file, work_dir, docker_image=config.docker_image)
+        command, cwd = _build_command_for_candidate(candidate, export_file, work_dir, docker_image=config.docker_image)
         try:
             result = subprocess.run(
                 command,
-                cwd=str(work_dir) if candidate.kind in {"command", "python_bridge"} else None,
+                cwd=str(cwd) if cwd is not None else None,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",

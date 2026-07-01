@@ -237,7 +237,7 @@
       ]
     },
     "files": {
-      "mail": "d:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.mail"
+      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.mail"
     },
     "groups": {
       "AllPipes": [
@@ -274,6 +274,26 @@
       "GN_N3": [
         "N3"
       ],
+      "MAT_P265GH": [
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_bend_0_s0",
+        "pipe_bend_0_s1",
+        "pipe_bend_0_s2",
+        "pipe_bend_0_s3",
+        "pipe_bend_0_s4",
+        "pipe_bend_0_s5",
+        "pipe_bend_0_s6",
+        "pipe_bend_0_s7",
+        "pipe_bend_0_s8",
+        "pipe_bend_0_s9",
+        "pipe_bend_0_s10",
+        "pipe_bend_0_s11",
+        "pipe_bend_0_s12",
+        "pipe_bend_0_s13",
+        "pipe_bend_0_s14",
+        "pipe_bend_0_s15"
+      ],
       "PipeElbows": [
         "pipe_bend_0_s0",
         "pipe_bend_0_s1",
@@ -292,7 +312,14 @@
         "pipe_bend_0_s14",
         "pipe_bend_0_s15"
       ],
+      "PipeOrientationNodes": [
+        "N0"
+      ],
       "PipeStraights": [
+        "pipe_str_0",
+        "pipe_str_1"
+      ],
+      "SEC_4inch_sch40": [
         "pipe_str_0",
         "pipe_str_1"
       ],
@@ -313,6 +340,12 @@
         "pipe_bend_0_s13",
         "pipe_bend_0_s14",
         "pipe_bend_0_s15"
+      ],
+      "pipe_str_0": [
+        "pipe_str_0"
+      ],
+      "pipe_str_1": [
+        "pipe_str_1"
       ]
     },
     "id": "analysis_mesh:Operating",
@@ -499,6 +532,186 @@
           "id": "pipe_bend_0",
           "kind": "element"
         }
+      },
+      "pipe_bend_0_s0_mid": {
+        "node_id": "pipe_bend_0_s0_mid",
+        "parametric_t": 0.03125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s10_mid": {
+        "node_id": "pipe_bend_0_s10_mid",
+        "parametric_t": 0.65625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s11_mid": {
+        "node_id": "pipe_bend_0_s11_mid",
+        "parametric_t": 0.71875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s12_mid": {
+        "node_id": "pipe_bend_0_s12_mid",
+        "parametric_t": 0.78125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s13_mid": {
+        "node_id": "pipe_bend_0_s13_mid",
+        "parametric_t": 0.84375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s14_mid": {
+        "node_id": "pipe_bend_0_s14_mid",
+        "parametric_t": 0.90625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s15_mid": {
+        "node_id": "pipe_bend_0_s15_mid",
+        "parametric_t": 0.96875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s1_mid": {
+        "node_id": "pipe_bend_0_s1_mid",
+        "parametric_t": 0.09375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s2_mid": {
+        "node_id": "pipe_bend_0_s2_mid",
+        "parametric_t": 0.15625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s3_mid": {
+        "node_id": "pipe_bend_0_s3_mid",
+        "parametric_t": 0.21875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s4_mid": {
+        "node_id": "pipe_bend_0_s4_mid",
+        "parametric_t": 0.28125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s5_mid": {
+        "node_id": "pipe_bend_0_s5_mid",
+        "parametric_t": 0.34375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s6_mid": {
+        "node_id": "pipe_bend_0_s6_mid",
+        "parametric_t": 0.40625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s7_mid": {
+        "node_id": "pipe_bend_0_s7_mid",
+        "parametric_t": 0.46875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s8_mid": {
+        "node_id": "pipe_bend_0_s8_mid",
+        "parametric_t": 0.53125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s9_mid": {
+        "node_id": "pipe_bend_0_s9_mid",
+        "parametric_t": 0.59375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_0_mid": {
+        "node_id": "pipe_str_0_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_1_mid": {
+        "node_id": "pipe_str_1_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_1",
+          "kind": "element"
+        }
       }
     },
     "nodes": {
@@ -596,6 +809,96 @@
         5.154602090672547,
         0.07312134316727112,
         0.0
+      ],
+      "pipe_bend_0_s0_mid": [
+        5.009801714032957,
+        0.0004815273327803127,
+        0.0
+      ],
+      "pipe_bend_0_s10_mid": [
+        5.17133908766509,
+        0.09730330301544016,
+        0.0
+      ],
+      "pipe_bend_0_s11_mid": [
+        5.180580079685964,
+        0.1145919830808914,
+        0.0
+      ],
+      "pipe_bend_0_s12_mid": [
+        5.18808198682435,
+        0.1327031890380449,
+        0.0
+      ],
+      "pipe_bend_0_s13_mid": [
+        5.193772561613544,
+        0.151462500072941,
+        0.0
+      ],
+      "pipe_bend_0_s14_mid": [
+        5.1975970007075425,
+        0.1706892537654311,
+        0.0
+      ],
+      "pipe_bend_0_s15_mid": [
+        5.19951847266722,
+        0.1901982859670439,
+        0.0
+      ],
+      "pipe_bend_0_s1_mid": [
+        5.029310746234569,
+        0.0024029992924572696,
+        0.0
+      ],
+      "pipe_bend_0_s2_mid": [
+        5.048537499927059,
+        0.006227438386456077,
+        0.0
+      ],
+      "pipe_bend_0_s3_mid": [
+        5.067296810961955,
+        0.011918013175650444,
+        0.0
+      ],
+      "pipe_bend_0_s4_mid": [
+        5.085408016919109,
+        0.019419920314035846,
+        0.0
+      ],
+      "pipe_bend_0_s5_mid": [
+        5.102696696984561,
+        0.028660912334910055,
+        0.0
+      ],
+      "pipe_bend_0_s6_mid": [
+        5.118996351718325,
+        0.039551993433471905,
+        0.0
+      ],
+      "pipe_bend_0_s7_mid": [
+        5.13415000653502,
+        0.05198827654507171,
+        0.0
+      ],
+      "pipe_bend_0_s8_mid": [
+        5.148011723454928,
+        0.0658499934649809,
+        0.0
+      ],
+      "pipe_bend_0_s9_mid": [
+        5.160448006566528,
+        0.08100364828167542,
+        0.0
+      ],
+      "pipe_str_0_mid": [
+        2.5,
+        0.0,
+        0.0
+      ],
+      "pipe_str_1_mid": [
+        5.200000000000001,
+        1.7000000000000002,
+        0.0
       ]
     },
     "solver_name": "Code_Aster"
@@ -603,11 +906,11 @@
   "study": {
     "id": "analysis_study:Operating",
     "input_files": {
-      "comm": "d:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.comm",
-      "export": "d:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.export",
-      "mail": "d:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.mail",
-      "manifest": "d:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study_manifest.json",
-      "sidecar": "d:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study_tuba_fem.json"
+      "comm": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.comm",
+      "export": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.export",
+      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study.mail",
+      "manifest": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study_manifest.json",
+      "sidecar": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating\\study_tuba_fem.json"
     },
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
@@ -616,6 +919,6 @@
     },
     "model_revision": 0,
     "solver_name": "Code_Aster",
-    "work_dir": "d:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating"
+    "work_dir": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\stress_analysis_operating"
   }
 }

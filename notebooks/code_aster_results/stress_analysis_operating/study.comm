@@ -44,26 +44,25 @@ CARA = AFFE_CARA_ELEM(
     MODELE=MODELE,
     POUTRE=(
         _F(
-            GROUP_MA=('pipe_str_0', 'pipe_str_1'),
+            GROUP_MA='GDBD1B25',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(5.71500000E-02, 6.02000000E-03),
         ),
-    ),
-    COUDE=(
         _F(
-            GROUP_MA='pipe_bend_0',
+            GROUP_MA='G8652C19',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(5.71500000E-02, 6.02000000E-03),
-            COUDE=_F(
-                RAYON=2.00000000E-01,
-            ),
+        ),
+        _F(
+            GROUP_MA='G8652C19',
+            SECTION='COUDE',
         ),
     ),
     ORIENTATION=(
         _F(
-            GROUP_MA='AllPipes',
+            GROUP_NO='G06D7539',
             CARA='GENE_TUYAU',
             VALE=(0.0, 0.0, 1.0),
         ),
@@ -76,6 +75,7 @@ BC_0 = AFFE_CHAR_MECA(
     DDL_IMPO=_F(
         GROUP_NO='GN_N0',
         BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
     ),
 );
 
@@ -84,6 +84,7 @@ BC_1 = AFFE_CHAR_MECA(
     DDL_IMPO=_F(
         GROUP_NO='GN_N3',
         BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
     ),
 );
 
@@ -94,6 +95,7 @@ BC_2 = AFFE_CHAR_MECA(
         DX=0.0,
         DY=0.0,
         DZ=0.0,
+        WO=0.0,
     ),
 );
 
@@ -116,8 +118,6 @@ PRESSURE = AFFE_CHAR_MECA(
 );
 
 # ----- Thermal expansion -----
-T_FUNC = DEFI_CONSTANTE(VALE=1.0);
-
 TEMP_FIELD = CREA_CHAMP(
     TYPE_CHAM='NOEU_TEMP_R',
     OPERATION='AFFE',
@@ -126,17 +126,6 @@ TEMP_FIELD = CREA_CHAMP(
         TOUT='OUI',
         NOM_CMP='TEMP',
         VALE=2.000000E+02,
-    ),
-);
-
-TEMP_REF = CREA_CHAMP(
-    TYPE_CHAM='NOEU_TEMP_R',
-    OPERATION='AFFE',
-    MAILLAGE=MAIL,
-    AFFE=_F(
-        TOUT='OUI',
-        NOM_CMP='TEMP',
-        VALE=2.000000E+01,
     ),
 );
 
@@ -152,7 +141,7 @@ CHMAT = AFFE_MATERIAU(
         TOUT='OUI',
         NOM_VARC='TEMP',
         CHAM_GD=TEMP_FIELD,
-        CHAM_REF=TEMP_REF,
+        VALE_REF=2.000000E+01,
     ),
 );
 
@@ -174,7 +163,8 @@ RESU = MECA_STATIQUE(
 RESU = CALC_CHAMP(
     reuse=RESU,
     RESULTAT=RESU,
-    CONTRAINTE=('EFFO_ELNO', 'SIEQ_ELNO'),
+    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+    CRITERES=('SIEQ_ELNO',),
     FORCE='FORC_NODA',
 );
 
@@ -184,15 +174,15 @@ IMPR_RESU(
     UNITE=80,
     RESU=_F(
         RESULTAT=RESU,
-        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFFO_ELNO', 'FORC_NODA'),
+        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),
     ),
 );
 
-# ----- Text table for EFFO_ELNO -----
+# ----- Text table for EFGE_ELNO -----
 TAB_EFFO = CREA_TABLE(
     RESU=_F(
         RESULTAT=RESU,
-        NOM_CHAM='EFFO_ELNO',
+        NOM_CHAM='EFGE_ELNO',
         TOUT='OUI',
         NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
     ),

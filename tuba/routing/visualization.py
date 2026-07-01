@@ -85,7 +85,7 @@ def show_route_scene(
     request: PipeRouteRequest | None = None,
     result: PipeRouteResult | None = None,
     candidates: Iterable[PipeRouteCandidate] | None = None,
-    jupyter_backend: str = "client",
+    jupyter_backend: str = "html",
 ):
     """Display an interactive PyVista route scene in Jupyter."""
     plotter = build_route_plotter(

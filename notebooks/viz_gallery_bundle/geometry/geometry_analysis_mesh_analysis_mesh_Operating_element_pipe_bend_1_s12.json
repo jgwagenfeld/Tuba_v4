@@ -1,0 +1,45 @@
+{
+  "asset_id": "geometry:analysis_mesh:analysis_mesh:Operating:element:pipe_bend_1_s12",
+  "bounds": [
+    3.3000000000000003,
+    2.577163859753386,
+    0.185194970290473,
+    3.3000000000000003,
+    2.5870821007196625,
+    0.21291459682366126
+  ],
+  "format": "polyline",
+  "generation_config": {
+    "element_id": "pipe_bend_1_s12",
+    "groups": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_1"
+    ],
+    "mesh_id": "analysis_mesh:Operating",
+    "node_ids": [
+      "pipe_bend_1_n12",
+      "pipe_bend_1_n13"
+    ],
+    "points": [
+      [
+        3.3000000000000003,
+        2.577163859753386,
+        0.185194970290473
+      ],
+      [
+        3.3000000000000003,
+        2.5870821007196625,
+        0.21291459682366126
+      ]
+    ],
+    "role": "bend_segment",
+    "source": "tuba.analysis_mesh.element",
+    "source_ref": "element:pipe_bend_1"
+  },
+  "hash": "sha256:e926dbb81feb000dda87cfc63765ee64d6976f3dcd0aef978d64a086286346b8",
+  "object_ids": [
+    "object:analysis_mesh:analysis_mesh:Operating:element:pipe_bend_1_s12"
+  ]
+}

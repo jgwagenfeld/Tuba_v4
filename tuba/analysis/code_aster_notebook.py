@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -30,6 +31,36 @@ class CodeAsterNotebookRun:
     missing_before_run: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class CodeAsterNotebookRuntime:
+    exec_method: str
+    wsl_distro: str | None
+    docker_image: str | None
+
+
+def configure_code_aster_notebook_runtime(
+    *,
+    exec_method: str = "wsl",
+    wsl_distro: str | None = "Ubuntu",
+    docker_image: str | None = None,
+) -> CodeAsterNotebookRuntime:
+    """Configure the default Code_Aster runtime used by notebooks."""
+    os.environ["TUBA_CODE_ASTER_EXEC_METHOD"] = exec_method
+    if wsl_distro is not None:
+        os.environ["TUBA_CODE_ASTER_WSL_DISTRO"] = wsl_distro
+    elif "TUBA_CODE_ASTER_WSL_DISTRO" in os.environ:
+        del os.environ["TUBA_CODE_ASTER_WSL_DISTRO"]
+    if docker_image is not None:
+        os.environ["TUBA_CODE_ASTER_DOCKER_IMAGE"] = docker_image
+    elif "TUBA_CODE_ASTER_DOCKER_IMAGE" in os.environ:
+        del os.environ["TUBA_CODE_ASTER_DOCKER_IMAGE"]
+    return CodeAsterNotebookRuntime(
+        exec_method=exec_method,
+        wsl_distro=wsl_distro,
+        docker_image=docker_image,
+    )
+
+
 def load_or_run_code_aster_results(
     model: Any,
     load_case: str,
@@ -37,13 +68,20 @@ def load_or_run_code_aster_results(
     *,
     run_solver: bool = True,
     exec_method: str = "auto",
+    wsl_distro: str | None = None,
     docker_image: str | None = None,
     solver_factory: Callable[..., Any] = CodeAsterSolver,
 ) -> CodeAsterNotebookRun:
     """Load Code_Aster result artifacts, running the exported study if needed."""
     root = Path(work_dir)
     root.mkdir(parents=True, exist_ok=True)
-    solver = _make_solver(solver_factory, root, exec_method=exec_method, docker_image=docker_image)
+    solver = _make_solver(
+        solver_factory,
+        root,
+        exec_method=exec_method,
+        wsl_distro=wsl_distro,
+        docker_image=docker_image,
+    )
     study = solver.export_analysis_study(model, load_case, root)
 
     missing_before = tuple(_missing_result_tables(root))
@@ -75,11 +113,18 @@ def _make_solver(
     work_dir: Path,
     *,
     exec_method: str,
+    wsl_distro: str | None,
     docker_image: str | None,
 ) -> Any:
+    kwargs = {
+        "work_dir": str(work_dir),
+        "exec_method": exec_method,
+    }
+    if wsl_distro is not None:
+        kwargs["wsl_distro"] = wsl_distro
     if docker_image is None:
-        return solver_factory(work_dir=str(work_dir), exec_method=exec_method)
-    return solver_factory(work_dir=str(work_dir), exec_method=exec_method, docker_image=docker_image)
+        return solver_factory(**kwargs)
+    return solver_factory(**kwargs, docker_image=docker_image)
 
 
 def _missing_result_tables(work_dir: Path) -> list[str]:

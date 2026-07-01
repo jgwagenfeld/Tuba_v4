@@ -1,0 +1,43 @@
+{
+  "analysis_mesh_id": "analysis_mesh:Operating_Hot",
+  "lineage": {
+    "G865AF37": "element:pipe_str_0",
+    "G8DCD4C6": "element:pipe_str_1",
+    "col_1": "element:col_1",
+    "col_2": "element:col_2",
+    "girder_1": "element:girder_1"
+  },
+  "load_case": "Operating_Hot",
+  "name_map": {
+    "AllPipes": "AllPipes",
+    "AllSupports": "G2F28381",
+    "GN_N0": "GN_N0",
+    "GN_N1": "GN_N1",
+    "GN_N4": "GN_N4",
+    "GN_N5": "GN_N5",
+    "GN_N6": "GN_N6",
+    "G_TUBE": "G_TUBE",
+    "MAT_S235JR": "GBBAC720",
+    "N0": "N0",
+    "N1": "N1",
+    "N2": "N2",
+    "N3": "N3",
+    "N4": "N4",
+    "N5": "N5",
+    "N6": "N6",
+    "PipeOrientationNodes": "G06D7539",
+    "PipeStraights": "G3B3BFA6",
+    "SEC_4inch_sch40": "GDBD1B25",
+    "SEC_ColBox": "G2C1BA6D",
+    "SEC_HE200B_Girder": "G11CD983",
+    "col_1": "col_1",
+    "col_2": "col_2",
+    "girder_1": "girder_1",
+    "pipe_str_0": "G865AF37",
+    "pipe_str_0_mid": "G255E003",
+    "pipe_str_1": "G8DCD4C6",
+    "pipe_str_1_mid": "G226102C"
+  },
+  "schema_version": 1,
+  "solver_name": "Code_Aster"
+}

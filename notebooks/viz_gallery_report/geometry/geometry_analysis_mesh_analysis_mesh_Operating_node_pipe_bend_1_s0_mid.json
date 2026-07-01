@@ -1,0 +1,29 @@
+{
+  "asset_id": "geometry:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s0_mid",
+  "bounds": [
+    3.3000000000000003,
+    2.314702571049434,
+    0.0007222909991704551,
+    3.3000000000000003,
+    2.314702571049434,
+    0.0007222909991704551
+  ],
+  "format": "point",
+  "generation_config": {
+    "groups": [],
+    "mesh_id": "analysis_mesh:Operating",
+    "node_id": "pipe_bend_1_s0_mid",
+    "point": [
+      3.3000000000000003,
+      2.314702571049434,
+      0.0007222909991704551
+    ],
+    "role": "generated_bend_mid_node",
+    "source": "tuba.analysis_mesh.node",
+    "source_ref": "element:pipe_bend_1"
+  },
+  "hash": "sha256:faa0b2672c93a6b008c78cf4b83e485cc67b76c8c21f6d4b6c047945416c9ef9",
+  "object_ids": [
+    "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s0_mid"
+  ]
+}

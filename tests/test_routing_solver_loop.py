@@ -53,6 +53,15 @@ class PassingSolver:
         return results
 
 
+class CapturingRuntimeSolver(PassingSolver):
+    instances = []
+
+    def __init__(self, work_dir, **kwargs):
+        super().__init__(work_dir)
+        self.kwargs = kwargs
+        self.instances.append(self)
+
+
 class MomentHeavySolver(PassingSolver):
     def solve(self, model, load_case):
         results = FEAResults(solver_name="FakeSolver", load_case=load_case)
@@ -142,6 +151,30 @@ class TestSolverLoop(unittest.TestCase):
             study_dir = Path(ranked[0].metadata["solver"]["study_dir"])
             self.assertTrue((study_dir / "study.comm").exists())
             self.assertFalse(ranked[0].metadata["solver"]["solver_ran"])
+
+    def test_solver_loop_passes_code_aster_runtime_config_to_solver(self):
+        model, request, candidate = _solver_loop_fixture()
+        CapturingRuntimeSolver.instances = []
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            SolverLoopScorer(solver_factory=CapturingRuntimeSolver).score_candidates(
+                model,
+                request,
+                [candidate],
+                SolverLoopConfig(
+                    run_solver=False,
+                    export_study=True,
+                    max_solver_candidates=1,
+                    work_root=tmpdir,
+                    load_case="Hot",
+                    exec_method="wsl",
+                    wsl_distro="Ubuntu",
+                    docker_image=None,
+                ),
+            )
+
+        self.assertEqual(CapturingRuntimeSolver.instances[0].kwargs["exec_method"], "wsl")
+        self.assertEqual(CapturingRuntimeSolver.instances[0].kwargs["wsl_distro"], "Ubuntu")
 
     def test_solver_failure_is_nonfatal(self):
         model, request, candidate = _solver_loop_fixture()

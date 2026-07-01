@@ -17,6 +17,8 @@ workflows must run Code_Aster or import real Code_Aster result artifacts before
 showing solver results. If Code_Aster is unavailable, Tuba should stop with a
 clear runtime/setup blocker rather than substitute mock values.
 
+Code_Aster is required for the full Tuba workflow.
+
 ## Code_Aster Runtime
 
 Code_Aster execution is required for production stress, displacement, reaction,
@@ -63,7 +65,7 @@ Real solver smoke:
 $env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
 $env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"
 $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
-.\.venv\Scripts\python.exe -m unittest tests.integration.test_code_aster_real_smoke -v
+.\.venv\Scripts\python.exe -m unittest tests.test_code_aster_real_smoke -v
 ```
 
 ## Installation
@@ -73,6 +75,40 @@ pip install -e .
 ```
 
 Tuba v4 requires Python 3.10 or newer.
+
+## Quick Notebook Path
+
+For the fastest interactive result workflow, install the notebook extra and
+open the welcome notebook first:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"
+jupyter lab notebooks\00_welcome_and_setup.ipynb
+```
+
+The first workflow in that notebook builds a piping model, loads or runs
+Code_Aster through the configured runtime, imports the generated result
+artifacts, and opens an interactive deformed-stress view. Continue with
+`notebooks\03_stress_analysis_and_compliance.ipynb` for compliance checks and
+`notebooks\04_visualization_gallery.ipynb` for additional result exports.
+
+Course sequence:
+
+| Notebook | Purpose |
+|---|---|
+| `00_welcome_and_setup.ipynb` | Fast complete workflow: model, Code_Aster, interactive result |
+| `01_building_piping_systems.ipynb` | Geometry authoring with the piping DSL |
+| `02_supports_and_loading.ipynb` | Supports, boundary conditions, and load cases |
+| `03_stress_analysis_and_compliance.ipynb` | Code_Aster-backed stress and ASME B31.3 checks |
+| `04_visualization_gallery.ipynb` | Result visualization and export formats |
+| `05_autorouting.ipynb` | Deterministic routing and Code_Aster study handoff |
+| `06_structural_frames_and_optimization.ipynb` | Pipe racks and optional support optimization |
+| `07_bim_data_exchange.ipynb` | JSON and IFC/BIM exchange with solver properties |
+| `08_expansion_aware_autorouting.ipynb` | Hot-line routing with reserved expansion envelopes |
+
+Supplemental notebooks: `autorouting_quick_iteration.ipynb`,
+`visualize_elements_and_supports.ipynb`, and
+`advanced_piping_design_and_bim.ipynb`.
 
 ## Pipe Autorouting
 
@@ -105,8 +141,7 @@ demo keeps normal movement constraints and selects the U-loop because its
 geometry is lower cost than the valid grid detour around the equipment
 envelope.
 
-For interactive Jupyter review, install the optional PyVista/Trame notebook
-stack and open the notebook:
+For interactive autorouting review, open the quick-iteration notebook:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"

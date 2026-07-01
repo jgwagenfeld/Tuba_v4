@@ -72,23 +72,7 @@ CHMAT = AFFE_MATERIAU(
     MAILLAGE=MAIL,
     AFFE=(
         _F(
-            GROUP_MA=('pipe_str_0', 'pipe_bend_0_s0', 'pipe_bend_0_s1', 'pipe_bend_0_s2', 'pipe_bend_0_s3', 'pipe_bend_0_s4', 'pipe_bend_0_s5', 'pipe_bend_0_s6', 'pipe_bend_0_s7', 'pipe_bend_0_s8', 'pipe_bend_0_s9', 'pipe_bend_0_s10', 'pipe_bend_0_s11', 'pipe_bend_0_s12', 'pipe_bend_0_s13', 'pipe_bend_0_s14', 'pipe_bend_0_s15', 'pipe_str_1'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('beam_0'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('bar_0'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('cable_0'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('beam_1'),
+            TOUT='OUI',
             MATER=MAT_STEEL,
         ),
     ),
@@ -99,33 +83,32 @@ CARA = AFFE_CARA_ELEM(
     MODELE=MODELE,
     POUTRE=(
         _F(
-            GROUP_MA='beam_0',
+            GROUP_MA='SEC_IBeamSec',
             SECTION='GENERALE',
             CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
             VALE=(1.03256912E-03, 1.59193185E-07, 1.71055336E-06, 2.59454200E+00, 1.74649000E+00, -1.80000000E-08, -3.00000000E-09, 1.13956560E-08, 3.42152416E-04, -4.89100000E-15, -4.69600000E-15, 5.00000000E-02, 2.75000000E-02, 8.15206800E-03),
         ),
         _F(
-            GROUP_MA=('pipe_str_0', 'pipe_str_1'),
+            GROUP_MA='SEC_PipeSec',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(5.71500000E-02, 6.00000000E-03),
         ),
         _F(
-            GROUP_MA='beam_1',
+            GROUP_MA='SEC_RectSec',
             SECTION='RECTANGLE',
             CARA=('HY', 'HZ', 'EPY', 'EPZ'),
             VALE=(8.00000000E-02, 4.00000000E-02, 5.00000000E-03, 5.00000000E-03),
         ),
-    ),
-    COUDE=(
         _F(
             GROUP_MA='pipe_bend_0',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(5.71500000E-02, 6.00000000E-03),
-            COUDE=_F(
-                RAYON=2.00000000E-01,
-            ),
+        ),
+        _F(
+            GROUP_MA='pipe_bend_0',
+            SECTION='COUDE',
         ),
     ),
     BARRE=(
@@ -164,7 +147,7 @@ CARA = AFFE_CARA_ELEM(
     ),
     ORIENTATION=(
         _F(
-            GROUP_MA='AllPipes',
+            GROUP_NO='PipeOrientationNodes',
             CARA='GENE_TUYAU',
             VALE=(0.0, 0.0, 1.0),
         ),
@@ -187,6 +170,7 @@ BC_0 = AFFE_CHAR_MECA(
     DDL_IMPO=_F(
         GROUP_NO='GN_N0',
         BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
     ),
 );
 
@@ -197,6 +181,7 @@ BC_2 = AFFE_CHAR_MECA(
         DX=0.0,
         DY=0.0,
         DRZ=0.0,
+        WO=0.0,
     ),
 );
 
@@ -232,38 +217,11 @@ TEMP_FIELD = CREA_CHAMP(
     ),
 );
 
-TEMP_REF = CREA_CHAMP(
-    TYPE_CHAM='NOEU_TEMP_R',
-    OPERATION='AFFE',
-    MAILLAGE=MAIL,
-    AFFE=_F(
-        TOUT='OUI',
-        NOM_CMP='TEMP',
-        VALE=2.000000E+01,
-    ),
-);
-
 CHMAT = AFFE_MATERIAU(
     MAILLAGE=MAIL,
     AFFE=(
         _F(
-            GROUP_MA=('pipe_str_0', 'pipe_bend_0_s0', 'pipe_bend_0_s1', 'pipe_bend_0_s2', 'pipe_bend_0_s3', 'pipe_bend_0_s4', 'pipe_bend_0_s5', 'pipe_bend_0_s6', 'pipe_bend_0_s7', 'pipe_bend_0_s8', 'pipe_bend_0_s9', 'pipe_bend_0_s10', 'pipe_bend_0_s11', 'pipe_bend_0_s12', 'pipe_bend_0_s13', 'pipe_bend_0_s14', 'pipe_bend_0_s15', 'pipe_str_1'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('beam_0'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('bar_0'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('cable_0'),
-            MATER=MAT_STEEL,
-        ),
-        _F(
-            GROUP_MA=('beam_1'),
+            TOUT='OUI',
             MATER=MAT_STEEL,
         ),
     ),
@@ -271,16 +229,19 @@ CHMAT = AFFE_MATERIAU(
         TOUT='OUI',
         NOM_VARC='TEMP',
         CHAM_GD=TEMP_FIELD,
-        CHAM_REF=TEMP_REF,
+        VALE_REF=2.000000E+01,
     ),
 );
 
 # ----- Unilateral contacts -----
+UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);
+UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);
+
 contact = DEFI_CONTACT(
     MODELE=MODELE,
     FORMULATION='LIAISON_UNIL',
     ZONE=(
-        _F(GROUP_NO='GN_N4', NOM_CMP='DY'),
+        _F(GROUP_NO='GN_N4', NOM_CMP='DY', COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),
     ),
 );
 
@@ -313,7 +274,8 @@ RESU = STAT_NON_LINE(
 RESU = CALC_CHAMP(
     reuse=RESU,
     RESULTAT=RESU,
-    CONTRAINTE=('EFFO_ELNO', 'SIEQ_ELNO'),
+    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+    CRITERES=('SIEQ_ELNO',),
     FORCE='FORC_NODA',
 );
 
@@ -323,15 +285,15 @@ IMPR_RESU(
     UNITE=80,
     RESU=_F(
         RESULTAT=RESU,
-        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFFO_ELNO', 'FORC_NODA'),
+        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),
     ),
 );
 
-# ----- Text table for EFFO_ELNO -----
+# ----- Text table for EFGE_ELNO -----
 TAB_EFFO = CREA_TABLE(
     RESU=_F(
         RESULTAT=RESU,
-        NOM_CHAM='EFFO_ELNO',
+        NOM_CHAM='EFGE_ELNO',
         TOUT='OUI',
         NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
         INST=1.0,

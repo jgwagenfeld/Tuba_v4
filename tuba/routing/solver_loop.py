@@ -28,6 +28,9 @@ class SolverLoopConfig:
     work_root: str | Path = "routing_studies"
     load_case: str | None = None
     strict: bool = False
+    exec_method: str = "auto"
+    wsl_distro: str | None = None
+    docker_image: str | None = None
 
 
 class SolverLoopScorer:
@@ -67,7 +70,7 @@ class SolverLoopScorer:
             temp_model = copy.deepcopy(model)
             apply_candidate_to_model(temp_model, candidate, request)
             try:
-                solver = self.solver_factory(str(study_dir))
+                solver = self._make_solver(study_dir, config)
                 if hasattr(solver, "export_study"):
                     solver.export_study(temp_model, config.load_case, study_dir)
                 if config.run_solver:
@@ -88,6 +91,21 @@ class SolverLoopScorer:
         if any("solver_acceptance" in candidate.metadata for candidate in ranked):
             ranked.sort(key=lambda c: (not c.is_valid, c.cost))
         return ranked
+
+    def _make_solver(self, study_dir: Path, config: SolverLoopConfig):
+        kwargs = {
+            "exec_method": config.exec_method,
+        }
+        if config.wsl_distro is not None:
+            kwargs["wsl_distro"] = config.wsl_distro
+        if config.docker_image is not None:
+            kwargs["docker_image"] = config.docker_image
+        if kwargs == {"exec_method": "auto"}:
+            return self.solver_factory(str(study_dir))
+        try:
+            return self.solver_factory(str(study_dir), **kwargs)
+        except TypeError:
+            return self.solver_factory(str(study_dir))
 
 
 def _attach_solver_result_metadata(

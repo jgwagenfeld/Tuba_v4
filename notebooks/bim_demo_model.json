@@ -1,0 +1,142 @@
+{
+  "meta": {
+    "project_name": "BIM_Demo",
+    "standard": "ASME_B31.3",
+    "version": "4.0.0"
+  },
+  "materials": {
+    "Steel": {
+      "E": 200000000000.0,
+      "nu": 0.3,
+      "rho": 7850,
+      "alpha": 1.2e-05,
+      "allowable_stress": {
+        "20.0": 140000000.0,
+        "120.0": 125000000.0
+      }
+    }
+  },
+  "sections": {
+    "DN100": {
+      "type": "pipe",
+      "OD": 0.1143,
+      "WT": 0.006,
+      "corrosion_allowance": 0.0
+    }
+  },
+  "nodes": {
+    "N0": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "N1": [
+      3.0,
+      0.0,
+      0.0
+    ],
+    "N2": [
+      3.2,
+      0.19999999999999998,
+      0.0
+    ],
+    "N3": [
+      3.2000000000000006,
+      2.2,
+      0.0
+    ]
+  },
+  "elements": [
+    {
+      "id": "pipe_str_0",
+      "type": "pipe_straight",
+      "n1": "N0",
+      "n2": "N1",
+      "section": "DN100",
+      "material": "Steel"
+    },
+    {
+      "id": "pipe_bend_0",
+      "type": "pipe_bend",
+      "n1": "N1",
+      "n2": "N2",
+      "section": "DN100",
+      "material": "Steel",
+      "bend_radius": 0.2,
+      "bend_angle": 90.0
+    },
+    {
+      "id": "pipe_str_1",
+      "type": "pipe_straight",
+      "n1": "N2",
+      "n2": "N3",
+      "section": "DN100",
+      "material": "Steel"
+    }
+  ],
+  "supports": [
+    {
+      "node": "N0",
+      "type": "anchor",
+      "id": "support_0"
+    },
+    {
+      "node": "N3",
+      "type": "anchor",
+      "id": "support_1"
+    }
+  ],
+  "load_cases": {
+    "Operating": {
+      "gravity": true,
+      "internal_pressure": 1500000.0,
+      "temperature": 150.0,
+      "ref_temperature": 20.0
+    }
+  },
+  "obstacles": [],
+  "tees": {},
+  "groups": {},
+  "placement_frames": {
+    "pipe_run_frame": {
+      "id": "pipe_run_frame",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "axis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "ref_direction": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "frame_type": "product",
+      "metadata": {
+        "description": "Local placement for first exported pipe segment"
+      },
+      "source": "notebook"
+    }
+  },
+  "placement_assignments": [
+    {
+      "target": "element:pipe_str_0",
+      "frame": "placement_frame:pipe_run_frame",
+      "role": "object_placement",
+      "metadata": {},
+      "source": "notebook"
+    }
+  ],
+  "specs": {},
+  "attributes": [],
+  "cad_assets": {},
+  "imported_components": {},
+  "analysis_regions": {},
+  "ports": {},
+  "mesh_groups": {},
+  "couplings": {}
+}

@@ -1,0 +1,290 @@
+{
+  "analysis_mesh": {
+    "element_sources": {
+      "col_1": {
+        "element_id": "col_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "col_1",
+          "kind": "element"
+        }
+      },
+      "col_2": {
+        "element_id": "col_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "col_2",
+          "kind": "element"
+        }
+      },
+      "girder_1": {
+        "element_id": "girder_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "girder_1",
+          "kind": "element"
+        }
+      },
+      "pipe_str_0": {
+        "element_id": "pipe_str_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_str_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_1": {
+        "element_id": "pipe_str_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_str_1",
+          "kind": "element"
+        }
+      }
+    },
+    "elements": {
+      "col_1": [
+        "N0",
+        "N2"
+      ],
+      "col_2": [
+        "N1",
+        "N3"
+      ],
+      "girder_1": [
+        "N2",
+        "N3"
+      ],
+      "pipe_str_0": [
+        "N4",
+        "N5"
+      ],
+      "pipe_str_1": [
+        "N5",
+        "N6"
+      ]
+    },
+    "files": {
+      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\advanced_operating_hot\\study.mail"
+    },
+    "groups": {
+      "AllPipes": [
+        "pipe_str_0",
+        "pipe_str_1"
+      ],
+      "AllSupports": [
+        "N0",
+        "N1",
+        "N4",
+        "N6",
+        "N5"
+      ],
+      "GN_N0": [
+        "N0"
+      ],
+      "GN_N1": [
+        "N1"
+      ],
+      "GN_N4": [
+        "N4"
+      ],
+      "GN_N5": [
+        "N5"
+      ],
+      "GN_N6": [
+        "N6"
+      ],
+      "G_TUBE": [
+        "col_1",
+        "col_2",
+        "girder_1"
+      ],
+      "MAT_S235JR": [
+        "pipe_str_0",
+        "pipe_str_1",
+        "col_1",
+        "col_2",
+        "girder_1"
+      ],
+      "PipeOrientationNodes": [
+        "N4"
+      ],
+      "PipeStraights": [
+        "pipe_str_0",
+        "pipe_str_1"
+      ],
+      "SEC_4inch_sch40": [
+        "pipe_str_0",
+        "pipe_str_1"
+      ],
+      "SEC_ColBox": [
+        "col_1",
+        "col_2"
+      ],
+      "SEC_HE200B_Girder": [
+        "girder_1"
+      ],
+      "col_1": [
+        "col_1"
+      ],
+      "col_2": [
+        "col_2"
+      ],
+      "girder_1": [
+        "girder_1"
+      ],
+      "pipe_str_0": [
+        "pipe_str_0"
+      ],
+      "pipe_str_1": [
+        "pipe_str_1"
+      ]
+    },
+    "id": "analysis_mesh:Operating_Hot",
+    "model_revision": 0,
+    "node_sources": {
+      "N0": {
+        "node_id": "N0",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N0",
+          "kind": "node"
+        }
+      },
+      "N1": {
+        "node_id": "N1",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N2": {
+        "node_id": "N2",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N2",
+          "kind": "node"
+        }
+      },
+      "N3": {
+        "node_id": "N3",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N3",
+          "kind": "node"
+        }
+      },
+      "N4": {
+        "node_id": "N4",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N4",
+          "kind": "node"
+        }
+      },
+      "N5": {
+        "node_id": "N5",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N5",
+          "kind": "node"
+        }
+      },
+      "N6": {
+        "node_id": "N6",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N6",
+          "kind": "node"
+        }
+      },
+      "pipe_str_0_mid": {
+        "node_id": "pipe_str_0_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_1_mid": {
+        "node_id": "pipe_str_1_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_1",
+          "kind": "element"
+        }
+      }
+    },
+    "nodes": {
+      "N0": [
+        5.0,
+        0.0,
+        -1.0
+      ],
+      "N1": [
+        5.0,
+        0.0,
+        1.0
+      ],
+      "N2": [
+        5.0,
+        3.0,
+        -1.0
+      ],
+      "N3": [
+        5.0,
+        3.0,
+        1.0
+      ],
+      "N4": [
+        0.0,
+        3.1143,
+        0.0
+      ],
+      "N5": [
+        5.0,
+        3.1143,
+        0.0
+      ],
+      "N6": [
+        10.0,
+        3.1143,
+        0.0
+      ],
+      "pipe_str_0_mid": [
+        2.5,
+        3.1143,
+        0.0
+      ],
+      "pipe_str_1_mid": [
+        7.5,
+        3.1143,
+        0.0
+      ]
+    },
+    "solver_name": "Code_Aster"
+  },
+  "study": {
+    "id": "analysis_study:Operating_Hot",
+    "input_files": {
+      "comm": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\advanced_operating_hot\\study.comm",
+      "export": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\advanced_operating_hot\\study.export",
+      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\advanced_operating_hot\\study.mail",
+      "manifest": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\advanced_operating_hot\\study_manifest.json",
+      "sidecar": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\advanced_operating_hot\\study_tuba_fem.json"
+    },
+    "load_case": "Operating_Hot",
+    "mesh_id": "analysis_mesh:Operating_Hot",
+    "metadata": {
+      "project_name": "Advanced_Industrial_Loop"
+    },
+    "model_revision": 0,
+    "solver_name": "Code_Aster",
+    "work_dir": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\advanced_operating_hot"
+  }
+}
