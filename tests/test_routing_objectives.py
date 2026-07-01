@@ -4,7 +4,7 @@ from tests.operating_state_fixtures import straight_pipe_hot_clash_fixture
 from tuba.analysis import AnalysisStudy, ResultState
 from tuba.analysis.results import result_state_from_fea_results
 from tuba.analysis.states import create_cold_geometry_state, create_operating_geometry_state
-from tuba.routing.objectives import ClashObjective, ObjectiveEvaluator
+from tuba.optimization.objectives import ClashObjective, ObjectiveEvaluator
 
 
 class TestRoutingObjectives(unittest.TestCase):

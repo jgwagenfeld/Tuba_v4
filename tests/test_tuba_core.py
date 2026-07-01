@@ -7,7 +7,7 @@ from tuba import Model, Material, PipeSection, PipingBuilder
 from tuba.solver.base import FEAResults, NodeResult, ElementResult
 from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
 from tuba.compliance.asme_b313 import ASMEB313Evaluator
-from tuba.routing.optimizer import GeneticSupportPlacer, LLMSupportOptimizer
+from tuba.optimization.optimizer import GeneticSupportPlacer, LLMSupportOptimizer
 from tuba.visualizer.pipeline import build_mesh_from_model, inflate_tubes
 
 

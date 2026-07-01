@@ -10,7 +10,7 @@ import numpy as np
 
 from tuba.model import TubaModel, Support
 from tuba.solver.base import FEAResults
-from tuba.routing.objectives import ObjectiveEvaluator
+from tuba.optimization.objectives import ObjectiveEvaluator
 
 
 class BasePipingOptimizer(ABC):

@@ -70,6 +70,22 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertEqual(str(mesh.element_sources["rack_beam_0"].source_ref), "element:rack_beam_0")
         self.assertIn("PipeElbows", mesh.groups)
 
+    def test_bend_gmsh_meshing_is_memoized_within_an_export(self):
+        model = self._model_with_bend_and_structure()
+        bends = [e for e in model.elements if e.type == "pipe_bend"]
+        self.assertTrue(bends)
+        solver = CodeAsterSolver()
+
+        first = solver._compute_bend_nodes_gmsh(model, bends, 16)
+        second = solver._compute_bend_nodes_gmsh(model, bends, 16)
+        self.assertIs(first, second)  # memoized: the OCC bend mesher runs once
+
+        # A fresh export clears the memo (so it never spans models), then the
+        # two .mail writes share a single Gmsh run -> exactly one cached entry.
+        with TemporaryDirectory() as tmpdir:
+            solver.export_analysis_study(model, "Hot", tmpdir)
+        self.assertEqual(len(solver._bend_gmsh_cache), 1)
+
     def test_export_study_keeps_returning_output_directory(self):
         model = self._model_with_bend_and_structure()
 

@@ -40,6 +40,25 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
         self.assertTrue(np.allclose(results.get_analysis_displacement("pipe_bend_0_n1")[:3], [0.010, 0.020, 0.030]))
         self.assertIn("non-native analysis node", " ".join(results.parser_diagnostics))
 
+    def test_parse_raises_on_empty_displacement_results(self):
+        """A run that emitted no displacement rows must fail loudly, not return zeros."""
+        model = Model(project_name="EmptyResults")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+
+        with TemporaryDirectory() as tmpdir:
+            # Header-only tables: solver "ran" but produced no data rows.
+            Path(tmpdir, "study_depl.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
+            Path(tmpdir, "study_effo.csv").write_text("MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n", encoding="utf-8")
+            Path(tmpdir, "study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
+            Path(tmpdir, "study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
+
+            with self.assertRaises(RuntimeError):
+                CodeAsterSolver()._parse_results(model, Path(tmpdir))
+
 
 if __name__ == "__main__":
     unittest.main()

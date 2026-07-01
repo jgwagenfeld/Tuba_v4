@@ -1,0 +1,34 @@
+"""Piping support-placement optimization: objectives and optimizers.
+
+Moved out of ``tuba.routing`` — these operate on a solved model via
+``model.solve()`` and are a support-optimization concern, not part of the
+pipe-routing pipeline.
+"""
+
+from tuba.optimization.objectives import (
+    BaseObjective,
+    StressObjective,
+    DeflectionObjective,
+    SupportCostObjective,
+    ClashObjective,
+    ObjectiveEvaluator,
+)
+from tuba.optimization.optimizer import (
+    BasePipingOptimizer,
+    GeneticSupportPlacer,
+    RuleBasedSupportPlacer,
+    LLMSupportOptimizer,
+)
+
+__all__ = [
+    "BaseObjective",
+    "StressObjective",
+    "DeflectionObjective",
+    "SupportCostObjective",
+    "ClashObjective",
+    "ObjectiveEvaluator",
+    "BasePipingOptimizer",
+    "GeneticSupportPlacer",
+    "RuleBasedSupportPlacer",
+    "LLMSupportOptimizer",
+]
