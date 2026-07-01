@@ -9,7 +9,7 @@ Ouverture en écriture du fichier ./vola.1
                                     révision n/a - branche 'n/a'                                    
                                      Copyright EDF 1991 - 2026                                      
                                                                                                     
-                              Exécution du : Tue Jun 30 13:19:19 2026                               
+                              Exécution du : Wed Jul  1 11:22:20 2026                               
                                 Nom de la machine : DESKTOP-QH6C3T8                                 
                                         Architecture : 64bit                                        
                                     Type de processeur : x86_64                                     
@@ -65,21 +65,21 @@ Nom de la base                          :  ELEMBASE
 
 Relecture des catalogues des éléments faite.
 
-Fin de lecture (durée  0.239572  s.) 
+Fin de lecture (durée  0.105804  s.) 
 
                       Mémoire limite pour l'allocation dynamique : 4198.46 Mo                       
-                         ajouté à l'initialisation du processus : 558.69 Mo                         
-                               Limite cible du processus : 4757.14 Mo                               
+                         ajouté à l'initialisation du processus : 558.67 Mo                         
+                               Limite cible du processus : 4757.13 Mo                               
                          Taille limite des fichiers d'échange : 2048.00 Go                          
-/tmp/run_aster_el04i4ob/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
+/tmp/run_aster_jf6k9109/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
   DEBUT(PAR_LOT='NON');
-# Mémoire (Mo) :   558.69 /   549.62 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0001   user+syst:        0.05s (syst:        0.63s, elaps:        0.75s)
+# Mémoire (Mo) :   558.67 /   549.62 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0001   user+syst:        0.03s (syst:        0.34s, elaps:        0.45s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt16
 # ----------------------------------------------------------------------------------------------
-# Commande #0002 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 16
+# Commande #0002 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 16
 MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
                       INFO=1,
                       UNITE=20,
@@ -91,7 +91,7 @@ Vérification du maillage.
 
 ------------ MAILLAGE 00000001 - IMPRESSIONS NIVEAU  1 ------------
 
-MA-30-JUIN-2026 13:19:20                                                        
+ME-01-JUIL-2026 11:22:20                                                        
 
 NOMBRE DE NOEUDS                           9
 
@@ -106,13 +106,13 @@ NOMBRE DE GROUPES DE MAILLES              12
 --------------------------------------------------------------------------------
 
 # Résultat commande #0002 (LIRE_MAILLAGE): MAIL0 ('<00000001>') de type <Mesh>
-# Mémoire (Mo) :   558.69 /   550.26 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0002   user+syst:        0.02s (syst:        0.01s, elaps:        0.04s)
+# Mémoire (Mo) :   558.67 /   550.26 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0002   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt22
 # ----------------------------------------------------------------------------------------------
-# Commande #0003 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 22
+# Commande #0003 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 22
 MODELE = AFFE_MODELE(AFFE=(_F(GROUP_MA='AllPipes',
                               MODELISATION='TUYAU_3M',
                               PHENOMENE='MECANIQUE'),
@@ -134,13 +134,13 @@ POU_D_T          _                SEG2         MECA_POU_D_T     3
 TUYAU_3M         _                SEG3         MET3SEG3         2
 #2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
 # Résultat commande #0003 (AFFE_MODELE): MODELE ('<00000002>') de type <Model>
-# Mémoire (Mo) :   679.20 /   679.20 /   212.13 /   200.08 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   679.21 /   679.21 /   212.13 /   200.08 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0003   user+syst:        0.02s (syst:        0.00s, elaps:        0.03s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt39
 # ----------------------------------------------------------------------------------------------
-# Commande #0004 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 39
+# Commande #0004 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 39
 MAT_S235JR = DEFI_MATERIAU(ELAS=_F(ALPHA=1.2e-05,
                                    B_ENDOGE=0.0,
                                    COEF_AMOR=1.0,
@@ -151,26 +151,26 @@ MAT_S235JR = DEFI_MATERIAU(ELAS=_F(ALPHA=1.2e-05,
                            INFO=1)
 
 # Résultat commande #0004 (DEFI_MATERIAU): MAT_S235JR ('<00000003>') de type <Material>
-# Mémoire (Mo) :   679.33 /   679.33 /   212.13 /   200.08 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0004   user+syst:        0.12s (syst:        0.00s, elaps:        0.11s)
+# Mémoire (Mo) :   679.21 /   679.21 /   212.13 /   200.08 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0004   user+syst:        0.08s (syst:        0.00s, elaps:        0.08s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt49
 # ----------------------------------------------------------------------------------------------
-# Commande #0005 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 49
+# Commande #0005 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 49
 CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT_S235JR,
                               TOUT='OUI'),
                       INFO=1,
                       MAILLAGE=MAIL0)
 
 # Résultat commande #0005 (AFFE_MATERIAU): CHMAT ('<00000004>') de type <MaterialField>
-# Mémoire (Mo) :   679.33 /   679.33 /   212.13 /   200.08 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0005   user+syst:        0.13s (syst:        0.00s, elaps:        0.12s)
+# Mémoire (Mo) :   679.21 /   679.21 /   212.13 /   200.08 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0005   user+syst:        0.08s (syst:        0.00s, elaps:        0.09s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt60
 # ----------------------------------------------------------------------------------------------
-# Commande #0006 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 60
+# Commande #0006 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 60
 CARA = AFFE_CARA_ELEM(INFO=1,
                       MODELE=MODELE,
                       ORIENTATION=(_F(CARA='GENE_TUYAU',
@@ -215,13 +215,13 @@ CARA = AFFE_CARA_ELEM(INFO=1,
 # Résultat commande #0006 (AFFE_CARA_ELEM): CARA ('<00000005>') de type <ElementaryCharacteristics>
 # Dépend de :
 # - MODELE ('<00000002>') de type <Model>
-# Mémoire (Mo) :   679.59 /   679.59 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0006   user+syst:        0.06s (syst:        0.00s, elaps:        0.07s)
+# Mémoire (Mo) :   680.46 /   680.46 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0006   user+syst:        0.03s (syst:        0.01s, elaps:        0.05s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt107
 # ----------------------------------------------------------------------------------------------
-# Commande #0007 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 107
+# Commande #0007 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 107
 BC_0 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                                   GROUP_NO='GN_N0'),
                       DOUBLE_LAGRANGE='OUI',
@@ -232,13 +232,13 @@ BC_0 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                       VERI_NORM='OUI')
 
 # Résultat commande #0007 (AFFE_CHAR_MECA): BC_0 ('<00000006>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   679.59 /   679.59 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0007   user+syst:        0.02s (syst:        0.00s, elaps:        0.02s)
+# Mémoire (Mo) :   680.54 /   680.46 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0007   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt115
 # ----------------------------------------------------------------------------------------------
-# Commande #0008 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 115
+# Commande #0008 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 115
 BC_1 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                                   GROUP_NO='GN_N2'),
                       DOUBLE_LAGRANGE='OUI',
@@ -249,13 +249,13 @@ BC_1 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                       VERI_NORM='OUI')
 
 # Résultat commande #0008 (AFFE_CHAR_MECA): BC_1 ('<00000007>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   679.59 /   679.59 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0008   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Mémoire (Mo) :   680.62 /   680.46 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0008   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt123
 # ----------------------------------------------------------------------------------------------
-# Commande #0009 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 123
+# Commande #0009 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 123
 BC_2 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                                   GROUP_NO='GN_N4',
                                   WO=0.0),
@@ -267,13 +267,13 @@ BC_2 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                       VERI_NORM='OUI')
 
 # Résultat commande #0009 (AFFE_CHAR_MECA): BC_2 ('<00000008>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   679.66 /   679.59 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0009   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# Mémoire (Mo) :   680.70 /   680.46 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0009   user+syst:        0.00s (syst:        0.01s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt132
 # ----------------------------------------------------------------------------------------------
-# Commande #0010 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 132
+# Commande #0010 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 132
 BC_3 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                                   GROUP_NO='GN_N6',
                                   WO=0.0),
@@ -285,13 +285,13 @@ BC_3 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                       VERI_NORM='OUI')
 
 # Résultat commande #0010 (AFFE_CHAR_MECA): BC_3 ('<00000009>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   679.71 /   679.71 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0010   user+syst:        0.02s (syst:        0.00s, elaps:        0.01s)
+# Mémoire (Mo) :   680.70 /   680.46 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0010   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt142
 # ----------------------------------------------------------------------------------------------
-# Commande #0011 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 142
+# Commande #0011 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 142
 GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          INFO=1,
                          MODELE=MODELE,
@@ -302,13 +302,13 @@ GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          VERI_NORM='OUI')
 
 # Résultat commande #0011 (AFFE_CHAR_MECA): GRAVITY ('<0000000a>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   679.71 /   679.71 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   680.70 /   680.60 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0011   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt151
 # ----------------------------------------------------------------------------------------------
-# Commande #0012 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 151
+# Commande #0012 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 151
 PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           FORCE_TUYAU=_F(GROUP_MA='AllPipes',
                                          PRES=2500000.0),
@@ -319,13 +319,13 @@ PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           VERI_NORM='OUI')
 
 # Résultat commande #0012 (AFFE_CHAR_MECA): PRESSURE ('<0000000b>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   679.71 /   679.71 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   680.70 /   680.60 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0012   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt160
 # ----------------------------------------------------------------------------------------------
-# Commande #0013 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 160
+# Commande #0013 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 160
 TEMP_REF_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                                     TOUT='OUI',
                                     VALE=20.0),
@@ -335,13 +335,13 @@ TEMP_REF_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                             TYPE_CHAM='NOEU_TEMP_R')
 
 # Résultat commande #0013 (CREA_CHAMP): TEMP_REF_FIELD ('<0000000c>') de type <FieldOnNodesReal>
-# Mémoire (Mo) :   679.85 /   679.85 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0013   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# Mémoire (Mo) :   680.73 /   680.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0013   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt171
 # ----------------------------------------------------------------------------------------------
-# Commande #0014 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 171
+# Commande #0014 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 171
 TEMP_HOT_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                                     TOUT='OUI',
                                     VALE=220.0),
@@ -359,7 +359,7 @@ TEMP_HOT_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
 
 .. _stg1_txt182
 # ----------------------------------------------------------------------------------------------
-# Commande #0015 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 182
+# Commande #0015 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 182
 TEMP_EVOL = CREA_RESU(AFFE=(_F(CHAM_GD=TEMP_REF_FIELD,
                                CRITERE='RELATIF',
                                INST=0.0,
@@ -375,12 +375,12 @@ TEMP_EVOL = CREA_RESU(AFFE=(_F(CHAM_GD=TEMP_REF_FIELD,
 
 # Résultat commande #0015 (CREA_RESU): TEMP_EVOL ('<0000000e>') de type <ThermalResult>
 # Mémoire (Mo) :   680.98 /   680.98 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0015   user+syst:        0.02s (syst:        0.00s, elaps:        0.05s)
+# Fin commande #0015   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt192
 # ----------------------------------------------------------------------------------------------
-# Commande #0016 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 192
+# Commande #0016 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 192
 CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT_S235JR,
                               TOUT='OUI'),
                       AFFE_VARC=_F(EVOL=TEMP_EVOL,
@@ -395,23 +395,23 @@ CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT_S235JR,
 
 # Résultat commande #0016 (AFFE_MATERIAU): CHMAT ('<0000000f>') de type <MaterialField>
 # Mémoire (Mo) :   680.98 /   680.98 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0016   user+syst:        0.16s (syst:        0.00s, elaps:        0.16s)
+# Fin commande #0016   user+syst:        0.07s (syst:        0.00s, elaps:        0.08s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt210
 # ----------------------------------------------------------------------------------------------
-# Commande #0017 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 210
+# Commande #0017 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 210
 UNIL_ZERO = DEFI_CONSTANTE(NOM_RESU='TOUTRESU',
                            VALE=0.0)
 
 # Résultat commande #0017 (DEFI_CONSTANTE): UNIL_ZERO ('<00000010>') de type <Function>
 # Mémoire (Mo) :   680.98 /   680.98 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0017   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
+# Fin commande #0017   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt211
 # ----------------------------------------------------------------------------------------------
-# Commande #0018 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 211
+# Commande #0018 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 211
 UNIL_ONE = DEFI_CONSTANTE(NOM_RESU='TOUTRESU',
                           VALE=1.0)
 
@@ -422,7 +422,7 @@ UNIL_ONE = DEFI_CONSTANTE(NOM_RESU='TOUTRESU',
 
 .. _stg1_txt213
 # ----------------------------------------------------------------------------------------------
-# Commande #0019 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 213
+# Commande #0019 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 213
 contact = DEFI_CONTACT(FORMULATION='LIAISON_UNIL',
                        FROTTEMENT='SANS',
                        MODELE=MODELE,
@@ -438,23 +438,23 @@ contact = DEFI_CONTACT(FORMULATION='LIAISON_UNIL',
 # - UNIL_ZERO ('<00000010>') de type <Function>
 # - UNIL_ONE ('<00000011>') de type <Function>
 # Mémoire (Mo) :   680.98 /   680.98 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0019   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# Fin commande #0019   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt222
 # ----------------------------------------------------------------------------------------------
-# Commande #0020 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 222
+# Commande #0020 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 222
 lst_inst = DEFI_LIST_REEL(INFO=1,
                           VALE=(0.0, 1.0))
 
 # Résultat commande #0020 (DEFI_LIST_REEL): lst_inst ('<00000013>') de type <ListOfFloats>
 # Mémoire (Mo) :   680.98 /   680.98 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0020   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Fin commande #0020   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt223
 # ----------------------------------------------------------------------------------------------
-# Commande #0021 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 223
+# Commande #0021 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 223
 times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst),
                        ECHEC=_F(ACTION='DECOUPE',
                                 EVENEMENT='ERREUR',
@@ -475,13 +475,13 @@ On découpe le pas de temps en 4 incréments jusqu'à ce que le niveau atteigne 
 # Résultat commande #0021 (DEFI_LIST_INST): times ('<00000014>') de type <TimesList>
 # Dépend de :
 # - lst_inst ('<00000013>') de type <ListOfFloats>
-# Mémoire (Mo) :   681.11 /   680.98 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0021   user+syst:        0.02s (syst:        0.00s, elaps:        0.03s)
+# Mémoire (Mo) :   680.98 /   680.98 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0021   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt225
 # ----------------------------------------------------------------------------------------------
-# Commande #0022 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 225
+# Commande #0022 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 225
 RESU = STAT_NON_LINE(AFFICHAGE=_F(INFO_RESIDU='NON',
                                   INFO_TEMPS='NON'),
                      ARCHIVAGE=_F(CHAM_EXCLU=('RESI_NOEU', 'RESI_RELA_NOEU'),
@@ -592,16 +592,16 @@ Critère(s) de convergence atteint(s)
 
 Le résidu de type <RESI_GLOB_RELA> vaut  6.756468327630e-15 au noeud et degré de liberté <8      
 WO>
-Temps CPU consommé dans ce pas de temps    : 0.161 s
+Temps CPU consommé dans ce pas de temps    : 0.081 s
 
 * Nombre d'itérations de Newton                     : 1
-* Temps total intégration comportement              : 0.053 s (2 intégrations)
-* Temps total factorisation matrice                 : 0.031 s (1 factorisations)
-* Temps construction second membre                  : 0.027 s
-* Temps total résolution K.U=F                      : 0.003 s (1 résolutions)
+* Temps total intégration comportement              : 0.029 s (2 intégrations)
+* Temps total factorisation matrice                 : 0.018 s (1 factorisations)
+* Temps construction second membre                  : 0.019 s
+* Temps total résolution K.U=F                      : 0.001 s (1 résolutions)
 * Temps assemblage matrice                          : 0.000 s
-* Temps autres opérations                           : 0.046 s
-Mémoire (Mo) :   685.79 /   683.64 /   212.13 /   200.62 (VmPeak / VmSize / Optimum / Minimum)
+* Temps autres opérations                           : 0.013 s
+Mémoire (Mo) :   685.77 /   683.62 /   212.13 /   200.62 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
@@ -612,23 +612,23 @@ Champ stocké <COMPORTEMENT> à l'instant  1.000000000000e+00 pour le numéro d'
 Champ stocké <STRX_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 1
 [100%] Instant calculé : 1.00000e+00, dernier instant archivé : 1.00000e+00, au numéro d'ordre :    
 1
-Temps CPU consommé dans le calcul          : 0.166 s
+Temps CPU consommé dans le calcul          : 0.088 s
 
 dont temps CPU "perdu" dans les découpes            : 0.000 s
 * Nombre de pas de temps                            : 1
 * Nombre d'itérations de Newton                     : 1
 * Temps dans l'archivage                            : 0.001 s
 * Temps dans le post-traitement                     : 0.000 s
-* Temps total intégration comportement              : 0.053 s (2 intégrations)
-* Temps total factorisation matrice                 : 0.031 s (1 factorisations)
-* Temps construction second membre                  : 0.027 s
-* Temps total résolution K.U=F                      : 0.003 s (1 résolutions)
+* Temps total intégration comportement              : 0.029 s (2 intégrations)
+* Temps total factorisation matrice                 : 0.018 s (1 factorisations)
+* Temps construction second membre                  : 0.019 s
+* Temps total résolution K.U=F                      : 0.001 s (1 résolutions)
 * Temps assemblage matrice                          : 0.000 s
-#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):      0.02      0.00      0.04
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.11      0.00      0.11
+#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):      0.01      0.00      0.03
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.06      0.01      0.06
 # Résultat commande #0022 (STAT_NON_LINE): RESU ('<00000015>') de type <NonLinearResult>
-# Mémoire (Mo) :   685.79 /   682.29 /   212.13 /   200.62 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0022   user+syst:        0.26s (syst:        0.00s, elaps:        0.34s)
+# Mémoire (Mo) :   685.77 /   682.38 /   212.13 /   200.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0022   user+syst:        0.13s (syst:        0.01s, elaps:        0.18s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt183
@@ -656,15 +656,15 @@ Le système linéaire à résoudre a 181 degrés de liberté:
    - 52 sont les couples de paramètres de Lagrange associés
      aux 26 relations linéaires dualisées.
  CELD: TEMP                        0
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.02      0.00      0.04
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.03      0.00      0.02
 # Résultat commande #0023 (CALC_CHAMP): RESU ('<00000015>') de type <NonLinearResult>
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0023   user+syst:        0.09s (syst:        0.00s, elaps:        0.11s)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0023   user+syst:        0.06s (syst:        0.00s, elaps:        0.06s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt258
 # ----------------------------------------------------------------------------------------------
-# Commande #0024 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 258
+# Commande #0024 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 258
 IMPR_RESU(FICHIER_UNIQUE='NON',
           FORMAT='MED',
           INFO=1,
@@ -693,13 +693,13 @@ Création du fichier au format MED 3.3.1.
      Dans certains cas, le fichier MED produit peut devenir volumineux. Dans ce
      cas, l'utilisation du mot-clé NOM_CMP est conseillée.
 
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0024   user+syst:        0.10s (syst:        0.02s, elaps:        0.18s)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0024   user+syst:        0.05s (syst:        0.01s, elaps:        0.07s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt268
 # ----------------------------------------------------------------------------------------------
-# Commande #0025 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 268
+# Commande #0025 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 268
 TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -711,13 +711,13 @@ TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0025 (CREA_TABLE): TAB_EFFO ('<00000016>') de type <Table>
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0025   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt278
 # ----------------------------------------------------------------------------------------------
-# Commande #0026 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 278
+# Commande #0026 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 278
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -731,13 +731,13 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_EFFO,
            UNITE=38)
 
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0026   user+syst:        0.22s (syst:        0.13s, elaps:        0.36s)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0026   user+syst:        0.06s (syst:        0.00s, elaps:        0.06s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt286
 # ----------------------------------------------------------------------------------------------
-# Commande #0027 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 286
+# Commande #0027 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 286
 TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -749,13 +749,13 @@ TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0027 (CREA_TABLE): TAB_DEPL ('<00000017>') de type <Table>
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0027   user+syst:        0.03s (syst:        0.00s, elaps:        0.03s)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0027   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt296
 # ----------------------------------------------------------------------------------------------
-# Commande #0028 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 296
+# Commande #0028 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 296
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -769,13 +769,13 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_DEPL,
            UNITE=39)
 
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0028   user+syst:        0.25s (syst:        0.08s, elaps:        0.33s)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0028   user+syst:        0.07s (syst:        0.00s, elaps:        0.08s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt304
 # ----------------------------------------------------------------------------------------------
-# Commande #0029 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 304
+# Commande #0029 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 304
 TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -787,13 +787,13 @@ TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0029 (CREA_TABLE): TAB_REAC ('<00000018>') de type <Table>
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0029   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt314
 # ----------------------------------------------------------------------------------------------
-# Commande #0030 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 314
+# Commande #0030 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 314
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -807,13 +807,13 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_REAC,
            UNITE=40)
 
-# Mémoire (Mo) :   685.79 /   682.80 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0030   user+syst:        0.25s (syst:        0.01s, elaps:        0.25s)
+# Mémoire (Mo) :   685.77 /   682.89 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0030   user+syst:        0.07s (syst:        0.00s, elaps:        0.07s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt322
 # ----------------------------------------------------------------------------------------------
-# Commande #0031 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 322
+# Commande #0031 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 322
 TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -825,13 +825,13 @@ TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0031 (CREA_TABLE): TAB_SIEQ ('<00000019>') de type <Table>
-# Mémoire (Mo) :   685.79 /   682.97 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0031   user+syst:        0.09s (syst:        0.01s, elaps:        0.10s)
+# Mémoire (Mo) :   685.77 /   682.90 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0031   user+syst:        0.03s (syst:        0.00s, elaps:        0.04s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt332
 # ----------------------------------------------------------------------------------------------
-# Commande #0032 de /tmp/run_aster_el04i4ob/study.comm.changed.py, ligne 332
+# Commande #0032 de /tmp/run_aster_jf6k9109/study.comm.changed.py, ligne 332
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -845,8 +845,8 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_SIEQ,
            UNITE=41)
 
-# Mémoire (Mo) :   685.79 /   684.97 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0032   user+syst:        0.33s (syst:        0.04s, elaps:        0.39s)
+# Mémoire (Mo) :   685.77 /   684.90 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0032   user+syst:        0.09s (syst:        0.01s, elaps:        0.09s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt76
@@ -873,7 +873,7 @@ No database in results, objects not saved on processor #0
   
  <I> <FIN> MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :                     200.91 Mo
  <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     212.13 Mo
- <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     685.79 Mo
+ <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     685.77 Mo
   
  <I>       FERMETURE DES BASES EFFECTUEE
   
@@ -893,11 +893,11 @@ No database in results, objects not saved on processor #0
    MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     212.13 Mo
      - LIMITE LES ACCES DISQUE
      - AMELIORE LA VITESSE D'EXECUTION
-   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     685.79 Mo
+   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     685.77 Mo
      - COMPREND LA MEMOIRE CONSOMMEE PAR  JEVEUX, 
        LE SUPERVISEUR PYTHON, LES LIBRAIRIES EXTERNES
   
- <I>       FIN D'EXECUTION LE : MA-30-JUIN-2026 13:19:23
+ <I>       FIN D'EXECUTION LE : ME-01-JUIL-2026 11:22:21
 INFO './glob.1' deleted
 Deleting './glob.2': No such file or directory
 INFO './vola.1' deleted
@@ -906,52 +906,52 @@ Deleting './vola.2': No such file or directory
  ********************************************************************************
  * COMMAND                  :       USER :     SYSTEM :   USER+SYS :    ELAPSED *
  ********************************************************************************
- * DEBUT                    :       0.05 :       0.63 :       0.68 :       0.75 *
- * LIRE_MAILLAGE            :       0.02 :       0.01 :       0.03 :       0.04 *
+ * DEBUT                    :       0.03 :       0.34 :       0.37 :       0.45 *
+ * LIRE_MAILLAGE            :       0.00 :       0.00 :       0.00 :       0.01 *
  * AFFE_MODELE              :       0.02 :       0.00 :       0.02 :       0.03 *
- * DEFI_MATERIAU            :       0.12 :       0.00 :       0.12 :       0.11 *
- * AFFE_MATERIAU            :       0.13 :       0.00 :       0.13 :       0.12 *
- * AFFE_CARA_ELEM           :       0.06 :       0.00 :       0.06 :       0.07 *
- * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.02 *
+ * DEFI_MATERIAU            :       0.08 :       0.00 :       0.08 :       0.08 *
+ * AFFE_MATERIAU            :       0.08 :       0.00 :       0.08 :       0.09 *
+ * AFFE_CARA_ELEM           :       0.03 :       0.01 :       0.04 :       0.05 *
  * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
- * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.02 *
- * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.00 *
+ * AFFE_CHAR_MECA           :       0.00 :       0.01 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
  * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.01 *
  * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.00 *
- * CREA_CHAMP               :       0.01 :       0.00 :       0.01 :       0.02 *
+ * CREA_CHAMP               :       0.00 :       0.00 :       0.00 :       0.01 *
  * CREA_CHAMP               :       0.01 :       0.00 :       0.01 :       0.01 *
- * CREA_RESU                :       0.02 :       0.00 :       0.02 :       0.05 *
- * AFFE_MATERIAU            :       0.16 :       0.00 :       0.16 :       0.16 *
- * DEFI_CONSTANTE           :       0.00 :       0.00 :       0.00 :       0.01 *
+ * CREA_RESU                :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_MATERIAU            :       0.07 :       0.00 :       0.07 :       0.08 *
  * DEFI_CONSTANTE           :       0.00 :       0.00 :       0.00 :       0.00 *
- * DEFI_CONTACT             :       0.01 :       0.00 :       0.01 :       0.02 *
- * DEFI_LIST_REEL           :       0.01 :       0.00 :       0.01 :       0.00 *
- * DEFI_LIST_INST           :       0.02 :       0.00 :       0.02 :       0.03 *
- * STAT_NON_LINE            :       0.26 :       0.00 :       0.26 :       0.34 *
- * CALC_CHAMP               :       0.09 :       0.00 :       0.09 :       0.11 *
- * IMPR_RESU                :       0.10 :       0.02 :       0.12 :       0.18 *
+ * DEFI_CONSTANTE           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * DEFI_CONTACT             :       0.01 :       0.00 :       0.01 :       0.01 *
+ * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * DEFI_LIST_INST           :       0.01 :       0.00 :       0.01 :       0.02 *
+ * STAT_NON_LINE            :       0.13 :       0.01 :       0.14 :       0.18 *
+ * CALC_CHAMP               :       0.06 :       0.00 :       0.06 :       0.06 *
+ * IMPR_RESU                :       0.05 :       0.01 :       0.06 :       0.07 *
  * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
- * IMPR_TABLE               :       0.22 :       0.13 :       0.35 :       0.36 *
- * CREA_TABLE               :       0.03 :       0.00 :       0.03 :       0.03 *
- * IMPR_TABLE               :       0.25 :       0.08 :       0.33 :       0.33 *
+ * IMPR_TABLE               :       0.06 :       0.00 :       0.06 :       0.06 *
  * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
- * IMPR_TABLE               :       0.25 :       0.01 :       0.26 :       0.25 *
- * CREA_TABLE               :       0.09 :       0.01 :       0.10 :       0.10 *
- * IMPR_TABLE               :       0.33 :       0.04 :       0.37 :       0.39 *
- * FIN                      :       0.37 :       0.01 :       0.38 :       0.37 *
+ * IMPR_TABLE               :       0.07 :       0.00 :       0.07 :       0.08 *
+ * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
+ * IMPR_TABLE               :       0.07 :       0.00 :       0.07 :       0.07 *
+ * CREA_TABLE               :       0.03 :       0.00 :       0.03 :       0.04 *
+ * IMPR_TABLE               :       0.09 :       0.01 :       0.10 :       0.09 *
+ * FIN                      :       0.07 :       0.00 :       0.07 :       0.07 *
  *  . sdveri                :       0.00 :       0.00 :       0.00 :       0.00 *
- *  . check syntax          :       0.23 :       0.00 :       0.23 :       0.19 *
- *  . fortran               :       0.95 :       0.66 :       1.61 :       1.92 *
- *  . cleanup               :       1.29 :       0.20 :       1.49 :       1.50 *
+ *  . check syntax          :       0.11 :       0.01 :       0.12 :       0.11 *
+ *  . fortran               :       0.37 :       0.37 :       0.74 :       0.93 *
+ *  . cleanup               :       0.46 :       0.00 :       0.46 :       0.47 *
  ********************************************************************************
- * TOTAL_JOB                :       3.02 :       1.05 :       4.07 :       5.40 *
+ * TOTAL_JOB                :       1.15 :       0.41 :       1.56 :       1.79 *
  ********************************************************************************
 
-# Mémoire (Mo) :   685.79 /   684.97 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0033   user+syst:        0.37s (syst:        0.01s, elaps:        0.37s)
+# Mémoire (Mo) :   685.77 /   684.90 /   212.13 /   200.91 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0033   user+syst:        0.07s (syst:        0.00s, elaps:        0.07s)
 # ----------------------------------------------------------------------------------------------
 
-EXECUTION_CODE_ASTER_EXIT_397=0
+EXECUTION_CODE_ASTER_EXIT_335=0
 
 
 

@@ -107,8 +107,6 @@ PRESSURE = AFFE_CHAR_MECA(
 );
 
 # ----- Thermal expansion -----
-T_FUNC = DEFI_CONSTANTE(VALE=1.0);
-
 TEMP_FIELD = CREA_CHAMP(
     TYPE_CHAM='NOEU_TEMP_R',
     OPERATION='AFFE',

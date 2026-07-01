@@ -3,7 +3,7 @@
   "coordinate_system": {
     "up_axis": "Z"
   },
-  "created_at": "2026-06-30T11:18:06.757823Z",
+  "created_at": "2026-07-01T09:21:27.820114Z",
   "diagnostics": [
     {
       "code": "result_state.missing_node_geometry",

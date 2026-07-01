@@ -145,9 +145,18 @@ PRESSURE = AFFE_CHAR_MECA(
 );
 
 # ----- Thermal expansion -----
-T_FUNC = DEFI_CONSTANTE(VALE=1.0);
+TEMP_REF_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MAILLAGE=MAIL,
+    AFFE=_F(
+        TOUT='OUI',
+        NOM_CMP='TEMP',
+        VALE=2.000000E+01,
+    ),
+);
 
-TEMP_FIELD = CREA_CHAMP(
+TEMP_HOT_FIELD = CREA_CHAMP(
     TYPE_CHAM='NOEU_TEMP_R',
     OPERATION='AFFE',
     MAILLAGE=MAIL,
@@ -155,6 +164,16 @@ TEMP_FIELD = CREA_CHAMP(
         TOUT='OUI',
         NOM_CMP='TEMP',
         VALE=2.200000E+02,
+    ),
+);
+
+TEMP_EVOL = CREA_RESU(
+    OPERATION='AFFE',
+    TYPE_RESU='EVOL_THER',
+    NOM_CHAM='TEMP',
+    AFFE=(
+        _F(CHAM_GD=TEMP_REF_FIELD, INST=0.0),
+        _F(CHAM_GD=TEMP_HOT_FIELD, INST=1.0),
     ),
 );
 
@@ -169,7 +188,8 @@ CHMAT = AFFE_MATERIAU(
     AFFE_VARC=_F(
         TOUT='OUI',
         NOM_VARC='TEMP',
-        CHAM_GD=TEMP_FIELD,
+        EVOL=TEMP_EVOL,
+        NOM_CHAM='TEMP',
         VALE_REF=2.000000E+01,
     ),
 );

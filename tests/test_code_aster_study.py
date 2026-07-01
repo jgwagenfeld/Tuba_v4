@@ -237,6 +237,31 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertIn("WO=0.0", comm)
         self.assertIn("CONTACT=contact", comm)
 
+    def test_export_analysis_study_creates_poi1_with_code_aster_node_selector(self):
+        model = Model(project_name="SpringPoi1")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        n2 = model.add_node([2.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.add_element(id="pipe_1", type="pipe_straight", n1=n1, n2=n2, section="PipeSec", material="Steel")
+        model.add_support(n0, type="anchor")
+        model.add_support(n1, type="spring", stiffness_matrix=[1.0e5, 1.0e5, 1.0e5, 1.0e3, 1.0e3, 1.0e3])
+        model.add_support(n2, type="rest", mass=50.0)
+        model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn(f"_F(NOM_GROUP_MA='DIS_{n1}', NOEUD='{n1}'),", comm)
+        self.assertIn("CARA='K_TR_D_N'", comm)
+        self.assertIn("CARA='M_TR_D_N'", comm)
+        self.assertNotIn("NOM_NOEUD", comm)
+        self.assertNotIn("CARA='K_TR_D_L'", comm)
+        self.assertNotIn("CARA='M_T_D_N'", comm)
+
     def test_export_analysis_study_ramps_temperature_for_nonlinear_thermal_case(self):
         model = Model(project_name="ThermalRamp")
         model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)

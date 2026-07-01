@@ -530,6 +530,9 @@ class TestCodeAsterSolver(unittest.TestCase):
             self.assertIn("MODELISATION='BARRE'", comm)
             self.assertIn("MODELISATION='CABLE'", comm)
             self.assertIn("MODELISATION='DIS_TR'", comm)
+            self.assertIn("RELATION='CABLE'", comm)
+            self.assertIn("DEFORMATION='GROT_GDEP'", comm)
+            self.assertIn("GROUP_MA='G_CABLE'", comm)
             self.assertIn("SEG3", mail)
             self.assertIn("SEG2", mail)
 
@@ -540,8 +543,8 @@ class TestCodeAsterSolver(unittest.TestCase):
             self.assertIn("SECTION=3.14159265E-04", comm) # Cable area
 
             # Check boundary conditions and stiffnesses
-            self.assertIn("CARA='K_TR_D_L'", comm)
-            self.assertIn("CARA='M_T_D_L'", comm)
+            self.assertIn("CARA='K_TR_D_N'", comm)
+            self.assertIn("CARA='M_TR_D_N'", comm)
             self.assertIn("DX=0.0", comm)
             self.assertIn("DY=0.0", comm)
             self.assertIn("DRZ=0.0", comm)

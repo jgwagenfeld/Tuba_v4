@@ -19,6 +19,7 @@ REQUIRED_CODE_ASTER_TABLES = (
     "study_reac.csv",
     "study_sieq.csv",
 )
+REFRESHED_CODE_ASTER_OUTPUTS = REQUIRED_CODE_ASTER_TABLES + ("study.rmed",)
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,7 @@ def load_or_run_code_aster_results(
     docker_image: str | None = None,
     solver_factory: Callable[..., Any] = CodeAsterSolver,
 ) -> CodeAsterNotebookRun:
-    """Load Code_Aster result artifacts, running the exported study if needed."""
+    """Load Code_Aster result artifacts, running the exported study when requested."""
     root = Path(work_dir)
     root.mkdir(parents=True, exist_ok=True)
     solver = _make_solver(
@@ -86,14 +87,17 @@ def load_or_run_code_aster_results(
 
     missing_before = tuple(_missing_result_tables(root))
     ran_solver = False
-    if missing_before:
-        if not run_solver:
-            raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
+    if run_solver:
+        _remove_result_artifacts(root)
         solver.solve_exported_study(model, study)
         ran_solver = True
+    elif missing_before:
+        raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
 
     missing_after = tuple(_missing_result_tables(root))
     if missing_after:
+        if not run_solver:
+            raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
         raise FileNotFoundError(_missing_tables_message(root, missing_after, run_solver=True))
 
     artifact = import_code_aster_artifacts(model=model, work_dir=root, study=study, load_case=load_case)
@@ -129,6 +133,13 @@ def _make_solver(
 
 def _missing_result_tables(work_dir: Path) -> list[str]:
     return [name for name in REQUIRED_CODE_ASTER_TABLES if not (work_dir / name).exists()]
+
+
+def _remove_result_artifacts(work_dir: Path) -> None:
+    for name in REFRESHED_CODE_ASTER_OUTPUTS:
+        path = work_dir / name
+        if path.exists():
+            path.unlink()
 
 
 def _missing_tables_message(work_dir: Path, missing: tuple[str, ...], *, run_solver: bool) -> str:

@@ -1091,7 +1091,7 @@ class CodeAsterSolver(BaseSolver):
             w("    CREA_POI1=(")
             for s in model.supports:
                 if (s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None)) or s.mass > 0.0:
-                    w(f"        _F(NOM_GROUP_MA='{map_name(f'DIS_{s.node}')}', NOM_NOEUD='{map_name(s.node)}'),")
+                    w(f"        _F(NOM_GROUP_MA='{map_name(f'DIS_{s.node}')}', NOEUD='{map_name(s.node)}'),")
             w("    ),")
             w(");")
         else:
@@ -1363,7 +1363,7 @@ class CodeAsterSolver(BaseSolver):
                     f"        _F(\n"
                     f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
                     f"            REPERE='GLOBAL',\n"
-                    f"            CARA='K_TR_D_L',\n"
+                    f"            CARA='K_TR_D_N',\n"
                     f"            VALE=({k[0]:.8E}, {k[1]:.8E}, {k[2]:.8E}, {k[3]:.8E}, {k[4]:.8E}, {k[5]:.8E}),\n"
                     f"        ),"
                 )
@@ -1371,8 +1371,8 @@ class CodeAsterSolver(BaseSolver):
                 discret_entries.append(
                     f"        _F(\n"
                     f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
-                    f"            CARA='M_T_D_L',\n"
-                    f"            VALE=({s.mass:.8E}, {s.mass:.8E}, {s.mass:.8E}, 0.0, 0.0, 0.0),\n"
+                    f"            CARA='M_TR_D_N',\n"
+                    f"            VALE=({s.mass:.8E}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),\n"
                     f"        ),"
                 )
         if discret_entries:
@@ -1671,6 +1671,12 @@ class CodeAsterSolver(BaseSolver):
         if load_case.internal_pressure > 0.0:
             excit_entries.append("        _F(CHARGE=PRESSURE),")
 
+        def group_ma_value(group_names: List[str]) -> str:
+            mapped = [map_name(group_name) for group_name in group_names]
+            if len(mapped) == 1:
+                return f"'{mapped[0]}'"
+            return "(" + ", ".join(f"'{group_name}'" for group_name in mapped) + ",)"
+
         if is_nonlinear:
             w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
             w("times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));")
@@ -1683,10 +1689,34 @@ class CodeAsterSolver(BaseSolver):
             for entry in excit_entries:
                 w(entry)
             w("    ),")
-            w("    COMPORTEMENT=_F(")
-            w("        TOUT='OUI',")
-            w("        RELATION='ELAS',")
-            w("    ),")
+            if cable_elems:
+                elastic_groups: List[str] = []
+                if pipe_straights or pipe_bends:
+                    elastic_groups.append("AllPipes")
+                if beam_elems:
+                    elastic_groups.append("G_TUBE")
+                if bar_elems:
+                    elastic_groups.append("G_BAR")
+                for support in model.supports:
+                    if (support.type == "spring" and (support.stiffness_matrix is not None or support.stiffness is not None)) or support.mass > 0.0:
+                        elastic_groups.append(f"DIS_{support.node}")
+                w("    COMPORTEMENT=(")
+                if elastic_groups:
+                    w("        _F(")
+                    w(f"            GROUP_MA={group_ma_value(elastic_groups)},")
+                    w("            RELATION='ELAS',")
+                    w("        ),")
+                w("        _F(")
+                w(f"            GROUP_MA='{map_name('G_CABLE')}',")
+                w("            RELATION='CABLE',")
+                w("            DEFORMATION='GROT_GDEP',")
+                w("        ),")
+                w("    ),")
+            else:
+                w("    COMPORTEMENT=_F(")
+                w("        TOUT='OUI',")
+                w("        RELATION='ELAS',")
+                w("    ),")
             w("    INCREMENT=_F(")
             w("        LIST_INST=times,")
             w("    ),")

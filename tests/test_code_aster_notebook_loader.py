@@ -54,6 +54,43 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
         self.assertEqual(loaded.artifact.result_state.node_displacements[n1][:3], (0.0, 0.015, 0.0))
         self.assertEqual(loaded.artifact.result_state.element_results["pipe_0"]["max_von_mises"], 120.0e6)
 
+    def test_run_solver_true_refreshes_existing_tables(self):
+        model, n0, n1 = self._model()
+
+        class SolverThatRefreshesTables:
+            instances = []
+
+            def __init__(self, work_dir=None, exec_method="wsl", docker_image=None, wsl_distro=None):
+                self.work_dir = Path(work_dir)
+                self.exec_method = exec_method
+                self.docker_image = docker_image
+                self.wsl_distro = wsl_distro
+                self.ran_exported_study = False
+                self.instances.append(self)
+
+            def export_analysis_study(self, model, load_case_name, output_dir):
+                return CodeAsterSolver(work_dir=output_dir).export_analysis_study(model, load_case_name, output_dir)
+
+            def solve_exported_study(self, model, study):
+                self.ran_exported_study = True
+                _write_solver_tables(Path(study.work_dir), n0=n0, n1=n1, n1_dy=0.025)
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write_solver_tables(root, n0=n0, n1=n1, n1_dy=0.005)
+
+            loaded = load_or_run_code_aster_results(
+                model,
+                "Hot",
+                root,
+                run_solver=True,
+                solver_factory=SolverThatRefreshesTables,
+            )
+
+        self.assertTrue(loaded.ran_solver)
+        self.assertTrue(SolverThatRefreshesTables.instances[0].ran_exported_study)
+        self.assertEqual(loaded.artifact.result_state.node_displacements[n1][:3], (0.0, 0.025, 0.0))
+
     def test_run_solver_false_keeps_export_only_mode_explicit(self):
         model, _n0, _n1 = self._model()
 
@@ -135,13 +172,13 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
         self.assertIsNone(runtime.docker_image)
 
 
-def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
+def _write_solver_tables(work_dir: Path, *, n0: str, n1: str, n1_dy: float = 0.015) -> None:
     (work_dir / "study_depl.csv").write_text(
         "\n".join(
             [
                 "NOEUD,DX,DY,DZ,DRX,DRY,DRZ",
                 f"{n0},0.0,0.0,0.0,0.0,0.0,0.0",
-                f"{n1},0.0,0.015,0.0,0.0,0.0,0.0",
+                f"{n1},0.0,{n1_dy},0.0,0.0,0.0,0.0",
             ]
         ),
         encoding="utf-8",
