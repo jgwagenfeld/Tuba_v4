@@ -31,6 +31,8 @@ def resolve_notebook_backend(
         return configured.strip().lower()
     if _truthy(values.get("CI")) or _truthy(values.get("TUBA_NOTEBOOK_STATIC")):
         return STATIC_NOTEBOOK_BACKEND
+    if _running_in_vscode(values):
+        return STATIC_NOTEBOOK_BACKEND
     return default
 
 
@@ -53,3 +55,10 @@ def _truthy(value: str | None) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _running_in_vscode(values: Mapping[str, str]) -> bool:
+    return (
+        values.get("TERM_PROGRAM", "").strip().lower() == "vscode"
+        or any(key.upper().startswith("VSCODE_") for key in values)
+    )

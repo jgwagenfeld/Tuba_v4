@@ -1,3 +1,11 @@
+> **⚠️ HISTORICAL — pre-implementation design note.** This document describes an
+> earlier design and does **not** match the shipped code. In particular its
+> "Pluggable Solver Architecture" (internal Timoshenko / CalculiX / Code_Aster
+> backends) and the `bend(..., plane='XY')` DSL were never built or were
+> deliberately replaced — the product ships Code_Aster only. For current,
+> authoritative behavior see `README.md`, `AGENTS.md`, the `notebooks/00`–`08`
+> course, and `docs/architecture/`.
+
 # Tuba v4: Detailed Technical Specification & Work Plan
 
 ---

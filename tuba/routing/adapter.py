@@ -184,50 +184,6 @@ def apply_candidate_to_model(
     return created
 
 
-def _add_straight(
-    model: TubaModel,
-    start_node: str,
-    start_point: np.ndarray,
-    end_point: np.ndarray,
-    request: PipeRouteRequest,
-    created: list[str],
-) -> str:
-    if np.linalg.norm(end_point - start_point) <= 1e-9:
-        return start_node
-    end_node = _node_for_point(model, _as_point(end_point))
-    elem_id = model.next_element_id("pipe_str")
-    model.add_element(
-        id=elem_id,
-        type="pipe_straight",
-        n1=start_node,
-        n2=end_node,
-        section=request.section,
-        material=request.material,
-    )
-    created.append(elem_id)
-    return end_node
-
-
-def _node_for_point(model: TubaModel, point: Point3D, tol: float = 1e-6) -> str:
-    coords = np.asarray(point, dtype=float)
-    if hasattr(model, "find_node_by_point"):
-        existing = model.find_node_by_point(coords, tol=tol)
-        if existing is not None:
-            return existing
-    for nid, node in model.nodes.items():
-        if np.allclose(node.coords, coords, atol=tol):
-            return nid
-    return model.add_node(coords)
-
-
-def _point_index(points: list[Point3D], point: Point3D, tol: float = 1e-6) -> int:
-    target = np.asarray(point, dtype=float)
-    for idx, item in enumerate(points):
-        if np.allclose(np.asarray(item), target, atol=tol):
-            return idx
-    raise ValueError(f"Route point {point!r} is not part of candidate path.")
-
-
 def _bend_segment_for_corner(segments: list[RouteSegment], point: Point3D) -> RouteSegment | None:
     target = np.asarray(point, dtype=float)
     for segment in segments:
@@ -255,40 +211,3 @@ def _turn_angle_degrees(in_dir: np.ndarray, out_dir: np.ndarray) -> float:
 
 def _as_point(point: np.ndarray) -> Point3D:
     return (float(point[0]), float(point[1]), float(point[2]))
-
-
-def _add_simple_supports(
-    model: TubaModel,
-    points: list[Point3D],
-    node_ids: list[str],
-    support_spacing: float,
-) -> None:
-    if support_spacing <= 0:
-        return
-    running = 0.0
-    for idx in range(1, len(points) - 1):
-        prev = np.asarray(points[idx - 1], dtype=float)
-        cur = np.asarray(points[idx], dtype=float)
-        running += float(np.linalg.norm(cur - prev))
-        if running >= support_spacing:
-            model.add_support(node_ids[idx], "rest")
-            running = 0.0
-
-
-def _support_operations(
-    points: list[Point3D],
-    node_names: list[str],
-    support_spacing: float,
-) -> list[AddSupport]:
-    operations: list[AddSupport] = []
-    if support_spacing <= 0:
-        return operations
-    running = 0.0
-    for idx in range(1, len(points) - 1):
-        prev = np.asarray(points[idx - 1], dtype=float)
-        cur = np.asarray(points[idx], dtype=float)
-        running += float(np.linalg.norm(cur - prev))
-        if running >= support_spacing:
-            operations.append(AddSupport(node=node_names[idx], type="rest"))
-            running = 0.0
-    return operations

@@ -1,3 +1,9 @@
+> **⚠️ HISTORICAL — pre-implementation design note.** This document describes an
+> earlier design and does **not** match the shipped code (e.g. the three-backend
+> Internal / CalculiX / Code_Aster diagram — the product ships Code_Aster only).
+> For current Code_Aster setup see `docs/code_aster_installation.md`; for current
+> behavior see `README.md`, `AGENTS.md`, and `docs/architecture/`.
+
 # Tuba v4: Installation & Ultimate User Interface Strategy
 
 ---

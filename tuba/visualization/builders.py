@@ -462,66 +462,6 @@ def _mesh_group_layer_ids(groups: list[str]) -> list[str]:
     return ["analysis_mesh:groups", *(f"analysis_mesh:group:{group}" for group in groups)]
 
 
-def _unused_duplicate_build_deformed_state_scene(
-    model: TubaModel,
-    result_states: list[ResultState],
-    geometry_states: list[GeometryState],
-    analysis_meshes: list[AnalysisMesh],
-) -> tuple[list[SceneObject], list[GeometryAsset], list[SceneDiagnostic]]:
-    objects: list[SceneObject] = []
-    assets: list[GeometryAsset] = []
-    diagnostics: list[SceneDiagnostic] = []
-    result_states_by_id = {result_state.id: result_state for result_state in result_states}
-    analysis_meshes_by_id = {analysis_mesh.id: analysis_mesh for analysis_mesh in analysis_meshes}
-
-    for geometry_state in geometry_states:
-        if geometry_state.state_type not in ("operating", "deformed"):
-            continue
-        if not geometry_state.result_state_id:
-            diagnostics.append(
-                SceneDiagnostic(
-                    severity="warning",
-                    code="geometry_state.missing_result_state_id",
-                    message=f"GeometryState {geometry_state.id!r} cannot build deformed assets without result_state_id.",
-                    target=geometry_state.id,
-                    source=geometry_state.id,
-                )
-            )
-            continue
-        result_state = result_states_by_id.get(geometry_state.result_state_id)
-        if result_state is None:
-            diagnostics.append(
-                SceneDiagnostic(
-                    severity="warning",
-                    code="geometry_state.missing_result_state",
-                    message=f"GeometryState {geometry_state.id!r} references missing ResultState {geometry_state.result_state_id!r}.",
-                    target=geometry_state.id,
-                    source=geometry_state.id,
-                )
-            )
-            continue
-        analysis_mesh = analysis_meshes_by_id.get(result_state.mesh_id or "")
-        state_objects, state_assets, state_diagnostics = _build_deformed_element_scene(
-            model=model,
-            result_state=result_state,
-            geometry_state=geometry_state,
-            analysis_mesh=analysis_mesh,
-        )
-        objects.extend(state_objects)
-        assets.extend(state_assets)
-        diagnostics.extend(state_diagnostics)
-        if analysis_mesh is not None:
-            mesh_objects, mesh_assets = _build_deformed_analysis_mesh_scene(
-                analysis_mesh=analysis_mesh,
-                result_state=result_state,
-                geometry_state=geometry_state,
-            )
-            objects.extend(mesh_objects)
-            assets.extend(mesh_assets)
-
-    return objects, assets, diagnostics
-
-
 def _build_deformed_element_scene(
     *,
     model: TubaModel,

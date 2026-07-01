@@ -19,6 +19,24 @@ clear runtime/setup blocker rather than substitute mock values.
 
 Code_Aster is required for the full Tuba workflow.
 
+## Documentation Map
+
+Read these first — they describe what the code actually does today:
+
+| Source | Role |
+|---|---|
+| `README.md`, `AGENTS.md` | Authoritative product contract and workflow |
+| `notebooks/00`–`08` | The end-to-end course, in order |
+| `docs/architecture/*` | Current design decisions (DSL, autorouting, mixed studies) |
+| `docs/code_aster_installation.md` | Canonical Code_Aster setup |
+
+Forward-looking / roadmap (aspirational, not current behavior):
+`docs/future_ready_architecture.md`, `docs/visualization_engine_vision.md`, `.agents/`.
+
+Historical (pre-implementation, superseded — do not trust against the code):
+the root `*_design.md` / `*_specification.md` / `*_strategy.md` files, each
+banner-flagged at the top.
+
 ## Code_Aster Runtime
 
 Code_Aster execution is required for production stress, displacement, reaction,

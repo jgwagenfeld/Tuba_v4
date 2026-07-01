@@ -1,3 +1,8 @@
+> **⚠️ HISTORICAL — pre-implementation design note.** This document describes an
+> earlier design and may not match the shipped code (e.g. the plane-enum bend
+> tool). For current, authoritative behavior see `README.md`, `AGENTS.md`, the
+> `notebooks/00`–`08` course, and `docs/architecture/`.
+
 # Tuba v4: Detailed AI & LLM Readiness Specification
 
 This document details the exact interfaces, JSON schemas, tool schemas, and structured feedback loops that make the Tuba v4 piping framework fully optimized for LLMs, agentic workflows, and machine learning loops.

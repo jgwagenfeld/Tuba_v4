@@ -27,6 +27,12 @@ class TestNotebookBackendSelection(unittest.TestCase):
         with patch.dict("os.environ", {"CI": "true"}, clear=True):
             self.assertEqual(resolve_notebook_backend(), "static")
 
+    def test_vscode_defaults_to_static_backend(self):
+        from tuba.visualizer.notebook import resolve_notebook_backend
+
+        with patch.dict("os.environ", {"VSCODE_PID": "123"}, clear=True):
+            self.assertEqual(resolve_notebook_backend(), "static")
+
     def test_configure_applies_selected_backend(self):
         from tuba.visualizer.notebook import configure_notebook_backend
 

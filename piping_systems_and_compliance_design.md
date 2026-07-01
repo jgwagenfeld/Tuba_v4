@@ -1,3 +1,9 @@
+> **⚠️ HISTORICAL — pre-implementation design note.** This document describes an
+> earlier design and may not match the shipped code (e.g. it references a
+> CalculiX/Aster solver-agnostic engine and file paths that do not exist). For
+> current, authoritative behavior see `README.md`, `AGENTS.md`, the
+> `notebooks/00`–`08` course, and `docs/architecture/`.
+
 # Piping Systems: Desirable Features, AI Integration & Code Compliance Design
 
 ---
