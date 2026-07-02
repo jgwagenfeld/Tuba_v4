@@ -32,6 +32,32 @@ class TestExamples(unittest.TestCase):
             self.assertIn("Expansion loop", report)
             self.assertIn("Route family", report)
 
+    def test_user_facing_examples_do_not_publish_synthetic_solver_results(self):
+        examples_dir = Path(__file__).resolve().parents[1] / "examples"
+        user_facing_examples = (
+            "demo.py",
+            "operating_state_clash.py",
+            "realtime_visualization_review.py",
+        )
+        forbidden_snippets = (
+            'FEAResults(solver_name="mock',
+            "FEAResults(solver_name='mock",
+            'ResultState(\n        id="result_state:Hot:mock"',
+            'ResultState(\n        id="result_state:Hot:review_mock"',
+            'metadata={"source": "mock_result_state_for_example"}',
+            'metadata={"source": "realtime_visualization_review_mock_result_state"}',
+        )
+        offenders: list[str] = []
+
+        for name in user_facing_examples:
+            path = examples_dir / name
+            text = path.read_text(encoding="utf-8")
+            matches = [snippet for snippet in forbidden_snippets if snippet in text]
+            if matches:
+                offenders.append(f"{path.name}: {', '.join(matches)}")
+
+        self.assertEqual([], offenders)
+
 
 if __name__ == "__main__":
     unittest.main()

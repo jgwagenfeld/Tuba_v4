@@ -14,14 +14,9 @@ class TestOperatingStateExample(unittest.TestCase):
         spec.loader.exec_module(module)
 
         with TemporaryDirectory() as tmpdir:
-            summary = module.run_example(output_dir=tmpdir)
-
-        self.assertEqual(summary["envelopes"], 1)
-        self.assertEqual(len(summary["clashes"]), 1)
-        self.assertEqual(summary["clashes"][0]["severity"], "operating_only_hard")
-        self.assertTrue(summary["manifest"].endswith("study_manifest.json"))
-        self.assertTrue(summary["scene"].endswith("operating_state_scene.json"))
-        self.assertTrue(summary["bcf"].endswith("operating_state_clash.bcfzip"))
+            with self.assertRaisesRegex(RuntimeError, "requires real Code_Aster result artifacts"):
+                module.run_example(output_dir=tmpdir)
+            self.assertTrue((Path(tmpdir) / "code_aster" / "study_manifest.json").exists())
 
 
 if __name__ == "__main__":

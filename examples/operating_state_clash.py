@@ -1,21 +1,12 @@
-"""End-to-end operating-state clash workflow without running Code_Aster."""
+"""Operating-state clash export workflow requiring real Code_Aster artifacts."""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from tuba import Model, TrimeshClashEngine
-from tuba.analysis import (
-    ResultState,
-    create_cold_geometry_state,
-    create_operating_geometry_state,
-)
-from tuba.geometry.deformed import build_deformed_envelopes
+from tuba import Model
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization.bcf import export_bcf_topics
-from tuba.visualization.builders import build_visualization_scene
 
 
 def build_model() -> tuple[Model, str, str]:
@@ -41,73 +32,22 @@ def build_model() -> tuple[Model, str, str]:
 def run_example(output_dir: str | Path = ".benchmarks/operating_state_clash_example") -> dict[str, Any]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    model, n0, n1 = build_model()
+    model, _n0, _n1 = build_model()
 
     study = CodeAsterSolver(work_dir=str(output_path / "code_aster")).export_analysis_study(
         model,
         "Hot",
         output_dir=output_path / "code_aster",
     )
-    result_state = ResultState(
-        id="result_state:Hot:mock",
-        study_id=study.id,
-        model_revision=0,
-        solver_name="Code_Aster",
-        load_case="Hot",
-        mesh_id=study.mesh_id,
-        node_displacements={
-            n0: (0.0, 0.05, 0.0, 0.0, 0.0, 0.0),
-            n1: (0.0, 0.05, 0.0, 0.0, 0.0, 0.0),
-        },
-        node_reactions={
-            n0: (1000.0, 250.0, 0.0, 0.0, 0.0, 0.0),
-        },
-        element_results={},
-        files={"manifest": str(output_path / "code_aster" / "study_manifest.json")},
-        metadata={"source": "mock_result_state_for_example"},
+    raise RuntimeError(
+        "Operating-state clash review requires real Code_Aster result artifacts. "
+        f"Exported the study to {study.work_dir}. Execute study.export with Code_Aster, "
+        "then import the generated result tables before building operating geometry states."
     )
-    cold_state = create_cold_geometry_state(model)
-    operating_state = create_operating_geometry_state(model=model, result_state=result_state)
-    envelopes = build_deformed_envelopes(
-        model=model,
-        result_state=result_state,
-        geometry_state=operating_state,
-        envelope_type="insulation",
-    )
-    clashes = TrimeshClashEngine().check_operating_state(
-        model,
-        cold_state=cold_state,
-        operating_state=operating_state,
-        result_state=result_state,
-        envelope_type="insulation",
-    )
-    scene = build_visualization_scene(
-        model,
-        operating_clash_results=clashes,
-        result_states=[result_state],
-        geometry_states=[cold_state, operating_state],
-    )
-    scene_path = output_path / "operating_state_scene.json"
-    bcf_path = output_path / "operating_state_clash.bcfzip"
-    scene_path.write_text(json.dumps(scene.to_dict(), indent=2, sort_keys=True), encoding="utf-8")
-    export_bcf_topics(scene, bcf_path)
-
-    return {
-        "project_name": model.project_name,
-        "study_id": study.id,
-        "manifest": str(output_path / "code_aster" / "study_manifest.json"),
-        "result_state_id": result_state.id,
-        "geometry_state_id": operating_state.id,
-        "envelopes": len(envelopes),
-        "clashes": [clash.to_dict() for clash in clashes],
-        "scene": str(scene_path),
-        "bcf": str(bcf_path),
-    }
 
 
 def main() -> int:
-    summary = run_example()
-    print(json.dumps(summary, indent=2, sort_keys=True))
+    run_example()
     return 0
 
 

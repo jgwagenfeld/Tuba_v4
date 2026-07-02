@@ -63,6 +63,7 @@ def operating_state_review_fixture(output_dir: Path) -> RealtimeVisualizationFix
     )
     scene = build_visualization_scene(
         model,
+        analysis_meshes=[analysis_mesh],
         operating_clash_results=operating_clashes,
         result_states=[result_state],
         geometry_states=[cold_state, operating_state, visual_state],

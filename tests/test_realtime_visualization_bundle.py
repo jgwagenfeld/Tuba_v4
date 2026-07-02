@@ -1,36 +1,29 @@
-import importlib.util
 import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tuba.visualization import VisualizationScene
+from tests.realtime_visualization_fixtures import operating_state_review_fixture
 
 
 class TestRealtimeVisualizationBundle(unittest.TestCase):
     def test_example_writes_complete_review_scene_bundle(self):
-        module_path = Path(__file__).resolve().parents[1] / "examples" / "realtime_visualization_review.py"
-        spec = importlib.util.spec_from_file_location("realtime_visualization_review", module_path)
-        self.assertIsNotNone(spec)
-        module = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
-        spec.loader.exec_module(module)
-
         with TemporaryDirectory() as tmpdir:
-            summary = module.run_example(output_dir=tmpdir)
-            scene_payload = json.loads(Path(summary["scene"]).read_text(encoding="utf-8"))
-            self.assertTrue(Path(summary["bundle_root"]).exists())
-            self.assertTrue(Path(summary["object_map"]).exists())
-            self.assertTrue(Path(summary["geometry_assets"]).exists())
+            fixture = operating_state_review_fixture(Path(tmpdir))
+            scene_payload = json.loads(fixture.bundle.scene_path.read_text(encoding="utf-8"))
+            self.assertTrue(fixture.bundle.root.exists())
+            self.assertTrue((fixture.bundle.metadata_dir / "object_map.json").exists())
+            self.assertTrue((fixture.bundle.geometry_dir / "geometry_assets.json").exists())
 
         scene = VisualizationScene.from_dict(scene_payload)
         scene.validate()
         kinds = {obj.kind for obj in scene.objects}
         overlay_types = {overlay.data.get("result_type") for overlay in scene.overlays if overlay.kind == "solver_result"}
 
-        self.assertEqual(summary["operating_clashes"], 1)
-        self.assertGreater(summary["counts"]["analysis_mesh_elements"], 0)
-        self.assertGreater(summary["counts"]["scene_geometry_assets"], 0)
+        self.assertEqual(fixture.expected_counts["operating_clashes"], 1)
+        self.assertGreater(fixture.expected_counts["analysis_mesh_elements"], 0)
+        self.assertGreater(fixture.expected_counts["scene_geometry_assets"], 0)
         self.assertIn("analysis_mesh_element", kinds)
         self.assertIn("deformed_centerline", kinds)
         self.assertIn("deformed_envelope", kinds)
