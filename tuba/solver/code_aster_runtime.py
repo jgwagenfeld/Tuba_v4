@@ -7,6 +7,7 @@ import shlex
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Mapping, Sequence
 
 
@@ -237,97 +238,130 @@ def _runner_detection_script(export_name: str) -> str:
     )
 
 
-def _runner_probe_script() -> str:
-    return (
-        "if command -v run_aster >/dev/null 2>&1; then run_aster --help >/dev/null 2>&1 || true; echo run_aster; "
-        "elif command -v as_run >/dev/null 2>&1; then as_run --help >/dev/null 2>&1 || true; echo as_run; "
-        "elif command -v aster >/dev/null 2>&1; then aster --help >/dev/null 2>&1 || true; echo aster; "
+def _runner_probe_script(probe_file: str | None = None) -> str:
+    parts: list[str] = ["set -e"]
+    if probe_file:
+        probe_arg = shlex.quote(probe_file)
+        parts.extend(
+            [
+                f"rm -f {probe_arg}",
+                f": > {probe_arg}",
+                f"test -f {probe_arg}",
+                f"rm -f {probe_arg}",
+            ]
+        )
+    parts.append(
+        "if command -v run_aster >/dev/null 2>&1; then run_aster --help >/dev/null 2>&1; echo run_aster; "
+        "elif command -v as_run >/dev/null 2>&1; then as_run --help >/dev/null 2>&1; echo as_run; "
+        "elif command -v aster >/dev/null 2>&1; then aster --help >/dev/null 2>&1; echo aster; "
         'else echo "Code_Aster runner not found" >&2; exit 127; fi'
     )
+    return "; ".join(parts)
 
 
 def build_code_aster_preflight_command(
     candidate: CodeAsterRuntimeCandidate,
     config: CodeAsterRuntimeConfig,
+    work_dir: Path | None = None,
 ) -> tuple[list[str], Path | None]:
     if candidate.kind == "python_bridge":
         return [*candidate.command, "-c", "import run_aster.export, run_aster.run; print('run_aster python bridge ok')"], None
     if candidate.kind == "command":
         return [*candidate.command, "--help"], None
     if candidate.kind == "wsl":
-        return [*candidate.command, "bash", "-lc", _runner_probe_script()], None
+        if work_dir is None:
+            raise ValueError("build_code_aster_preflight_command requires work_dir for WSL preflight.")
+        wsl_dir = _win_to_wsl(work_dir)
+        return [*candidate.command, "bash", "-lc", f"cd {shlex.quote(wsl_dir)} && {_runner_probe_script('.tuba-preflight-probe')}"], None
     if candidate.kind == "docker":
+        if work_dir is None:
+            raise ValueError("build_code_aster_preflight_command requires work_dir for Docker preflight.")
         image = candidate.command[-1] if candidate.command else config.docker_image
-        return ["docker", "run", "--rm", image, "sh", "-lc", _runner_probe_script()], None
+        return [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{work_dir.resolve()}:/work",
+            "-w",
+            "/work",
+            image,
+            "sh",
+            "-lc",
+            _runner_probe_script(".tuba-preflight-probe"),
+        ], None
     return [], None
 
 
 def preflight_code_aster_runtimes(config: CodeAsterRuntimeConfig) -> list[CodeAsterRuntimeCheck]:
     checks: list[CodeAsterRuntimeCheck] = []
-    for candidate in discover_code_aster_runtimes(config):
-        if not candidate.available:
-            checks.append(
-                CodeAsterRuntimeCheck(
-                    runtime=candidate,
-                    command=tuple(candidate.command),
-                    returncode=None,
-                    stdout="",
-                    stderr="",
-                    ok=False,
-                    reason=candidate.reason or "Runtime candidate is not available.",
+    with TemporaryDirectory(prefix="tuba-code-aster-preflight-") as tmpdir:
+        work_dir = Path(tmpdir)
+        for candidate in discover_code_aster_runtimes(config):
+            if not candidate.available:
+                checks.append(
+                    CodeAsterRuntimeCheck(
+                        runtime=candidate,
+                        command=tuple(candidate.command),
+                        returncode=None,
+                        stdout="",
+                        stderr="",
+                        ok=False,
+                        reason=candidate.reason or "Runtime candidate is not available.",
+                    )
                 )
-            )
-            continue
-        command, cwd = build_code_aster_preflight_command(candidate, config)
-        try:
-            result = subprocess.run(
-                command,
-                cwd=str(cwd) if cwd is not None else None,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=config.preflight_timeout_seconds,
-            )
-            stdout = result.stdout or ""
-            stderr = result.stderr or ""
-            ok = result.returncode == 0
-            reason = None if ok else (stderr or stdout or f"return code {result.returncode}")
-            checks.append(
-                CodeAsterRuntimeCheck(
-                    runtime=candidate,
-                    command=tuple(command),
-                    returncode=result.returncode,
-                    stdout=stdout,
-                    stderr=stderr,
-                    ok=ok,
-                    reason=reason,
+                continue
+            candidate_work_dir = work_dir if candidate.kind in {"wsl", "docker"} else None
+            command, cwd = build_code_aster_preflight_command(candidate, config, candidate_work_dir)
+            try:
+                result = subprocess.run(
+                    command,
+                    cwd=str(cwd) if cwd is not None else None,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=config.preflight_timeout_seconds,
                 )
-            )
-        except subprocess.TimeoutExpired as exc:
-            checks.append(
-                CodeAsterRuntimeCheck(
-                    runtime=candidate,
-                    command=tuple(command),
-                    returncode=None,
-                    stdout=str(exc.output or ""),
-                    stderr=str(exc.stderr or ""),
-                    ok=False,
-                    reason=f"{candidate.kind} preflight timed out after {config.preflight_timeout_seconds} seconds.",
+                stdout = result.stdout or ""
+                stderr = result.stderr or ""
+                ok = result.returncode == 0
+                reason = None if ok else (stderr or stdout or f"return code {result.returncode}")
+                checks.append(
+                    CodeAsterRuntimeCheck(
+                        runtime=candidate,
+                        command=tuple(command),
+                        returncode=result.returncode,
+                        stdout=stdout,
+                        stderr=stderr,
+                        ok=ok,
+                        reason=reason,
+                    )
                 )
-            )
-        except FileNotFoundError as exc:
-            checks.append(
-                CodeAsterRuntimeCheck(
-                    runtime=candidate,
-                    command=tuple(command),
-                    returncode=127,
-                    stdout="",
-                    stderr=str(exc),
-                    ok=False,
-                    reason=str(exc),
+            except subprocess.TimeoutExpired as exc:
+                checks.append(
+                    CodeAsterRuntimeCheck(
+                        runtime=candidate,
+                        command=tuple(command),
+                        returncode=None,
+                        stdout=str(exc.output or ""),
+                        stderr=str(exc.stderr or ""),
+                        ok=False,
+                        reason=f"{candidate.kind} preflight timed out after {config.preflight_timeout_seconds} seconds.",
+                    )
                 )
-            )
+            except FileNotFoundError as exc:
+                checks.append(
+                    CodeAsterRuntimeCheck(
+                        runtime=candidate,
+                        command=tuple(command),
+                        returncode=127,
+                        stdout="",
+                        stderr=str(exc),
+                        ok=False,
+                        reason=str(exc),
+                    )
+                )
     return checks
 
 

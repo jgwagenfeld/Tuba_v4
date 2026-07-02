@@ -7,6 +7,7 @@ from unittest.mock import patch
 from tuba.solver.code_aster_runtime import (
     CodeAsterRuntimeConfig,
     build_code_aster_command,
+    build_code_aster_preflight_command,
     discover_code_aster_runtimes,
     run_code_aster_export,
     select_code_aster_runtime,
@@ -101,6 +102,35 @@ class TestCodeAsterRuntime(unittest.TestCase):
         self.assertEqual(command[:3], ["docker", "run", "--rm"])
         self.assertIn("local/code-aster:dev", command)
         self.assertIn("study.export", command[-1])
+        self.assertIsNone(cwd)
+
+    def test_wsl_preflight_uses_real_workdir_contract_and_does_not_mask_runner_failure(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            candidate = select_code_aster_runtime(CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}))
+
+            command, cwd = build_code_aster_preflight_command(candidate, CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}), root)
+
+        self.assertEqual(command[:4], ["wsl", "-d", "Ubuntu", "--"])
+        self.assertIn(f"cd '/mnt/{root.drive[0].lower()}{root.as_posix()[2:]}'", command[-1])
+        self.assertIn(".tuba-preflight-probe", command[-1])
+        self.assertNotIn("|| true", command[-1])
+        self.assertIsNone(cwd)
+
+    def test_docker_preflight_uses_real_mount_contract_and_probe_file(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config = CodeAsterRuntimeConfig(exec_method="docker", docker_image="local/code-aster:dev", env={})
+            candidate = select_code_aster_runtime(config)
+
+            command, cwd = build_code_aster_preflight_command(candidate, config, root)
+
+        self.assertEqual(command[:3], ["docker", "run", "--rm"])
+        self.assertIn("-v", command)
+        self.assertIn(f"{root.resolve()}:/work", command)
+        self.assertIn("-w", command)
+        self.assertIn("/work", command)
+        self.assertIn(".tuba-preflight-probe", command[-1])
         self.assertIsNone(cwd)
 
     def test_run_writes_utf8_logs_and_raises_with_message_tail(self):
