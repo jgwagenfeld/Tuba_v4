@@ -22,6 +22,7 @@ class CodeAsterRuntimeConfig:
     runner_command: str | None = None
     bridge_python: str | None = None
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
+    preflight_timeout_seconds: int = 15
     env: Mapping[str, str] = field(default_factory=lambda: os.environ)
 
 
@@ -44,6 +45,17 @@ class CodeAsterExecution:
     returncode: int
     stdout: str
     stderr: str
+
+
+@dataclass(frozen=True)
+class CodeAsterRuntimeCheck:
+    runtime: CodeAsterRuntimeCandidate
+    command: tuple[str, ...]
+    returncode: int | None
+    stdout: str
+    stderr: str
+    ok: bool
+    reason: str | None = None
 
 
 def discover_code_aster_runtimes(config: CodeAsterRuntimeConfig) -> list[CodeAsterRuntimeCandidate]:
@@ -223,6 +235,100 @@ def _runner_detection_script(export_name: str) -> str:
         f"elif command -v aster >/dev/null 2>&1; then aster {export_arg}; "
         'else echo "Code_Aster runner not found" >&2; exit 127; fi'
     )
+
+
+def _runner_probe_script() -> str:
+    return (
+        "if command -v run_aster >/dev/null 2>&1; then run_aster --help >/dev/null 2>&1 || true; echo run_aster; "
+        "elif command -v as_run >/dev/null 2>&1; then as_run --help >/dev/null 2>&1 || true; echo as_run; "
+        "elif command -v aster >/dev/null 2>&1; then aster --help >/dev/null 2>&1 || true; echo aster; "
+        'else echo "Code_Aster runner not found" >&2; exit 127; fi'
+    )
+
+
+def build_code_aster_preflight_command(
+    candidate: CodeAsterRuntimeCandidate,
+    config: CodeAsterRuntimeConfig,
+) -> tuple[list[str], Path | None]:
+    if candidate.kind == "python_bridge":
+        return [*candidate.command, "-c", "import run_aster.export, run_aster.run; print('run_aster python bridge ok')"], None
+    if candidate.kind == "command":
+        return [*candidate.command, "--help"], None
+    if candidate.kind == "wsl":
+        return [*candidate.command, "bash", "-lc", _runner_probe_script()], None
+    if candidate.kind == "docker":
+        image = candidate.command[-1] if candidate.command else config.docker_image
+        return ["docker", "run", "--rm", image, "sh", "-lc", _runner_probe_script()], None
+    return [], None
+
+
+def preflight_code_aster_runtimes(config: CodeAsterRuntimeConfig) -> list[CodeAsterRuntimeCheck]:
+    checks: list[CodeAsterRuntimeCheck] = []
+    for candidate in discover_code_aster_runtimes(config):
+        if not candidate.available:
+            checks.append(
+                CodeAsterRuntimeCheck(
+                    runtime=candidate,
+                    command=tuple(candidate.command),
+                    returncode=None,
+                    stdout="",
+                    stderr="",
+                    ok=False,
+                    reason=candidate.reason or "Runtime candidate is not available.",
+                )
+            )
+            continue
+        command, cwd = build_code_aster_preflight_command(candidate, config)
+        try:
+            result = subprocess.run(
+                command,
+                cwd=str(cwd) if cwd is not None else None,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=config.preflight_timeout_seconds,
+            )
+            stdout = result.stdout or ""
+            stderr = result.stderr or ""
+            ok = result.returncode == 0
+            reason = None if ok else (stderr or stdout or f"return code {result.returncode}")
+            checks.append(
+                CodeAsterRuntimeCheck(
+                    runtime=candidate,
+                    command=tuple(command),
+                    returncode=result.returncode,
+                    stdout=stdout,
+                    stderr=stderr,
+                    ok=ok,
+                    reason=reason,
+                )
+            )
+        except subprocess.TimeoutExpired as exc:
+            checks.append(
+                CodeAsterRuntimeCheck(
+                    runtime=candidate,
+                    command=tuple(command),
+                    returncode=None,
+                    stdout=str(exc.output or ""),
+                    stderr=str(exc.stderr or ""),
+                    ok=False,
+                    reason=f"{candidate.kind} preflight timed out after {config.preflight_timeout_seconds} seconds.",
+                )
+            )
+        except FileNotFoundError as exc:
+            checks.append(
+                CodeAsterRuntimeCheck(
+                    runtime=candidate,
+                    command=tuple(command),
+                    returncode=127,
+                    stdout="",
+                    stderr=str(exc),
+                    ok=False,
+                    reason=str(exc),
+                )
+            )
+    return checks
 
 
 def _write_runtime_logs(work_dir: Path, execution: CodeAsterExecution) -> None:

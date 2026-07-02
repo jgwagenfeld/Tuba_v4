@@ -216,6 +216,68 @@ class TestCodeAsterRuntime(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertIn("wsl executable not found", missing_wsl_log)
 
+    def test_preflight_reports_ok_runtime(self):
+        from tuba.solver.code_aster_runtime import preflight_code_aster_runtimes
+
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append((cmd, kwargs))
+            return subprocess.CompletedProcess(cmd, 0, stdout="run_aster ok", stderr="")
+
+        with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+            checks = preflight_code_aster_runtimes(
+                CodeAsterRuntimeConfig(
+                    exec_method="command",
+                    runner_command="run_aster",
+                    env={},
+                    preflight_timeout_seconds=3,
+                )
+            )
+
+        self.assertEqual(len(checks), 1)
+        self.assertTrue(checks[0].ok)
+        self.assertEqual(checks[0].runtime.kind, "command")
+        self.assertEqual(checks[0].stdout, "run_aster ok")
+        self.assertEqual(calls[0][1]["timeout"], 3)
+
+    def test_preflight_reports_missing_wsl_runner(self):
+        from tuba.solver.code_aster_runtime import preflight_code_aster_runtimes
+
+        def fake_run(cmd, **_kwargs):
+            return subprocess.CompletedProcess(cmd, 127, stdout="", stderr="Code_Aster runner not found")
+
+        with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+            checks = preflight_code_aster_runtimes(
+                CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={})
+            )
+
+        self.assertEqual(len(checks), 1)
+        self.assertFalse(checks[0].ok)
+        self.assertEqual(checks[0].returncode, 127)
+        self.assertIn("Code_Aster runner not found", checks[0].reason)
+
+    def test_preflight_timeout_is_reported_without_hanging(self):
+        from tuba.solver.code_aster_runtime import preflight_code_aster_runtimes
+
+        def fake_run(cmd, **kwargs):
+            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"], output="pulling", stderr="still pulling")
+
+        with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+            checks = preflight_code_aster_runtimes(
+                CodeAsterRuntimeConfig(
+                    exec_method="docker",
+                    docker_image="simvia/code_aster:stable",
+                    env={},
+                    preflight_timeout_seconds=1,
+                )
+            )
+
+        self.assertEqual(len(checks), 1)
+        self.assertFalse(checks[0].ok)
+        self.assertIsNone(checks[0].returncode)
+        self.assertIn("timed out after 1 seconds", checks[0].reason)
+
 
 if __name__ == "__main__":
     unittest.main()
