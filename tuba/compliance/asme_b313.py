@@ -13,9 +13,40 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from tuba.compliance.sif import compute_sifs
+from tuba.compliance.sif import compute_sif_set
 from tuba.model import Element, LoadCase, Material, PipeSection, TubaModel
 from tuba.solver.base import FEAResults
+
+
+def _edition_year(edition: object) -> int:
+    """Parse a B31.3 edition (e.g. ``"2022"`` or ``2022``) to a 4-digit year."""
+    try:
+        return int(str(edition)[:4])
+    except (ValueError, TypeError):
+        return 2020
+
+
+def stress_range_reduction_factor(cycles: float, edition: str = "2020") -> float:
+    """ASME B31.3 §302.3.5 stress-range (fatigue) reduction factor *f*.
+
+    Edition-gated — a real B31.3-2022 change: 2020 and earlier use
+    ``f = 6.0 * N**-0.2``; 2022 and later use the steeper ``f = 20 * N**(-1/3)``.
+    Both are capped at 1.2 and floored at 0.15. Shipping the 2020 curve for a
+    2022 target is non-conservative at high cycle counts.
+
+    Parameters
+    ----------
+    cycles : float
+        Equivalent number of full displacement (thermal) cycles *N*.
+    edition : str
+        B31.3 edition year, e.g. ``"2020"`` or ``"2022"``.
+    """
+    n = max(float(cycles), 1.0)
+    if _edition_year(edition) >= 2022:
+        f = 20.0 * n ** (-1.0 / 3.0)
+    else:
+        f = 6.0 * n ** (-0.2)
+    return min(1.2, max(0.15, f))
 
 
 # ---------------------------------------------------------------------------
@@ -272,8 +303,21 @@ class ASMEB313Evaluator:
         Stress-range reduction factor.  Defaults to ``1.0`` (< 7 000 cycles).
     """
 
-    def __init__(self, f_factor: float = 1.0) -> None:
-        self.f: float = f_factor
+    def __init__(
+        self,
+        f_factor: float = 1.0,
+        *,
+        cycles: Optional[float] = None,
+        edition: str = "2020",
+        use_liberal_allowable: bool = False,
+    ) -> None:
+        self.edition = edition
+        self.use_liberal_allowable = use_liberal_allowable
+        # When a cycle count is given, compute f per the (edition-gated) code
+        # curve; otherwise use the explicit f_factor (default 1.0).
+        self.f: float = (
+            stress_range_reduction_factor(cycles, edition) if cycles is not None else f_factor
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -316,10 +360,11 @@ class ASMEB313Evaluator:
             section: PipeSection = model.sections[elem.section]
             material: Material = model.materials[elem.material]
 
-            # Allowable stresses
+            # Allowable stresses. S_A (displacement range allowable) is
+            # computed per node so the liberal allowable can credit unused
+            # sustained stress.
             S_h = material.get_allowable(temperature)
             S_c = material.get_allowable(ref_temperature)
-            S_A = self.f * (1.25 * S_c + 0.25 * S_h)
 
             # Cross-section properties (corroded)
             Do = section.OD
@@ -331,8 +376,8 @@ class ASMEB313Evaluator:
                 (elem.n1, er.forces_n1),
                 (elem.n2, er.forces_n2),
             ):
-                # SIFs for this specific end
-                i_i, i_o, k, h = compute_sifs(elem, model, node_id=node_tag)
+                # B31J directional indices for this specific end
+                sif = compute_sif_set(elem, model, node_id=node_tag)
 
                 result = self._evaluate_node(
                     element_id=elem.id,
@@ -342,13 +387,13 @@ class ASMEB313Evaluator:
                     Do=Do,
                     t=t,
                     Z=Z,
-                    i_i=i_i,
-                    i_o=i_o,
-                    k=k,
-                    h=h,
+                    i_i=sif.i_i,
+                    i_o=sif.i_o,
+                    i_t=sif.i_t,
+                    k=sif.k_i,
+                    h=sif.h,
                     S_h=S_h,
                     S_c=S_c,
-                    S_A=S_A,
                 )
                 report.results.append(result)
 
@@ -382,11 +427,11 @@ class ASMEB313Evaluator:
         Z: float,
         i_i: float,
         i_o: float,
+        i_t: float,
         k: float,
         h: float,
         S_h: float,
         S_c: float,
-        S_A: float,
     ) -> ElementComplianceResult:
         """Evaluate sustained and expansion stress at one element end.
 
@@ -408,6 +453,9 @@ class ASMEB313Evaluator:
         # the full resultant as in-plane here.
         M_t = abs(Mx)  # torsional
 
+        # Standard allowable displacement stress range (§302.3.5(d), Eq. 1a).
+        S_A_standard = self.f * (1.25 * S_c + 0.25 * S_h)
+
         # Guard against zero thickness / zero Z
         if t <= 0 or Z <= 0:
             return ElementComplianceResult(
@@ -418,7 +466,7 @@ class ASMEB313Evaluator:
                 sustained_ratio=0.0,
                 sustained_pass=True,
                 expansion_stress=0.0,
-                expansion_allowable=S_A,
+                expansion_allowable=S_A_standard,
                 expansion_ratio=0.0,
                 expansion_pass=True,
             )
@@ -430,10 +478,19 @@ class ASMEB313Evaluator:
         ) / Z
         S_L = pressure_term + bending_sustained
 
-        # --- Expansion stress (Eq. 302.3.5-3) ---
+        # --- Displacement (expansion) stress range (§319.4.4) ---
+        # B31J torsional index i_t applied (i_t = 1.0 for elbows, so this is
+        # numerically identical to the classic lumped form for bends).
         S_E = math.sqrt(
-            (i_i * M_i) ** 2 + (i_o * M_o) ** 2 + M_t ** 2
+            (i_i * M_i) ** 2 + (i_o * M_o) ** 2 + (i_t * M_t) ** 2
         ) / Z
+
+        # Allowable displacement stress range: liberal form (§302.3.5(d),
+        # Eq. 1b) credits the portion of Sh not consumed by sustained stress.
+        if self.use_liberal_allowable and S_h > 0.0:
+            S_A = self.f * (1.25 * (S_c + S_h) - S_L)
+        else:
+            S_A = S_A_standard
 
         # Ratios
         sus_ratio = S_L / S_h if S_h > 0 else float("inf")
