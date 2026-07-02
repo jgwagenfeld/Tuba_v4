@@ -184,6 +184,16 @@ Run from the Windows repo root:
 .\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor
 ```
 
+Use `--check` to prove the discovered runtime can find a Code_Aster runner
+without starting a full solve:
+
+```powershell
+.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor --check
+```
+
+If the check reports `blocked`, do not set `RUN_CODE_ASTER = True` in notebooks.
+Keep the notebook in artifact-loading mode until the runtime check is ready.
+
 Expected:
 
 ```text

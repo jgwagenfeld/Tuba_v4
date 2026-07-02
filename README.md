@@ -53,6 +53,19 @@ Run the runtime doctor:
 
 Equivalent module form: `python -m tuba.solver.code_aster_doctor`.
 
+Run the bounded runtime readiness check before enabling solver execution from notebooks:
+
+```powershell
+.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor --check
+```
+
+Equivalent module form: `python -m tuba.solver.code_aster_doctor --check`.
+
+VS Code notebooks default to loading committed Code_Aster artifacts when those
+artifacts are present. Set `RUN_CODE_ASTER = True` only after the doctor check
+reports a ready runtime; the notebook loader preserves existing result tables
+when runtime preflight fails.
+
 Full Windows/WSL installation walkthrough:
 [`docs/code_aster_installation.md`](docs/code_aster_installation.md).
 

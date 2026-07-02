@@ -14,12 +14,14 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("TUBA_RUN_CODE_ASTER_INTEGRATION", text)
         self.assertIn("python -m tuba.solver.code_aster_doctor", text)
 
-    def test_readme_states_code_aster_is_core_workflow(self):
+    def test_readme_documents_required_runtime_and_doctor(self):
         text = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("Code_Aster is required for the full Tuba workflow", text)
         self.assertIn("docs/code_aster_installation.md", text)
         self.assertIn("TUBA_CODE_ASTER_EXEC_METHOD", text)
+        self.assertIn("python -m tuba.solver.code_aster_doctor --check", text)
+        self.assertIn("VS Code notebooks default to loading committed Code_Aster artifacts", text)
 
     def test_agent_instructions_state_code_aster_is_not_optional(self):
         text = Path("AGENTS.md").read_text(encoding="utf-8")
