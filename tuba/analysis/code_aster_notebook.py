@@ -127,7 +127,7 @@ def require_code_aster_runtime(
     config = CodeAsterRuntimeConfig(
         exec_method=exec_method,
         wsl_distro=wsl_distro,
-        docker_image=docker_image or CodeAsterRuntimeConfig().docker_image,
+        docker_image=_resolve_docker_image(docker_image),
     )
     checks = preflight_code_aster_runtimes(config)
     for check in checks:
@@ -142,6 +142,10 @@ def require_code_aster_runtime(
         "Set RUN_CODE_ASTER = False to load existing artifacts, or configure Code_Aster and rerun. "
         f"Checks: {details}"
     )
+
+
+def _resolve_docker_image(docker_image: str | None) -> str:
+    return docker_image or os.environ.get("TUBA_CODE_ASTER_DOCKER_IMAGE") or CodeAsterRuntimeConfig().docker_image
 
 
 def _make_solver(

@@ -70,6 +70,20 @@ class TestCodeAsterDoctor(unittest.TestCase):
         self.assertEqual(data["checks"][0]["kind"], "wsl")
         self.assertIn("Code_Aster runner not found", data["checks"][0]["reason"])
 
+    def test_check_uses_env_docker_image_in_runtime_config(self):
+        captured = {}
+
+        def fake_preflight(config):
+            captured["config"] = config
+            return []
+
+        env = {"TUBA_CODE_ASTER_DOCKER_IMAGE": "local/code-aster:env"}
+        with patch.dict(os.environ, env, clear=False):
+            with patch("tuba.solver.code_aster_doctor.preflight_code_aster_runtimes", side_effect=fake_preflight):
+                main(["--check"], return_output=True)
+
+        self.assertEqual(captured["config"].docker_image, "local/code-aster:env")
+
 
 if __name__ == "__main__":
     unittest.main()

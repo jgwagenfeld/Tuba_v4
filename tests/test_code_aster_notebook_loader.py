@@ -224,6 +224,42 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
         self.assertEqual(runtime.wsl_distro, "Ubuntu")
         self.assertIsNone(runtime.docker_image)
 
+    def test_run_solver_true_preflight_uses_env_docker_image(self):
+        import os
+
+        model, _n0, _n1 = self._model()
+        captured = {}
+
+        class SolverThatStops:
+            def __init__(self, work_dir=None, exec_method="auto", docker_image=None, wsl_distro=None):
+                self.work_dir = Path(work_dir)
+
+            def export_analysis_study(self, model, load_case_name, output_dir):
+                return CodeAsterSolver(work_dir=output_dir).export_analysis_study(model, load_case_name, output_dir)
+
+            def solve_exported_study(self, model, study):
+                raise RuntimeError("test stops before solver execution")
+
+        ready = _ok_runtime_check()
+
+        def fake_preflight(config):
+            captured["config"] = config
+            return [ready]
+
+        with TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"TUBA_CODE_ASTER_DOCKER_IMAGE": "local/code-aster:env"}, clear=False):
+                with patch("tuba.analysis.code_aster_notebook.preflight_code_aster_runtimes", side_effect=fake_preflight):
+                    with self.assertRaises(RuntimeError):
+                        load_or_run_code_aster_results(
+                            model,
+                            "Hot",
+                            tmpdir,
+                            exec_method="docker",
+                            solver_factory=SolverThatStops,
+                        )
+
+        self.assertEqual(captured["config"].docker_image, "local/code-aster:env")
+
 
 def _write_solver_tables(work_dir: Path, *, n0: str, n1: str, n1_dy: float = 0.015) -> None:
     (work_dir / "study_depl.csv").write_text(

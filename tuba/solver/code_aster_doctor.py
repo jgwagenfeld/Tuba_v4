@@ -27,7 +27,11 @@ def main(argv: list[str] | None = None, *, return_output: bool = False) -> str |
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
-    config = CodeAsterRuntimeConfig(exec_method=args.exec_method, wsl_distro=args.wsl_distro)
+    config = CodeAsterRuntimeConfig(
+        exec_method=args.exec_method,
+        wsl_distro=args.wsl_distro,
+        docker_image=_resolve_docker_image(),
+    )
     candidates = discover_code_aster_runtimes(config)
     checks = preflight_code_aster_runtimes(config) if args.check else []
     if args.json:
@@ -46,6 +50,10 @@ def main(argv: list[str] | None = None, *, return_output: bool = False) -> str |
         return output
     print(output)
     return 0
+
+
+def _resolve_docker_image() -> str:
+    return os.environ.get("TUBA_CODE_ASTER_DOCKER_IMAGE") or CodeAsterRuntimeConfig().docker_image
 
 
 def _candidate_payload(candidate: Any) -> dict[str, Any]:
