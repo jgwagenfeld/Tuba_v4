@@ -45,6 +45,13 @@ notebook-viz = [
     "trame-vuetify>=3",
     "jupyter-server-proxy",
 ]
+dev = [
+    "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 
 [tool.setuptools.packages.find]
 where = ["."]
