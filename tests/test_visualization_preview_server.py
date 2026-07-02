@@ -84,30 +84,37 @@ class TestVisualizationPreviewServer(unittest.TestCase):
             self.assertEqual(payload["diagnostics"][0]["code"], "visualization.preview.timeout")
 
     def test_preview_server_watches_script_and_serves_updated_scene(self):
-        with TemporaryDirectory() as tmpdir:
+        # ignore_cleanup_errors: the watch loop spawns subprocesses that write
+        # into tmpdir; on Windows the OS can briefly hold a handle after
+        # server.stop(), racing rmtree. The assertions below verify behavior.
+        with TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
             root = Path(tmpdir)
             script = root / "preview_scene.py"
             out = root / "bundle"
             script.write_text(SCENE_SCRIPT.format(scene_id="scene:preview:1", name="Pipe 1"), encoding="utf-8")
             server = PreviewServer(script, out, port=0, poll_interval_s=0.05, debounce_s=0.05, timeout_s=10.0).start()
-            self.addCleanup(server.stop)
+            try:
+                initial = json.loads(urlopen(server.base_url + "scene.json", timeout=2).read().decode("utf-8"))
+                self.assertEqual(initial["scene_id"], "scene:preview:1")
 
-            initial = json.loads(urlopen(server.base_url + "scene.json", timeout=2).read().decode("utf-8"))
-            self.assertEqual(initial["scene_id"], "scene:preview:1")
+                script.write_text(SCENE_SCRIPT.format(scene_id="scene:preview:2", name="Pipe 2"), encoding="utf-8")
+                deadline = time.time() + 15
+                while time.time() < deadline:
+                    scene = json.loads((out / "scene.json").read_text(encoding="utf-8"))
+                    if scene["scene_id"] == "scene:preview:2":
+                        break
+                    time.sleep(0.05)
+                else:
+                    self.fail("preview server did not refresh the scene bundle")
 
-            script.write_text(SCENE_SCRIPT.format(scene_id="scene:preview:2", name="Pipe 2"), encoding="utf-8")
-            deadline = time.time() + 15
-            while time.time() < deadline:
-                scene = json.loads((out / "scene.json").read_text(encoding="utf-8"))
-                if scene["scene_id"] == "scene:preview:2":
-                    break
-                time.sleep(0.05)
-            else:
-                self.fail("preview server did not refresh the scene bundle")
-
-            event_types = [event["type"] for event in server.broker.events]
-            self.assertIn("scene_reloaded", event_types)
-            self.assertGreaterEqual(server.revision, 2)
+                event_types = [event["type"] for event in server.broker.events]
+                self.assertIn("scene_reloaded", event_types)
+                self.assertGreaterEqual(server.revision, 2)
+            finally:
+                # Stop the server (joins watch thread + HTTP) before the
+                # TemporaryDirectory is removed; the subprocess-backed server
+                # otherwise still holds the dir on Windows during rmtree.
+                server.stop()
 
 
 if __name__ == "__main__":

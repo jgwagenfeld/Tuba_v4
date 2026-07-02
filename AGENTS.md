@@ -44,3 +44,16 @@ surfaces only.
 - Any UI or notebook that displays stress, displacement, reaction, compliance,
   or operating-state results must use Code_Aster-backed artifacts or stop with a
   clear runtime requirement.
+
+## Visualization Surfaces
+
+There are two result-display paths. Keep them distinct; do not add a third.
+
+- `tuba/visualizer/` (PyVista) is the **quick-look & export** path. It is wired
+  to `FEAResults.plot_*()` (see `tuba/solver/base.py`) and reads real `.rmed`
+  artifacts; use it for interactive/notebook views and PLY/glTF/Blender export.
+- `tuba/visualization/` + `viewer/` is the **reviewable web-scene** path.
+  `build_visualization_scene` / `write_scene_bundle` emit a JSON scene contract
+  that the `viewer/` Three.js app renders. Use it for shareable review bundles.
+
+Prefer one path per notebook/example rather than mixing both.
