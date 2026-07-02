@@ -1,7 +1,6 @@
 import importlib.util
 import os
 import unittest
-from unittest.mock import patch
 
 
 @unittest.skipUnless(importlib.util.find_spec("nbclient"), "nbclient is required for notebook render checks")
@@ -45,18 +44,55 @@ plots.plot_deformed_stress(results, deform_scale=20.0, model=model)
 '''
         nb = nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(code)])
 
-        env = {"TERM_PROGRAM": "vscode", "VSCODE_PID": "12345"}
-        with patch.dict(os.environ, env, clear=False):
-            os.environ.pop("TUBA_NOTEBOOK_BACKEND", None)
-            client = NotebookClient(nb, timeout=120, kernel_name="python3", allow_errors=False)
-            client.execute()
+        client = NotebookClient(nb, timeout=120, kernel_name="python3", allow_errors=False)
+        client.execute(cwd=os.getcwd(), env=_isolated_notebook_env())
 
-        mime_types = set()
+        image_payloads = {"image/png": [], "image/jpeg": []}
         for output in nb.cells[0].get("outputs", []):
-            mime_types.update((output.get("data") or {}).keys())
+            data = output.get("data") or {}
+            for mime_type in image_payloads:
+                payload = data.get(mime_type)
+                if payload:
+                    image_payloads[mime_type].append(payload)
 
-        self.assertIn("image/png", mime_types)
-        self.assertIn("image/jpeg", mime_types)
+        for mime_type, payloads in image_payloads.items():
+            self.assertTrue(payloads, f"expected {mime_type} notebook output")
+            self.assertTrue(
+                any(len(_payload_text(payload).strip()) > 100 for payload in payloads),
+                f"expected non-empty {mime_type} notebook payload",
+            )
+
+
+def _isolated_notebook_env() -> dict[str, str]:
+    allowed_keys = (
+        "APPDATA",
+        "COMSPEC",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "LOCALAPPDATA",
+        "NUMBER_OF_PROCESSORS",
+        "PATH",
+        "PATHEXT",
+        "PROCESSOR_ARCHITECTURE",
+        "PROGRAMDATA",
+        "PYTHONHOME",
+        "PYTHONPATH",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+        "WINDIR",
+    )
+    env = {key: os.environ[key] for key in allowed_keys if key in os.environ}
+    env["TERM_PROGRAM"] = "vscode"
+    env["VSCODE_PID"] = "12345"
+    return env
+
+
+def _payload_text(payload: object) -> str:
+    if isinstance(payload, list):
+        return "".join(str(part) for part in payload)
+    return str(payload)
 
 
 if __name__ == "__main__":
