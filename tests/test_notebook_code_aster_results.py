@@ -71,6 +71,27 @@ class TestNotebookResultProvenance(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_artifact_backed_notebooks_default_to_load_existing_results(self):
+        notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
+        artifact_backed = {
+            "00_welcome_and_setup.ipynb": "stress_analysis_operating",
+            "03_stress_analysis_and_compliance.ipynb": "stress_analysis_operating",
+            "04_visualization_gallery.ipynb": "viz_gallery_operating",
+            "06_structural_frames_and_optimization.ipynb": "structural_operating_hot",
+            "07_bim_data_exchange.ipynb": "bim_operating",
+            "advanced_piping_design_and_bim.ipynb": "advanced_operating_hot",
+        }
+        offenders: list[str] = []
+
+        for notebook_name, artifact_dir in artifact_backed.items():
+            artifact_root = notebooks_dir / "code_aster_results" / artifact_dir
+            self.assertTrue((artifact_root / "study_depl.csv").exists(), artifact_root)
+            text = (notebooks_dir / notebook_name).read_text(encoding="utf-8")
+            if "RUN_CODE_ASTER = False" not in text:
+                offenders.append(notebook_name)
+
+        self.assertEqual([], offenders)
+
 
 if __name__ == "__main__":
     unittest.main()
