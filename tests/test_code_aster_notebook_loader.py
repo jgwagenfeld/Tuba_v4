@@ -343,19 +343,32 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str, n1_dy: float = 0.0
 
 def _write_sentinel_artifacts(work_dir: Path, *, model: Model, n0: str, n1: str, n1_dy: float) -> dict[str, str]:
     CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+    (work_dir / "study.mail").write_text("sentinel mail must survive\n", encoding="utf-8")
     (work_dir / "study.comm").write_text("sentinel comm must survive\n", encoding="utf-8")
+    (work_dir / "study.export").write_text("sentinel export must survive\n", encoding="utf-8")
     manifest_path = work_dir / "study_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["sentinel"] = "manifest must survive"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
     _write_solver_tables(work_dir, n0=n0, n1=n1, n1_dy=n1_dy)
+    (work_dir / "study.rmed").write_text("sentinel rmed must survive\n", encoding="utf-8")
     return _read_sentinel_artifacts(work_dir)
 
 
 def _read_sentinel_artifacts(work_dir: Path) -> dict[str, str]:
     return {
         name: (work_dir / name).read_text(encoding="utf-8")
-        for name in ("study.comm", "study_manifest.json", "study_depl.csv")
+        for name in (
+            "study.mail",
+            "study.comm",
+            "study.export",
+            "study_manifest.json",
+            "study_depl.csv",
+            "study_effo.csv",
+            "study_reac.csv",
+            "study_sieq.csv",
+            "study.rmed",
+        )
     }
 
 

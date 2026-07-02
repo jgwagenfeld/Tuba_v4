@@ -13,6 +13,8 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("TUBA_CODE_ASTER_WSL_DISTRO", text)
         self.assertIn("TUBA_RUN_CODE_ASTER_INTEGRATION", text)
         self.assertIn("python -m tuba.solver.code_aster_doctor", text)
+        self.assertIn("tuba.solver.code_aster_doctor --check", text)
+        self.assertIn("If the check reports `blocked`, do not set `RUN_CODE_ASTER = True`", text)
 
     def test_readme_documents_required_runtime_and_doctor(self):
         text = Path("README.md").read_text(encoding="utf-8")

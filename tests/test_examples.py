@@ -1,3 +1,4 @@
+import ast
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -34,21 +35,23 @@ class TestExamples(unittest.TestCase):
 
     def test_user_facing_examples_do_not_publish_synthetic_solver_results(self):
         examples_dir = Path(__file__).resolve().parents[1] / "examples"
-        forbidden_snippets = (
-            'FEAResults(solver_name="mock',
-            "FEAResults(solver_name='mock",
-            'ResultState(\n        id="result_state:Hot:mock"',
-            'ResultState(\n        id="result_state:Hot:review_mock"',
-            'metadata={"source": "mock_result_state_for_example"}',
-            'metadata={"source": "realtime_visualization_review_mock_result_state"}',
-        )
+        forbidden_solver_result_names = {"FEAResults", "NodeResult", "ElementResult", "ResultState"}
         offenders: list[str] = []
 
         for path in sorted(examples_dir.glob("*.py")):
-            text = path.read_text(encoding="utf-8")
-            matches = [snippet for snippet in forbidden_snippets if snippet in text]
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            matches: list[str] = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    imported = {alias.asname or alias.name for alias in node.names}
+                    matches.extend(sorted(imported & forbidden_solver_result_names))
+                elif isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in forbidden_solver_result_names:
+                        matches.append(node.func.id)
+                    elif isinstance(node.func, ast.Attribute) and node.func.attr in forbidden_solver_result_names:
+                        matches.append(node.func.attr)
             if matches:
-                offenders.append(f"{path.name}: {', '.join(matches)}")
+                offenders.append(f"{path.name}: {', '.join(sorted(set(matches)))}")
 
         self.assertEqual([], offenders)
 
