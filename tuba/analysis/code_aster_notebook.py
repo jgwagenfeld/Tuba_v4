@@ -76,7 +76,29 @@ def load_or_run_code_aster_results(
 ) -> CodeAsterNotebookRun:
     """Load Code_Aster result artifacts, running the exported study when requested."""
     root = Path(work_dir)
-    root.mkdir(parents=True, exist_ok=True)
+
+    if run_solver:
+        require_code_aster_runtime(
+            exec_method=exec_method,
+            wsl_distro=wsl_distro,
+            docker_image=docker_image,
+        )
+        root.mkdir(parents=True, exist_ok=True)
+    else:
+        missing_before = tuple(_missing_result_tables(root))
+        if missing_before:
+            raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
+        artifact = import_code_aster_artifacts(model=model, work_dir=root, study=None, load_case=load_case)
+        artifact.results._model = model
+        return CodeAsterNotebookRun(
+            results=artifact.results,
+            artifact=artifact,
+            study=artifact.study,
+            work_dir=root,
+            ran_solver=False,
+            missing_before_run=missing_before,
+        )
+
     solver = _make_solver(
         solver_factory,
         root,
@@ -87,23 +109,11 @@ def load_or_run_code_aster_results(
     study = solver.export_analysis_study(model, load_case, root)
 
     missing_before = tuple(_missing_result_tables(root))
-    ran_solver = False
-    if run_solver:
-        require_code_aster_runtime(
-            exec_method=exec_method,
-            wsl_distro=wsl_distro,
-            docker_image=docker_image,
-        )
-        _remove_result_artifacts(root)
-        solver.solve_exported_study(model, study)
-        ran_solver = True
-    elif missing_before:
-        raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
+    _remove_result_artifacts(root)
+    solver.solve_exported_study(model, study)
 
     missing_after = tuple(_missing_result_tables(root))
     if missing_after:
-        if not run_solver:
-            raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
         raise FileNotFoundError(_missing_tables_message(root, missing_after, run_solver=True))
 
     artifact = import_code_aster_artifacts(model=model, work_dir=root, study=study, load_case=load_case)
@@ -113,7 +123,7 @@ def load_or_run_code_aster_results(
         artifact=artifact,
         study=study,
         work_dir=root,
-        ran_solver=ran_solver,
+        ran_solver=True,
         missing_before_run=missing_before,
     )
 

@@ -1,3 +1,4 @@
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -101,11 +102,14 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
         model, n0, n1 = self._model()
 
         class SolverThatMustNotRun:
+            instances = []
+
             def __init__(self, work_dir=None, exec_method="auto", docker_image=None, wsl_distro=None):
                 self.work_dir = Path(work_dir)
                 self.exec_method = exec_method
                 self.docker_image = docker_image
                 self.wsl_distro = wsl_distro
+                self.instances.append(self)
 
             def export_analysis_study(self, model, load_case_name, output_dir):
                 return CodeAsterSolver(work_dir=output_dir).export_analysis_study(model, load_case_name, output_dir)
@@ -127,7 +131,7 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
 
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
-            _write_solver_tables(root, n0=n0, n1=n1, n1_dy=0.005)
+            before = _write_sentinel_artifacts(root, model=model, n0=n0, n1=n1, n1_dy=0.005)
             with patch("tuba.analysis.code_aster_notebook.preflight_code_aster_runtimes", return_value=blocked):
                 with self.assertRaisesRegex(RuntimeError, "Code_Aster runtime is not ready"):
                     load_or_run_code_aster_results(
@@ -138,7 +142,41 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
                         solver_factory=SolverThatMustNotRun,
                     )
 
-            self.assertIn(",0.005,", (root / "study_depl.csv").read_text(encoding="utf-8"))
+            self.assertEqual(SolverThatMustNotRun.instances, [])
+            self.assertEqual(_read_sentinel_artifacts(root), before)
+
+    def test_run_solver_false_loads_existing_artifacts_without_exporting_study(self):
+        model, n0, n1 = self._model()
+
+        class SolverThatMustNotExport:
+            instances = []
+
+            def __init__(self, work_dir=None, exec_method="auto", docker_image=None, wsl_distro=None):
+                self.work_dir = Path(work_dir)
+                self.instances.append(self)
+
+            def export_analysis_study(self, model, load_case_name, output_dir):
+                return CodeAsterSolver(work_dir=output_dir).export_analysis_study(model, load_case_name, output_dir)
+
+            def solve_exported_study(self, model, study):
+                raise AssertionError("solver must not run in artifact-load mode")
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            before = _write_sentinel_artifacts(root, model=model, n0=n0, n1=n1, n1_dy=0.033)
+
+            loaded = load_or_run_code_aster_results(
+                model,
+                "Hot",
+                root,
+                run_solver=False,
+                solver_factory=SolverThatMustNotExport,
+            )
+
+            self.assertEqual(SolverThatMustNotExport.instances, [])
+            self.assertEqual(_read_sentinel_artifacts(root), before)
+            self.assertFalse(loaded.ran_solver)
+            self.assertEqual(loaded.artifact.result_state.node_displacements[n1][:3], (0.0, 0.033, 0.0))
 
     def test_run_solver_false_keeps_export_only_mode_explicit(self):
         model, _n0, _n1 = self._model()
@@ -301,6 +339,24 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str, n1_dy: float = 0.0
         ),
         encoding="utf-8",
     )
+
+
+def _write_sentinel_artifacts(work_dir: Path, *, model: Model, n0: str, n1: str, n1_dy: float) -> dict[str, str]:
+    CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+    (work_dir / "study.comm").write_text("sentinel comm must survive\n", encoding="utf-8")
+    manifest_path = work_dir / "study_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["sentinel"] = "manifest must survive"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+    _write_solver_tables(work_dir, n0=n0, n1=n1, n1_dy=n1_dy)
+    return _read_sentinel_artifacts(work_dir)
+
+
+def _read_sentinel_artifacts(work_dir: Path) -> dict[str, str]:
+    return {
+        name: (work_dir / name).read_text(encoding="utf-8")
+        for name in ("study.comm", "study_manifest.json", "study_depl.csv")
+    }
 
 
 def _ok_runtime_check() -> CodeAsterRuntimeCheck:
