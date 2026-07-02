@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 from tuba.model import TubaModel
 from tuba.physical import element_length
 from tuba.refs import EntityRef
@@ -97,7 +97,7 @@ class ClashFreeRule:
 
     def evaluate(self, model: TubaModel) -> list[RuleResult]:
         results: list[RuleResult] = []
-        for clash in TrimeshClashEngine().check_model(model, clearance_m=self.clearance_m):
+        for clash in ClashEngine().check_model(model, clearance_m=self.clearance_m):
             results.append(
                 RuleResult(
                     rule_id=self.rule_id,

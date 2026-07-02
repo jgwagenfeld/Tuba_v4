@@ -1,7 +1,15 @@
 import unittest
 
 from tuba import Model
-from tuba.clash import TrimeshClashEngine, clash_report_to_dict, clash_report_to_markdown
+from tuba.clash import ClashEngine, TrimeshClashEngine, clash_report_to_dict, clash_report_to_markdown
+
+
+class TestClashEngineAlias(unittest.TestCase):
+    def test_trimesh_name_is_a_backwards_compatible_alias(self):
+        import tuba
+
+        self.assertIs(TrimeshClashEngine, ClashEngine)
+        self.assertIs(tuba.TrimeshClashEngine, tuba.ClashEngine)
 
 
 class TestClashEngine(unittest.TestCase):

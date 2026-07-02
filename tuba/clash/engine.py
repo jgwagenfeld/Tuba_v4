@@ -15,12 +15,20 @@ from tuba.physical import physical_properties_for_element
 from tuba.refs import EntityRef
 
 
-class TrimeshClashEngine:
-    """Structured clash engine for model elements and obstacles.
+class ClashEngine:
+    """Analytic clash engine for model elements against cuboid/cylinder obstacles.
 
-    The public name is kept broad enough to later host exact mesh checks.
-    Cuboids are handled analytically so the core interface does not depend on
-    IFC export or a viewer-specific collision API.
+    This is the default clash engine used across rules, routing, and
+    visualization. It computes segment-vs-AABB distances analytically and
+    returns structured :class:`ClashResult` objects, so it has no trimesh /
+    IFC / viewer dependency.
+
+    Boundary: exact mesh-mesh collision against imported STEP/STL (``type:
+    "mesh"``) obstacles is *not* handled here — that lives in
+    :class:`tuba.geometry.collision.PipingCollisionChecker`, which uses trimesh
+    and returns colliding element ids. Use this engine for the analytic
+    cuboid/cylinder + operating-state path; use ``PipingCollisionChecker`` when
+    obstacles are imported meshes.
     """
 
     def check_model(self, model: TubaModel, *, clearance_m: float = 0.0) -> list[ClashResult]:
@@ -103,6 +111,11 @@ class TrimeshClashEngine:
                 location=tuple(float(value) for value in location),
             )
         ]
+
+
+# Backwards-compatible alias. The engine is analytic (no trimesh); the old
+# name was misleading. Kept so existing imports keep working.
+TrimeshClashEngine = ClashEngine
 
 
 def _segment_aabb_distance(

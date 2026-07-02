@@ -43,7 +43,7 @@ from tuba.physical import ElementPhysicalProperties, ElementQuantities, element_
 from tuba.quantities import QuantityRecord, QuantityTakeoff, quantity_takeoff, wind_loads
 from tuba.load_path import LoadPathReport, SupportRackAssociation, analyze_load_paths
 from tuba.rules import ClashFreeRule, RuleEngine, RuleReport, RuleResult, SupportSpacingRule, rule_report_to_markdown
-from tuba.clash import ClashResult, TrimeshClashEngine, clash_report_to_dict, clash_report_to_markdown
+from tuba.clash import ClashResult, ClashEngine, TrimeshClashEngine, clash_report_to_dict, clash_report_to_markdown
 from tuba.refs import EntityRef, resolve_entity_ref
 from tuba.schema import MODEL_SCHEMA_V4, PATCH_SCHEMA_V1, SchemaValidationError, validate_model_dict, validate_patch_dict
 from tuba.sections import IBeamProfile, SectionCatalog
@@ -101,6 +101,7 @@ __all__ = [
     "rule_report_to_markdown",
     "write_model_benchmark_summary",
     "ClashResult",
+    "ClashEngine",
     "TrimeshClashEngine",
     "clash_report_to_dict",
     "clash_report_to_markdown",

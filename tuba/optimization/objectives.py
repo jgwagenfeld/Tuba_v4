@@ -219,10 +219,10 @@ class ClashObjective(BaseObjective):
         if result_state is None or geometry_state is None:
             return None
         from tuba.analysis.states import create_cold_geometry_state
-        from tuba.clash import TrimeshClashEngine
+        from tuba.clash import ClashEngine
 
         cold_state = context.get("cold_state") or create_cold_geometry_state(model)
-        return TrimeshClashEngine().check_operating_state(
+        return ClashEngine().check_operating_state(
             model,
             cold_state=cold_state,
             operating_state=geometry_state,
