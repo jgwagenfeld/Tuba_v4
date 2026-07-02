@@ -8,7 +8,11 @@ import os
 from dataclasses import asdict
 from typing import Any
 
-from tuba.solver.code_aster_runtime import CodeAsterRuntimeConfig, discover_code_aster_runtimes
+from tuba.solver.code_aster_runtime import (
+    CodeAsterRuntimeConfig,
+    discover_code_aster_runtimes,
+    preflight_code_aster_runtimes,
+)
 
 
 def main(argv: list[str] | None = None, *, return_output: bool = False) -> str | int:
@@ -19,20 +23,24 @@ def main(argv: list[str] | None = None, *, return_output: bool = False) -> str |
         choices=["auto", "python_bridge", "command", "wsl", "docker"],
     )
     parser.add_argument("--wsl-distro", default=os.environ.get("TUBA_CODE_ASTER_WSL_DISTRO"))
+    parser.add_argument("--check", action="store_true", help="Run bounded readiness probes for discovered runtimes.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
-    candidates = discover_code_aster_runtimes(
-        CodeAsterRuntimeConfig(exec_method=args.exec_method, wsl_distro=args.wsl_distro)
-    )
+    config = CodeAsterRuntimeConfig(exec_method=args.exec_method, wsl_distro=args.wsl_distro)
+    candidates = discover_code_aster_runtimes(config)
+    checks = preflight_code_aster_runtimes(config) if args.check else []
     if args.json:
         output = json.dumps(
-            {"candidates": [_candidate_payload(item) for item in candidates]},
+            {
+                "candidates": [_candidate_payload(item) for item in candidates],
+                "checks": [_check_payload(item) for item in checks],
+            },
             indent=2,
             sort_keys=True,
         )
     else:
-        output = _text_report(candidates)
+        output = _text_report(candidates, checks=checks, include_checks=args.check)
 
     if return_output:
         return output
@@ -46,7 +54,19 @@ def _candidate_payload(candidate: Any) -> dict[str, Any]:
     return payload
 
 
-def _text_report(candidates: list[Any]) -> str:
+def _check_payload(check: Any) -> dict[str, Any]:
+    return {
+        "kind": check.runtime.kind,
+        "command": list(check.command),
+        "returncode": check.returncode,
+        "stdout": check.stdout,
+        "stderr": check.stderr,
+        "ok": check.ok,
+        "reason": check.reason,
+    }
+
+
+def _text_report(candidates: list[Any], *, checks: list[Any], include_checks: bool) -> str:
     lines = ["Code_Aster runtime candidates:"]
     for candidate in candidates:
         status = "available" if candidate.available else "unavailable"
@@ -54,6 +74,15 @@ def _text_report(candidates: list[Any]) -> str:
         lines.append(f"- {candidate.kind}: {status}; command={command}")
         if candidate.reason:
             lines.append(f"  reason: {candidate.reason}")
+    if include_checks:
+        lines.append("")
+        lines.append("Code_Aster runtime readiness:")
+        for item in checks:
+            status = "ready" if item.ok else "blocked"
+            command = " ".join(item.command) if item.command else "<not configured>"
+            lines.append(f"- {item.runtime.kind}: {status}; command={command}")
+            if item.reason:
+                lines.append(f"  reason: {item.reason}")
     lines.append("")
     lines.append(
         "Primary setup path: set TUBA_CODE_ASTER_PYTHON to the Python executable "

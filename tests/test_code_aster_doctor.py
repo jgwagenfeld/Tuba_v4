@@ -47,6 +47,29 @@ class TestCodeAsterDoctor(unittest.TestCase):
         self.assertEqual(captured["config"].wsl_distro, "Ubuntu")
         self.assertIn("wsl -d Ubuntu --", output)
 
+    def test_check_json_output_lists_runtime_readiness(self):
+        from tuba.solver.code_aster_runtime import CodeAsterRuntimeCheck
+
+        checks = [
+            CodeAsterRuntimeCheck(
+                runtime=CodeAsterRuntimeCandidate("wsl", ("wsl", "-d", "Ubuntu", "--"), True),
+                command=("wsl", "-d", "Ubuntu", "--", "bash", "-lc", "probe"),
+                returncode=127,
+                stdout="",
+                stderr="Code_Aster runner not found",
+                ok=False,
+                reason="Code_Aster runner not found",
+            )
+        ]
+
+        with patch("tuba.solver.code_aster_doctor.preflight_code_aster_runtimes", return_value=checks):
+            payload = main(["--json", "--check"], return_output=True)
+
+        data = json.loads(payload)
+        self.assertFalse(data["checks"][0]["ok"])
+        self.assertEqual(data["checks"][0]["kind"], "wsl")
+        self.assertIn("Code_Aster runner not found", data["checks"][0]["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

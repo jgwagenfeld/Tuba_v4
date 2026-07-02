@@ -11,6 +11,7 @@ from tuba.analysis.code_aster_artifacts import CodeAsterArtifactImport, import_c
 from tuba.analysis.study import AnalysisStudy
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.base import FEAResults
+from tuba.solver.code_aster_runtime import CodeAsterRuntimeCheck, CodeAsterRuntimeConfig, preflight_code_aster_runtimes
 
 
 REQUIRED_CODE_ASTER_TABLES = (
@@ -88,6 +89,11 @@ def load_or_run_code_aster_results(
     missing_before = tuple(_missing_result_tables(root))
     ran_solver = False
     if run_solver:
+        require_code_aster_runtime(
+            exec_method=exec_method,
+            wsl_distro=wsl_distro,
+            docker_image=docker_image,
+        )
         _remove_result_artifacts(root)
         solver.solve_exported_study(model, study)
         ran_solver = True
@@ -109,6 +115,32 @@ def load_or_run_code_aster_results(
         work_dir=root,
         ran_solver=ran_solver,
         missing_before_run=missing_before,
+    )
+
+
+def require_code_aster_runtime(
+    *,
+    exec_method: str,
+    wsl_distro: str | None,
+    docker_image: str | None,
+) -> CodeAsterRuntimeCheck:
+    config = CodeAsterRuntimeConfig(
+        exec_method=exec_method,
+        wsl_distro=wsl_distro,
+        docker_image=docker_image or CodeAsterRuntimeConfig().docker_image,
+    )
+    checks = preflight_code_aster_runtimes(config)
+    for check in checks:
+        if check.ok:
+            return check
+    details = "; ".join(
+        f"{check.runtime.kind}: {check.reason or check.stderr or check.stdout or 'not ready'}"
+        for check in checks
+    )
+    raise RuntimeError(
+        "Code_Aster runtime is not ready. Existing result tables were left in place. "
+        "Set RUN_CODE_ASTER = False to load existing artifacts, or configure Code_Aster and rerun. "
+        f"Checks: {details}"
     )
 
 
