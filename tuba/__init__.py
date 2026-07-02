@@ -19,7 +19,7 @@ from tuba.model import (
     LoadCase,
     TubaModel as Model,
 )
-from tuba.builder import PipingBuilder
+from tuba.builder import BuildStep, BuiltRun, PipeRunRecipe, PipingBuilder
 from tuba.coordinates import CoordinateSystem
 from tuba.placements import PlacementAssignment, PlacementFrame
 from tuba.fragments import ModelFragment, PlacementResult, place_fragment
@@ -123,4 +123,7 @@ __all__ = [
     "Support",
     "LoadCase",
     "PipingBuilder",
+    "PipeRunRecipe",
+    "BuildStep",
+    "BuiltRun",
 ]

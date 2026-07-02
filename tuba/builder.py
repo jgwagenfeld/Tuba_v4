@@ -8,6 +8,7 @@ elements on the parent TubaModel.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
 import numpy as np
@@ -40,6 +41,28 @@ class PipingBuilder:
 
         self.last_node_id: Optional[str] = None
 
+        # Re-evaluable record of every geometry command, for regeneration.
+        self.steps: List["BuildStep"] = []
+
+    def _record(self, op: str, **params: Any) -> None:
+        """Record one command so the run can be re-emitted from :attr:`recipe`."""
+        self.steps.append(BuildStep(op=op, params=params))
+
+    @property
+    def recipe(self) -> "PipeRunRecipe":
+        """Retained, re-evaluable description of everything built so far.
+
+        Replay it with :meth:`PipeRunRecipe.build` on a fresh model, optionally
+        after tweaking a step (:meth:`PipeRunRecipe.with_step_params`), to
+        regenerate the geometry with changed lengths/angles.
+        """
+        return PipeRunRecipe(
+            section=self.section_name,
+            material=self.material_name,
+            steps=list(self.steps),
+            up_vector=tuple(float(x) for x in self.up_vector),
+        )
+
     # -- Geometry commands ---------------------------------------------------
 
     def start(
@@ -48,6 +71,7 @@ class PipingBuilder:
         support: Optional[str] = None,
     ) -> "PipingBuilder":
         """Set the initial cursor position and create the starting node."""
+        self._record("start", point=[float(x) for x in point], support=support)
         self.cursor = np.asarray(point, dtype=float)
         
         # Check if a node already exists at this coordinate to enable branching
@@ -68,6 +92,7 @@ class PipingBuilder:
 
     def run(self, length: float) -> "PipingBuilder":
         """Extend a straight pipe segment of *length* [m] in the current direction."""
+        self._record("run", length=length)
         target = self.cursor + self.direction * length
         node_id = self.model.add_node(target)
         elem_id = self.model.next_element_id("pipe_str")
@@ -102,6 +127,7 @@ class PipingBuilder:
         plane : str
             Plane in which the bend occurs: ``"XY"``, ``"XZ"``, or ``"YZ"``.
         """
+        self._record("bend", radius=radius, angle=angle, plane=plane)
         # Determine rotation axis
         if plane == "XY":
             axis = self.up_vector.copy()
@@ -164,6 +190,16 @@ class PipingBuilder:
                 "or use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz]. "
                 "For v2-style springs, call spring(x=..., y=..., z=..., rx=..., ry=..., rz=...)."
             )
+        self._record(
+            "add_support",
+            type=type,
+            direction=(None if direction is None else [float(x) for x in direction]),
+            stiffness=stiffness,
+            stiffness_matrix=stiffness_matrix,
+            blocked_dof=blocked_dof,
+            mass=mass,
+            friction_coefficient=friction_coefficient,
+        )
         self.model.add_support(
             self.last_node_id,
             type,
@@ -209,6 +245,7 @@ class PipingBuilder:
 
     def run_element(self, length: float, element_type: str = "pipe_straight", twist_angle: float = 0.0) -> "PipingBuilder":
         """Extend a segment of *length* [m] in the current direction with a specific element type."""
+        self._record("run_element", length=length, element_type=element_type, twist_angle=twist_angle)
         target = self.cursor + self.direction * length
         node_id = self.model.add_node(target)
 
@@ -258,6 +295,7 @@ class PipingBuilder:
         If *point* is given and differs from the current cursor, a final
         straight segment is inserted to connect to that point.
         """
+        self._record("end", point=(None if point is None else [float(x) for x in point]), support=support)
         if point is not None:
             target = np.asarray(point, dtype=float)
             dist = np.linalg.norm(target - self.cursor)
@@ -282,6 +320,106 @@ class PipingBuilder:
 
     def set_direction(self, direction: List[float]) -> "PipingBuilder":
         """Override the current forward direction vector."""
+        self._record("set_direction", direction=[float(x) for x in direction])
         d = np.asarray(direction, dtype=float)
         self.direction = d / np.linalg.norm(d)
         return self
+
+
+# ---------------------------------------------------------------------------
+# Re-evaluable pipe-run recipe (geometry regeneration)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class BuildStep:
+    """One recorded :class:`PipingBuilder` command: the method name + kwargs."""
+
+    op: str
+    params: dict
+
+    def to_dict(self) -> dict:
+        return {"op": self.op, "params": dict(self.params)}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "BuildStep":
+        return cls(op=data["op"], params=dict(data.get("params", {})))
+
+
+@dataclass(frozen=True)
+class BuiltRun:
+    """Ids created by replaying a :class:`PipeRunRecipe` onto a model."""
+
+    node_ids: List[str]
+    element_ids: List[str]
+
+
+@dataclass
+class PipeRunRecipe:
+    """Retained, re-evaluable description of a pipe run.
+
+    Capture it from a builder (``builder.recipe``), then :meth:`build` it onto a
+    model. Because it replays the same DSL commands, tweaking a step and
+    rebuilding regenerates the geometry — change a run length or bend angle and
+    re-emit onto a fresh model::
+
+        with model.pipe("DN100", "steel") as b:
+            b.start([0, 0, 0]).run(2.0).bend(radius=0.15, angle=90).run(3.0).end()
+        recipe = b.recipe
+
+        longer = recipe.with_step_params(1, length=5.0)   # step 1 = first run
+        longer.build(fresh_model)                          # regenerated geometry
+
+    The recipe is JSON-serializable (:meth:`to_dict` / :meth:`from_dict`), so a
+    parametric run can be persisted and regenerated later.
+    """
+
+    section: str
+    material: str
+    steps: List[BuildStep] = field(default_factory=list)
+    up_vector: tuple = (0.0, 0.0, 1.0)
+
+    def build(self, model) -> BuiltRun:
+        """Replay the recorded commands onto *model*; return the ids created.
+
+        Created ids are found by diffing the model's nodes/elements before and
+        after replay, so the same recipe can be re-emitted onto any model.
+        """
+        nodes_before = set(model.nodes)
+        elements_before = {elem.id for elem in model.elements}
+
+        builder = PipingBuilder(model=model, section_name=self.section, material_name=self.material)
+        builder.up_vector = np.asarray(self.up_vector, dtype=float)
+        for step in self.steps:
+            getattr(builder, step.op)(**step.params)
+
+        new_nodes = [nid for nid in model.nodes if nid not in nodes_before]
+        new_elements = [elem.id for elem in model.elements if elem.id not in elements_before]
+        return BuiltRun(node_ids=new_nodes, element_ids=new_elements)
+
+    def with_step_params(self, index: int, **params: Any) -> "PipeRunRecipe":
+        """Return a copy with *params* merged into the step at *index*.
+
+        This is the regeneration hook: tweak one command's parameters (e.g. a
+        run ``length`` or bend ``angle``) and :meth:`build` the result.
+        """
+        steps = list(self.steps)
+        old = steps[index]
+        steps[index] = BuildStep(op=old.op, params={**old.params, **params})
+        return PipeRunRecipe(section=self.section, material=self.material, steps=steps, up_vector=self.up_vector)
+
+    def to_dict(self) -> dict:
+        return {
+            "section": self.section,
+            "material": self.material,
+            "up_vector": [float(x) for x in self.up_vector],
+            "steps": [step.to_dict() for step in self.steps],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PipeRunRecipe":
+        return cls(
+            section=data["section"],
+            material=data["material"],
+            steps=[BuildStep.from_dict(step) for step in data.get("steps", [])],
+            up_vector=tuple(data.get("up_vector", (0.0, 0.0, 1.0))),
+        )
