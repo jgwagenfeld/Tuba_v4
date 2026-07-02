@@ -34,11 +34,6 @@ class TestExamples(unittest.TestCase):
 
     def test_user_facing_examples_do_not_publish_synthetic_solver_results(self):
         examples_dir = Path(__file__).resolve().parents[1] / "examples"
-        user_facing_examples = (
-            "demo.py",
-            "operating_state_clash.py",
-            "realtime_visualization_review.py",
-        )
         forbidden_snippets = (
             'FEAResults(solver_name="mock',
             "FEAResults(solver_name='mock",
@@ -49,8 +44,7 @@ class TestExamples(unittest.TestCase):
         )
         offenders: list[str] = []
 
-        for name in user_facing_examples:
-            path = examples_dir / name
+        for path in sorted(examples_dir.glob("*.py")):
             text = path.read_text(encoding="utf-8")
             matches = [snippet for snippet in forbidden_snippets if snippet in text]
             if matches:

@@ -1,13 +1,10 @@
 # verify_features.py
 import os
 import tempfile
-import numpy as np
 
 import tuba
 from tuba import Model
 from tuba.compliance.sif import compute_sifs
-from tuba.compliance.asme_b313 import ASMEB313Evaluator
-from tuba.solver.base import FEAResults, ElementResult, NodeResult
 from tuba.geometry.importer import StepGeometryImporter
 from tuba.geometry.collision import PipingCollisionChecker
 
@@ -32,29 +29,8 @@ def verify_tee_sifs():
     # Run SIF calculation on N1
     i_i, i_o, k, h = compute_sifs(model.elements[0], model, node_id="N1")
     print(f"Welding Tee SIF at N1: i_i = {i_i:.4f}, i_o = {i_o:.4f}, h = {h:.4f}")
-
-    # Build mock FEA results to check compliance evaluator integration
-    results = FEAResults(solver_name="mock", load_case="Hot")
-    results.node_results["N0"] = NodeResult(node_id="N0", displacement=np.zeros(6), reaction_force=np.zeros(6))
-    results.node_results["N1"] = NodeResult(node_id="N1", displacement=np.zeros(6))
-    results.node_results["N2"] = NodeResult(node_id="N2", displacement=np.zeros(6), reaction_force=np.zeros(6))
-    results.node_results["N3"] = NodeResult(node_id="N3", displacement=np.zeros(6), reaction_force=np.zeros(6))
-
-    for e in model.elements:
-        results.element_results[e.id] = ElementResult(
-            element_id=e.id,
-            forces_n1=np.array([0, 0, 0, 100, 0, 500]),
-            forces_n2=np.array([0, 0, 0, -100, 0, -500]),
-            von_mises_n1=10e6,
-            von_mises_n2=10e6,
-            max_von_mises=10e6
-        )
-
-    model.define_load_case("Hot", gravity=True, pressure=1.5e6, temperature=200.0)
-    evaluator = ASMEB313Evaluator()
-    report = evaluator.evaluate(model, results)
-    print("Compliance Report overall verdict:", "PASS" if report.overall_pass else "FAIL")
-    print(report.summary())
+    print("Compliance evaluation requires real Code_Aster result artifacts.")
+    print("Run the exported study with Code_Aster, then import the result tables before reporting compliance.")
 
 
 def verify_collision():

@@ -151,3 +151,24 @@ Result:
 Created commit:
 
 - `fix: remove synthetic solver results from user examples`
+
+## Review fix follow-up
+
+Addressed the review finding on top of the earlier Task 5 work:
+
+- cleaned `examples/verify_features.py` so `verify_tee_sifs()` still demonstrates solver-free SIF calculation but no longer constructs `FEAResults(solver_name="mock")` or prints a synthetic compliance report,
+- restored `tests/test_examples.py` to scan every `examples/*.py` file for forbidden synthetic solver-result snippets instead of only three named examples.
+
+### Follow-up validation
+
+Ran:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_examples.py tests/test_operating_state_example.py tests/test_realtime_visualization_bundle.py -q
+```
+
+Result:
+
+```text
+5 passed in 19.73s
+```
