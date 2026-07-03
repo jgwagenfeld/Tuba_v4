@@ -98,10 +98,6 @@ class IfcExporter:
                 L = np.linalg.norm(v)
                 is_vertical = L > 1e-6 and abs(v[1]) / L > 0.8
                 elem_type = "IfcColumn" if is_vertical else "IfcBeam"
-            elif elem.type == "pipe_straight":
-                elem_type = "IfcPipeSegment"
-            elif elem.type == "pipe_bend":
-                elem_type = "IfcPipeFitting"
             else:
                 elem_type = "IfcPipeSegment"
 
@@ -834,7 +830,3 @@ class IfcImporter:
                 )
 
         return model
-
-    def import_pipes(self, file_path: str | Path) -> TubaModel:
-        """Parse an IFC file and extract pipe segments (legacy wrapper)."""
-        return self.import_model(file_path)

@@ -216,7 +216,7 @@ Get-ChildItem .agents\SPECS\visualization-engine.md, .agents\DECISIONS\visualiza
 - A scene bundle can be generated from a simple model.
 - Every selectable GLB object maps to a `SceneObject`.
 - Bundle uses relative URIs.
-- Existing `tuba.visualizer.export` remains compatible.
+- Existing `tuba.plotting.export` remains compatible.
 
 **Verify:**
 

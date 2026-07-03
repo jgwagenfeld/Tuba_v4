@@ -1,5 +1,5 @@
 """
-tuba.visualizer.export — Export utilities for Tuba v4 results.
+tuba.plotting.export — Export utilities for Tuba v4 results.
 
 Supports:
   - Standalone HTML (vtk.js) for browser viewing
@@ -52,7 +52,7 @@ def export_html(results_or_plotter, path: str, **kwargs):
         return
 
     # Assume FEAResults — build the default view offscreen
-    from tuba.visualizer.pipeline import build_3d_mesh_from_model, inflate_tubes
+    from tuba.plotting.pipeline import build_3d_mesh_from_model
 
     model = kwargs.get("model") or getattr(results_or_plotter, "_model", None)
     results = results_or_plotter
@@ -61,15 +61,13 @@ def export_html(results_or_plotter, path: str, **kwargs):
         raise ValueError("Pass model= kwarg or attach _model to results")
 
     mesh = build_3d_mesh_from_model(model, results)
-    from tuba.visualizer.pipeline import get_section_radius
-    radius = get_section_radius(next(iter(model.sections.values()))) if model.sections else 0.05
 
     if "DEPL" in mesh.point_data:
         warped = mesh.warp_by_vector("DEPL", factor=50.0)
     else:
         warped = mesh
 
-    tubes = inflate_tubes(warped, radius=radius)
+    tubes = warped
 
     p = pv.Plotter(off_screen=True)
     p.set_background("#1a1a2e")
@@ -101,16 +99,14 @@ def export_ply(
     with colours visible via the Vertex Color attribute.
     """
     _require_pyvista()
-    from tuba.visualizer.pipeline import build_3d_mesh_from_model, inflate_tubes
+    from tuba.plotting.pipeline import build_3d_mesh_from_model
 
     mdl = model or getattr(results, "_model", None)
     if mdl is None:
         raise ValueError("Model required for PLY export — pass model= kwarg")
 
     mesh = build_3d_mesh_from_model(mdl, results)
-    from tuba.visualizer.pipeline import get_section_radius
-    radius = get_section_radius(next(iter(mdl.sections.values()))) if mdl.sections else 0.05
-    tubes = inflate_tubes(mesh, radius=radius)
+    tubes = mesh
 
     scalar_key = "VMIS"
     if scalar_key in tubes.point_data:
@@ -141,16 +137,14 @@ def export_gltf(
 ):
     """Export tubes to glTF format for universal 3-D viewing."""
     _require_pyvista()
-    from tuba.visualizer.pipeline import build_3d_mesh_from_model, inflate_tubes
+    from tuba.plotting.pipeline import build_3d_mesh_from_model
 
     mdl = model or getattr(results, "_model", None)
     if mdl is None:
         raise ValueError("Model required for glTF export — pass model= kwarg")
 
     mesh = build_3d_mesh_from_model(mdl, results)
-    from tuba.visualizer.pipeline import get_section_radius
-    radius = get_section_radius(next(iter(mdl.sections.values()))) if mdl.sections else 0.05
-    tubes = inflate_tubes(mesh, radius=radius)
+    tubes = mesh
 
     p = pv.Plotter(off_screen=True)
     p.add_mesh(
@@ -226,8 +220,19 @@ def export_blender_script(
                 count += 1
         vmis.append(val / max(count, 1))
 
-    from tuba.visualizer.pipeline import get_section_radius
-    radius = get_section_radius(next(iter(mdl.sections.values()))) if mdl.sections else 0.05
+    # Per-node outer radius, straight from each element's own section — a node
+    # shared by two sections takes the larger radius (no artificial pinch).
+    from tuba.plotting.pipeline import get_section_radius
+
+    radii = [None] * len(node_ids)
+    for elem in mdl.elements:
+        sec = mdl.sections.get(elem.section)
+        r = get_section_radius(sec) if sec is not None else 0.05
+        for nid in (elem.n1, elem.n2):
+            i = node_idx[nid]
+            radii[i] = r if radii[i] is None else max(radii[i], r)
+    # Only genuinely element-less nodes fall back; don't clamp thin sections up.
+    radii = [0.05 if x is None else x for x in radii]
 
     script = f'''\
 """Tuba v4 — Auto-generated Blender import script.
@@ -245,7 +250,7 @@ from mathutils import Vector
 coords = {coords}
 edges = {edges}
 vmis = {vmis}
-pipe_radius = {radius}
+pipe_radii = {radii}
 
 # ---- Normalise stress for colour mapping ----
 vmis_min = min(vmis) if vmis else 0
@@ -287,9 +292,10 @@ for poly in mesh.polygons:
 
 # ---- Apply Skin modifier to inflate to tubes ----
 skin = obj.modifiers.new(name="PipeSkin", type='SKIN')
-# Set radius for all vertices
-for v in mesh.skin_vertices[0].data:
-    v.radius = (pipe_radius, pipe_radius)
+# Set each vertex's radius from its node's section (per-node, not uniform)
+skin_data = mesh.skin_vertices[0].data
+for i in range(len(skin_data)):
+    skin_data[i].radius = (pipe_radii[i], pipe_radii[i])
 
 # Subdivision for smoothness
 sub = obj.modifiers.new(name="Subdivision", type='SUBSURF')

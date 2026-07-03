@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Optional
 import numpy as np
 
 try:
@@ -24,10 +24,7 @@ except ImportError:
 
 
 class StepGeometryImporter:
-    """Imports STEP CAD files and converts them into simplified collision meshes.
-
-    Provides automated nozzle detection at circular flanges.
-    """
+    """Imports STEP CAD files and converts them into simplified collision meshes."""
 
     def __init__(self):
         if not _HAS_GMSH:
@@ -56,8 +53,8 @@ class StepGeometryImporter:
         self,
         file_path: str,
         mesh_size_limit: float = 0.1,
-    ) -> Tuple[trimesh.Trimesh, List[Dict[str, Any]]]:
-        """Load a STEP file, surface-mesh it, and return a Trimesh object and nozzle list.
+    ) -> trimesh.Trimesh:
+        """Load a STEP file, surface-mesh it, and return a Trimesh object.
 
         Parameters
         ----------
@@ -68,9 +65,8 @@ class StepGeometryImporter:
 
         Returns
         -------
-        Tuple[trimesh.Trimesh, List[Dict[str, Any]]]
-            (mesh, nozzles) where mesh is a trimesh.Trimesh, and nozzles
-            is a list of dicts with keys "center" and "radius".
+        trimesh.Trimesh
+            The surface mesh of the imported STEP geometry.
         """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"STEP file not found: {file_path}")
@@ -84,10 +80,7 @@ class StepGeometryImporter:
             gmsh.model.occ.importShapes(file_path)
             gmsh.model.occ.synchronize()
 
-            # 1. Nozzle detection
-            nozzles = self._detect_nozzles()
-
-            # 2. Meshing configuration (2D surface triangulation only)
+            # Meshing configuration (2D surface triangulation only)
             gmsh.option.setNumber("Mesh.MeshSizeMax", mesh_size_limit)
             gmsh.model.mesh.generate(2) # 2D boundary meshing
 
@@ -119,33 +112,4 @@ class StepGeometryImporter:
             except Exception:
                 pass
 
-        return mesh, nozzles
-
-    def _detect_nozzles(self) -> List[Dict[str, Any]]:
-        """Automatically identify circular edge boundaries which represent nozzles/flanges."""
-        nozzles = []
-        try:
-            # Get all 1D curve boundaries
-            edges = gmsh.model.getEntities(dim=1)
-            for edge_dim, edge_tag in edges:
-                try:
-                    type_name = gmsh.model.getType(edge_dim, edge_tag)
-                    if type_name == "Circle":
-                        # Compute center of mass of the circle
-                        center = gmsh.model.occ.getCenterOfMass(edge_dim, edge_tag)
-                        # We approximate the radius using the bounding box size
-                        min_x, min_y, min_z, max_x, max_y, max_z = gmsh.model.getBoundingBox(edge_dim, edge_tag)
-                        dx = max_x - min_x
-                        dy = max_y - min_y
-                        dz = max_z - min_z
-                        # The circle is planar, so the diameter is the max of dx, dy, dz
-                        radius = max(dx, dy, dz) / 2.0
-                        nozzles.append({
-                            "center": list(center),
-                            "radius": float(radius)
-                        })
-                except Exception:
-                    continue
-        except Exception:
-            pass
-        return nozzles
+        return mesh

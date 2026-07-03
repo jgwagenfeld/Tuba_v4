@@ -7,7 +7,7 @@ import unittest
 @unittest.skipUnless(importlib.util.find_spec("nbformat"), "nbformat is required for notebook render checks")
 @unittest.skipUnless(importlib.util.find_spec("pyvista"), "pyvista is required for notebook render checks")
 class TestVSCodeNotebookRender(unittest.TestCase):
-    def test_vscode_static_backend_emits_image_mime_for_result_plot(self):
+    def test_vscode_emits_interactive_widget_for_result_plot(self):
         import nbformat
         from nbclient import NotebookClient
 
@@ -15,8 +15,8 @@ class TestVSCodeNotebookRender(unittest.TestCase):
 import numpy as np
 from tuba import Model
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
-from tuba.visualizer.notebook import configure_notebook_backend
-from tuba.visualizer import plots
+from tuba.plotting.notebook import configure_notebook_backend
+from tuba.plotting import plots
 
 JUPYTER_BACKEND = configure_notebook_backend()
 model = Model(project_name="VSCodeRenderSmoke")
@@ -47,20 +47,30 @@ plots.plot_deformed_stress(results, deform_scale=20.0, model=model)
         client = NotebookClient(nb, timeout=120, kernel_name="python3", allow_errors=False)
         client.execute(cwd=os.getcwd(), env=_isolated_notebook_env())
 
-        image_payloads = {"image/png": [], "image/jpeg": []}
+        all_mimes: set[str] = set()
+        widget_mimes: list[str] = []
+        iframe_repr = False
         for output in nb.cells[0].get("outputs", []):
             data = output.get("data") or {}
-            for mime_type in image_payloads:
-                payload = data.get(mime_type)
-                if payload:
-                    image_payloads[mime_type].append(payload)
+            all_mimes.update(data)
+            widget_mimes += [m for m in data if m.startswith("application/vnd.jupyter.widget")]
+            text = _payload_text(data.get("text/plain", ""))
+            if "srcdoc" in text or "iframe" in text:
+                iframe_repr = True
 
-        for mime_type, payloads in image_payloads.items():
-            self.assertTrue(payloads, f"expected {mime_type} notebook output")
-            self.assertTrue(
-                any(len(_payload_text(payload).strip()) > 100 for payload in payloads),
-                f"expected non-empty {mime_type} notebook payload",
-            )
+        self.assertTrue(
+            widget_mimes,
+            "expected an interactive PyVista widget-view output in VS Code",
+        )
+        self.assertTrue(
+            iframe_repr,
+            "expected the self-contained iframe scene repr from the html backend",
+        )
+        self.assertNotIn(
+            "image/png",
+            all_mimes,
+            "VS Code should render the interactive html scene, not a static image",
+        )
 
 
 def _isolated_notebook_env() -> dict[str, str]:

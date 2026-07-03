@@ -1,5 +1,5 @@
 """
-tuba.visualizer.plots — High-level plot functions.
+tuba.plotting.plots — High-level plot functions.
 
 Each function is called from the :class:`~tuba.solver.base.FEAResults`
 convenience methods (e.g. ``results.plot_deformed()``).
@@ -44,7 +44,7 @@ def _require_pyvista():
 
 def _get_pipe_radius(results: "FEAResults", model: Optional["TubaModel"] = None) -> float:
     """Determine the pipe outer radius from the model (fallback 0.05 m)."""
-    from tuba.visualizer.pipeline import get_section_radius
+    from tuba.plotting.pipeline import get_section_radius
     mdl = model or getattr(results, "_model", None)
     if mdl and mdl.sections:
         sec = next(iter(mdl.sections.values()))
@@ -57,7 +57,7 @@ def _get_mesh(
     model: Optional["TubaModel"] = None,
 ) -> "pv.PolyData":
     """Build (or retrieve) the 3D mesh from results."""
-    from tuba.visualizer.pipeline import build_3d_mesh_from_model
+    from tuba.plotting.pipeline import build_3d_mesh_from_model
 
     mdl = model or getattr(results, "_model", None)
     if mdl is not None:
@@ -65,7 +65,7 @@ def _get_mesh(
 
     # If no model reference, attempt to load from result file
     if results.result_file is not None:
-        from tuba.visualizer.pipeline import load_rmed
+        from tuba.plotting.pipeline import load_rmed
         return load_rmed(str(results.result_file))
 
     raise RuntimeError(
@@ -275,7 +275,6 @@ def plot_deformed(
 ):
     """Render the deformed pipe shape (replaces ParaVis Warp-By-Vector)."""
     _require_pyvista()
-    from tuba.visualizer.pipeline import inflate_tubes
 
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
@@ -289,7 +288,7 @@ def plot_deformed(
 
     # Undeformed (ghosted wireframe)
     if show_undeformed:
-        tubes_orig = inflate_tubes(mesh, radius=radius)
+        tubes_orig = mesh
         p.add_mesh(
             tubes_orig,
             color="#444466",
@@ -305,7 +304,7 @@ def plot_deformed(
     else:
         warped = mesh
 
-    tubes_def = inflate_tubes(warped, radius=radius)
+    tubes_def = warped
     p.add_mesh(
         tubes_def,
         scalars="DEPL_magnitude" if "DEPL_magnitude" in tubes_def.point_data else None,
@@ -320,20 +319,18 @@ def plot_deformed(
 
 def plot_stress(
     results: "FEAResults",
-    field_name: str = "von_mises",
     cmap: str = "jet",
     model: Optional["TubaModel"] = None,
     **kwargs,
 ):
-    """Color-map stress on inflated tubes (replaces ParaVis SIEQ_ELNO)."""
+    """Color-map Von Mises stress on the pipe surface (replaces ParaVis SIEQ_ELNO)."""
     _require_pyvista()
-    from tuba.visualizer.pipeline import inflate_tubes
 
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
 
-    scalar_key = "VMIS"  # mapped by build_mesh_from_model
-    tubes = inflate_tubes(mesh, radius=radius)
+    scalar_key = "VMIS"  # the only stress field the mesh builder maps
+    tubes = mesh
 
     p = _make_plotter("Stress Distribution")
 
@@ -359,7 +356,6 @@ def plot_displacement_vectors(
 ):
     """Arrow glyphs showing displacement at each node."""
     _require_pyvista()
-    from tuba.visualizer.pipeline import inflate_tubes
 
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
@@ -371,7 +367,7 @@ def plot_displacement_vectors(
     if mdl is not None:
         _add_supports_to_plotter(p, mdl, radius * 1.5)
 
-    tubes = inflate_tubes(mesh, radius=radius)
+    tubes = mesh
     p.add_mesh(tubes, color="#334455", opacity=0.5)
 
     if "DEPL" in mesh.point_data:
@@ -394,7 +390,6 @@ def plot_reactions(
 ):
     """Arrow glyphs at supports showing reaction forces."""
     _require_pyvista()
-    from tuba.visualizer.pipeline import inflate_tubes
 
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
@@ -406,7 +401,7 @@ def plot_reactions(
     if mdl is not None:
         _add_supports_to_plotter(p, mdl, radius * 1.5)
 
-    tubes = inflate_tubes(mesh, radius=radius)
+    tubes = mesh
     p.add_mesh(tubes, color="#334455", opacity=0.6)
 
     if "FORC_NODA" in mesh.point_data:
@@ -434,12 +429,11 @@ def plot_temperature(
 ):
     """Temperature scalar color map."""
     _require_pyvista()
-    from tuba.visualizer.pipeline import inflate_tubes
 
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
 
-    tubes = inflate_tubes(mesh, radius=radius)
+    tubes = mesh
 
     p = _make_plotter("Temperature Distribution")
 
@@ -461,7 +455,6 @@ def plot_temperature(
 def plot_deformed_stress(
     results: "FEAResults",
     deform_scale: float = 50.0,
-    stress_field: str = "von_mises",
     cmap: str = "turbo",
     export_html: Optional[str] = None,
     model: Optional["TubaModel"] = None,
@@ -475,7 +468,7 @@ def plot_deformed_stress(
     _require_pyvista()
     mdl = model or getattr(results, "_model", None)
     if mdl is not None:
-        from tuba.visualizer.scenes import build_model_scene
+        from tuba.plotting.scenes import build_model_scene
 
         p = build_model_scene(
             mdl,
@@ -491,10 +484,8 @@ def plot_deformed_stress(
         p.show()
         return
 
-    from tuba.visualizer.pipeline import inflate_tubes
 
     mesh = _get_mesh(results, model)
-    radius = _get_pipe_radius(results, model)
 
     # Warp by displacement
     if "DEPL" in mesh.point_data:
@@ -502,16 +493,11 @@ def plot_deformed_stress(
     else:
         warped = mesh
 
-    tubes = inflate_tubes(warped, radius=radius)
+    tubes = warped
 
     scalar_key = "VMIS" if "VMIS" in tubes.point_data else None
 
     p = _make_plotter("Deformed Shape — Stress Distribution")
-
-    # Draw supports
-    mdl = model or getattr(results, "_model", None)
-    if mdl is not None:
-        _add_supports_to_plotter(p, mdl, radius * 1.5)
 
     p.add_mesh(
         tubes,
@@ -522,7 +508,7 @@ def plot_deformed_stress(
 
     # Optionally show undeformed ghost
     if "DEPL" in mesh.point_data:
-        tubes_ghost = inflate_tubes(mesh, radius=radius)
+        tubes_ghost = mesh
         p.add_mesh(tubes_ghost, color="#333344", style="wireframe", opacity=0.15)
 
     if export_html:

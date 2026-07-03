@@ -49,7 +49,7 @@ surfaces only.
 
 There are two result-display paths. Keep them distinct; do not add a third.
 
-- `tuba/visualizer/` (PyVista) is the **quick-look & export** path. It is wired
+- `tuba/plotting/` (PyVista) is the **quick-look & export** path. It is wired
   to `FEAResults.plot_*()` (see `tuba/solver/base.py`) and reads real `.rmed`
   artifacts; use it for interactive/notebook views and PLY/glTF/Blender export.
 - `tuba/visualization/` + `viewer/` is the **reviewable web-scene** path.

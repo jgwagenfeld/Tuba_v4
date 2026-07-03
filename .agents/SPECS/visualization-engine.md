@@ -29,9 +29,9 @@ Semantic VisualizationScene
 
 Current capabilities:
 
-- `tuba.visualizer.scenes.build_model_scene()` creates a PyVista scene from a model and optional solver results.
-- `tuba.visualizer.plots` renders stress, deformation, displacement vectors, reactions, temperature, supports, and local axes.
-- `tuba.visualizer.export` exports HTML, PLY, glTF, screenshots, and Blender scripts.
+- `tuba.plotting.scenes.build_model_scene()` creates a PyVista scene from a model and optional solver results.
+- `tuba.plotting.plots` renders stress, deformation, displacement vectors, reactions, temperature, supports, and local axes.
+- `tuba.plotting.export` exports HTML, PLY, glTF, screenshots, and Blender scripts.
 - `tuba.routing.visualization` renders obstacles, endpoints, selected route candidates, alternative candidates, and model pipes.
 - `tuba.physical`, `tuba.clash`, `tuba.quantities`, `tuba.rules`, and `tuba.routing.cost_model` already carry richer semantic data than the viewer currently displays.
 

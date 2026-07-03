@@ -8,7 +8,7 @@ from tuba.solver.base import FEAResults, NodeResult, ElementResult
 from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
 from tuba.compliance.asme_b313 import ASMEB313Evaluator
 from tuba.optimization.optimizer import GeneticSupportPlacer, LLMSupportOptimizer
-from tuba.visualizer.pipeline import build_mesh_from_model, inflate_tubes
+from tuba.plotting.pipeline import build_mesh_from_model, build_3d_mesh_from_model
 
 
 class TestMaterial(unittest.TestCase):
@@ -64,7 +64,7 @@ class TestPipeSection(unittest.TestCase):
         self.assertAlmostEqual(sec.corroded_Z, expected_Z_c)
 
     def test_get_section_radius(self):
-        from tuba.visualizer.pipeline import get_section_radius
+        from tuba.plotting.pipeline import get_section_radius
         from tuba.model import PipeSection, BarSection, CableSection, RectangularSection, IBeamSection
         
         pipe = PipeSection(name="pipe", OD=0.1, WT=0.01)
@@ -226,7 +226,7 @@ class TestModelAndBuilder(unittest.TestCase):
         self.assertEqual(len(cells), 20)
 
     def test_element_local_frame(self):
-        from tuba.visualizer.plots import _get_element_local_frame
+        from tuba.plotting.plots import _get_element_local_frame
         
         # Test horizontal pipe
         model = Model()
@@ -382,13 +382,14 @@ class TestVisualizer(unittest.TestCase):
         self.assertEqual(mesh.n_points, 2)
         self.assertEqual(mesh.n_cells, 1)
         
-        tubes = inflate_tubes(mesh, radius=0.05715)
-        # Tubes should have 3D geometry representing the pipe
-        self.assertTrue(tubes.n_points > 2)
-        self.assertTrue(tubes.n_cells > 1)
+        # The true 3D geometry is extruded straight from the section — no
+        # inflation radius to hand-tune — and must carry real surface faces.
+        solid = build_3d_mesh_from_model(model)
+        self.assertGreater(solid.n_points, mesh.n_points)
+        self.assertGreater(solid.n_cells, mesh.n_cells)
 
     def test_3d_cross_sectional_mesh(self):
-        from tuba.visualizer.pipeline import build_3d_mesh_from_model
+        from tuba.plotting.pipeline import build_3d_mesh_from_model
         
         # 1. Circular section
         model = Model()

@@ -801,10 +801,6 @@ class TubaModel:
             return np.asarray(vector, dtype=float)
         return self.resolve_placement_frame(frame).to_global_vector(vector)
 
-    def to_local_point(self, point, frame: str) -> np.ndarray:
-        """Transform a model-global point into a named local frame."""
-        return self.resolve_placement_frame(frame).to_local_point(point)
-
     # -- Solver dispatch -----------------------------------------------------
 
     def solve(self, solver: str = "code_aster", load_case: Optional[str] = None, **kwargs):

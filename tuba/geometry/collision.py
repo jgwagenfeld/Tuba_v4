@@ -110,7 +110,7 @@ class PipingCollisionChecker:
                     importer = StepGeometryImporter()
 
                 # Import mesh from STEP/STL file
-                mesh, _ = importer.import_step(file_path)
+                mesh = importer.import_step(file_path)
 
                 # Apply transform (position + quaternion orientation)
                 pos = obs.get("position", [0.0, 0.0, 0.0])

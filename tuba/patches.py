@@ -349,13 +349,7 @@ def _prefix_for_element_type(element_type: str) -> str:
 
 
 def _node_for_point(model: TubaModel, coords: Sequence[float], tol: float) -> str | None:
-    if hasattr(model, "find_node_by_point"):
-        return model.find_node_by_point(coords, tol=tol)
-    target = np.asarray(coords, dtype=float)
-    for node_id, node in model.nodes.items():
-        if np.allclose(node.coords, target, atol=tol):
-            return node_id
-    return None
+    return model.find_node_by_point(coords, tol=tol)
 
 
 def _operation_to_dict(operation: PatchOperation) -> dict[str, Any]:

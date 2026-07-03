@@ -90,48 +90,46 @@ class FEAResults:
         return self.element_results[element_id].max_von_mises
 
     # ------------------------------------------------------------------
-    # Visualisation shortcuts (delegate to tuba.visualizer)
+    # Visualisation shortcuts (delegate to tuba.plotting)
     # ------------------------------------------------------------------
 
     def plot_deformed(self, scale: float = 50.0, show_undeformed: bool = True, **kwargs):
         """Show the deformed pipe shape."""
-        from tuba.visualizer.plots import plot_deformed
+        from tuba.plotting.plots import plot_deformed
         plot_deformed(self, scale=scale, show_undeformed=show_undeformed, **kwargs)
 
-    def plot_stress(self, field_name: str = "von_mises", cmap: str = "jet", **kwargs):
-        """Color-map stress on inflated tubes."""
-        from tuba.visualizer.plots import plot_stress
-        plot_stress(self, field_name=field_name, cmap=cmap, **kwargs)
+    def plot_stress(self, cmap: str = "jet", **kwargs):
+        """Color-map Von Mises stress on the pipe surface."""
+        from tuba.plotting.plots import plot_stress
+        plot_stress(self, cmap=cmap, **kwargs)
 
     def plot_displacement_vectors(self, scale: float = 50.0, **kwargs):
         """Show displacement arrow glyphs."""
-        from tuba.visualizer.plots import plot_displacement_vectors
+        from tuba.plotting.plots import plot_displacement_vectors
         plot_displacement_vectors(self, scale=scale, **kwargs)
 
     def plot_reactions(self, scale: float = 1e-3, **kwargs):
         """Show reaction force arrow glyphs at supports."""
-        from tuba.visualizer.plots import plot_reactions
+        from tuba.plotting.plots import plot_reactions
         plot_reactions(self, scale=scale, **kwargs)
 
     def plot_temperature(self, cmap: str = "coolwarm", **kwargs):
         """Color-map temperature distribution."""
-        from tuba.visualizer.plots import plot_temperature
+        from tuba.plotting.plots import plot_temperature
         plot_temperature(self, cmap=cmap, **kwargs)
 
     def plot_deformed_stress(
         self,
         deform_scale: float = 50.0,
-        stress_field: str = "von_mises",
         cmap: str = "turbo",
         export_html: Optional[str] = None,
         **kwargs,
     ):
-        """Combined deformed shape colored by stress — the primary view."""
-        from tuba.visualizer.plots import plot_deformed_stress
+        """Combined deformed shape colored by Von Mises stress — the primary view."""
+        from tuba.plotting.plots import plot_deformed_stress
         plot_deformed_stress(
             self,
             deform_scale=deform_scale,
-            stress_field=stress_field,
             cmap=cmap,
             export_html=export_html,
             **kwargs,
@@ -139,12 +137,12 @@ class FEAResults:
 
     def export_ply(self, path: str, scalar: str = "von_mises"):
         """Export tubes with vertex-color stress to PLY for Blender."""
-        from tuba.visualizer.export import export_ply
+        from tuba.plotting.export import export_ply
         export_ply(self, path, scalar=scalar)
 
     def export_gltf(self, path: str):
         """Export to glTF for universal 3-D viewing."""
-        from tuba.visualizer.export import export_gltf
+        from tuba.plotting.export import export_gltf
         export_gltf(self, path)
 
 

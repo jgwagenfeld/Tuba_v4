@@ -19,10 +19,13 @@ def resolve_notebook_backend(
 ) -> str:
     """Return the PyVista notebook backend for this process.
 
-    Local notebooks default to a zoomable embedded HTML scene. That avoids
-    front-end/proxy failures with localhost-backed trame client iframes. CI and
-    explicitly headless runs default to static output so nbconvert checks stay
-    reliable. Set ``TUBA_NOTEBOOK_BACKEND`` to override either mode.
+    Local notebooks (including VS Code) default to a zoomable, rotatable
+    embedded HTML scene. The ``html`` backend renders as a self-contained
+    ``iframe`` srcdoc with no localhost server, so it avoids the front-end/proxy
+    failures of the trame ``client``/``server`` backends. CI and explicitly
+    headless runs default to static output so nbconvert checks stay reliable.
+    Set ``TUBA_NOTEBOOK_BACKEND`` to override either mode (or
+    ``TUBA_NOTEBOOK_STATIC`` to force a static image locally).
     """
 
     values = os.environ if env is None else env
@@ -30,8 +33,6 @@ def resolve_notebook_backend(
     if configured:
         return configured.strip().lower()
     if _truthy(values.get("CI")) or _truthy(values.get("TUBA_NOTEBOOK_STATIC")):
-        return STATIC_NOTEBOOK_BACKEND
-    if _running_in_vscode(values):
         return STATIC_NOTEBOOK_BACKEND
     return default
 
@@ -55,10 +56,3 @@ def _truthy(value: str | None) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _running_in_vscode(values: Mapping[str, str]) -> bool:
-    return (
-        values.get("TERM_PROGRAM", "").strip().lower() == "vscode"
-        or any(key.upper().startswith("VSCODE_") for key in values)
-    )

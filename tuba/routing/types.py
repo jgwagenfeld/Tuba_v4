@@ -48,7 +48,10 @@ class RoutingCostWeights:
     length: float = 1.0
     bend: float = 5.0
     vertical: float = 1.0
-    clearance: float = 2.0
+    # ponytail: specced but not yet read by any cost fn — default 0.0 (inert)
+    # so it can't imply a clearance penalty that doesn't exist. Wire into
+    # cost.py/cost_model.py when the feature lands, then pick a real default.
+    clearance: float = 0.0
     support_span: float = 0.5
     rack_preference: float = 0.0
     direction_change: float = 0.0

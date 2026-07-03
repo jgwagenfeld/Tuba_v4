@@ -74,13 +74,8 @@ class PipingBuilder:
         self._record("start", point=[float(x) for x in point], support=support)
         self.cursor = np.asarray(point, dtype=float)
         
-        # Check if a node already exists at this coordinate to enable branching
-        existing_nid = None
-        for nid, node in self.model.nodes.items():
-            if np.allclose(node.coords, self.cursor, atol=1e-5):
-                existing_nid = nid
-                break
-                
+        # Reuse an existing node at this coordinate to enable branching.
+        existing_nid = self.model.find_node_by_point(self.cursor, tol=1e-5)
         if existing_nid is not None:
             self.last_node_id = existing_nid
         else:
@@ -229,19 +224,6 @@ class PipingBuilder:
             type="spring",
             stiffness_matrix=[x, y, z, rx, ry, rz],
         )
-
-    def Spring(
-        self,
-        x: float = 0.0,
-        y: float = 0.0,
-        z: float = 0.0,
-        rx: float = 0.0,
-        ry: float = 0.0,
-        rz: float = 0.0,
-        reference: str = "global",
-    ) -> "PipingBuilder":
-        """Compatibility alias matching the v2 command name."""
-        return self.spring(x=x, y=y, z=z, rx=rx, ry=ry, rz=rz, reference=reference)
 
     def run_element(self, length: float, element_type: str = "pipe_straight", twist_angle: float = 0.0) -> "PipingBuilder":
         """Extend a segment of *length* [m] in the current direction with a specific element type."""

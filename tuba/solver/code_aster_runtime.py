@@ -105,30 +105,14 @@ def select_code_aster_runtime(config: CodeAsterRuntimeConfig) -> CodeAsterRuntim
 
 
 def build_code_aster_command(
-    export_file_or_candidate: Path | CodeAsterRuntimeCandidate,
-    work_dir_or_export_file: Path,
-    config_or_work_dir: CodeAsterRuntimeConfig | Path,
-    *,
-    docker_image: str = DEFAULT_DOCKER_IMAGE,
-) -> tuple[list[str], Path | None] | list[str]:
+    export_file: Path,
+    work_dir: Path,
+    config: CodeAsterRuntimeConfig,
+) -> tuple[list[str], Path | None]:
     """Build the command used to execute a Code_Aster export.
 
-    The public API accepts ``(export_file, work_dir, config)`` and returns
-    ``(command, cwd)``.  The candidate-based form is kept for compatibility
-    with older internal callers.
+    Accepts ``(export_file, work_dir, config)`` and returns ``(command, cwd)``.
     """
-    if isinstance(export_file_or_candidate, CodeAsterRuntimeCandidate):
-        candidate = export_file_or_candidate
-        export_file = work_dir_or_export_file
-        work_dir = Path(config_or_work_dir)
-        command, _cwd = _build_command_for_candidate(candidate, export_file, work_dir, docker_image=docker_image)
-        return command
-
-    export_file = export_file_or_candidate
-    work_dir = work_dir_or_export_file
-    config = config_or_work_dir
-    if not isinstance(config, CodeAsterRuntimeConfig):
-        raise TypeError("build_code_aster_command expected CodeAsterRuntimeConfig as the third argument.")
     candidate = select_code_aster_runtime(config)
     return _build_command_for_candidate(candidate, export_file, work_dir, docker_image=config.docker_image)
 

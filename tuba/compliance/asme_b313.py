@@ -311,7 +311,6 @@ class ASMEB313Evaluator:
         edition: str = "2020",
         use_liberal_allowable: bool = False,
     ) -> None:
-        self.edition = edition
         self.use_liberal_allowable = use_liberal_allowable
         # When a cycle count is given, compute f per the (edition-gated) code
         # curve; otherwise use the explicit f_factor (default 1.0).

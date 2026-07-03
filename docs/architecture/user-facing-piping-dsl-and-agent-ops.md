@@ -1089,7 +1089,7 @@ Files:
 
 - `tuba/builder.py`
 - `tuba/model.py`
-- `tuba/visualizer/*`
+- `tuba/plotting/*`
 - `tuba/solver/aster.py`
 - tests for bend geometry
 

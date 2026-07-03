@@ -3,7 +3,7 @@ import unittest
 from tuba import Model
 from tuba.geometry.profiles import profile_for_section
 from tuba.model import RectangularSection
-from tuba.visualizer.scenes import build_model_scene
+from tuba.plotting.scenes import build_model_scene
 
 
 class TestVisualizerScenes(unittest.TestCase):

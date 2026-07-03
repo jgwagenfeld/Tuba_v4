@@ -48,26 +48,6 @@ from tuba.solver.aster_mesh import _MeshWriterMixin
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-
-def _node_label(node_id: str) -> str:
-    """Convert a Tuba node id (``'N0'``, ``'N12'``) to a plain numeric label.
-
-    Code_Aster mesh nodes are referenced by integer label.  We strip the
-    leading ``N`` and use the numeric suffix directly.
-    """
-    return node_id.lstrip("N")
-
-
-def _elem_label(elem_id: str) -> str:
-    """Convert a Tuba element id (``'E0'``) to a numeric label."""
-    return elem_id.lstrip("E")
-
-
-# ---------------------------------------------------------------------------
 # Solver
 # ---------------------------------------------------------------------------
 

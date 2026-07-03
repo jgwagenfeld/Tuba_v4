@@ -1,5 +1,5 @@
 """
-tuba.visualizer.pipeline — Core visualization pipeline.
+tuba.plotting.pipeline — Core visualization pipeline.
 
 Converts Tuba model data and FEA results into PyVista meshes
 for rendering. Handles:
@@ -202,7 +202,14 @@ def build_mesh_from_model(
     model: "TubaModel",
     results: Optional["FEAResults"] = None,
 ) -> "pv.PolyData":
-    """Construct a PyVista line mesh from a :class:`TubaModel` with curved bends."""
+    """Construct a PyVista **line** mesh (centreline) from a :class:`TubaModel`.
+
+    This is the "mesh mode" view: the raw centreline with curved bends and no
+    section thickness. Its counterpart is :func:`build_3d_mesh_from_model`,
+    which extrudes each element's true section profile ("geometry mode"). Both
+    are public entry points — pick mesh mode for a fast schematic, geometry
+    mode to see real pipe/beam shapes.
+    """
     _require_pyvista()
 
     # Pre-populate points list with basic nodes
@@ -353,59 +360,6 @@ def build_mesh_from_model(
         mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
 
     return mesh
-
-
-# ---------------------------------------------------------------------------
-# Tube inflation
-# ---------------------------------------------------------------------------
-
-
-def inflate_tubes(
-    mesh: "pv.PolyData",
-    radius: float = 0.05,
-    n_sides: int = 16,
-) -> "pv.PolyData":
-    """Convert a 1-D line mesh into 3-D tubes.
-
-    Parameters
-    ----------
-    mesh : pv.PolyData
-        Line mesh (e.g. from :func:`build_mesh_from_model`).
-    radius : float
-        Outer radius of the pipe [m].
-    n_sides : int
-        Number of facets around the circumference.
-
-    Returns
-    -------
-    pv.PolyData
-        3-D tube surface with all point-data arrays interpolated.
-    """
-    _require_pyvista()
-    if mesh.n_faces > 0:
-        return mesh
-    return mesh.tube(radius=radius, n_sides=n_sides)
-
-
-# ---------------------------------------------------------------------------
-# Scalar mapping helper
-# ---------------------------------------------------------------------------
-
-
-def map_stress_to_tubes(
-    line_mesh: "pv.PolyData",
-    tube_mesh: "pv.PolyData",
-    field_name: str = "VMIS",
-) -> "pv.PolyData":
-    """Interpolate a scalar field from the line mesh onto the tube surface.
-
-    Uses nearest-point interpolation so that each tube-surface vertex
-    picks up the value from its closest centreline node.
-    """
-    _require_pyvista()
-    if field_name in line_mesh.point_data:
-        tube_mesh = tube_mesh.sample(line_mesh)
-    return tube_mesh
 
 
 # ---------------------------------------------------------------------------

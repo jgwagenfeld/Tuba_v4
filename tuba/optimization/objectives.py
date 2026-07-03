@@ -180,10 +180,7 @@ class ClashObjective(BaseObjective):
         colliding_elements = []
         if self.check_deformed and results:
             # Check for deformed (hot) clashes
-            if hasattr(checker, "check_deformed_collisions"):
-                colliding_elements = checker.check_deformed_collisions(results)
-            else:
-                colliding_elements = checker.check_collisions()
+            colliding_elements = checker.check_deformed_collisions(results)
         else:
             colliding_elements = checker.check_collisions()
 
@@ -200,7 +197,7 @@ class ClashObjective(BaseObjective):
             }
         try:
             checker = PipingCollisionChecker(model)
-            if self.check_deformed and results and hasattr(checker, "check_deformed_collisions"):
+            if self.check_deformed and results:
                 colliding = checker.check_deformed_collisions(results)
             else:
                 colliding = checker.check_collisions()

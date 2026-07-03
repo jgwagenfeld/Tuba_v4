@@ -363,7 +363,7 @@ WP05, WP07, WP11, WP13
 
 **Relevant Current Files:**
 
-- `tuba/visualizer/pipeline.py`
+- `tuba/plotting/pipeline.py`
 - `tuba/external/ifc.py`
 - `tuba/geometry/collision.py`
 - `tuba/sections/catalog.py`

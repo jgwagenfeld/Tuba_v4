@@ -11,7 +11,7 @@ The design must fit the current Tuba v4 architecture:
 - `tuba.geometry.collision.PipingCollisionChecker` checks pipe/obstacle collisions.
 - `tuba.solver.aster.CodeAsterSolver` exports/runs/parses Code_Aster studies.
 - `tuba.compliance.asme_b313.ASMEB313Evaluator` evaluates pipe stress results.
-- `tuba.visualizer` exports reviewable 3D artifacts.
+- `tuba.plotting` exports reviewable 3D artifacts.
 
 ## Background
 

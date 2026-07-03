@@ -19,7 +19,7 @@ def build_model_scene(
     """Return a PyVista plotter without showing it."""
     import pyvista as pv
 
-    from tuba.visualizer.pipeline import build_3d_mesh_from_model, get_section_radius, inflate_tubes
+    from tuba.plotting.pipeline import build_3d_mesh_from_model
 
     plotter = pv.Plotter(off_screen=off_screen)
     plotter.set_background("#1a1a2e")
@@ -28,8 +28,7 @@ def build_model_scene(
     if deform_scale is not None and "DEPL" in mesh.point_data:
         mesh = mesh.warp_by_vector("DEPL", factor=deform_scale)
 
-    radius = get_section_radius(next(iter(model.sections.values()))) if model.sections else 0.05
-    tubes = inflate_tubes(mesh, radius=radius) if mesh.n_points else mesh
+    tubes = mesh
     if tubes.n_points:
         plotter.add_mesh(
             tubes,

@@ -74,7 +74,7 @@ def write_static_report(
 
     return StaticReport(
         root=root,
-        index_path=_remember_existing_path(index_path),
+        index_path=index_path,
         bundle=bundle,
         manifest_path=manifest_path,
         issue_summary_path=issue_summary_path,
@@ -211,19 +211,3 @@ def _try_capture_screenshot(index_path: Path, screenshot_path: Path, *, backend:
 def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
-
-
-class _ReportPath(type(Path())):
-    def __new__(cls, *args: Any):
-        self = super().__new__(cls, *args)
-        self._exists_snapshot = False
-        return self
-
-    def exists(self) -> bool:
-        return super().exists() or bool(getattr(self, "_exists_snapshot", False))
-
-
-def _remember_existing_path(path: Path) -> Path:
-    remembered = _ReportPath(path)
-    remembered._exists_snapshot = path.exists()
-    return remembered

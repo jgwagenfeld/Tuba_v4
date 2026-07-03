@@ -270,7 +270,6 @@ class MixedCodeAsterStudyExporter:
         *,
         name_map: dict[str, str],
     ) -> None:
-        _ = model.load_cases[load_case_name]
         lines = [
             "DEBUT()",
             "MAIL0 = LIRE_MAILLAGE(FORMAT='MED', UNITE=20)",
