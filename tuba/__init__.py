@@ -15,8 +15,11 @@ from tuba.model import (
     PipeSection,
     Node,
     Element,
+    BendGeometry,
     Support,
     LoadCase,
+    Operation,
+    OperationField,
     TubaModel as Model,
 )
 from tuba.builder import BuildStep, BuiltRun, PipeRunRecipe, PipingBuilder
@@ -120,8 +123,11 @@ __all__ = [
     "PipeSection",
     "Node",
     "Element",
+    "BendGeometry",
     "Support",
     "LoadCase",
+    "Operation",
+    "OperationField",
     "PipingBuilder",
     "PipeRunRecipe",
     "BuildStep",

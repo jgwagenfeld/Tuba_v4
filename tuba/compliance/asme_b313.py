@@ -49,6 +49,42 @@ def stress_range_reduction_factor(cycles: float, edition: str = "2020") -> float
     return min(1.2, max(0.15, f))
 
 
+def bend_local_axes(
+    element: Element,
+    model: TubaModel,
+    *,
+    node_id: Optional[str] = None,
+) -> Optional[Dict[str, List[float] | str]]:
+    """Return bend local-axis metadata when explicit bend geometry exists."""
+    if element.type != "pipe_bend" or element.bend_geometry is None:
+        return None
+    geometry = element.bend_geometry
+    tangent_values = geometry.start_tangent
+    if node_id == element.n2:
+        tangent_values = geometry.end_tangent
+    tangent = _unit_vector(tangent_values)
+    out_of_plane = _unit_vector(geometry.normal)
+    in_plane = np.cross(out_of_plane, tangent)
+    if np.linalg.norm(in_plane) <= 1e-12:
+        return None
+    in_plane = in_plane / np.linalg.norm(in_plane)
+    return {
+        "basis": "bend_geometry",
+        "node_id": node_id or "",
+        "tangent": [float(value) for value in tangent],
+        "in_plane": [float(value) for value in in_plane],
+        "out_of_plane": [float(value) for value in out_of_plane],
+    }
+
+
+def _unit_vector(values) -> np.ndarray:
+    vector = np.asarray(values, dtype=float)
+    norm = float(np.linalg.norm(vector))
+    if norm <= 1e-12:
+        raise ValueError("Cannot normalize a zero vector.")
+    return vector / norm
+
+
 # ---------------------------------------------------------------------------
 # Result data classes
 # ---------------------------------------------------------------------------
@@ -84,6 +120,7 @@ class ElementComplianceResult:
     M_i: float = 0.0
     M_o: float = 0.0
     M_t: float = 0.0
+    moment_basis: str = "resultant_in_plane"
     S_h: float = 0.0
     S_c: float = 0.0
     f: float = 1.0
@@ -345,8 +382,8 @@ class ASMEB313Evaluator:
 
         # Resolve the active load case
         lc = self._resolve_load_case(model, results.load_case)
-        pressure = lc.internal_pressure if lc else 0.0
-        temperature = lc.temperature if lc else 20.0
+        base_pressure = lc.internal_pressure if lc else 0.0
+        base_temperature = lc.temperature if lc else 20.0
         ref_temperature = lc.ref_temperature if lc else 20.0
 
         for elem in model.elements:
@@ -358,6 +395,20 @@ class ASMEB313Evaluator:
 
             section: PipeSection = model.sections[elem.section]
             material: Material = model.materials[elem.material]
+            pressure = _operation_field_value_for_element(
+                model,
+                lc,
+                elem,
+                quantity="pressure",
+                default=base_pressure,
+            )
+            temperature = _operation_field_value_for_element(
+                model,
+                lc,
+                elem,
+                quantity="temperature",
+                default=base_temperature,
+            )
 
             # Allowable stresses. S_A (displacement range allowable) is
             # computed per node so the liberal allowable can credit unused
@@ -377,6 +428,12 @@ class ASMEB313Evaluator:
             ):
                 # B31J directional indices for this specific end
                 sif = compute_sif_set(elem, model, node_id=node_tag)
+                M_i, M_o, M_t, moment_basis = self._moment_components(
+                    model,
+                    elem,
+                    node_tag,
+                    forces,
+                )
 
                 result = self._evaluate_node(
                     element_id=elem.id,
@@ -391,6 +448,8 @@ class ASMEB313Evaluator:
                     i_t=sif.i_t,
                     k=sif.k_i,
                     h=sif.h,
+                    moment_components=(M_i, M_o, M_t),
+                    moment_basis=moment_basis,
                     S_h=S_h,
                     S_c=S_c,
                 )
@@ -408,11 +467,10 @@ class ASMEB313Evaluator:
         name: Optional[str],
     ) -> Optional[LoadCase]:
         """Return the :class:`LoadCase` matching *name*, or the first one."""
-        if name and name in model.load_cases:
-            return model.load_cases[name]
-        if model.load_cases:
-            return next(iter(model.load_cases.values()))
-        return None
+        try:
+            return model.resolve_load_case(name)[1]
+        except ValueError:
+            return None
 
     def _evaluate_node(
         self,
@@ -431,6 +489,8 @@ class ASMEB313Evaluator:
         h: float,
         S_h: float,
         S_c: float,
+        moment_components: Optional[tuple[float, float, float]] = None,
+        moment_basis: str = "resultant_in_plane",
     ) -> ElementComplianceResult:
         """Evaluate sustained and expansion stress at one element end.
 
@@ -451,6 +511,8 @@ class ASMEB313Evaluator:
         # out-of-plane via element orientation; we conservatively treat
         # the full resultant as in-plane here.
         M_t = abs(Mx)  # torsional
+        if moment_components is not None:
+            M_i, M_o, M_t = moment_components
 
         # Standard allowable displacement stress range (§302.3.5(d), Eq. 1a).
         S_A_standard = self.f * (1.25 * S_c + 0.25 * S_h)
@@ -518,7 +580,46 @@ class ASMEB313Evaluator:
             M_i=M_i,
             M_o=M_o,
             M_t=M_t,
+            moment_basis=moment_basis,
             S_h=S_h,
             S_c=S_c,
             f=self.f,
         )
+
+    def _moment_components(
+        self,
+        model: TubaModel,
+        elem: Element,
+        node_id: str,
+        forces: np.ndarray,
+    ) -> tuple[float, float, float, str]:
+        Mx = float(forces[3])
+        My = float(forces[4])
+        Mz = float(forces[5])
+        if bend_local_axes(elem, model, node_id=node_id) is not None:
+            return abs(My), abs(Mz), abs(Mx), "bend_geometry_local_axes"
+        return math.sqrt(My ** 2 + Mz ** 2), 0.0, abs(Mx), "resultant_in_plane"
+
+
+def _operation_field_value_for_element(
+    model: TubaModel,
+    load_case: Optional[LoadCase],
+    elem: Element,
+    *,
+    quantity: str,
+    default: float,
+) -> float:
+    if load_case is None:
+        return default
+    value = float(default)
+    for field_record in getattr(load_case, "fields", []):
+        if field_record.quantity != quantity:
+            continue
+        if field_record.profile != "uniform":
+            raise ValueError(
+                f"Compliance currently supports only uniform {quantity!r} operation fields."
+            )
+        selected = model.resolve_operation_field_elements(field_record)
+        if any(selected_elem.id == elem.id for selected_elem in selected):
+            value = float(field_record.value)
+    return value

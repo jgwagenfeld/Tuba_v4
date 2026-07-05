@@ -271,6 +271,8 @@ def _build_element_object(
         "nodes": [elem.n1, elem.n2],
         "groups": _groups_for_element(model, elem.id),
     }
+    if elem.bend_geometry is not None:
+        metadata["bend_geometry"] = elem.bend_geometry.to_dict()
 
     if options.include_attributes:
         attributes = model.get_attributes(entity_ref)

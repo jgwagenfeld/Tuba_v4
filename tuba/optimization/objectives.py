@@ -91,12 +91,13 @@ class DeflectionObjective(BaseObjective):
         self.max_deflection_m = max_deflection_m
 
     def evaluate(self, model: TubaModel, results: Optional[FEAResults] = None, **context: Any) -> float:
-        if not results:
+        displacement_items = self._displacement_items(results, context)
+        if not displacement_items:
             return 0.0
-        
+
         penalty = 0.0
-        for nid, node_res in results.node_results.items():
-            disp = node_res.displacement[:3] # Translation ux, uy, uz
+        for _node_id, displacement in displacement_items:
+            disp = displacement[:3]
             deflection = float(np.linalg.norm(disp))
             
             if deflection > self.max_deflection_m:
@@ -109,12 +110,13 @@ class DeflectionObjective(BaseObjective):
         return penalty * self.weight
 
     def get_details(self, model: TubaModel, results: Optional[FEAResults] = None, **context: Any) -> Dict[str, Any]:
-        if not results:
-            return {"error": "No FEA results."}
+        displacement_items = self._displacement_items(results, context)
+        if not displacement_items:
+            return {"error": "No FEA results or result_state displacements."}
         max_defl = 0.0
         worst_node = None
-        for nid, node_res in results.node_results.items():
-            defl = float(np.linalg.norm(node_res.displacement[:3]))
+        for nid, displacement in displacement_items:
+            defl = float(np.linalg.norm(displacement[:3]))
             if defl > max_defl:
                 max_defl = defl
                 worst_node = nid
@@ -123,6 +125,81 @@ class DeflectionObjective(BaseObjective):
             "worst_node": worst_node,
             "within_limit": max_defl <= self.max_deflection_m
         }
+
+    def _displacement_items(
+        self,
+        results: Optional[FEAResults],
+        context: Dict[str, Any],
+    ) -> list[tuple[str, np.ndarray]]:
+        if results is not None:
+            return [
+                (node_id, np.asarray(node_res.displacement, dtype=float))
+                for node_id, node_res in results.node_results.items()
+            ]
+        result_state = context.get("result_state")
+        if result_state is None:
+            return []
+        return [
+            (node_id, np.asarray(displacement, dtype=float))
+            for node_id, displacement in getattr(result_state, "node_displacements", {}).items()
+        ]
+
+
+class ReactionObjective(BaseObjective):
+    """Penalizes support/nozzle reaction magnitudes from solved artifacts."""
+
+    def __init__(self, weight: float = 1.0, max_reaction_n: float = 1.0e6) -> None:
+        super().__init__(weight)
+        self.max_reaction_n = float(max_reaction_n)
+
+    def evaluate(self, model: TubaModel, results: Optional[FEAResults] = None, **context: Any) -> float:
+        reaction_items = self._reaction_items(results, context)
+        if not reaction_items:
+            return 0.0
+        penalty = 0.0
+        for _node_id, reaction in reaction_items:
+            magnitude = float(np.linalg.norm(reaction[:3]))
+            if magnitude > self.max_reaction_n:
+                penalty += ((magnitude - self.max_reaction_n) / self.max_reaction_n) ** 2 * 100.0
+            else:
+                penalty += magnitude / self.max_reaction_n
+        return penalty * self.weight
+
+    def get_details(self, model: TubaModel, results: Optional[FEAResults] = None, **context: Any) -> Dict[str, Any]:
+        reaction_items = self._reaction_items(results, context)
+        if not reaction_items:
+            return {"error": "No FEA results or result_state reactions."}
+        worst_node = None
+        max_reaction = 0.0
+        for node_id, reaction in reaction_items:
+            magnitude = float(np.linalg.norm(reaction[:3]))
+            if magnitude > max_reaction:
+                max_reaction = magnitude
+                worst_node = node_id
+        return {
+            "max_reaction_n": max_reaction,
+            "worst_node": worst_node,
+            "within_limit": max_reaction <= self.max_reaction_n,
+        }
+
+    def _reaction_items(
+        self,
+        results: Optional[FEAResults],
+        context: Dict[str, Any],
+    ) -> list[tuple[str, np.ndarray]]:
+        if results is not None:
+            return [
+                (node_id, np.asarray(node_res.reaction_force, dtype=float))
+                for node_id, node_res in results.node_results.items()
+                if node_res.reaction_force is not None
+            ]
+        result_state = context.get("result_state")
+        if result_state is None:
+            return []
+        return [
+            (node_id, np.asarray(reaction, dtype=float))
+            for node_id, reaction in getattr(result_state, "node_reactions", {}).items()
+        ]
 
 
 class SupportCostObjective(BaseObjective):

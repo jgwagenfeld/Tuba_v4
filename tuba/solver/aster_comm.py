@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Dict, List, Optional
 
 from tuba.model import (
     BarSection,
@@ -17,6 +17,17 @@ from tuba.model import (
     PipeSection,
     RectangularSection,
     TubaModel,
+)
+from tuba.solver.aster_loads import (
+    group_ma_value,
+    has_pressure_load,
+    has_temperature_load as has_thermal_load,
+    has_wind_load,
+    resolve_operation_field_groups,
+    resolve_wind_field_groups,
+    write_pressure_load,
+    write_thermal_load,
+    write_wind_load,
 )
 
 logger = logging.getLogger(__name__)
@@ -171,6 +182,12 @@ class _CommWriterMixin:
                 material_element_groups.setdefault(elem.material, []).append(elem.id)
 
         delta_t = load_case.temperature - load_case.ref_temperature
+        pressure_fields = resolve_operation_field_groups(model, load_case, "pressure")
+        temperature_fields = resolve_operation_field_groups(model, load_case, "temperature")
+        wind_fields = resolve_wind_field_groups(model, load_case)
+        has_pressure = has_pressure_load(load_case, pressure_fields)
+        has_temperature = has_thermal_load(load_case, temperature_fields)
+        has_wind = has_wind_load(wind_fields)
 
         affe_entries: List[str] = []
         all_material_element_ids = {
@@ -545,87 +562,36 @@ class _CommWriterMixin:
         # ==============================================================
         # AFFE_CHAR_MECA — pressure
         # ==============================================================
-        if load_case.internal_pressure > 0.0:
-            w("# ----- Internal pressure -----")
-            w("PRESSURE = AFFE_CHAR_MECA(")
-            w("    MODELE=MODELE,")
-            w("    FORCE_TUYAU=_F(")
-            w(f"        GROUP_MA='{map_name('AllPipes')}',")
-            w(f"        PRES={load_case.internal_pressure:.6E},")
-            w("    ),")
-            w(");")
-            w()
+        if has_pressure:
+            write_pressure_load(
+                w,
+                map_name=map_name,
+                load_case=load_case,
+                pressure_fields=pressure_fields,
+            )
+
+        # ==============================================================
+        # AFFE_CHAR_MECA — wind on beam-modelized pipe
+        # ==============================================================
+        if has_wind:
+            write_wind_load(
+                w,
+                map_name=map_name,
+                wind_fields=wind_fields,
+            )
 
         # ==============================================================
         # Thermal load (uniform temperature field for expansion)
         # ==============================================================
-        if abs(delta_t) > 1e-10:
-            w("# ----- Thermal expansion -----")
-            if is_nonlinear:
-                w("TEMP_REF_FIELD = CREA_CHAMP(")
-                w("    TYPE_CHAM='NOEU_TEMP_R',")
-                w("    OPERATION='AFFE',")
-                w("    MAILLAGE=MAIL,")
-                w("    AFFE=_F(")
-                w("        TOUT='OUI',")
-                w("        NOM_CMP='TEMP',")
-                w(f"        VALE={load_case.ref_temperature:.6E},")
-                w("    ),")
-                w(");")
-                w()
-                w("TEMP_HOT_FIELD = CREA_CHAMP(")
-                w("    TYPE_CHAM='NOEU_TEMP_R',")
-                w("    OPERATION='AFFE',")
-                w("    MAILLAGE=MAIL,")
-                w("    AFFE=_F(")
-                w("        TOUT='OUI',")
-                w("        NOM_CMP='TEMP',")
-                w(f"        VALE={load_case.temperature:.6E},")
-                w("    ),")
-                w(");")
-                w()
-                w("TEMP_EVOL = CREA_RESU(")
-                w("    OPERATION='AFFE',")
-                w("    TYPE_RESU='EVOL_THER',")
-                w("    NOM_CHAM='TEMP',")
-                w("    AFFE=(")
-                w("        _F(CHAM_GD=TEMP_REF_FIELD, INST=0.0),")
-                w("        _F(CHAM_GD=TEMP_HOT_FIELD, INST=1.0),")
-                w("    ),")
-                w(");")
-                w()
-            else:
-                w("TEMP_FIELD = CREA_CHAMP(")
-                w("    TYPE_CHAM='NOEU_TEMP_R',")
-                w("    OPERATION='AFFE',")
-                w("    MAILLAGE=MAIL,")
-                w("    AFFE=_F(")
-                w("        TOUT='OUI',")
-                w("        NOM_CMP='TEMP',")
-                w(f"        VALE={load_case.temperature:.6E},")
-                w("    ),")
-                w(");")
-                w()
-
-            # Rebuild CHMAT with thermal reference
-            w("CHMAT = AFFE_MATERIAU(")
-            w("    MAILLAGE=MAIL,")
-            w("    AFFE=(")
-            for entry in affe_entries:
-                w(entry)
-            w("    ),")
-            w("    AFFE_VARC=_F(")
-            w("        TOUT='OUI',")
-            w("        NOM_VARC='TEMP',")
-            if is_nonlinear:
-                w("        EVOL=TEMP_EVOL,")
-                w("        NOM_CHAM='TEMP',")
-            else:
-                w("        CHAM_GD=TEMP_FIELD,")
-            w(f"        VALE_REF={load_case.ref_temperature:.6E},")
-            w("    ),")
-            w(");")
-            w()
+        if has_temperature:
+            write_thermal_load(
+                w,
+                map_name=map_name,
+                load_case=load_case,
+                temperature_fields=temperature_fields,
+                affe_entries=affe_entries,
+                is_nonlinear=is_nonlinear,
+            )
 
         # ==============================================================
         # DEFI_CONTACT & Solve
@@ -665,14 +631,10 @@ class _CommWriterMixin:
             excit_entries.append(f"        _F(CHARGE={char_name}),")
         if load_case.gravity:
             excit_entries.append("        _F(CHARGE=GRAVITY),")
-        if load_case.internal_pressure > 0.0:
+        if has_pressure:
             excit_entries.append("        _F(CHARGE=PRESSURE),")
-
-        def group_ma_value(group_names: List[str]) -> str:
-            mapped = [map_name(group_name) for group_name in group_names]
-            if len(mapped) == 1:
-                return f"'{mapped[0]}'"
-            return "(" + ", ".join(f"'{group_name}'" for group_name in mapped) + ",)"
+        if has_wind:
+            excit_entries.append("        _F(CHARGE=WIND),")
 
         if is_nonlinear:
             w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
@@ -700,7 +662,7 @@ class _CommWriterMixin:
                 w("    COMPORTEMENT=(")
                 if elastic_groups:
                     w("        _F(")
-                    w(f"            GROUP_MA={group_ma_value(elastic_groups)},")
+                    w(f"            GROUP_MA={group_ma_value(elastic_groups, map_name)},")
                     w("            RELATION='ELAS',")
                     w("        ),")
                 w("        _F(")

@@ -96,27 +96,27 @@ class FEAResults:
     def plot_deformed(self, scale: float = 50.0, show_undeformed: bool = True, **kwargs):
         """Show the deformed pipe shape."""
         from tuba.plotting.plots import plot_deformed
-        plot_deformed(self, scale=scale, show_undeformed=show_undeformed, **kwargs)
+        return plot_deformed(self, scale=scale, show_undeformed=show_undeformed, **kwargs)
 
     def plot_stress(self, cmap: str = "jet", **kwargs):
         """Color-map Von Mises stress on the pipe surface."""
         from tuba.plotting.plots import plot_stress
-        plot_stress(self, cmap=cmap, **kwargs)
+        return plot_stress(self, cmap=cmap, **kwargs)
 
     def plot_displacement_vectors(self, scale: float = 50.0, **kwargs):
         """Show displacement arrow glyphs."""
         from tuba.plotting.plots import plot_displacement_vectors
-        plot_displacement_vectors(self, scale=scale, **kwargs)
+        return plot_displacement_vectors(self, scale=scale, **kwargs)
 
     def plot_reactions(self, scale: float = 1e-3, **kwargs):
         """Show reaction force arrow glyphs at supports."""
         from tuba.plotting.plots import plot_reactions
-        plot_reactions(self, scale=scale, **kwargs)
+        return plot_reactions(self, scale=scale, **kwargs)
 
     def plot_temperature(self, cmap: str = "coolwarm", **kwargs):
         """Color-map temperature distribution."""
         from tuba.plotting.plots import plot_temperature
-        plot_temperature(self, cmap=cmap, **kwargs)
+        return plot_temperature(self, cmap=cmap, **kwargs)
 
     def plot_deformed_stress(
         self,
@@ -127,7 +127,7 @@ class FEAResults:
     ):
         """Combined deformed shape colored by Von Mises stress — the primary view."""
         from tuba.plotting.plots import plot_deformed_stress
-        plot_deformed_stress(
+        return plot_deformed_stress(
             self,
             deform_scale=deform_scale,
             cmap=cmap,

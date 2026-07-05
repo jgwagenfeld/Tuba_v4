@@ -165,16 +165,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         """
         self._bend_gmsh_cache.clear()
         # Resolve load case ------------------------------------------------
-        if load_case_name is None:
-            if not model.load_cases:
-                raise ValueError("Model has no load cases defined.")
-            load_case_name = next(iter(model.load_cases))
-        if load_case_name not in model.load_cases:
-            raise ValueError(
-                f"Load case '{load_case_name}' not found. "
-                f"Available: {list(model.load_cases.keys())}"
-            )
-        load_case = model.load_cases[load_case_name]
+        load_case_name, load_case = model.resolve_load_case(load_case_name)
+        model.validate()
 
         # Prepare directory ------------------------------------------------
         if output_dir is not None:
@@ -204,16 +196,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
     ) -> AnalysisStudy:
         """Generate Code_Aster input files plus a traceable analysis manifest."""
         self._bend_gmsh_cache.clear()
-        if load_case_name is None:
-            if not model.load_cases:
-                raise ValueError("Model has no load cases defined.")
-            load_case_name = next(iter(model.load_cases))
-        if load_case_name not in model.load_cases:
-            raise ValueError(
-                f"Load case '{load_case_name}' not found. "
-                f"Available: {list(model.load_cases.keys())}"
-            )
-        load_case = model.load_cases[load_case_name]
+        load_case_name, load_case = model.resolve_load_case(load_case_name)
+        model.validate()
 
         if output_dir is not None:
             wdir = Path(output_dir)

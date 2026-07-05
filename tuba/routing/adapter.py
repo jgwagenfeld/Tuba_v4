@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from tuba.model import TubaModel
+from tuba.model import TubaModel, make_bend_geometry
 from tuba.patches import AddElement, AddNode, AddSupport, ModelPatch, ModelTransaction
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, Point3D, RouteSegment
 
@@ -32,6 +32,7 @@ def build_candidate_patch(
     node_index = 1
     spacing = support_spacing if add_supports and support_spacing and support_spacing > 0.0 else None
     distance_since_support = 0.0
+    station = 0.0
 
     def next_node_name() -> str:
         nonlocal node_index
@@ -41,7 +42,7 @@ def build_candidate_patch(
         return name
 
     def add_straight_span(target_point: Point3D, target_name: str) -> None:
-        nonlocal current_point, current_name, distance_since_support, element_index
+        nonlocal current_point, current_name, distance_since_support, element_index, station
 
         target = np.asarray(target_point, dtype=float)
         span = target - current_point
@@ -73,10 +74,14 @@ def build_candidate_patch(
                     n2=support_name,
                     section=request.section,
                     material=request.material,
+                    route_id=request.id,
+                    station_start=station,
+                    station_end=station + distance_to_support,
                     id_prefix="pipe_str",
                 )
             )
             element_index += 1
+            station += distance_to_support
             operations.append(AddSupport(node=support_name, type="rest"))
             segment_start_name = support_name
             remaining = length - distance_along
@@ -91,10 +96,14 @@ def build_candidate_patch(
                 n2=target_name,
                 section=request.section,
                 material=request.material,
+                route_id=request.id,
+                station_start=station,
+                station_end=station + remaining,
                 id_prefix="pipe_str",
             )
         )
         element_index += 1
+        station += remaining
         distance_since_support += remaining
         if spacing is not None and distance_since_support >= spacing - 1e-9:
             distance_since_support = 0.0
@@ -128,6 +137,7 @@ def build_candidate_patch(
 
         bend_entry = _as_point(corner - in_dir * tangent)
         bend_exit = _as_point(corner + out_dir * tangent)
+        bend_normal = np.cross(in_dir, out_dir)
 
         entry_name = next_node_name()
         add_straight_span(bend_entry, entry_name)
@@ -144,10 +154,24 @@ def build_candidate_patch(
                 material=request.material,
                 bend_radius=radius,
                 bend_angle=angle,
+                bend_geometry=make_bend_geometry(
+                    start=bend_entry,
+                    end=bend_exit,
+                    radius=radius,
+                    angle=angle,
+                    normal=bend_normal,
+                    start_tangent=in_dir,
+                    end_tangent=out_dir,
+                    generation_mode="autoroute",
+                ),
+                route_id=request.id,
+                station_start=station,
+                station_end=station + radius * math.radians(abs(angle)),
                 id_prefix="pipe_bend",
             )
         )
         element_index += 1
+        station += radius * math.radians(abs(angle))
         current_point = np.asarray(bend_exit, dtype=float)
         current_name = exit_name
         if spacing is not None:

@@ -232,7 +232,47 @@ class Element:
     material: str  # Material name
     bend_radius: Optional[float] = None  # [m], only for bends
     bend_angle: Optional[float] = None  # [deg], only for bends
+    bend_geometry: Optional["BendGeometry"] = None
     twist_angle: float = 0.0  # [deg], local cross-section twist angle
+    route_id: Optional[str] = None
+    station_start: Optional[float] = None
+    station_end: Optional[float] = None
+
+
+@dataclass
+class BendGeometry:
+    """Explicit 3-D bend geometry for solver, visualization, and compliance."""
+
+    center: List[float]
+    normal: List[float]
+    radius: float
+    angle: float
+    start_tangent: List[float]
+    end_tangent: List[float]
+    generation_mode: str = "bend"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "center": [float(value) for value in self.center],
+            "normal": [float(value) for value in self.normal],
+            "radius": float(self.radius),
+            "angle": float(self.angle),
+            "start_tangent": [float(value) for value in self.start_tangent],
+            "end_tangent": [float(value) for value in self.end_tangent],
+            "generation_mode": self.generation_mode,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BendGeometry":
+        return cls(
+            center=[float(value) for value in data["center"]],
+            normal=[float(value) for value in data["normal"]],
+            radius=float(data["radius"]),
+            angle=float(data["angle"]),
+            start_tangent=[float(value) for value in data["start_tangent"]],
+            end_tangent=[float(value) for value in data["end_tangent"]],
+            generation_mode=data.get("generation_mode", "bend"),
+        )
 
 
 @dataclass
@@ -250,6 +290,20 @@ class Support:
     friction_coefficient: float = 0.0
     id: Optional[str] = None
 
+@dataclass
+class OperationField:
+    """Local operating value over a selectable part of the pipe model."""
+
+    quantity: str
+    value: float
+    direction: Optional[List[float]] = None
+    scope: str = "all"
+    profile: str = "uniform"
+    group: Optional[str] = None
+    route_id: Optional[str] = None
+    station_start: Optional[float] = None
+    station_end: Optional[float] = None
+    element_ids: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -261,6 +315,65 @@ class LoadCase:
     internal_pressure: float = 0.0  # [Pa]
     temperature: float = 20.0  # [°C]
     ref_temperature: float = 20.0  # [°C]
+    fields: List[OperationField] = field(default_factory=list)
+
+
+@dataclass
+class Operation:
+    """Uniform operating scenario that can be compiled to a load case."""
+
+    name: str
+    gravity: bool = True
+    internal_pressure: float = 0.0  # [Pa]
+    temperature: float = 20.0  # [C]
+    ref_temperature: float = 20.0  # [C]
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    fields: List[OperationField] = field(default_factory=list)
+
+    def to_load_case(self) -> LoadCase:
+        return LoadCase(
+            name=self.name,
+            gravity=self.gravity,
+            internal_pressure=self.internal_pressure,
+            temperature=self.temperature,
+            ref_temperature=self.ref_temperature,
+            fields=list(self.fields),
+        )
+
+    def add_field(
+        self,
+        quantity: str,
+        value: float,
+        *,
+        scope: str = "all",
+        profile: str = "uniform",
+        group: Optional[str] = None,
+        route_id: Optional[str] = None,
+        station_start: Optional[float] = None,
+        station_end: Optional[float] = None,
+        element_ids: Optional[List[str]] = None,
+        direction: Optional[List[float]] = None,
+    ) -> OperationField:
+        if group is not None:
+            scope = "group"
+        elif route_id is not None:
+            scope = "route"
+        elif element_ids is not None:
+            scope = "elements"
+        field_record = OperationField(
+            quantity=quantity,
+            value=float(value),
+            direction=(None if direction is None else [float(value) for value in direction]),
+            scope=scope,
+            profile=profile,
+            group=group,
+            route_id=route_id,
+            station_start=station_start,
+            station_end=station_end,
+            element_ids=list(element_ids or []),
+        )
+        self.fields.append(field_record)
+        return field_record
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +399,7 @@ class TubaModel:
         self.elements: List[Element] = []
         self.supports: List[Support] = []
         self.load_cases: Dict[str, LoadCase] = {}
+        self.operations: Dict[str, Operation] = {}
         self.tees: Dict[str, Dict[str, Any]] = {}
         self.obstacles: List[Dict[str, Any]] = []
         self.groups: Dict[str, Dict[str, Any]] = {}
@@ -714,6 +828,91 @@ class TubaModel:
         self.load_cases[name] = lc
         return lc
 
+    def define_operation(
+        self,
+        name: str,
+        gravity: bool = True,
+        pressure: float = 0.0,
+        temperature: float = 20.0,
+        ref_temperature: float = 20.0,
+        metadata: Optional[Dict[str, Any]] = None,
+        fields: Optional[List[Dict[str, Any] | OperationField]] = None,
+    ) -> Operation:
+        op = Operation(
+            name=name,
+            gravity=gravity,
+            internal_pressure=pressure,
+            temperature=temperature,
+            ref_temperature=ref_temperature,
+            metadata=dict(metadata or {}),
+        )
+        for field_record in fields or []:
+            if isinstance(field_record, OperationField):
+                op.fields.append(field_record)
+            else:
+                op.add_field(**field_record)
+        self.operations[name] = op
+        return op
+
+    def operation(self, *args, **kwargs) -> Operation:
+        """Convenience alias for :meth:`define_operation`."""
+        return self.define_operation(*args, **kwargs)
+
+    def resolve_load_case(self, name: Optional[str] = None) -> Tuple[str, LoadCase]:
+        """Return a named load case or uniform operation as a load case."""
+        if name is None:
+            if self.load_cases:
+                name = next(iter(self.load_cases))
+            elif self.operations:
+                name = next(iter(self.operations))
+            else:
+                raise ValueError("Model has no load cases or operations defined.")
+
+        if name in self.load_cases:
+            return name, self.load_cases[name]
+        if name in self.operations:
+            return name, self.operations[name].to_load_case()
+
+        available = list(self.load_cases.keys()) + list(self.operations.keys())
+        raise ValueError(
+            f"Load case or operation '{name}' not found. "
+            f"Available: {available}"
+        )
+
+    def resolve_operation_field_elements(self, field_record: OperationField) -> List[Element]:
+        allowed_types = {"beam"} if field_record.quantity == "wind" else {"pipe_straight", "pipe_bend"}
+        pipe_elements = [e for e in self.elements if e.type in allowed_types]
+        if field_record.scope == "all":
+            return pipe_elements
+        if field_record.scope == "group":
+            if not field_record.group or field_record.group not in self.groups:
+                raise ValueError(f"Operation field references missing group {field_record.group!r}.")
+            ids = set(self.groups[field_record.group].get("elements", []))
+            return [e for e in pipe_elements if e.id in ids]
+        if field_record.scope == "route":
+            if not field_record.route_id:
+                raise ValueError("Operation field route scope requires route_id.")
+            selected = [e for e in pipe_elements if e.route_id == field_record.route_id]
+            if field_record.station_start is not None or field_record.station_end is not None:
+                start = field_record.station_start if field_record.station_start is not None else float("-inf")
+                end = field_record.station_end if field_record.station_end is not None else float("inf")
+                selected = [
+                    e for e in selected
+                    if e.station_start is not None
+                    and e.station_end is not None
+                    and e.station_start < end
+                    and e.station_end > start
+                ]
+            return selected
+        if field_record.scope == "elements":
+            ids = set(field_record.element_ids)
+            found = {e.id for e in pipe_elements if e.id in ids}
+            missing = sorted(ids - found)
+            if missing:
+                raise ValueError(f"Operation field references missing pipe elements {missing!r}.")
+            return [e for e in pipe_elements if e.id in ids]
+        raise ValueError(f"Unsupported operation field scope {field_record.scope!r}.")
+
     # -- Tees and Obstacles --------------------------------------------------
 
     def define_tee(self, node: str, type: str = "unreinforced_tee", pad_thickness: float = 0.0) -> None:
@@ -757,11 +956,16 @@ class TubaModel:
     # -- Builder context manager ---------------------------------------------
 
     @contextmanager
-    def pipe(self, section: str, material: str):
+    def pipe(self, section: str, material: str, route: Optional[str] = None):
         """Context manager that yields a :class:`PipingBuilder`."""
         from tuba.builder import PipingBuilder
 
-        builder = PipingBuilder(model=self, section_name=section, material_name=material)
+        builder = PipingBuilder(
+            model=self,
+            section_name=section,
+            material_name=material,
+            route_id=route,
+        )
         yield builder
 
     def place_fragment(self, fragment, coordinate_system, *, name: str):
@@ -803,7 +1007,13 @@ class TubaModel:
 
     # -- Solver dispatch -----------------------------------------------------
 
-    def solve(self, solver: str = "code_aster", load_case: Optional[str] = None, **kwargs):
+    def solve(
+        self,
+        solver: str = "code_aster",
+        load_case: Optional[str] = None,
+        operation: Optional[str] = None,
+        **kwargs,
+    ):
         """Run FEA using the specified solver backend.
 
         Parameters
@@ -813,11 +1023,17 @@ class TubaModel:
         load_case : str, optional
             Name of the load case to solve.  If *None*, the first defined
             load case is used.
+        operation : str, optional
+            Name of a uniform operation to solve. Mutually exclusive with
+            *load_case*.
 
         Returns
         -------
         FEAResults
         """
+        if load_case is not None and operation is not None:
+            raise ValueError("Pass either load_case or operation, not both.")
+
         if solver == "code_aster":
             from tuba.solver.aster import CodeAsterSolver
 
@@ -825,7 +1041,7 @@ class TubaModel:
         else:
             raise ValueError(f"Unknown solver backend: {solver!r}")
 
-        lc_name = load_case or (next(iter(self.load_cases)) if self.load_cases else None)
+        lc_name = operation or load_case
         return s.solve(self, lc_name)
 
     def validate(self) -> None:
@@ -904,7 +1120,11 @@ class TubaModel:
                     "material": e.material,
                     **({"bend_radius": e.bend_radius} if e.bend_radius is not None else {}),
                     **({"bend_angle": e.bend_angle} if e.bend_angle is not None else {}),
+                    **({"bend_geometry": e.bend_geometry.to_dict()} if e.bend_geometry is not None else {}),
                     **({"twist_angle": e.twist_angle} if getattr(e, "twist_angle", 0.0) != 0.0 else {}),
+                    **({"route_id": e.route_id} if e.route_id is not None else {}),
+                    **({"station_start": e.station_start} if e.station_start is not None else {}),
+                    **({"station_end": e.station_end} if e.station_end is not None else {}),
                 }
                 for e in self.elements
             ],
@@ -930,6 +1150,17 @@ class TubaModel:
                     "ref_temperature": lc.ref_temperature,
                 }
                 for name, lc in self.load_cases.items()
+            },
+            "operations": {
+                name: {
+                    "gravity": op.gravity,
+                    "internal_pressure": op.internal_pressure,
+                    "temperature": op.temperature,
+                    "ref_temperature": op.ref_temperature,
+                    "metadata": op.metadata,
+                    "fields": [_operation_field_to_dict(field_record) for field_record in op.fields],
+                }
+                for name, op in self.operations.items()
             },
             "obstacles": self.obstacles,
             "tees": self.tees,
@@ -1040,7 +1271,10 @@ class TubaModel:
             model._node_counter = max(model._node_counter, num + 1)
 
         for e in data.get("elements", []):
-            model.add_element(**e)
+            element_data = dict(e)
+            if isinstance(element_data.get("bend_geometry"), dict):
+                element_data["bend_geometry"] = BendGeometry.from_dict(element_data["bend_geometry"])
+            model.add_element(**element_data)
 
         for s in data.get("supports", []):
             model.add_support(**s)
@@ -1052,6 +1286,17 @@ class TubaModel:
                 pressure=lc.get("internal_pressure", 0.0),
                 temperature=lc.get("temperature", 20.0),
                 ref_temperature=lc.get("ref_temperature", 20.0),
+            )
+
+        for name, op in data.get("operations", {}).items():
+            model.define_operation(
+                name=name,
+                gravity=op.get("gravity", True),
+                pressure=op.get("internal_pressure", 0.0),
+                temperature=op.get("temperature", 20.0),
+                ref_temperature=op.get("ref_temperature", 20.0),
+                metadata=op.get("metadata", {}),
+                fields=op.get("fields", []),
             )
 
         for obs in data.get("obstacles", []):
@@ -1140,6 +1385,108 @@ def _serialize_specs(specs: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, An
             else:
                 serialized[kind][spec_id] = spec
     return serialized
+
+
+def _operation_field_to_dict(field_record: OperationField) -> Dict[str, Any]:
+    data: Dict[str, Any] = {
+        "quantity": field_record.quantity,
+        "value": field_record.value,
+        "scope": field_record.scope,
+        "profile": field_record.profile,
+    }
+    if field_record.group is not None:
+        data["group"] = field_record.group
+    if field_record.route_id is not None:
+        data["route_id"] = field_record.route_id
+    if field_record.station_start is not None:
+        data["station_start"] = field_record.station_start
+    if field_record.station_end is not None:
+        data["station_end"] = field_record.station_end
+    if field_record.element_ids:
+        data["element_ids"] = list(field_record.element_ids)
+    if field_record.direction is not None:
+        data["direction"] = [float(value) for value in field_record.direction]
+    return data
+
+
+def make_bend_geometry(
+    *,
+    start: Any,
+    end: Any,
+    radius: float,
+    angle: float,
+    normal: Any,
+    start_tangent: Any,
+    end_tangent: Any,
+    generation_mode: str,
+) -> BendGeometry:
+    """Create an explicit circular bend record from endpoints and tangents."""
+
+    start_arr = np.asarray(start, dtype=float)
+    end_arr = np.asarray(end, dtype=float)
+    normal_arr = _unit_vector(normal, "bend normal")
+    start_tangent_arr = _unit_vector(start_tangent, "bend start tangent")
+    end_tangent_arr = _unit_vector(end_tangent, "bend end tangent")
+    radius_value = float(radius)
+    angle_value = float(angle)
+    if radius_value <= 0.0:
+        raise ValueError("Bend radius must be positive.")
+
+    chord = end_arr - start_arr
+    chord_len = float(np.linalg.norm(chord))
+    if chord_len <= 1e-12:
+        raise ValueError("Bend endpoints must be distinct.")
+    if chord_len > 2.0 * radius_value + 1e-9:
+        raise ValueError("Bend chord length exceeds the requested radius.")
+
+    chord_dir = chord / chord_len
+    half = chord_len / 2.0
+    offset_len = math.sqrt(max(radius_value**2 - half**2, 0.0))
+    side = np.cross(normal_arr, chord_dir)
+    if np.linalg.norm(side) <= 1e-12:
+        raise ValueError("Bend normal must not be parallel to the bend chord.")
+    side = side / np.linalg.norm(side)
+    midpoint = (start_arr + end_arr) / 2.0
+    candidates = (midpoint + side * offset_len, midpoint - side * offset_len)
+
+    tangent_normal = normal_arr if angle_value >= 0.0 else -normal_arr
+
+    def tangent_for(center: np.ndarray) -> np.ndarray:
+        radial = start_arr - center
+        tangent = np.cross(tangent_normal, radial)
+        if np.linalg.norm(tangent) <= 1e-12:
+            return tangent
+        return tangent / np.linalg.norm(tangent)
+
+    center = max(candidates, key=lambda candidate: float(np.dot(tangent_for(candidate), start_tangent_arr)))
+    stored_start_tangent = tangent_for(center)
+    end_radial = end_arr - center
+    stored_end_tangent = np.cross(tangent_normal, end_radial)
+    if np.linalg.norm(stored_end_tangent) <= 1e-12:
+        stored_end_tangent = end_tangent_arr
+    else:
+        stored_end_tangent = stored_end_tangent / np.linalg.norm(stored_end_tangent)
+    if float(np.dot(stored_end_tangent, end_tangent_arr)) < 0.0:
+        stored_end_tangent = -stored_end_tangent
+    return BendGeometry(
+        center=[float(value) for value in center],
+        normal=[float(value) for value in tangent_normal],
+        radius=radius_value,
+        angle=abs(angle_value),
+        start_tangent=[float(value) for value in stored_start_tangent],
+        end_tangent=[float(value) for value in stored_end_tangent],
+        generation_mode=generation_mode,
+    )
+
+
+def _unit_vector(values: Any, label: str) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.shape != (3,) or not np.all(np.isfinite(arr)):
+        raise ValueError(f"{label} must be a finite 3-vector.")
+    norm = float(np.linalg.norm(arr))
+    if norm <= 1e-12:
+        raise ValueError(f"{label} must be non-zero.")
+    return arr / norm
 
 
 def _deserialize_specs(data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:

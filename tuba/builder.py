@@ -8,6 +8,7 @@ elements on the parent TubaModel.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
@@ -28,12 +29,21 @@ class PipingBuilder:
             b.end([5, 3, 0], support="anchor")
     """
 
-    def __init__(self, model, section_name: str, material_name: str):
+    def __init__(
+        self,
+        model,
+        section_name: str,
+        material_name: str,
+        route_id: Optional[str] = None,
+        station: float = 0.0,
+    ):
         from tuba.model import TubaModel
 
         self.model: TubaModel = model
         self.section_name = section_name
         self.material_name = material_name
+        self.route_id = route_id
+        self.station = float(station)
 
         self.cursor: np.ndarray = np.zeros(3)
         self.direction: np.ndarray = np.array([1.0, 0.0, 0.0])
@@ -61,6 +71,7 @@ class PipingBuilder:
             material=self.material_name,
             steps=list(self.steps),
             up_vector=tuple(float(x) for x in self.up_vector),
+            route_id=self.route_id,
         )
 
     # -- Geometry commands ---------------------------------------------------
@@ -91,6 +102,8 @@ class PipingBuilder:
         target = self.cursor + self.direction * length
         node_id = self.model.add_node(target)
         elem_id = self.model.next_element_id("pipe_str")
+        station_start = self.station
+        station_end = station_start + abs(float(length))
 
         self.model.add_element(
             id=elem_id,
@@ -99,8 +112,12 @@ class PipingBuilder:
             n2=node_id,
             section=self.section_name,
             material=self.material_name,
+            route_id=self.route_id,
+            station_start=station_start,
+            station_end=station_end,
         )
         self.cursor = target
+        self.station = station_end
         self.last_node_id = node_id
         return self
 
@@ -151,6 +168,20 @@ class PipingBuilder:
         exit_node_id = self.model.add_node(bend_exit)
 
         elem_id = self.model.next_element_id("pipe_bend")
+        station_start = self.station
+        station_end = station_start + radius * abs(theta)
+        from tuba.model import make_bend_geometry
+
+        geometry = make_bend_geometry(
+            start=self.cursor,
+            end=bend_exit,
+            radius=radius,
+            angle=angle,
+            normal=axis,
+            start_tangent=self.direction,
+            end_tangent=new_direction,
+            generation_mode="bend",
+        )
 
         self.model.add_element(
             id=elem_id,
@@ -161,12 +192,186 @@ class PipingBuilder:
             material=self.material_name,
             bend_radius=radius,
             bend_angle=angle,
+            bend_geometry=geometry,
+            route_id=self.route_id,
+            station_start=station_start,
+            station_end=station_end,
         )
 
         self.direction = new_direction
         self.cursor = bend_exit
+        self.station = station_end
         self.last_node_id = exit_node_id
         return self
+
+    def bend_in_plane(
+        self,
+        radius: float,
+        angle: float,
+        normal: List[float],
+    ) -> "PipingBuilder":
+        """Insert a bend whose plane is defined by its normal vector."""
+        normal_values = [float(value) for value in normal]
+        self._record("bend_in_plane", radius=radius, angle=angle, normal=normal_values)
+        return self._bend_with_axis(
+            radius=radius,
+            angle=angle,
+            axis=np.asarray(normal_values, dtype=float),
+            mode="bend_in_plane",
+        )
+
+    def bend_by_orientation(
+        self,
+        radius: float,
+        angle: float,
+        axis: List[float],
+    ) -> "PipingBuilder":
+        """Insert a bend by rotating the current direction around *axis*."""
+        axis_values = [float(value) for value in axis]
+        self._record("bend_by_orientation", radius=radius, angle=angle, axis=axis_values)
+        return self._bend_with_axis(
+            radius=radius,
+            angle=angle,
+            axis=np.asarray(axis_values, dtype=float),
+            mode="bend_by_orientation",
+        )
+
+    def bend_to(
+        self,
+        point: List[float],
+        radius: float,
+        plane_normal: Optional[List[float]] = None,
+    ) -> "PipingBuilder":
+        """Insert a circular bend ending at *point* with explicit geometry."""
+        point_values = [float(value) for value in point]
+        normal_values = None if plane_normal is None else [float(value) for value in plane_normal]
+        self._record("bend_to", point=point_values, radius=radius, plane_normal=normal_values)
+
+        from tuba.model import make_bend_geometry
+
+        target = np.asarray(point_values, dtype=float)
+        chord = target - self.cursor
+        chord_len = float(np.linalg.norm(chord))
+        if chord_len <= 1e-12:
+            raise ValueError("bend_to target must differ from the current cursor.")
+        if chord_len > 2.0 * float(radius) + 1e-9:
+            raise ValueError("bend_to target is too far away for the requested bend radius.")
+        if plane_normal is None:
+            if abs(chord_len - 2.0 * float(radius)) <= 1e-9:
+                raise ValueError("180-degree bend_to requires an explicit plane_normal.")
+            normal = np.cross(self.direction, chord)
+            if np.linalg.norm(normal) <= 1e-12:
+                normal = np.cross(self.up_vector, chord)
+            if np.linalg.norm(normal) <= 1e-12:
+                raise ValueError("bend_to requires a plane_normal for this target direction.")
+        else:
+            normal = np.asarray(plane_normal, dtype=float)
+
+        angle = math.degrees(2.0 * math.asin(min(1.0, chord_len / (2.0 * float(radius)))))
+        provisional_end = np.cross(normal, target - self.cursor)
+        if np.linalg.norm(provisional_end) <= 1e-12:
+            provisional_end = chord
+        geometry = make_bend_geometry(
+            start=self.cursor,
+            end=target,
+            radius=radius,
+            angle=angle,
+            normal=normal,
+            start_tangent=self.direction,
+            end_tangent=provisional_end,
+            generation_mode="bend_to",
+        )
+
+        station_start = self.station
+        station_end = station_start + float(radius) * math.radians(abs(geometry.angle))
+        exit_node_id = self.model.add_node(target)
+        elem_id = self.model.next_element_id("pipe_bend")
+        self.model.add_element(
+            id=elem_id,
+            type="pipe_bend",
+            n1=self.last_node_id,
+            n2=exit_node_id,
+            section=self.section_name,
+            material=self.material_name,
+            bend_radius=float(radius),
+            bend_angle=float(geometry.angle),
+            bend_geometry=geometry,
+            route_id=self.route_id,
+            station_start=station_start,
+            station_end=station_end,
+        )
+        self.direction = np.asarray(geometry.end_tangent, dtype=float)
+        self.cursor = target
+        self.station = station_end
+        self.last_node_id = exit_node_id
+        return self
+
+    def _bend_with_axis(
+        self,
+        *,
+        radius: float,
+        angle: float,
+        axis: np.ndarray,
+        mode: str,
+    ) -> "PipingBuilder":
+        if np.linalg.norm(axis) <= 1e-12:
+            raise ValueError("Bend axis must be non-zero.")
+        axis = axis / np.linalg.norm(axis)
+        theta = np.radians(angle)
+        rot = Rotation.from_rotvec(axis * theta)
+        new_direction = rot.apply(self.direction)
+        new_direction /= np.linalg.norm(new_direction)
+
+        tangent_len = radius * abs(np.tan(theta / 2.0))
+        bend_entry = self.cursor + self.direction * tangent_len
+        bend_exit = bend_entry + new_direction * tangent_len
+
+        from tuba.model import make_bend_geometry
+
+        geometry = make_bend_geometry(
+            start=self.cursor,
+            end=bend_exit,
+            radius=radius,
+            angle=angle,
+            normal=axis,
+            start_tangent=self.direction,
+            end_tangent=new_direction,
+            generation_mode=mode,
+        )
+        station_start = self.station
+        station_end = station_start + float(radius) * abs(theta)
+        exit_node_id = self.model.add_node(bend_exit)
+        elem_id = self.model.next_element_id("pipe_bend")
+        self.model.add_element(
+            id=elem_id,
+            type="pipe_bend",
+            n1=self.last_node_id,
+            n2=exit_node_id,
+            section=self.section_name,
+            material=self.material_name,
+            bend_radius=radius,
+            bend_angle=angle,
+            bend_geometry=geometry,
+            route_id=self.route_id,
+            station_start=station_start,
+            station_end=station_end,
+        )
+        self.direction = new_direction
+        self.cursor = bend_exit
+        self.station = station_end
+        self.last_node_id = exit_node_id
+        return self
+
+    def _axis_for_plane(self, plane: str) -> np.ndarray:
+        if plane == "XY":
+            return self.up_vector.copy()
+        if plane == "XZ":
+            axis = np.cross(self.direction, self.up_vector)
+            norm = np.linalg.norm(axis)
+            if norm < 1e-12:
+                return np.array([0.0, 1.0, 0.0])
+            return axis / norm
+        return self.direction.copy()
 
     def add_support(
         self,
@@ -240,6 +445,8 @@ class PipingBuilder:
             prefix = "cable"
 
         elem_id = self.model.next_element_id(prefix)
+        station_start = self.station
+        station_end = station_start + abs(float(length))
 
         self.model.add_element(
             id=elem_id,
@@ -249,8 +456,12 @@ class PipingBuilder:
             section=self.section_name,
             material=self.material_name,
             twist_angle=twist_angle,
+            route_id=self.route_id,
+            station_start=station_start,
+            station_end=station_end,
         )
         self.cursor = target
+        self.station = station_end
         self.last_node_id = node_id
         return self
 
@@ -292,8 +503,12 @@ class PipingBuilder:
                     n2=node_id,
                     section=self.section_name,
                     material=self.material_name,
+                    route_id=self.route_id,
+                    station_start=self.station,
+                    station_end=self.station + dist,
                 )
                 self.cursor = target
+                self.station += dist
                 self.last_node_id = node_id
 
         if support:
@@ -359,6 +574,7 @@ class PipeRunRecipe:
     material: str
     steps: List[BuildStep] = field(default_factory=list)
     up_vector: tuple = (0.0, 0.0, 1.0)
+    route_id: Optional[str] = None
 
     def build(self, model) -> BuiltRun:
         """Replay the recorded commands onto *model*; return the ids created.
@@ -369,7 +585,12 @@ class PipeRunRecipe:
         nodes_before = set(model.nodes)
         elements_before = {elem.id for elem in model.elements}
 
-        builder = PipingBuilder(model=model, section_name=self.section, material_name=self.material)
+        builder = PipingBuilder(
+            model=model,
+            section_name=self.section,
+            material_name=self.material,
+            route_id=self.route_id,
+        )
         builder.up_vector = np.asarray(self.up_vector, dtype=float)
         for step in self.steps:
             getattr(builder, step.op)(**step.params)
@@ -387,13 +608,20 @@ class PipeRunRecipe:
         steps = list(self.steps)
         old = steps[index]
         steps[index] = BuildStep(op=old.op, params={**old.params, **params})
-        return PipeRunRecipe(section=self.section, material=self.material, steps=steps, up_vector=self.up_vector)
+        return PipeRunRecipe(
+            section=self.section,
+            material=self.material,
+            steps=steps,
+            up_vector=self.up_vector,
+            route_id=self.route_id,
+        )
 
     def to_dict(self) -> dict:
         return {
             "section": self.section,
             "material": self.material,
             "up_vector": [float(x) for x in self.up_vector],
+            **({"route_id": self.route_id} if self.route_id is not None else {}),
             "steps": [step.to_dict() for step in self.steps],
         }
 
@@ -404,4 +632,5 @@ class PipeRunRecipe:
             material=data["material"],
             steps=[BuildStep.from_dict(step) for step in data.get("steps", [])],
             up_vector=tuple(data.get("up_vector", (0.0, 0.0, 1.0))),
+            route_id=data.get("route_id"),
         )

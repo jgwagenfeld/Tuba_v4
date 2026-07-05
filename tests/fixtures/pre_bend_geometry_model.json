@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "project_name": "PreBendGeometryFixture",
+    "standard": "ASME_B31.3",
+    "version": "4.0.0"
+  },
+  "materials": {
+    "Steel": {
+      "E": 200000000000.0,
+      "nu": 0.3,
+      "rho": 7850.0,
+      "alpha": 0.000012,
+      "allowable_stress": {
+        "20.0": 120000000.0,
+        "120.0": 110000000.0
+      }
+    }
+  },
+  "sections": {
+    "PipeSec": {
+      "type": "pipe",
+      "OD": 0.1,
+      "WT": 0.01,
+      "corrosion_allowance": 0.0
+    }
+  },
+  "nodes": {
+    "N0": [0.0, 0.0, 0.0],
+    "N1": [1.5, 0.0, 0.0],
+    "N2": [2.0, 0.5, 0.0],
+    "N3": [2.0, 2.0, 0.0]
+  },
+  "elements": [
+    {
+      "id": "pipe_str_0",
+      "type": "pipe_straight",
+      "n1": "N0",
+      "n2": "N1",
+      "section": "PipeSec",
+      "material": "Steel"
+    },
+    {
+      "id": "pipe_bend_0",
+      "type": "pipe_bend",
+      "n1": "N1",
+      "n2": "N2",
+      "section": "PipeSec",
+      "material": "Steel",
+      "bend_radius": 0.5,
+      "bend_angle": 90.0
+    },
+    {
+      "id": "pipe_str_1",
+      "type": "pipe_straight",
+      "n1": "N2",
+      "n2": "N3",
+      "section": "PipeSec",
+      "material": "Steel"
+    }
+  ],
+  "supports": [
+    {
+      "node": "N0",
+      "type": "anchor"
+    }
+  ],
+  "load_cases": {
+    "Hot": {
+      "gravity": true,
+      "internal_pressure": 1000000.0,
+      "temperature": 120.0,
+      "ref_temperature": 20.0
+    }
+  },
+  "obstacles": [],
+  "tees": {},
+  "groups": {}
+}

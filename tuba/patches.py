@@ -8,7 +8,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from tuba.attributes import coerce_entity_ref
-from tuba.model import TubaModel
+from tuba.model import BendGeometry, TubaModel
 from tuba.placements import PlacementAssignment, PlacementFrame
 from tuba.validation import validate_model
 
@@ -31,7 +31,11 @@ class AddElement:
     material: str
     bend_radius: float | None = None
     bend_angle: float | None = None
+    bend_geometry: BendGeometry | dict[str, Any] | None = None
     twist_angle: float = 0.0
+    route_id: str | None = None
+    station_start: float | None = None
+    station_end: float | None = None
     id_prefix: str | None = None
 
 
@@ -240,7 +244,15 @@ class ModelTransaction:
             material=operation.material,
             bend_radius=operation.bend_radius,
             bend_angle=operation.bend_angle,
+            bend_geometry=(
+                BendGeometry.from_dict(operation.bend_geometry)
+                if isinstance(operation.bend_geometry, dict)
+                else operation.bend_geometry
+            ),
             twist_angle=operation.twist_angle,
+            route_id=operation.route_id,
+            station_start=operation.station_start,
+            station_end=operation.station_end,
         )
         return elem_id
 

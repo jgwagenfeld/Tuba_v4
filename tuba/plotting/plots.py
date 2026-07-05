@@ -314,7 +314,7 @@ def plot_deformed(
     )
 
     p.add_legend(bcolor=_BG_COLOR)
-    p.show()
+    return p.show(**kwargs)
 
 
 def plot_stress(
@@ -345,7 +345,7 @@ def plot_stress(
         cmap=cmap,
         scalar_bar_args={"title": "Von Mises Stress [Pa]", "color": _TEXT_COLOR},
     )
-    p.show()
+    return p.show(**kwargs)
 
 
 def plot_displacement_vectors(
@@ -379,7 +379,7 @@ def plot_displacement_vectors(
         p.add_mesh(arrows, color="cyan", label="Displacement")
 
     p.add_legend(bcolor=_BG_COLOR)
-    p.show()
+    return p.show(**kwargs)
 
 
 def plot_reactions(
@@ -418,7 +418,7 @@ def plot_reactions(
             p.add_mesh(arrows, color="red", label="Reactions")
 
     p.add_legend(bcolor=_BG_COLOR)
-    p.show()
+    return p.show(**kwargs)
 
 
 def plot_temperature(
@@ -449,7 +449,7 @@ def plot_temperature(
         cmap=cmap,
         scalar_bar_args={"title": "Temperature [°C]", "color": _TEXT_COLOR},
     )
-    p.show()
+    return p.show(**kwargs)
 
 
 def plot_deformed_stress(
@@ -481,8 +481,7 @@ def plot_deformed_stress(
             p.export_html(export_html)
             p.close()
             return
-        p.show()
-        return
+        return p.show(**kwargs)
 
 
     mesh = _get_mesh(results, model)
@@ -514,4 +513,4 @@ def plot_deformed_stress(
     if export_html:
         p.export_html(export_html)
 
-    p.show()
+    return p.show(**kwargs)

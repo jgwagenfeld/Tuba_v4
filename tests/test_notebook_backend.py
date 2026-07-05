@@ -67,6 +67,25 @@ class TestNotebookBackendSelection(unittest.TestCase):
         self.assertEqual(selected, "client")
         fake_pyvista.set_jupyter_backend.assert_called_once_with("client")
 
+    def test_result_plot_passes_show_kwargs(self):
+        from tuba.plotting.plots import plot_deformed_stress
+
+        fake_plotter = Mock()
+        fake_plotter.show.return_value = "shown"
+
+        with (
+            patch("tuba.plotting.plots._require_pyvista"),
+            patch("tuba.plotting.scenes.build_model_scene", return_value=fake_plotter),
+        ):
+            returned = plot_deformed_stress(
+                Mock(),
+                model=Mock(),
+                jupyter_backend="html",
+            )
+
+        self.assertEqual(returned, "shown")
+        fake_plotter.show.assert_called_once_with(jupyter_backend="html")
+
 
 if __name__ == "__main__":
     unittest.main()

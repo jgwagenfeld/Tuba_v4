@@ -235,6 +235,25 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertIn("COEF_IMPO=UNIL_ZERO", comm)
         self.assertIn("COEF_MULT=UNIL_ONE", comm)
 
+    def test_uniform_load_writer_preserves_legacy_pressure_and_temperature_syntax(self):
+        model = Model(project_name="UniformLoadSyntax")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.add_support(n0, type="anchor")
+        model.define_load_case("Hot", gravity=True, pressure=1.0e6, temperature=120.0, ref_temperature=20.0)
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("FORCE_TUYAU=_F(", comm)
+        self.assertNotIn("FORCE_TUYAU=(", comm)
+        self.assertIn("TEMP_FIELD = CREA_CHAMP(", comm)
+        self.assertIn("    MAILLAGE=MAIL,\n    AFFE=_F(", comm)
+
     def test_export_analysis_study_restrains_pipe_warping_at_nonlinear_rest(self):
         model = Model(project_name="WarpingRest")
         model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)

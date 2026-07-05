@@ -44,6 +44,8 @@ def validate_model(model: TubaModel) -> None:
             errors.append(f"Element {elem.id!r} references missing material {elem.material!r}.")
         if elem.n1 == elem.n2:
             errors.append(f"Element {elem.id!r} has identical start and end nodes.")
+        _validate_element_station(elem, errors)
+        _validate_bend_geometry_record(elem, errors)
 
     for support in model.supports:
         if support.node not in model.nodes:
@@ -75,9 +77,143 @@ def validate_model(model: TubaModel) -> None:
             errors.append(f"Attribute 'insulation' references missing spec {assignment.value!r}.")
 
     _validate_mixed_records(model, errors)
+    _validate_operation_fields(model, errors)
 
     if errors:
         raise ModelValidationError("\n".join(errors))
+
+
+def _validate_element_station(elem, errors: list[str]) -> None:
+    start = getattr(elem, "station_start", None)
+    end = getattr(elem, "station_end", None)
+    if start is None and end is None:
+        return
+    if start is None or end is None:
+        errors.append(f"Element {elem.id!r} must define both station_start and station_end.")
+        return
+    if not np.isfinite(float(start)) or not np.isfinite(float(end)):
+        errors.append(f"Element {elem.id!r} has non-finite station metadata.")
+        return
+    if float(end) < float(start):
+        errors.append(f"Element {elem.id!r} station_end must be greater than or equal to station_start.")
+
+
+def _validate_bend_geometry_record(elem, errors: list[str]) -> None:
+    geometry = getattr(elem, "bend_geometry", None)
+    if geometry is None:
+        return
+    if elem.type != "pipe_bend":
+        errors.append(f"Element {elem.id!r} has bend_geometry but is not a pipe_bend.")
+        return
+    for attr in ("center", "normal", "start_tangent", "end_tangent"):
+        values = np.asarray(getattr(geometry, attr), dtype=float)
+        if values.shape != (3,) or not np.all(np.isfinite(values)):
+            errors.append(f"Element {elem.id!r} bend_geometry.{attr} must be a finite 3-vector.")
+        elif attr != "center" and np.linalg.norm(values) <= 1e-12:
+            errors.append(f"Element {elem.id!r} bend_geometry.{attr} must be non-zero.")
+    if not np.isfinite(float(geometry.radius)) or float(geometry.radius) <= 0.0:
+        errors.append(f"Element {elem.id!r} bend_geometry.radius must be positive.")
+    if not np.isfinite(float(geometry.angle)) or abs(float(geometry.angle)) <= 1e-12:
+        errors.append(f"Element {elem.id!r} bend_geometry.angle must be non-zero.")
+    if not geometry.generation_mode:
+        errors.append(f"Element {elem.id!r} bend_geometry.generation_mode must not be empty.")
+
+
+def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
+    valid_quantities = {"pressure", "temperature", "wind"}
+    valid_scopes = {"all", "group", "route", "elements"}
+    valid_profiles = {"uniform", "linear", "piecewise"}
+
+    for operation_name, operation in getattr(model, "operations", {}).items():
+        seen: dict[str, dict[str, float]] = {}
+        for index, field_record in enumerate(getattr(operation, "fields", [])):
+            label = f"Operation {operation_name!r} field {index}"
+            if field_record.quantity not in valid_quantities:
+                errors.append(
+                    f"{label} has unsupported quantity {field_record.quantity!r}; "
+                    "supported quantities are pressure, temperature, and wind."
+                )
+                continue
+            if field_record.scope not in valid_scopes:
+                errors.append(f"{label} has unsupported scope {field_record.scope!r}.")
+                continue
+            if field_record.profile not in valid_profiles:
+                errors.append(f"{label} has unsupported profile {field_record.profile!r}.")
+                continue
+            if field_record.profile != "uniform":
+                errors.append(
+                    f"{label} uses profile {field_record.profile!r}; "
+                    "the Code_Aster writer currently supports only uniform operation fields."
+                )
+                continue
+            if not np.isfinite(float(field_record.value)):
+                errors.append(f"{label} has a non-finite value.")
+                continue
+            if field_record.direction is not None and field_record.quantity != "wind":
+                errors.append(f"{label} uses direction but only wind fields accept direction.")
+                continue
+            if field_record.quantity == "wind":
+                if field_record.direction is None:
+                    errors.append(f"{label} wind field requires a finite non-zero direction vector.")
+                    continue
+                direction = np.asarray(field_record.direction, dtype=float)
+                if direction.shape != (3,) or not np.all(np.isfinite(direction)) or np.linalg.norm(direction) <= 1e-12:
+                    errors.append(f"{label} wind field requires a finite non-zero direction vector.")
+                    continue
+            start = field_record.station_start
+            end = field_record.station_end
+            if start is not None and not np.isfinite(float(start)):
+                errors.append(f"{label} has non-finite station_start.")
+                continue
+            if end is not None and not np.isfinite(float(end)):
+                errors.append(f"{label} has non-finite station_end.")
+                continue
+            if start is not None and end is not None and float(end) <= float(start):
+                errors.append(f"{label} station_end must be greater than station_start.")
+                continue
+
+            try:
+                selected = model.resolve_operation_field_elements(field_record)
+            except ValueError as exc:
+                errors.append(f"{label} is invalid: {exc}")
+                continue
+
+            if not selected:
+                if field_record.quantity == "wind":
+                    errors.append(f"{label} requires beam-modelized elements; selected no beam-modelized elements.")
+                else:
+                    errors.append(f"{label} selects no pipe elements.")
+                continue
+            if field_record.quantity == "wind":
+                bad = [elem.id for elem in selected if elem.type != "beam"]
+                if bad:
+                    errors.append(
+                        f"{label} requires beam-modelized elements for Code_Aster FORCE_POUTRE wind loads; "
+                        f"got {bad!r}."
+                    )
+                    continue
+
+            quantity_values = seen.setdefault(field_record.quantity, {})
+            for elem in selected:
+                value_key = _operation_field_value_key(field_record)
+                previous = quantity_values.get(elem.id)
+                if previous is not None and previous != value_key:
+                    errors.append(
+                        f"Operation {operation_name!r} has overlapping incompatible "
+                        f"{field_record.quantity} fields on element {elem.id!r}: "
+                        f"{previous!r} vs {value_key!r}."
+                    )
+                quantity_values[elem.id] = value_key
+
+
+def _operation_field_value_key(field_record) -> tuple[float, tuple[float, float, float] | None]:
+    direction = None
+    if field_record.direction is not None:
+        vector = np.asarray(field_record.direction, dtype=float)
+        norm = float(np.linalg.norm(vector))
+        if norm > 1e-12:
+            direction = tuple(float(value / norm) for value in vector)
+    return float(field_record.value), direction
 
 
 def _validate_placement_frames(model: TubaModel, errors: list[str]) -> None:

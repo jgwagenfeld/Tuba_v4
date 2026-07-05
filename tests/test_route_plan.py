@@ -62,6 +62,9 @@ class TestRoutePlan(unittest.TestCase):
         self.assertEqual(len(result.element_ids), 3)
         self.assertEqual([elem.type for elem in model.elements], ["pipe_straight", "pipe_bend", "pipe_straight"])
         self.assertEqual(model.elements[1].bend_radius, 0.5)
+        self.assertEqual([elem.route_id for elem in model.elements], ["P-100", "P-100", "P-100"])
+        self.assertAlmostEqual(model.elements[0].station_start, 0.0)
+        self.assertIsNotNone(model.elements[2].station_end)
 
     def test_empty_route_plan_serializes_to_empty_patch(self):
         request = PipeRouteRequest(

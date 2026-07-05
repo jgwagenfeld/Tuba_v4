@@ -324,6 +324,7 @@ class _MeshWriterMixin:
             )
 
         for elem in pipe_bends:
+            bend_metadata = _bend_geometry_metadata(elem)
             for index, (node_id, coords) in enumerate(bend_intermediate.get(elem.id, []), start=1):
                 nodes[node_id] = tuple(float(value) for value in coords)
                 node_sources[node_id] = MeshNodeSource(
@@ -332,6 +333,7 @@ class _MeshWriterMixin:
                     role="generated_bend_node",
                     parametric_t=index / n_segments,
                     segment_index=index,
+                    metadata=bend_metadata,
                 )
 
         for midpoint in pipe_midpoints.values():
@@ -383,6 +385,7 @@ class _MeshWriterMixin:
                     source_ref=EntityRef("element", elem.id),
                     role="bend_segment",
                     segment_index=segment_index,
+                    metadata=_bend_geometry_metadata(elem),
                 )
 
         groups: dict[str, tuple[str, ...]] = {}
@@ -648,6 +651,17 @@ class _MeshWriterMixin:
 
     @staticmethod
     def _get_bend_geometry(model: TubaModel, elem: Element) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+        if elem.bend_geometry is not None:
+            geometry = elem.bend_geometry
+            center = np.asarray(geometry.center, dtype=float)
+            normal = np.asarray(geometry.normal, dtype=float)
+            if np.linalg.norm(normal) > 1e-12:
+                normal = normal / np.linalg.norm(normal)
+            p1 = model.nodes[elem.n1].coords
+            r1 = p1 - center
+            theta = np.radians(float(geometry.angle))
+            return center, normal, r1, theta
+
         p1 = model.nodes[elem.n1].coords
         p2 = model.nodes[elem.n2].coords
         radius = elem.bend_radius
@@ -720,3 +734,9 @@ class _MeshWriterMixin:
             axis = np.array([0.0, 0.0, 1.0])
 
         return C, axis, r1, theta
+
+
+def _bend_geometry_metadata(elem: Element) -> dict[str, Any]:
+    if elem.bend_geometry is None:
+        return {}
+    return {"bend_geometry": elem.bend_geometry.to_dict()}

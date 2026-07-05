@@ -68,6 +68,21 @@ class TestPipeRunRecipe(unittest.TestCase):
         b_coords = sorted(tuple(np.round(n.coords, 6)) for n in b.nodes.values())
         self.assertEqual(a_coords, b_coords)
 
+    def test_recipe_preserves_route_id_on_replay(self):
+        original = _model("route-original")
+        with original.pipe("DN100", "steel", route="P-100") as builder:
+            builder.start([0.0, 0.0, 0.0])
+            builder.run(2.0)
+        recipe = PipeRunRecipe.from_dict(builder.recipe.to_dict())
+
+        regen = _model("route-regen")
+        built = recipe.build(regen)
+
+        self.assertEqual(recipe.route_id, "P-100")
+        self.assertEqual(regen.get_element(built.element_ids[0]).route_id, "P-100")
+        self.assertAlmostEqual(regen.get_element(built.element_ids[0]).station_start, 0.0)
+        self.assertAlmostEqual(regen.get_element(built.element_ids[0]).station_end, 2.0)
+
 
 if __name__ == "__main__":
     unittest.main()

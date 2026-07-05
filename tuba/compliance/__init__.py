@@ -19,6 +19,7 @@ from tuba.compliance.sif import (
 from tuba.compliance.asme_b313 import (
     ASMEB313Evaluator,
     ComplianceReport,
+    bend_local_axes,
     stress_range_reduction_factor,
 )
 
@@ -32,5 +33,6 @@ __all__ = [
     "SIFSet",
     "ASMEB313Evaluator",
     "ComplianceReport",
+    "bend_local_axes",
     "stress_range_reduction_factor",
 ]

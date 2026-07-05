@@ -78,6 +78,12 @@ class TestRouteAdapter(unittest.TestCase):
         self.assertNotEqual(model.elements[1].n1, model.elements[1].n2)
         self.assertTrue(np.allclose(model.nodes[model.elements[1].n1].coords, (1.5, 0.0, 0.0)))
         self.assertTrue(np.allclose(model.nodes[model.elements[1].n2].coords, (2.0, 0.5, 0.0)))
+        self.assertEqual([e.route_id for e in model.elements], ["P-100", "P-100", "P-100"])
+        self.assertAlmostEqual(model.elements[0].station_start, 0.0)
+        self.assertAlmostEqual(model.elements[0].station_end, 1.5)
+        self.assertAlmostEqual(model.elements[1].station_start, 1.5)
+        self.assertAlmostEqual(model.elements[1].station_end, 1.5 + 0.5 * np.pi / 2.0)
+        self.assertAlmostEqual(model.elements[2].station_start, model.elements[1].station_end)
 
         with TemporaryDirectory() as tmp:
             CodeAsterSolver(work_dir=tmp).export_study(model, None, tmp)
@@ -134,6 +140,9 @@ class TestRouteAdapter(unittest.TestCase):
         support_coords = [model.nodes[support.node].coords for support in model.supports]
         self.assertEqual(len(model.supports), 3)
         self.assertEqual(len(model.elements), 4)
+        self.assertEqual([element.route_id for element in model.elements], ["P-200"] * 4)
+        self.assertAlmostEqual(model.elements[0].station_start, 0.0)
+        self.assertAlmostEqual(model.elements[-1].station_end, 10.0)
         self.assertTrue(any(np.allclose(coord, (2.5, 0.0, 0.0)) for coord in support_coords))
         self.assertTrue(any(np.allclose(coord, (5.0, 0.0, 0.0)) for coord in support_coords))
         self.assertTrue(any(np.allclose(coord, (7.5, 0.0, 0.0)) for coord in support_coords))

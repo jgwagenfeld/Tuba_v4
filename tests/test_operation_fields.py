@@ -1,0 +1,178 @@
+import json
+import math
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from tuba import Model, ModelValidationError
+from tuba.solver.aster import CodeAsterSolver
+
+
+def _model(name: str = "OperationFields") -> Model:
+    model = Model(project_name=name)
+    model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+    model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+    return model
+
+
+def _two_element_route() -> Model:
+    model = _model()
+    with model.pipe("PipeSec", "Steel", route="P-100") as pipe:
+        pipe.start([0.0, 0.0, 0.0], support="anchor")
+        pipe.run(1.0)
+        pipe.run(1.0)
+        pipe.end(support="anchor")
+    return model
+
+
+class TestOperationFields(unittest.TestCase):
+    def test_builder_records_route_station_and_recipe_replays(self):
+        model = _model("AuthoredRoute")
+        with model.pipe("PipeSec", "Steel", route="P-100") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.run(2.0)
+            pipe.bend(radius=0.5, angle=90.0, plane="XY")
+            pipe.run(1.0)
+        recipe = pipe.recipe
+
+        elements = model.elements
+        self.assertEqual([element.route_id for element in elements], ["P-100", "P-100", "P-100"])
+        self.assertAlmostEqual(elements[0].station_start, 0.0)
+        self.assertAlmostEqual(elements[0].station_end, 2.0)
+        self.assertAlmostEqual(elements[1].station_start, 2.0)
+        self.assertAlmostEqual(elements[1].station_end, 2.0 + 0.5 * math.pi / 2.0)
+        self.assertAlmostEqual(elements[2].station_start, elements[1].station_end)
+        self.assertEqual(recipe.to_dict()["route_id"], "P-100")
+
+        restored = type(recipe).from_dict(recipe.to_dict())
+        regen = _model("RegeneratedRoute")
+        built = restored.build(regen)
+
+        replayed = [regen.get_element(element_id) for element_id in built.element_ids]
+        self.assertEqual([element.route_id for element in replayed], ["P-100", "P-100", "P-100"])
+        self.assertAlmostEqual(replayed[1].station_end, elements[1].station_end)
+
+    def test_operation_field_roundtrip_and_backward_fixture(self):
+        model = _two_element_route()
+        operating = model.define_operation(
+            "Operating",
+            gravity=True,
+            pressure=0.0,
+            temperature=20.0,
+            ref_temperature=20.0,
+        )
+        operating.add_field(
+            "temperature",
+            120.0,
+            route_id="P-100",
+            station_start=0.0,
+            station_end=1.0,
+        )
+
+        restored = Model.from_dict(model.to_dict())
+        field = restored.operations["Operating"].fields[0]
+        self.assertEqual(field.quantity, "temperature")
+        self.assertEqual(field.route_id, "P-100")
+        self.assertAlmostEqual(field.station_end, 1.0)
+        restored.validate()
+
+        fixture = json.loads(Path("tests/fixtures/pre_operation_model.json").read_text(encoding="utf-8"))
+        legacy = Model.from_dict(fixture)
+        legacy.validate()
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(legacy, "Hot", tmpdir)
+
+    def test_overlapping_incompatible_fields_fail_validation(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", temperature=20.0, ref_temperature=20.0)
+        operating.add_field("temperature", 100.0, route_id="P-100")
+        operating.add_field("temperature", 120.0, element_ids=[model.elements[0].id])
+
+        with self.assertRaisesRegex(ModelValidationError, "overlapping incompatible"):
+            model.validate()
+
+    def test_local_pressure_and_temperature_fields_export_to_code_aster_groups(self):
+        model = _two_element_route()
+        operating = model.define_operation(
+            "Operating",
+            gravity=False,
+            pressure=0.0,
+            temperature=20.0,
+            ref_temperature=20.0,
+        )
+        operating.add_field("pressure", 1.0e6, element_ids=["pipe_str_0"])
+        operating.add_field("pressure", 2.0e6, element_ids=["pipe_str_1"])
+        operating.add_field(
+            "temperature",
+            80.0,
+            route_id="P-100",
+            station_start=0.0,
+            station_end=1.0,
+        )
+        operating.add_field(
+            "temperature",
+            120.0,
+            route_id="P-100",
+            station_start=1.0,
+            station_end=2.0,
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("PRESSURE = AFFE_CHAR_MECA(", comm)
+        self.assertIn("FORCE_TUYAU=(", comm)
+        self.assertIn("GROUP_MA='pipe_str_0'", comm)
+        self.assertIn("GROUP_MA='pipe_str_1'", comm)
+        self.assertIn("PRES=1.000000E+06", comm)
+        self.assertIn("PRES=2.000000E+06", comm)
+        self.assertIn("TEMP_FIELD = CREA_CHAMP(", comm)
+        self.assertIn("MODELE=MODELE,", comm)
+        self.assertIn("VALE=8.000000E+01", comm)
+        self.assertIn("VALE=1.200000E+02", comm)
+
+    def test_wind_field_exports_for_beam_modelized_pipe_sections_only(self):
+        model = _model("BeamPipeWind")
+        with model.pipe("PipeSec", "Steel", route="P-100") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.beam(2.0)
+            pipe.end(support="anchor")
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("wind", 1000.0, route_id="P-100", direction=[1.0, 0.0, 0.0])
+
+        restored = Model.from_dict(model.to_dict())
+        self.assertEqual(restored.operations["Operating"].fields[0].direction, [1.0, 0.0, 0.0])
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(restored, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("WIND = AFFE_CHAR_MECA(", comm)
+        self.assertIn("FORCE_POUTRE=(", comm)
+        self.assertIn("TYPE_CHARGE='VENT'", comm)
+        self.assertIn("GROUP_MA='beam_0'", comm)
+        self.assertIn("FX=1.000000E+02", comm)
+        self.assertIn("_F(CHARGE=WIND),", comm)
+
+    def test_wind_field_rejects_tuyau_pipe_elements(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("wind", 1000.0, route_id="P-100", direction=[1.0, 0.0, 0.0])
+
+        with self.assertRaisesRegex(ModelValidationError, "requires beam-modelized elements"):
+            model.validate()
+
+    def test_unsupported_profile_fails_before_export(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", temperature=20.0, ref_temperature=20.0)
+        operating.add_field("temperature", 120.0, route_id="P-100", profile="linear")
+
+        with TemporaryDirectory() as tmpdir:
+            with self.assertRaisesRegex(ModelValidationError, "only uniform"):
+                CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            self.assertFalse((Path(tmpdir) / "study.comm").exists())
+
+
+if __name__ == "__main__":
+    unittest.main()

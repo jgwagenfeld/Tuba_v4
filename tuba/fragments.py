@@ -125,7 +125,11 @@ def build_fragment_patch(
                 material=elem.material,
                 bend_radius=elem.bend_radius,
                 bend_angle=elem.bend_angle,
+                bend_geometry=elem.bend_geometry,
                 twist_angle=elem.twist_angle,
+                route_id=elem.route_id,
+                station_start=elem.station_start,
+                station_end=elem.station_end,
                 id_prefix=_prefix_from_id(elem.id),
             )
         )
