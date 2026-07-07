@@ -31,17 +31,59 @@ def resolve_operation_field_groups(
     for index, field_record in enumerate(getattr(load_case, "fields", [])):
         if field_record.quantity != quantity:
             continue
+        if field_record.profile == "uniform":
+            elements = model.resolve_operation_field_elements(field_record)
+            if not elements:
+                raise ValueError(
+                    f"Operation field {index} for {quantity!r} selects no pipe elements."
+                )
+            rows.append(([elem.id for elem in elements], float(field_record.value)))
+            continue
+        if quantity == "temperature" and field_record.profile == "linear":
+            rows.extend(_linear_temperature_field_groups(model, load_case, field_record, index))
+            continue
         if field_record.profile != "uniform":
             raise ValueError(
                 f"Operation field {index} for {quantity!r} uses profile "
                 f"{field_record.profile!r}; only uniform fields can be exported."
             )
-        elements = model.resolve_operation_field_elements(field_record)
-        if not elements:
+    return rows
+
+
+def _linear_temperature_field_groups(
+    model: TubaModel,
+    load_case: LoadCase,
+    field_record,
+    index: int,
+) -> FieldGroups:
+    start = field_record.station_start
+    end = field_record.station_end
+    if start is None or end is None or float(end) <= float(start):
+        raise ValueError(
+            f"Operation field {index} for 'temperature' uses linear profile without a valid station range."
+        )
+
+    rows: FieldGroups = []
+    selected = model.resolve_operation_field_elements(field_record)
+    if not selected:
+        raise ValueError(f"Operation field {index} for 'temperature' selects no pipe elements.")
+
+    start = float(start)
+    end = float(end)
+    base = float(load_case.temperature)
+    target = float(field_record.value)
+    for elem in selected:
+        if elem.station_start is None or elem.station_end is None:
             raise ValueError(
-                f"Operation field {index} for {quantity!r} selects no pipe elements."
+                f"Operation field {index} for 'temperature' selected element {elem.id!r} "
+                "without station metadata."
             )
-        rows.append(([elem.id for elem in elements], float(field_record.value)))
+        overlap_start = max(float(elem.station_start), start)
+        overlap_end = min(float(elem.station_end), end)
+        station_mid = (overlap_start + overlap_end) / 2.0
+        fraction = (station_mid - start) / (end - start)
+        value = base + fraction * (target - base)
+        rows.append(([elem.id], value))
     return rows
 
 
@@ -97,17 +139,25 @@ def write_wind_load(
     map_name: NameMapper,
     wind_fields: WindGroups,
 ) -> None:
+    for index, (_, fx, fy, fz) in enumerate(wind_fields):
+        for suffix, value in (("X", fx), ("Y", fy), ("Z", fz)):
+            w(f"WF{suffix}_{index} = FORMULE(")
+            w("    NOM_PARA='X',")
+            w(f"    VALE='{value:.6E}',")
+            w(");")
+            w()
+
     w("# ----- Wind line loads on beam-modelized pipe -----")
-    w("WIND = AFFE_CHAR_MECA(")
+    w("WIND = AFFE_CHAR_MECA_F(")
     w("    MODELE=MODELE,")
     w("    FORCE_POUTRE=(")
-    for group_names, fx, fy, fz in wind_fields:
+    for index, (group_names, _, _, _) in enumerate(wind_fields):
         w("        _F(")
         w(f"            GROUP_MA={group_ma_value(group_names, map_name)},")
         w("            TYPE_CHARGE='VENT',")
-        w(f"            FX={fx:.6E},")
-        w(f"            FY={fy:.6E},")
-        w(f"            FZ={fz:.6E},")
+        w(f"            FX=WFX_{index},")
+        w(f"            FY=WFY_{index},")
+        w(f"            FZ=WFZ_{index},")
         w("        ),")
     w("    ),")
     w(");")

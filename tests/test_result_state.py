@@ -48,6 +48,23 @@ class TestResultStateConversion(unittest.TestCase):
             max_von_mises=120.0e6,
         )
         results.parser_diagnostics.append("diagnostic")
+        results.tuyau_subpoints.append(
+            {
+                "field": "SIEQ_ELNO",
+                "component": "VMIS",
+                "unit": "Pa",
+                "value": 42.0,
+                "element_id": elem.id,
+                "analysis_element_id": elem.id,
+                "solver_element_label": "M1",
+                "node_id": n0,
+                "solver_node_label": "N1",
+                "subpoint_index": 7,
+                "centerline_position": [0.0, 0.0, 0.0],
+                "display_position": [0.0, 0.0, 0.04],
+                "position_source": "code_aster_tuyau_subpoint_formula",
+            }
+        )
         return model, study, results
 
     def test_result_state_from_fea_results_preserves_native_and_generated_displacements(self):
@@ -63,6 +80,7 @@ class TestResultStateConversion(unittest.TestCase):
         self.assertEqual(state.node_reactions["N0"], (100.0, 0.0, -500.0, 0.0, 0.0, 0.0))
         self.assertEqual(state.element_results["pipe_0"]["max_von_mises"], 120.0e6)
         self.assertEqual(state.metadata["parser_diagnostics"], ["diagnostic"])
+        self.assertEqual(state.metadata["tuyau_subpoints"][0]["subpoint_index"], 7)
 
     def test_fea_results_from_result_state_reconstructs_native_and_analysis_nodes(self):
         model, study, results = self._model_study_and_results()
@@ -75,6 +93,7 @@ class TestResultStateConversion(unittest.TestCase):
             np.allclose(reconstructed.get_analysis_displacement("pipe_bend_0_n1")[:3], [0.010, 0.020, 0.030])
         )
         self.assertEqual(reconstructed.get_max_von_mises("pipe_0"), 120.0e6)
+        self.assertEqual(reconstructed.tuyau_subpoints[0]["value"], 42.0)
 
     def test_result_state_conversion_rejects_wrong_model_revision(self):
         model, study, results = self._model_study_and_results()

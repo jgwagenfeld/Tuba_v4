@@ -16,6 +16,13 @@ class MixedCodeAsterStudyExporter:
     SOLVER_NAME = "Code_Aster"
     SUPPORTED_LINE_ELEMENT_TYPES = {"pipe_straight", "pipe_bend", "beam"}
     STEP_SUFFIXES = {".step", ".stp"}
+    RESULT_STATUS = "export_only"
+    RUNTIME_BLOCKER = (
+        "Mixed Code_Aster export is a diagnostic handoff, not a solve-ready "
+        "study. The 3D STEP mesh groups, pipe-to-solid coupling, material/load "
+        "commands, and result-table extraction still need real Code_Aster "
+        "validation before execution is enabled."
+    )
 
     def export_analysis_study(
         self,
@@ -66,7 +73,13 @@ class MixedCodeAsterStudyExporter:
                 "sidecar": str(sidecar_path),
             },
             mesh_id=analysis_mesh.id,
-            metadata={"project_name": model.project_name, "mixed_analysis": True},
+            metadata={
+                "project_name": model.project_name,
+                "mixed_analysis": True,
+                "result_status": self.RESULT_STATUS,
+                "code_aster_solve_ready": False,
+                "runtime_blocker": self.RUNTIME_BLOCKER,
+            },
         )
         manifest = {
             "study": study.to_dict(),
@@ -357,6 +370,9 @@ class MixedCodeAsterStudyExporter:
 
     def _mixed_payload(self, model: TubaModel) -> dict[str, Any]:
         return {
+            "result_status": self.RESULT_STATUS,
+            "code_aster_solve_ready": False,
+            "runtime_blocker": self.RUNTIME_BLOCKER,
             "cad_assets": {key: value.to_dict() for key, value in model.cad_assets.items()},
             "components": {key: value.to_dict() for key, value in model.imported_components.items()},
             "analysis_regions": {key: value.to_dict() for key, value in model.analysis_regions.items()},
@@ -377,7 +393,9 @@ def load_mixed_sidecar_diagnostics(path: str | Path) -> dict[str, Any]:
     refs.extend(f"port:{key}" for key in mixed.get("ports", {}))
     refs.extend(f"coupling:{key}" for key in mixed.get("couplings", {}))
     return {
-        "result_status": "export_only",
+        "result_status": mixed.get("result_status", "export_only"),
+        "code_aster_solve_ready": bool(mixed.get("code_aster_solve_ready", False)),
+        "runtime_blocker": mixed.get("runtime_blocker"),
         "refs": refs,
         "lineage": dict(payload.get("lineage", {})),
         "analysis_mesh_id": payload.get("analysis_mesh_id"),

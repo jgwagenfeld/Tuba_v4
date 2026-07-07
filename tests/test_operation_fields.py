@@ -132,6 +132,34 @@ class TestOperationFields(unittest.TestCase):
         self.assertIn("VALE=8.000000E+01", comm)
         self.assertIn("VALE=1.200000E+02", comm)
 
+    def test_linear_temperature_field_exports_element_midpoint_values(self):
+        model = _two_element_route()
+        operating = model.define_operation(
+            "Operating",
+            gravity=False,
+            pressure=0.0,
+            temperature=20.0,
+            ref_temperature=20.0,
+        )
+        operating.add_field(
+            "temperature",
+            120.0,
+            route_id="P-100",
+            station_start=0.0,
+            station_end=2.0,
+            profile="linear",
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("TEMP_FIELD = CREA_CHAMP(", comm)
+        self.assertIn("GROUP_MA='pipe_str_0'", comm)
+        self.assertIn("GROUP_MA='pipe_str_1'", comm)
+        self.assertIn("VALE=4.500000E+01", comm)
+        self.assertIn("VALE=9.500000E+01", comm)
+
     def test_wind_field_exports_for_beam_modelized_pipe_sections_only(self):
         model = _model("BeamPipeWind")
         with model.pipe("PipeSec", "Steel", route="P-100") as pipe:
@@ -148,25 +176,31 @@ class TestOperationFields(unittest.TestCase):
             CodeAsterSolver(work_dir=tmpdir).export_study(restored, "Operating", tmpdir)
             comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
 
-        self.assertIn("WIND = AFFE_CHAR_MECA(", comm)
+        self.assertIn("WIND = AFFE_CHAR_MECA_F(", comm)
         self.assertIn("FORCE_POUTRE=(", comm)
         self.assertIn("TYPE_CHARGE='VENT'", comm)
         self.assertIn("GROUP_MA='beam_0'", comm)
-        self.assertIn("FX=1.000000E+02", comm)
+        self.assertIn("WFX_0 = FORMULE(", comm)
+        self.assertIn("VALE='1.000000E+02'", comm)
+        self.assertIn("FX=WFX_0", comm)
         self.assertIn("_F(CHARGE=WIND),", comm)
+        self.assertNotIn("FORCE_NODALE", comm)
+        self.assertNotIn("FORCE_TUYAU", comm)
+        self.assertNotIn("SIEQ_ELNO", comm)
 
     def test_wind_field_rejects_tuyau_pipe_elements(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", gravity=False)
         operating.add_field("wind", 1000.0, route_id="P-100", direction=[1.0, 0.0, 0.0])
 
-        with self.assertRaisesRegex(ModelValidationError, "requires beam-modelized elements"):
+        with self.assertRaisesRegex(ModelValidationError, "FORCE_POUTRE.*TUYAU_3M.*FORCE_NODALE"):
             model.validate()
 
     def test_unsupported_profile_fails_before_export(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", temperature=20.0, ref_temperature=20.0)
-        operating.add_field("temperature", 120.0, route_id="P-100", profile="linear")
+        operating.add_field("pressure", 1.0e6, route_id="P-100", profile="linear")
+        operating.add_field("temperature", 120.0, route_id="P-100", profile="piecewise")
 
         with TemporaryDirectory() as tmpdir:
             with self.assertRaisesRegex(ModelValidationError, "only uniform"):

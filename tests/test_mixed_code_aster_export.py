@@ -105,8 +105,14 @@ class TestMixedCodeAsterExport(unittest.TestCase):
         self.assertIn("MODELISATION='3D'", comm)
         self.assertIn("OPTION='3D_TUYAU'", comm)
         self.assertIn("G_PORT_FACE", comm)
+        self.assertEqual(study.metadata["result_status"], "export_only")
+        self.assertEqual(study.metadata["code_aster_solve_ready"], False)
+        self.assertIn("diagnostic handoff", study.metadata["runtime_blocker"])
         self.assertIn("N1", mesh.nodes)
         self.assertEqual(str(mesh.node_sources["N1"].source_ref), "node:N1")
+        self.assertEqual(sidecar["mixed_analysis"]["result_status"], "export_only")
+        self.assertEqual(sidecar["mixed_analysis"]["code_aster_solve_ready"], False)
+        self.assertIn("diagnostic handoff", sidecar["mixed_analysis"]["runtime_blocker"])
         self.assertEqual(sidecar["lineage"]["G_PUMP_SOLID"], "analysis_region:region_pump_solid")
         self.assertEqual(sidecar["lineage"]["G_PORT_FACE"], "port:port_pump_nozzle_a")
         self.assertEqual(
@@ -285,6 +291,8 @@ class TestMixedCodeAsterExport(unittest.TestCase):
         self.assertEqual(diagnostics["analysis_mesh_id"], "analysis_mesh:mixed")
         self.assertEqual(diagnostics["lineage"]["G_PORT_FACE"], "port:port_pump_nozzle_a")
         self.assertEqual(diagnostics["result_status"], "export_only")
+        self.assertEqual(diagnostics["code_aster_solve_ready"], False)
+        self.assertIn("diagnostic handoff", diagnostics["runtime_blocker"])
 
     def test_mixed_sidecar_diagnostics_rejects_non_mixed_sidecar(self):
         from tuba.solver.mixed_study import load_mixed_sidecar_diagnostics

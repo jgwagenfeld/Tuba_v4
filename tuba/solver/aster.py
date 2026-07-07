@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -46,6 +47,10 @@ from tuba.solver.aster_comm import _CommWriterMixin
 from tuba.solver.aster_mesh import _MeshWriterMixin
 
 logger = logging.getLogger(__name__)
+
+_CODE_ASTER_TUYAU_NCOU = 3
+_CODE_ASTER_TUYAU_NSEC = 16
+_TUBA_GENE_TUYAU = np.array([0.0, 0.0, 1.0], dtype=float)
 
 # ---------------------------------------------------------------------------
 # Solver
@@ -294,9 +299,22 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
 
     def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> FEAResults:
         """Execute an already-exported Code_Aster analysis study and parse its artifacts."""
+        self._require_solve_ready_study(study)
         work_dir = Path(study.work_dir)
         self._execute(work_dir)
         return self.parse_result_artifacts(model, work_dir, study.load_case)
+
+    def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
+        metadata = study.metadata
+        if metadata.get("mixed_analysis") and not metadata.get("code_aster_solve_ready"):
+            reason = metadata.get("runtime_blocker") or (
+                "Mixed Code_Aster studies are currently export-only until the "
+                "mixed STEP solve/import path has real solver proof."
+            )
+            raise RuntimeError(
+                "Mixed Code_Aster study is export-only and cannot be executed "
+                f"as solver results. {reason}"
+            )
 
 
     # ==================================================================
@@ -666,8 +684,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         element_label_map: dict[str, str],
     ) -> None:
         """Parse Von Mises stress table (unit 41, ``SIEQ_ELNO``)."""
+        if not any(elem.type in {"pipe_straight", "pipe_bend"} for elem in model.elements):
+            return
         rows = self._parse_csv_table(work_dir / "study_sieq.csv")
         elem_map: Dict[str, Element] = {e.id: e for e in model.elements}
+        analysis_tangents = self._read_analysis_element_tangents(work_dir)
 
         for row in rows:
             raw_eid = row.get("MAILLE", "").strip()
@@ -692,12 +713,158 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
             elem = elem_map.get(orig_eid)
             if elem is None:
                 continue
+
+            subpoint = row.get("SOUS_POINT", "").strip()
+            if subpoint:
+                centerline_position: list[float] | None = None
+                try:
+                    centerline_position = [
+                        float(row["COOR_X"]),
+                        float(row["COOR_Y"]),
+                        float(row["COOR_Z"]),
+                    ]
+                except (KeyError, ValueError, TypeError):
+                    centerline_position = None
+                try:
+                    subpoint_index: int | str = int(float(subpoint))
+                except (ValueError, TypeError):
+                    subpoint_index = subpoint
+                tangent = analysis_tangents.get(eid)
+                if tangent is None:
+                    tangent = self._model_element_tangent(model, elem)
+                display_position = self._tuyau_subpoint_display_position(
+                    model=model,
+                    element=elem,
+                    centerline_position=centerline_position,
+                    tangent=tangent,
+                    subpoint_index=subpoint_index,
+                )
+                results.tuyau_subpoints.append(
+                    {
+                        "field": "SIEQ_ELNO",
+                        "component": "VMIS",
+                        "unit": "Pa",
+                        "value": vmis,
+                        "element_id": orig_eid,
+                        "analysis_element_id": eid,
+                        "solver_element_label": raw_eid,
+                        "node_id": nid or None,
+                        "solver_node_label": raw_nid or None,
+                        "subpoint_index": subpoint_index,
+                        "centerline_position": centerline_position,
+                        "display_position": display_position,
+                        "position_source": (
+                            "code_aster_tuyau_subpoint_formula"
+                            if display_position is not None
+                            else "centerline_from_sieq_elno"
+                        ),
+                        "tuyau_ncou": _CODE_ASTER_TUYAU_NCOU,
+                        "tuyau_nsec": _CODE_ASTER_TUYAU_NSEC,
+                    }
+                )
+
             er = results.element_results[orig_eid]
             if nid == elem.n1:
                 er.von_mises_n1 = vmis
             elif nid == elem.n2:
                 er.von_mises_n2 = vmis
             er.max_von_mises = max(er.max_von_mises, vmis)
+
+    @staticmethod
+    def _read_analysis_element_tangents(work_dir: Path) -> dict[str, np.ndarray]:
+        manifest_path = work_dir / "study_manifest.json"
+        if not manifest_path.exists():
+            return {}
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            mesh = manifest["analysis_mesh"]
+            nodes = mesh["nodes"]
+            elements = mesh["elements"]
+        except (OSError, KeyError, TypeError, json.JSONDecodeError):
+            return {}
+
+        tangents: dict[str, np.ndarray] = {}
+        for element_id, node_ids in elements.items():
+            if not isinstance(node_ids, list) or len(node_ids) < 2:
+                continue
+            try:
+                start = np.asarray(nodes[node_ids[0]], dtype=float)
+                end = np.asarray(nodes[node_ids[-1]], dtype=float)
+            except (KeyError, TypeError, ValueError):
+                continue
+            tangent = end - start
+            norm = float(np.linalg.norm(tangent))
+            if norm > 1.0e-12:
+                tangents[str(element_id)] = tangent / norm
+        return tangents
+
+    @staticmethod
+    def _model_element_tangent(model: TubaModel, element: Element) -> np.ndarray | None:
+        try:
+            start = np.asarray(model.nodes[element.n1].coords, dtype=float)
+            end = np.asarray(model.nodes[element.n2].coords, dtype=float)
+        except (KeyError, AttributeError, TypeError, ValueError):
+            return None
+        tangent = end - start
+        norm = float(np.linalg.norm(tangent))
+        return tangent / norm if norm > 1.0e-12 else None
+
+    @staticmethod
+    def _tuyau_subpoint_display_position(
+        *,
+        model: TubaModel,
+        element: Element,
+        centerline_position: list[float] | None,
+        tangent: np.ndarray | None,
+        subpoint_index: int | str,
+    ) -> list[float] | None:
+        if centerline_position is None or tangent is None or not isinstance(subpoint_index, int):
+            return None
+        section = model.sections.get(element.section)
+        if not isinstance(section, PipeSection):
+            return None
+        y_axis, z_axis = CodeAsterSolver._tuyau_cross_section_axes(tangent)
+        y_offset, z_offset = CodeAsterSolver._code_aster_tuyau_fibre_offset(
+            subpoint_index,
+            r_ext=section.OD / 2.0,
+            thickness=section.WT,
+        )
+        center = np.asarray(centerline_position, dtype=float)
+        point = center + y_offset * y_axis + z_offset * z_axis
+        return [float(value) for value in point]
+
+    @staticmethod
+    def _code_aster_tuyau_fibre_offset(
+        subpoint_index: int,
+        *,
+        r_ext: float,
+        thickness: float,
+        ncou: int = _CODE_ASTER_TUYAU_NCOU,
+        nsec: int = _CODE_ASTER_TUYAU_NSEC,
+    ) -> tuple[float, float]:
+        r_int = r_ext - thickness
+        num_ang = ((subpoint_index - 1) % (2 * nsec + 1)) / (2.0 * nsec)
+        num_cou = ((subpoint_index - 1) // (2 * nsec + 1)) / (2.0 * ncou)
+        radius = r_int + thickness * num_cou
+        y_offset = radius * math.cos(2.0 * math.pi * num_ang)
+        z_offset = -radius * math.sin(2.0 * math.pi * num_ang)
+        return y_offset, z_offset
+
+    @staticmethod
+    def _tuyau_cross_section_axes(tangent: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        x_axis = np.asarray(tangent, dtype=float)
+        x_axis = x_axis / np.linalg.norm(x_axis)
+        y_axis = _TUBA_GENE_TUYAU - float(np.dot(_TUBA_GENE_TUYAU, x_axis)) * x_axis
+        if float(np.linalg.norm(y_axis)) <= 1.0e-12:
+            fallback = np.array([0.0, 1.0, 0.0], dtype=float)
+            y_axis = fallback - float(np.dot(fallback, x_axis)) * x_axis
+        if float(np.linalg.norm(y_axis)) <= 1.0e-12:
+            fallback = np.array([1.0, 0.0, 0.0], dtype=float)
+            y_axis = fallback - float(np.dot(fallback, x_axis)) * x_axis
+        y_axis = y_axis / np.linalg.norm(y_axis)
+        z_axis = np.cross(x_axis, y_axis)
+        z_axis = z_axis / np.linalg.norm(z_axis)
+        return y_axis, z_axis
 
     @staticmethod
     def _try_load_rmed(work_dir: Path, results: FEAResults) -> None:

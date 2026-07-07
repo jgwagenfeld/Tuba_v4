@@ -57,6 +57,7 @@ class FEAResults:
     node_results: Dict[str, NodeResult] = field(default_factory=dict)
     element_results: Dict[str, ElementResult] = field(default_factory=dict)
     analysis_node_results: Dict[str, NodeResult] = field(default_factory=dict)
+    tuyau_subpoints: List[Dict[str, Any]] = field(default_factory=list)
     parser_diagnostics: List[str] = field(default_factory=list)
 
     # Path to the raw result file (e.g. .rmed)

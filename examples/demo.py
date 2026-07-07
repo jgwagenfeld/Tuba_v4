@@ -96,6 +96,7 @@ def main():
     # 5. Stop before compliance and result visualization.
     print("\n[5/6] Code_Aster execution required before compliance or result visualization.")
     print("  -> This demo generated solver handoff files only.")
+    print("  -> Exported studies are not a completed engineering evaluation.")
     print("  -> Run Code_Aster, then import study_depl.csv, study_effo.csv, study_reac.csv, and study_sieq.csv.")
 
     print("\n[6/6] Next command for a configured runtime:")

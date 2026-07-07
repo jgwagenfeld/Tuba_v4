@@ -144,13 +144,19 @@ class TestCodeAsterRuntime(unittest.TestCase):
                 return subprocess.CompletedProcess(cmd, 2, stdout="solver stdout", stderr="solver stderr")
 
             with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
-                with self.assertRaisesRegex(RuntimeError, "fatal solver error"):
+                with self.assertRaisesRegex(RuntimeError, "fatal solver error") as raised:
                     run_code_aster_export(
                         export_file,
                         root,
                         CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster"),
                     )
 
+            message = str(raised.exception)
+            self.assertIn("command: run_aster study.export", message)
+            self.assertIn(str(root / "stdout.command.log"), message)
+            self.assertIn(str(root / "stderr.command.log"), message)
+            self.assertIn("solver stdout", message)
+            self.assertIn("solver stderr", message)
             self.assertEqual((root / "stdout.log").read_text(encoding="utf-8"), "solver stdout")
             self.assertEqual((root / "stderr.log").read_text(encoding="utf-8"), "solver stderr")
 

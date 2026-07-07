@@ -1,6 +1,7 @@
 # User-Facing Piping DSL and Agent Operations
 
-Status: draft
+Status: roadmap draft; examples in this document are target API, not current
+shipped behavior unless explicitly noted.
 
 ## Purpose
 

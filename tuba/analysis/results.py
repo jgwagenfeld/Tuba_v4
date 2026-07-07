@@ -113,6 +113,8 @@ def result_state_from_fea_results(*, model: Any, study: AnalysisStudy, results: 
     metadata: dict[str, Any] = {}
     if results.parser_diagnostics:
         metadata["parser_diagnostics"] = list(results.parser_diagnostics)
+    if results.tuyau_subpoints:
+        metadata["tuyau_subpoints"] = [dict(row) for row in results.tuyau_subpoints]
 
     return ResultState(
         id=f"result_state:{study.load_case}",
@@ -142,6 +144,7 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
     if "result" in result_state.files:
         results.result_file = Path(result_state.files["result"])
     results.parser_diagnostics.extend(result_state.metadata.get("parser_diagnostics", []))
+    results.tuyau_subpoints.extend(dict(row) for row in result_state.metadata.get("tuyau_subpoints", []))
 
     for node_id in getattr(model, "nodes", {}):
         displacement = np.asarray(result_state.node_displacements.get(node_id, (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)), dtype=float)

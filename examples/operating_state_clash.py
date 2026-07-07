@@ -41,6 +41,7 @@ def run_example(output_dir: str | Path = ".benchmarks/operating_state_clash_exam
     )
     raise RuntimeError(
         "Operating-state clash review requires real Code_Aster result artifacts. "
+        "The exported study is not a completed engineering evaluation. "
         f"Exported the study to {study.work_dir}. Execute study.export with Code_Aster, "
         "then import the generated result tables before building operating geometry states."
     )

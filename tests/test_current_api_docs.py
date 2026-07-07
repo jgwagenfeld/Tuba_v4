@@ -39,10 +39,37 @@ class TestCurrentApiDocs(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_roadmap_architecture_docs_are_explicitly_labeled(self):
+        offenders = [
+            f"docs/architecture/{path.name}"
+            for path in _roadmap_architecture_docs()
+            if "roadmap" not in path.read_text(encoding="utf-8").lower()
+        ]
+
+        self.assertEqual([], offenders)
+
+    def test_export_only_examples_warn_that_exports_are_not_completed_evaluations(self):
+        offenders: list[str] = []
+
+        for path in sorted((Path(__file__).resolve().parents[1] / "examples").glob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            exports = ".export_study(" in source or ".export_analysis_study(" in source
+            imports_or_solves = (
+                "solve_exported_study(" in source
+                or "import_code_aster_artifacts(" in source
+                or "load_or_run_code_aster_results(" in source
+            )
+            if exports and not imports_or_solves and "not a completed engineering evaluation" not in source.lower():
+                offenders.append(f"examples/{path.name}")
+
+        self.assertEqual([], offenders)
+
 
 def _current_user_facing_sources():
     root = Path(__file__).resolve().parents[1]
     yield "README.md", (root / "README.md").read_text(encoding="utf-8")
+    for path in _current_architecture_docs():
+        yield f"docs/architecture/{path.name}", path.read_text(encoding="utf-8")
 
     for path in sorted((root / "examples").glob("*.py")):
         yield f"examples/{path.name}", path.read_text(encoding="utf-8")
@@ -51,6 +78,23 @@ def _current_user_facing_sources():
         notebook = json.loads(path.read_text(encoding="utf-8"))
         for index, cell in enumerate(notebook.get("cells", [])):
             yield f"notebooks/{path.name}:cell {index}", "".join(cell.get("source", []))
+
+
+def _current_architecture_docs():
+    architecture_dir = Path(__file__).resolve().parents[1] / "docs" / "architecture"
+    roadmap_names = {path.name for path in _roadmap_architecture_docs()}
+    return [
+        path
+        for path in sorted(architecture_dir.glob("*.md"))
+        if path.name not in roadmap_names
+    ]
+
+
+def _roadmap_architecture_docs():
+    root = Path(__file__).resolve().parents[1]
+    return [
+        root / "docs" / "architecture" / "user-facing-piping-dsl-and-agent-ops.md",
+    ]
 
 
 if __name__ == "__main__":

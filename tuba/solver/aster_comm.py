@@ -52,6 +52,7 @@ class _CommWriterMixin:
         beam_elems = [e for e in model.elements if e.type == "beam"]
         bar_elems = [e for e in model.elements if e.type == "bar"]
         cable_elems = [e for e in model.elements if e.type == "cable"]
+        has_pipe_stress = bool(pipe_straights or pipe_bends)
 
         straight_elems = pipe_straights + beam_elems + bar_elems + cable_elems
         bend_elems = pipe_bends
@@ -702,7 +703,8 @@ class _CommWriterMixin:
         w("    reuse=RESU,")
         w("    RESULTAT=RESU,")
         w("    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),")
-        w("    CRITERES=('SIEQ_ELNO',),")
+        if has_pipe_stress:
+            w("    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),")
         w("    FORCE='FORC_NODA',")
         w(");")
         w()
@@ -716,7 +718,10 @@ class _CommWriterMixin:
         w("    UNITE=80,")
         w("    RESU=_F(")
         w("        RESULTAT=RESU,")
-        w("        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),")
+        if has_pipe_stress:
+            w("        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),")
+        else:
+            w("        NOM_CHAM=('DEPL', 'EFGE_ELNO', 'FORC_NODA'),")
         w("    ),")
         w(");")
         w()
@@ -781,25 +786,26 @@ class _CommWriterMixin:
         w("    SEPARATEUR=',',")
         w(");")
         w()
-        w("# ----- Text table for SIEQ_ELNO -----")
-        w("TAB_SIEQ = CREA_TABLE(")
-        w("    RESU=_F(")
-        w("        RESULTAT=RESU,")
-        w("        NOM_CHAM='SIEQ_ELNO',")
-        w("        TOUT='OUI',")
-        w("        NOM_CMP=('VMIS',),")
-        if is_nonlinear:
-            w("        INST=1.0,")
-        w("    ),")
-        w(");")
-        w()
-        w("IMPR_TABLE(")
-        w("    TABLE=TAB_SIEQ,")
-        w("    UNITE=41,")
-        w("    FORMAT='TABLEAU',")
-        w("    SEPARATEUR=',',")
-        w(");")
-        w()
+        if has_pipe_stress:
+            w("# ----- Text table for SIEQ_ELNO -----")
+            w("TAB_SIEQ = CREA_TABLE(")
+            w("    RESU=_F(")
+            w("        RESULTAT=RESU,")
+            w("        NOM_CHAM='SIEQ_ELNO',")
+            w("        TOUT='OUI',")
+            w("        NOM_CMP=('VMIS',),")
+            if is_nonlinear:
+                w("        INST=1.0,")
+            w("    ),")
+            w(");")
+            w()
+            w("IMPR_TABLE(")
+            w("    TABLE=TAB_SIEQ,")
+            w("    UNITE=41,")
+            w("    FORMAT='TABLEAU',")
+            w("    SEPARATEUR=',',")
+            w(");")
+            w()
 
         # ==============================================================
         # FIN

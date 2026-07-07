@@ -1,0 +1,38 @@
+{
+  "asset_id": "geometry:tuyau_subpoint:result_state_Operating:55",
+  "bounds": [
+    -0.006,
+    -0.06620614953531885,
+    -0.030938203675791726,
+    0.006,
+    -0.034940181684016816,
+    -0.010957978499538371
+  ],
+  "format": "tube",
+  "generation_config": {
+    "color": "#00e5ff",
+    "element_id": "pipe_str_0",
+    "points": [
+      [
+        0.0,
+        -0.040940181684016815,
+        -0.01695797849953837
+      ],
+      [
+        0.0,
+        -0.060206149535318845,
+        -0.024938203675791724
+      ]
+    ],
+    "position_source": "code_aster_tuyau_subpoint_formula",
+    "radius_m": 0.006,
+    "result_state_id": "result_state:Operating",
+    "row_index": 55,
+    "source": "tuba.tuyau_subpoint",
+    "subpoint_index": 56
+  },
+  "hash": "sha256:c753c8cceae1670393408ba9b0a74b2ec955f67d9e5a37e4fb07f58a2dbd06f2",
+  "object_ids": [
+    "object:tuyau_subpoint:result_state_Operating:55"
+  ]
+}

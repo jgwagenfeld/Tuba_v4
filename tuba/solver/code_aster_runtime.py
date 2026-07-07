@@ -366,17 +366,34 @@ def _should_try_next(exec_method: str, execution: CodeAsterExecution) -> bool:
 
 
 def _failure_message(failed: CodeAsterExecution, attempted: Sequence[CodeAsterExecution], work_dir: Path) -> str:
-    mess_tail = ""
     mess_file = work_dir / "study.mess"
-    if mess_file.exists():
-        mess_tail = "\n".join(mess_file.read_text(encoding="utf-8", errors="replace").splitlines()[-40:])
+    mess_tail = _file_tail(mess_file) if mess_file.exists() else "study.mess was not written."
     attempts = "\n".join(
-        f"{item.runtime.kind}: return code {item.returncode}; stderr tail: {item.stderr[-300:]}"
+        (
+            f"{item.runtime.kind}: command={shlex.join(item.command)}; "
+            f"return code {item.returncode}; "
+            f"stdout log={work_dir / f'stdout.{item.runtime.kind}.log'}; "
+            f"stderr log={work_dir / f'stderr.{item.runtime.kind}.log'}; "
+            f"stdout tail: {_text_tail(item.stdout, 300)}; "
+            f"stderr tail: {_text_tail(item.stderr, 300)}"
+        )
         for item in attempted
     )
     return (
         f"Code_Aster failed through {failed.runtime.kind} with return code {failed.returncode}.\n"
-        f"stderr: {failed.stderr[-500:]}\n"
-        f"--- Last lines of study.mess ---\n{mess_tail}\n"
+        f"command: {shlex.join(failed.command)}\n"
+        f"stdout log: {work_dir / f'stdout.{failed.runtime.kind}.log'}\n"
+        f"stderr log: {work_dir / f'stderr.{failed.runtime.kind}.log'}\n"
+        f"stdout tail: {_text_tail(failed.stdout)}\n"
+        f"stderr tail: {_text_tail(failed.stderr)}\n"
+        f"--- Last lines of {mess_file} ---\n{mess_tail}\n"
         f"--- Runtime attempts ---\n{attempts}"
     )
+
+
+def _file_tail(path: Path, *, lines: int = 40) -> str:
+    return "\n".join(path.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:])
+
+
+def _text_tail(text: str, chars: int = 500) -> str:
+    return text[-chars:] if text else ""

@@ -26,6 +26,7 @@ def run_example(output_dir: str | Path = ".benchmarks/realtime_visualization_rev
     )
     raise RuntimeError(
         "Realtime result review requires real Code_Aster result artifacts. "
+        "The exported study is not a completed engineering evaluation. "
         f"Exported the study to {study.work_dir}. Execute study.export with Code_Aster, "
         "then use tuba.analysis.code_aster_artifacts.import_code_aster_artifacts before writing a review scene."
     )

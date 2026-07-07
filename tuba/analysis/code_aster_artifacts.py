@@ -140,6 +140,7 @@ def _artifact_files(work_dir: Path, study: AnalysisStudy) -> dict[str, str]:
         ("effo", "study_effo.csv"),
         ("reac", "study_reac.csv"),
         ("sieq", "study_sieq.csv"),
+        ("tuyau_subpoints", "study_sieq.csv"),
         ("rmed", "study.rmed"),
         ("stdout", "stdout.log"),
         ("stderr", "stderr.log"),
