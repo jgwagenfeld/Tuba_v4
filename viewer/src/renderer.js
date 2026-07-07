@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
+  colorForScalarValue,
   getObjectScalarColor,
   getResultVectorScale,
+  getScalarLegend,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
 
@@ -16,6 +18,7 @@ export const SUPPORTED_RENDER_FORMATS = new Set([
   "polyline",
   "tube",
   "tube_envelope",
+  "tuyau_subpoint_glyphs",
   "vector"
 ]);
 
@@ -251,6 +254,9 @@ function createRenderableForAsset(asset, payload, state) {
     if (format === "point" || format === "marker") {
       return createPoint(asset, config, format);
     }
+    if (format === "tuyau_subpoint_glyphs") {
+      return createTuyauSubpointGlyphs(asset, config, format, state);
+    }
     if (format === "vector") {
       return createVector(asset, config, format, state);
     }
@@ -300,6 +306,57 @@ function createPoint(asset, config, format) {
   geometry.computeBoundingSphere();
   const mesh = new THREE.Mesh(geometry, materialForAsset(asset, config));
   mesh.position.copy(point);
+  mesh.name = asset.id;
+  return { format, object: mesh };
+}
+
+function createTuyauSubpointGlyphs(asset, config, format, state) {
+  const starts = readPoints(config.starts ?? config.start_points);
+  const ends = readPoints(config.ends ?? config.end_points);
+  const count = Math.min(starts.length, ends.length);
+  if (count < 1) {
+    return invalidAsset(asset, "TUYAU sub-point glyph assets require start and end point arrays.");
+  }
+  const radius = positiveNumber(config.radius_m) ?? 0.006;
+  const radialSegments = Math.max(4, Math.min(16, Math.floor(Number(config.radial_segments) || 8)));
+  const geometry = new THREE.CylinderGeometry(radius, radius, 1, radialSegments, 1, false);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    opacity: 0.94,
+    transparent: true,
+    vertexColors: true
+  });
+  const mesh = new THREE.InstancedMesh(geometry, material, count);
+  const matrix = new THREE.Matrix4();
+  const midpoint = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  const scale = new THREE.Vector3(1, 1, 1);
+  const quaternion = new THREE.Quaternion();
+  const yAxis = new THREE.Vector3(0, 1, 0);
+  const values = Array.isArray(config.values) ? config.values.map(Number) : [];
+  const legend = subpointLegend(config, values, state);
+  let written = 0;
+
+  for (let index = 0; index < count; index += 1) {
+    direction.copy(ends[index]).sub(starts[index]);
+    const length = direction.length();
+    if (length <= 1e-12) {
+      continue;
+    }
+    midpoint.copy(starts[index]).add(ends[index]).multiplyScalar(0.5);
+    quaternion.setFromUnitVectors(yAxis, direction.normalize());
+    scale.set(1, length, 1);
+    matrix.compose(midpoint, quaternion, scale);
+    mesh.setMatrixAt(written, matrix);
+    mesh.setColorAt(written, new THREE.Color(colorForSubpointValue(values[index], legend, asset, config)));
+    written += 1;
+  }
+
+  mesh.count = written;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) {
+    mesh.instanceColor.needsUpdate = true;
+  }
   mesh.name = asset.id;
   return { format, object: mesh };
 }
@@ -412,9 +469,11 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
     ...(payload.generation_config ?? {}),
     ...(asset.generation_config ?? {})
   };
-  const scalarColor = getObjectScalarColor(state, asset.object_ids ?? []);
-  if (scalarColor !== null) {
-    config.color = scalarColor;
+  if (String(asset.format ?? "").toLowerCase() !== "tuyau_subpoint_glyphs") {
+    const scalarColor = getObjectScalarColor(state, asset.object_ids ?? []);
+    if (scalarColor !== null) {
+      config.color = scalarColor;
+    }
   }
   if (String(asset.format ?? "").toLowerCase() === "vector") {
     return scaleVectorConfig(asset, config, state);
@@ -459,6 +518,34 @@ function colorForAsset(asset, config) {
     return 0x94a3b8;
   }
   return 0x2563eb;
+}
+
+function subpointLegend(config, values, state) {
+  const stateLegend = getScalarLegend(state);
+  const fallbackRange = config.range ?? config.legend?.range ?? rangeForValues(values);
+  if (stateLegend?.overlay?.data?.result_type === "tuyau_subpoints") {
+    return stateLegend;
+  }
+  return {
+    field: config.legend?.field ?? "VMIS",
+    unit: config.legend?.unit ?? "Pa",
+    range: fallbackRange,
+    colorMap: config.legend?.color_map ?? "turbo",
+    thresholds: config.legend?.thresholds ?? {}
+  };
+}
+
+function colorForSubpointValue(value, legend, asset, config) {
+  const scalarColor = colorForScalarValue(Number(value), legend);
+  return scalarColor ?? colorForAsset(asset, config);
+}
+
+function rangeForValues(values) {
+  const numeric = values.filter(Number.isFinite);
+  if (numeric.length === 0) {
+    return { min: 0, max: 1 };
+  }
+  return { min: Math.min(...numeric), max: Math.max(...numeric) };
 }
 
 function scaleVectorConfig(asset, config, state) {

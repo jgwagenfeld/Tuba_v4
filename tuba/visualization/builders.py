@@ -36,9 +36,6 @@ from tuba.visualization.scene import (
     VisualizationScene,
 )
 
-_TUYAU_SUBPOINT_SCENE_LIMIT = 500
-
-
 @dataclass(frozen=True)
 class SceneBuildOptions:
     include_elements: bool = True
@@ -1550,71 +1547,102 @@ def _result_state_tuyau_subpoint_scene(
     if not candidates:
         return [], [], None, diagnostics
 
-    # ponytail: cap glyph assets for browser responsiveness; add instanced glyphs if full dense clouds matter.
-    selected = candidates[:_TUYAU_SUBPOINT_SCENE_LIMIT]
     state_key = _safe_id(result_state.id)
-    objects: list[SceneObject] = []
-    assets: list[GeometryAsset] = []
-    values: dict[str, float] = {}
-    for row_index, row, value, point in selected:
-        object_id = f"object:tuyau_subpoint:{state_key}:{row_index}"
-        asset_id = f"geometry:tuyau_subpoint:{state_key}:{row_index}"
-        element_id = str(row.get("element_id") or "")
-        values[object_id] = value
-        metadata = {
-            **row,
-            "value": value,
-            "display_position": point,
-            "position_source": row.get("position_source", "centerline_from_sieq_elno"),
-            "result_state_id": result_state.id,
-            "load_case": result_state.load_case,
-        }
+    object_id = f"object:tuyau_subpoints:{state_key}"
+    asset_id = f"geometry:tuyau_subpoints:{state_key}"
+    starts: list[list[float]] = []
+    ends: list[list[float]] = []
+    display_positions: list[list[float]] = []
+    values: list[float] = []
+    row_indices: list[int] = []
+    element_ids: list[str] = []
+    subpoint_indices: list[int | None] = []
+    position_sources: set[str] = set()
+    for row_index, row, value, point in candidates:
         glyph_points = _tuyau_subpoint_glyph_points(row, point)
-        glyph_config = {
-            "source": "tuba.tuyau_subpoint",
-            "radius_m": 0.006,
-            "color": "#00e5ff",
-            "result_state_id": result_state.id,
-            "row_index": row_index,
-            "element_id": element_id,
-            "subpoint_index": row.get("subpoint_index"),
-            "position_source": metadata["position_source"],
-        }
-        if glyph_points is not None:
-            asset_format = "tube"
-            asset_bounds = _bounds_for_points(glyph_points, 0.006)
-            glyph_config["points"] = glyph_points
-        else:
-            asset_format = "point"
-            asset_bounds = _bounds_for_points([point], 0.035)
-            glyph_config.update({"point": point, "radius_m": 0.035})
-        assets.append(
-            GeometryAsset(
-                id=asset_id,
-                format=asset_format,
-                bounds=asset_bounds,
-                object_ids=[object_id],
-                generation_config=glyph_config,
+        if glyph_points is None:
+            diagnostics.append(
+                SceneDiagnostic(
+                    severity="warning",
+                    code="result_state.tuyau_subpoint_missing_radial_position",
+                    message="Skipped TUYAU sub-point row without a radial shell display position.",
+                    target=str(row.get("element_id") or row.get("solver_element_label") or row_index),
+                    source=result_state.id,
+                )
             )
-        )
-        objects.append(
-            SceneObject(
-                id=object_id,
-                entity_ref=EntityRef("element", element_id) if element_id else None,
-                kind="tuyau_subpoint",
-                name=f"{element_id} sub-point {row.get('subpoint_index', row_index)}",
-                geometry_asset_id=asset_id,
-                layer_ids=["solver_result:tuyau_subpoints"],
-                metadata=metadata,
-                source={"code_aster_tuyau_subpoint": row},
-            )
-        )
+            continue
+        element_id = str(row.get("element_id") or "")
+        starts.append(glyph_points[0])
+        ends.append(glyph_points[1])
+        display_positions.append(point)
+        values.append(value)
+        row_indices.append(row_index)
+        element_ids.append(element_id)
+        subpoint_indices.append(_as_int(row.get("subpoint_index")))
+        position_sources.add(str(row.get("position_source", "centerline_from_sieq_elno")))
 
-    numeric_values = list(values.values())
+    if not starts:
+        return [], [], None, diagnostics
+
+    value_range = {"min": min(values), "max": max(values)}
+    position_source = position_sources.pop() if len(position_sources) == 1 else "mixed"
+    asset_bounds = _bounds_for_points([*starts, *ends], 0.006)
+    object_metadata = {
+        "result_state_id": result_state.id,
+        "load_case": result_state.load_case,
+        "field": "SIEQ_ELNO",
+        "component": "VMIS",
+        "unit": "Pa",
+        "count": len(starts),
+        "position_source": position_source,
+        "source_file": result_state.files.get("tuyau_subpoints") or result_state.files.get("sieq"),
+    }
+    assets = [
+        GeometryAsset(
+            id=asset_id,
+            format="tuyau_subpoint_glyphs",
+            bounds=asset_bounds,
+            object_ids=[object_id],
+            generation_config={
+                "source": "tuba.tuyau_subpoint_field",
+                "radius_m": 0.006,
+                "radial_segments": 8,
+                "starts": starts,
+                "ends": ends,
+                "display_positions": display_positions,
+                "values": values,
+                "row_indices": row_indices,
+                "element_ids": element_ids,
+                "subpoint_indices": subpoint_indices,
+                "result_state_id": result_state.id,
+                "position_source": position_source,
+                "range": value_range,
+                "legend": {
+                    "field": "VMIS",
+                    "unit": "Pa",
+                    "range": value_range,
+                    "color_map": "turbo",
+                    "thresholds": {},
+                },
+            },
+        )
+    ]
+    objects = [
+        SceneObject(
+            id=object_id,
+            kind="tuyau_subpoint_field",
+            name=f"TUYAU sub-points {result_state.load_case}",
+            geometry_asset_id=asset_id,
+            layer_ids=["solver_result:tuyau_subpoints"],
+            metadata=object_metadata,
+            source={"code_aster_tuyau_subpoints": {"count": len(starts)}},
+        )
+    ]
+
     overlay = Overlay(
         id=f"overlay:solver_result:tuyau_subpoints:{result_state.id}",
         kind="solver_result",
-        object_ids=[obj.id for obj in objects],
+        object_ids=[object_id],
         name=f"TUYAU sub-points {result_state.load_case}",
         data={
             "result_type": "tuyau_subpoints",
@@ -1626,22 +1654,43 @@ def _result_state_tuyau_subpoint_scene(
             "component": "VMIS",
             "unit": "Pa",
             "source_file": result_state.files.get("tuyau_subpoints") or result_state.files.get("sieq"),
-            "position_source": "code_aster_tuyau_subpoint_formula",
+            "position_source": position_source,
             "total_count": len(rows),
-            "rendered_count": len(objects),
-            "render_limit": _TUYAU_SUBPOINT_SCENE_LIMIT,
-            "values": values,
-            "range": {"min": min(numeric_values), "max": max(numeric_values)},
+            "rendered_count": len(starts),
+            "values": {object_id: max(values)},
+            "range": value_range,
+            "hotspots": _tuyau_subpoint_hotspots(object_id, row_indices, values, element_ids, subpoint_indices),
             "legend": {
                 "field": "VMIS",
                 "unit": "Pa",
-                "range": {"min": min(numeric_values), "max": max(numeric_values)},
+                "range": value_range,
                 "color_map": "turbo",
                 "thresholds": {},
             },
         },
     )
     return objects, assets, overlay, diagnostics
+
+
+def _tuyau_subpoint_hotspots(
+    object_id: str,
+    row_indices: list[int],
+    values: list[float],
+    element_ids: list[str],
+    subpoint_indices: list[int | None],
+) -> list[dict[str, Any]]:
+    ranked = sorted(range(len(values)), key=lambda index: values[index], reverse=True)[:20]
+    return [
+        {
+            "object_id": object_id,
+            "row_index": row_indices[index],
+            "element_id": element_ids[index],
+            "subpoint_index": subpoint_indices[index],
+            "value": values[index],
+            "unit": "Pa",
+        }
+        for index in ranked
+    ]
 
 
 def _tuyau_subpoint_point(model: TubaModel, row: dict[str, Any]) -> list[float] | None:
@@ -1684,6 +1733,13 @@ def _coerce_point(value: Any) -> list[float] | None:
 def _as_float(value: Any) -> float | None:
     try:
         return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_int(value: Any) -> int | None:
+    try:
+        return int(value)
     except (TypeError, ValueError):
         return None
 

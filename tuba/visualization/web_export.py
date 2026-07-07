@@ -39,6 +39,7 @@ def write_scene_bundle(scene: VisualizationScene, path: str | Path) -> SceneBund
     for asset in scene.geometry_assets:
         asset_payload = asset.to_dict()
         asset_payload["uri"] = _relative_geometry_uri(asset.id)
+        asset_payload["generation_config"] = _manifest_generation_config(asset_payload)
         geometry_payload = {
             "asset_id": asset.id,
             "format": asset.format,
@@ -76,6 +77,19 @@ def write_scene_bundle(scene: VisualizationScene, path: str | Path) -> SceneBund
 
 def _relative_geometry_uri(asset_id: str) -> str:
     return f"geometry/{_safe_filename(asset_id)}.json"
+
+
+def _manifest_generation_config(asset_payload: dict[str, Any]) -> dict[str, Any]:
+    config = dict(asset_payload.get("generation_config", {}))
+    if asset_payload.get("format") != "tuyau_subpoint_glyphs":
+        return config
+    return {
+        "source": config.get("source"),
+        "count": len(config.get("starts", [])) if isinstance(config.get("starts"), list) else 0,
+        "range": config.get("range"),
+        "position_source": config.get("position_source"),
+        "payload_uri": asset_payload.get("uri"),
+    }
 
 
 def _safe_filename(value: str) -> str:

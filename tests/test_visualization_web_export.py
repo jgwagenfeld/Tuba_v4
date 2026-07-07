@@ -4,7 +4,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tuba import Model
-from tuba.visualization import SceneBuildOptions, VisualizationScene, build_visualization_scene, write_scene_bundle
+from tuba.visualization import (
+    GeometryAsset,
+    SceneBuildOptions,
+    SceneObject,
+    VisualizationScene,
+    build_visualization_scene,
+    write_scene_bundle,
+)
 
 
 class TestVisualizationWebExport(unittest.TestCase):
@@ -67,6 +74,45 @@ class TestVisualizationWebExport(unittest.TestCase):
             self.assertEqual(pipe_entry["entity_ref"], "element:pipe_0")
             self.assertEqual(pipe_entry["kind"], "pipe")
             self.assertEqual(pipe_entry["geometry_asset_id"], "geometry:element:pipe_0")
+
+    def test_write_scene_bundle_keeps_dense_tuyau_payload_out_of_scene_manifest(self):
+        scene = VisualizationScene(
+            scene_id="scene_dense_tuyau",
+            model_id="model:test",
+            objects=[
+                SceneObject(
+                    id="object:tuyau",
+                    kind="tuyau_subpoint_field",
+                    geometry_asset_id="geometry:tuyau",
+                )
+            ],
+            geometry_assets=[
+                GeometryAsset(
+                    id="geometry:tuyau",
+                    format="tuyau_subpoint_glyphs",
+                    bounds=[0, 0, 0, 0, 0, 1],
+                    object_ids=["object:tuyau"],
+                    generation_config={
+                        "source": "tuba.tuyau_subpoint_field",
+                        "starts": [[0, 0, 0], [0, 0, 0.1]],
+                        "ends": [[0, 0, 0.05], [0, 0, 0.15]],
+                        "values": [1.0, 2.0],
+                        "range": {"min": 1.0, "max": 2.0},
+                        "position_source": "code_aster_tuyau_subpoint_formula",
+                    },
+                )
+            ],
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            bundle = write_scene_bundle(scene, Path(tmpdir) / "review_scene")
+            scene_payload = json.loads(bundle.scene_path.read_text(encoding="utf-8"))
+            asset = scene_payload["geometry_assets"][0]
+            geometry_payload = json.loads((bundle.root / asset["uri"]).read_text(encoding="utf-8"))
+
+            self.assertNotIn("starts", asset["generation_config"])
+            self.assertEqual(asset["generation_config"]["count"], 2)
+            self.assertEqual(geometry_payload["generation_config"]["starts"], [[0, 0, 0], [0, 0, 0.1]])
 
 
 if __name__ == "__main__":

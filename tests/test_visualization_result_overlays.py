@@ -63,7 +63,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         diagnostic_codes = {diagnostic.code for diagnostic in scene.diagnostics}
         self.assertIn("result_state.missing_element_result", diagnostic_codes)
 
-    def test_result_state_adds_tuyau_subpoint_point_layer(self):
+    def test_result_state_adds_batched_tuyau_subpoint_layer(self):
         model, result_state = _model_and_result_state()
         result_state = replace(
             result_state,
@@ -85,6 +85,21 @@ class TestVisualizationResultOverlays(unittest.TestCase):
                         "centerline_position": [0.0, 0.0, 0.0],
                         "display_position": [0.0, 0.0, 0.04],
                         "position_source": "code_aster_tuyau_subpoint_formula",
+                    },
+                    {
+                        "field": "SIEQ_ELNO",
+                        "component": "VMIS",
+                        "unit": "Pa",
+                        "value": 84.0e6,
+                        "element_id": "pipe_0",
+                        "analysis_element_id": "pipe_0",
+                        "solver_element_label": "M1",
+                        "node_id": "N0",
+                        "solver_node_label": "N1",
+                        "subpoint_index": 4,
+                        "centerline_position": [0.0, 0.0, 0.0],
+                        "display_position": [0.0, 0.02, 0.034641],
+                        "position_source": "code_aster_tuyau_subpoint_formula",
                     }
                 ],
             },
@@ -93,23 +108,25 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:tuyau_subpoints")
         scene.validate()
 
-        subpoint = next(obj for obj in scene.objects if obj.kind == "tuyau_subpoint")
+        subpoint = next(obj for obj in scene.objects if obj.kind == "tuyau_subpoint_field")
         asset = next(asset for asset in scene.geometry_assets if asset.id == subpoint.geometry_asset_id)
         overlay = _result_overlay(scene, "tuyau_subpoints")
 
-        self.assertEqual(asset.format, "tube")
-        self.assertEqual(asset.generation_config["source"], "tuba.tuyau_subpoint")
-        self.assertEqual(len(asset.generation_config["points"]), 2)
-        self.assertLess(asset.generation_config["points"][0][2], 0.04)
-        self.assertGreater(asset.generation_config["points"][1][2], 0.04)
+        self.assertEqual(asset.format, "tuyau_subpoint_glyphs")
+        self.assertEqual(asset.generation_config["source"], "tuba.tuyau_subpoint_field")
+        self.assertEqual(len(asset.generation_config["starts"]), 2)
+        self.assertEqual(len(asset.generation_config["ends"]), 2)
+        self.assertEqual(asset.generation_config["values"], [42.0e6, 84.0e6])
+        self.assertLess(asset.generation_config["starts"][0][2], 0.04)
+        self.assertGreater(asset.generation_config["ends"][0][2], 0.04)
         self.assertEqual(asset.generation_config["radius_m"], 0.006)
         self.assertIn("solver_result:tuyau_subpoints", subpoint.layer_ids)
-        self.assertEqual(subpoint.metadata["subpoint_index"], 3)
         self.assertEqual(subpoint.metadata["position_source"], "code_aster_tuyau_subpoint_formula")
-        self.assertEqual(subpoint.metadata["display_position"], [0.0, 0.0, 0.04])
-        self.assertEqual(overlay.data["total_count"], 1)
-        self.assertEqual(overlay.data["rendered_count"], 1)
-        self.assertEqual(overlay.data["range"], {"min": 42.0e6, "max": 42.0e6})
+        self.assertEqual(subpoint.metadata["count"], 2)
+        self.assertEqual(overlay.data["total_count"], 2)
+        self.assertEqual(overlay.data["rendered_count"], 2)
+        self.assertNotIn("render_limit", overlay.data)
+        self.assertEqual(overlay.data["range"], {"min": 42.0e6, "max": 84.0e6})
         self.assertEqual(overlay.data["source_file"], "study_sieq.csv")
         self.assertEqual(overlay.data["position_source"], "code_aster_tuyau_subpoint_formula")
 

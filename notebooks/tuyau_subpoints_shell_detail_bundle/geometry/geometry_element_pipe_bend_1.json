@@ -1,0 +1,33 @@
+{
+  "asset_id": "geometry:element:pipe_bend_1",
+  "bounds": [
+    3.3000000000000003,
+    2.3,
+    0.0,
+    3.3000000000000003,
+    2.5999999999999996,
+    0.29999999999999993
+  ],
+  "format": "tube",
+  "generation_config": {
+    "entity_ref": "element:pipe_bend_1",
+    "points": [
+      [
+        3.3000000000000003,
+        2.3,
+        0.0
+      ],
+      [
+        3.3000000000000003,
+        2.5999999999999996,
+        0.29999999999999993
+      ]
+    ],
+    "radius_m": 0.0,
+    "source": "tuba.element"
+  },
+  "hash": "sha256:b4e83205f74d5a48fad1b2210f77373e664793f3d048ac9bfd2b8991a1413599",
+  "object_ids": [
+    "object:element:pipe_bend_1"
+  ]
+}

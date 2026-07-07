@@ -77,7 +77,7 @@ function fixtureState() {
 }
 
 test("renderer declares all RV08 asset formats", () => {
-  for (const format of ["tube", "polyline", "point", "vector", "marker", "aabb", "mesh"]) {
+  for (const format of ["tube", "polyline", "point", "vector", "marker", "aabb", "mesh", "tuyau_subpoint_glyphs"]) {
     assert.ok(SUPPORTED_RENDER_FORMATS.has(format), `${format} is supported`);
   }
 });
@@ -111,6 +111,47 @@ test("scene graph reports invalid assets without throwing", () => {
   assert.equal(graph.renderedObjectCount, 0);
   assert.equal(graph.diagnostics[0].code, "renderer.invalid_asset");
   assert.match(graph.diagnostics[0].message, /at least two points/);
+});
+
+test("scene graph renders TUYAU sub-points as one instanced glyph batch", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, 0, 0, 1, 1, 1],
+    geometryAssets: [
+      {
+        id: "geometry:tuyau",
+        format: "tuyau_subpoint_glyphs",
+        bounds: [0, 0, 0, 0, 0.04, 0.07],
+        object_ids: ["object:tuyau"],
+        generation_config: {
+          starts: [[0, 0, 0.034], [0, 0.017, 0.029]],
+          ends: [[0, 0, 0.05], [0, 0.025, 0.043]],
+          values: [42000000, 84000000],
+          range: { min: 42000000, max: 84000000 },
+          radius_m: 0.006
+        }
+      }
+    ],
+    geometryPayloads: [],
+    overlays: [
+      {
+        id: "overlay:tuyau",
+        kind: "solver_result",
+        data: {
+          result_type: "tuyau_subpoints",
+          values: { "object:tuyau": 84000000 },
+          range: { min: 42000000, max: 84000000 },
+          unit: "Pa"
+        }
+      }
+    ],
+    visibleObjectIds: ["object:tuyau"]
+  });
+
+  assert.equal(graph.diagnostics.length, 0);
+  assert.equal(graph.renderedObjectCount, 1);
+  const mesh = graph.objectsByObjectId.get("object:tuyau");
+  assert.equal(mesh.isInstancedMesh, true);
+  assert.equal(mesh.count, 2);
 });
 
 test("fitCameraToBounds targets scene center and computes a usable distance", () => {
