@@ -174,6 +174,32 @@ class TestRouteAdapter(unittest.TestCase):
         self.assertEqual(len(model.nodes), 0)
         self.assertEqual(len(model.elements), 0)
 
+    def test_apply_candidate_rejects_bend_without_explicit_radius(self):
+        model = Model(project_name="ExplicitRadiusRequired")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        request = PipeRouteRequest(
+            id="P-100",
+            start=RouteEndpoint(id="A", point=(0.0, 0.0, 0.0)),
+            goal=RouteEndpoint(id="B", point=(2.0, 2.0, 0.0)),
+            section="PipeSec",
+            material="Steel",
+        )
+        points = [(0.0, 0.0, 0.0), (2.0, 0.0, 0.0), (2.0, 2.0, 0.0)]
+        candidate = PipeRouteCandidate(
+            request_id="P-100",
+            points=points,
+            segments=build_segments(points, request.constraints),
+            cost=4.0,
+            cost_breakdown={"length": 4.0, "bends": 1},
+        )
+
+        with self.assertRaisesRegex(ValueError, "explicit bend radius"):
+            apply_candidate_to_model(model, candidate, request)
+
+        self.assertEqual(len(model.nodes), 0)
+        self.assertEqual(len(model.elements), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

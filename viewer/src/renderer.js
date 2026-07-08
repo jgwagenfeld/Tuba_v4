@@ -22,6 +22,9 @@ export const SUPPORTED_RENDER_FORMATS = new Set([
   "vector"
 ]);
 
+const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
+const REFERENCE_GEOMETRY_OPACITY = 0.32;
+
 export function createThreeSceneGraph(state, options = {}) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(options.backgroundColor ?? 0xf8fafc);
@@ -35,6 +38,10 @@ export function createThreeSceneGraph(state, options = {}) {
 
   const payloadsByAssetId = new Map((state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload]));
   const visibleIds = new Set(state.visibleObjectIds ?? []);
+  const renderState = {
+    ...state,
+    hasVisualDeformedGeometry: hasVisibleVisualDeformedGeometry(state, payloadsByAssetId, visibleIds)
+  };
   const objectsByObjectId = new Map();
   const diagnostics = [];
   let renderedObjectCount = 0;
@@ -44,7 +51,7 @@ export function createThreeSceneGraph(state, options = {}) {
       continue;
     }
     const payload = payloadsByAssetId.get(asset.id) ?? {};
-    const result = createRenderableForAsset(asset, payload, state);
+    const result = createRenderableForAsset(asset, payload, renderState);
     if (result.diagnostic) {
       diagnostics.push(result.diagnostic);
     }
@@ -291,7 +298,17 @@ function createPolyline(asset, config, format) {
     return invalidAsset(asset, "Polyline assets require at least two points.");
   }
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: colorForAsset(asset, config), linewidth: 2 }));
+  const opacity = opacityForConfig(config, 1);
+  const line = new THREE.Line(
+    geometry,
+    new THREE.LineBasicMaterial({
+      color: colorForAsset(asset, config),
+      depthWrite: opacity >= 1 && !config.transparent,
+      linewidth: 2,
+      opacity,
+      transparent: Boolean(config.transparent || opacity < 1)
+    })
+  );
   line.name = asset.id;
   return { format, object: line };
 }
@@ -464,6 +481,26 @@ function isAssetVisible(asset, visibleIds) {
   return ids.length === 0 || ids.some((id) => visibleIds.has(id));
 }
 
+function hasVisibleVisualDeformedGeometry(state, payloadsByAssetId = new Map(), visibleIds = new Set(state.visibleObjectIds ?? [])) {
+  return (state.geometryAssets ?? []).some((asset) => {
+    if (!isAssetVisible(asset, visibleIds)) {
+      return false;
+    }
+    const payload = payloadsByAssetId.get(asset.id) ?? {};
+    const config = {
+      ...(payload.generation_config ?? {}),
+      ...(asset.generation_config ?? {})
+    };
+    return isVisualDeformedConfig(asset, config);
+  });
+}
+
+function isUndeformedReferenceConfig(asset, config, state) {
+  const hasVisualDeformedGeometry =
+    typeof state.hasVisualDeformedGeometry === "boolean" ? state.hasVisualDeformedGeometry : hasVisibleVisualDeformedGeometry(state);
+  return hasVisualDeformedGeometry && String(config.source ?? "").toLowerCase() === "tuba.element";
+}
+
 export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
   const config = {
     ...(payload.generation_config ?? {}),
@@ -475,6 +512,11 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
       config.color = scalarColor;
     }
   }
+  if (isUndeformedReferenceConfig(asset, config, state)) {
+    config.color = REFERENCE_GEOMETRY_COLOR;
+    config.opacity = REFERENCE_GEOMETRY_OPACITY;
+    config.transparent = true;
+  }
   if (String(asset.format ?? "").toLowerCase() === "vector") {
     return scaleVectorConfig(asset, config, state);
   }
@@ -482,11 +524,13 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
 }
 
 function materialForAsset(asset, config, options = {}) {
-  const transparent = options.transparent ?? false;
+  const opacity = opacityForConfig(config, options.transparent ? 0.48 : 0.92);
+  const transparent = Boolean(options.transparent || config.transparent || opacity < 1);
   return new THREE.MeshStandardMaterial({
     color: colorForAsset(asset, config),
+    depthWrite: !transparent,
     metalness: 0.05,
-    opacity: transparent ? 0.48 : 0.92,
+    opacity,
     roughness: 0.68,
     transparent
   });
@@ -579,8 +623,11 @@ function scaleVisualDeformationConfig(asset, config, state) {
     return { ...config, visual_scale_display_only: displayScale };
   }
   const basePoints = numericPoints(config.base_points ?? config.cold_points);
+  if (basePoints.length !== points.length) {
+    return { ...config, visual_scale_display_only: sourceScale };
+  }
   const scaled = points.map((point, index) => {
-    const base = basePoints[index] ?? points[0];
+    const base = basePoints[index];
     return point.map((value, axis) => base[axis] + (value - base[axis]) * (displayScale / sourceScale));
   });
   return {
@@ -621,6 +668,14 @@ function numericPoint(point) {
   }
   const values = point.slice(0, 3).map(Number);
   return values.every(Number.isFinite) ? values : null;
+}
+
+function opacityForConfig(config, fallback) {
+  const value = Number(config.opacity);
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(1, value));
 }
 
 function parseColor(value) {

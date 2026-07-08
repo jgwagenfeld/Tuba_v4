@@ -1,0 +1,391 @@
+{
+  "generated_at": "2026-07-07T18:28:49",
+  "repo": "D:\\Gitprojects\\Tuba_v4",
+  "output_root": "D:\\Gitprojects\\Tuba_v4\\notebooks\\visual_check_jpegs\\20260707_182255",
+  "total_seconds": 354.7264747619629,
+  "notebook_count": 12,
+  "image_count": 42,
+  "results": [
+    {
+      "notebook": "00_welcome_and_setup.ipynb",
+      "status": "passed",
+      "seconds": 18.642850875854492,
+      "images": 4,
+      "error": ""
+    },
+    {
+      "notebook": "01_building_piping_systems.ipynb",
+      "status": "passed",
+      "seconds": 13.53930139541626,
+      "images": 2,
+      "error": ""
+    },
+    {
+      "notebook": "02_supports_and_loading.ipynb",
+      "status": "passed",
+      "seconds": 15.973091125488281,
+      "images": 2,
+      "error": ""
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "status": "passed",
+      "seconds": 45.055864095687866,
+      "images": 10,
+      "error": ""
+    },
+    {
+      "notebook": "04_visualization_gallery.ipynb",
+      "status": "passed",
+      "seconds": 79.94005250930786,
+      "images": 2,
+      "error": ""
+    },
+    {
+      "notebook": "05_autorouting.ipynb",
+      "status": "passed",
+      "seconds": 38.92623591423035,
+      "images": 4,
+      "error": ""
+    },
+    {
+      "notebook": "06_structural_frames_and_optimization.ipynb",
+      "status": "passed",
+      "seconds": 16.716049194335938,
+      "images": 2,
+      "error": ""
+    },
+    {
+      "notebook": "07_bim_data_exchange.ipynb",
+      "status": "passed",
+      "seconds": 13.743932008743286,
+      "images": 0,
+      "error": ""
+    },
+    {
+      "notebook": "08_expansion_aware_autorouting.ipynb",
+      "status": "passed",
+      "seconds": 24.295672178268433,
+      "images": 2,
+      "error": ""
+    },
+    {
+      "notebook": "advanced_piping_design_and_bim.ipynb",
+      "status": "passed",
+      "seconds": 22.508373260498047,
+      "images": 0,
+      "error": ""
+    },
+    {
+      "notebook": "autorouting_quick_iteration.ipynb",
+      "status": "passed",
+      "seconds": 26.58708357810974,
+      "images": 6,
+      "error": ""
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "status": "failed",
+      "seconds": 36.653615951538086,
+      "images": 8,
+      "error": "OSError: [Errno 22] Invalid argument: 'D:\\\\Gitprojects\\\\Tuba_v4\\\\notebooks\\\\visualize_elements_and_supports.ipynb'"
+    }
+  ],
+  "images": [
+    {
+      "notebook": "00_welcome_and_setup.ipynb",
+      "cell": 7,
+      "output": 2,
+      "mime": "image/jpeg",
+      "file": "00_welcome_and_setup__cell_07__out_02.jpg"
+    },
+    {
+      "notebook": "00_welcome_and_setup.ipynb",
+      "cell": 7,
+      "output": 2,
+      "mime": "image/png",
+      "file": "00_welcome_and_setup__cell_07__out_02.png"
+    },
+    {
+      "notebook": "00_welcome_and_setup.ipynb",
+      "cell": 13,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "00_welcome_and_setup__cell_13__out_01.jpg"
+    },
+    {
+      "notebook": "00_welcome_and_setup.ipynb",
+      "cell": 13,
+      "output": 1,
+      "mime": "image/png",
+      "file": "00_welcome_and_setup__cell_13__out_01.png"
+    },
+    {
+      "notebook": "01_building_piping_systems.ipynb",
+      "cell": 11,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "01_building_piping_systems__cell_11__out_01.jpg"
+    },
+    {
+      "notebook": "01_building_piping_systems.ipynb",
+      "cell": 11,
+      "output": 1,
+      "mime": "image/png",
+      "file": "01_building_piping_systems__cell_11__out_01.png"
+    },
+    {
+      "notebook": "02_supports_and_loading.ipynb",
+      "cell": 5,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "02_supports_and_loading__cell_05__out_01.jpg"
+    },
+    {
+      "notebook": "02_supports_and_loading.ipynb",
+      "cell": 5,
+      "output": 1,
+      "mime": "image/png",
+      "file": "02_supports_and_loading__cell_05__out_01.png"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 10,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "03_stress_analysis_and_compliance__cell_10__out_01.jpg"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 10,
+      "output": 1,
+      "mime": "image/png",
+      "file": "03_stress_analysis_and_compliance__cell_10__out_01.png"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 12,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "03_stress_analysis_and_compliance__cell_12__out_01.jpg"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 12,
+      "output": 1,
+      "mime": "image/png",
+      "file": "03_stress_analysis_and_compliance__cell_12__out_01.png"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 14,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "03_stress_analysis_and_compliance__cell_14__out_01.jpg"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 14,
+      "output": 1,
+      "mime": "image/png",
+      "file": "03_stress_analysis_and_compliance__cell_14__out_01.png"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 16,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "03_stress_analysis_and_compliance__cell_16__out_01.jpg"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 16,
+      "output": 1,
+      "mime": "image/png",
+      "file": "03_stress_analysis_and_compliance__cell_16__out_01.png"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 16,
+      "output": 2,
+      "mime": "image/jpeg",
+      "file": "03_stress_analysis_and_compliance__cell_16__out_02.jpg"
+    },
+    {
+      "notebook": "03_stress_analysis_and_compliance.ipynb",
+      "cell": 16,
+      "output": 2,
+      "mime": "image/png",
+      "file": "03_stress_analysis_and_compliance__cell_16__out_02.png"
+    },
+    {
+      "notebook": "04_visualization_gallery.ipynb",
+      "cell": 9,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "04_visualization_gallery__cell_09__out_01.jpg"
+    },
+    {
+      "notebook": "04_visualization_gallery.ipynb",
+      "cell": 9,
+      "output": 1,
+      "mime": "image/png",
+      "file": "04_visualization_gallery__cell_09__out_01.png"
+    },
+    {
+      "notebook": "05_autorouting.ipynb",
+      "cell": 8,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "05_autorouting__cell_08__out_01.jpg"
+    },
+    {
+      "notebook": "05_autorouting.ipynb",
+      "cell": 8,
+      "output": 1,
+      "mime": "image/png",
+      "file": "05_autorouting__cell_08__out_01.png"
+    },
+    {
+      "notebook": "05_autorouting.ipynb",
+      "cell": 12,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "05_autorouting__cell_12__out_01.jpg"
+    },
+    {
+      "notebook": "05_autorouting.ipynb",
+      "cell": 12,
+      "output": 1,
+      "mime": "image/png",
+      "file": "05_autorouting__cell_12__out_01.png"
+    },
+    {
+      "notebook": "06_structural_frames_and_optimization.ipynb",
+      "cell": 9,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "06_structural_frames_and_optimization__cell_09__out_01.jpg"
+    },
+    {
+      "notebook": "06_structural_frames_and_optimization.ipynb",
+      "cell": 9,
+      "output": 1,
+      "mime": "image/png",
+      "file": "06_structural_frames_and_optimization__cell_09__out_01.png"
+    },
+    {
+      "notebook": "08_expansion_aware_autorouting.ipynb",
+      "cell": 13,
+      "output": 2,
+      "mime": "image/jpeg",
+      "file": "08_expansion_aware_autorouting__cell_13__out_02.jpg"
+    },
+    {
+      "notebook": "08_expansion_aware_autorouting.ipynb",
+      "cell": 13,
+      "output": 2,
+      "mime": "image/png",
+      "file": "08_expansion_aware_autorouting__cell_13__out_02.png"
+    },
+    {
+      "notebook": "autorouting_quick_iteration.ipynb",
+      "cell": 10,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "autorouting_quick_iteration__cell_10__out_01.jpg"
+    },
+    {
+      "notebook": "autorouting_quick_iteration.ipynb",
+      "cell": 10,
+      "output": 1,
+      "mime": "image/png",
+      "file": "autorouting_quick_iteration__cell_10__out_01.png"
+    },
+    {
+      "notebook": "autorouting_quick_iteration.ipynb",
+      "cell": 12,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "autorouting_quick_iteration__cell_12__out_01.jpg"
+    },
+    {
+      "notebook": "autorouting_quick_iteration.ipynb",
+      "cell": 12,
+      "output": 1,
+      "mime": "image/png",
+      "file": "autorouting_quick_iteration__cell_12__out_01.png"
+    },
+    {
+      "notebook": "autorouting_quick_iteration.ipynb",
+      "cell": 16,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "autorouting_quick_iteration__cell_16__out_01.jpg"
+    },
+    {
+      "notebook": "autorouting_quick_iteration.ipynb",
+      "cell": 16,
+      "output": 1,
+      "mime": "image/png",
+      "file": "autorouting_quick_iteration__cell_16__out_01.png"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 8,
+      "output": 1,
+      "mime": "image/jpeg",
+      "file": "visualize_elements_and_supports__cell_08__out_01.jpg"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 8,
+      "output": 1,
+      "mime": "image/png",
+      "file": "visualize_elements_and_supports__cell_08__out_01.png"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 10,
+      "output": 4,
+      "mime": "image/jpeg",
+      "file": "visualize_elements_and_supports__cell_10__out_04.jpg"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 10,
+      "output": 4,
+      "mime": "image/png",
+      "file": "visualize_elements_and_supports__cell_10__out_04.png"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 10,
+      "output": 5,
+      "mime": "image/jpeg",
+      "file": "visualize_elements_and_supports__cell_10__out_05.jpg"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 10,
+      "output": 5,
+      "mime": "image/png",
+      "file": "visualize_elements_and_supports__cell_10__out_05.png"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 10,
+      "output": 6,
+      "mime": "image/jpeg",
+      "file": "visualize_elements_and_supports__cell_10__out_06.jpg"
+    },
+    {
+      "notebook": "visualize_elements_and_supports.ipynb",
+      "cell": 10,
+      "output": 6,
+      "mime": "image/png",
+      "file": "visualize_elements_and_supports__cell_10__out_06.png"
+    }
+  ],
+  "contact_sheet": "contact_sheet.jpg"
+}

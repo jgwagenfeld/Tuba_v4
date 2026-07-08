@@ -153,7 +153,14 @@ export function mergeBounds(boundsList) {
 
 function overlayHiddenObjectIds(state) {
   const ids = new Set();
-  const overlayOwnedKinds = new Set(["physical_envelope", "clash_marker", "rule_marker", "route_candidate"]);
+  const overlayOwnedKinds = new Set([
+    "physical_envelope",
+    "clash_marker",
+    "rule_marker",
+    "route_candidate",
+    "displacement_vector",
+    "reaction_vector"
+  ]);
   for (const overlay of state.overlays ?? []) {
     if (overlay.visible !== false) {
       continue;

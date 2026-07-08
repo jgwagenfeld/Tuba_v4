@@ -39,6 +39,8 @@ class TestVisualizationDeformedStates(unittest.TestCase):
 
         self.assertEqual(physical_asset.generation_config["points"], [[0.0, 0.1, 0.0], [1.0, 0.1, 0.0]])
         self.assertEqual(visual_asset.generation_config["points"], [[0.0, 1.0, 0.0], [1.0, 1.0, 0.0]])
+        self.assertEqual(visual_asset.generation_config["base_points"], [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+        self.assertEqual(envelope_asset.generation_config["base_points"], [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
         self.assertIn("deformed:physical_centerline", physical.layer_ids)
         self.assertIn("deformed:visual_centerline", visual.layer_ids)
         self.assertIn("deformed:visual_envelope", visual_envelope.layer_ids)
@@ -68,6 +70,7 @@ class TestVisualizationDeformedStates(unittest.TestCase):
         self.assertEqual(warped_asset.format, "polyline")
         self.assertEqual(warped_asset.generation_config["source"], "tuba.deformed_analysis_mesh.element")
         self.assertEqual(warped_asset.generation_config["points"], [[0.0, 1.0, 0.0], [1.0, 1.0, 0.0]])
+        self.assertEqual(warped_asset.generation_config["base_points"], [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
         self.assertEqual(warped.metadata["mesh_id"], analysis_mesh.id)
         self.assertEqual(warped.metadata["source_ref"], "element:pipe_0")
         self.assertIn("deformed:mesh", warped.layer_ids)

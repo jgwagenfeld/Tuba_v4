@@ -13,6 +13,7 @@ from typing import Mapping, Sequence
 
 DEFAULT_DOCKER_IMAGE = "simvia/code_aster:stable"
 DEFAULT_TIMEOUT_SECONDS = 7200
+DEFAULT_WSL_DISTRO = "Ubuntu"
 
 
 @dataclass(frozen=True)
@@ -23,7 +24,7 @@ class CodeAsterRuntimeConfig:
     runner_command: str | None = None
     bridge_python: str | None = None
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
-    preflight_timeout_seconds: int = 15
+    preflight_timeout_seconds: int = 45
     env: Mapping[str, str] = field(default_factory=lambda: os.environ)
 
 
@@ -75,8 +76,11 @@ def discover_code_aster_runtimes(config: CodeAsterRuntimeConfig) -> list[CodeAst
     if "command" in methods and (runner_command or config.exec_method == "command"):
         candidates.append(CodeAsterRuntimeCandidate("command", tuple(shlex.split(runner_command or "run_aster"))))
     if "wsl" in methods:
-        command = ("wsl", "-d", wsl_distro, "--") if wsl_distro else ("wsl",)
-        candidates.append(CodeAsterRuntimeCandidate("wsl", command))
+        if wsl_distro:
+            candidates.append(CodeAsterRuntimeCandidate("wsl", ("wsl", "-d", wsl_distro, "--")))
+        else:
+            candidates.append(CodeAsterRuntimeCandidate("wsl", ("wsl", "-d", DEFAULT_WSL_DISTRO, "--")))
+            candidates.append(CodeAsterRuntimeCandidate("wsl", ("wsl",)))
     if "docker" in methods:
         candidates.append(CodeAsterRuntimeCandidate("docker", ("docker", "run", "--rm", config.docker_image)))
 

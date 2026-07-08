@@ -7,7 +7,7 @@ from typing import Iterable
 
 import numpy as np
 
-from tuba.model import TubaModel
+from tuba.model import TubaModel, make_bend_geometry, sample_bend_geometry
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, PipeRouteResult, Point3D
 
 try:
@@ -54,6 +54,8 @@ def build_route_plotter(
     route_candidates = list(candidates or [])
     selected_index = None
     if result is not None:
+        if request is None:
+            request = result.request
         route_candidates = result.candidates
         selected_index = result.selected_index
 
@@ -61,9 +63,18 @@ def build_route_plotter(
     for idx, candidate in enumerate(route_candidates):
         selected = idx == selected_index
         color = "#1b9e77" if selected else palette[idx % len(palette)]
-        radius = _route_radius(model, request, selected)
+        radius = _route_radius(model, request)
         opacity = 1.0 if selected else 0.35
-        _add_candidate(plotter, candidate, color=color, radius=radius, opacity=opacity, label=f"candidate {idx}")
+        _add_candidate_bend_geometry(
+            plotter,
+            model,
+            request,
+            candidate,
+            color=color,
+            radius=radius,
+            opacity=opacity,
+            label=f"candidate {idx}",
+        )
         if show_reserved_envelopes:
             _add_reserved_envelope(
                 plotter,
@@ -146,16 +157,26 @@ def _add_model_pipes(plotter: "pv.Plotter", model: TubaModel) -> None:
     if not model.elements:
         return
     for elem in model.elements:
-        p1 = tuple(float(v) for v in model.nodes[elem.n1].coords)
-        p2 = tuple(float(v) for v in model.nodes[elem.n2].coords)
-        radius = model.sections[elem.section].OD / 2.0 if elem.section in model.sections else 0.05
-        tube = pv.Tube(pointa=p1, pointb=p2, radius=radius, n_sides=24, capping=True)
+        points = _element_render_points(model, elem)
+        radius = _section_radius(model, elem.section)
         color = "#1f78b4" if elem.type == "pipe_straight" else "#6a3d9a"
-        plotter.add_mesh(tube, color=color, opacity=0.85, label=elem.id)
+        _add_tube_path(plotter, points, radius=radius, color=color, opacity=0.85, label=elem.id)
 
 
-def _add_candidate(
+def _element_render_points(model: TubaModel, elem) -> list[Point3D]:
+    p1 = model.nodes[elem.n1].coords
+    p2 = model.nodes[elem.n2].coords
+    if elem.type != "pipe_bend":
+        return [_as_point(p1), _as_point(p2)]
+    if elem.bend_geometry is None:
+        raise ValueError(f"Cannot visualize pipe bend {elem.id!r} without explicit bend_geometry.")
+    return [_as_point(point) for point in sample_bend_geometry(p1, elem.bend_geometry, n_segments=24)]
+
+
+def _add_candidate_bend_geometry(
     plotter: "pv.Plotter",
+    model: TubaModel,
+    request: PipeRouteRequest | None,
     candidate: PipeRouteCandidate,
     *,
     color: str,
@@ -163,13 +184,92 @@ def _add_candidate(
     opacity: float,
     label: str,
 ) -> None:
-    for seg_idx, (start, end) in enumerate(zip(candidate.points, candidate.points[1:])):
-        if np.linalg.norm(np.asarray(end) - np.asarray(start)) <= 1e-12:
+    points = _candidate_render_points(model, request, candidate)
+    _add_tube_path(plotter, points, radius=radius, color=color, opacity=opacity, label=label)
+
+
+def _add_tube_path(
+    plotter: "pv.Plotter",
+    points: list[Point3D],
+    *,
+    radius: float,
+    color: str,
+    opacity: float,
+    label: str,
+) -> None:
+    clean = [point for point in points if len(point) == 3]
+    if len(clean) < 2:
+        return
+    coords = np.asarray(clean, dtype=float)
+    if np.any(np.linalg.norm(np.diff(coords, axis=0), axis=1) <= 1e-12):
+        keep = np.concatenate([[True], np.linalg.norm(np.diff(coords, axis=0), axis=1) > 1e-12])
+        coords = coords[keep]
+    if len(coords) < 2:
+        return
+    line = pv.PolyData(coords)
+    line.lines = np.concatenate([[len(coords)], np.arange(len(coords))])
+    plotter.add_mesh(line.tube(radius=radius, n_sides=24, capping=True), color=color, opacity=opacity, label=label)
+
+
+def _candidate_render_points(
+    model: TubaModel,
+    request: PipeRouteRequest | None,
+    candidate: PipeRouteCandidate,
+) -> list[Point3D]:
+    if len(candidate.points) < 3:
+        return list(candidate.points)
+    rendered: list[Point3D] = [candidate.points[0]]
+    current = np.asarray(candidate.points[0], dtype=float)
+    for idx in range(1, len(candidate.points) - 1):
+        corner = np.asarray(candidate.points[idx], dtype=float)
+        nxt = np.asarray(candidate.points[idx + 1], dtype=float)
+        in_vec = corner - current
+        out_vec = nxt - corner
+        in_len = float(np.linalg.norm(in_vec))
+        out_len = float(np.linalg.norm(out_vec))
+        if in_len <= 1e-9 or out_len <= 1e-9:
             continue
-        tube = pv.Tube(pointa=start, pointb=end, radius=radius, n_sides=24, capping=True)
-        plotter.add_mesh(tube, color=color, opacity=opacity, label=label if seg_idx == 0 else None)
-    for point in candidate.points:
-        plotter.add_mesh(pv.Sphere(radius=radius * 1.35, center=point), color=color, opacity=min(1.0, opacity + 0.2))
+        in_dir = in_vec / in_len
+        out_dir = out_vec / out_len
+        angle = _turn_angle_degrees(in_dir, out_dir)
+        if angle <= 1e-6:
+            rendered.append(_as_point(corner))
+            current = corner
+            continue
+        bend_segment = _bend_segment_for_corner(candidate, candidate.points[idx])
+        bend_radius = _bend_radius(model, request, bend_segment)
+        if bend_radius is None:
+            raise ValueError(
+                "Route visualization requires an explicit bend radius. "
+                "Set request.constraints.min_bend_radius or provide bend_radius on the bend segment."
+            )
+        tangent = bend_radius * np.tan(np.radians(angle) / 2.0)
+        if tangent >= in_len - 1e-9 or tangent >= out_len - 1e-9:
+            raise ValueError(
+                f"Route bend at {candidate.points[idx]!r} needs tangent length "
+                f"{tangent:.6g}, but adjacent straight lengths are {in_len:.6g} and {out_len:.6g}."
+            )
+        entry = corner - in_dir * tangent
+        exit = corner + out_dir * tangent
+        normal = np.cross(in_dir, out_dir)
+        geometry = make_bend_geometry(
+            start=entry,
+            end=exit,
+            radius=bend_radius,
+            angle=angle,
+            normal=normal,
+            start_tangent=in_dir,
+            end_tangent=out_dir,
+            generation_mode="autoroute",
+        )
+        arc_points = sample_bend_geometry(entry, geometry, n_segments=max(6, int(np.ceil(angle / 10.0))))
+        if np.linalg.norm(np.asarray(rendered[-1]) - entry) > 1e-9:
+            rendered.append(_as_point(entry))
+        rendered.extend(_as_point(point) for point in arc_points[1:])
+        current = exit
+    if np.linalg.norm(np.asarray(rendered[-1]) - np.asarray(candidate.points[-1], dtype=float)) > 1e-9:
+        rendered.append(candidate.points[-1])
+    return rendered
 
 
 def _add_endpoint(plotter: "pv.Plotter", point: Point3D, color: str, label: str) -> None:
@@ -230,7 +330,40 @@ def _reserved_envelope_bounds(candidate: PipeRouteCandidate) -> tuple[np.ndarray
     return lo, hi
 
 
-def _route_radius(model: TubaModel, request: PipeRouteRequest | None, selected: bool) -> float:
-    if request is not None and request.section in model.sections:
-        return model.sections[request.section].OD / 2.0 if selected else model.sections[request.section].OD / 3.5
-    return 0.06 if selected else 0.035
+def _bend_segment_for_corner(candidate: PipeRouteCandidate, point: Point3D):
+    target = np.asarray(point, dtype=float)
+    for segment in candidate.segments:
+        if segment.kind == "bend" and np.allclose(np.asarray(segment.start), target, atol=1e-6):
+            return segment
+    return None
+
+
+def _bend_radius(model: TubaModel, request: PipeRouteRequest | None, bend_segment) -> float | None:
+    if bend_segment is not None and bend_segment.bend_radius is not None:
+        return float(bend_segment.bend_radius)
+    if request is not None and request.constraints.min_bend_radius is not None:
+        return float(request.constraints.min_bend_radius)
+    return None
+
+
+def _turn_angle_degrees(in_dir: np.ndarray, out_dir: np.ndarray) -> float:
+    cosang = float(np.clip(np.dot(in_dir, out_dir), -1.0, 1.0))
+    return round(float(np.degrees(np.arccos(cosang))), 6)
+
+
+def _as_point(point) -> Point3D:
+    return (float(point[0]), float(point[1]), float(point[2]))
+
+
+def _section_radius(model: TubaModel, section_name: str) -> float:
+    if section_name not in model.sections:
+        raise ValueError(f"Cannot visualize route geometry: section {section_name!r} is not defined.")
+    from tuba.plotting.pipeline import get_section_radius
+
+    return get_section_radius(model.sections[section_name])
+
+
+def _route_radius(model: TubaModel, request: PipeRouteRequest | None) -> float:
+    if request is None:
+        raise ValueError("Cannot visualize route candidates without a PipeRouteRequest section.")
+    return _section_radius(model, request.section)

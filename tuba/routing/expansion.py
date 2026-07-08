@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -112,7 +112,7 @@ def _candidate(
 def _effective_constraints(model: TubaModel, request: PipeRouteRequest) -> RoutingConstraints:
     if request.constraints.min_bend_radius is not None:
         return request.constraints
-    return replace(request.constraints, min_bend_radius=model.sections[request.section].OD * 1.5)
+    raise ValueError("Expansion-loop routing requires constraints.min_bend_radius.")
 
 
 def _reserved_envelope_radius(model: TubaModel, request: PipeRouteRequest, spec: ExpansionLoopSpec) -> float:

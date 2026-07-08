@@ -290,6 +290,36 @@ class Support:
     friction_coefficient: float = 0.0
     id: Optional[str] = None
 
+
+TEE_TYPES = ("welding_tee", "reinforced_tee", "unreinforced_tee")
+
+
+@dataclass
+class Tee:
+    """A branch/tee junction definition at a node — drives B31.3/B31J SIFs."""
+
+    node: str
+    type: str = "unreinforced_tee"  # welding_tee | reinforced_tee | unreinforced_tee
+    pad_thickness: float = 0.0  # reinforcing pad thickness [m]
+
+    def __post_init__(self) -> None:
+        if self.type not in TEE_TYPES:
+            raise ValueError(f"Unknown Tee type: {self.type}")
+        self.pad_thickness = float(self.pad_thickness)
+
+    def to_dict(self) -> Dict[str, Any]:
+        # node is the map key in TubaModel.tees, so it stays out of the value.
+        return {"type": self.type, "pad_thickness": self.pad_thickness}
+
+    @classmethod
+    def from_dict(cls, node: str, data: Dict[str, Any]) -> "Tee":
+        return cls(
+            node=node,
+            type=data.get("type", "unreinforced_tee"),
+            pad_thickness=float(data.get("pad_thickness", 0.0)),
+        )
+
+
 @dataclass
 class OperationField:
     """Local operating value over a selectable part of the pipe model."""
@@ -400,7 +430,7 @@ class TubaModel:
         self.supports: List[Support] = []
         self.load_cases: Dict[str, LoadCase] = {}
         self.operations: Dict[str, Operation] = {}
-        self.tees: Dict[str, Dict[str, Any]] = {}
+        self.tees: Dict[str, Tee] = {}
         self.obstacles: List[Dict[str, Any]] = []
         self.groups: Dict[str, Dict[str, Any]] = {}
         self.placement_frames: Dict[str, PlacementFrame] = {}
@@ -915,16 +945,13 @@ class TubaModel:
 
     # -- Tees and Obstacles --------------------------------------------------
 
-    def define_tee(self, node: str, type: str = "unreinforced_tee", pad_thickness: float = 0.0) -> None:
+    def define_tee(self, node: str, type: str = "unreinforced_tee", pad_thickness: float = 0.0) -> Tee:
         """Explicitly define the Tee type and reinforcement for a node."""
         if node not in self.nodes:
             raise ValueError(f"Node '{node}' does not exist in the model.")
-        if type not in ("welding_tee", "reinforced_tee", "unreinforced_tee"):
-            raise ValueError(f"Unknown Tee type: {type}")
-        self.tees[node] = {
-            "type": type,
-            "pad_thickness": pad_thickness
-        }
+        tee = Tee(node=node, type=type, pad_thickness=pad_thickness)
+        self.tees[node] = tee
+        return tee
 
     def add_obstacle(
         self,
@@ -1163,7 +1190,7 @@ class TubaModel:
                 for name, op in self.operations.items()
             },
             "obstacles": self.obstacles,
-            "tees": self.tees,
+            "tees": {node: tee.to_dict() for node, tee in self.tees.items()},
             "groups": self.groups,
             "placement_frames": {
                 frame_id: frame.to_dict()
@@ -1476,6 +1503,33 @@ def make_bend_geometry(
         start_tangent=[float(value) for value in stored_start_tangent],
         end_tangent=[float(value) for value in stored_end_tangent],
         generation_mode=generation_mode,
+    )
+
+
+def sample_bend_geometry(start: Any, geometry: BendGeometry, *, n_segments: int = 16) -> np.ndarray:
+    """Sample a circular bend arc from its explicit geometry record."""
+
+    center = np.asarray(geometry.center, dtype=float)
+    normal = _unit_vector(geometry.normal, "bend normal")
+    start_arr = np.asarray(start, dtype=float)
+    radial = start_arr - center
+    radial_norm = float(np.linalg.norm(radial))
+    if radial_norm <= 1e-12:
+        raise ValueError("Bend start point must not be at the bend center.")
+    radial = radial / radial_norm * float(geometry.radius)
+    tangent = np.cross(normal, radial)
+    start_tangent = _unit_vector(geometry.start_tangent, "bend start tangent")
+    if float(np.dot(tangent, start_tangent)) < 0.0:
+        normal = -normal
+        tangent = -tangent
+    steps = max(int(n_segments), 1)
+    theta = math.radians(abs(float(geometry.angle)))
+    return np.array(
+        [
+            center + radial * math.cos(theta * i / steps) + tangent * math.sin(theta * i / steps)
+            for i in range(steps + 1)
+        ],
+        dtype=float,
     )
 
 

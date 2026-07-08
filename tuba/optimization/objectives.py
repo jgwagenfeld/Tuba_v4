@@ -250,9 +250,8 @@ class ClashObjective(BaseObjective):
             
         try:
             checker = PipingCollisionChecker(model)
-        except (ImportError, Exception):
-            # Fallback if trimesh not present or fails to initialize
-            return 0.0
+        except Exception as exc:
+            raise RuntimeError("ClashObjective requires a working collision engine; no fallback score was computed.") from exc
 
         colliding_elements = []
         if self.check_deformed and results:

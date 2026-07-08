@@ -87,6 +87,17 @@ class TestCodeAsterRuntime(unittest.TestCase):
 
         self.assertNotIn("command", {candidate.kind for candidate in candidates})
 
+    def test_auto_without_wsl_env_tries_ubuntu_before_default_wsl(self):
+        candidates = discover_code_aster_runtimes(CodeAsterRuntimeConfig(exec_method="auto", env={}))
+        wsl_commands = [candidate.command for candidate in candidates if candidate.kind == "wsl"]
+
+        self.assertGreaterEqual(len(wsl_commands), 2)
+        self.assertEqual(wsl_commands[0], ("wsl", "-d", "Ubuntu", "--"))
+        self.assertEqual(wsl_commands[1], ("wsl",))
+
+    def test_default_preflight_timeout_allows_cold_wsl_start(self):
+        self.assertGreaterEqual(CodeAsterRuntimeConfig().preflight_timeout_seconds, 30)
+
     def test_docker_command_mounts_workdir(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -225,7 +236,7 @@ class TestCodeAsterRuntime(unittest.TestCase):
                 )
 
         self.assertEqual(execution.runtime.kind, "docker")
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
 
     def test_auto_mode_falls_back_when_runtime_executable_is_missing(self):
         with TemporaryDirectory() as tmpdir:
@@ -249,7 +260,7 @@ class TestCodeAsterRuntime(unittest.TestCase):
             missing_wsl_log = (root / "stderr.wsl.log").read_text(encoding="utf-8")
 
         self.assertEqual(execution.runtime.kind, "docker")
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
         self.assertIn("wsl executable not found", missing_wsl_log)
 
     def test_preflight_reports_ok_runtime(self):

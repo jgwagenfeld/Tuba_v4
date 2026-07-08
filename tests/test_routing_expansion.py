@@ -58,7 +58,7 @@ class TestRoutingExpansion(unittest.TestCase):
             (max(xs) + envelope_radius, max(ys) + envelope_radius, max(zs) + envelope_radius),
         )
 
-    def test_effective_bend_radius_rejects_tight_loop_when_request_has_no_radius(self):
+    def test_expansion_loop_requires_explicit_bend_radius(self):
         request = PipeRouteRequest(
             id="HOT-102",
             start=RouteEndpoint("A", (0.0, 0.0, 0.0)),
@@ -69,15 +69,10 @@ class TestRoutingExpansion(unittest.TestCase):
             thermal_requirements=ThermalRouteRequirement(180.0, 20.0, 10.0, 12e-6),
         )
 
-        candidate = ExpansionLoopGenerator(
-            loop_specs=(ExpansionLoopSpec("u_loop", width_m=0.2, depth_m=0.1, plane="xy"),)
-        ).generate(_model(), request)[0]
-
-        fallback_radius = _model().sections[request.section].OD * 1.5
-        bend_radii = [segment.bend_radius for segment in candidate.segments if segment.kind == "bend"]
-        self.assertFalse(candidate.is_valid)
-        self.assertTrue(candidate.diagnostics)
-        self.assertTrue(all(radius == fallback_radius for radius in bend_radii))
+        with self.assertRaisesRegex(ValueError, "requires constraints.min_bend_radius"):
+            ExpansionLoopGenerator(
+                loop_specs=(ExpansionLoopSpec("u_loop", width_m=0.2, depth_m=0.1, plane="xy"),)
+            ).generate(_model(), request)
 
     def test_plane_direction_mismatch_returns_invalid_candidate(self):
         request = PipeRouteRequest(

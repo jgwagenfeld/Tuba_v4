@@ -7,7 +7,7 @@ from tuba import Model, Material, PipeSection, PipingBuilder
 from tuba.solver.base import FEAResults, NodeResult, ElementResult
 from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
 from tuba.compliance.asme_b313 import ASMEB313Evaluator
-from tuba.optimization.optimizer import GeneticSupportPlacer, LLMSupportOptimizer
+from tuba.optimization.optimizer import GeneticSupportPlacer, LLMSupportOptimizer, RuleBasedSupportPlacer
 from tuba.plotting.pipeline import build_mesh_from_model, build_3d_mesh_from_model
 
 
@@ -79,8 +79,12 @@ class TestPipeSection(unittest.TestCase):
         rect = RectangularSection(name="rect", height_y=0.1, height_z=0.2)
         self.assertAlmostEqual(get_section_radius(rect), 0.1)
         
-        ibeam = IBeamSection(name="ibeam", profile_name="IPE100", properties={"EY": 0.05})
+        ibeam = IBeamSection(name="ibeam", profile_name="IPE100", properties={"EY": 0.05, "EZ": 0.04})
         self.assertAlmostEqual(get_section_radius(ibeam), 0.05)
+
+        incomplete_ibeam = IBeamSection(name="bad_ibeam", profile_name="CUSTOM", properties={"EY": 0.05})
+        with self.assertRaisesRegex(ValueError, "missing dimension"):
+            get_section_radius(incomplete_ibeam)
 
 
 class TestModelAndBuilder(unittest.TestCase):
@@ -181,12 +185,26 @@ class TestModelAndBuilder(unittest.TestCase):
         model = Model(project_name="GeneticSpring")
         model.add_support(node="N0", type="anchor")
 
-        placer = GeneticSupportPlacer()
+        placer = GeneticSupportPlacer(spring_stiffness_matrix=[0.0, 200000.0, 0.0, 0.0, 0.0, 0.0])
         placer._apply_chromosome(model, ["N1"], np.array([3]))
 
         spring = next(s for s in model.supports if s.type == "spring")
         self.assertEqual(spring.stiffness_matrix, [0.0, 200000.0, 0.0, 0.0, 0.0, 0.0])
         self.assertIsNone(spring.stiffness)
+
+    def test_genetic_support_placer_rejects_implicit_spring_gene(self):
+        model = Model(project_name="GeneticNoImplicitSpring")
+        placer = GeneticSupportPlacer()
+
+        with self.assertRaisesRegex(ValueError, "spring_stiffness_matrix"):
+            placer._apply_chromosome(model, ["N1"], np.array([3]))
+
+    def test_rule_based_support_placer_is_disabled(self):
+        model = Model(project_name="NoHeuristicSupportPlacement")
+        placer = RuleBasedSupportPlacer()
+
+        with self.assertRaisesRegex(NotImplementedError, "heuristic support layouts"):
+            placer.optimize(model, evaluator=None)
 
     def test_load_case_ref_temperature_roundtrip(self):
         model = Model(project_name="LoadCaseRoundtrip")
@@ -224,6 +242,26 @@ class TestModelAndBuilder(unittest.TestCase):
         cells = mesh.lines
         self.assertEqual(cells[0], 19)
         self.assertEqual(len(cells), 20)
+
+    def test_bend_visualization_requires_explicit_geometry(self):
+        model = Model()
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1143, WT=0.006)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 1.0, 0.0])
+        model.add_element(
+            id="pipe_bend_0",
+            type="pipe_bend",
+            n1=n0,
+            n2=n1,
+            section="PipeSec",
+            material="Steel",
+            bend_radius=0.5,
+            bend_angle=90.0,
+        )
+
+        with self.assertRaisesRegex(ValueError, "explicit bend_geometry"):
+            build_mesh_from_model(model)
 
     def test_element_local_frame(self):
         from tuba.plotting.plots import _get_element_local_frame

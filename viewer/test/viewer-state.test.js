@@ -83,6 +83,42 @@ test("overlay kind layers hide overlay-owned marker objects independently", () =
   assert.deepEqual(next.visibleObjectIds, ["object:cold", "object:deformed"]);
 });
 
+test("reaction vectors can be hidden by result layer or solver overlay", () => {
+  const base = bundle().scene;
+  const state = createViewerState(bundle({
+    objects: [
+      ...base.objects,
+      {
+        id: "object:reaction",
+        kind: "reaction_vector",
+        name: "Reaction",
+        geometry_asset_id: "asset:reaction",
+        layer_ids: ["result:reaction"],
+      },
+    ],
+    geometry_assets: [
+      ...base.geometry_assets,
+      { id: "asset:reaction", format: "vector", bounds: [0, 0, 0, 0, 1, 0], object_ids: ["object:reaction"], generation_config: {} },
+    ],
+    overlays: [
+      ...base.overlays,
+      {
+        id: "overlay:solver_result:reaction:Hot",
+        kind: "solver_result",
+        name: "Reaction Hot",
+        object_ids: ["object:reaction"],
+        data: { result_type: "reaction" },
+        visible: true,
+      },
+    ],
+  }));
+
+  assert.ok(state.visibleObjectIds.includes("object:reaction"));
+  assert.ok(setLayerVisibility(state, "result:reaction", false).visibleObjectIds.includes("object:cold"));
+  assert.ok(!setLayerVisibility(state, "result:reaction", false).visibleObjectIds.includes("object:reaction"));
+  assert.ok(!setLayerVisibility(state, "overlay:solver_result", false).visibleObjectIds.includes("object:reaction"));
+});
+
 test("scene validation diagnostics expose missing geometry and overlay references", () => {
   const state = createViewerState(
     bundle({

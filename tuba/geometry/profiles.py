@@ -60,8 +60,8 @@ def profile_for_section(section) -> SectionProfile:
             source=section,
         )
     if isinstance(section, IBeamSection):
-        h = _dimension(section, "H", "EY", default=0.1)
-        b = _dimension(section, "B", "EZ", default=0.05)
+        h = _dimension(section, "H", "EY")
+        b = _dimension(section, "B", "EZ")
         area = float(section.properties.get("A", section.properties.get("area", 0.0)))
         return SectionProfile(
             kind="ibeam",
@@ -86,9 +86,12 @@ def area_for_section(section) -> float:
     return profile_for_section(section).area_m2
 
 
-def _dimension(section: IBeamSection, primary: str, fallback: str, *, default: float) -> float:
+def _dimension(section: IBeamSection, primary: str, fallback: str) -> float:
     if primary in section.properties:
         return float(section.properties[primary])
     if fallback in section.properties:
         return float(section.properties[fallback]) * 2.0
-    return default
+    raise ValueError(
+        f"I-beam section {section.name!r} is missing dimension {primary!r}. "
+        f"Load it from the section catalog or provide {primary!r}/{fallback!r} explicitly."
+    )

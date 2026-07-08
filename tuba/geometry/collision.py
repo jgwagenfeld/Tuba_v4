@@ -92,10 +92,16 @@ class PipingCollisionChecker:
             elif obs_type == "cylinder":
                 min_pt = np.array(obs["min_point"])
                 max_pt = np.array(obs["max_point"])
-                # Estimate radius from horizontal dimensions, or default to 0.5m
-                radius = np.linalg.norm(max_pt[:2] - min_pt[:2]) / 2.0
-                if radius < 1e-3:
-                    radius = 0.5
+                explicit_radius = obs.get("radius")
+                if explicit_radius is None:
+                    radius = np.linalg.norm(max_pt[:2] - min_pt[:2]) / 2.0
+                    if radius < 1e-3:
+                        raise ValueError(
+                            f"Cylinder obstacle {obs_id!r} requires an explicit radius "
+                            "or nonzero XY extent between min_point and max_point."
+                        )
+                else:
+                    radius = float(explicit_radius)
                 mesh = create_cylinder_mesh(min_pt, max_pt, radius)
                 if mesh is not None:
                     self.manager.add_object(obs_id, mesh)
@@ -175,9 +181,13 @@ class PipingCollisionChecker:
             p1_cold = self.model.nodes[elem.n1].coords
             p2_cold = self.model.nodes[elem.n2].coords
 
-            # Extract FEA displacements for both nodes, default to zero if not simulated
-            disp1 = results.get_displacement(elem.n1)[:3] if elem.n1 in results.node_results else np.zeros(3)
-            disp2 = results.get_displacement(elem.n2)[:3] if elem.n2 in results.node_results else np.zeros(3)
+            if elem.n1 not in results.node_results or elem.n2 not in results.node_results:
+                raise ValueError(
+                    f"Missing displacement results for element {elem.id!r}; "
+                    "deformed collision checking requires both end-node displacements."
+                )
+            disp1 = results.get_displacement(elem.n1)[:3]
+            disp2 = results.get_displacement(elem.n2)[:3]
 
             p1_deformed = p1_cold + disp1
             p2_deformed = p2_cold + disp2

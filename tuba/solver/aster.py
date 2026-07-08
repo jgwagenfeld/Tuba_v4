@@ -402,12 +402,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
     ) -> FEAResults:
         """Parse solver outputs into :class:`FEAResults`.
 
-        The parser tries two sources in order:
-
-        1. **CSV text tables** (units 38–41) — always generated and fully
-           self-contained.  This is the primary source.
-        2. **MED file** via ``meshio`` — used to attach *raw_mesh* for
-           visualisation and as a fallback for any missing fields.
+        The parser reads the CSV text tables (units 38-41), which are generated
+        by the solver and fully self-contained. If a ``study.rmed`` file exists
+        it is recorded on the result object, but RMED inspection is left to
+        explicit visualization/import paths so solver parsing never depends on
+        optional mesh readers or their file-handle behavior.
         """
         results = FEAResults(solver_name=self.SOLVER_NAME)
         results._model = model
@@ -445,12 +444,29 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
                 "run did not generate real results; refusing to return an all-zero "
                 "result. Inspect study.mess for solver errors."
             )
-        self._parse_effo_table(model, work_dir, results, node_label_map, element_label_map)
+        applied_forces = self._parse_effo_table(model, work_dir, results, node_label_map, element_label_map)
+        # Element internal forces are what the ASME B31.3 evaluator turns into code
+        # stress. If displacement parsed but the force table is missing/empty/mismapped,
+        # every stress-bearing element keeps its all-zero seed and compliance would
+        # silently report PASS on fictitious zero moments. Refuse that, mirroring the
+        # displacement guard above and the AGENTS.md "no proxy values as results" contract.
+        pipe_elements = [elem for elem in model.elements if elem.type in ("pipe_straight", "pipe_bend")]
+        if pipe_elements and applied_forces == 0:
+            raise RuntimeError(
+                f"Code_Aster produced no element internal forces in {work_dir} "
+                "(study_effo.csv is missing or has no parseable rows) even though the "
+                "model has stress-bearing pipe elements. Refusing to return zero-force "
+                "results that would pass compliance on fictitious stress. Inspect "
+                "study.mess for solver errors."
+            )
+        if pipe_elements and applied_forces < len(pipe_elements):
+            results.parser_diagnostics.append(
+                f"Only {applied_forces}/{len(pipe_elements)} pipe elements received internal "
+                "forces from study_effo.csv; compliance for the remainder is based on zero "
+                "forces (possible solver label mismatch)."
+            )
         self._parse_reac_table(model, work_dir, results, node_label_map)
         self._parse_sieq_table(model, work_dir, results, node_label_map, element_label_map)
-
-        # --- Attempt to attach MED mesh ------------------------------------
-        self._try_load_rmed(work_dir, results)
 
         return results
 
@@ -598,17 +614,22 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         results: FEAResults,
         node_label_map: dict[str, str],
         element_label_map: dict[str, str],
-    ) -> None:
+    ) -> int:
         """Parse internal-force table (unit 38, ``EFGE_ELNO``).
 
         Each row contains ``MAILLE`` (element) and ``NOEUD`` (node).
         For a SEG2 element there are exactly two rows — one per end-node.
         We map them to ``forces_n1`` / ``forces_n2`` by matching the
         ``NOEUD`` field against the element's ``n1`` / ``n2``.
+
+        Returns the number of distinct elements that received at least one
+        parsed force vector, so the caller can detect a run that produced no
+        usable internal forces.
         """
         rows = self._parse_csv_table(work_dir / "study_effo.csv")
         # Build a quick lookup: element_id → Element
         elem_map: Dict[str, Element] = {e.id: e for e in model.elements}
+        covered: set[str] = set()
 
         for row in rows:
             raw_eid = row.get("MAILLE", "").strip()
@@ -616,7 +637,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
             eid = element_label_map.get(raw_eid, raw_eid)
             nid = node_label_map.get(raw_nid, raw_nid)
             
-            # Map segmented elements (e.g. pipe_bend_0_s0) back to the original bend element (pipe_bend_0)
+            # The mesh subdivides each elbow into sub-elements (pipe_bend_0_s0, _s1, …)
+            # for FE accuracy. Fold them back to the single model bend element. Forces
+            # attach only at the elbow's own end nodes (n1/n2) below — exactly the input
+            # the B31.3 end-node SIF check consumes; interior sub-node moments feed FE
+            # displacement fidelity, not the code check, so dropping them here is intended.
             orig_eid = eid
             if "_s" in eid:
                 parts = eid.split("_s")
@@ -643,8 +668,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
             er = results.element_results[orig_eid]
             if nid == elem.n1:
                 er.forces_n1 = forces
+                covered.add(orig_eid)
             elif nid == elem.n2:
                 er.forces_n2 = forces
+                covered.add(orig_eid)
+        return len(covered)
 
     def _parse_reac_table(
         self,

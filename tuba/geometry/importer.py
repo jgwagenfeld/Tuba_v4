@@ -100,10 +100,8 @@ class StepGeometryImporter:
                     break
 
             if len(faces) == 0:
-                # Fallback to empty mesh if no elements generated
-                mesh = trimesh.Trimesh(vertices=np.zeros((0, 3)), faces=np.zeros((0, 3)))
-            else:
-                mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+                raise RuntimeError(f"Gmsh did not generate surface faces for STEP file {file_path!r}.")
+            mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
 
         finally:
             # Clean up the model in Gmsh to avoid memory bloat

@@ -53,6 +53,16 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(reaction.data["vectors"][0]["reaction_force_n"], [100.0, 0.0, -500.0])
         self.assertEqual(reaction.data["legend"]["unit"], "N")
         self.assertEqual(diagnostics.data["diagnostics"], ["parser diagnostic"])
+        displacement_vector = next(obj for obj in scene.objects if obj.kind == "displacement_vector")
+        reaction_vector = next(obj for obj in scene.objects if obj.kind == "reaction_vector")
+        reaction_asset = next(asset for asset in scene.geometry_assets if asset.id == reaction_vector.geometry_asset_id)
+        self.assertIn("result:displacement", displacement_vector.layer_ids)
+        self.assertIn("result:reaction", reaction_vector.layer_ids)
+        self.assertIn(reaction_vector.id, reaction.object_ids)
+        self.assertEqual(reaction_asset.format, "vector")
+        self.assertEqual(reaction_asset.generation_config["source"], "tuba.result_state")
+        self.assertEqual(reaction_asset.generation_config["result_type"], "reaction")
+        self.assertEqual(reaction_asset.generation_config["reaction_force_n"], [100.0, 0.0, -500.0])
 
     def test_result_state_missing_element_results_emit_diagnostics(self):
         model, result_state = _model_and_result_state(element_results=False)

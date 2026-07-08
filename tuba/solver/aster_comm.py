@@ -719,6 +719,7 @@ class _CommWriterMixin:
         w("    RESU=_F(")
         w("        RESULTAT=RESU,")
         if has_pipe_stress:
+            w("        CARA_ELEM=CARA,")
             w("        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),")
         else:
             w("        NOM_CHAM=('DEPL', 'EFGE_ELNO', 'FORC_NODA'),")

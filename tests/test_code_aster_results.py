@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import numpy as np
 
@@ -28,7 +29,16 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            Path(tmpdir, "study_effo.csv").write_text("MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n", encoding="utf-8")
+            Path(tmpdir, "study_effo.csv").write_text(
+                "\n".join(
+                    [
+                        "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ",
+                        "pipe_bend_0,N0,100.0,0.0,0.0,0.0,0.0,0.0",
+                        "pipe_bend_0,N1,100.0,0.0,0.0,0.0,0.0,0.0",
+                    ]
+                ),
+                encoding="utf-8",
+            )
             Path(tmpdir, "study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
             Path(tmpdir, "study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
 
@@ -58,6 +68,67 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
 
             with self.assertRaises(RuntimeError):
                 CodeAsterSolver()._parse_results(model, Path(tmpdir))
+
+    def test_parse_raises_on_empty_force_results(self):
+        """Displacement present but no internal forces must fail loudly, not pass compliance on zeros."""
+        model = Model(project_name="EmptyForces")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+
+        with TemporaryDirectory() as tmpdir:
+            # Displacement solved, but the force table came back empty (post-processing
+            # failed or labels mismatched). Zero forces would silently pass compliance.
+            Path(tmpdir, "study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\nN0,0.001,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            Path(tmpdir, "study_effo.csv").write_text("MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n", encoding="utf-8")
+            Path(tmpdir, "study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
+            Path(tmpdir, "study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
+
+            with self.assertRaises(RuntimeError):
+                CodeAsterSolver()._parse_results(model, Path(tmpdir))
+
+    def test_parse_result_tables_does_not_auto_open_rmed(self):
+        model = Model(project_name="RmedBoundary")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+
+        calls = []
+
+        class FakeMeshio:
+            @staticmethod
+            def read(path, *, file_format=None):
+                calls.append((Path(path).name, file_format))
+                raise RuntimeError("RMED loading must be explicit")
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\nN0,0.001,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            (root / "study_effo.csv").write_text(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\npipe_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            (root / "study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
+            (root / "study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
+            (root / "study.rmed").write_bytes(b"fake-rmed")
+
+            with patch.dict("sys.modules", {"meshio": FakeMeshio}):
+                results = CodeAsterSolver()._parse_results(model, root)
+
+            self.assertEqual(root / "study.rmed", results.result_file)
+            self.assertIsNone(results.raw_mesh)
+
+        self.assertEqual([], calls)
 
 
 if __name__ == "__main__":

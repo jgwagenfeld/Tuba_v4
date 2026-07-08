@@ -225,7 +225,10 @@ def _bend_radius(
         return bend_segment.bend_radius
     if request.constraints.min_bend_radius is not None:
         return request.constraints.min_bend_radius
-    return model.sections[request.section].OD * 1.5
+    raise ValueError(
+        "Route bends require an explicit bend radius. "
+        "Set request.constraints.min_bend_radius or provide bend_radius on the bend segment."
+    )
 
 
 def _turn_angle_degrees(in_dir: np.ndarray, out_dir: np.ndarray) -> float:

@@ -1182,6 +1182,7 @@ def _build_solver_result_scene(
         deformed = _deformed_element_points(model, results, elem, deformation_scale)
         if deformed is None:
             continue
+        base_points = _element_points(model, elem)
         object_id = f"object:solver_result:deformed:{load_case}:{elem.id}"
         asset_id = f"geometry:solver_result:deformed:{load_case}:{elem.id}"
         assets.append(
@@ -1196,6 +1197,7 @@ def _build_solver_result_scene(
                     "load_case": load_case,
                     "element_id": elem.id,
                     "deformation_scale": float(deformation_scale),
+                    "base_points": base_points,
                     "points": deformed,
                 },
             )
@@ -1277,6 +1279,8 @@ def _build_result_state_result_scene(
     model: TubaModel,
     result_state: ResultState,
 ) -> tuple[list[SceneObject], list[GeometryAsset], list[Overlay], list[SceneDiagnostic]]:
+    objects: list[SceneObject] = []
+    assets: list[GeometryAsset] = []
     overlays: list[Overlay] = []
     diagnostics: list[SceneDiagnostic] = []
 
@@ -1286,10 +1290,16 @@ def _build_result_state_result_scene(
 
     displacement_overlay = _result_state_displacement_overlay(model, result_state, diagnostics)
     if displacement_overlay is not None:
+        displacement_objects, displacement_assets = _result_state_vector_scene(result_state, displacement_overlay)
+        objects.extend(displacement_objects)
+        assets.extend(displacement_assets)
         overlays.append(displacement_overlay)
 
     reaction_overlay = _result_state_reaction_overlay(model, result_state)
     if reaction_overlay is not None:
+        reaction_objects, reaction_assets = _result_state_vector_scene(result_state, reaction_overlay)
+        objects.extend(reaction_objects)
+        assets.extend(reaction_assets)
         overlays.append(reaction_overlay)
 
     parser_overlay = _result_state_parser_diagnostics_overlay(result_state)
@@ -1304,7 +1314,77 @@ def _build_result_state_result_scene(
         overlays.append(subpoint_overlay)
     diagnostics.extend(subpoint_diagnostics)
 
-    return subpoint_objects, subpoint_assets, overlays, diagnostics
+    objects.extend(subpoint_objects)
+    assets.extend(subpoint_assets)
+    return objects, assets, overlays, diagnostics
+
+
+def _result_state_vector_scene(
+    result_state: ResultState,
+    overlay: Overlay,
+) -> tuple[list[SceneObject], list[GeometryAsset]]:
+    result_type = str(overlay.data.get("result_type", ""))
+    if result_type not in {"displacement", "reaction"}:
+        return [], []
+    kind = f"{result_type}_vector"
+    objects: list[SceneObject] = []
+    assets: list[GeometryAsset] = []
+    vector_object_ids: list[str] = []
+    for vector in overlay.data.get("vectors", []):
+        start = _numeric_triplet(vector.get("start"))
+        end = _numeric_triplet(vector.get("end"))
+        if start is None or end is None:
+            continue
+        if float(np.linalg.norm(np.array(end, dtype=float) - np.array(start, dtype=float))) <= 1e-12:
+            continue
+        node_id = str(vector.get("node_id", "node"))
+        object_id = f"object:solver_result:{result_type}:{_safe_id(result_state.id)}:{_safe_id(node_id)}"
+        asset_id = f"geometry:solver_result:{result_type}:{_safe_id(result_state.id)}:{_safe_id(node_id)}"
+        generation_config = {
+            "source": "tuba.result_state",
+            "result_type": result_type,
+            "result_state_id": result_state.id,
+            "load_case": result_state.load_case,
+            "node_id": node_id,
+            "start": start,
+            "end": end,
+            "color": "#dc2626" if result_type == "reaction" else "#7c3aed",
+        }
+        if result_type == "reaction":
+            generation_config["reaction_force_n"] = list(vector.get("reaction_force_n", []))
+            generation_config["reaction_moment_nm"] = list(vector.get("reaction_moment_nm", []))
+        else:
+            generation_config["displacement_m"] = list(vector.get("displacement_m", []))
+            generation_config["rotation_rad"] = list(vector.get("rotation_rad", []))
+        assets.append(
+            GeometryAsset(
+                id=asset_id,
+                format="vector",
+                bounds=_bounds_for_points([start, end], 0.0),
+                object_ids=[object_id],
+                generation_config=generation_config,
+            )
+        )
+        objects.append(
+            SceneObject(
+                id=object_id,
+                kind=kind,
+                name=f"{node_id} {result_type} {result_state.load_case}",
+                geometry_asset_id=asset_id,
+                layer_ids=[f"result:{result_type}"],
+                metadata={
+                    "result_type": result_type,
+                    "result_state_id": result_state.id,
+                    "load_case": result_state.load_case,
+                    "node_id": node_id,
+                    "magnitude": vector.get(f"magnitude_{'n' if result_type == 'reaction' else 'm'}"),
+                },
+            )
+        )
+        vector_object_ids.append(object_id)
+    if vector_object_ids:
+        overlay.object_ids = _dedupe([*overlay.object_ids, *vector_object_ids])
+    return objects, assets
 
 
 def _result_state_stress_overlay(
@@ -1890,6 +1970,7 @@ def _build_deformed_centerline_scene(
             analysis_mesh=analysis_mesh,
         )
         points = [[float(value) for value in point] for point in projected.points]
+        base_points = _base_points_for_node_ids(model, analysis_mesh, projected.source_mesh_nodes)
         entity_ref = EntityRef("element", elem.id)
         object_id = f"object:deformed_centerline:{geometry_state.id}:{elem.id}"
         asset_id = f"geometry:deformed_centerline:{geometry_state.id}:{elem.id}"
@@ -1924,6 +2005,7 @@ def _build_deformed_centerline_scene(
                     "result_state_id": result_state.id,
                     "load_case": geometry_state.load_case,
                     "visual_scale": geometry_state.displacement_scale,
+                    "base_points": base_points,
                     "points": points,
                     "source_mesh_nodes": list(projected.source_mesh_nodes),
                 },
@@ -1961,6 +2043,7 @@ def _build_deformed_envelope_scene(
         analysis_mesh=analysis_mesh,
     ):
         points = [[float(value) for value in point] for point in envelope.polyline]
+        base_points = _base_points_for_node_ids(model, analysis_mesh, envelope.source_mesh_nodes)
         object_id = f"object:deformed_envelope:{geometry_state.id}:{envelope.entity}:{envelope.envelope_type}"
         asset_id = f"geometry:deformed_envelope:{geometry_state.id}:{envelope.entity}:{envelope.envelope_type}"
         metadata = _deformed_metadata(geometry_state, result_state)
@@ -1998,6 +2081,7 @@ def _build_deformed_envelope_scene(
                     "visual_scale": geometry_state.displacement_scale,
                     "envelope_type": envelope.envelope_type,
                     "radius_m": float(envelope.radius_m),
+                    "base_points": base_points,
                     "points": points,
                     "source_mesh_nodes": list(envelope.source_mesh_nodes),
                 },
@@ -2034,6 +2118,7 @@ def _build_deformed_mesh_scene(
             _deformed_mesh_point(analysis_mesh, result_state, node_id, factor)
             for node_id in node_ids
         ]
+        base_points = _base_points_for_node_ids(None, analysis_mesh, node_ids)
         object_id = f"object:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:{element_id}"
         asset_id = f"geometry:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:{element_id}"
         groups = groups_by_member.get(element_id, [])
@@ -2065,6 +2150,7 @@ def _build_deformed_mesh_scene(
                     "result_state_id": result_state.id,
                     "load_case": geometry_state.load_case,
                     "visual_scale": geometry_state.displacement_scale,
+                    "base_points": base_points,
                     "points": points,
                 },
             )
@@ -2093,6 +2179,20 @@ def _deformed_mesh_point(
     base = np.asarray(analysis_mesh.nodes[node_id], dtype=float)
     displacement = np.asarray(result_state.node_displacements.get(node_id, (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)), dtype=float)
     return [float(value) for value in (base + displacement[:3] * factor).tolist()]
+
+
+def _base_points_for_node_ids(
+    model: TubaModel | None,
+    analysis_mesh: AnalysisMesh | None,
+    node_ids: Iterable[str],
+) -> list[list[float]]:
+    points: list[list[float]] = []
+    for node_id in node_ids:
+        if model is not None and node_id in model.nodes:
+            points.append(_node_coords(model, node_id))
+        elif analysis_mesh is not None and node_id in analysis_mesh.nodes:
+            points.append([float(value) for value in analysis_mesh.nodes[node_id]])
+    return points
 
 
 def _deformed_layer(geometry_state: GeometryState, asset_type: str) -> str:
@@ -2599,6 +2699,7 @@ def _solver_reaction_vectors(
                 kind="reaction_vector",
                 name=f"{node_id} reaction {load_case}",
                 geometry_asset_id=asset_id,
+                layer_ids=["result:reaction"],
                 metadata={"result_type": "reaction", "load_case": load_case, "node_id": node_id, "reaction_force_n": reaction},
             )
         )
@@ -2843,6 +2944,15 @@ def _element_points(model: TubaModel, elem: Element) -> list[list[float]]:
 
 def _node_coords(model: TubaModel, node_id: str) -> list[float]:
     return [float(value) for value in model.nodes[node_id].coords.tolist()]
+
+
+def _numeric_triplet(value: Any) -> list[float] | None:
+    if not isinstance(value, (list, tuple)) or len(value) < 3:
+        return None
+    triplet = [float(item) for item in value[:3]]
+    if not all(np.isfinite(triplet)):
+        return None
+    return triplet
 
 
 def _bounds_for_points(points: Iterable[Iterable[float]], padding: float) -> list[float]:

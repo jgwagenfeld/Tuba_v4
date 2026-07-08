@@ -315,6 +315,10 @@ def _required_clearance(
     requests: dict[str, PipeRouteRequest] | None,
 ) -> float:
     if model is None or requests is None or id_a not in requests or id_b not in requests:
+        if fallback <= 0.0:
+            raise ValueError(
+                "Candidate conflict detection requires model/request context or an explicit positive clearance."
+            )
         return fallback
     req_a = requests[id_a]
     req_b = requests[id_b]

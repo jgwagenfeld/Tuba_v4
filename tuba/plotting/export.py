@@ -227,12 +227,18 @@ def export_blender_script(
     radii = [None] * len(node_ids)
     for elem in mdl.elements:
         sec = mdl.sections.get(elem.section)
-        r = get_section_radius(sec) if sec is not None else 0.05
+        if sec is None:
+            raise ValueError(f"Cannot export Blender pipe radius: section {elem.section!r} is not defined.")
+        r = get_section_radius(sec)
         for nid in (elem.n1, elem.n2):
             i = node_idx[nid]
             radii[i] = r if radii[i] is None else max(radii[i], r)
-    # Only genuinely element-less nodes fall back; don't clamp thin sections up.
-    radii = [0.05 if x is None else x for x in radii]
+    missing_radius_nodes = [node_id for node_id, radius in zip(node_ids, radii) if radius is None]
+    if missing_radius_nodes:
+        raise ValueError(
+            "Cannot export Blender pipe radius for nodes not connected to elements: "
+            + ", ".join(missing_radius_nodes)
+        )
 
     script = f'''\
 """Tuba v4 — Auto-generated Blender import script.

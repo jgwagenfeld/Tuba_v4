@@ -366,6 +366,13 @@ class ASMEB313Evaluator:
     ) -> ComplianceReport:
         """Run ASME B31.3 compliance checks on every element.
 
+        Each element is checked at **both end nodes** using SIF-amplified
+        moments (``moment × SIF / Z``); a bend/elbow is one element evaluated at
+        its two ends with its B31J directional indices — the standard
+        component-based code check. This is distinct from
+        ``FEAResults.tuyau_subpoints``, which holds detailed FE cross-section
+        von Mises for visualization only, not the code stress.
+
         Parameters
         ----------
         model : TubaModel

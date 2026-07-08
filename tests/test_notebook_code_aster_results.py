@@ -71,6 +71,26 @@ class TestNotebookResultProvenance(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_notebooks_keep_visualization_contract(self):
+        notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
+        forbidden_snippets = ("Plotly", "K3D", "Matplotlib", "._model =")
+        offenders: list[str] = []
+
+        for notebook_path in sorted(notebooks_dir.glob("*.ipynb")):
+            notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+            text = "\n".join("".join(cell.get("source", [])) for cell in notebook.get("cells", []))
+            matches = [snippet for snippet in forbidden_snippets if snippet in text]
+            if matches:
+                offenders.append(f"{notebook_path.name}: {', '.join(matches)}")
+            for cell_index, cell in enumerate(notebook.get("cells", [])):
+                if cell.get("cell_type") != "code":
+                    continue
+                for line in "".join(cell.get("source", [])).splitlines():
+                    if ".show(" in line and "jupyter_backend=" not in line:
+                        offenders.append(f"{notebook_path.name}:cell {cell_index}: {line.strip()}")
+
+        self.assertEqual([], offenders)
+
     def test_artifact_backed_notebooks_default_to_load_existing_results(self):
         notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
         artifact_backed = {

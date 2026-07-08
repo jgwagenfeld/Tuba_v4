@@ -17,10 +17,9 @@ unchanged from Appendix D (``h = tR/r_m^2``, ``i_i = 0.9/h^(2/3)``,
 sample report — so the bend results here are current-code correct.
 
 For **branch connections / tees** the exact B31J Table 1-1 branch/run
-coefficients are only in the licensed standard and are NOT encoded here; the
-tee path below is the pre-2020 Appendix-D (Markl) *fallback*, flagged via
-``SIFSet.basis == "appendix_d_fallback"``. Replace it with B31J Table 1-1
-values (from a licensed copy) to make tee checks 2020+ compliant.
+coefficients are only in the licensed standard and are NOT encoded here. The
+legacy helper below can reproduce pre-2020 Appendix-D (Markl) values only when
+the caller explicitly passes ``allow_appendix_d_tee=True``.
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ class SIFSet:
 
     ``basis`` records provenance: ``"b31j_elbow"`` (bend values confirmed
     current under B31J), ``"straight"`` (trivially unity), or
-    ``"appendix_d_fallback"`` (pre-2020 Markl tee values — see module docstring).
+    ``"appendix_d_legacy"`` (explicitly requested pre-2020 Markl tee values).
     """
 
     i_i: float          # in-plane SIF
@@ -192,9 +191,9 @@ def _get_tee_sifs(node_id: str, element: "Element", model: "TubaModel") -> Optio
     r_mh = header_section.mean_radius
 
     # Get Tee configuration
-    tee_config = model.tees.get(node_id, {"type": "unreinforced_tee", "pad_thickness": 0.0})
-    tee_type = tee_config.get("type", "unreinforced_tee")
-    t_r = tee_config.get("pad_thickness", 0.0)
+    tee_config = model.tees.get(node_id)
+    tee_type = tee_config.type if tee_config is not None else "unreinforced_tee"
+    t_r = tee_config.pad_thickness if tee_config is not None else 0.0
 
     # Compute flexibility characteristic h
     if t_h <= 0 or r_mh <= 0:
@@ -222,6 +221,8 @@ def compute_sif_set(
     element: "Element",
     model: "TubaModel",
     node_id: Optional[str] = None,
+    *,
+    allow_appendix_d_tee: bool = False,
 ) -> SIFSet:
     r"""Compute the full B31J directional index set for a model element.
 
@@ -230,17 +231,23 @@ def compute_sif_set(
       ``i_o = 0.75/h^(2/3)``), torsional/axial indices ``= 1.0``, directional
       flexibility ``k_i = k_o = 1.65/h``. Large-D/thin-wall pressure corrections
       are not applied.
-    - **Tee/branch junctions** (three elements at *node_id*): pre-2020 Appendix-D
-      (Markl) *fallback* — ``basis == "appendix_d_fallback"``. The exact B31J
-      Table 1-1 branch/run coefficients require the licensed standard.
+    - **Tee/branch junctions** (three elements at *node_id*): rejected by
+      default because exact B31J Table 1-1 branch/run coefficients require the
+      licensed standard. Set ``allow_appendix_d_tee=True`` only for explicit
+      legacy Appendix-D checks.
     """
     if node_id is not None:
         tee_sifs = _get_tee_sifs(node_id, element, model)
         if tee_sifs is not None:
+            if not allow_appendix_d_tee:
+                raise ValueError(
+                    "Tee SIF calculation requires B31J Table 1-1 data. "
+                    "Appendix-D tee equations are disabled unless allow_appendix_d_tee=True."
+                )
             i_i, i_o, k, h = tee_sifs
             return SIFSet(
                 i_i=i_i, i_o=i_o, i_t=1.0, i_a=1.0, k_i=k, k_o=k, h=h,
-                basis="appendix_d_fallback",
+                basis="appendix_d_legacy",
             )
 
     section = model.sections[element.section]
@@ -264,11 +271,13 @@ def compute_sifs(
     element: "Element",
     model: "TubaModel",
     node_id: Optional[str] = None,
+    *,
+    allow_appendix_d_tee: bool = False,
 ) -> Tuple[float, float, float, float]:
     r"""Backward-compatible ``(i_i, i_o, k, h)`` tuple.
 
     Thin wrapper over :func:`compute_sif_set`; use that for the full B31J index
     set (torsional/axial indices and directional flexibility).
     """
-    s = compute_sif_set(element, model, node_id=node_id)
+    s = compute_sif_set(element, model, node_id=node_id, allow_appendix_d_tee=allow_appendix_d_tee)
     return (s.i_i, s.i_o, s.k_i, s.h)

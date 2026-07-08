@@ -1,9 +1,12 @@
 import unittest
 
+import numpy as np
+
 from tuba import Model
 from tuba.geometry.profiles import profile_for_section
 from tuba.model import RectangularSection
 from tuba.plotting.scenes import build_model_scene
+from tuba.solver.base import ElementResult, FEAResults, NodeResult
 
 
 class TestVisualizerScenes(unittest.TestCase):
@@ -32,6 +35,33 @@ class TestVisualizerScenes(unittest.TestCase):
         plotter = build_model_scene(model, off_screen=True)
         try:
             self.assertTrue(hasattr(plotter, "add_mesh"))
+        finally:
+            plotter.close()
+
+    def test_build_model_scene_adds_undeformed_reference_when_warped(self):
+        model = Model(project_name="Scene")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        with model.pipe(section="PipeSec", material="Steel") as b:
+            b.start([0.0, 0.0, 0.0]).run(1.0)
+
+        n0, n1 = [node.id for node in model.nodes.values()]
+        results = FEAResults(solver_name="Code_Aster", load_case="Hot")
+        results.node_results[n0] = NodeResult(n0, np.zeros(6))
+        results.node_results[n1] = NodeResult(n1, np.array([0.01, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        results.element_results[model.elements[0].id] = ElementResult(
+            model.elements[0].id,
+            np.zeros(6),
+            np.zeros(6),
+            von_mises_n1=1.0,
+            von_mises_n2=2.0,
+            max_von_mises=2.0,
+        )
+
+        plotter = build_model_scene(model, results, off_screen=True, deform_scale=10.0)
+        try:
+            opacities = [actor.GetProperty().GetOpacity() for actor in plotter.actors.values() if hasattr(actor, "GetProperty")]
+            self.assertIn(0.25, opacities)
         finally:
             plotter.close()
 

@@ -47,10 +47,7 @@ def get_section_radius(sec) -> float:
     """Calculate an equivalent radius for a section profile [m]."""
     from tuba.geometry.profiles import collision_radius_for_section
 
-    try:
-        return collision_radius_for_section(sec)
-    except ValueError:
-        return 0.05
+    return collision_radius_for_section(sec)
 
 
 # ---------------------------------------------------------------------------
@@ -92,8 +89,7 @@ def load_rmed(path: str) -> "pv.UnstructuredGrid":
             cell_types.append(vtk_type)
 
     if not cells:
-        # Fallback: create a point cloud
-        return pv.PolyData(points)
+        raise ValueError(f"RMED mesh {path!r} does not contain supported cells for visualization.")
 
     cells_arr = np.concatenate(cells)
     grid = pv.UnstructuredGrid(cells_arr, np.array(cell_types), points)
@@ -119,83 +115,11 @@ def load_rmed(path: str) -> "pv.UnstructuredGrid":
 def _get_bend_points(model: "TubaModel", elem: "Element", n_segments: int = 16) -> np.ndarray:
     """Calculate intermediate coordinates along the 3D circular bend arc."""
     p1 = model.nodes[elem.n1].coords
-    p2 = model.nodes[elem.n2].coords
-    radius = elem.bend_radius or 0.15
-    angle_deg = elem.bend_angle or 90.0
+    if elem.bend_geometry is None:
+        raise ValueError(f"Cannot visualize pipe bend {elem.id!r} without explicit bend_geometry.")
+    from tuba.model import sample_bend_geometry
 
-    d_in = None
-    for e in model.elements:
-        if e.id == elem.id:
-            continue
-        if e.n2 == elem.n1:
-            v = model.nodes[e.n2].coords - model.nodes[e.n1].coords
-            if np.linalg.norm(v) > 1e-9:
-                d_in = v / np.linalg.norm(v)
-                break
-        elif e.n1 == elem.n1:
-            v = model.nodes[e.n1].coords - model.nodes[e.n2].coords
-            if np.linalg.norm(v) > 1e-9:
-                d_in = v / np.linalg.norm(v)
-                break
-
-    d_out = None
-    for e in model.elements:
-        if e.id == elem.id:
-            continue
-        if e.n1 == elem.n2:
-            v = model.nodes[e.n2].coords - model.nodes[e.n1].coords
-            if np.linalg.norm(v) > 1e-9:
-                d_out = v / np.linalg.norm(v)
-                break
-        elif e.n2 == elem.n2:
-            v = model.nodes[e.n1].coords - model.nodes[e.n2].coords
-            if np.linalg.norm(v) > 1e-9:
-                d_out = v / np.linalg.norm(v)
-                break
-
-    if d_in is None and d_out is not None:
-        d_in = d_out.copy()
-    elif d_out is None and d_in is not None:
-        d_out = d_in.copy()
-    elif d_in is None and d_out is None:
-        v = p2 - p1
-        d_in = v / np.linalg.norm(v)
-        d_out = d_in.copy()
-
-    theta = np.radians(angle_deg)
-    T = radius * np.tan(theta / 2.0)
-    V = p1 + d_in * T
-
-    v_bisect = d_out - d_in
-    norm_bisect = np.linalg.norm(v_bisect)
-    if norm_bisect > 1e-9:
-        v_bisect_u = v_bisect / norm_bisect
-    else:
-        v_bisect_u = np.array([-d_in[1], d_in[0], 0.0])
-        if np.linalg.norm(v_bisect_u) < 1e-9:
-            v_bisect_u = np.array([0.0, -d_in[2], d_in[1]])
-        v_bisect_u /= np.linalg.norm(v_bisect_u)
-
-    L = radius / np.cos(theta / 2.0)
-    C = V + v_bisect_u * L
-
-    r1 = p1 - C
-    r2 = p2 - C
-
-    axis = np.cross(r1, r2)
-    norm_axis = np.linalg.norm(axis)
-    if norm_axis > 1e-9:
-        axis /= norm_axis
-    else:
-        axis = np.array([0.0, 0.0, 1.0])
-
-    cross_u = np.cross(axis, r1)
-    arc_points = []
-    for i in range(n_segments + 1):
-        phi = theta * (i / n_segments)
-        pt = C + r1 * np.cos(phi) + cross_u * np.sin(phi)
-        arc_points.append(pt)
-    return np.array(arc_points)
+    return sample_bend_geometry(p1, elem.bend_geometry, n_segments=n_segments)
 
 
 def build_mesh_from_model(
@@ -390,14 +314,10 @@ def get_ibeam_dimensions(sec) -> tuple[float, float, float, float]:
             )
         except ValueError:
             pass
-    # If all else fails, estimate from EY and EZ
-    ey = sec.properties.get("EY", 0.04)
-    ez = sec.properties.get("EZ", 0.02)
-    h = ey * 2.0
-    b = ez * 2.0
-    tw = h * 0.05
-    tf = h * 0.1
-    return h, b, tw, tf
+    raise ValueError(
+        f"I-beam section {getattr(sec, 'name', '<unknown>')!r} is missing explicit "
+        "H/B/Tw/Tf dimensions. Load it from the section catalog or provide them explicitly."
+    )
 
 
 def _get_profile_2d_polygon(sec, n_sides: int = 16) -> np.ndarray:
@@ -445,12 +365,7 @@ def _get_profile_2d_polygon(sec, n_sides: int = 16) -> np.ndarray:
             [-h/2.0 + tf, -b/2.0],
         ])
     else:
-        # Default fallback
-        r = 0.05
-        angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
-        y = r * np.cos(angles)
-        z = r * np.sin(angles)
-        return np.column_stack([y, z])
+        raise ValueError(f"Unsupported section profile type {type(sec).__name__}.")
 
 
 def _get_element_3d_mesh(

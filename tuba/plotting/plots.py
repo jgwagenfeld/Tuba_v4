@@ -43,13 +43,13 @@ def _require_pyvista():
 
 
 def _get_pipe_radius(results: "FEAResults", model: Optional["TubaModel"] = None) -> float:
-    """Determine the pipe outer radius from the model (fallback 0.05 m)."""
+    """Determine the pipe outer radius from the model."""
     from tuba.plotting.pipeline import get_section_radius
     mdl = model or getattr(results, "_model", None)
     if mdl and mdl.sections:
         sec = next(iter(mdl.sections.values()))
         return get_section_radius(sec)
-    return 0.05
+    raise ValueError("Pipe visualization requires a model with at least one defined section.")
 
 
 def _get_mesh(
@@ -382,10 +382,45 @@ def plot_displacement_vectors(
     return p.show(**kwargs)
 
 
+def _reaction_vector_points(results: "FEAResults", model: Optional["TubaModel"]):
+    if model is None:
+        return np.empty((0, 3)), np.empty((0, 3)), np.empty((0,))
+
+    points = []
+    vectors = []
+    magnitudes = []
+    for node_id, result in results.node_results.items():
+        if result.reaction_force is None or node_id not in model.nodes:
+            continue
+        vector = np.asarray(result.reaction_force[:3], dtype=float)
+        magnitude = float(np.linalg.norm(vector))
+        if magnitude <= 1e-6:
+            continue
+        points.append(model.nodes[node_id].coords)
+        vectors.append(vector)
+        magnitudes.append(magnitude)
+    return np.asarray(points), np.asarray(vectors), np.asarray(magnitudes)
+
+
+def _reaction_glyph_factor(scale, bounds, magnitudes: np.ndarray) -> float:
+    if scale != "auto":
+        return float(scale)
+    max_magnitude = float(np.max(magnitudes)) if len(magnitudes) else 0.0
+    if max_magnitude <= 0.0:
+        return 0.0
+    bounds_arr = np.asarray(bounds, dtype=float)
+    diagonal = float(np.linalg.norm(bounds_arr[3:6] - bounds_arr[0:3])) if bounds_arr.shape == (6,) else 1.0
+    target_length = (diagonal if diagonal > 1e-12 else 1.0) * 0.12
+    return target_length / max_magnitude
+
+
 def plot_reactions(
     results: "FEAResults",
-    scale: float = 1e-3,
+    scale: float | str = "auto",
     model: Optional["TubaModel"] = None,
+    show_geometry: bool = True,
+    show_supports: bool = True,
+    geometry_opacity: float = 0.25,
     **kwargs,
 ):
     """Arrow glyphs at supports showing reaction forces."""
@@ -396,16 +431,26 @@ def plot_reactions(
 
     p = _make_plotter("Reaction Forces")
 
-    # Draw supports
     mdl = model or getattr(results, "_model", None)
-    if mdl is not None:
+    if show_supports and mdl is not None:
         _add_supports_to_plotter(p, mdl, radius * 1.5)
 
     tubes = mesh
-    p.add_mesh(tubes, color="#334455", opacity=0.6)
+    if show_geometry:
+        p.add_mesh(tubes, color="#334455", opacity=geometry_opacity)
 
-    if "FORC_NODA" in mesh.point_data:
-        # Filter to only nodes that have non-zero reactions
+    points, vectors, magnitudes = _reaction_vector_points(results, mdl)
+    if len(points):
+        reaction_points = pv.PolyData(points)
+        reaction_points.point_data["FORC_NODA"] = vectors
+        reaction_points.point_data["FORC_magnitude"] = magnitudes
+        arrows = reaction_points.glyph(
+            orient="FORC_NODA",
+            scale="FORC_magnitude",
+            factor=_reaction_glyph_factor(scale, mesh.bounds, magnitudes),
+        )
+        p.add_mesh(arrows, color="red", label="Reactions")
+    elif "FORC_NODA" in mesh.point_data:
         magnitudes = mesh.point_data["FORC_magnitude"]
         mask = magnitudes > 1e-6
         if mask.any():
@@ -413,7 +458,7 @@ def plot_reactions(
             arrows = support_pts.glyph(
                 orient="FORC_NODA",
                 scale="FORC_magnitude",
-                factor=scale,
+                factor=_reaction_glyph_factor(scale, mesh.bounds, magnitudes[mask]),
             )
             p.add_mesh(arrows, color="red", label="Reactions")
 

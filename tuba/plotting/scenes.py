@@ -26,6 +26,7 @@ def build_model_scene(
 
     mesh = build_3d_mesh_from_model(model, results)
     if deform_scale is not None and "DEPL" in mesh.point_data:
+        plotter.add_mesh(mesh, color="#9ca3af", opacity=0.25, label="Undeformed")
         mesh = mesh.warp_by_vector("DEPL", factor=deform_scale)
 
     tubes = mesh

@@ -187,7 +187,17 @@ MODEL_SCHEMA_V4 = {
             },
         },
         "obstacles": {"type": "array"},
-        "tees": {"type": "object"},
+        "tees": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "type": {"enum": ["welding_tee", "reinforced_tee", "unreinforced_tee"]},
+                    "pad_thickness": {"type": "number"},
+                },
+                "additionalProperties": True,
+            },
+        },
         "groups": {"type": "object"},
         "placement_frames": {
             "type": "object",

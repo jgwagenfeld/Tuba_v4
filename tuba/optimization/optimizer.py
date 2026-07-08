@@ -1,10 +1,10 @@
-"""Base optimizer classes, heuristic support placers, and LLM-AI interfaces."""
+"""Base optimizer classes, solver-scored support searches, and LLM interfaces."""
 
 from __future__ import annotations
 
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -34,39 +34,17 @@ class BasePipingOptimizer(ABC):
 
 
 class RuleBasedSupportPlacer(BasePipingOptimizer):
-    """Heuristic optimizer that places vertical rests and lateral guides at standard span intervals."""
+    """Disabled legacy support placer.
+
+    Rule-based span placement mutates support layouts from engineering rules of
+    thumb before solver validation. That is not an acceptable production
+    workflow for Tuba v4; use explicit support definitions or a solver-scored
+    optimizer that refuses unsolved candidates.
+    """
 
     def __init__(self, solver_name: str = "code_aster", deflection_limit_m: float = 0.0025) -> None:
         super().__init__(solver_name)
         self.deflection_limit = deflection_limit_m
-
-    def _calculate_max_span(self, model: TubaModel, section_name: str, material_name: str) -> float:
-        """Calculates ASME B31.3 continuous beam span limit for a 2.5mm deflection limit.
-
-        L = ((384 * E * I * delta) / (5 * w))^(1/4)
-        """
-        sec = model.sections.get(section_name)
-        mat = model.materials.get(material_name)
-        if not sec or not mat:
-            return 6.0 # Fallback 6 meters standard span
-
-        # Estimate weight per meter (steel density * area + water weight approximation)
-        area = sec.area
-        w_steel = area * mat.rho * 9.81
-        w_fluid = (np.pi * (sec.ID / 2.0)**2) * 1000.0 * 9.81 if hasattr(sec, 'ID') else 0.0
-        w_total = w_steel + w_fluid
-
-        # Calculate max span
-        E = mat.E
-        I_val = sec.I if hasattr(sec, 'I') else (sec.area ** 2 / 12.0) # Approx
-        
-        numerator = 384.0 * E * I_val * self.deflection_limit
-        denominator = 5.0 * w_total
-        
-        if denominator <= 0:
-            return 6.0
-
-        return float((numerator / denominator) ** 0.25)
 
     def optimize(
         self,
@@ -74,96 +52,10 @@ class RuleBasedSupportPlacer(BasePipingOptimizer):
         evaluator: ObjectiveEvaluator,
         **kwargs,
     ) -> Tuple[TubaModel, Optional[FEAResults]]:
-        """Algorithm:
-
-        1. Clear existing non-anchor supports.
-        2. Walk the pipe runs and place rests at L_max intervals.
-        3. Walk the pipe runs and place guides at 2.5 * L_max intervals.
-        4. Run FEA and check if deflection limit is satisfied.
-        5. If deflection exceeds limit, reduce span limit and repeat up to 5 times.
-        """
-        if not model.elements:
-            return model, None
-
-        first_elem = model.elements[0]
-        max_span = self._calculate_max_span(model, first_elem.section, first_elem.material)
-        current_span = max_span
-        
-        # Deepcopy the original model to keep a pristine reference
-        import copy
-        best_model = copy.deepcopy(model)
-        best_results = None
-        best_score = float('inf')
-
-        # Limit to 5 feedback loop iterations
-        for iteration in range(5):
-            # Clear non-anchor supports
-            model.supports = [s for s in model.supports if s.type == "anchor"]
-            supported_nodes = {s.node for s in model.supports}
-
-            accumulated_length = 0.0
-            guide_length = 0.0
-            
-            # Place supports
-            for elem in model.elements:
-                p1 = model.nodes[elem.n1].coords
-                p2 = model.nodes[elem.n2].coords
-                length = float(np.linalg.norm(p2 - p1))
-                
-                accumulated_length += length
-                guide_length += length
-
-                if accumulated_length >= current_span:
-                    if elem.n2 not in supported_nodes:
-                        model.add_support(node=elem.n2, type="rest", direction=[0.0, 1.0, 0.0])
-                        supported_nodes.add(elem.n2)
-                    accumulated_length = 0.0
-
-                if guide_length >= (current_span * 2.5):
-                    if elem.n2 not in supported_nodes:
-                        model.add_support(node=elem.n2, type="guide", direction=[1.0, 0.0, 1.0])
-                        supported_nodes.add(elem.n2)
-                    guide_length = 0.0
-
-            # Solve and evaluate
-            results = None
-            try:
-                # Solve using the model's solve function (e.g. CodeAster or mock solver)
-                # We specify the solver from self.solver_name
-                results = model.solve(solver=self.solver_name)
-            except Exception:
-                # If solver fails or is not installed, we fallback to returning current state
-                break
-
-            if results:
-                # Compute maximum deflection
-                max_defl = 0.0
-                for nid, node_res in results.node_results.items():
-                    defl = float(np.linalg.norm(node_res.displacement[:3]))
-                    if defl > max_defl:
-                        max_defl = defl
-                
-                # Check score from evaluator
-                score = evaluator.evaluate_model(model, results)
-                if score < best_score:
-                    best_score = score
-                    best_results = results
-                    best_model = copy.deepcopy(model)
-                
-                # If deflection is within limits, we are good!
-                if max_defl <= self.deflection_limit:
-                    break
-                else:
-                    # Deflection too high, scale down span based on ratio
-                    ratio = self.deflection_limit / max_defl
-                    scale = max(0.5, min(0.85, ratio))
-                    current_span *= scale
-            else:
-                break
-
-        # Restore the best model's supports and return it
-        model.supports = best_model.supports
-        return model, best_results
+        raise NotImplementedError(
+            "RuleBasedSupportPlacer is disabled because it creates heuristic support layouts. "
+            "Define supports explicitly or use a solver-scored optimizer that requires successful Code_Aster results."
+        )
 
 
 class LLMSupportOptimizer(BasePipingOptimizer):
@@ -295,15 +187,20 @@ class LLMSupportOptimizer(BasePipingOptimizer):
         evaluator: ObjectiveEvaluator,
         **kwargs,
     ) -> Tuple[TubaModel, Optional[FEAResults]]:
-        """LLMOptimizer works interactively.
+        """Return the model with fresh solver results.
 
-        For automated execution, it can call a mocked heuristic or raise NotImplemented.
+        Layout changes from LLMs must arrive through explicit suggestions.
+        This method only runs the configured solver and fails loudly if solver
+        artifacts are unavailable.
         """
-        # Run solver to get current FEA results
         try:
             results = model.solve(solver=self.solver_name)
-        except Exception:
-            results = None
+        except Exception as exc:
+            raise RuntimeError(
+                "LLMSupportOptimizer requires a successful solver run; no support layout was optimized."
+            ) from exc
+        if results is None:
+            raise RuntimeError("LLMSupportOptimizer did not receive solver results.")
             
         return model, results
 
@@ -317,7 +214,7 @@ class GeneticSupportPlacer(BasePipingOptimizer):
     crossover, and random mutation to minimise the objective evaluator score.
     """
 
-    SUPPORT_GENES = [None, "rest", "guide", "spring"]
+    DEFAULT_SUPPORT_GENES = [None, "rest", "guide"]
 
     def __init__(
         self,
@@ -326,12 +223,25 @@ class GeneticSupportPlacer(BasePipingOptimizer):
         generations: int = 30,
         mutation_rate: float = 0.15,
         tournament_size: int = 3,
+        spring_stiffness_matrix: Sequence[float] | None = None,
     ) -> None:
         super().__init__(solver_name)
         self.population_size = population_size
         self.generations = generations
         self.mutation_rate = mutation_rate
         self.tournament_size = tournament_size
+        self.spring_stiffness_matrix = self._validate_spring_stiffness_matrix(spring_stiffness_matrix)
+        self.support_genes = list(self.DEFAULT_SUPPORT_GENES)
+        if self.spring_stiffness_matrix is not None:
+            self.support_genes.append("spring")
+
+    @staticmethod
+    def _validate_spring_stiffness_matrix(values: Sequence[float] | None) -> list[float] | None:
+        if values is None:
+            return None
+        if len(values) != 6:
+            raise ValueError("spring_stiffness_matrix must contain six values.")
+        return [float(value) for value in values]
 
     def _get_candidate_nodes(self, model: TubaModel) -> List[str]:
         """Returns interior pipe nodes that are eligible for support placement."""
@@ -346,7 +256,7 @@ class GeneticSupportPlacer(BasePipingOptimizer):
 
     def _encode_chromosome(self, length: int) -> np.ndarray:
         """Random chromosome: array of ints in [0, 3]."""
-        return np.random.randint(0, len(self.SUPPORT_GENES), size=length)
+        return np.random.randint(0, len(self.support_genes), size=length)
 
     def _apply_chromosome(
         self, model: TubaModel, candidate_nodes: List[str], chromosome: np.ndarray
@@ -355,7 +265,12 @@ class GeneticSupportPlacer(BasePipingOptimizer):
         model.supports = [s for s in model.supports if s.type == "anchor"]
         supported = {s.node for s in model.supports}
         for i, gene in enumerate(chromosome):
-            sup_type = self.SUPPORT_GENES[gene]
+            if int(gene) >= len(self.support_genes):
+                raise ValueError(
+                    f"Support gene {int(gene)} is not available. "
+                    "Provide spring_stiffness_matrix to enable spring genes."
+                )
+            sup_type = self.support_genes[int(gene)]
             if sup_type is not None and candidate_nodes[i] not in supported:
                 kwargs: Dict[str, Any] = {"node": candidate_nodes[i], "type": sup_type}
                 if sup_type == "rest":
@@ -363,7 +278,9 @@ class GeneticSupportPlacer(BasePipingOptimizer):
                 elif sup_type == "guide":
                     kwargs["direction"] = [1.0, 0.0, 1.0]
                 elif sup_type == "spring":
-                    kwargs["stiffness_matrix"] = [0.0, 200_000.0, 0.0, 0.0, 0.0, 0.0]
+                    if self.spring_stiffness_matrix is None:
+                        raise ValueError("Spring genes require an explicit spring_stiffness_matrix.")
+                    kwargs["stiffness_matrix"] = list(self.spring_stiffness_matrix)
                 model.add_support(**kwargs)
 
     def _tournament_select(
@@ -384,7 +301,7 @@ class GeneticSupportPlacer(BasePipingOptimizer):
         """Random gene mutation."""
         for i in range(len(chromosome)):
             if np.random.random() < self.mutation_rate:
-                chromosome[i] = np.random.randint(0, len(self.SUPPORT_GENES))
+                chromosome[i] = np.random.randint(0, len(self.support_genes))
         return chromosome
 
     def optimize(
@@ -424,6 +341,9 @@ class GeneticSupportPlacer(BasePipingOptimizer):
                 except Exception:
                     scores.append(float("inf"))
                     continue
+                if results is None:
+                    scores.append(float("inf"))
+                    continue
 
                 score = evaluator.evaluate_model(temp_model, results)
                 scores.append(score)
@@ -445,6 +365,9 @@ class GeneticSupportPlacer(BasePipingOptimizer):
                 next_pop.append(child)
 
             population = next_pop
+
+        if best_results is None or not np.isfinite(best_score):
+            raise RuntimeError("GeneticSupportPlacer found no solver-backed candidate; model was not modified.")
 
         # Apply best configuration to the original model
         self._apply_chromosome(model, candidate_nodes, best_chromosome)

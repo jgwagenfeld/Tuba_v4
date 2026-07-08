@@ -254,7 +254,12 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertIn("TEMP_FIELD = CREA_CHAMP(", comm)
         self.assertIn("    MAILLAGE=MAIL,\n    AFFE=_F(", comm)
         self.assertIn("CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),", comm)
-        self.assertIn("NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),", comm)
+        impr_resu = comm[comm.index("IMPR_RESU(") : comm.index("# ----- Text table for EFGE_ELNO -----")]
+        self.assertIn("        CARA_ELEM=CARA,", impr_resu)
+        self.assertIn(
+            "NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),",
+            impr_resu,
+        )
 
     def test_beam_only_study_does_not_emit_pipe_stress_fields(self):
         model = Model(project_name="BeamOnly")

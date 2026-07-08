@@ -57,6 +57,10 @@ class FEAResults:
     node_results: Dict[str, NodeResult] = field(default_factory=dict)
     element_results: Dict[str, ElementResult] = field(default_factory=dict)
     analysis_node_results: Dict[str, NodeResult] = field(default_factory=dict)
+    # Detailed per-cross-section FE fibre stress (von Mises) at TUYAU sub-points,
+    # for visualization only. This is NOT the ASME code stress: compliance uses
+    # SIF-amplified end-node moments, a different quantity (see
+    # tuba.compliance.asme_b313.ASMEB313Evaluator.evaluate).
     tuyau_subpoints: List[Dict[str, Any]] = field(default_factory=list)
     parser_diagnostics: List[str] = field(default_factory=list)
 
@@ -109,7 +113,7 @@ class FEAResults:
         from tuba.plotting.plots import plot_displacement_vectors
         return plot_displacement_vectors(self, scale=scale, **kwargs)
 
-    def plot_reactions(self, scale: float = 1e-3, **kwargs):
+    def plot_reactions(self, scale: float | str = "auto", **kwargs):
         """Show reaction force arrow glyphs at supports."""
         from tuba.plotting.plots import plot_reactions
         return plot_reactions(self, scale=scale, **kwargs)

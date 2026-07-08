@@ -27,7 +27,12 @@ def verify_tee_sifs():
     model.define_tee("N1", type="welding_tee")
 
     # Run SIF calculation on N1
-    i_i, i_o, k, h = compute_sifs(model.elements[0], model, node_id="N1")
+    i_i, i_o, k, h = compute_sifs(
+        model.elements[0],
+        model,
+        node_id="N1",
+        allow_appendix_d_tee=True,
+    )
     print(f"Welding Tee SIF at N1: i_i = {i_i:.4f}, i_o = {i_o:.4f}, h = {h:.4f}")
     print("Compliance evaluation requires real Code_Aster result artifacts.")
     print("Run the exported study with Code_Aster, then import the result tables before reporting compliance.")

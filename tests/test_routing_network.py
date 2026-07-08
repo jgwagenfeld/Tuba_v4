@@ -27,7 +27,7 @@ class TestNetworkRouter(unittest.TestCase):
             goal=RouteEndpoint(id="B1", point=(4.0, 0.0, 0.0)),
             section="PipeSec",
             material="Steel",
-            constraints=RoutingConstraints(clearance=0.0),
+            constraints=RoutingConstraints(clearance=0.0, min_bend_radius=0.2),
         )
         p2 = PipeRouteRequest(
             id="P-200",
@@ -35,7 +35,7 @@ class TestNetworkRouter(unittest.TestCase):
             goal=RouteEndpoint(id="B2", point=(4.0, 0.0, 0.0)),
             section="PipeSec",
             material="Steel",
-            constraints=RoutingConstraints(clearance=0.0),
+            constraints=RoutingConstraints(clearance=0.0, min_bend_radius=0.2),
         )
 
         result = NetworkRouter(grid_spec=RoutingGridSpec(cell_size=1.0, margin=2.0)).route_network(

@@ -76,6 +76,7 @@ class TestVisualizationResults(unittest.TestCase):
         reaction = next(obj for obj in scene.objects if obj.kind == "reaction_vector")
         self.assertEqual(reaction.metadata["node_id"], "N0")
         self.assertEqual(reaction.metadata["reaction_force_n"], [100.0, 0.0, -500.0])
+        self.assertIn("result:reaction", reaction.layer_ids)
 
         temperature = next(
             overlay for overlay in scene.overlays if overlay.kind == "solver_result" and overlay.data["result_type"] == "temperature"

@@ -28,6 +28,16 @@ class TestCodeAsterTuyauSubpoints(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            (root / "study_effo.csv").write_text(
+                "\n".join(
+                    [
+                        "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ",
+                        "pipe_0,N0,100.0,0.0,0.0,0.0,0.0,0.0",
+                        "pipe_0,N1,100.0,0.0,0.0,0.0,0.0,0.0",
+                    ]
+                ),
+                encoding="utf-8",
+            )
             (root / "study_sieq.csv").write_text(
                 "\n".join(
                     [

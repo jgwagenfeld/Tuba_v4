@@ -124,6 +124,8 @@ class IfcExporter:
             # 3. Create representation geometry
             try:
                 sec = model.sections.get(elem.section)
+                if sec is None:
+                    raise ValueError(f"Element {elem.id!r} references undefined section {elem.section!r}.")
                 solid = None
                 rep_type = "SweptSolid"
 
@@ -158,10 +160,9 @@ class IfcExporter:
                     # Dynamic profile definition matching Tuba section type
                     from tuba.model import IBeamSection, RectangularSection, BarSection, CableSection
                     if isinstance(sec, IBeamSection):
-                        h = sec.properties.get("H", 0.2)
-                        b = sec.properties.get("B", 0.2)
-                        tw = sec.properties.get("Tw", 0.01)
-                        tf = sec.properties.get("Tf", 0.01)
+                        from tuba.plotting.pipeline import get_ibeam_dimensions
+
+                        h, b, tw, tf = get_ibeam_dimensions(sec)
                         r = sec.properties.get("R", 0.0)
                         profile = ifc_file.create_entity(
                             "IfcIShapeProfileDef",
@@ -236,10 +237,14 @@ class IfcExporter:
                         )
                         rep_type = "SweptSolid"
 
-                # For pipes and fittings, default to IfcSweptDiskSolid
+                # For pipe-like sections, create an IfcSweptDiskSolid from explicit section data.
                 if solid is None and sec:
-                    radius = sec.OD / 2.0 if hasattr(sec, "OD") else 0.05
-                    inner_radius = (sec.OD - 2.0 * sec.WT) / 2.0 if (hasattr(sec, "OD") and hasattr(sec, "WT")) else 0.0
+                    if not hasattr(sec, "OD"):
+                        raise ValueError(
+                            f"Element {elem.id!r} section {elem.section!r} cannot be exported as a swept disk."
+                        )
+                    radius = sec.OD / 2.0
+                    inner_radius = (sec.OD - 2.0 * sec.WT) / 2.0 if hasattr(sec, "WT") else 0.0
 
                     pt1 = ifc_file.create_entity("IfcCartesianPoint", Coordinates=p1.tolist())
                     pt2 = ifc_file.create_entity("IfcCartesianPoint", Coordinates=p2.tolist())
@@ -264,8 +269,8 @@ class IfcExporter:
                     )
                     product_rep = ifc_file.create_entity("IfcProductDefinitionShape", Representations=[rep])
                     ifc_elem.Representation = product_rep
-            except Exception:
-                pass
+            except Exception as exc:
+                raise RuntimeError(f"Failed to create IFC representation for element {elem.id!r}.") from exc
 
         # 4. Export supports as mechanical fasteners
         for i, sup in enumerate(model.supports):

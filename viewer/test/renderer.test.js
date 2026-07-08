@@ -92,6 +92,40 @@ test("scene graph renders visible geometry with stable scene object metadata", (
   assert.equal(graph.objectsByObjectId.get("object:issue").userData.assetId, "geometry:issue");
 });
 
+test("scene graph renders cold geometry as transparent gray reference for visual deformation", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, -0.1, -0.1, 1, 0.1, 0.1],
+    geometryAssets: [
+      {
+        id: "geometry:pipe",
+        format: "tube",
+        bounds: [0, -0.05, -0.05, 1, 0.05, 0.05],
+        object_ids: ["object:pipe"],
+        generation_config: { points: [[0, 0, 0], [1, 0, 0]], radius_m: 0.05, source: "tuba.element" }
+      },
+      {
+        id: "geometry:visual_deformed",
+        format: "polyline",
+        bounds: [0, 0, 0, 1, 0.4, 0],
+        object_ids: ["object:visual"],
+        generation_config: {
+          source: "tuba.deformed_centerline.visual",
+          visual_scale: 40,
+          base_points: [[0, 0, 0], [1, 0, 0]],
+          points: [[0, 0, 0], [1, 0.4, 0]]
+        }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:pipe", "object:visual"]
+  });
+
+  const material = graph.objectsByObjectId.get("object:pipe").material;
+  assert.equal(material.color.getHex(), 0x9ca3af);
+  assert.equal(material.opacity, 0.32);
+  assert.equal(material.transparent, true);
+});
+
 test("scene graph reports invalid assets without throwing", () => {
   const graph = createThreeSceneGraph({
     bounds: [0, 0, 0, 1, 1, 1],
@@ -267,8 +301,24 @@ test("prepareAssetRenderConfig applies vector and visual deformation display sca
     {},
     state
   );
+  const missingBase = prepareAssetRenderConfig(
+    {
+      id: "asset:visual_deformed_missing_base",
+      format: "polyline",
+      object_ids: ["object:visual-missing-base"],
+      generation_config: {
+        source: "tuba.deformed_centerline.visual",
+        visual_scale: 40,
+        points: [[0, 0, 0], [1, 0.04, 0]]
+      }
+    },
+    {},
+    state
+  );
 
   assert.deepEqual(displacement.end, [0, 0, 0.1]);
   assert.deepEqual(visual.points[1], [1, 0.08, 0]);
   assert.equal(visual.visual_scale_display_only, 80);
+  assert.deepEqual(missingBase.points[1], [1, 0.04, 0]);
+  assert.equal(missingBase.visual_scale_display_only, 40);
 });

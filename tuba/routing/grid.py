@@ -164,12 +164,12 @@ class RoutingGrid:
             max_pt = np.asarray(obs["max_point"], dtype=float) + envelope
             self._mark_box(min_pt, max_pt)
         elif obs_type == "mesh":
-            # Conservative phase-1 fallback: use a provided bounds-like envelope
-            # if available; exact mesh voxelization remains a later refinement.
+            # Mesh obstacles must provide an explicit routing envelope.
             min_pt = obs.get("min_point")
             max_pt = obs.get("max_point")
-            if min_pt is not None and max_pt is not None:
-                self._mark_box(np.asarray(min_pt) - envelope, np.asarray(max_pt) + envelope)
+            if min_pt is None or max_pt is None:
+                raise ValueError("Mesh routing obstacles require explicit min_point and max_point.")
+            self._mark_box(np.asarray(min_pt) - envelope, np.asarray(max_pt) + envelope)
 
     def _mark_box(self, min_pt: np.ndarray, max_pt: np.ndarray) -> None:
         lo = self.world_to_index(min_pt)
