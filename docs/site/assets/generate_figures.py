@@ -195,6 +195,99 @@ def fig_bend_chord_arc(out_dir: Path) -> Path:
     return out_dir / "bend_chord_arc.png"
 
 
+REPO_ROOT = Path(__file__).resolve().parents[3]  # docs/site/assets -> repo root
+
+
+def _viz_gallery_model() -> Model:
+    """The review model that matches the committed viz_gallery_operating study (from notebook 10)."""
+    m = Model("VizGalleryDemo", standard="ASME_B31.3")
+    m.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0, alpha=1.2e-5,
+                   allowable_stress={20.0: 137e6, 150.0: 127e6})
+    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602, corrosion_allowance=0.001)
+    m.define_load_case("Operating", gravity=True, pressure=1.5e6,
+                       temperature=150.0, ref_temperature=20.0)
+    with m.pipe(section="DN100", material="Steel") as b:
+        b.start([0, 0, 0], support="anchor")
+        b.run(3.0)
+        b.add_support(type="guide")
+        b.bend(radius=0.3, angle=90, plane="XY")
+        b.run(2.0)
+        b.add_support(type="rest")
+        b.bend(radius=0.3, angle=90, plane="XZ")
+        b.run(2.0)
+        b.end(support="anchor")
+    m.validate()
+    return m
+
+
+def fig_tutorial_model(out_dir: Path) -> Path:
+    """The review model as pure geometry — 'just data until it is solved'."""
+    return _render(_viz_gallery_model(), out_dir / "tutorial_model.png",
+                   supports=True, supports_scale=0.09, zoom=1.4)
+
+
+def fig_money_shot(out_dir: Path) -> Path:
+    """Deformed shape + Von Mises stress from the committed viz_gallery_operating study (no solver)."""
+    from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
+
+    model = _viz_gallery_model()
+    work_dir = REPO_ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating"
+    run = load_or_run_code_aster_results(model, "Operating", work_dir, run_solver=False)
+    return _render(model, out_dir / "money_shot.png", results=run.results,
+                   deform_scale=35.0, zoom=1.35, res=(1280, 1000))
+
+
+def _route_model_and_request():
+    """The autorouting demo scene from notebook 05 (two obstacles, A->B request)."""
+    from tuba.routing.types import PipeRouteRequest, RouteEndpoint, RoutingConstraints
+
+    m = Model("RouteDemo")
+    _steel(m)
+    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+    m.add_obstacle(id="equipment_box", type="cuboid",
+                   min_point=[1.5, -0.4, -0.4], max_point=[2.5, 0.4, 0.4])
+    m.add_obstacle(id="maintenance_keepout", type="cuboid",
+                   min_point=[2.8, 0.8, -0.4], max_point=[3.4, 1.4, 0.8])
+    request = PipeRouteRequest(
+        id="P-100",
+        start=RouteEndpoint("A", (0.0, 0.0, 0.0)),
+        goal=RouteEndpoint("B", (4.0, 0.0, 0.0)),
+        section="DN100", material="steel",
+        constraints=RoutingConstraints(clearance=0.10, min_bend_radius=0.20),
+    )
+    return m, request
+
+
+def fig_route_preroute(out_dir: Path) -> Path:
+    """Obstacles + start/goal endpoints before any route exists."""
+    from tuba.routing.visualization import build_route_plotter
+
+    m, request = _route_model_and_request()
+    plotter = build_route_plotter(m, request=request, off_screen=True)
+    plotter.reset_camera()
+    plotter.camera.zoom(1.3)
+    export_screenshot(plotter, str(out_dir / "route_preroute.png"), resolution=RES)
+    plotter.close()
+    return out_dir / "route_preroute.png"
+
+
+def fig_route_candidates(out_dir: Path) -> Path:
+    """Ranked route candidates (selected highlighted) with reserved envelopes around obstacles."""
+    from tuba.routing import GridRouter
+    from tuba.routing.types import RoutingGridSpec
+    from tuba.routing.visualization import build_route_plotter
+
+    m, request = _route_model_and_request()
+    # GridRouter.route returns a PipeRouteResult directly (no study files written to disk).
+    result = GridRouter(RoutingGridSpec(cell_size=0.25, margin=1.0), candidate_count=3).route(m, request)
+    plotter = build_route_plotter(m, request=request, result=result, off_screen=True)
+    plotter.reset_camera()
+    plotter.camera.zoom(1.3)
+    export_screenshot(plotter, str(out_dir / "route_candidates.png"), resolution=RES)
+    plotter.close()
+    return out_dir / "route_candidates.png"
+
+
 FIGURES: dict[str, Callable[[Path], Path]] = {
     "sections": fig_sections,
     "element_triad": fig_element_triad,
@@ -202,6 +295,10 @@ FIGURES: dict[str, Callable[[Path], Path]] = {
     "builder_route": fig_builder_route,
     "supports": fig_supports,
     "bend_chord_arc": fig_bend_chord_arc,
+    "tutorial_model": fig_tutorial_model,
+    "money_shot": fig_money_shot,
+    "route_preroute": fig_route_preroute,
+    "route_candidates": fig_route_candidates,
 }
 
 
