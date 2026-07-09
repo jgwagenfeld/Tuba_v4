@@ -9,21 +9,30 @@
     <link rel="stylesheet" href="./assets/site.css" />
   </head>
   <body>
-    <header class="topbar" aria-label="Primary navigation">
-      <a class="brand" href="./" aria-label="Tuba v4 home">
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>Tuba v4</span>
       </a>
-      <nav>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a href="./tutorial.html">Tutorial</a>
+        <a href="./modeling.html">Modeling</a>
         <a href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./autorouting.html">Autorouting</a>
         <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
         <a aria-current="page" href="./developer.html">Developer</a>
-        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
-    </header>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
 
     <main class="page doc-page wide">
       <section class="intro compact">
@@ -34,6 +43,58 @@
           export/execution/import, analysis artifacts, quick-look plotting, and
           reviewable browser scenes.
         </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Module dependencies</h2>
+        <p>
+          Keep changes at the lowest ownership boundary that can solve the
+          problem. Routing can propose geometry, but model mutation stays in the
+          adapter. Solver output enters the review stack only through artifact
+          parsing and result state creation. The arrows below read as
+          <em>feeds into</em>.
+        </p>
+        <ul class="dependency-list">
+          <li>
+            <code>tuba.builder</code> &rarr; <code>tuba.model</code>
+          </li>
+          <li>
+            <code>tuba.routing</code> &rarr; <code>tuba.routing.adapter</code> &rarr; <code>tuba.model</code>
+          </li>
+          <li>
+            <code>tuba.model</code> &rarr; <code>tuba.solver.aster</code>
+            <ul>
+              <li>
+                <code>tuba.solver.aster</code> &rarr; <code>tuba.analysis</code>
+                <ul>
+                  <li><code>tuba.analysis</code> &rarr; <code>tuba.plotting</code></li>
+                  <li><code>tuba.analysis</code> &rarr; <code>tuba.visualization</code> &rarr; <code>viewer/</code></li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+
+      <section class="doc-section">
+        <h2>Change ownership</h2>
+        <p>
+          Authoring produces intent, evidence records what the solver actually
+          did, and review presents it. Work down this chain, never skip it.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Stage</th>
+              <th>Owns</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Authoring</td><td>Builder methods, route requests, operations.</td></tr>
+            <tr><td>Evidence</td><td>Solver runtime, artifacts, parsers, provenance.</td></tr>
+            <tr><td>Review</td><td>Plotting, web scene, reports, viewer metadata.</td></tr>
+          </tbody>
+        </table>
       </section>
 
       <section class="doc-section">
@@ -49,6 +110,7 @@
             <tr><td><code>tuba.model</code></td><td>Model records, materials, sections, nodes, elements, supports, loads, operations, serialization.</td></tr>
             <tr><td><code>tuba.builder</code></td><td>Cursor-based route authoring through <code>model.pipe(...)</code>.</td></tr>
             <tr><td><code>tuba.validation</code></td><td>Pre-export model invariants.</td></tr>
+            <tr><td><code>tuba.routing</code></td><td>Route requests, grid search, expansion-loop candidates, network routing, solver-loop candidate review, and route reports.</td></tr>
             <tr><td><code>tuba.solver.aster</code></td><td>Code_Aster study export, runtime execution, and result parsing.</td></tr>
             <tr><td><code>tuba.solver.aster_mesh</code></td><td><code>study.mail</code> mesh generation and analysis-mesh provenance.</td></tr>
             <tr><td><code>tuba.solver.aster_comm</code></td><td><code>study.comm</code> command-file generation.</td></tr>
@@ -104,15 +166,93 @@ bundle = write_scene_bundle(scene, "runs/demo_hot/review_scene")</code></pre>
       </section>
 
       <section class="doc-section">
-        <h2>Contribution rules</h2>
-        <ul class="plain-list">
-          <li>Do not present generated <code>.comm</code>, <code>.mail</code>, or <code>.export</code> files as completed solver results.</li>
-          <li>Do not fabricate stress, displacement, reaction, compliance, or clash-result values.</li>
-          <li>Keep Code_Aster execution native to Tuba. Shell, Docker, and legacy <code>as_run</code> paths are fallbacks.</li>
-          <li>Do not vendor or copy ada-py code. Treat ada-py as reference-only interoperability input.</li>
-          <li>When adding result display, route through <code>tuba.plotting</code> or <code>tuba.visualization</code>; do not add a third viewer path.</li>
-          <li>When adding examples, make export-only examples state that export is not completed engineering evaluation.</li>
-        </ul>
+        <h2>How to extend autorouting</h2>
+        <p>
+          Keep routing changes in the routing package until a candidate is
+          explicitly applied to the model. That keeps search, scoring, review,
+          and model mutation separable.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Change</th>
+              <th>Start here</th>
+              <th>Verification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>New request field</td>
+              <td><code>tuba.routing.types</code></td>
+              <td>Add route serialization and focused type tests.</td>
+            </tr>
+            <tr>
+              <td>New obstacle or space behavior</td>
+              <td><code>tuba.routing.grid</code>, <code>tuba.routing.spaces</code></td>
+              <td>Add grid occupancy tests and a route test through the new space.</td>
+            </tr>
+            <tr>
+              <td>New cost term</td>
+              <td><code>tuba.routing.cost_model</code></td>
+              <td>Assert the cost term, legacy summary, and selected-candidate order.</td>
+            </tr>
+            <tr>
+              <td>New loop family</td>
+              <td><code>tuba.routing.expansion</code>, <code>tuba.routing.hybrid</code></td>
+              <td>Add candidate geometry, reserved-envelope, and network-conflict tests.</td>
+            </tr>
+            <tr>
+              <td>New solver acceptance gate</td>
+              <td><code>tuba.routing.solver_loop</code></td>
+              <td>Use deterministic fixtures for unit tests and a real Code_Aster integration smoke when solver output is required.</td>
+            </tr>
+            <tr>
+              <td>New review output</td>
+              <td><code>tuba.routing.report</code>, <code>tuba.visualization</code></td>
+              <td>Update Markdown/JSON report tests and viewer scene-contract tests.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>How to contribute</h2>
+        <p>
+          Start with <code>CONTRIBUTING.md</code>. It explains what counts as a
+          Code_Aster-backed result, how export-only examples should be labeled,
+          where solver execution lives, and which visualization paths are
+          supported.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Contribution area</th>
+              <th>Use this path</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Modeling or export changes</td>
+              <td>Keep model records in <code>tuba.model</code>, validation in <code>tuba.validation</code>, and Code_Aster file generation in <code>tuba.solver</code>.</td>
+            </tr>
+            <tr>
+              <td>Solver execution</td>
+              <td>Use the native Tuba runtime bridge in <code>tuba.solver.aster</code> and <code>tuba.solver.code_aster_runtime</code>.</td>
+            </tr>
+            <tr>
+              <td>Result display</td>
+              <td>Use <code>tuba.plotting</code> for PyVista quick-look views or <code>tuba.visualization</code> plus <code>viewer/</code> for browser review bundles.</td>
+            </tr>
+            <tr>
+              <td>Examples and notebooks</td>
+              <td>Label export-only examples as handoff/diagnostic workflows until Code_Aster has run and artifacts have been imported.</td>
+            </tr>
+            <tr>
+              <td>External interoperability</td>
+              <td>Treat <code>ada-py</code> as reference material only unless a separate adapter and license decision is made.</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </main>
   </body>
