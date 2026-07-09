@@ -27,6 +27,8 @@ class TestDocsFigures(unittest.TestCase):
                 path = fn(out)
                 self.assertTrue(path.exists(), f"{name}: no file")
                 self.assertGreater(path.stat().st_size, 2000, f"{name}: PNG too small")
+                with path.open("rb") as fh:
+                    self.assertEqual(fh.read(8), b"\x89PNG\r\n\x1a\n", f"{name}: not a PNG")
 
 
 if __name__ == "__main__":
