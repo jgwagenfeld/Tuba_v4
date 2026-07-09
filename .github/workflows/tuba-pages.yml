@@ -34,6 +34,12 @@ jobs:
         run: |
           mkdir -p _site/notebooks
           cp -R docs/site/. _site/
+          # The docs iframes (?bundle=code-aster-review / imported_component_mixed_demo)
+          # are served from _site/viewer/<bundle>/. Those bundles live in
+          # viewer/public/<bundle>/ and Vite copies public/ into dist/ during
+          # `npm run build`, so copying dist here ships them automatically.
+          # Local preview of the embeds: `cd viewer && npm run build`, then copy
+          # viewer/dist to docs/site/viewer/ before serving docs/site.
           cp -R viewer/dist _site/viewer
           cp notebooks/10_interactive_postprocessor.ipynb _site/notebooks/
           touch _site/.nojekyll
