@@ -163,6 +163,10 @@ MODEL_SCHEMA_V4 = {
                     "internal_pressure": {"type": "number"},
                     "temperature": {"type": "number"},
                     "ref_temperature": {"type": "number"},
+                    "nodal_forces": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/nodalForce"},
+                    },
                 },
                 "additionalProperties": True,
             },
@@ -181,6 +185,10 @@ MODEL_SCHEMA_V4 = {
                     "fields": {
                         "type": "array",
                         "items": {"$ref": "#/$defs/operationField"},
+                    },
+                    "nodal_forces": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/nodalForce"},
                     },
                 },
                 "additionalProperties": True,
@@ -316,6 +324,15 @@ MODEL_SCHEMA_V4 = {
                     "type": "array",
                     "items": {"type": "string"},
                 },
+            },
+            "additionalProperties": False,
+        },
+        "nodalForce": {
+            "type": "object",
+            "required": ["node", "components"],
+            "properties": {
+                "node": {"type": "string"},
+                "components": {"$ref": "#/$defs/vector6"},
             },
             "additionalProperties": False,
         },
@@ -512,6 +529,12 @@ MODEL_SCHEMA_V4 = {
             "type": "array",
             "minItems": 3,
             "maxItems": 3,
+            "items": {"type": "number"},
+        },
+        "vector6": {
+            "type": "array",
+            "minItems": 6,
+            "maxItems": 6,
             "items": {"type": "number"},
         },
     },

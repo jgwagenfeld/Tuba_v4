@@ -15,7 +15,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -337,6 +337,41 @@ class OperationField:
 
 
 @dataclass
+class NodalForce:
+    """Concentrated nodal force/moment in global coordinates."""
+
+    node: str
+    components: List[float]
+
+    def __post_init__(self) -> None:
+        if len(self.components) != 6:
+            raise ValueError("NodalForce components must be [FX, FY, FZ, MX, MY, MZ].")
+        self.components = [float(value) for value in self.components]
+
+    @classmethod
+    def from_force(
+        cls,
+        node: str,
+        force: List[float],
+        moment: Optional[List[float]] = None,
+    ) -> "NodalForce":
+        if len(force) == 6 and moment is None:
+            return cls(node=node, components=list(force))
+        if len(force) != 3:
+            raise ValueError("force must contain either 3 force values or all 6 force/moment values.")
+        return cls(node=node, components=list(force) + list(moment or [0.0, 0.0, 0.0]))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"node": self.node, "components": [float(value) for value in self.components]}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "NodalForce":
+        if "components" in data:
+            return cls(node=data["node"], components=list(data["components"]))
+        return cls.from_force(node=data["node"], force=list(data["force"]), moment=data.get("moment"))
+
+
+@dataclass
 class LoadCase:
     """Operating load case definition."""
 
@@ -346,6 +381,17 @@ class LoadCase:
     temperature: float = 20.0  # [°C]
     ref_temperature: float = 20.0  # [°C]
     fields: List[OperationField] = field(default_factory=list)
+    nodal_forces: List[NodalForce] = field(default_factory=list)
+
+    def add_nodal_force(
+        self,
+        node: str,
+        force: List[float],
+        moment: Optional[List[float]] = None,
+    ) -> NodalForce:
+        load = NodalForce.from_force(node=node, force=force, moment=moment)
+        self.nodal_forces.append(load)
+        return load
 
 
 @dataclass
@@ -359,6 +405,7 @@ class Operation:
     ref_temperature: float = 20.0  # [C]
     metadata: Dict[str, Any] = field(default_factory=dict)
     fields: List[OperationField] = field(default_factory=list)
+    nodal_forces: List[NodalForce] = field(default_factory=list)
 
     def to_load_case(self) -> LoadCase:
         return LoadCase(
@@ -368,7 +415,18 @@ class Operation:
             temperature=self.temperature,
             ref_temperature=self.ref_temperature,
             fields=list(self.fields),
+            nodal_forces=list(self.nodal_forces),
         )
+
+    def add_nodal_force(
+        self,
+        node: str,
+        force: List[float],
+        moment: Optional[List[float]] = None,
+    ) -> NodalForce:
+        load = NodalForce.from_force(node=node, force=force, moment=moment)
+        self.nodal_forces.append(load)
+        return load
 
     def add_field(
         self,
@@ -629,8 +687,8 @@ class TubaModel:
 
     # -- Nodes ---------------------------------------------------------------
 
-    def add_node(self, coords: np.ndarray) -> str:
-        """Create a node and return its id."""
+    def add_node(self, coords: Sequence[float] | np.ndarray) -> str:
+        """Create a node from [x, y, z] coordinates and return its id."""
         node_id = f"N{self._node_counter}"
         self._node_counter += 1
         self.nodes[node_id] = Node(id=node_id, coords=np.asarray(coords, dtype=float))
@@ -1175,6 +1233,7 @@ class TubaModel:
                     "internal_pressure": lc.internal_pressure,
                     "temperature": lc.temperature,
                     "ref_temperature": lc.ref_temperature,
+                    **({"nodal_forces": [force.to_dict() for force in lc.nodal_forces]} if lc.nodal_forces else {}),
                 }
                 for name, lc in self.load_cases.items()
             },
@@ -1186,6 +1245,7 @@ class TubaModel:
                     "ref_temperature": op.ref_temperature,
                     "metadata": op.metadata,
                     "fields": [_operation_field_to_dict(field_record) for field_record in op.fields],
+                    **({"nodal_forces": [force.to_dict() for force in op.nodal_forces]} if op.nodal_forces else {}),
                 }
                 for name, op in self.operations.items()
             },
@@ -1307,16 +1367,18 @@ class TubaModel:
             model.add_support(**s)
 
         for name, lc in data.get("load_cases", {}).items():
-            model.define_load_case(
+            load_case = model.define_load_case(
                 name=name,
                 gravity=lc.get("gravity", True),
                 pressure=lc.get("internal_pressure", 0.0),
                 temperature=lc.get("temperature", 20.0),
                 ref_temperature=lc.get("ref_temperature", 20.0),
             )
+            for force_data in lc.get("nodal_forces", []):
+                load_case.nodal_forces.append(NodalForce.from_dict(force_data))
 
         for name, op in data.get("operations", {}).items():
-            model.define_operation(
+            operation = model.define_operation(
                 name=name,
                 gravity=op.get("gravity", True),
                 pressure=op.get("internal_pressure", 0.0),
@@ -1325,6 +1387,8 @@ class TubaModel:
                 metadata=op.get("metadata", {}),
                 fields=op.get("fields", []),
             )
+            for force_data in op.get("nodal_forces", []):
+                operation.nodal_forces.append(NodalForce.from_dict(force_data))
 
         for obs in data.get("obstacles", []):
             model.add_obstacle(**obs)

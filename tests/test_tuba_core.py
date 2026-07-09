@@ -437,10 +437,10 @@ class TestVisualizer(unittest.TestCase):
             b.start([0,0,0]).run(2.0).end()
             
         mesh = build_3d_mesh_from_model(model)
-        # N=2 layers, M=16 vertices. Total points = 32
-        self.assertEqual(mesh.n_points, 32)
-        # 16 quads + 2 end caps = 18 cells
-        self.assertEqual(mesh.n_cells, 18)
+        # N=2 layers, M=16 outer + 16 inner vertices. Total points = 64.
+        self.assertEqual(mesh.n_points, 64)
+        # Outer wall + inner wall + annular profile faces at both ends.
+        self.assertEqual(mesh.n_cells, 64)
         
         # 2. Rectangular Section
         model2 = Model()
@@ -454,8 +454,19 @@ class TestVisualizer(unittest.TestCase):
         self.assertEqual(mesh2.n_points, 8)
         # 4 quads + 2 end caps = 6 cells
         self.assertEqual(mesh2.n_cells, 6)
+
+        # 3. Hollow Rectangular Section
+        model4 = Model()
+        model4.add_material("Steel", E=2.0e11, nu=0.3)
+        model4.add_rectangular_section("BoxSec", height_y=0.1, height_z=0.2, thickness_y=0.01, thickness_z=0.02)
+        with model4.pipe(section="BoxSec", material="Steel") as b:
+            b.start([0,0,0]).beam(2.0).end()
+
+        mesh4 = build_3d_mesh_from_model(model4)
+        self.assertEqual(mesh4.n_points, 16)
+        self.assertEqual(mesh4.n_cells, 16)
         
-        # 3. I-Beam Section
+        # 4. I-Beam Section
         model3 = Model()
         model3.add_material("Steel", E=2.0e11, nu=0.3)
         model3.add_ibeam_section("IBeamSec", "IPE80")
@@ -465,8 +476,17 @@ class TestVisualizer(unittest.TestCase):
         mesh3 = build_3d_mesh_from_model(model3)
         # N=2 layers, M=12 vertices. Total points = 24
         self.assertEqual(mesh3.n_points, 24)
-        # 12 quads + 2 end caps = 14 cells
-        self.assertEqual(mesh3.n_cells, 14)
+        # 12 side quads + triangulated concave I-beam end caps.
+        self.assertEqual(mesh3.n_cells, 32)
+        cell_sizes = []
+        idx = 0
+        while idx < len(mesh3.faces):
+            n = mesh3.faces[idx]
+            cell_sizes.append(n)
+            idx += n + 1
+        self.assertEqual(cell_sizes.count(4), 12)
+        self.assertEqual(cell_sizes.count(3), 20)
+        self.assertNotIn(12, cell_sizes)
 
 
 class TestCodeAsterSolver(unittest.TestCase):

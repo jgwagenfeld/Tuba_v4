@@ -1,0 +1,348 @@
+[
+  {
+    "bounds": [
+      -0.05,
+      0.4,
+      -0.05,
+      1.25,
+      0.5,
+      0.05
+    ],
+    "format": "tube",
+    "generation_config": {
+      "entity_ref": "element:pipe_str_0",
+      "points": [
+        [
+          0.0,
+          0.45,
+          0.0
+        ],
+        [
+          1.2,
+          0.45,
+          0.0
+        ]
+      ],
+      "radius_m": 0.05,
+      "source": "tuba.element"
+    },
+    "hash": "sha256:5c002713f8a4dc8fd9e66ccdd4e374ffe2d9971a084232baac801c121ecc843b",
+    "id": "geometry:element:pipe_str_0",
+    "object_ids": [
+      "object:element:pipe_str_0"
+    ],
+    "uri": "geometry/geometry_element_pipe_str_0.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.45,
+      0.0,
+      0.0,
+      0.45,
+      0.0
+    ],
+    "format": "point",
+    "generation_config": {
+      "entity_ref": "support:support_0",
+      "point": [
+        0.0,
+        0.45,
+        0.0
+      ],
+      "source": "tuba.support"
+    },
+    "hash": "sha256:1df962199211723d2dadd5561d7603eaa48f7212905b6c1cf903e1e8cceeb435",
+    "id": "geometry:support:support_0",
+    "object_ids": [
+      "object:support:support_0"
+    ],
+    "uri": "geometry/geometry_support_support_0.json"
+  },
+  {
+    "bounds": [
+      1.15,
+      0.27,
+      -0.18,
+      1.65,
+      0.63,
+      0.18
+    ],
+    "format": "mesh",
+    "generation_config": {
+      "color": "#64748b",
+      "entity_ref": "component:component_custom_equipment",
+      "faces": [
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          2,
+          3
+        ],
+        [
+          4,
+          6,
+          5
+        ],
+        [
+          4,
+          7,
+          6
+        ],
+        [
+          0,
+          4,
+          5
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          1,
+          5,
+          6
+        ],
+        [
+          1,
+          6,
+          2
+        ],
+        [
+          2,
+          6,
+          7
+        ],
+        [
+          2,
+          7,
+          3
+        ],
+        [
+          3,
+          7,
+          4
+        ],
+        [
+          3,
+          4,
+          0
+        ]
+      ],
+      "opacity": 0.34,
+      "source": "tuba.imported_component",
+      "transparent": true,
+      "vertices": [
+        [
+          1.15,
+          0.27,
+          -0.18
+        ],
+        [
+          1.65,
+          0.27,
+          -0.18
+        ],
+        [
+          1.65,
+          0.63,
+          -0.18
+        ],
+        [
+          1.15,
+          0.63,
+          -0.18
+        ],
+        [
+          1.15,
+          0.27,
+          0.18
+        ],
+        [
+          1.65,
+          0.27,
+          0.18
+        ],
+        [
+          1.65,
+          0.63,
+          0.18
+        ],
+        [
+          1.15,
+          0.63,
+          0.18
+        ]
+      ]
+    },
+    "hash": "sha256:1a9e5d1af04e1ea7969f30cc8d88537d61a3bf7c2450dc16740c06a11c8a97e1",
+    "id": "geometry:component:component_custom_equipment",
+    "object_ids": [
+      "object:component:component_custom_equipment"
+    ],
+    "uri": "geometry/geometry_component_component_custom_equipment.json"
+  },
+  {
+    "bounds": [
+      1.2,
+      0.45,
+      0.0,
+      1.525,
+      0.45,
+      0.0
+    ],
+    "format": "vector",
+    "generation_config": {
+      "axis": "x",
+      "color": "#dc2626",
+      "end": [
+        1.525,
+        0.45,
+        0.0
+      ],
+      "source": "tuba.imported_component.local_axis",
+      "start": [
+        1.2,
+        0.45,
+        0.0
+      ]
+    },
+    "hash": "sha256:86a14c70dd112c69b23a3cd1c5d99a27d11b7ef9e8bfcca5d0ba2687a1822855",
+    "id": "geometry:component:component_custom_equipment:local_axis:x",
+    "object_ids": [
+      "object:component:component_custom_equipment:local_axis:x"
+    ],
+    "uri": "geometry/geometry_component_component_custom_equipment_local_axis_x.json"
+  },
+  {
+    "bounds": [
+      1.2,
+      0.45,
+      0.0,
+      1.2,
+      0.775,
+      0.0
+    ],
+    "format": "vector",
+    "generation_config": {
+      "axis": "y",
+      "color": "#16a34a",
+      "end": [
+        1.2,
+        0.775,
+        0.0
+      ],
+      "source": "tuba.imported_component.local_axis",
+      "start": [
+        1.2,
+        0.45,
+        0.0
+      ]
+    },
+    "hash": "sha256:b223279835da3bdd78a8d36e7bdce2865be2dfbb3dd2bd6d4c2f8e26fbd08d41",
+    "id": "geometry:component:component_custom_equipment:local_axis:y",
+    "object_ids": [
+      "object:component:component_custom_equipment:local_axis:y"
+    ],
+    "uri": "geometry/geometry_component_component_custom_equipment_local_axis_y.json"
+  },
+  {
+    "bounds": [
+      1.2,
+      0.45,
+      0.0,
+      1.2,
+      0.45,
+      0.325
+    ],
+    "format": "vector",
+    "generation_config": {
+      "axis": "z",
+      "color": "#2563eb",
+      "end": [
+        1.2,
+        0.45,
+        0.325
+      ],
+      "source": "tuba.imported_component.local_axis",
+      "start": [
+        1.2,
+        0.45,
+        0.0
+      ]
+    },
+    "hash": "sha256:c242972e4bbbe10ee0f115b606d2e165a5f258fe8267fdcae24671ab16450e3c",
+    "id": "geometry:component:component_custom_equipment:local_axis:z",
+    "object_ids": [
+      "object:component:component_custom_equipment:local_axis:z"
+    ],
+    "uri": "geometry/geometry_component_component_custom_equipment_local_axis_z.json"
+  },
+  {
+    "bounds": [
+      1.175,
+      0.425,
+      -0.025,
+      1.2249999999999999,
+      0.47500000000000003,
+      0.025
+    ],
+    "format": "marker",
+    "generation_config": {
+      "color": "#f97316",
+      "entity_ref": "port:port_equipment_nozzle_a",
+      "point": [
+        1.2,
+        0.45,
+        0.0
+      ],
+      "radius_m": 0.025,
+      "source": "tuba.imported_port"
+    },
+    "hash": "sha256:9fe8c2f274a18738bd66ec341b498e8abd26324588f6f00aa19eb9bbb76f5ec8",
+    "id": "geometry:port:port_equipment_nozzle_a",
+    "object_ids": [
+      "object:port:port_equipment_nozzle_a"
+    ],
+    "uri": "geometry/geometry_port_port_equipment_nozzle_a.json"
+  },
+  {
+    "bounds": [
+      1.02,
+      0.45,
+      0.0,
+      1.2,
+      0.45,
+      0.0
+    ],
+    "format": "line",
+    "generation_config": {
+      "color": "#ea580c",
+      "entity_ref": "coupling:coupling_pipe_to_equipment_a",
+      "points": [
+        [
+          1.2,
+          0.45,
+          0.0
+        ],
+        [
+          1.02,
+          0.45,
+          0.0
+        ]
+      ],
+      "source": "tuba.mixed_coupling"
+    },
+    "hash": "sha256:6352f0725d7cc6e6e520662583143cefbddfbf4cd9d86f38075526170facca14",
+    "id": "geometry:coupling:coupling_pipe_to_equipment_a",
+    "object_ids": [
+      "object:coupling:coupling_pipe_to_equipment_a"
+    ],
+    "uri": "geometry/geometry_coupling_coupling_pipe_to_equipment_a.json"
+  }
+]

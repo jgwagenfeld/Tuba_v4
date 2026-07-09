@@ -322,35 +322,63 @@ def get_ibeam_dimensions(sec) -> tuple[float, float, float, float]:
 
 def _get_profile_2d_polygon(sec, n_sides: int = 16) -> np.ndarray:
     """Return a 2D closed polygon (y, z) representing the section profile in meters."""
+    return _get_profile_2d_loops(sec, n_sides=n_sides)[0]
+
+
+def _circle_polygon(radius: float, n_sides: int) -> np.ndarray:
+    angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
+    y = radius * np.cos(angles)
+    z = radius * np.sin(angles)
+    return np.column_stack([y, z])
+
+
+def _get_profile_2d_loops(sec, n_sides: int = 16) -> list[np.ndarray]:
+    """Return section profile loops; inner loops are holes."""
     from tuba.model import PipeSection, BarSection, CableSection, RectangularSection, IBeamSection
     
-    if isinstance(sec, (PipeSection, BarSection)):
+    if isinstance(sec, PipeSection):
         r = float(sec.OD / 2.0)
-        angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
-        y = r * np.cos(angles)
-        z = r * np.sin(angles)
-        return np.column_stack([y, z])
-        
+        loops = [_circle_polygon(r, n_sides)]
+        r_i = max(float(sec.ID / 2.0), 0.0)
+        if 0.0 < r_i < r:
+            loops.append(_circle_polygon(r_i, n_sides))
+        return loops
+
+    elif isinstance(sec, BarSection):
+        r = float(sec.OD / 2.0)
+        loops = [_circle_polygon(r, n_sides)]
+        r_i = r - float(sec.WT)
+        if sec.WT > 0.0 and 0.0 < r_i < r:
+            loops.append(_circle_polygon(r_i, n_sides))
+        return loops
+
     elif isinstance(sec, CableSection):
-        r = float(sec.radius)
-        angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
-        y = r * np.cos(angles)
-        z = r * np.sin(angles)
-        return np.column_stack([y, z])
+        return [_circle_polygon(float(sec.radius), n_sides)]
         
     elif isinstance(sec, RectangularSection):
         hy = float(sec.height_y)
         hz = float(sec.height_z)
-        return np.array([
+        outer = np.array([
             [-hy/2.0, -hz/2.0],
             [ hy/2.0, -hz/2.0],
             [ hy/2.0,  hz/2.0],
             [-hy/2.0,  hz/2.0],
         ])
+        loops = [outer]
+        inner_y = hy - 2.0 * float(sec.thickness_y)
+        inner_z = hz - 2.0 * float(sec.thickness_z)
+        if sec.thickness_y > 0.0 and sec.thickness_z > 0.0 and inner_y > 0.0 and inner_z > 0.0:
+            loops.append(np.array([
+                [-inner_y/2.0, -inner_z/2.0],
+                [ inner_y/2.0, -inner_z/2.0],
+                [ inner_y/2.0,  inner_z/2.0],
+                [-inner_y/2.0,  inner_z/2.0],
+            ]))
+        return loops
         
     elif isinstance(sec, IBeamSection) or (hasattr(sec, "properties") and "EY" in sec.properties):
         h, b, tw, tf = get_ibeam_dimensions(sec)
-        return np.array([
+        return [np.array([
             [-h/2.0, -b/2.0],
             [-h/2.0,  b/2.0],
             [-h/2.0 + tf,  b/2.0],
@@ -363,9 +391,74 @@ def _get_profile_2d_polygon(sec, n_sides: int = 16) -> np.ndarray:
             [ h/2.0 - tf, -tw/2.0],
             [-h/2.0 + tf, -tw/2.0],
             [-h/2.0 + tf, -b/2.0],
-        ])
+        ])]
     else:
         raise ValueError(f"Unsupported section profile type {type(sec).__name__}.")
+
+
+def _signed_polygon_area(poly: np.ndarray) -> float:
+    return float(0.5 * np.sum(poly[:, 0] * np.roll(poly[:, 1], -1) - np.roll(poly[:, 0], -1) * poly[:, 1]))
+
+
+def _is_convex_polygon(poly: np.ndarray) -> bool:
+    signs = []
+    for i in range(len(poly)):
+        a = poly[i] - poly[i - 1]
+        b = poly[(i + 1) % len(poly)] - poly[i]
+        cross = float(a[0] * b[1] - a[1] * b[0])
+        if abs(cross) > 1e-12:
+            signs.append(cross > 0.0)
+    return not signs or all(sign == signs[0] for sign in signs)
+
+
+def _point_in_triangle(p: np.ndarray, a: np.ndarray, b: np.ndarray, c: np.ndarray) -> bool:
+    v0 = c - a
+    v1 = b - a
+    v2 = p - a
+    dot00 = float(np.dot(v0, v0))
+    dot01 = float(np.dot(v0, v1))
+    dot02 = float(np.dot(v0, v2))
+    dot11 = float(np.dot(v1, v1))
+    dot12 = float(np.dot(v1, v2))
+    denom = dot00 * dot11 - dot01 * dot01
+    if abs(denom) <= 1e-18:
+        return False
+    inv = 1.0 / denom
+    u = (dot11 * dot02 - dot01 * dot12) * inv
+    v = (dot00 * dot12 - dot01 * dot02) * inv
+    return u >= -1e-12 and v >= -1e-12 and (u + v) <= 1.0 + 1e-12
+
+
+def _triangulate_profile_polygon(poly: np.ndarray) -> list[tuple[int, int, int]]:
+    """Ear-clip a simple 2-D profile polygon for robust vtk.js end caps."""
+    clockwise = _signed_polygon_area(poly) < 0.0
+    vertices = list(range(len(poly)))
+    triangles: list[tuple[int, int, int]] = []
+
+    while len(vertices) > 3:
+        for pos, curr in enumerate(vertices):
+            prev = vertices[pos - 1]
+            nxt = vertices[(pos + 1) % len(vertices)]
+            a = poly[prev]
+            b = poly[curr]
+            c = poly[nxt]
+            cross = float((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]))
+            if (cross < -1e-12) != clockwise:
+                continue
+            if any(
+                _point_in_triangle(poly[idx], a, b, c)
+                for idx in vertices
+                if idx not in {prev, curr, nxt}
+            ):
+                continue
+            triangles.append((prev, curr, nxt))
+            del vertices[pos]
+            break
+        else:
+            return [(vertices[0], vertices[i], vertices[i + 1]) for i in range(1, len(vertices) - 1)]
+
+    triangles.append(tuple(vertices))
+    return triangles
 
 
 def _get_element_3d_mesh(
@@ -388,10 +481,12 @@ def _get_element_3d_mesh(
     if N < 2:
         return pv.PolyData()
         
-    # 2. Get 2D profile polygon
+    # 2. Get 2D profile loops
     sec = model.sections[elem.section]
-    poly2d = _get_profile_2d_polygon(sec)
-    M = len(poly2d)
+    profile_loops = _get_profile_2d_loops(sec)
+    loop_sizes = [len(loop) for loop in profile_loops]
+    loop_offsets = np.cumsum([0] + loop_sizes[:-1]).tolist()
+    M = sum(loop_sizes)
     
     # 3. Generate parallel transport frames (lx, ly, lz) along the path
     # Tangent at start
@@ -474,31 +569,55 @@ def _get_element_3d_mesh(
     for j in range(N):
         pj = path[j]
         _, ly, lz = frames[j]
-        for i in range(M):
-            y_i, z_i = poly2d[i]
-            pt_3d = pj + y_i * ly + z_i * lz
-            points_3d.append(pt_3d)
+        for loop in profile_loops:
+            for y_i, z_i in loop:
+                pt_3d = pj + y_i * ly + z_i * lz
+                points_3d.append(pt_3d)
     points_3d = np.array(points_3d)
     
     # 5. Build quad cells and end caps
     cells = []
     # Quads
-    for j in range(N - 1):
-        for i in range(M):
-            i_next = (i + 1) % M
-            v0 = j * M + i
-            v1 = j * M + i_next
-            v2 = (j + 1) * M + i_next
-            v3 = (j + 1) * M + i
-            cells.append([4, v0, v1, v2, v3])
-            
-    # Start Cap
-    start_cap = [M] + [i for i in reversed(range(M))]
-    cells.append(start_cap)
-    
-    # End Cap
-    end_cap = [M] + [(N - 1) * M + i for i in range(M)]
-    cells.append(end_cap)
+    for loop_idx, loop_size in enumerate(loop_sizes):
+        loop_offset = loop_offsets[loop_idx]
+        for j in range(N - 1):
+            for i in range(loop_size):
+                i_next = (i + 1) % loop_size
+                v0 = j * M + loop_offset + i
+                v1 = j * M + loop_offset + i_next
+                v2 = (j + 1) * M + loop_offset + i_next
+                v3 = (j + 1) * M + loop_offset + i
+                cells.append([4, v0, v1, v2, v3] if loop_idx == 0 else [4, v0, v3, v2, v1])
+
+    if len(profile_loops) == 1 and _is_convex_polygon(profile_loops[0]):
+        start_cap = [M] + [i for i in reversed(range(M))]
+        cells.append(start_cap)
+
+        end_cap = [M] + [(N - 1) * M + i for i in range(M)]
+        cells.append(end_cap)
+    elif len(profile_loops) == 1:
+        for a, b, c in _triangulate_profile_polygon(profile_loops[0]):
+            cells.append([3, c, b, a])
+        offset = (N - 1) * M
+        for a, b, c in _triangulate_profile_polygon(profile_loops[0]):
+            cells.append([3, offset + a, offset + b, offset + c])
+    else:
+        outer_size = loop_sizes[0]
+        inner_size = loop_sizes[1]
+        if outer_size != inner_size:
+            raise ValueError(f"Hollow section {elem.section!r} requires matching outer/inner profile point counts.")
+        inner_offset = loop_offsets[1]
+        end_offset = (N - 1) * M
+        for i in range(outer_size):
+            i_next = (i + 1) % outer_size
+            cells.append([4, i_next, i, inner_offset + i, inner_offset + i_next])
+            cells.append([
+                4,
+                end_offset + i,
+                end_offset + i_next,
+                end_offset + inner_offset + i_next,
+                end_offset + inner_offset + i,
+            ])
     
     cells_arr = []
     for c in cells:
@@ -507,7 +626,8 @@ def _get_element_3d_mesh(
     
     mesh = pv.PolyData(points_3d, faces=cells_arr)
     
-    # 6. Map results
+    # 6. Map results. Geometry-only meshes must not expose zero-valued solver
+    # arrays, otherwise downstream renderers mistake them for result plots.
     disp1 = np.zeros(3)
     disp2 = np.zeros(3)
     vmis1 = 0.0
@@ -532,24 +652,24 @@ def _get_element_3d_mesh(
             vmis1 = er.von_mises_n1
             vmis2 = er.von_mises_n2
             
-    disp_3d = []
-    vmis_3d = []
-    forc_3d = []
-    for j in range(N):
-        t = j / (N - 1) if N > 1 else 0.0
-        d_val = disp1 + t * (disp2 - disp1)
-        v_val = vmis1 + t * (vmis2 - vmis1)
-        f_val = forc1 + t * (forc2 - forc1)
-        for _ in range(M):
-            disp_3d.append(d_val)
-            vmis_3d.append(v_val)
-            forc_3d.append(f_val)
-            
-    mesh.point_data["DEPL"] = np.array(disp_3d)
-    mesh.point_data["DEPL_magnitude"] = np.linalg.norm(mesh.point_data["DEPL"], axis=1)
-    mesh.point_data["VMIS"] = np.array(vmis_3d)
-    mesh.point_data["FORC_NODA"] = np.array(forc_3d)
-    mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
+        disp_3d = []
+        vmis_3d = []
+        forc_3d = []
+        for j in range(N):
+            t = j / (N - 1) if N > 1 else 0.0
+            d_val = disp1 + t * (disp2 - disp1)
+            v_val = vmis1 + t * (vmis2 - vmis1)
+            f_val = forc1 + t * (forc2 - forc1)
+            for _ in range(M):
+                disp_3d.append(d_val)
+                vmis_3d.append(v_val)
+                forc_3d.append(f_val)
+
+        mesh.point_data["DEPL"] = np.array(disp_3d)
+        mesh.point_data["DEPL_magnitude"] = np.linalg.norm(mesh.point_data["DEPL"], axis=1)
+        mesh.point_data["VMIS"] = np.array(vmis_3d)
+        mesh.point_data["FORC_NODA"] = np.array(forc_3d)
+        mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
     
     # Map Temperature if load case exists
     temp_val = 20.0

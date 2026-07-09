@@ -41,6 +41,7 @@ export function getPropertySections(state, objectId) {
   const issueRows = issueRowsForObject(state, obj);
   const externalRows = externalRowsForObject(obj);
   const provenanceRows = provenanceRowsForObject(obj, asset);
+  const profileRows = obj.metadata?.profile ?? {};
 
   return [
     {
@@ -58,6 +59,7 @@ export function getPropertySections(state, objectId) {
       title: "Attributes",
       rows: compactRows({ section: obj.metadata?.section, material: obj.metadata?.material, ...attributes })
     },
+    { id: "profile", title: "Profile", rows: compactRows(profileRows) },
     { id: "physical", title: "Physical", rows: compactRows(obj.physical ?? {}) },
     { id: "quantities", title: "Quantities", rows: compactRows(obj.quantities ?? {}) },
     { id: "result_values", title: "Result Values", rows: compactRows(resultRows) },

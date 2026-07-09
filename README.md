@@ -1,23 +1,25 @@
 # Tuba v4
 
-AI-ready piping stress analysis & routing library.
+Open-source Python project for piping models, Code_Aster workflows, and result
+review.
 
 ## Core Workflow
 
-Tuba v4 is built around one non-optional engineering workflow:
+Tuba v4 is organized around this workflow:
 
 1. Define the piping structure in Tuba.
 2. Evaluate the model with Code_Aster.
 3. Display, review, and report processed Code_Aster results.
 
 Generating `.comm`, `.mail`, and `.export` files is only the solver handoff.
-It is not a completed evaluation. Production stress, displacement, reaction,
+It is not a completed evaluation. Full stress, displacement, reaction,
 thermal-expansion, operating-state clash, compliance, and result visualization
 workflows must run Code_Aster or import real Code_Aster result artifacts before
 showing solver results. If Code_Aster is unavailable, Tuba should stop with a
 clear runtime/setup blocker rather than substitute mock values.
 
-Code_Aster is required for the full Tuba workflow.
+Code_Aster is required for the full Tuba workflow. It is required for full
+stress, displacement, reaction, compliance, and result visualization workflows.
 
 ## Documentation Map
 
@@ -25,8 +27,9 @@ Read these first — they describe what the code actually does today:
 
 | Source | Role |
 |---|---|
-| `README.md`, `AGENTS.md` | Authoritative product contract and workflow |
-| `notebooks/00`–`08` | The end-to-end course, in order |
+| `README.md`, `AGENTS.md` | Project workflow and contributor guidance |
+| `notebooks/00`–`10` | The end-to-end notebook course, in order |
+| `docs/site/` | Static project page source |
 | `docs/architecture/*` | Current design decisions (DSL, autorouting, mixed studies) |
 | `docs/code_aster_installation.md` | Canonical Code_Aster setup |
 
@@ -136,10 +139,27 @@ Course sequence:
 | `06_structural_frames_and_optimization.ipynb` | Pipe racks and optional support optimization |
 | `07_bim_data_exchange.ipynb` | JSON and IFC/BIM exchange with solver properties |
 | `08_expansion_aware_autorouting.ipynb` | Hot-line routing with reserved expansion envelopes |
+| `09_imported_component_mixed_system.ipynb` | Imported CAD component placement and pipe coupling |
+| `10_interactive_postprocessor.ipynb` | Focused Code_Aster artifact post-processing |
 
 Supplemental notebooks: `autorouting_quick_iteration.ipynb`,
 `visualize_elements_and_supports.ipynb`, and
 `advanced_piping_design_and_bim.ipynb`.
+
+For focused post-processing, open:
+
+```powershell
+jupyter lab notebooks\10_interactive_postprocessor.ipynb
+```
+
+It loads preserved Code_Aster artifacts by default, renders interactive
+PyVista result views, and writes a `viewer/` scene bundle for review.
+
+## Project Page
+
+The static project page source lives at `docs/site/`. It links the
+post-processor notebook and includes a preserved Code_Aster-backed viewer
+bundle.
 
 ## Pipe Autorouting
 

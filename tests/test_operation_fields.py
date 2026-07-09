@@ -188,6 +188,31 @@ class TestOperationFields(unittest.TestCase):
         self.assertNotIn("FORCE_TUYAU", comm)
         self.assertNotIn("SIEQ_ELNO", comm)
 
+    def test_nodal_force_roundtrips_and_exports_force_nodale(self):
+        model = _model("PointForce")
+        model.add_rectangular_section("BoxSec", height_y=0.08, height_z=0.04, thickness_y=0.006, thickness_z=0.006)
+        with model.pipe("BoxSec", "Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.beam(2.0)
+            pipe.end()
+        load_case = model.define_load_case("PointLoad", gravity=False)
+        load_case.add_nodal_force("N1", force=[0.0, 0.0, -500.0])
+
+        restored = Model.from_dict(model.to_dict())
+        self.assertEqual(restored.load_cases["PointLoad"].nodal_forces[0].components, [0.0, 0.0, -500.0, 0.0, 0.0, 0.0])
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(restored, "PointLoad", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+            mail = (Path(tmpdir) / "study.mail").read_text(encoding="utf-8")
+
+        self.assertIn("POINT_FORCE = AFFE_CHAR_MECA(", comm)
+        self.assertIn("FORCE_NODALE=(", comm)
+        self.assertIn("GROUP_NO='GN_N1'", comm)
+        self.assertIn("FZ=-5.00000000E+02", comm)
+        self.assertIn("_F(CHARGE=POINT_FORCE),", comm)
+        self.assertIn("GROUP_NO NOM=GN_N1", mail)
+
     def test_wind_field_rejects_tuyau_pipe_elements(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", gravity=False)

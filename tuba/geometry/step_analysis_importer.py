@@ -78,26 +78,32 @@ class StepAnalysisImporter:
         self,
         model: TubaModel,
         *,
-        source_path: str,
+        source_path: str | Path,
         component_id: str,
         asset_id: str,
         role: str = "equipment",
+        source_format: str = "STEP",
         unit_scale_to_m: float = 1.0,
+        placement: dict[str, Any] | None = None,
         content_digest: str | None = None,
+        importer: str = "gmsh-occ",
+        metadata: dict[str, Any] | None = None,
         ports: list[dict[str, Any]] | None = None,
     ) -> Any:
         port_payloads = [self._normalize_port_candidate(port) for port in ports or []]
         model.add_cad_asset(
             id=asset_id,
             source_path=str(source_path),
-            source_format="STEP",
+            source_format=source_format.upper(),
             unit_scale_to_m=unit_scale_to_m,
-            placement={
+            placement=placement
+            or {
                 "origin": [0.0, 0.0, 0.0],
                 "rotation": [1.0, 0.0, 0.0, 0.0],
             },
             content_digest=content_digest,
-            importer="gmsh-occ",
+            importer=importer,
+            metadata=dict(metadata or {}),
         )
 
         component = model.add_imported_component(

@@ -178,6 +178,26 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
             self.assertFalse(loaded.ran_solver)
             self.assertEqual(loaded.artifact.result_state.node_displacements[n1][:3], (0.0, 0.033, 0.0))
 
+    def test_beam_only_artifacts_do_not_require_pipe_stress_table(self):
+        model = Model(project_name="NotebookBeamOnly")
+        model.add_material("Steel", E=2.0e11, nu=0.3, rho=7850.0)
+        model.add_rectangular_section("BoxSec", height_y=0.08, height_z=0.04, thickness_y=0.006, thickness_z=0.006)
+        with model.pipe(section="BoxSec", material="Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.beam(2.0)
+            pipe.end()
+        model.define_load_case("PointLoad", gravity=False).add_nodal_force("N1", force=[0.0, 0.0, -100.0])
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write_beam_solver_tables(root, n0="N0", n1="N1")
+
+            loaded = load_or_run_code_aster_results(model, "PointLoad", root, run_solver=False)
+
+        self.assertFalse(loaded.ran_solver)
+        self.assertEqual(loaded.artifact.result_state.node_displacements["N1"][:3], (0.0, 0.0, -0.012))
+        self.assertNotIn("sieq", loaded.artifact.result_state.files)
+
     def test_run_solver_false_keeps_export_only_mode_explicit(self):
         model, _n0, _n1 = self._model()
 
@@ -335,6 +355,38 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str, n1_dy: float = 0.0
                 "MAILLE,NOEUD,VMIS",
                 f"pipe_0,{n0},80000000.0",
                 f"pipe_0,{n1},120000000.0",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_beam_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
+    (work_dir / "study_depl.csv").write_text(
+        "\n".join(
+            [
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ",
+                f"{n0},0.0,0.0,0.0,0.0,0.0,0.0",
+                f"{n1},0.0,0.0,-0.012,0.0,0.0,0.0",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (work_dir / "study_effo.csv").write_text(
+        "\n".join(
+            [
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ",
+                f"beam_0,{n0},0.0,0.0,-100.0,0.0,0.0,200.0",
+                f"beam_0,{n1},0.0,0.0,-100.0,0.0,0.0,0.0",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (work_dir / "study_reac.csv").write_text(
+        "\n".join(
+            [
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ",
+                f"{n0},0.0,0.0,100.0,0.0,-200.0,0.0",
             ]
         ),
         encoding="utf-8",

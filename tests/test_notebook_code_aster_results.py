@@ -60,6 +60,31 @@ class TestNotebookResultProvenance(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_autorouting_notebooks_fail_loudly_for_solver_runs(self):
+        notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
+        autorouting_notebooks = (
+            "05_autorouting.ipynb",
+            "08_expansion_aware_autorouting.ipynb",
+            "autorouting_quick_iteration.ipynb",
+        )
+        offenders: list[str] = []
+
+        for notebook_name in autorouting_notebooks:
+            notebook = json.loads((notebooks_dir / notebook_name).read_text(encoding="utf-8"))
+            full_code = "\n".join(
+                "".join(cell.get("source", []))
+                for cell in notebook.get("cells", [])
+                if cell.get("cell_type") == "code"
+            )
+            if "SolverLoopConfig(" not in full_code or "run_solver=RUN_CODE_ASTER" not in full_code:
+                continue
+            if "strict=RUN_CODE_ASTER" not in full_code:
+                offenders.append(f"{notebook_name}: solver loop is not strict when RUN_CODE_ASTER is enabled")
+            if "route_pipe(" in full_code and "add_supports=True" not in full_code:
+                offenders.append(f"{notebook_name}: solver-backed route_pipe call does not add supports")
+
+        self.assertEqual([], offenders)
+
     def test_notebooks_do_not_refer_to_legacy_as_run_setup(self):
         notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
         offenders: list[str] = []
@@ -90,6 +115,18 @@ class TestNotebookResultProvenance(unittest.TestCase):
                         offenders.append(f"{notebook_path.name}:cell {cell_index}: {line.strip()}")
 
         self.assertEqual([], offenders)
+
+    def test_building_notebook_shows_profile_twist_with_local_axes(self):
+        notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "01_building_piping_systems.ipynb"
+        text = notebook_path.read_text(encoding="utf-8")
+
+        self.assertIn("twist_angle=45.0", text)
+        self.assertIn("twist_angle=90.0", text)
+        self.assertIn("add_local_axes_to_plotter", text)
+        self.assertIn("PROFILE_FORCE_SEGMENTS = 12", text)
+        self.assertIn("for _ in range(PROFILE_FORCE_SEGMENTS):", text)
+        self.assertIn("PROFILE_FORCE_DEFORM_SCALE = 8.0", text)
+        self.assertIn("show_edges=True", text)
 
     def test_artifact_backed_notebooks_default_to_load_existing_results(self):
         notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"

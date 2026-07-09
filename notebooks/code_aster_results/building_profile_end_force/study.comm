@@ -1,0 +1,462 @@
+DEBUT(PAR_LOT='NON');
+
+# ----- Read mesh -----
+MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
+                      UNITE=20);
+
+MAIL = MAIL0;
+
+# ----- Model definition -----
+MODELE = AFFE_MODELE(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='G_TUBE',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='POU_D_T',
+        ),
+    ),
+);
+
+# ----- Material definitions -----
+MAT_STEEL = DEFI_MATERIAU(
+    ELAS=_F(
+        E=2.100000E+11,
+        NU=3.000000E-01,
+        RHO=7.850000E+03,
+        ALPHA=0.000000E+00,
+    ),
+);
+
+# ----- Material assignment -----
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            MATER=MAT_STEEL,
+        ),
+    ),
+);
+
+# ----- Cross-section properties -----
+CARA = AFFE_CARA_ELEM(
+    MODELE=MODELE,
+    POUTRE=(
+        _F(
+            GROUP_MA='GEF91C11',
+            SECTION='RECTANGLE',
+            CARA=('HY', 'HZ', 'EPY', 'EPZ'),
+            VALE=(8.00000000E-02, 4.00000000E-02, 6.00000000E-03, 6.00000000E-03),
+        ),
+        _F(
+            GROUP_MA='G2E2F755',
+            SECTION='GENERALE',
+            CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+            VALE=(1.03256912E-03, 1.59193185E-07, 1.71055336E-06, 2.59454200E+00, 1.74649000E+00, -1.80000000E-08, -3.00000000E-09, 1.13956560E-08, 3.42152416E-04, -4.89100000E-15, -4.69600000E-15, 5.00000000E-02, 2.75000000E-02, 8.15206800E-03),
+        ),
+    ),
+    ORIENTATION=(
+        _F(
+            GROUP_MA='beam_0',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_1',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_2',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_3',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_4',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_5',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_6',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_7',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_8',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_9',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_10',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_11',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_12',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_13',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_14',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_15',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_16',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_17',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_18',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_19',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_20',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_21',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_22',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_23',
+            CARA='ANGL_VRIL',
+            VALE=45.0000,
+        ),
+        _F(
+            GROUP_MA='beam_24',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_25',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_26',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_27',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_28',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_29',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_30',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_31',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_32',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_33',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_34',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_35',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='beam_36',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_37',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_38',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_39',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_40',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_41',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_42',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_43',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_44',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_45',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_46',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+        _F(
+            GROUP_MA='beam_47',
+            CARA='ANGL_VRIL',
+            VALE=90.0000,
+        ),
+    ),
+);
+
+# ----- Boundary conditions -----
+BC_0 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N0',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_1 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N13',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_2 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N26',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_3 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N39',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+# ----- Concentrated nodal forces -----
+POINT_FORCE = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    FORCE_NODALE=(
+        _F(
+            GROUP_NO='GN_N12',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-5.00000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N25',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-5.00000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N38',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-5.00000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N51',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-5.00000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+    ),
+);
+
+# ----- Solve -----
+RESU = MECA_STATIQUE(
+    MODELE=MODELE,
+    CHAM_MATER=CHMAT,
+    CARA_ELEM=CARA,
+    EXCIT=(
+        _F(CHARGE=BC_0),
+        _F(CHARGE=BC_1),
+        _F(CHARGE=BC_2),
+        _F(CHARGE=BC_3),
+        _F(CHARGE=POINT_FORCE),
+    ),
+);
+
+# ----- Derived fields -----
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+    FORCE='FORC_NODA',
+);
+
+# ----- Write MED results file -----
+IMPR_RESU(
+    FORMAT='MED',
+    UNITE=80,
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM=('DEPL', 'EFGE_ELNO', 'FORC_NODA'),
+    ),
+);
+
+# ----- Text table for EFGE_ELNO -----
+TAB_EFFO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='EFGE_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_EFFO,
+    UNITE=38,
+    FORMAT='TABLEAU',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for DEPL -----
+TAB_DEPL = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='DEPL',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_DEPL,
+    UNITE=39,
+    FORMAT='TABLEAU',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for FORC_NODA -----
+TAB_REAC = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='FORC_NODA',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_REAC,
+    UNITE=40,
+    FORMAT='TABLEAU',
+    SEPARATEUR=',',
+);
+
+FIN();

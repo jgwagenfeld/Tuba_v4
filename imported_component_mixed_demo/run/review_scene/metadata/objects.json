@@ -1,0 +1,243 @@
+[
+  {
+    "entity_ref": "element:pipe_str_0",
+    "geometry_asset_id": "geometry:element:pipe_str_0",
+    "id": "object:element:pipe_str_0",
+    "kind": "pipe",
+    "metadata": {
+      "element_type": "pipe_straight",
+      "groups": [],
+      "material": "Steel",
+      "nodes": [
+        "N0",
+        "N1"
+      ],
+      "profile": {
+        "area_m2": 0.002312212193042089,
+        "collision_radius_m": 0.05,
+        "inner_diameter_m": 0.084,
+        "kind": "pipe",
+        "outer_diameter_m": 0.1,
+        "section": "DN100",
+        "wall_thickness_m": 0.008
+      },
+      "section": "DN100"
+    },
+    "name": "pipe_str_0",
+    "physical": {
+      "bare_od_m": 0.1,
+      "bare_radius_m": 0.05,
+      "effective_od_m": 0.1,
+      "effective_radius_m": 0.05,
+      "element_id": "pipe_str_0",
+      "insulation_cost_per_m": 0.0,
+      "insulation_mass_kg_per_m": 0.0,
+      "insulation_spec_id": null,
+      "insulation_thickness_m": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "mass_kg_per_m": 18.150865715380398,
+      "material": "Steel",
+      "metal_area_m2": 0.002312212193042089,
+      "pipe_mass_kg_per_m": 18.150865715380398,
+      "section": "DN100",
+      "surface_area_m2_per_m": 0.3141592653589793,
+      "wind_diameter_m": 0.1
+    },
+    "quantities": {
+      "element_id": "pipe_str_0",
+      "insulation_cost": 0.0,
+      "insulation_mass_kg": 0.0,
+      "insulation_volume_m3": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "length_m": 1.2,
+      "mass_kg_per_m": 18.150865715380398,
+      "pipe_mass_kg": 21.781038858456476,
+      "surface_area_m2": 0.37699111843077515,
+      "total_mass_kg": 21.781038858456476,
+      "wind_projected_area_m2": 0.12
+    }
+  },
+  {
+    "entity_ref": "support:support_0",
+    "geometry_asset_id": "geometry:support:support_0",
+    "id": "object:support:support_0",
+    "kind": "support",
+    "metadata": {
+      "node": "N0",
+      "support_type": "anchor"
+    },
+    "name": "support_0"
+  },
+  {
+    "entity_ref": "component:component_custom_equipment",
+    "geometry_asset_id": "geometry:component:component_custom_equipment",
+    "id": "object:component:component_custom_equipment",
+    "kind": "imported_component",
+    "layer_ids": [
+      "imported_components"
+    ],
+    "metadata": {
+      "asset": "cad_asset:cad_asset_custom_equipment",
+      "cad_asset": {
+        "id": "cad_asset_custom_equipment",
+        "importer": "manual-port-metadata",
+        "metadata": {
+          "local_bounds": [
+            -0.05,
+            -0.18,
+            -0.18,
+            0.45,
+            0.18,
+            0.18
+          ]
+        },
+        "placement": {
+          "origin": [
+            1.2,
+            0.45,
+            0.0
+          ],
+          "rotation": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "source_format": "STEP",
+        "source_path": "D:\\Gitprojects\\Tuba_v4\\imported_component_mixed_demo\\local_equipment.step",
+        "unit_scale_to_m": 1.0
+      },
+      "id": "component_custom_equipment",
+      "metadata": {},
+      "name": "component_custom_equipment",
+      "role": "equipment",
+      "status": "review"
+    },
+    "name": "component_custom_equipment"
+  },
+  {
+    "entity_ref": "component:component_custom_equipment",
+    "geometry_asset_id": "geometry:component:component_custom_equipment:local_axis:x",
+    "id": "object:component:component_custom_equipment:local_axis:x",
+    "kind": "local_coordinate_axis",
+    "layer_ids": [
+      "imported_components",
+      "local_coordinate_axes"
+    ],
+    "metadata": {
+      "asset": "cad_asset_custom_equipment",
+      "axis": "x"
+    },
+    "name": "component_custom_equipment local X"
+  },
+  {
+    "entity_ref": "component:component_custom_equipment",
+    "geometry_asset_id": "geometry:component:component_custom_equipment:local_axis:y",
+    "id": "object:component:component_custom_equipment:local_axis:y",
+    "kind": "local_coordinate_axis",
+    "layer_ids": [
+      "imported_components",
+      "local_coordinate_axes"
+    ],
+    "metadata": {
+      "asset": "cad_asset_custom_equipment",
+      "axis": "y"
+    },
+    "name": "component_custom_equipment local Y"
+  },
+  {
+    "entity_ref": "component:component_custom_equipment",
+    "geometry_asset_id": "geometry:component:component_custom_equipment:local_axis:z",
+    "id": "object:component:component_custom_equipment:local_axis:z",
+    "kind": "local_coordinate_axis",
+    "layer_ids": [
+      "imported_components",
+      "local_coordinate_axes"
+    ],
+    "metadata": {
+      "asset": "cad_asset_custom_equipment",
+      "axis": "z"
+    },
+    "name": "component_custom_equipment local Z"
+  },
+  {
+    "entity_ref": "port:port_equipment_nozzle_a",
+    "geometry_asset_id": "geometry:port:port_equipment_nozzle_a",
+    "id": "object:port:port_equipment_nozzle_a",
+    "kind": "imported_port",
+    "layer_ids": [
+      "imported_components",
+      "mixed_ports"
+    ],
+    "metadata": {
+      "axis": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "edge_group": "G_EQUIP_PORT_EDGE_A",
+      "face_group": "G_EQUIP_PORT_A",
+      "id": "port_equipment_nozzle_a",
+      "kind": "circular_face",
+      "metadata": {
+        "asset_placement": {
+          "origin": [
+            1.2,
+            0.45,
+            0.0
+          ],
+          "rotation": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "coordinate_basis": "asset_local_transformed_to_global",
+        "local_axis": [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        "local_position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "source": "user_confirmed_port"
+      },
+      "owner": "component:component_custom_equipment",
+      "position": [
+        1.2,
+        0.45,
+        0.0
+      ],
+      "radius": 0.05,
+      "status": "confirmed"
+    },
+    "name": "port_equipment_nozzle_a"
+  },
+  {
+    "entity_ref": "coupling:coupling_pipe_to_equipment_a",
+    "geometry_asset_id": "geometry:coupling:coupling_pipe_to_equipment_a",
+    "id": "object:coupling:coupling_pipe_to_equipment_a",
+    "kind": "mixed_coupling",
+    "layer_ids": [
+      "imported_components",
+      "mixed_couplings"
+    ],
+    "metadata": {
+      "code_aster_keyword": "LIAISON_ELEM",
+      "code_aster_option": "3D_TUYAU",
+      "id": "coupling_pipe_to_equipment_a",
+      "kind": "pipe_to_solid_port",
+      "metadata": {},
+      "source": "element:pipe_str_0",
+      "source_node": "node:N1",
+      "status": "reviewed",
+      "target": "port:port_equipment_nozzle_a"
+    },
+    "name": "coupling_pipe_to_equipment_a"
+  }
+]

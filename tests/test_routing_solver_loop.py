@@ -62,6 +62,14 @@ class CapturingRuntimeSolver(PassingSolver):
         self.instances.append(self)
 
 
+class CapturingModelSolver(PassingSolver):
+    exported_models = []
+
+    def export_study(self, model, load_case, output_dir):
+        self.exported_models.append(model)
+        super().export_study(model, load_case, output_dir)
+
+
 class MomentHeavySolver(PassingSolver):
     def solve(self, model, load_case):
         results = FEAResults(solver_name="FakeSolver", load_case=load_case)
@@ -176,6 +184,34 @@ class TestSolverLoop(unittest.TestCase):
         self.assertEqual(CapturingRuntimeSolver.instances[0].kwargs["exec_method"], "wsl")
         self.assertEqual(CapturingRuntimeSolver.instances[0].kwargs["wsl_distro"], "Ubuntu")
 
+    def test_solver_loop_applies_configured_candidate_supports_to_solver_model(self):
+        model, request, candidate = _solver_loop_fixture()
+        candidate.points = [(0.0, 0.0, 0.0), (4.0, 0.0, 0.0)]
+        candidate.segments = [RouteSegment(start=(0.0, 0.0, 0.0), end=(4.0, 0.0, 0.0), kind="straight")]
+        CapturingModelSolver.exported_models = []
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            SolverLoopScorer(solver_factory=CapturingModelSolver).score_candidates(
+                model,
+                request,
+                [candidate],
+                SolverLoopConfig(
+                    run_solver=False,
+                    export_study=True,
+                    max_solver_candidates=1,
+                    work_root=tmpdir,
+                    load_case="Hot",
+                    add_supports=True,
+                    support_spacing=2.0,
+                    anchor_endpoints=True,
+                ),
+            )
+
+        solver_model = CapturingModelSolver.exported_models[0]
+        support_types = [support.type for support in solver_model.supports]
+        self.assertEqual(support_types.count("anchor"), 2)
+        self.assertIn("rest", support_types)
+
     def test_solver_failure_is_nonfatal(self):
         model, request, candidate = _solver_loop_fixture()
 
@@ -189,6 +225,24 @@ class TestSolverLoop(unittest.TestCase):
 
         self.assertFalse(ranked[0].metadata["solver"]["solver_ran"])
         self.assertIn("Solver loop failed", " ".join(ranked[0].diagnostics))
+
+    def test_solver_failure_raises_in_strict_mode(self):
+        model, request, candidate = _solver_loop_fixture()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with self.assertRaises(FileNotFoundError):
+                SolverLoopScorer(solver_factory=FailingSolver).score_candidates(
+                    model,
+                    request,
+                    [candidate],
+                    SolverLoopConfig(
+                        run_solver=True,
+                        export_study=True,
+                        max_solver_candidates=1,
+                        work_root=tmpdir,
+                        strict=True,
+                    ),
+                )
 
     def test_compliance_metadata_added_when_results_available(self):
         model, request, candidate = _solver_loop_fixture()
@@ -277,6 +331,7 @@ class TestSolverLoop(unittest.TestCase):
         model, request, cheap_candidate = _solver_loop_fixture()
         request = replace(
             request,
+            constraints=replace(request.constraints, min_bend_radius=0.2),
             solver_acceptance=SolverAcceptanceCriteria(max_expansion_ratio=0.5),
         )
         expensive_candidate = PipeRouteCandidate(

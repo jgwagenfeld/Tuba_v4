@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+import numpy as np
+
 from tuba.model import (
     BarSection,
     CableSection,
@@ -31,6 +33,57 @@ from tuba.solver.aster_loads import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _pipe_orientation_vector(model: TubaModel, pipe_straights: list, pipe_bends: list) -> tuple[float, float, float]:
+    directions = []
+    for elem in pipe_straights:
+        directions.append(np.asarray(model.nodes[elem.n2].coords, dtype=float) - np.asarray(model.nodes[elem.n1].coords, dtype=float))
+    for elem in pipe_bends:
+        if elem.bend_geometry is not None:
+            directions.append(np.asarray(elem.bend_geometry.start_tangent, dtype=float))
+            directions.append(np.asarray(elem.bend_geometry.end_tangent, dtype=float))
+        else:
+            directions.append(np.asarray(model.nodes[elem.n2].coords, dtype=float) - np.asarray(model.nodes[elem.n1].coords, dtype=float))
+
+    unit_directions = []
+    for direction in directions:
+        norm = float(np.linalg.norm(direction))
+        if norm > 1e-12:
+            unit_directions.append(direction / norm)
+
+    if not unit_directions:
+        return (0.0, 0.0, 1.0)
+
+    candidates = [
+        (0.0, 0.0, 1.0),
+        (0.0, 1.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (1.0, 1.0, 1.0),
+        (1.0, -1.0, 1.0),
+        (1.0, 2.0, 3.0),
+    ]
+    for candidate in candidates:
+        vector = np.asarray(candidate, dtype=float)
+        vector_norm = float(np.linalg.norm(vector))
+        if vector_norm <= 1e-12:
+            continue
+        unit_vector = vector / vector_norm
+        if all(float(np.linalg.norm(np.cross(unit_vector, direction))) > 1e-8 for direction in unit_directions):
+            return candidate
+
+    for x in range(-3, 4):
+        for y in range(-3, 4):
+            for z in range(-3, 4):
+                vector = np.asarray((float(x), float(y), float(z)), dtype=float)
+                vector_norm = float(np.linalg.norm(vector))
+                if vector_norm <= 1e-12:
+                    continue
+                unit_vector = vector / vector_norm
+                if all(float(np.linalg.norm(np.cross(unit_vector, direction))) > 1e-8 for direction in unit_directions):
+                    return (float(x), float(y), float(z))
+
+    return (1.0, 2.0, 3.0)
 
 
 class _CommWriterMixin:
@@ -186,9 +239,11 @@ class _CommWriterMixin:
         pressure_fields = resolve_operation_field_groups(model, load_case, "pressure")
         temperature_fields = resolve_operation_field_groups(model, load_case, "temperature")
         wind_fields = resolve_wind_field_groups(model, load_case)
+        nodal_forces = list(getattr(load_case, "nodal_forces", []))
         has_pressure = has_pressure_load(load_case, pressure_fields)
         has_temperature = has_thermal_load(load_case, temperature_fields)
         has_wind = has_wind_load(wind_fields)
+        has_nodal_forces = bool(nodal_forces)
 
         affe_entries: List[str] = []
         all_material_element_ids = {
@@ -382,6 +437,14 @@ class _CommWriterMixin:
                     f"            VALE=({k[0]:.8E}, {k[1]:.8E}, {k[2]:.8E}, {k[3]:.8E}, {k[4]:.8E}, {k[5]:.8E}),\n"
                     f"        ),"
                 )
+                if s.mass <= 0.0:
+                    discret_entries.append(
+                        f"        _F(\n"
+                        f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
+                        f"            CARA='M_TR_D_N',\n"
+                        f"            VALE=(0.00000000E+00, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),\n"
+                        f"        ),"
+                    )
             if s.mass > 0.0:
                 discret_entries.append(
                     f"        _F(\n"
@@ -399,11 +462,12 @@ class _CommWriterMixin:
         # Orientation
         orientation_entries: List[str] = []
         if pipe_straights or pipe_bends:
+            orientation = _pipe_orientation_vector(model, pipe_straights, pipe_bends)
             orientation_entries.append(
                 "        _F(\n"
                 f"            GROUP_NO='{map_name('PipeOrientationNodes')}',\n"
                 "            CARA='GENE_TUYAU',\n"
-                "            VALE=(0.0, 0.0, 1.0),\n"
+                f"            VALE=({orientation[0]:.8E}, {orientation[1]:.8E}, {orientation[2]:.8E}),\n"
                 "        ),"
             )
         if beam_elems:
@@ -582,6 +646,25 @@ class _CommWriterMixin:
             )
 
         # ==============================================================
+        # AFFE_CHAR_MECA - concentrated nodal forces
+        # ==============================================================
+        if has_nodal_forces:
+            component_names = ("FX", "FY", "FZ", "MX", "MY", "MZ")
+            w("# ----- Concentrated nodal forces -----")
+            w("POINT_FORCE = AFFE_CHAR_MECA(")
+            w("    MODELE=MODELE,")
+            w("    FORCE_NODALE=(")
+            for force in nodal_forces:
+                w("        _F(")
+                w(f"            GROUP_NO='{map_name(f'GN_{force.node}')}',")
+                for name, value in zip(component_names, force.components):
+                    w(f"            {name}={float(value):.8E},")
+                w("        ),")
+            w("    ),")
+            w(");")
+            w()
+
+        # ==============================================================
         # Thermal load (uniform temperature field for expansion)
         # ==============================================================
         if has_temperature:
@@ -636,6 +719,8 @@ class _CommWriterMixin:
             excit_entries.append("        _F(CHARGE=PRESSURE),")
         if has_wind:
             excit_entries.append("        _F(CHARGE=WIND),")
+        if has_nodal_forces:
+            excit_entries.append("        _F(CHARGE=POINT_FORCE),")
 
         if is_nonlinear:
             w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")

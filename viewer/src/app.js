@@ -356,9 +356,17 @@ function renderTree() {
 function renderProperties() {
   const sections = getPropertySections(currentState, selectedObjectId);
   dom.propertyActions.replaceChildren();
+  dom.properties.replaceChildren();
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
   if (sections.length === 0) {
-    dom.properties.textContent = issueSummary ? JSON.stringify(issueSummary, null, 2) : "Select an object.";
+    if (issueSummary) {
+      dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "meta";
+      empty.textContent = "Select an object.";
+      dom.properties.append(empty);
+    }
     return;
   }
   const selectedObject = currentState.objects.find((obj) => obj.id === selectedObjectId);
@@ -394,13 +402,43 @@ function renderProperties() {
     render();
   });
   dom.propertyActions.append(fitButton, hideButton, isolateButton);
-  dom.properties.textContent = sections
-    .map((section) => `${section.title}\n${JSON.stringify(section.rows, null, 2)}`)
-    .join("\n\n");
+  for (const section of sections) {
+    dom.properties.append(renderPropertySection(section));
+  }
   if (issueSummary) {
-    dom.properties.textContent += `\n\nIssue\n${JSON.stringify(issueSummary, null, 2)}`;
+    dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
     appendIssueReviewActions(issueSummary);
   }
+}
+
+function renderPropertySection(section) {
+  const wrapper = document.createElement("section");
+  wrapper.className = "property-section";
+  const heading = document.createElement("h3");
+  heading.textContent = section.title;
+  const table = document.createElement("table");
+  table.className = "property-table";
+  const body = document.createElement("tbody");
+  for (const [key, value] of Object.entries(section.rows ?? {})) {
+    const row = document.createElement("tr");
+    const label = document.createElement("th");
+    label.scope = "row";
+    label.textContent = key;
+    const cell = document.createElement("td");
+    cell.textContent = formatPropertyValue(value);
+    row.append(label, cell);
+    body.append(row);
+  }
+  table.append(body);
+  wrapper.append(heading, table);
+  return wrapper;
+}
+
+function formatPropertyValue(value) {
+  if (Array.isArray(value) || (value && typeof value === "object")) {
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 function appendIssueReviewActions(issueSummary) {

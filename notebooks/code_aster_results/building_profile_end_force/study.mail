@@ -1,0 +1,494 @@
+COOR_3D
+  N0  +0.0000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N1  +2.5000000000E-01  +0.0000000000E+00  +0.0000000000E+00
+  N2  +5.0000000000E-01  +0.0000000000E+00  +0.0000000000E+00
+  N3  +7.5000000000E-01  +0.0000000000E+00  +0.0000000000E+00
+  N4  +1.0000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N5  +1.2500000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N6  +1.5000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N7  +1.7500000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N8  +2.0000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N9  +2.2500000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N10  +2.5000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N11  +2.7500000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N12  +3.0000000000E+00  +0.0000000000E+00  +0.0000000000E+00
+  N13  +0.0000000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N14  +2.5000000000E-01  +8.0000000000E-01  +0.0000000000E+00
+  N15  +5.0000000000E-01  +8.0000000000E-01  +0.0000000000E+00
+  N16  +7.5000000000E-01  +8.0000000000E-01  +0.0000000000E+00
+  N17  +1.0000000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N18  +1.2500000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N19  +1.5000000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N20  +1.7500000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N21  +2.0000000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N22  +2.2500000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N23  +2.5000000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N24  +2.7500000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N25  +3.0000000000E+00  +8.0000000000E-01  +0.0000000000E+00
+  N26  +0.0000000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N27  +2.5000000000E-01  +1.6000000000E+00  +0.0000000000E+00
+  N28  +5.0000000000E-01  +1.6000000000E+00  +0.0000000000E+00
+  N29  +7.5000000000E-01  +1.6000000000E+00  +0.0000000000E+00
+  N30  +1.0000000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N31  +1.2500000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N32  +1.5000000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N33  +1.7500000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N34  +2.0000000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N35  +2.2500000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N36  +2.5000000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N37  +2.7500000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N38  +3.0000000000E+00  +1.6000000000E+00  +0.0000000000E+00
+  N39  +0.0000000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N40  +2.5000000000E-01  +2.4000000000E+00  +0.0000000000E+00
+  N41  +5.0000000000E-01  +2.4000000000E+00  +0.0000000000E+00
+  N42  +7.5000000000E-01  +2.4000000000E+00  +0.0000000000E+00
+  N43  +1.0000000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N44  +1.2500000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N45  +1.5000000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N46  +1.7500000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N47  +2.0000000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N48  +2.2500000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N49  +2.5000000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N50  +2.7500000000E+00  +2.4000000000E+00  +0.0000000000E+00
+  N51  +3.0000000000E+00  +2.4000000000E+00  +0.0000000000E+00
+FINSF
+
+SEG2
+  beam_0  N0  N1
+  beam_1  N1  N2
+  beam_2  N2  N3
+  beam_3  N3  N4
+  beam_4  N4  N5
+  beam_5  N5  N6
+  beam_6  N6  N7
+  beam_7  N7  N8
+  beam_8  N8  N9
+  beam_9  N9  N10
+  beam_10  N10  N11
+  beam_11  N11  N12
+  beam_12  N13  N14
+  beam_13  N14  N15
+  beam_14  N15  N16
+  beam_15  N16  N17
+  beam_16  N17  N18
+  beam_17  N18  N19
+  beam_18  N19  N20
+  beam_19  N20  N21
+  beam_20  N21  N22
+  beam_21  N22  N23
+  beam_22  N23  N24
+  beam_23  N24  N25
+  beam_24  N26  N27
+  beam_25  N27  N28
+  beam_26  N28  N29
+  beam_27  N29  N30
+  beam_28  N30  N31
+  beam_29  N31  N32
+  beam_30  N32  N33
+  beam_31  N33  N34
+  beam_32  N34  N35
+  beam_33  N35  N36
+  beam_34  N36  N37
+  beam_35  N37  N38
+  beam_36  N39  N40
+  beam_37  N40  N41
+  beam_38  N41  N42
+  beam_39  N42  N43
+  beam_40  N43  N44
+  beam_41  N44  N45
+  beam_42  N45  N46
+  beam_43  N46  N47
+  beam_44  N47  N48
+  beam_45  N48  N49
+  beam_46  N49  N50
+  beam_47  N50  N51
+FINSF
+
+GROUP_MA NOM=beam_0
+  beam_0
+FINSF
+
+GROUP_MA NOM=beam_1
+  beam_1
+FINSF
+
+GROUP_MA NOM=beam_2
+  beam_2
+FINSF
+
+GROUP_MA NOM=beam_3
+  beam_3
+FINSF
+
+GROUP_MA NOM=beam_4
+  beam_4
+FINSF
+
+GROUP_MA NOM=beam_5
+  beam_5
+FINSF
+
+GROUP_MA NOM=beam_6
+  beam_6
+FINSF
+
+GROUP_MA NOM=beam_7
+  beam_7
+FINSF
+
+GROUP_MA NOM=beam_8
+  beam_8
+FINSF
+
+GROUP_MA NOM=beam_9
+  beam_9
+FINSF
+
+GROUP_MA NOM=beam_10
+  beam_10
+FINSF
+
+GROUP_MA NOM=beam_11
+  beam_11
+FINSF
+
+GROUP_MA NOM=beam_12
+  beam_12
+FINSF
+
+GROUP_MA NOM=beam_13
+  beam_13
+FINSF
+
+GROUP_MA NOM=beam_14
+  beam_14
+FINSF
+
+GROUP_MA NOM=beam_15
+  beam_15
+FINSF
+
+GROUP_MA NOM=beam_16
+  beam_16
+FINSF
+
+GROUP_MA NOM=beam_17
+  beam_17
+FINSF
+
+GROUP_MA NOM=beam_18
+  beam_18
+FINSF
+
+GROUP_MA NOM=beam_19
+  beam_19
+FINSF
+
+GROUP_MA NOM=beam_20
+  beam_20
+FINSF
+
+GROUP_MA NOM=beam_21
+  beam_21
+FINSF
+
+GROUP_MA NOM=beam_22
+  beam_22
+FINSF
+
+GROUP_MA NOM=beam_23
+  beam_23
+FINSF
+
+GROUP_MA NOM=beam_24
+  beam_24
+FINSF
+
+GROUP_MA NOM=beam_25
+  beam_25
+FINSF
+
+GROUP_MA NOM=beam_26
+  beam_26
+FINSF
+
+GROUP_MA NOM=beam_27
+  beam_27
+FINSF
+
+GROUP_MA NOM=beam_28
+  beam_28
+FINSF
+
+GROUP_MA NOM=beam_29
+  beam_29
+FINSF
+
+GROUP_MA NOM=beam_30
+  beam_30
+FINSF
+
+GROUP_MA NOM=beam_31
+  beam_31
+FINSF
+
+GROUP_MA NOM=beam_32
+  beam_32
+FINSF
+
+GROUP_MA NOM=beam_33
+  beam_33
+FINSF
+
+GROUP_MA NOM=beam_34
+  beam_34
+FINSF
+
+GROUP_MA NOM=beam_35
+  beam_35
+FINSF
+
+GROUP_MA NOM=beam_36
+  beam_36
+FINSF
+
+GROUP_MA NOM=beam_37
+  beam_37
+FINSF
+
+GROUP_MA NOM=beam_38
+  beam_38
+FINSF
+
+GROUP_MA NOM=beam_39
+  beam_39
+FINSF
+
+GROUP_MA NOM=beam_40
+  beam_40
+FINSF
+
+GROUP_MA NOM=beam_41
+  beam_41
+FINSF
+
+GROUP_MA NOM=beam_42
+  beam_42
+FINSF
+
+GROUP_MA NOM=beam_43
+  beam_43
+FINSF
+
+GROUP_MA NOM=beam_44
+  beam_44
+FINSF
+
+GROUP_MA NOM=beam_45
+  beam_45
+FINSF
+
+GROUP_MA NOM=beam_46
+  beam_46
+FINSF
+
+GROUP_MA NOM=beam_47
+  beam_47
+FINSF
+
+GROUP_MA NOM=GEF91C11
+  beam_0
+  beam_1
+  beam_2
+  beam_3
+  beam_4
+  beam_5
+  beam_6
+  beam_7
+  beam_8
+  beam_9
+  beam_10
+  beam_11
+  beam_12
+  beam_13
+  beam_14
+  beam_15
+  beam_16
+  beam_17
+  beam_18
+  beam_19
+  beam_20
+  beam_21
+  beam_22
+  beam_23
+FINSF
+
+GROUP_MA NOM=G2E2F755
+  beam_24
+  beam_25
+  beam_26
+  beam_27
+  beam_28
+  beam_29
+  beam_30
+  beam_31
+  beam_32
+  beam_33
+  beam_34
+  beam_35
+  beam_36
+  beam_37
+  beam_38
+  beam_39
+  beam_40
+  beam_41
+  beam_42
+  beam_43
+  beam_44
+  beam_45
+  beam_46
+  beam_47
+FINSF
+
+GROUP_MA NOM=G5AF7883
+  beam_0
+  beam_1
+  beam_2
+  beam_3
+  beam_4
+  beam_5
+  beam_6
+  beam_7
+  beam_8
+  beam_9
+  beam_10
+  beam_11
+  beam_12
+  beam_13
+  beam_14
+  beam_15
+  beam_16
+  beam_17
+  beam_18
+  beam_19
+  beam_20
+  beam_21
+  beam_22
+  beam_23
+  beam_24
+  beam_25
+  beam_26
+  beam_27
+  beam_28
+  beam_29
+  beam_30
+  beam_31
+  beam_32
+  beam_33
+  beam_34
+  beam_35
+  beam_36
+  beam_37
+  beam_38
+  beam_39
+  beam_40
+  beam_41
+  beam_42
+  beam_43
+  beam_44
+  beam_45
+  beam_46
+  beam_47
+FINSF
+
+GROUP_MA NOM=G_TUBE
+  beam_0
+  beam_1
+  beam_2
+  beam_3
+  beam_4
+  beam_5
+  beam_6
+  beam_7
+  beam_8
+  beam_9
+  beam_10
+  beam_11
+  beam_12
+  beam_13
+  beam_14
+  beam_15
+  beam_16
+  beam_17
+  beam_18
+  beam_19
+  beam_20
+  beam_21
+  beam_22
+  beam_23
+  beam_24
+  beam_25
+  beam_26
+  beam_27
+  beam_28
+  beam_29
+  beam_30
+  beam_31
+  beam_32
+  beam_33
+  beam_34
+  beam_35
+  beam_36
+  beam_37
+  beam_38
+  beam_39
+  beam_40
+  beam_41
+  beam_42
+  beam_43
+  beam_44
+  beam_45
+  beam_46
+  beam_47
+FINSF
+
+GROUP_NO NOM=GN_N0
+  N0
+FINSF
+
+GROUP_NO NOM=GN_N12
+  N12
+FINSF
+
+GROUP_NO NOM=GN_N13
+  N13
+FINSF
+
+GROUP_NO NOM=GN_N25
+  N25
+FINSF
+
+GROUP_NO NOM=GN_N26
+  N26
+FINSF
+
+GROUP_NO NOM=GN_N38
+  N38
+FINSF
+
+GROUP_NO NOM=GN_N39
+  N39
+FINSF
+
+GROUP_NO NOM=GN_N51
+  N51
+FINSF
+
+GROUP_NO NOM=G2F28381
+  N0
+  N13
+  N26
+  N39
+FINSF
+
+FIN

@@ -1,0 +1,1616 @@
+{
+  "analysis_mesh": {
+    "element_sources": {
+      "beam_0": {
+        "element_id": "beam_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_1": {
+        "element_id": "beam_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_10": {
+        "element_id": "beam_10",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_10",
+          "kind": "element"
+        }
+      },
+      "beam_11": {
+        "element_id": "beam_11",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_11",
+          "kind": "element"
+        }
+      },
+      "beam_12": {
+        "element_id": "beam_12",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_12",
+          "kind": "element"
+        }
+      },
+      "beam_13": {
+        "element_id": "beam_13",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_13",
+          "kind": "element"
+        }
+      },
+      "beam_14": {
+        "element_id": "beam_14",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_14",
+          "kind": "element"
+        }
+      },
+      "beam_15": {
+        "element_id": "beam_15",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_15",
+          "kind": "element"
+        }
+      },
+      "beam_16": {
+        "element_id": "beam_16",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_16",
+          "kind": "element"
+        }
+      },
+      "beam_17": {
+        "element_id": "beam_17",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_17",
+          "kind": "element"
+        }
+      },
+      "beam_18": {
+        "element_id": "beam_18",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_18",
+          "kind": "element"
+        }
+      },
+      "beam_19": {
+        "element_id": "beam_19",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_19",
+          "kind": "element"
+        }
+      },
+      "beam_2": {
+        "element_id": "beam_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_2",
+          "kind": "element"
+        }
+      },
+      "beam_20": {
+        "element_id": "beam_20",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_20",
+          "kind": "element"
+        }
+      },
+      "beam_21": {
+        "element_id": "beam_21",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_21",
+          "kind": "element"
+        }
+      },
+      "beam_22": {
+        "element_id": "beam_22",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_22",
+          "kind": "element"
+        }
+      },
+      "beam_23": {
+        "element_id": "beam_23",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_23",
+          "kind": "element"
+        }
+      },
+      "beam_24": {
+        "element_id": "beam_24",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_24",
+          "kind": "element"
+        }
+      },
+      "beam_25": {
+        "element_id": "beam_25",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_25",
+          "kind": "element"
+        }
+      },
+      "beam_26": {
+        "element_id": "beam_26",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_26",
+          "kind": "element"
+        }
+      },
+      "beam_27": {
+        "element_id": "beam_27",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_27",
+          "kind": "element"
+        }
+      },
+      "beam_28": {
+        "element_id": "beam_28",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_28",
+          "kind": "element"
+        }
+      },
+      "beam_29": {
+        "element_id": "beam_29",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_29",
+          "kind": "element"
+        }
+      },
+      "beam_3": {
+        "element_id": "beam_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_3",
+          "kind": "element"
+        }
+      },
+      "beam_30": {
+        "element_id": "beam_30",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_30",
+          "kind": "element"
+        }
+      },
+      "beam_31": {
+        "element_id": "beam_31",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_31",
+          "kind": "element"
+        }
+      },
+      "beam_32": {
+        "element_id": "beam_32",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_32",
+          "kind": "element"
+        }
+      },
+      "beam_33": {
+        "element_id": "beam_33",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_33",
+          "kind": "element"
+        }
+      },
+      "beam_34": {
+        "element_id": "beam_34",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_34",
+          "kind": "element"
+        }
+      },
+      "beam_35": {
+        "element_id": "beam_35",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_35",
+          "kind": "element"
+        }
+      },
+      "beam_36": {
+        "element_id": "beam_36",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_36",
+          "kind": "element"
+        }
+      },
+      "beam_37": {
+        "element_id": "beam_37",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_37",
+          "kind": "element"
+        }
+      },
+      "beam_38": {
+        "element_id": "beam_38",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_38",
+          "kind": "element"
+        }
+      },
+      "beam_39": {
+        "element_id": "beam_39",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_39",
+          "kind": "element"
+        }
+      },
+      "beam_4": {
+        "element_id": "beam_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_4",
+          "kind": "element"
+        }
+      },
+      "beam_40": {
+        "element_id": "beam_40",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_40",
+          "kind": "element"
+        }
+      },
+      "beam_41": {
+        "element_id": "beam_41",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_41",
+          "kind": "element"
+        }
+      },
+      "beam_42": {
+        "element_id": "beam_42",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_42",
+          "kind": "element"
+        }
+      },
+      "beam_43": {
+        "element_id": "beam_43",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_43",
+          "kind": "element"
+        }
+      },
+      "beam_44": {
+        "element_id": "beam_44",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_44",
+          "kind": "element"
+        }
+      },
+      "beam_45": {
+        "element_id": "beam_45",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_45",
+          "kind": "element"
+        }
+      },
+      "beam_46": {
+        "element_id": "beam_46",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_46",
+          "kind": "element"
+        }
+      },
+      "beam_47": {
+        "element_id": "beam_47",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_47",
+          "kind": "element"
+        }
+      },
+      "beam_5": {
+        "element_id": "beam_5",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_5",
+          "kind": "element"
+        }
+      },
+      "beam_6": {
+        "element_id": "beam_6",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_6",
+          "kind": "element"
+        }
+      },
+      "beam_7": {
+        "element_id": "beam_7",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_7",
+          "kind": "element"
+        }
+      },
+      "beam_8": {
+        "element_id": "beam_8",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_8",
+          "kind": "element"
+        }
+      },
+      "beam_9": {
+        "element_id": "beam_9",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_9",
+          "kind": "element"
+        }
+      }
+    },
+    "elements": {
+      "beam_0": [
+        "N0",
+        "N1"
+      ],
+      "beam_1": [
+        "N1",
+        "N2"
+      ],
+      "beam_10": [
+        "N10",
+        "N11"
+      ],
+      "beam_11": [
+        "N11",
+        "N12"
+      ],
+      "beam_12": [
+        "N13",
+        "N14"
+      ],
+      "beam_13": [
+        "N14",
+        "N15"
+      ],
+      "beam_14": [
+        "N15",
+        "N16"
+      ],
+      "beam_15": [
+        "N16",
+        "N17"
+      ],
+      "beam_16": [
+        "N17",
+        "N18"
+      ],
+      "beam_17": [
+        "N18",
+        "N19"
+      ],
+      "beam_18": [
+        "N19",
+        "N20"
+      ],
+      "beam_19": [
+        "N20",
+        "N21"
+      ],
+      "beam_2": [
+        "N2",
+        "N3"
+      ],
+      "beam_20": [
+        "N21",
+        "N22"
+      ],
+      "beam_21": [
+        "N22",
+        "N23"
+      ],
+      "beam_22": [
+        "N23",
+        "N24"
+      ],
+      "beam_23": [
+        "N24",
+        "N25"
+      ],
+      "beam_24": [
+        "N26",
+        "N27"
+      ],
+      "beam_25": [
+        "N27",
+        "N28"
+      ],
+      "beam_26": [
+        "N28",
+        "N29"
+      ],
+      "beam_27": [
+        "N29",
+        "N30"
+      ],
+      "beam_28": [
+        "N30",
+        "N31"
+      ],
+      "beam_29": [
+        "N31",
+        "N32"
+      ],
+      "beam_3": [
+        "N3",
+        "N4"
+      ],
+      "beam_30": [
+        "N32",
+        "N33"
+      ],
+      "beam_31": [
+        "N33",
+        "N34"
+      ],
+      "beam_32": [
+        "N34",
+        "N35"
+      ],
+      "beam_33": [
+        "N35",
+        "N36"
+      ],
+      "beam_34": [
+        "N36",
+        "N37"
+      ],
+      "beam_35": [
+        "N37",
+        "N38"
+      ],
+      "beam_36": [
+        "N39",
+        "N40"
+      ],
+      "beam_37": [
+        "N40",
+        "N41"
+      ],
+      "beam_38": [
+        "N41",
+        "N42"
+      ],
+      "beam_39": [
+        "N42",
+        "N43"
+      ],
+      "beam_4": [
+        "N4",
+        "N5"
+      ],
+      "beam_40": [
+        "N43",
+        "N44"
+      ],
+      "beam_41": [
+        "N44",
+        "N45"
+      ],
+      "beam_42": [
+        "N45",
+        "N46"
+      ],
+      "beam_43": [
+        "N46",
+        "N47"
+      ],
+      "beam_44": [
+        "N47",
+        "N48"
+      ],
+      "beam_45": [
+        "N48",
+        "N49"
+      ],
+      "beam_46": [
+        "N49",
+        "N50"
+      ],
+      "beam_47": [
+        "N50",
+        "N51"
+      ],
+      "beam_5": [
+        "N5",
+        "N6"
+      ],
+      "beam_6": [
+        "N6",
+        "N7"
+      ],
+      "beam_7": [
+        "N7",
+        "N8"
+      ],
+      "beam_8": [
+        "N8",
+        "N9"
+      ],
+      "beam_9": [
+        "N9",
+        "N10"
+      ]
+    },
+    "files": {
+      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.mail"
+    },
+    "groups": {
+      "AllSupports": [
+        "N0",
+        "N13",
+        "N26",
+        "N39"
+      ],
+      "GN_N0": [
+        "N0"
+      ],
+      "GN_N12": [
+        "N12"
+      ],
+      "GN_N13": [
+        "N13"
+      ],
+      "GN_N25": [
+        "N25"
+      ],
+      "GN_N26": [
+        "N26"
+      ],
+      "GN_N38": [
+        "N38"
+      ],
+      "GN_N39": [
+        "N39"
+      ],
+      "GN_N51": [
+        "N51"
+      ],
+      "G_TUBE": [
+        "beam_0",
+        "beam_1",
+        "beam_2",
+        "beam_3",
+        "beam_4",
+        "beam_5",
+        "beam_6",
+        "beam_7",
+        "beam_8",
+        "beam_9",
+        "beam_10",
+        "beam_11",
+        "beam_12",
+        "beam_13",
+        "beam_14",
+        "beam_15",
+        "beam_16",
+        "beam_17",
+        "beam_18",
+        "beam_19",
+        "beam_20",
+        "beam_21",
+        "beam_22",
+        "beam_23",
+        "beam_24",
+        "beam_25",
+        "beam_26",
+        "beam_27",
+        "beam_28",
+        "beam_29",
+        "beam_30",
+        "beam_31",
+        "beam_32",
+        "beam_33",
+        "beam_34",
+        "beam_35",
+        "beam_36",
+        "beam_37",
+        "beam_38",
+        "beam_39",
+        "beam_40",
+        "beam_41",
+        "beam_42",
+        "beam_43",
+        "beam_44",
+        "beam_45",
+        "beam_46",
+        "beam_47"
+      ],
+      "MAT_Steel": [
+        "beam_0",
+        "beam_1",
+        "beam_2",
+        "beam_3",
+        "beam_4",
+        "beam_5",
+        "beam_6",
+        "beam_7",
+        "beam_8",
+        "beam_9",
+        "beam_10",
+        "beam_11",
+        "beam_12",
+        "beam_13",
+        "beam_14",
+        "beam_15",
+        "beam_16",
+        "beam_17",
+        "beam_18",
+        "beam_19",
+        "beam_20",
+        "beam_21",
+        "beam_22",
+        "beam_23",
+        "beam_24",
+        "beam_25",
+        "beam_26",
+        "beam_27",
+        "beam_28",
+        "beam_29",
+        "beam_30",
+        "beam_31",
+        "beam_32",
+        "beam_33",
+        "beam_34",
+        "beam_35",
+        "beam_36",
+        "beam_37",
+        "beam_38",
+        "beam_39",
+        "beam_40",
+        "beam_41",
+        "beam_42",
+        "beam_43",
+        "beam_44",
+        "beam_45",
+        "beam_46",
+        "beam_47"
+      ],
+      "SEC_Box80x40": [
+        "beam_0",
+        "beam_1",
+        "beam_2",
+        "beam_3",
+        "beam_4",
+        "beam_5",
+        "beam_6",
+        "beam_7",
+        "beam_8",
+        "beam_9",
+        "beam_10",
+        "beam_11",
+        "beam_12",
+        "beam_13",
+        "beam_14",
+        "beam_15",
+        "beam_16",
+        "beam_17",
+        "beam_18",
+        "beam_19",
+        "beam_20",
+        "beam_21",
+        "beam_22",
+        "beam_23"
+      ],
+      "SEC_IPE100": [
+        "beam_24",
+        "beam_25",
+        "beam_26",
+        "beam_27",
+        "beam_28",
+        "beam_29",
+        "beam_30",
+        "beam_31",
+        "beam_32",
+        "beam_33",
+        "beam_34",
+        "beam_35",
+        "beam_36",
+        "beam_37",
+        "beam_38",
+        "beam_39",
+        "beam_40",
+        "beam_41",
+        "beam_42",
+        "beam_43",
+        "beam_44",
+        "beam_45",
+        "beam_46",
+        "beam_47"
+      ],
+      "beam_0": [
+        "beam_0"
+      ],
+      "beam_1": [
+        "beam_1"
+      ],
+      "beam_10": [
+        "beam_10"
+      ],
+      "beam_11": [
+        "beam_11"
+      ],
+      "beam_12": [
+        "beam_12"
+      ],
+      "beam_13": [
+        "beam_13"
+      ],
+      "beam_14": [
+        "beam_14"
+      ],
+      "beam_15": [
+        "beam_15"
+      ],
+      "beam_16": [
+        "beam_16"
+      ],
+      "beam_17": [
+        "beam_17"
+      ],
+      "beam_18": [
+        "beam_18"
+      ],
+      "beam_19": [
+        "beam_19"
+      ],
+      "beam_2": [
+        "beam_2"
+      ],
+      "beam_20": [
+        "beam_20"
+      ],
+      "beam_21": [
+        "beam_21"
+      ],
+      "beam_22": [
+        "beam_22"
+      ],
+      "beam_23": [
+        "beam_23"
+      ],
+      "beam_24": [
+        "beam_24"
+      ],
+      "beam_25": [
+        "beam_25"
+      ],
+      "beam_26": [
+        "beam_26"
+      ],
+      "beam_27": [
+        "beam_27"
+      ],
+      "beam_28": [
+        "beam_28"
+      ],
+      "beam_29": [
+        "beam_29"
+      ],
+      "beam_3": [
+        "beam_3"
+      ],
+      "beam_30": [
+        "beam_30"
+      ],
+      "beam_31": [
+        "beam_31"
+      ],
+      "beam_32": [
+        "beam_32"
+      ],
+      "beam_33": [
+        "beam_33"
+      ],
+      "beam_34": [
+        "beam_34"
+      ],
+      "beam_35": [
+        "beam_35"
+      ],
+      "beam_36": [
+        "beam_36"
+      ],
+      "beam_37": [
+        "beam_37"
+      ],
+      "beam_38": [
+        "beam_38"
+      ],
+      "beam_39": [
+        "beam_39"
+      ],
+      "beam_4": [
+        "beam_4"
+      ],
+      "beam_40": [
+        "beam_40"
+      ],
+      "beam_41": [
+        "beam_41"
+      ],
+      "beam_42": [
+        "beam_42"
+      ],
+      "beam_43": [
+        "beam_43"
+      ],
+      "beam_44": [
+        "beam_44"
+      ],
+      "beam_45": [
+        "beam_45"
+      ],
+      "beam_46": [
+        "beam_46"
+      ],
+      "beam_47": [
+        "beam_47"
+      ],
+      "beam_5": [
+        "beam_5"
+      ],
+      "beam_6": [
+        "beam_6"
+      ],
+      "beam_7": [
+        "beam_7"
+      ],
+      "beam_8": [
+        "beam_8"
+      ],
+      "beam_9": [
+        "beam_9"
+      ]
+    },
+    "id": "analysis_mesh:EndForce",
+    "model_revision": 0,
+    "node_sources": {
+      "N0": {
+        "node_id": "N0",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N0",
+          "kind": "node"
+        }
+      },
+      "N1": {
+        "node_id": "N1",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N10": {
+        "node_id": "N10",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N10",
+          "kind": "node"
+        }
+      },
+      "N11": {
+        "node_id": "N11",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N11",
+          "kind": "node"
+        }
+      },
+      "N12": {
+        "node_id": "N12",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N12",
+          "kind": "node"
+        }
+      },
+      "N13": {
+        "node_id": "N13",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N13",
+          "kind": "node"
+        }
+      },
+      "N14": {
+        "node_id": "N14",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N14",
+          "kind": "node"
+        }
+      },
+      "N15": {
+        "node_id": "N15",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N15",
+          "kind": "node"
+        }
+      },
+      "N16": {
+        "node_id": "N16",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N16",
+          "kind": "node"
+        }
+      },
+      "N17": {
+        "node_id": "N17",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N17",
+          "kind": "node"
+        }
+      },
+      "N18": {
+        "node_id": "N18",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N18",
+          "kind": "node"
+        }
+      },
+      "N19": {
+        "node_id": "N19",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N19",
+          "kind": "node"
+        }
+      },
+      "N2": {
+        "node_id": "N2",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N2",
+          "kind": "node"
+        }
+      },
+      "N20": {
+        "node_id": "N20",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N20",
+          "kind": "node"
+        }
+      },
+      "N21": {
+        "node_id": "N21",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N21",
+          "kind": "node"
+        }
+      },
+      "N22": {
+        "node_id": "N22",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N22",
+          "kind": "node"
+        }
+      },
+      "N23": {
+        "node_id": "N23",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N23",
+          "kind": "node"
+        }
+      },
+      "N24": {
+        "node_id": "N24",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N24",
+          "kind": "node"
+        }
+      },
+      "N25": {
+        "node_id": "N25",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N25",
+          "kind": "node"
+        }
+      },
+      "N26": {
+        "node_id": "N26",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N26",
+          "kind": "node"
+        }
+      },
+      "N27": {
+        "node_id": "N27",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N27",
+          "kind": "node"
+        }
+      },
+      "N28": {
+        "node_id": "N28",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N28",
+          "kind": "node"
+        }
+      },
+      "N29": {
+        "node_id": "N29",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N29",
+          "kind": "node"
+        }
+      },
+      "N3": {
+        "node_id": "N3",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N3",
+          "kind": "node"
+        }
+      },
+      "N30": {
+        "node_id": "N30",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N30",
+          "kind": "node"
+        }
+      },
+      "N31": {
+        "node_id": "N31",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N31",
+          "kind": "node"
+        }
+      },
+      "N32": {
+        "node_id": "N32",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N32",
+          "kind": "node"
+        }
+      },
+      "N33": {
+        "node_id": "N33",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N33",
+          "kind": "node"
+        }
+      },
+      "N34": {
+        "node_id": "N34",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N34",
+          "kind": "node"
+        }
+      },
+      "N35": {
+        "node_id": "N35",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N35",
+          "kind": "node"
+        }
+      },
+      "N36": {
+        "node_id": "N36",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N36",
+          "kind": "node"
+        }
+      },
+      "N37": {
+        "node_id": "N37",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N37",
+          "kind": "node"
+        }
+      },
+      "N38": {
+        "node_id": "N38",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N38",
+          "kind": "node"
+        }
+      },
+      "N39": {
+        "node_id": "N39",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N39",
+          "kind": "node"
+        }
+      },
+      "N4": {
+        "node_id": "N4",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N4",
+          "kind": "node"
+        }
+      },
+      "N40": {
+        "node_id": "N40",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N40",
+          "kind": "node"
+        }
+      },
+      "N41": {
+        "node_id": "N41",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N41",
+          "kind": "node"
+        }
+      },
+      "N42": {
+        "node_id": "N42",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N42",
+          "kind": "node"
+        }
+      },
+      "N43": {
+        "node_id": "N43",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N43",
+          "kind": "node"
+        }
+      },
+      "N44": {
+        "node_id": "N44",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N44",
+          "kind": "node"
+        }
+      },
+      "N45": {
+        "node_id": "N45",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N45",
+          "kind": "node"
+        }
+      },
+      "N46": {
+        "node_id": "N46",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N46",
+          "kind": "node"
+        }
+      },
+      "N47": {
+        "node_id": "N47",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N47",
+          "kind": "node"
+        }
+      },
+      "N48": {
+        "node_id": "N48",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N48",
+          "kind": "node"
+        }
+      },
+      "N49": {
+        "node_id": "N49",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N49",
+          "kind": "node"
+        }
+      },
+      "N5": {
+        "node_id": "N5",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N5",
+          "kind": "node"
+        }
+      },
+      "N50": {
+        "node_id": "N50",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N50",
+          "kind": "node"
+        }
+      },
+      "N51": {
+        "node_id": "N51",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N51",
+          "kind": "node"
+        }
+      },
+      "N6": {
+        "node_id": "N6",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N6",
+          "kind": "node"
+        }
+      },
+      "N7": {
+        "node_id": "N7",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N7",
+          "kind": "node"
+        }
+      },
+      "N8": {
+        "node_id": "N8",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N8",
+          "kind": "node"
+        }
+      },
+      "N9": {
+        "node_id": "N9",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N9",
+          "kind": "node"
+        }
+      }
+    },
+    "nodes": {
+      "N0": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "N1": [
+        0.25,
+        0.0,
+        0.0
+      ],
+      "N10": [
+        2.5,
+        0.0,
+        0.0
+      ],
+      "N11": [
+        2.75,
+        0.0,
+        0.0
+      ],
+      "N12": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "N13": [
+        0.0,
+        0.8,
+        0.0
+      ],
+      "N14": [
+        0.25,
+        0.8,
+        0.0
+      ],
+      "N15": [
+        0.5,
+        0.8,
+        0.0
+      ],
+      "N16": [
+        0.75,
+        0.8,
+        0.0
+      ],
+      "N17": [
+        1.0,
+        0.8,
+        0.0
+      ],
+      "N18": [
+        1.25,
+        0.8,
+        0.0
+      ],
+      "N19": [
+        1.5,
+        0.8,
+        0.0
+      ],
+      "N2": [
+        0.5,
+        0.0,
+        0.0
+      ],
+      "N20": [
+        1.75,
+        0.8,
+        0.0
+      ],
+      "N21": [
+        2.0,
+        0.8,
+        0.0
+      ],
+      "N22": [
+        2.25,
+        0.8,
+        0.0
+      ],
+      "N23": [
+        2.5,
+        0.8,
+        0.0
+      ],
+      "N24": [
+        2.75,
+        0.8,
+        0.0
+      ],
+      "N25": [
+        3.0,
+        0.8,
+        0.0
+      ],
+      "N26": [
+        0.0,
+        1.6,
+        0.0
+      ],
+      "N27": [
+        0.25,
+        1.6,
+        0.0
+      ],
+      "N28": [
+        0.5,
+        1.6,
+        0.0
+      ],
+      "N29": [
+        0.75,
+        1.6,
+        0.0
+      ],
+      "N3": [
+        0.75,
+        0.0,
+        0.0
+      ],
+      "N30": [
+        1.0,
+        1.6,
+        0.0
+      ],
+      "N31": [
+        1.25,
+        1.6,
+        0.0
+      ],
+      "N32": [
+        1.5,
+        1.6,
+        0.0
+      ],
+      "N33": [
+        1.75,
+        1.6,
+        0.0
+      ],
+      "N34": [
+        2.0,
+        1.6,
+        0.0
+      ],
+      "N35": [
+        2.25,
+        1.6,
+        0.0
+      ],
+      "N36": [
+        2.5,
+        1.6,
+        0.0
+      ],
+      "N37": [
+        2.75,
+        1.6,
+        0.0
+      ],
+      "N38": [
+        3.0,
+        1.6,
+        0.0
+      ],
+      "N39": [
+        0.0,
+        2.4,
+        0.0
+      ],
+      "N4": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "N40": [
+        0.25,
+        2.4,
+        0.0
+      ],
+      "N41": [
+        0.5,
+        2.4,
+        0.0
+      ],
+      "N42": [
+        0.75,
+        2.4,
+        0.0
+      ],
+      "N43": [
+        1.0,
+        2.4,
+        0.0
+      ],
+      "N44": [
+        1.25,
+        2.4,
+        0.0
+      ],
+      "N45": [
+        1.5,
+        2.4,
+        0.0
+      ],
+      "N46": [
+        1.75,
+        2.4,
+        0.0
+      ],
+      "N47": [
+        2.0,
+        2.4,
+        0.0
+      ],
+      "N48": [
+        2.25,
+        2.4,
+        0.0
+      ],
+      "N49": [
+        2.5,
+        2.4,
+        0.0
+      ],
+      "N5": [
+        1.25,
+        0.0,
+        0.0
+      ],
+      "N50": [
+        2.75,
+        2.4,
+        0.0
+      ],
+      "N51": [
+        3.0,
+        2.4,
+        0.0
+      ],
+      "N6": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "N7": [
+        1.75,
+        0.0,
+        0.0
+      ],
+      "N8": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "N9": [
+        2.25,
+        0.0,
+        0.0
+      ]
+    },
+    "solver_name": "Code_Aster"
+  },
+  "study": {
+    "id": "analysis_study:EndForce",
+    "input_files": {
+      "comm": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.comm",
+      "export": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.export",
+      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.mail",
+      "manifest": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study_manifest.json",
+      "sidecar": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study_tuba_fem.json"
+    },
+    "load_case": "EndForce",
+    "mesh_id": "analysis_mesh:EndForce",
+    "metadata": {
+      "project_name": "ProfileEndForceComparison"
+    },
+    "model_revision": 0,
+    "solver_name": "Code_Aster",
+    "work_dir": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force"
+  }
+}

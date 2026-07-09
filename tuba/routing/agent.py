@@ -48,7 +48,13 @@ class AutoroutingAgent:
         result = self.router.route(model, request)
         route_dir = self.output_root / request.id
         if result.candidates:
-            solver_config = replace(self.solver_config, work_root=route_dir / "studies")
+            solver_config = replace(
+                self.solver_config,
+                work_root=route_dir / "studies",
+                add_supports=add_supports,
+                support_spacing=support_spacing,
+                anchor_endpoints=self.solver_config.anchor_endpoints or add_supports,
+            )
             ranked = self.scorer.score_candidates(model, request, result.candidates, solver_config)
             selected_index = _first_valid_index(ranked)
             result = PipeRouteResult(

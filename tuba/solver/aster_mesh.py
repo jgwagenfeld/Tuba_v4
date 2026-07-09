@@ -269,11 +269,12 @@ class _MeshWriterMixin:
             lines.append("FINSF")
             lines.append("")
 
-        # --- GROUP_NO for supports ----------------------------------------
-        for sup in model.supports:
-            grp_name = f"GN_{sup.node}"
+        # --- GROUP_NO for supports and concentrated nodal loads -----------
+        grouped_node_ids = sorted({sup.node for sup in model.supports} | _nodal_force_node_ids(model))
+        for node_id in grouped_node_ids:
+            grp_name = f"GN_{node_id}"
             lines.append(f"GROUP_NO NOM={map_name(grp_name)}")
-            lines.append(f"  {map_name(sup.node)}")
+            lines.append(f"  {map_name(node_id)}")
             lines.append("FINSF")
             lines.append("")
 
@@ -425,8 +426,8 @@ class _MeshWriterMixin:
             groups["G_CABLE"] = tuple(elem.id for elem in cable_elems)
         for elem in pipe_bends:
             groups[elem.id] = tuple(f"{elem.id}_s{index}" for index in range(n_segments))
-        for support in model.supports:
-            groups[f"GN_{support.node}"] = (support.node,)
+        for node_id in sorted({support.node for support in model.supports} | _nodal_force_node_ids(model)):
+            groups[f"GN_{node_id}"] = (node_id,)
         if model.supports:
             groups["AllSupports"] = tuple(support.node for support in model.supports)
 
@@ -740,3 +741,12 @@ def _bend_geometry_metadata(elem: Element) -> dict[str, Any]:
     if elem.bend_geometry is None:
         return {}
     return {"bend_geometry": elem.bend_geometry.to_dict()}
+
+
+def _nodal_force_node_ids(model: TubaModel) -> set[str]:
+    node_ids: set[str] = set()
+    cases = list(getattr(model, "load_cases", {}).values()) + list(getattr(model, "operations", {}).values())
+    for case in cases:
+        for force in getattr(case, "nodal_forces", []):
+            node_ids.add(force.node)
+    return node_ids

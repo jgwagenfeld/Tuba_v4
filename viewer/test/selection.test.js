@@ -26,6 +26,12 @@ function fixtureState() {
           metadata: {
             section: "PipeSec",
             material: "Steel",
+            profile: {
+              kind: "pipe",
+              outer_diameter_m: 0.1,
+              wall_thickness_m: 0.01,
+              inner_diameter_m: 0.08
+            },
             attributes: { insulation: "mw_50" },
             insulation: { id: "mw_50", material: "mineral_wool" }
           },
@@ -177,6 +183,9 @@ test("getPropertySections groups identity geometry attributes physical and quant
   assert.equal(byId.identity.rows.entity_ref, "element:pipe_0");
   assert.equal(byId.geometry.rows.geometry_asset_id, "geometry:element:pipe_0");
   assert.equal(byId.attributes.rows.insulation, "mw_50");
+  assert.equal(byId.profile.rows.outer_diameter_m, 0.1);
+  assert.equal(byId.profile.rows.wall_thickness_m, 0.01);
+  assert.equal(byId.profile.rows.inner_diameter_m, 0.08);
   assert.equal(byId.physical.rows.effective_od_m, 0.2);
   assert.equal(byId.quantities.rows.length_m, 2.0);
 });

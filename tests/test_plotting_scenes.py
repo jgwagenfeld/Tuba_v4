@@ -5,6 +5,7 @@ import numpy as np
 from tuba import Model
 from tuba.geometry.profiles import profile_for_section
 from tuba.model import RectangularSection
+from tuba.plotting.pipeline import build_3d_mesh_from_model
 from tuba.plotting.scenes import build_model_scene
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
 
@@ -38,6 +39,21 @@ class TestVisualizerScenes(unittest.TestCase):
         finally:
             plotter.close()
 
+    def test_geometry_mesh_has_no_solver_fields_without_results(self):
+        model = Model(project_name="GeometryOnly")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        with model.pipe(section="PipeSec", material="Steel") as b:
+            b.start([0.0, 0.0, 0.0]).run(1.0)
+
+        mesh = build_3d_mesh_from_model(model)
+
+        self.assertNotIn("DEPL", mesh.point_data)
+        self.assertNotIn("DEPL_magnitude", mesh.point_data)
+        self.assertNotIn("VMIS", mesh.point_data)
+        self.assertNotIn("FORC_NODA", mesh.point_data)
+        self.assertNotIn("FORC_magnitude", mesh.point_data)
+
     def test_build_model_scene_adds_undeformed_reference_when_warped(self):
         model = Model(project_name="Scene")
         model.add_material("Steel", E=2.0e11, nu=0.3)
@@ -61,7 +77,15 @@ class TestVisualizerScenes(unittest.TestCase):
         plotter = build_model_scene(model, results, off_screen=True, deform_scale=10.0)
         try:
             opacities = [actor.GetProperty().GetOpacity() for actor in plotter.actors.values() if hasattr(actor, "GetProperty")]
+            edge_visibilities = [
+                prop.GetEdgeVisibility()
+                for actor in plotter.actors.values()
+                if hasattr(actor, "GetProperty")
+                for prop in [actor.GetProperty()]
+                if hasattr(prop, "GetEdgeVisibility")
+            ]
             self.assertIn(0.25, opacities)
+            self.assertIn(1, edge_visibilities)
         finally:
             plotter.close()
 

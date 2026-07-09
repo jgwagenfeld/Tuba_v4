@@ -14,6 +14,15 @@ from tuba.routing.types import (
 )
 
 
+class CapturingScorer:
+    def __init__(self):
+        self.config = None
+
+    def score_candidates(self, model, request, candidates, config):
+        self.config = config
+        return candidates
+
+
 class TestAutoroutingAgent(unittest.TestCase):
     def test_route_pipe_exports_applies_and_reports(self):
         model = Model(project_name="AgentRoute")
@@ -47,6 +56,31 @@ class TestAutoroutingAgent(unittest.TestCase):
             self.assertTrue(run.report_path.exists())
             self.assertTrue((Path(tmpdir) / "P-100" / "route_result.json").exists())
             self.assertTrue((Path(tmpdir) / "P-100" / "studies" / "P-100" / "candidate_0" / "study.comm").exists())
+
+    def test_route_pipe_carries_support_settings_into_solver_loop(self):
+        model = Model(project_name="AgentSupportedRoute")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        request = PipeRouteRequest(
+            id="P-200",
+            start=RouteEndpoint(id="A", point=(0.0, 0.0, 0.0)),
+            goal=RouteEndpoint(id="B", point=(4.0, 0.0, 0.0)),
+            section="PipeSec",
+            material="Steel",
+            constraints=RoutingConstraints(clearance=0.05),
+        )
+        scorer = CapturingScorer()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            AutoroutingAgent(
+                router=GridRouter(RoutingGridSpec(cell_size=1.0, margin=0.0), candidate_count=1),
+                scorer=scorer,
+                solver_config=SolverLoopConfig(run_solver=False, export_study=True, max_solver_candidates=1),
+                output_root=tmpdir,
+            ).route_pipe(model, request, apply=True, add_supports=True, support_spacing=2.0)
+
+        self.assertTrue(scorer.config.add_supports)
+        self.assertEqual(scorer.config.support_spacing, 2.0)
 
 
 if __name__ == "__main__":

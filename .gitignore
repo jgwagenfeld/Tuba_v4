@@ -51,6 +51,7 @@ notebooks/viz_gallery_stress.ply
 notebooks/viz_gallery_model.gltf
 notebooks/viz_gallery_blender.py
 notebooks/code_aster_export_demo/
+notebooks/interactive_postprocessor_bundle/
 
 # Root demo outputs (written by examples/demo.py and the BIM notebook)
 /piping_model.json

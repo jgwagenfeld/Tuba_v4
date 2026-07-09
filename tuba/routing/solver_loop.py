@@ -31,6 +31,9 @@ class SolverLoopConfig:
     exec_method: str = "auto"
     wsl_distro: str | None = None
     docker_image: str | None = None
+    add_supports: bool = False
+    support_spacing: float | None = None
+    anchor_endpoints: bool = False
 
 
 class SolverLoopScorer:
@@ -68,7 +71,15 @@ class SolverLoopScorer:
                 continue
 
             temp_model = copy.deepcopy(model)
-            apply_candidate_to_model(temp_model, candidate, request)
+            created = apply_candidate_to_model(
+                temp_model,
+                candidate,
+                request,
+                add_supports=config.add_supports,
+                support_spacing=config.support_spacing,
+            )
+            if config.anchor_endpoints:
+                _anchor_created_route_endpoints(temp_model, created)
             try:
                 solver = self._make_solver(study_dir, config)
                 if hasattr(solver, "export_study"):
@@ -183,6 +194,17 @@ def _clear_solver_acceptance(candidate: PipeRouteCandidate) -> None:
         for diagnostic in candidate.diagnostics
         if not diagnostic.startswith(_SOLVER_ACCEPTANCE_DIAGNOSTIC_PREFIX)
     ]
+
+
+def _anchor_created_route_endpoints(model: TubaModel, created_element_ids: list[str]) -> None:
+    if not created_element_ids:
+        return
+    elements = {element.id: element for element in model.elements}
+    first = elements[created_element_ids[0]]
+    last = elements[created_element_ids[-1]]
+    for node_id in (first.n1, last.n2):
+        if not any(support.node == node_id for support in model.supports):
+            model.add_support(node_id, "anchor")
 
 
 def _vector_to_list(vector) -> list[float]:

@@ -5,6 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import numpy as np
+
 from tuba import Model
 from tuba.analysis import AnalysisMesh, AnalysisStudy
 from tuba.routing.adapter import apply_candidate_to_model
@@ -360,6 +362,47 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertNotIn("CARA='K_TR_D_L'", comm)
         self.assertNotIn("CARA='M_T_D_N'", comm)
 
+    def test_export_analysis_study_adds_explicit_zero_mass_for_spring_discrete(self):
+        model = Model(project_name="SpringMassAlarm")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.add_support(n0, type="anchor")
+        model.add_support(n1, type="spring", stiffness_matrix=[0.0, 1.5e6, 0.0, 0.0, 0.0, 0.0])
+        model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn(f"GROUP_MA='DIS_{n1}'", comm)
+        self.assertIn("CARA='K_TR_D_N'", comm)
+        self.assertIn("CARA='M_TR_D_N'", comm)
+        self.assertIn("VALE=(0.00000000E+00, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)", comm)
+
+    def test_export_analysis_study_uses_tuyau_orientation_not_colinear_with_vertical_routes(self):
+        model = Model(project_name="VerticalRouteOrientation")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([0.0, 0.0, 1.0])
+        n2 = model.add_node([1.0, 0.0, 1.0])
+        model.add_element(id="pipe_vertical", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.add_element(id="pipe_horizontal", type="pipe_straight", n1=n1, n2=n2, section="PipeSec", material="Steel")
+        model.add_support(n0, type="anchor")
+        model.add_support(n2, type="anchor")
+        model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        orientation = _extract_gene_tuyau_vector(comm)
+        self.assertGreater(np.linalg.norm(np.cross(orientation, [0.0, 0.0, 1.0])), 1e-9)
+        self.assertGreater(np.linalg.norm(np.cross(orientation, [1.0, 0.0, 0.0])), 1e-9)
+
     def test_export_analysis_study_ramps_temperature_for_nonlinear_thermal_case(self):
         model = Model(project_name="ThermalRamp")
         model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
@@ -469,6 +512,14 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
 
         self.assertEqual(calls, [("study.rmed", "med")])
         self.assertIsInstance(results.raw_mesh, FakeMesh)
+
+
+def _extract_gene_tuyau_vector(comm: str) -> np.ndarray:
+    marker = "CARA='GENE_TUYAU'"
+    start = comm.index(marker)
+    value_start = comm.index("VALE=(", start) + len("VALE=(")
+    value_end = comm.index(")", value_start)
+    return np.asarray([float(value.strip()) for value in comm[value_start:value_end].split(",")])
 
 
 if __name__ == "__main__":

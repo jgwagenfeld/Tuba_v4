@@ -83,6 +83,7 @@ def validate_model(model: TubaModel) -> None:
 
     _validate_mixed_records(model, errors)
     _validate_operation_fields(model, errors)
+    _validate_nodal_forces(model, errors)
 
     if errors:
         raise ModelValidationError("\n".join(errors))
@@ -230,6 +231,22 @@ def _operation_field_value_key(field_record) -> tuple[Any, ...]:
         field_record.station_end,
         direction,
     )
+
+
+def _validate_nodal_forces(model: TubaModel, errors: list[str]) -> None:
+    cases = [(f"Load case {name!r}", load_case) for name, load_case in getattr(model, "load_cases", {}).items()]
+    cases.extend((f"Operation {name!r}", operation) for name, operation in getattr(model, "operations", {}).items())
+    for label, case in cases:
+        for index, force in enumerate(getattr(case, "nodal_forces", [])):
+            force_label = f"{label} nodal force {index}"
+            if force.node not in model.nodes:
+                errors.append(f"{force_label} references missing node {force.node!r}.")
+                continue
+            components = np.asarray(force.components, dtype=float)
+            if components.shape != (6,) or not np.all(np.isfinite(components)):
+                errors.append(f"{force_label} must define finite [FX, FY, FZ, MX, MY, MZ] components.")
+            elif np.linalg.norm(components) <= 1e-12:
+                errors.append(f"{force_label} must not be all zero.")
 
 
 def _validate_placement_frames(model: TubaModel, errors: list[str]) -> None:

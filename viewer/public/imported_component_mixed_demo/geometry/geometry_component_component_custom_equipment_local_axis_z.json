@@ -1,0 +1,31 @@
+{
+  "asset_id": "geometry:component:component_custom_equipment:local_axis:z",
+  "bounds": [
+    1.2,
+    0.45,
+    0.0,
+    1.2,
+    0.45,
+    0.325
+  ],
+  "format": "vector",
+  "generation_config": {
+    "axis": "z",
+    "color": "#2563eb",
+    "end": [
+      1.2,
+      0.45,
+      0.325
+    ],
+    "source": "tuba.imported_component.local_axis",
+    "start": [
+      1.2,
+      0.45,
+      0.0
+    ]
+  },
+  "hash": "sha256:c242972e4bbbe10ee0f115b606d2e165a5f258fe8267fdcae24671ab16450e3c",
+  "object_ids": [
+    "object:component:component_custom_equipment:local_axis:z"
+  ]
+}

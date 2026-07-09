@@ -83,6 +83,34 @@ def test_manual_candidate_can_be_recorded_without_solver_activation(tmp_path: Pa
     assert model.couplings == {}
 
 
+def test_manual_candidate_preserves_source_format(tmp_path: Path):
+    model = Model(project_name="Manual STL candidate")
+    importer = StepAnalysisImporter()
+    source_path = tmp_path / "component.stl"
+    source_path.write_text("solid component\nendsolid component\n", encoding="utf-8")
+
+    importer.record_component_from_metadata(
+        model,
+        source_path=source_path,
+        source_format="stl",
+        component_id="component_manual",
+        asset_id="cad_asset_manual",
+        importer="manual-port-metadata",
+        ports=[
+            {
+                "id": "port_candidate_0",
+                "position": [1.0, 0.0, 0.0],
+                "radius": 0.05,
+            }
+        ],
+    )
+
+    asset = model.cad_assets["cad_asset_manual"]
+    assert asset.source_path == str(source_path)
+    assert asset.source_format == "STL"
+    assert asset.importer == "manual-port-metadata"
+
+
 def test_malformed_candidate_does_not_partially_mutate_model(tmp_path: Path):
     model = Model(project_name="Malformed candidate")
     importer = StepAnalysisImporter()

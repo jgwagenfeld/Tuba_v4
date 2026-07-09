@@ -14,12 +14,15 @@ from tuba.solver.base import FEAResults
 from tuba.solver.code_aster_runtime import CodeAsterRuntimeCheck, CodeAsterRuntimeConfig, preflight_code_aster_runtimes
 
 
-REQUIRED_CODE_ASTER_TABLES = (
+BASE_CODE_ASTER_TABLES = (
     "study_depl.csv",
     "study_effo.csv",
     "study_reac.csv",
+)
+PIPE_CODE_ASTER_TABLES = (
     "study_sieq.csv",
 )
+REQUIRED_CODE_ASTER_TABLES = BASE_CODE_ASTER_TABLES + PIPE_CODE_ASTER_TABLES
 REFRESHED_CODE_ASTER_OUTPUTS = REQUIRED_CODE_ASTER_TABLES + ("study.rmed",)
 
 
@@ -85,7 +88,7 @@ def load_or_run_code_aster_results(
         )
         root.mkdir(parents=True, exist_ok=True)
     else:
-        missing_before = tuple(_missing_result_tables(root))
+        missing_before = tuple(_missing_result_tables(root, model))
         if missing_before:
             raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
         artifact = import_code_aster_artifacts(model=model, work_dir=root, study=None, load_case=load_case)
@@ -108,11 +111,11 @@ def load_or_run_code_aster_results(
     )
     study = solver.export_analysis_study(model, load_case, root)
 
-    missing_before = tuple(_missing_result_tables(root))
+    missing_before = tuple(_missing_result_tables(root, model))
     _remove_result_artifacts(root)
     solver.solve_exported_study(model, study)
 
-    missing_after = tuple(_missing_result_tables(root))
+    missing_after = tuple(_missing_result_tables(root, model))
     if missing_after:
         raise FileNotFoundError(_missing_tables_message(root, missing_after, run_solver=True))
 
@@ -177,8 +180,11 @@ def _make_solver(
     return solver_factory(**kwargs, docker_image=docker_image)
 
 
-def _missing_result_tables(work_dir: Path) -> list[str]:
-    return [name for name in REQUIRED_CODE_ASTER_TABLES if not (work_dir / name).exists()]
+def _missing_result_tables(work_dir: Path, model: Any) -> list[str]:
+    required = list(BASE_CODE_ASTER_TABLES)
+    if any(elem.type in {"pipe_straight", "pipe_bend"} for elem in getattr(model, "elements", [])):
+        required.extend(PIPE_CODE_ASTER_TABLES)
+    return [name for name in required if not (work_dir / name).exists()]
 
 
 def _remove_result_artifacts(work_dir: Path) -> None:
