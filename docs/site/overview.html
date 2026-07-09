@@ -9,21 +9,30 @@
     <link rel="stylesheet" href="./assets/site.css" />
   </head>
   <body>
-    <header class="topbar" aria-label="Primary navigation">
-      <a class="brand" href="./" aria-label="Tuba v4 home">
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>Tuba v4</span>
       </a>
-      <nav>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a href="./tutorial.html">Tutorial</a>
+        <a href="./modeling.html">Modeling</a>
         <a aria-current="page" href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./autorouting.html">Autorouting</a>
         <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
         <a href="./developer.html">Developer</a>
-        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
-    </header>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
 
     <main class="page doc-page wide">
       <section class="intro compact">
@@ -34,6 +43,21 @@
           as the production solver. Exported solver files are a handoff. Solved
           artifacts are the source for engineering result displays.
         </p>
+      </section>
+
+      <section class="doc-section visual-section">
+        <h2>System map</h2>
+        <p>
+          The model is the center of the system. Builders and autorouting write
+          model geometry. Code_Aster export and execution produce artifacts.
+          Result import feeds the two supported review surfaces.
+        </p>
+        <figure class="figure">
+          <img src="./assets/figures/money_shot.png" width="1600" height="1000"
+               alt="Deformed, stress-coloured piping model produced by the Tuba pipeline." />
+          <figcaption>From typed model to solved result: the system exists to turn a validated
+            model into reviewable Code_Aster results.</figcaption>
+        </figure>
       </section>
 
       <section class="doc-section">
