@@ -17,53 +17,142 @@
       <nav>
         <a aria-current="page" href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
         <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
     </header>
 
-    <main class="page doc-page">
+    <main class="page doc-page wide">
       <section class="intro compact">
         <p class="eyebrow">Overview</p>
         <h1>Tuba v4</h1>
         <p class="lead">
-          Tuba is an open-source Python project for piping analysis workflows:
-          describe the model, run Code_Aster, and inspect the processed
-          artifacts.
+          Tuba v4 keeps the engineering model in Python and treats Code_Aster
+          as the production solver. Exported solver files are a handoff. Solved
+          artifacts are the source for engineering result displays.
         </p>
       </section>
 
       <section class="doc-section">
-        <h2>Scope</h2>
-        <p>
-          Tuba keeps the engineering model in Python: pipe geometry, sections,
-          materials, supports, loads, operating cases, and the data needed to
-          prepare a Code_Aster study.
-        </p>
-        <p>
-          The project also contains result-display paths for solved artifacts:
-          a PyVista quick-look path for notebooks and export, and a Three.js
-          viewer for reviewable scene bundles.
-        </p>
+        <h2>Current product contract</h2>
+        <div class="status-grid">
+          <article>
+            <h3>1. Define</h3>
+            <p>
+              Build pipe routes, bends, supports, sections, materials, loads,
+              operating states, obstacles, racks, and imported components in a
+              <code>TubaModel</code>.
+            </p>
+          </article>
+          <article>
+            <h3>2. Evaluate</h3>
+            <p>
+              Use <code>CodeAsterSolver</code> or <code>model.solve(solver="code_aster")</code> to
+              export and execute a Code_Aster study on a configured runtime.
+            </p>
+          </article>
+          <article>
+            <h3>3. Review</h3>
+            <p>
+              Import solver artifacts into <code>FEAResults</code>, PyVista notebook views,
+              or a Three.js scene bundle with object maps and overlays.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section class="doc-section">
-        <h2>What this site can show</h2>
-        <p>
-          The online pages can explain the workflow and load preserved result
-          artifacts. They are useful for orientation and review, but they are
-          not a hosted solver.
-        </p>
+        <h2>What is implemented now</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Implementation</th>
+              <th>Primary modules</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pipe-native model</td>
+              <td>Materials, pipe/beam/bar/cable sections, nodes, elements, supports, bends, tees, groups, attributes, placements.</td>
+              <td><code>tuba.model</code>, <code>tuba.builder</code></td>
+            </tr>
+            <tr>
+              <td>Operating states</td>
+              <td>Load cases and operations with gravity, pressure, temperature, wind, and route/station scoped fields.</td>
+              <td><code>tuba.model.Operation</code>, <code>tuba.solver.aster_loads</code></td>
+            </tr>
+            <tr>
+              <td>Code_Aster handoff</td>
+              <td>Study export writes <code>.mail</code>, <code>.comm</code>, <code>.export</code>, manifests, and sidecars with stable Tuba references.</td>
+              <td><code>tuba.solver.aster</code>, <code>tuba.solver.aster_mesh</code>, <code>tuba.solver.aster_comm</code></td>
+            </tr>
+            <tr>
+              <td>Result import</td>
+              <td>Parsed displacement, reaction, force, stress, RMED summary, and analysis-mesh provenance.</td>
+              <td><code>tuba.analysis</code>, <code>tuba.solver.base</code></td>
+            </tr>
+            <tr>
+              <td>Visualization</td>
+              <td>PyVista quick-look plots and JSON scene bundles rendered by the browser viewer.</td>
+              <td><code>tuba.plotting</code>, <code>tuba.visualization</code>, <code>viewer/</code></td>
+            </tr>
+            <tr>
+              <td>Coordination</td>
+              <td>IFC pipe-system export/import, BOM, quantities, route alternatives, clash/rule reports, and review metadata.</td>
+              <td><code>tuba.external</code>, <code>tuba.routing</code>, <code>tuba.rules</code></td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section class="doc-section">
+        <h2>From TUBA v2 to v4</h2>
+        <p>
+          The old TUBA v2 documentation taught the right shape: install the
+          solver environment, write a command script, run the simulation, then
+          inspect results. Tuba v4 keeps that engineering sequence but changes
+          the implementation surface.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>V2 concept</th>
+              <th>V4 equivalent</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>TUBA.py command_script.py</code></td>
+              <td>Python package API: <code>from tuba import Model</code> plus <code>model.pipe(...)</code>.</td>
+            </tr>
+            <tr>
+              <td>Generated Salome, Code_Aster, and ParaVis scripts</td>
+              <td>Generated Code_Aster study files plus imported result artifacts and review bundles.</td>
+            </tr>
+            <tr>
+              <td>Manual Salome-Meca/ParaVis interaction</td>
+              <td>Configured Code_Aster runtime, artifact import, notebooks, and web-scene review.</td>
+            </tr>
+            <tr>
+              <td>Command list reference</td>
+              <td>Current API reference for model, builder, operation, solver, artifact, and visualization commands.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section warning">
         <h2>Result boundary</h2>
         <p>
-          Stress, displacement, reaction, compliance, and deformed-state views
-          should come from Code_Aster runs or imported Code_Aster artifacts.
-          Exported <code>.comm</code>, <code>.mail</code>, and
-          <code>.export</code> files are a handoff, not completed results.
+          Do not present fabricated, mock, hand-built, or proxy values as solver
+          results. <code>.comm</code>, <code>.mail</code>, and <code>.export</code> files prove export, not
+          evaluation. Production stress, displacement, reaction, thermal
+          expansion, operating-state clash, compliance, and result visualization
+          require Code_Aster-backed artifacts.
         </p>
       </section>
     </main>

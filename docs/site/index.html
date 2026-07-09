@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Tuba v4 documentation, workflow notes, examples, and setup entry points."
+      content="Tuba v4 documentation for Python piping models, Code_Aster solves, and result review."
     />
-    <title>Tuba v4</title>
+    <title>Tuba v4 Documentation</title>
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./assets/site.css" />
   </head>
@@ -20,57 +20,80 @@
       <nav>
         <a href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
         <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
     </header>
 
     <main class="page">
-      <section class="intro compact" aria-labelledby="title">
-        <p class="eyebrow">Open-source piping analysis</p>
-        <h1 id="title">Tuba v4</h1>
+      <section class="hero" aria-labelledby="title">
+        <p class="eyebrow">Code_Aster-backed piping workflow</p>
+        <h1 id="title">Define the piping model, solve it, review the artifacts.</h1>
         <p class="lead">
-          Tuba is a Python workflow for defining piping models, solving them
-          with Code_Aster, and reviewing processed result artifacts.
+          Tuba v4 is a Python engineering workflow for pipe and support models.
+          The production path is explicit: author a Tuba model, evaluate it
+          with Code_Aster, then inspect imported displacements, reactions,
+          stresses, meshes, and review bundles.
         </p>
+        <div class="actions" aria-label="Primary actions">
+          <a class="button primary" href="./workflow.html">Start the workflow</a>
+          <a class="button" href="./commands.html">Read the command reference</a>
+          <a class="button" href="./viewer/?bundle=code-aster-review">Open review scene</a>
+        </div>
       </section>
 
-      <section class="content-grid" aria-label="Site contents">
+      <section class="flow-strip" aria-label="Tuba workflow">
+        <span>Tuba model</span>
+        <span>Code_Aster solve</span>
+        <span>Imported artifacts</span>
+        <span>Result review</span>
+      </section>
+
+      <section class="content-grid toc-grid" aria-label="Documentation sections">
         <a class="doc-card" href="./overview.html">
           <span class="card-kicker">01</span>
           <h2>Overview</h2>
-          <p>What Tuba is, what it handles, and what this static site can show.</p>
+          <p>Project scope, implementation map, result boundaries, and what v4 changed from TUBA v2.</p>
         </a>
         <a class="doc-card" href="./workflow.html">
           <span class="card-kicker">02</span>
           <h2>Workflow</h2>
-          <p>The core loop: model in Tuba, solve with Code_Aster, review results.</p>
+          <p>A complete model-to-results path with current v4 Python snippets and solver handoff files.</p>
+        </a>
+        <a class="doc-card" href="./commands.html">
+          <span class="card-kicker">03</span>
+          <h2>Commands</h2>
+          <p>Current API reference for models, pipe builders, operations, Code_Aster, artifacts, and viewers.</p>
         </a>
         <a class="doc-card" href="./examples.html">
-          <span class="card-kicker">03</span>
+          <span class="card-kicker">04</span>
           <h2>Examples</h2>
-          <p>A preserved review scene and the notebook entry point for local work.</p>
+          <p>Runnable repo examples, preserved review bundles, and what is safe to inspect in the browser.</p>
         </a>
         <a class="doc-card" href="./setup.html">
-          <span class="card-kicker">04</span>
+          <span class="card-kicker">05</span>
           <h2>Setup</h2>
-          <p>Local installation notes and the Code_Aster runtime check.</p>
+          <p>Local install, WSL Code_Aster setup, doctor checks, integration smoke tests, and notebooks.</p>
+        </a>
+        <a class="doc-card" href="./developer.html">
+          <span class="card-kicker">06</span>
+          <h2>Developer</h2>
+          <p>Module ownership, solver file map, artifact provenance, visualization paths, and contribution rules.</p>
         </a>
       </section>
 
-      <section class="artifact-strip" aria-labelledby="artifact-title">
-        <div>
-          <h2 id="artifact-title">Available here</h2>
-          <p>
-            This page can host documentation and preserved artifacts. It does
-            not run Code_Aster in the browser.
-          </p>
-        </div>
-        <div class="actions" aria-label="Artifact links">
-          <a class="button primary" href="./viewer/?bundle=code-aster-review">Open Review Scene</a>
-          <a class="button" href="./notebooks/10_interactive_postprocessor.ipynb" download>Download Notebook</a>
-        </div>
+      <section class="doc-section">
+        <h2>What this page is allowed to show</h2>
+        <p>
+          The browser page can document workflows and load preserved scene
+          bundles. It does not run Code_Aster in the browser. Any page that
+          shows stress, displacement, reaction, compliance, or deformed-state
+          results must use Code_Aster-backed artifacts or stop at a runtime
+          requirement.
+        </p>
       </section>
     </main>
   </body>

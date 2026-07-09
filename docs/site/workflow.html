@@ -17,57 +17,141 @@
       <nav>
         <a href="./overview.html">Overview</a>
         <a aria-current="page" href="./workflow.html">Workflow</a>
+        <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
         <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
     </header>
 
-    <main class="page doc-page">
+    <main class="page doc-page wide">
       <section class="intro compact">
         <p class="eyebrow">Workflow</p>
         <h1>Model, solve, review</h1>
         <p class="lead">
-          The project revolves around one loop: define a piping model in Tuba,
-          evaluate it with Code_Aster, then inspect processed artifacts.
+          This is the current v4 path. It is the same engineering sequence the
+          legacy docs tried to teach, but it uses the actual v4 Python package,
+          Code_Aster runtime bridge, artifact importer, and viewer contract.
         </p>
       </section>
 
-      <ol class="step-list">
+      <ol class="step-list detailed">
         <li>
-          <h2>Define the piping model</h2>
+          <h2>Create a pipe-native model</h2>
           <p>
-            Build the structure in Python: routes, sections, materials,
-            supports, loads, and operating states.
+            Define the material and section first, then build the route through
+            the <code>model.pipe(...)</code> builder. Bends store explicit geometry so the
+            solver, viewer, and compliance hooks do not infer it later.
           </p>
+          <pre><code>from tuba import Model
+
+model = Model(project_name="Demo")
+model.add_material("Steel", E=210e9, nu=0.3, rho=7850.0, alpha=12e-6)
+model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+
+with model.pipe(section="DN100", material="Steel", route="P-100") as b:
+    b.start([0.0, 0.0, 0.0], support="anchor")
+    b.run(2.0)
+    b.bend_to([2.0, 1.0, 0.0], radius=0.8, plane_normal=[0.0, 0.0, 1.0])
+    b.run(2.0)
+    b.end(support="anchor")</code></pre>
         </li>
         <li>
-          <h2>Run Code_Aster</h2>
+          <h2>Define the operating state</h2>
           <p>
-            New engineering results require a Code_Aster runtime. Exported
-            study files are useful for diagnostics, but they do not complete
-            the evaluation on their own.
+            Operations are the higher-level scenario object. They convert to
+            the load case data consumed by the Code_Aster writer.
           </p>
+          <pre><code>hot = model.define_operation(
+    "Hot",
+    gravity=True,
+    pressure=1.6e6,
+    temperature=180.0,
+    ref_temperature=20.0,
+)
+
+hot.add_field(
+    "temperature",
+    140.0,
+    route_id="P-100",
+    station_start=0.0,
+    station_end=1.5,
+)
+
+model.validate()</code></pre>
         </li>
         <li>
-          <h2>Review processed artifacts</h2>
+          <h2>Export and run Code_Aster</h2>
           <p>
-            Solved artifacts can be reviewed in notebooks through the PyVista
-            quick-look path or shared as a browser scene bundle through the
-            viewer.
+            The explicit solver object is easiest to debug. Export-only files
+            are useful for inspection, but the evaluation is not complete until
+            Code_Aster runs and result artifacts are imported.
           </p>
+          <pre><code>from pathlib import Path
+from tuba.solver.aster import CodeAsterSolver
+
+solver = CodeAsterSolver(
+    work_dir="runs/demo_hot",
+    exec_method="wsl",
+    wsl_distro="Ubuntu",
+)
+
+study = solver.export_analysis_study(model, "Hot", Path("runs/demo_hot"))
+results = solver.solve_exported_study(model, study)</code></pre>
+          <div class="note">
+            <strong>Exported files:</strong> <code>study.mail</code>, <code>study.comm</code>,
+            <code>study.export</code>, <code>study_manifest.json</code>, and <code>study_tuba_fem.json</code>.
+            The sidecar maps shortened solver names back to Tuba objects.
+          </div>
+        </li>
+        <li>
+          <h2>Load results safely in notebooks</h2>
+          <p>
+            Use the shared notebook helper. With <code>run_solver=False</code>, the
+            directory must already contain real Code_Aster result tables.
+          </p>
+          <pre><code>from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
+
+run = load_or_run_code_aster_results(
+    model,
+    "Hot",
+    "notebooks/code_aster_results/stress_analysis_operating",
+    run_solver=True,
+    exec_method="wsl",
+    wsl_distro="Ubuntu",
+)
+
+results = run.results</code></pre>
+        </li>
+        <li>
+          <h2>Review through one display path</h2>
+          <p>
+            Use PyVista for local quick-look notebooks. Use the web-scene bundle
+            for reviewable browser artifacts. Do not add a third result-display
+            path.
+          </p>
+          <div class="code-grid">
+            <article>
+              <h3>PyVista quick-look</h3>
+              <pre><code>plotter = results.plot_deformed_stress(
+    scale=40.0,
+    model=model,
+)
+plotter.show(jupyter_backend="html")</code></pre>
+            </article>
+            <article>
+              <h3>Web review bundle</h3>
+              <pre><code>from tuba.analysis.results import result_state_from_fea_results
+from tuba.visualization import build_visualization_scene, write_scene_bundle
+
+result_state = result_state_from_fea_results(model=model, study=study, results=results)
+scene = build_visualization_scene(model, result_states=[result_state])
+bundle = write_scene_bundle(scene, "runs/demo_hot/review_scene")</code></pre>
+            </article>
+          </div>
         </li>
       </ol>
-
-      <section class="doc-section">
-        <h2>Visualization paths</h2>
-        <p>
-          <code>tuba/plotting/</code> is the notebook and export path.
-          <code>tuba/visualization/</code> plus <code>viewer/</code> is the
-          web-scene review path. Examples should choose one path so the result
-          boundary stays clear.
-        </p>
-      </section>
     </main>
   </body>
 </html>

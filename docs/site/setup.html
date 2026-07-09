@@ -17,45 +17,102 @@
       <nav>
         <a href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a aria-current="page" href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
         <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
     </header>
 
-    <main class="page doc-page">
+    <main class="page doc-page wide">
       <section class="intro compact">
         <p class="eyebrow">Setup</p>
-        <h1>Run locally</h1>
+        <h1>Run Tuba locally</h1>
         <p class="lead">
-          Use the static pages for orientation. Use a local environment when
-          you want to solve new studies or inspect local result files.
+          The hosted page is documentation and preserved artifact review. New
+          engineering solves need a local Python environment and a working
+          Code_Aster runtime.
         </p>
       </section>
 
       <section class="command-list" aria-label="Setup commands">
         <article>
-          <h2>Install the project</h2>
-          <pre><code>pip install -e ".[notebook-viz]"</code></pre>
+          <h2>1. Create or activate the Python environment</h2>
+          <pre><code>python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"</code></pre>
         </article>
         <article>
-          <h2>Check the Code_Aster runtime</h2>
-          <pre><code>python -m tuba.solver.code_aster_doctor --check</code></pre>
+          <h2>2. Check runtime discovery</h2>
+          <pre><code>.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor
+.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor --check</code></pre>
         </article>
         <article>
-          <h2>Open the notebook</h2>
-          <pre><code>jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
+          <h2>3. Prefer WSL Ubuntu for Code_Aster on Windows</h2>
+          <pre><code>wsl --list --verbose
+wsl -d Ubuntu bash -lc "command -v run_aster; run_aster --version || run_aster --help | head -20"</code></pre>
+        </article>
+        <article>
+          <h2>4. Select the runtime for Tuba</h2>
+          <pre><code>$env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
+$env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"</code></pre>
+        </article>
+        <article>
+          <h2>5. Run the real solver smoke test</h2>
+          <pre><code>$env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
+.\.venv\Scripts\python.exe -m unittest tests.test_code_aster_real_smoke -v</code></pre>
+        </article>
+        <article>
+          <h2>6. Open the notebook course</h2>
+          <pre><code>jupyter lab notebooks\00_welcome_and_setup.ipynb
+jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
         </article>
       </section>
 
       <section class="doc-section">
-        <h2>Solver requirement</h2>
+        <h2>Runtime requirement</h2>
         <p>
           Code_Aster is required for production stress, displacement, reaction,
           thermal-expansion, operating-state clash, compliance, and result
-          visualization workflows. Without it, Tuba should stop before showing
-          or reporting new solver results.
+          visualization workflows. If <code>--check</code> is blocked, keep notebooks in
+          artifact-loading mode and do not display new solver results.
         </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Troubleshooting map</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Symptom</th>
+              <th>Check</th>
+              <th>Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>run_aster</code> not found</td>
+              <td><code>wsl -d Ubuntu bash -lc "command -v run_aster; echo $PATH"</code></td>
+              <td>Expose a stable <code>~/bin/run_aster</code> wrapper inside Ubuntu.</td>
+            </tr>
+            <tr>
+              <td>Doctor reports blocked</td>
+              <td><code>python -m tuba.solver.code_aster_doctor --check</code></td>
+              <td>Fix the selected runtime before running notebooks with <code>run_solver=True</code>.</td>
+            </tr>
+            <tr>
+              <td>Integration test skips</td>
+              <td><code>$env:TUBA_RUN_CODE_ASTER_INTEGRATION</code></td>
+              <td>Set it to <code>1</code>; the test intentionally skips without an explicit opt-in.</td>
+            </tr>
+            <tr>
+              <td>Study exports but no results appear</td>
+              <td><code>stdout.wsl.log</code>, <code>stderr.wsl.log</code>, and <code>study.mess</code></td>
+              <td>Read the solver logs. Export succeeded, but Code_Aster did not finish cleanly.</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </main>
   </body>

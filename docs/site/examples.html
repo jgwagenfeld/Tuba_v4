@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Tuba v4 preserved result scene and notebook entry point." />
+    <meta name="description" content="Tuba v4 preserved result scene, notebooks, and runnable examples." />
     <title>Tuba v4 | Examples</title>
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./assets/site.css" />
@@ -17,8 +17,10 @@
       <nav>
         <a href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./commands.html">Commands</a>
         <a aria-current="page" href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
         <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
     </header>
@@ -26,23 +28,25 @@
     <main class="page doc-page wide">
       <section class="intro compact">
         <p class="eyebrow">Examples</p>
-        <h1>Preserved artifacts</h1>
+        <h1>Artifacts and runnable demos</h1>
         <p class="lead">
-          These examples are for inspection. They show saved artifacts and
-          notebook entry points; they do not run a new Code_Aster solve online.
+          The browser can inspect preserved artifacts. Local examples can
+          generate models, routes, reports, study exports, and review bundles.
+          Solver-result examples must use Code_Aster-backed artifacts.
         </p>
       </section>
 
       <section class="doc-section">
         <div class="split-heading">
           <div>
-            <h2>Code_Aster review scene</h2>
+            <h2>Preserved Code_Aster review scene</h2>
             <p>
-              A preserved browser scene bundle with imported Code_Aster-backed
-              result artifacts.
+              This is the published review surface: a static scene bundle with
+              geometry payloads, object maps, overlays, and imported
+              Code_Aster-backed result metadata.
             </p>
           </div>
-          <a class="button" href="./viewer/?bundle=code-aster-review">Open Full Viewer</a>
+          <a class="button primary" href="./viewer/?bundle=code-aster-review">Open full viewer</a>
         </div>
         <iframe
           class="viewer-panel"
@@ -52,17 +56,67 @@
         ></iframe>
       </section>
 
+      <section class="doc-section">
+        <h2>Local examples</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Example</th>
+              <th>What it demonstrates</th>
+              <th>Command</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>future_ready_semantic_workflow.py</code></td>
+              <td>Model authoring, rack bay, semantic insulation, quantities, BOM, route cost, support load paths, rules, benchmark output.</td>
+              <td><code>python examples/future_ready_semantic_workflow.py</code></td>
+            </tr>
+            <tr>
+              <td><code>autoroute_expansion_loop.py</code></td>
+              <td>Hot-line route request, obstacle clearance, expansion-loop candidate, solver-loop export/scoring configuration.</td>
+              <td><code>python examples/autoroute_expansion_loop.py</code></td>
+            </tr>
+            <tr>
+              <td><code>code_aster_artifact_review.py</code></td>
+              <td>Import of existing solver artifacts into result and review surfaces.</td>
+              <td><code>python examples/code_aster_artifact_review.py</code></td>
+            </tr>
+            <tr>
+              <td><code>realtime_visualization_review.py</code></td>
+              <td>Scene-bundle generation for the browser viewer.</td>
+              <td><code>python examples/realtime_visualization_review.py</code></td>
+            </tr>
+            <tr>
+              <td><code>operating_state_clash.py</code></td>
+              <td>Operating-state geometry, clearance checks, and clash review metadata.</td>
+              <td><code>python examples/operating_state_clash.py</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
       <section class="artifact-strip" aria-labelledby="notebook-title">
         <div>
-          <h2 id="notebook-title">Interactive notebook</h2>
+          <h2 id="notebook-title">Interactive postprocessor notebook</h2>
           <p>
-            The notebook is the local PyVista quick-look path for inspecting
-            solved artifacts and exported views.
+            Use this locally for PyVista quick-look review of solved artifacts.
+            The notebook is copied into the published site as a download.
           </p>
         </div>
-        <a class="button primary" href="./notebooks/10_interactive_postprocessor.ipynb" download>
-          Download Notebook
+        <a class="button" href="./notebooks/10_interactive_postprocessor.ipynb" download>
+          Download notebook
         </a>
+      </section>
+
+      <section class="doc-section warning">
+        <h2>Example rule</h2>
+        <p>
+          Examples may export studies without Code_Aster for diagnostics, but
+          they must label that as incomplete engineering evaluation. Examples
+          that display stresses, reactions, displacements, or compliance output
+          must import real Code_Aster artifacts or run the real solver.
+        </p>
       </section>
     </main>
   </body>

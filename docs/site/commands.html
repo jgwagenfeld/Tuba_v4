@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Current Tuba v4 command and API reference." />
+    <title>Tuba v4 | Commands</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a aria-current="page" href="./commands.html">Commands</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
+        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
+      </nav>
+    </header>
+
+    <main class="page doc-page wide">
+      <section class="intro compact">
+        <p class="eyebrow">Command reference</p>
+        <h1>Current v4 API surface</h1>
+        <p class="lead">
+          This reference covers the shipped v4 commands people need first. It
+          replaces the old v2 command-list style with the current Python API.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Model commands</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Purpose</th>
+              <th>Typical use</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Model(project_name, standard="ASME_B31.3")</code></td>
+              <td>Create the pipe-native engineering model.</td>
+              <td><code>model = Model("PumpLine")</code></td>
+            </tr>
+            <tr>
+              <td><code>add_material(...)</code></td>
+              <td>Add elastic, density, expansion, and allowable-stress data.</td>
+              <td><code>model.add_material("Steel", E=210e9, nu=0.3, rho=7850)</code></td>
+            </tr>
+            <tr>
+              <td><code>add_pipe_section(...)</code></td>
+              <td>Add circular pipe section geometry.</td>
+              <td><code>model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)</code></td>
+            </tr>
+            <tr>
+              <td><code>add_rectangular_section(...)</code>, <code>add_ibeam_section(...)</code></td>
+              <td>Add support/rack and beam-like sections.</td>
+              <td>Use for racks, frames, beams, bars, and mixed systems.</td>
+            </tr>
+            <tr>
+              <td><code>add_support(node, type=...)</code></td>
+              <td>Add support metadata at a node.</td>
+              <td><code>model.add_support(node="N0", type="rest")</code></td>
+            </tr>
+            <tr>
+              <td><code>add_obstacle(...)</code></td>
+              <td>Register clearance obstacles for routing and clash review.</td>
+              <td>Use cuboid or imported geometry obstacles before autorouting.</td>
+            </tr>
+            <tr>
+              <td><code>validate()</code></td>
+              <td>Run structural checks before export.</td>
+              <td>Call before a Code_Aster study is written.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Pipe builder commands</h2>
+        <p>
+          Builder commands run inside
+          <code>with model.pipe(section, material, route=...) as b:</code>.
+          They create nodes, elements, bend records, support metadata, and
+          route/station data.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>start(point, direction=None, support=None)</code></td><td>Start a run at a 3D point, optionally with initial direction and support.</td></tr>
+            <tr><td><code>run(length)</code></td><td>Create a straight pipe segment in the current direction.</td></tr>
+            <tr><td><code>bend(radius, angle_deg, plane="xy")</code></td><td>Create a bend by angle and plane.</td></tr>
+            <tr><td><code>bend_to(point, radius, plane_normal)</code></td><td>Create a bend toward a target point with explicit plane normal.</td></tr>
+            <tr><td><code>bend_in_plane(radius, angle_deg, plane)</code></td><td>Create an in-plane bend using a named plane.</td></tr>
+            <tr><td><code>bend_by_orientation(radius, angle_deg, orientation_deg)</code></td><td>Create a bend from orientation angles.</td></tr>
+            <tr><td><code>add_support(type=...)</code>, <code>spring(...)</code></td><td>Add local support or spring metadata on the active point.</td></tr>
+            <tr><td><code>beam(length)</code>, <code>bar(length)</code>, <code>cable(length)</code></td><td>Create non-pipe line elements through the same cursor workflow.</td></tr>
+            <tr><td><code>set_direction(vector)</code></td><td>Change the builder direction for the next run.</td></tr>
+            <tr><td><code>end(support=None)</code></td><td>Finish the run and optionally add an end support.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Operating-state commands</h2>
+        <div class="code-grid">
+          <article>
+            <h3>Uniform operation</h3>
+            <pre><code>hot = model.define_operation(
+    "Hot",
+    gravity=True,
+    pressure=1.6e6,
+    temperature=180.0,
+    ref_temperature=20.0,
+)</code></pre>
+          </article>
+          <article>
+            <h3>Route/station field</h3>
+            <pre><code>hot.add_field(
+    "temperature",
+    140.0,
+    route_id="P-100",
+    station_start=0.0,
+    station_end=1.5,
+)</code></pre>
+          </article>
+        </div>
+        <p>
+          Supported operation-field quantities are <code>pressure</code>,
+          <code>temperature</code>, and <code>wind</code>. Linear route/station temperature fields are exported as
+          per-element midpoint assignments. Non-uniform pressure, non-uniform
+          wind, and piecewise profiles fail validation before export.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Solver and artifact commands</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>CodeAsterSolver(...)</code></td>
+              <td>Create the Code_Aster adapter with work directory and runtime options.</td>
+            </tr>
+            <tr>
+              <td><code>export_analysis_study(model, load_case, output_dir)</code></td>
+              <td>Write <code>.mail</code>, <code>.comm</code>, <code>.export</code>, manifest, and sidecar files.</td>
+            </tr>
+            <tr>
+              <td><code>solve_exported_study(model, study)</code></td>
+              <td>Execute a previously exported study and parse result artifacts.</td>
+            </tr>
+            <tr>
+              <td><code>parse_result_artifacts(model, root, load_case)</code></td>
+              <td>Read existing Code_Aster result tables without starting a solver.</td>
+            </tr>
+            <tr>
+              <td><code>import_code_aster_artifacts(...)</code></td>
+              <td>Import a solved artifact directory into a reviewable artifact object.</td>
+            </tr>
+            <tr>
+              <td><code>load_or_run_code_aster_results(...)</code></td>
+              <td>Notebook helper that either runs Code_Aster or stops if required artifacts are missing.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Result review commands</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Path</th>
+              <th>Use</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>results.plot_deformed()</code></td>
+              <td>PyVista</td>
+              <td>Notebook quick-look for deformed shape.</td>
+            </tr>
+            <tr>
+              <td><code>results.plot_stress()</code></td>
+              <td>PyVista</td>
+              <td>Notebook stress scalar review.</td>
+            </tr>
+            <tr>
+              <td><code>results.plot_reactions()</code></td>
+              <td>PyVista</td>
+              <td>Reaction vectors from solver-backed results.</td>
+            </tr>
+            <tr>
+              <td><code>build_visualization_scene(...)</code></td>
+              <td>Web scene</td>
+              <td>Create a JSON scene contract with geometry, metadata, overlays, issues, and result states.</td>
+            </tr>
+            <tr>
+              <td><code>write_scene_bundle(scene, path)</code></td>
+              <td>Web scene</td>
+              <td>Write a browser-loadable bundle for <code>viewer/</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

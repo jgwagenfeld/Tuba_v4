@@ -1,12 +1,14 @@
 :root {
   color-scheme: light;
-  --paper: #f6f7f4;
+  --paper: #f3f5f2;
   --ink: #171a1f;
   --muted: #5d6570;
   --line: #ccd3d0;
   --panel: #ffffff;
   --steel: #2f6374;
   --accent: #c98225;
+  --ok: #2f6d4f;
+  --warn: #9b3f2b;
   --code: #0f3d4a;
   font-family: "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
 }
@@ -84,7 +86,7 @@ nav a[aria-current="page"] {
 
 .page {
   display: grid;
-  gap: 18px;
+  gap: 22px;
   max-width: 1120px;
   margin: 0 auto;
   padding: clamp(18px, 4vw, 44px);
@@ -106,6 +108,13 @@ nav a[aria-current="page"] {
   padding-bottom: 4px;
 }
 
+.hero {
+  display: grid;
+  gap: 16px;
+  max-width: 940px;
+  padding: 18px 0 10px;
+}
+
 .eyebrow,
 .card-kicker {
   margin: 0 0 8px;
@@ -117,6 +126,7 @@ nav a[aria-current="page"] {
 
 h1,
 h2,
+h3,
 p {
   margin-top: 0;
 }
@@ -131,6 +141,12 @@ h2 {
   margin-bottom: 7px;
   font-size: 20px;
   line-height: 1.2;
+}
+
+h3 {
+  margin-bottom: 8px;
+  font-size: 16px;
+  line-height: 1.25;
 }
 
 p {
@@ -154,9 +170,15 @@ p:last-child {
   gap: 12px;
 }
 
+.toc-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .doc-card,
 .doc-section,
 .artifact-strip,
+.flow-strip,
+.note,
 .step-list li,
 .command-list article {
   border: 1px solid var(--line);
@@ -167,6 +189,7 @@ p:last-child {
 .doc-card {
   display: block;
   min-height: 150px;
+  min-width: 0;
   padding: 16px;
   text-decoration: none;
 }
@@ -182,7 +205,14 @@ p:last-child {
 }
 
 .doc-section {
+  min-width: 0;
+  overflow-x: auto;
   padding: 18px;
+}
+
+.doc-section.warning {
+  border-color: rgb(155 63 43 / 45%);
+  background: #fff8f4;
 }
 
 .artifact-strip,
@@ -194,7 +224,27 @@ p:last-child {
 }
 
 .artifact-strip {
+  min-width: 0;
   padding: 16px 18px;
+}
+
+.flow-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+}
+
+.flow-strip span {
+  min-height: 52px;
+  padding: 16px;
+  border-right: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.flow-strip span:last-child {
+  border-right: 0;
 }
 
 .actions {
@@ -234,8 +284,13 @@ p:last-child {
 
 .step-list li {
   position: relative;
+  min-width: 0;
   padding: 18px 18px 18px 58px;
   counter-increment: step;
+}
+
+.step-list.detailed li {
+  padding-bottom: 20px;
 }
 
 .step-list li::before {
@@ -259,10 +314,12 @@ p:last-child {
 }
 
 .command-list article {
+  min-width: 0;
   padding: 18px;
 }
 
 pre {
+  max-width: 100%;
   margin: 10px 0 0;
   overflow-x: auto;
   padding: 12px;
@@ -274,6 +331,67 @@ code {
   color: var(--code);
   font-family: "Aptos Mono", "Cascadia Code", monospace;
   font-size: 0.95em;
+}
+
+.code-grid,
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.status-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.code-grid article,
+.status-grid article {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.note {
+  margin-top: 12px;
+  padding: 12px;
+  color: var(--muted);
+}
+
+.reference-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-wrap: anywhere;
+}
+
+.reference-table th,
+.reference-table td {
+  padding: 11px 10px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.reference-table th {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.reference-table td {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.plain-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.plain-list li + li {
+  margin-top: 8px;
 }
 
 .viewer-panel {
@@ -304,6 +422,21 @@ code {
   .content-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .toc-grid,
+  .flow-strip,
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-strip span {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .flow-strip span:last-child {
+    border-bottom: 0;
+  }
 }
 
 @media (max-width: 620px) {
@@ -316,6 +449,10 @@ code {
   }
 
   .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .code-grid {
     grid-template-columns: 1fr;
   }
 

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Tuba v4 developer guide and architecture map." />
+    <title>Tuba v4 | Developer</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a href="./commands.html">Commands</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a aria-current="page" href="./developer.html">Developer</a>
+        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
+      </nav>
+    </header>
+
+    <main class="page doc-page wide">
+      <section class="intro compact">
+        <p class="eyebrow">Developer guide</p>
+        <h1>Where the implementation lives</h1>
+        <p class="lead">
+          Tuba v4 is split around ownership boundaries: pipe model, solver
+          export/execution/import, analysis artifacts, quick-look plotting, and
+          reviewable browser scenes.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Module map</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>Owns</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>tuba.model</code></td><td>Model records, materials, sections, nodes, elements, supports, loads, operations, serialization.</td></tr>
+            <tr><td><code>tuba.builder</code></td><td>Cursor-based route authoring through <code>model.pipe(...)</code>.</td></tr>
+            <tr><td><code>tuba.validation</code></td><td>Pre-export model invariants.</td></tr>
+            <tr><td><code>tuba.solver.aster</code></td><td>Code_Aster study export, runtime execution, and result parsing.</td></tr>
+            <tr><td><code>tuba.solver.aster_mesh</code></td><td><code>study.mail</code> mesh generation and analysis-mesh provenance.</td></tr>
+            <tr><td><code>tuba.solver.aster_comm</code></td><td><code>study.comm</code> command-file generation.</td></tr>
+            <tr><td><code>tuba.analysis</code></td><td>Study, mesh, result-state, RMED, notebook, and artifact import helpers.</td></tr>
+            <tr><td><code>tuba.plotting</code></td><td>PyVista quick-look and export helpers.</td></tr>
+            <tr><td><code>tuba.visualization</code></td><td>JSON scene contract and scene bundle writing for <code>viewer/</code>.</td></tr>
+            <tr><td><code>viewer/</code></td><td>Three.js browser renderer for review bundles.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Solver file map</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Meaning</th>
+              <th>Completed result?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>study.mail</code></td><td>Code_Aster mesh input generated from Tuba model geometry.</td><td>No</td></tr>
+            <tr><td><code>study.comm</code></td><td>Code_Aster command file with model, materials, loads, solve, and table output.</td><td>No</td></tr>
+            <tr><td><code>study.export</code></td><td>Runner export file for Code_Aster execution.</td><td>No</td></tr>
+            <tr><td><code>study_manifest.json</code></td><td>Tuba study metadata and generated file list.</td><td>No</td></tr>
+            <tr><td><code>study_tuba_fem.json</code></td><td>Sidecar mapping solver labels and mesh entities to Tuba references.</td><td>No</td></tr>
+            <tr><td><code>study_depl.csv</code>, <code>study_reac.csv</code>, <code>study_effo.csv</code>, <code>study_sieq.csv</code></td><td>Parsed solver result tables produced after execution.</td><td>Yes, when produced by Code_Aster</td></tr>
+            <tr><td><code>.rmed</code></td><td>Code_Aster/MED result artifact, optionally summarized for review.</td><td>Yes, when produced by Code_Aster</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Visualization contract</h2>
+        <p>
+          Keep the two result-display paths distinct. <code>tuba.plotting</code> is the
+          PyVista quick-look path for notebooks and exports. <code>tuba.visualization</code>
+          plus <code>viewer/</code> is the reviewable web-scene path. Choose one path per
+          notebook or example.
+        </p>
+        <div class="code-grid">
+          <article>
+            <h3>Quick-look path</h3>
+            <pre><code>results.plot_deformed_stress(scale=40.0, model=model)</code></pre>
+          </article>
+          <article>
+            <h3>Reviewable scene path</h3>
+            <pre><code>scene = build_visualization_scene(model, result_states=[result_state])
+bundle = write_scene_bundle(scene, "runs/demo_hot/review_scene")</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>Contribution rules</h2>
+        <ul class="plain-list">
+          <li>Do not present generated <code>.comm</code>, <code>.mail</code>, or <code>.export</code> files as completed solver results.</li>
+          <li>Do not fabricate stress, displacement, reaction, compliance, or clash-result values.</li>
+          <li>Keep Code_Aster execution native to Tuba. Shell, Docker, and legacy <code>as_run</code> paths are fallbacks.</li>
+          <li>Do not vendor or copy ada-py code. Treat ada-py as reference-only interoperability input.</li>
+          <li>When adding result display, route through <code>tuba.plotting</code> or <code>tuba.visualization</code>; do not add a third viewer path.</li>
+          <li>When adding examples, make export-only examples state that export is not completed engineering evaluation.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
