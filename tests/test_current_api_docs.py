@@ -64,10 +64,22 @@ class TestCurrentApiDocs(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_readme_does_not_promote_removed_roadmap_docs(self):
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "README.md").read_text(encoding="utf-8")
+        removed = [
+            "docs/future_ready_architecture.md",
+            "docs/visualization_engine_vision.md",
+            ".agents/",
+        ]
+
+        self.assertEqual([], [item for item in removed if item in text])
+
 
 def _current_user_facing_sources():
     root = Path(__file__).resolve().parents[1]
     yield "README.md", (root / "README.md").read_text(encoding="utf-8")
+    yield "CONTRIBUTING.md", (root / "CONTRIBUTING.md").read_text(encoding="utf-8")
     for path in _current_architecture_docs():
         yield f"docs/architecture/{path.name}", path.read_text(encoding="utf-8")
 

@@ -23,20 +23,18 @@ stress, displacement, reaction, compliance, and result visualization workflows.
 
 ## Documentation Map
 
-Read these first — they describe what the code actually does today:
+Read these first - they describe what the code actually does today:
 
 | Source | Role |
 |---|---|
-| `README.md`, `AGENTS.md` | Project workflow and contributor guidance |
-| `notebooks/00`–`10` | The end-to-end notebook course, in order |
-| `docs/site/` | Static project page source |
-| `docs/architecture/*` | Current design decisions (DSL, autorouting, mixed studies) |
+| `README.md`, `CONTRIBUTING.md` | Project workflow and contributor guidance |
+| `notebooks/00`-`10` | The end-to-end notebook course, in order |
+| `docs/site/` | GitHub Pages source: tutorial, modeling basics, overview, workflow, autorouting, commands, examples, setup, developer |
+| `docs/architecture/library-architecture-review.md` | Current architecture map |
+| `docs/architecture/*` | Focused design decisions and explicitly labeled roadmap docs |
 | `docs/code_aster_installation.md` | Canonical Code_Aster setup |
 
-Forward-looking / roadmap (aspirational, not current behavior):
-`docs/future_ready_architecture.md`, `docs/visualization_engine_vision.md`, `.agents/`.
-
-Historical (pre-implementation, superseded — do not trust against the code):
+Historical (pre-implementation, superseded - do not trust against the code):
 the root `*_design.md` / `*_specification.md` / `*_strategy.md` files, each
 banner-flagged at the top.
 
@@ -157,9 +155,11 @@ PyVista result views, and writes a `viewer/` scene bundle for review.
 
 ## Project Page
 
-The static project page source lives at `docs/site/`. It links the
-post-processor notebook and includes a preserved Code_Aster-backed viewer
-bundle.
+The GitHub Pages source lives at `docs/site/`. It includes the first-analysis
+tutorial, modeling basics for sections, coordinates, schemas, and validation,
+current overview, workflow, autorouting manual, command reference, examples,
+setup, developer guide, the post-processor notebook download, and a preserved
+Code_Aster-backed viewer bundle.
 
 ## Pipe Autorouting
 
@@ -280,19 +280,20 @@ Troubleshooting:
 - HTML visualization dependencies missing: Markdown/JSON reports remain the
   supported headless review output.
 
-## Future-Ready Semantic Workflow
+## Semantic Workflow Example
 
-The semantic architecture keeps generated geometry patch-first and attaches
-engineering facts, such as insulation, as typed attributes. The same semantic
-input can then feed physical envelopes, clash checks, quantities, route cost,
-load-path reports, rules, and BOM export.
+The semantic example keeps generated geometry patch-first and attaches
+engineering facts, such as insulation, as typed attributes. The same input feeds
+physical envelopes, clash checks, quantities, route cost, load-path reports,
+rules, and BOM export.
 
 ```powershell
 .\.venv\Scripts\python.exe examples\future_ready_semantic_workflow.py
 ```
 
-See [`docs/future_ready_architecture.md`](docs/future_ready_architecture.md)
-for the implemented layers and extension points.
+See `docs/site/examples.html`, `docs/site/commands.html`, and
+`docs/architecture/library-architecture-review.md` for the current documented
+surface.
 
 ## IFC And External Interop
 
