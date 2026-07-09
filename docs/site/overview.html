@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Overview of the Tuba v4 piping analysis project." />
+    <title>Tuba v4 | Overview</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav>
+        <a aria-current="page" href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
+      </nav>
+    </header>
+
+    <main class="page doc-page">
+      <section class="intro compact">
+        <p class="eyebrow">Overview</p>
+        <h1>Tuba v4</h1>
+        <p class="lead">
+          Tuba is an open-source Python project for piping analysis workflows:
+          describe the model, run Code_Aster, and inspect the processed
+          artifacts.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Scope</h2>
+        <p>
+          Tuba keeps the engineering model in Python: pipe geometry, sections,
+          materials, supports, loads, operating cases, and the data needed to
+          prepare a Code_Aster study.
+        </p>
+        <p>
+          The project also contains result-display paths for solved artifacts:
+          a PyVista quick-look path for notebooks and export, and a Three.js
+          viewer for reviewable scene bundles.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>What this site can show</h2>
+        <p>
+          The online pages can explain the workflow and load preserved result
+          artifacts. They are useful for orientation and review, but they are
+          not a hosted solver.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Result boundary</h2>
+        <p>
+          Stress, displacement, reaction, compliance, and deformed-state views
+          should come from Code_Aster runs or imported Code_Aster artifacts.
+          Exported <code>.comm</code>, <code>.mail</code>, and
+          <code>.export</code> files are a handoff, not completed results.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

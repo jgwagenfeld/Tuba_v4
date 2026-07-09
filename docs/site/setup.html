@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Local Tuba v4 setup notes and Code_Aster runtime check." />
+    <title>Tuba v4 | Setup</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a href="./examples.html">Examples</a>
+        <a aria-current="page" href="./setup.html">Setup</a>
+        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
+      </nav>
+    </header>
+
+    <main class="page doc-page">
+      <section class="intro compact">
+        <p class="eyebrow">Setup</p>
+        <h1>Run locally</h1>
+        <p class="lead">
+          Use the static pages for orientation. Use a local environment when
+          you want to solve new studies or inspect local result files.
+        </p>
+      </section>
+
+      <section class="command-list" aria-label="Setup commands">
+        <article>
+          <h2>Install the project</h2>
+          <pre><code>pip install -e ".[notebook-viz]"</code></pre>
+        </article>
+        <article>
+          <h2>Check the Code_Aster runtime</h2>
+          <pre><code>python -m tuba.solver.code_aster_doctor --check</code></pre>
+        </article>
+        <article>
+          <h2>Open the notebook</h2>
+          <pre><code>jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
+        </article>
+      </section>
+
+      <section class="doc-section">
+        <h2>Solver requirement</h2>
+        <p>
+          Code_Aster is required for production stress, displacement, reaction,
+          thermal-expansion, operating-state clash, compliance, and result
+          visualization workflows. Without it, Tuba should stop before showing
+          or reporting new solver results.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

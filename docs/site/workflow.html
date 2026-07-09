@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Tuba v4 model, Code_Aster solve, and review workflow." />
+    <title>Tuba v4 | Workflow</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav>
+        <a href="./overview.html">Overview</a>
+        <a aria-current="page" href="./workflow.html">Workflow</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
+      </nav>
+    </header>
+
+    <main class="page doc-page">
+      <section class="intro compact">
+        <p class="eyebrow">Workflow</p>
+        <h1>Model, solve, review</h1>
+        <p class="lead">
+          The project revolves around one loop: define a piping model in Tuba,
+          evaluate it with Code_Aster, then inspect processed artifacts.
+        </p>
+      </section>
+
+      <ol class="step-list">
+        <li>
+          <h2>Define the piping model</h2>
+          <p>
+            Build the structure in Python: routes, sections, materials,
+            supports, loads, and operating states.
+          </p>
+        </li>
+        <li>
+          <h2>Run Code_Aster</h2>
+          <p>
+            New engineering results require a Code_Aster runtime. Exported
+            study files are useful for diagnostics, but they do not complete
+            the evaluation on their own.
+          </p>
+        </li>
+        <li>
+          <h2>Review processed artifacts</h2>
+          <p>
+            Solved artifacts can be reviewed in notebooks through the PyVista
+            quick-look path or shared as a browser scene bundle through the
+            viewer.
+          </p>
+        </li>
+      </ol>
+
+      <section class="doc-section">
+        <h2>Visualization paths</h2>
+        <p>
+          <code>tuba/plotting/</code> is the notebook and export path.
+          <code>tuba/visualization/</code> plus <code>viewer/</code> is the
+          web-scene review path. Examples should choose one path so the result
+          boundary stays clear.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

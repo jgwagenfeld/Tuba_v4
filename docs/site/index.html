@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Tuba v4 documentation, workflow notes, examples, and setup entry points."
+    />
+    <title>Tuba v4</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="intro compact" aria-labelledby="title">
+        <p class="eyebrow">Open-source piping analysis</p>
+        <h1 id="title">Tuba v4</h1>
+        <p class="lead">
+          Tuba is a Python workflow for defining piping models, solving them
+          with Code_Aster, and reviewing processed result artifacts.
+        </p>
+      </section>
+
+      <section class="content-grid" aria-label="Site contents">
+        <a class="doc-card" href="./overview.html">
+          <span class="card-kicker">01</span>
+          <h2>Overview</h2>
+          <p>What Tuba is, what it handles, and what this static site can show.</p>
+        </a>
+        <a class="doc-card" href="./workflow.html">
+          <span class="card-kicker">02</span>
+          <h2>Workflow</h2>
+          <p>The core loop: model in Tuba, solve with Code_Aster, review results.</p>
+        </a>
+        <a class="doc-card" href="./examples.html">
+          <span class="card-kicker">03</span>
+          <h2>Examples</h2>
+          <p>A preserved review scene and the notebook entry point for local work.</p>
+        </a>
+        <a class="doc-card" href="./setup.html">
+          <span class="card-kicker">04</span>
+          <h2>Setup</h2>
+          <p>Local installation notes and the Code_Aster runtime check.</p>
+        </a>
+      </section>
+
+      <section class="artifact-strip" aria-labelledby="artifact-title">
+        <div>
+          <h2 id="artifact-title">Available here</h2>
+          <p>
+            This page can host documentation and preserved artifacts. It does
+            not run Code_Aster in the browser.
+          </p>
+        </div>
+        <div class="actions" aria-label="Artifact links">
+          <a class="button primary" href="./viewer/?bundle=code-aster-review">Open Review Scene</a>
+          <a class="button" href="./notebooks/10_interactive_postprocessor.ipynb" download>Download Notebook</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

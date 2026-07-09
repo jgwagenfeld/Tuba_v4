@@ -128,12 +128,23 @@ Real Code_Aster connection has two levels:
 2. **Artifact import / review:** `import_code_aster_artifacts()` reads an existing Code_Aster output directory and turns `study_depl.csv`, `study_effo.csv`, `study_reac.csv`, `study_sieq.csv`, optional `study.rmed`, and `study_manifest.json` into `FEAResults`, `ResultState`, and `AnalysisMesh` context for visualization and downstream checks.
 
 Code_Aster exports also include `study_tuba_fem.json`, a Tuba-owned sidecar
-that records solver name mapping and native lineage. This sidecar is the bridge
-between Code_Aster solver names and stable `EntityRef` values. It is required
-for robust result projection when solver group names must be shortened or when
-generated analysis mesh entities do not exist in the native model.
+that records solver name mapping and native lineage. This sidecar bridges
+Code_Aster solver names back to stable `EntityRef` values when group names must
+be shortened or when generated analysis mesh entities do not exist in the
+native model.
 
-The missing architectural layer is traceability. Code_Aster analysis meshes can contain generated nodes and elements that do not exist in the native model, especially bend intermediate nodes. Those generated mesh entities need source mapping back to native `EntityRef` values. Without that, deformed clash checks for bends and complex supports degrade to endpoint interpolation.
+The traceability layer is now partially implemented. `study_manifest.json`
+persists `AnalysisMesh` records with native and generated mesh-node source refs,
+including generated bend nodes. Result import preserves the study, mesh, result
+files, and parser diagnostics; projection and visualization can use the
+analysis mesh instead of falling back to endpoint-only deformation. IFC review
+exports add operating-state provenance (`SolverName`, `StudyId`, `ResultStateId`,
+and `MeshId`) to pipe products.
+
+The remaining traceability work is narrower: keep extending real-solver release
+gates for complex supports, bends, mixed 3D/TUYAU studies, and any imported CAD
+regions where Code_Aster emits mesh entities that are not yet mapped back to
+Tuba refs.
 
 Operating-state clash detection should therefore use:
 
@@ -152,9 +163,11 @@ Implemented operating-state APIs:
 - `import_code_aster_artifacts()` imports existing parser-readable Code_Aster result artifacts into `FEAResults`, `ResultState`, and optional `AnalysisMesh` provenance without executing Code_Aster.
 - `ResultState` persists native and generated analysis-node displacement, reaction, force, stress, file, and parser-diagnostic data.
 - `GeometryState` separates cold, physical operating, and visual deformed states. Engineering states require displacement scale `1.0`.
+- `AnalysisMesh` source refs map native and generated solver mesh entities back to Tuba nodes/elements where the exporter has provenance.
 - `build_deformed_envelopes()` creates bare, insulation, clearance, maintenance, and wind envelopes from solver displacement and physical attributes.
 - `TrimeshClashEngine.check_operating_state()` reports cold distance, operating distance, load case, geometry state, envelope type, and operating-only classification.
 - `build_visualization_scene()` can carry result states, geometry states, and operating clash issues together.
+- `IfcExporter.export_model()` carries operating-state solver, study, result-state, and mesh provenance into IFC review property sets.
 - `export_bcf_topics()` exports operating clash metadata for coordination review.
 - `python -m tuba.benchmarks deformed-clash --size smoke` checks broadphase pruning and envelope cache reuse.
 

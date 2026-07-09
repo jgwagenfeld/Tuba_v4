@@ -48,7 +48,7 @@ Read these first before changing architecture:
 | `docs/architecture/user-facing-piping-dsl-and-agent-ops.md` | Roadmap for cleaner DSL and agent operations. Some basics are shipped; higher-level verbs remain roadmap. |
 | `docs/architecture/expansion-aware-autorouting.md` | Current expansion-aware routing decision and limits. |
 | `docs/architecture/step-mixed-code-aster.md` | Mixed STEP/Code_Aster export warning. Export is not completed evaluation. |
-| `docs/architecture/adapy-alignment.md` | License and boundary for optional ada-py interop. |
+| `docs/architecture/adapy-alignment.md` | Reference-only ada-py license and interoperability boundary. |
 | `docs/architecture/b31j-compliance-migration.md` | Compliance status and blocked B31J work. |
 
 Historical root-level `*_design.md`, `*_specification.md`, and
@@ -72,7 +72,7 @@ Historical root-level `*_design.md`, `*_specification.md`, and
 | `tuba.visualization` | `build_visualization_scene(...)`, `write_scene_bundle(...)` | JSON scene contract for the Three.js viewer and review bundles. |
 | `tuba.routing` | `GridRouter`, `NetworkRouter`, `AutoroutingAgent`, `SolverLoopScorer` | Route candidates, route reports, optional solver export/scoring. |
 | `tuba.compliance` | `ASMEB313Evaluator` | Implemented ASME B31.3 / safe B31J-compatible checks. |
-| `tuba.external` | IFC and optional bridge modules | Exchange adapters, not internal model authority. |
+| `tuba.external` | IFC exchange adapters | Exchange adapters, not internal model authority. |
 
 ## How The Library Works
 
@@ -358,7 +358,7 @@ instead of local memory.
 - Solver-loop export/scoring for selected candidates, including imported
   displacement, reaction, and operating-clearance gates when real results exist.
 - Physical quantities, insulation/wind metadata, load-path reports, rule checks,
-  Trimesh clash checks, IFC export/import, and optional ada-py bridge.
+  Trimesh clash checks, and IFC export/import.
 - ASME B31.3 evaluator with the implemented safe B31J-compatible subset.
 
 ## Current Gaps

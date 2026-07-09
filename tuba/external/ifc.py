@@ -461,6 +461,13 @@ class IfcExporter:
                 _ifc_property(ifc_file, "MaxOperatingPenetrationM", max((clash.penetration_m for clash in clashes), default=0.0)),
             ]
             if result_state is not None:
+                props.extend(
+                    [
+                        _ifc_property(ifc_file, "SolverName", result_state.solver_name),
+                        _ifc_property(ifc_file, "StudyId", result_state.study_id),
+                        _ifc_property(ifc_file, "MeshId", result_state.mesh_id),
+                    ]
+                )
                 props.append(_ifc_property(ifc_file, "MaxNodeDisplacementM", _max_element_displacement(model, elem, result_state)))
             if clashes:
                 props.append(_ifc_property(ifc_file, "GeometryState", _first_clash_metadata(clashes, "geometry_state", "")))

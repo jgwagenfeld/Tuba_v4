@@ -62,6 +62,9 @@ globalThis.__tubaViewerPreviewEvents ??= [];
 async function main() {
   const params = new URLSearchParams(window.location.search);
   currentBundleUrl = params.get("bundle") || ".";
+  if (params.get("embed") === "1") {
+    document.body.dataset.embed = "true";
+  }
   try {
     setStatus(`Loading ${currentBundleUrl}`);
     await loadBundle(currentBundleUrl, { preserve: false });

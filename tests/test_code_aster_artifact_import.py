@@ -3,9 +3,12 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import ifcopenshell
+
 from tuba import Model
 from tuba.analysis import create_operating_geometry_state, create_visual_deformed_geometry_state
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.external.ifc import IfcExporter
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import build_visualization_scene
 
@@ -75,6 +78,47 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertGreater(summary["counts"]["scene_objects"], 0)
         self.assertIn("solver_result", {overlay["kind"] for overlay in scene["overlays"]})
 
+    def test_artifact_review_chain_exports_ifc_result_provenance(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+            operating_state = create_operating_geometry_state(model=model, result_state=artifact.result_state)
+            visual_state = create_visual_deformed_geometry_state(model=model, result_state=artifact.result_state, visual_scale=25.0)
+            scene = build_visualization_scene(
+                model,
+                analysis_meshes=[artifact.analysis_mesh],
+                result_states=[artifact.result_state],
+                geometry_states=[operating_state, visual_state],
+                scene_id="scene:code_aster_to_ifc_release_gate",
+            )
+            scene.validate()
+
+            ifc_path = work_dir / "review.ifc"
+            IfcExporter().export_model(
+                model,
+                ifc_path,
+                results=artifact.results,
+                result_state=artifact.result_state,
+            )
+            ifc_file = ifcopenshell.open(str(ifc_path))
+
+        pipe = next(product for product in ifc_file.by_type("IfcPipeSegment") if product.Name == "pipe_0")
+        operating_props = _product_pset_values(pipe, "Pset_TubaOperatingState")
+        self.assertEqual(operating_props["LoadCase"], "Hot")
+        self.assertEqual(operating_props["SolverName"], "Code_Aster")
+        self.assertEqual(operating_props["StudyId"], artifact.study.id)
+        self.assertEqual(operating_props["ResultStateId"], artifact.result_state.id)
+        self.assertEqual(operating_props["MeshId"], artifact.analysis_mesh.id)
+        self.assertAlmostEqual(operating_props["MaxNodeDisplacementM"], 0.015)
+
+        stress_props = _product_pset_values(pipe, "Pset_TubaStressAnalysis")
+        self.assertGreater(stress_props["MaxStress_Pa"], 0.0)
+
 
 def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
     (work_dir / "study_depl.csv").write_text(
@@ -116,6 +160,16 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def _product_pset_values(product, name: str) -> dict[str, object]:
+    for definition in product.IsDefinedBy:
+        if not definition.is_a("IfcRelDefinesByProperties"):
+            continue
+        pset = definition.RelatingPropertyDefinition
+        if pset.is_a("IfcPropertySet") and pset.Name == name:
+            return {prop.Name: prop.NominalValue.wrappedValue for prop in pset.HasProperties}
+    raise AssertionError(f"Missing IFC property set {name!r} on {product.Name!r}.")
 
 
 if __name__ == "__main__":

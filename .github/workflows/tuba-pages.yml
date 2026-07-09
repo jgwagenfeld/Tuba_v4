@@ -32,7 +32,7 @@ jobs:
           npm run build
       - name: Assemble site artifact
         run: |
-          mkdir -p _site/notebooks _site/docs
+          mkdir -p _site/notebooks
           cp -R docs/site/. _site/
           cp -R viewer/dist _site/viewer
           cp notebooks/10_interactive_postprocessor.ipynb _site/notebooks/

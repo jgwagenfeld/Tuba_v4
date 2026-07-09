@@ -302,9 +302,10 @@ source of truth. Pipe flow elements are emitted as `IfcPipeSegment` and
 sets carry section, material, bend, support, stress, and operating-state
 metadata for round-trip and coordination review.
 
-`ada-py` is treated as an optional interoperability bridge, not a core
-dependency. See [`docs/architecture/adapy-alignment.md`](docs/architecture/adapy-alignment.md)
-before enabling the optional bridge.
+`ada-py` is treated as a reference interoperability project, not a core
+dependency or runtime bridge. See
+[`docs/architecture/adapy-alignment.md`](docs/architecture/adapy-alignment.md)
+before adding any bridge.
 
 ## Reusable Fragments And Agent Workflows
 

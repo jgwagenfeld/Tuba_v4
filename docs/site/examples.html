@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Tuba v4 preserved result scene and notebook entry point." />
+    <title>Tuba v4 | Examples</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a aria-current="page" href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
+      </nav>
+    </header>
+
+    <main class="page doc-page wide">
+      <section class="intro compact">
+        <p class="eyebrow">Examples</p>
+        <h1>Preserved artifacts</h1>
+        <p class="lead">
+          These examples are for inspection. They show saved artifacts and
+          notebook entry points; they do not run a new Code_Aster solve online.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <div class="split-heading">
+          <div>
+            <h2>Code_Aster review scene</h2>
+            <p>
+              A preserved browser scene bundle with imported Code_Aster-backed
+              result artifacts.
+            </p>
+          </div>
+          <a class="button" href="./viewer/?bundle=code-aster-review">Open Full Viewer</a>
+        </div>
+        <iframe
+          class="viewer-panel"
+          src="./viewer/?bundle=code-aster-review&embed=1"
+          title="Tuba Code_Aster review scene"
+          loading="eager"
+        ></iframe>
+      </section>
+
+      <section class="artifact-strip" aria-labelledby="notebook-title">
+        <div>
+          <h2 id="notebook-title">Interactive notebook</h2>
+          <p>
+            The notebook is the local PyVista quick-look path for inspecting
+            solved artifacts and exported views.
+          </p>
+        </div>
+        <a class="button primary" href="./notebooks/10_interactive_postprocessor.ipynb" download>
+          Download Notebook
+        </a>
+      </section>
+    </main>
+  </body>
+</html>

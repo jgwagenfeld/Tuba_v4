@@ -28,6 +28,7 @@ routing_reports/
 code_aster_study/
 generated/
 *.html
+!docs/site/**/*.html
 viewer/dist/
 viewer/node_modules/
 
