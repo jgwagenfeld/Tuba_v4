@@ -139,11 +139,69 @@ def fig_builder_route(out_dir: Path) -> Path:
                    local_axes_scale=0.45, supports=True, supports_scale=0.085, zoom=1.5)
 
 
+def fig_supports(out_dir: Path) -> Path:
+    """Anchor / guide / rest / spring support glyphs on a routed pipe."""
+    m = Model(project_name="Supports")
+    _steel(m)
+    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+    with m.pipe(section="DN100", material="steel", route="S") as p:
+        p.start([0.0, 0.0, 0.0], support="anchor")
+        p.run(1.5)
+        p.add_support(type="guide")
+        p.run(1.5)
+        p.add_support(type="rest")
+        p.run(1.5)
+        p.add_support(type="spring")
+        p.run(1.5)
+        p.end(support="anchor")
+    return _render(m, out_dir / "supports.png", supports=True, supports_scale=0.1, zoom=1.4)
+
+
+def fig_bend_chord_arc(out_dir: Path) -> Path:
+    """The FE node chord (tangent-intersection) vs the true stored circular arc."""
+    from tuba.model import sample_bend_geometry
+
+    m = Model(project_name="BendChordArc")
+    _steel(m)
+    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+    with m.pipe(section="DN100", material="steel", route="B") as p:
+        p.start([0.0, 0.0, 0.0])
+        p.run(1.5)
+        p.bend(radius=0.6, angle=90.0, plane="XY")
+        p.run(1.5)
+
+    plotter = build_model_scene(m, off_screen=True, title="")
+    # Straight FE chord: polyline through the actual stored node coordinates.
+    order = [e.n1 for e in m.elements] + [m.elements[-1].n2]
+    chord = np.array([m.nodes[n].coords for n in order], dtype=float)
+    plotter.add_mesh(pv.lines_from_points(chord), color="#f5a623", line_width=6,
+                     label="FE node chord")
+    plotter.add_mesh(pv.PolyData(chord), color="#f5a623", point_size=14,
+                     render_points_as_spheres=True)
+    # True arc for the bend element (sampler needs the bend start node as origin).
+    bend = next(e for e in m.elements if e.type == "pipe_bend")
+    start = m.nodes[bend.n1].coords
+    arc = np.asarray(sample_bend_geometry(start, bend.bend_geometry, n_segments=48), dtype=float)
+    plotter.add_mesh(pv.lines_from_points(arc), color="#2f80ff", line_width=6,
+                     label="true arc")
+    plotter.add_point_labels(
+        np.array([chord[1], arc[len(arc) // 2]]),
+        ["FE node (tangent point)", "true arc"],
+        font_size=15, text_color="white", shape=None, show_points=False, always_visible=True)
+    plotter.reset_camera()
+    plotter.camera.zoom(1.6)
+    export_screenshot(plotter, str(out_dir / "bend_chord_arc.png"), resolution=RES)
+    plotter.close()
+    return out_dir / "bend_chord_arc.png"
+
+
 FIGURES: dict[str, Callable[[Path], Path]] = {
     "sections": fig_sections,
     "element_triad": fig_element_triad,
     "placement_frame": fig_placement_frame,
     "builder_route": fig_builder_route,
+    "supports": fig_supports,
+    "bend_chord_arc": fig_bend_chord_arc,
 }
 
 
