@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="A didactic first Tuba v4 analysis: model a pipe, run Code_Aster, import results, and review artifacts."
+    />
+    <title>Tuba v4 | Tutorial</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a aria-current="page" href="./tutorial.html">Tutorial</a>
+        <a href="./modeling.html">Modeling</a>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a href="./autorouting.html">Autorouting</a>
+        <a href="./commands.html">Commands</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
+      </nav>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
+
+    <main class="page doc-page wide">
+      <section class="intro compact">
+        <p class="eyebrow">Tutorial</p>
+        <h1>Build and solve a first pipe</h1>
+        <p class="lead">
+          This page is the v4 equivalent of the old first TUBA script: one small
+          model, one operating state, one Code_Aster run, one result review.
+          The important boundary is unchanged throughout: exported study files are a handoff.
+          Engineering results start only after Code_Aster has run or real
+          Code_Aster artifacts have been imported.
+        </p>
+      </section>
+
+      <section class="doc-section visual-section">
+        <h2>What you are building</h2>
+        <div class="figure-grid">
+          <figure class="figure">
+            <img src="./assets/figures/tutorial_model.png" width="1600" height="1000"
+                 alt="The tutorial pipe model as geometry with anchor, guide, and rest supports." />
+            <figcaption>Step 1 — the model. Python data only: nodes, pipe elements, supports.
+              No results yet.</figcaption>
+          </figure>
+          <figure class="figure">
+            <img src="./assets/figures/money_shot.png" width="1600" height="1000"
+                 alt="The same pipe deformed under load and coloured by Von Mises stress." />
+            <figcaption>Step 3 — the review. The same model after Code_Aster solved it:
+              deformed shape, Von Mises stress. Only shown after real results are imported.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>Prerequisites</h2>
+        <p>
+          Run these checks before asking Tuba to execute a solve. The hosted
+          GitHub Pages site cannot run Code_Aster; it can only document the
+          workflow and display preserved review bundles.
+        </p>
+        <pre><code>.\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"
+.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor --check</code></pre>
+        <div class="note">
+          If the doctor check fails, stop at export inspection or load an
+          existing solved artifact directory. Do not display new stress,
+          displacement, reaction, or compliance values from an unsolved study.
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>The whole script</h2>
+        <p>
+          Save this as a local script when Code_Aster is available. It builds the
+          model, exports a traceable analysis study, runs Code_Aster, parses the
+          produced result tables, and writes a browser review bundle.
+        </p>
+        <pre><code>from pathlib import Path
+
+from tuba import Model
+from tuba.analysis.results import result_state_from_fea_results
+from tuba.solver.aster import CodeAsterSolver
+from tuba.visualization import build_visualization_scene, write_scene_bundle
+
+
+work_dir = Path("runs/first_pipe_operating")
+
+model = Model(project_name="FirstPipe")
+model.add_material(
+    "steel",
+    E=210e9,
+    nu=0.3,
+    rho=7850.0,
+    alpha=12e-6,
+    allowable_stress={20.0: 140e6, 180.0: 120e6},
+)
+model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+
+with model.pipe(section="DN100", material="steel", route="P-100") as pipe:
+    pipe.start([0.0, 0.0, 0.0], support="anchor")
+    pipe.run(2.0)
+    pipe.bend(radius=0.30, angle=90.0, plane="XY")
+    pipe.run(1.5)
+    pipe.end(support="anchor")
+
+operating = model.define_operation(
+    "Operating",
+    gravity=True,
+    pressure=1.2e6,
+    temperature=180.0,
+    ref_temperature=20.0,
+)
+operating.add_field("temperature", 160.0, route_id="P-100", station_start=0.0, station_end=1.2)
+
+solver = CodeAsterSolver(work_dir=str(work_dir), exec_method="wsl", wsl_distro="Ubuntu")
+study = solver.export_analysis_study(model, "Operating", work_dir)
+results = solver.solve_exported_study(model, study)
+
+result_state = result_state_from_fea_results(model=model, study=study, results=results)
+scene = build_visualization_scene(model, result_states=[result_state])
+write_scene_bundle(scene, work_dir / "review_scene")</code></pre>
+      </section>
+
+      <section class="doc-section">
+        <h2>What each part does</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Line or block</th>
+              <th>Meaning</th>
+              <th>Engineering consequence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Model(project_name="FirstPipe")</code></td>
+              <td>Creates the root <code>TubaModel</code>.</td>
+              <td>All materials, sections, nodes, elements, supports, operations, and artifacts attach to this model.</td>
+            </tr>
+            <tr>
+              <td><code>add_material(...)</code></td>
+              <td>Defines elastic, density, thermal expansion, and allowable-stress data.</td>
+              <td>Code_Aster receives the material; compliance helpers need allowable stresses for ratios.</td>
+            </tr>
+            <tr>
+              <td><code>add_pipe_section(...)</code></td>
+              <td>Defines pipe outside diameter and wall thickness in meters.</td>
+              <td>Section properties drive mesh, stiffness, stress, routing envelopes, and visualization radius.</td>
+            </tr>
+            <tr>
+              <td><code>with model.pipe(...) as pipe</code></td>
+              <td>Starts the cursor-based pipe builder.</td>
+              <td>Builder commands create concrete nodes and elements with route and station metadata.</td>
+            </tr>
+            <tr>
+              <td><code>start(..., support="anchor")</code></td>
+              <td>Places the first node and attaches an anchor support.</td>
+              <td>Code_Aster boundary conditions and reaction parsing are tied back to this node.</td>
+            </tr>
+            <tr>
+              <td><code>run(2.0)</code></td>
+              <td>Adds a straight pipe element in the current direction.</td>
+              <td>The element becomes a stress-bearing pipe in the Code_Aster study.</td>
+            </tr>
+            <tr>
+              <td><code>bend(...)</code></td>
+              <td>Adds an elbow and records explicit bend geometry.</td>
+              <td>Solver mesh generation, compliance checks, and renderers do not need to infer the bend later.</td>
+            </tr>
+            <tr>
+              <td><code>define_operation(...)</code></td>
+              <td>Creates the operating scenario.</td>
+              <td>The operation compiles to the load case used by the Code_Aster writer.</td>
+            </tr>
+            <tr>
+              <td><code>export_analysis_study(...)</code></td>
+              <td>Writes the study files and provenance sidecars.</td>
+              <td>This is still only a solver handoff, not a completed analysis.</td>
+            </tr>
+            <tr>
+              <td><code>solve_exported_study(...)</code></td>
+              <td>Runs Code_Aster and parses its output tables.</td>
+              <td>This is where Tuba can begin returning solver-backed <code>FEAResults</code>.</td>
+            </tr>
+            <tr>
+              <td><code>write_scene_bundle(...)</code></td>
+              <td>Writes a static web-scene bundle for <code>viewer/</code>.</td>
+              <td>The browser can review the already-imported result state without running a solver.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Expected files</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Artifact</th>
+              <th>Created when</th>
+              <th>Result evidence?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>study.mail</code></td><td>Study export</td><td>No. Mesh input for Code_Aster.</td></tr>
+            <tr><td><code>study.comm</code></td><td>Study export</td><td>No. Command input for Code_Aster.</td></tr>
+            <tr><td><code>study.export</code></td><td>Study export</td><td>No. Runner handoff file.</td></tr>
+            <tr><td><code>study_manifest.json</code></td><td>Study export</td><td>No. Tuba analysis mesh and provenance metadata.</td></tr>
+            <tr><td><code>study_tuba_fem.json</code></td><td>Study export</td><td>No. Solver-name sidecar for mapping results back to Tuba ids.</td></tr>
+            <tr><td><code>study_depl.csv</code></td><td>Successful Code_Aster execution</td><td>Yes. Parsed displacement table.</td></tr>
+            <tr><td><code>study_effo.csv</code></td><td>Successful Code_Aster execution</td><td>Yes. Parsed internal-force table.</td></tr>
+            <tr><td><code>study_reac.csv</code></td><td>Successful Code_Aster execution</td><td>Yes. Parsed reaction table.</td></tr>
+            <tr><td><code>study_sieq.csv</code></td><td>Successful Code_Aster execution</td><td>Yes. Parsed equivalent-stress table for pipe studies.</td></tr>
+            <tr><td><code>study.rmed</code></td><td>Successful Code_Aster execution when RMED output is produced</td><td>Yes. MED result artifact.</td></tr>
+            <tr><td><code>review_scene/</code></td><td>Scene bundle export after result import</td><td>Review surface for already-imported result state.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Review it in the browser</h2>
+        <iframe class="viewer-panel" title="Code_Aster review viewer"
+                src="./viewer/?bundle=code-aster-review&embed=1" loading="lazy"></iframe>
+      </section>
+
+      <section class="doc-section">
+        <h2>Notebook-safe variant</h2>
+        <p>
+          In notebooks, use the shared loader. With <code>run_solver=True</code>,
+          it runs Code_Aster through the configured runtime. With
+          <code>run_solver=False</code>, the directory must already contain real
+          Code_Aster artifacts.
+        </p>
+        <pre><code>from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
+
+run = load_or_run_code_aster_results(
+    model,
+    "Operating",
+    "notebooks/code_aster_results/stress_analysis_operating",
+    run_solver=True,
+    exec_method="wsl",
+    wsl_distro="Ubuntu",
+)
+
+results = run.results</code></pre>
+      </section>
+
+      <section class="doc-section warning">
+        <h2>Done when</h2>
+        <p>
+          The tutorial is complete only when the study has real Code_Aster
+          result artifacts and Tuba has parsed them into <code>FEAResults</code>
+          or a <code>ResultState</code>. Export-only output is useful for review
+          and debugging, but it is not an engineering evaluation.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
