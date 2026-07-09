@@ -9,21 +9,30 @@
     <link rel="stylesheet" href="./assets/site.css" />
   </head>
   <body>
-    <header class="topbar" aria-label="Primary navigation">
-      <a class="brand" href="./" aria-label="Tuba v4 home">
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>Tuba v4</span>
       </a>
-      <nav>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a href="./tutorial.html">Tutorial</a>
+        <a href="./modeling.html">Modeling</a>
         <a href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./autorouting.html">Autorouting</a>
         <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a aria-current="page" href="./setup.html">Setup</a>
         <a href="./developer.html">Developer</a>
-        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
-    </header>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
 
     <main class="page doc-page wide">
       <section class="intro compact">
@@ -64,7 +73,12 @@ $env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"</code></pre>
 .\.venv\Scripts\python.exe -m unittest tests.test_code_aster_real_smoke -v</code></pre>
         </article>
         <article>
-          <h2>6. Open the notebook course</h2>
+          <h2>6. Open notebooks after setup</h2>
+          <p>
+            Start with the welcome notebook. Open the postprocessor notebook
+            only after the runtime check passes or when you are loading
+            preserved Code_Aster artifacts.
+          </p>
           <pre><code>jupyter lab notebooks\00_welcome_and_setup.ipynb
 jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
         </article>

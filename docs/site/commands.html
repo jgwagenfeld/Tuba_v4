@@ -9,21 +9,30 @@
     <link rel="stylesheet" href="./assets/site.css" />
   </head>
   <body>
-    <header class="topbar" aria-label="Primary navigation">
-      <a class="brand" href="./" aria-label="Tuba v4 home">
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>Tuba v4</span>
       </a>
-      <nav>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a href="./tutorial.html">Tutorial</a>
+        <a href="./modeling.html">Modeling</a>
         <a href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./autorouting.html">Autorouting</a>
         <a aria-current="page" href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
         <a href="./developer.html">Developer</a>
-        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
-    </header>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
 
     <main class="page doc-page wide">
       <section class="intro compact">
@@ -31,7 +40,9 @@
         <h1>Current v4 API surface</h1>
         <p class="lead">
           This reference covers the shipped v4 commands people need first. It
-          replaces the old v2 command-list style with the current Python API.
+          replaces the old v2 command-list style with the current Python API:
+          model authoring, pipe-builder functions, operating states,
+          autorouting, Code_Aster artifacts, and result review.
         </p>
       </section>
 
@@ -101,16 +112,16 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td><code>start(point, direction=None, support=None)</code></td><td>Start a run at a 3D point, optionally with initial direction and support.</td></tr>
+            <tr><td><code>start(point, support=None)</code></td><td>Start a run at a 3D point and optionally add a support at the start node.</td></tr>
+            <tr><td><code>set_direction(direction)</code></td><td>Set the current forward direction for the next run.</td></tr>
             <tr><td><code>run(length)</code></td><td>Create a straight pipe segment in the current direction.</td></tr>
-            <tr><td><code>bend(radius, angle_deg, plane="xy")</code></td><td>Create a bend by angle and plane.</td></tr>
-            <tr><td><code>bend_to(point, radius, plane_normal)</code></td><td>Create a bend toward a target point with explicit plane normal.</td></tr>
-            <tr><td><code>bend_in_plane(radius, angle_deg, plane)</code></td><td>Create an in-plane bend using a named plane.</td></tr>
-            <tr><td><code>bend_by_orientation(radius, angle_deg, orientation_deg)</code></td><td>Create a bend from orientation angles.</td></tr>
-            <tr><td><code>add_support(type=...)</code>, <code>spring(...)</code></td><td>Add local support or spring metadata on the active point.</td></tr>
+            <tr><td><code>bend(radius, angle, plane="XY")</code></td><td>Create a bend by angle in the named plane.</td></tr>
+            <tr><td><code>bend_to(point, radius, plane_normal=None)</code></td><td>Create a circular bend ending at a target point.</td></tr>
+            <tr><td><code>bend_in_plane(radius, angle, normal)</code></td><td>Create a bend whose plane is defined by a normal vector.</td></tr>
+            <tr><td><code>bend_by_orientation(radius, angle, axis)</code></td><td>Create a bend by rotating around an explicit axis vector.</td></tr>
+            <tr><td><code>add_support(type=...)</code>, <code>spring(...)</code></td><td>Add support or six-DOF spring metadata on the active point.</td></tr>
             <tr><td><code>beam(length)</code>, <code>bar(length)</code>, <code>cable(length)</code></td><td>Create non-pipe line elements through the same cursor workflow.</td></tr>
-            <tr><td><code>set_direction(vector)</code></td><td>Change the builder direction for the next run.</td></tr>
-            <tr><td><code>end(support=None)</code></td><td>Finish the run and optionally add an end support.</td></tr>
+            <tr><td><code>end(point=None, support=None)</code></td><td>Finish the run, optionally close with a straight segment, and optionally add an end support.</td></tr>
           </tbody>
         </table>
       </section>
@@ -145,6 +156,71 @@
           per-element midpoint assignments. Non-uniform pressure, non-uniform
           wind, and piecewise profiles fail validation before export.
         </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Autorouting commands</h2>
+        <p>
+          Autorouting commands create and review route candidates. They do not
+          make a stress or compliance claim unless a candidate study is solved
+          with Code_Aster and the generated artifacts are imported.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Purpose</th>
+              <th>Main gotcha</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>RouteEndpoint(id, point, direction=None, min_straight=0.0)</code></td>
+              <td>Define start or goal geometry for a routed pipe.</td>
+              <td>Directions are snapped to the dominant grid axis by <code>GridRouter</code>.</td>
+            </tr>
+            <tr>
+              <td><code>RoutingGridSpec(cell_size, bounds_min, bounds_max, margin)</code></td>
+              <td>Configure the bounded occupancy grid used by A* search.</td>
+              <td>Too-small cells over large bounds can exceed <code>max_cells</code>.</td>
+            </tr>
+            <tr>
+              <td><code>RoutingConstraints(clearance, insulation_thickness, min_bend_radius)</code></td>
+              <td>Define clearance envelope and geometric route limits.</td>
+              <td>Applying or visualizing routed bends requires a bend radius.</td>
+            </tr>
+            <tr>
+              <td><code>PipeRouteRequest(...)</code></td>
+              <td>Bundle endpoints, section, material, constraints, costs, routing space, and thermal/solver metadata.</td>
+              <td>The section and material must already exist on the model.</td>
+            </tr>
+            <tr>
+              <td><code>GridRouter(...).route(model, request)</code></td>
+              <td>Generate deterministic A* candidates and select the lowest-cost valid one.</td>
+              <td>It routes centerlines; it is not a construction or stress signoff.</td>
+            </tr>
+            <tr>
+              <td><code>ExpansionAwareRouter(...).route(model, request)</code></td>
+              <td>Merge normal grid candidates with generated expansion-loop candidates.</td>
+              <td>The current generator emits U-loops only.</td>
+            </tr>
+            <tr>
+              <td><code>NetworkRouter(...).route_network(model, request)</code></td>
+              <td>Route several pipes in a deterministic priority order and report unresolved conflicts.</td>
+              <td>This is sequential routing with repair attempts, not global optimization.</td>
+            </tr>
+            <tr>
+              <td><code>AutoroutingAgent(...).route_pipe(...)</code></td>
+              <td>Run routing, solver-loop scoring/export, optional model mutation, and report writing.</td>
+              <td><code>run_solver=False</code> creates handoff studies only.</td>
+            </tr>
+            <tr>
+              <td><code>write_route_report(result, output_dir)</code></td>
+              <td>Write <code>route_report.md</code> and <code>route_result.json</code>.</td>
+              <td>Report diagnostics are review inputs, not automatic engineering approval.</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section class="doc-section">

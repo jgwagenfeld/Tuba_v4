@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Tuba v4 autorouting documentation covering route requests, routing grids, candidates, expansion loops, solver-loop scoring, reports, and limitations."
+    />
+    <title>Tuba v4 | Autorouting</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a href="./tutorial.html">Tutorial</a>
+        <a href="./modeling.html">Modeling</a>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a aria-current="page" href="./autorouting.html">Autorouting</a>
+        <a href="./commands.html">Commands</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
+      </nav>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
+
+    <main class="page doc-page wide">
+      <section class="intro compact">
+        <p class="eyebrow">Autorouting</p>
+        <h1>Route candidates, not magic signoff</h1>
+        <p class="lead">
+          Autorouting is a candidate-generation and review workflow. It can
+          create pipe centerline alternatives, apply a selected candidate to a
+          model, export Code_Aster studies, and write route reports. It becomes
+          engineering evidence only when the selected study is solved with
+          Code_Aster and the generated result artifacts are imported.
+        </p>
+      </section>
+
+      <section class="flow-strip" aria-label="Autorouting workflow">
+        <span>Request</span>
+        <span>Grid search</span>
+        <span>Candidate review</span>
+        <span>Code_Aster evidence</span>
+      </section>
+
+      <section class="doc-section visual-section">
+        <h2>What the router sees, and what it returns</h2>
+        <div class="figure-grid">
+          <figure class="figure">
+            <img src="./assets/figures/route_preroute.png" width="1600" height="1000"
+                 alt="Obstacles and start/goal endpoints before routing." />
+            <figcaption>Before routing: obstacles (boxes) and the start/goal endpoints.</figcaption>
+          </figure>
+          <figure class="figure">
+            <img src="./assets/figures/route_candidates.png" width="1600" height="1000"
+                 alt="Candidate routes as tubes with reserved envelopes around obstacles." />
+            <figcaption>After routing: candidate routes (selected highlighted) with reserved
+              clearance envelopes.</figcaption>
+          </figure>
+        </div>
+        <p class="actions"><a class="button" href="./viewer/?bundle=code-aster-review">Open a live scene in the viewer</a></p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Implementation map</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Concept</th>
+              <th>Public API</th>
+              <th>Implementation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Request data</td>
+              <td><code>RouteEndpoint</code>, <code>PipeRouteRequest</code>, <code>RoutingConstraints</code>, <code>RoutingCostWeights</code></td>
+              <td><code>tuba.routing.types</code></td>
+            </tr>
+            <tr>
+              <td>Grid construction</td>
+              <td><code>RoutingGridSpec</code>, <code>RoutingSpace</code>, <code>RoutingZone</code></td>
+              <td><code>tuba.routing.grid</code>, <code>tuba.routing.spaces</code></td>
+            </tr>
+            <tr>
+              <td>Single-pipe routing</td>
+              <td><code>GridRouter(...).route(model, request)</code></td>
+              <td><code>tuba.routing.astar</code></td>
+            </tr>
+            <tr>
+              <td>Cost model</td>
+              <td><code>RouteCostModel</code>, <code>score_candidate</code></td>
+              <td><code>tuba.routing.cost_model</code>, <code>tuba.routing.cost</code></td>
+            </tr>
+            <tr>
+              <td>Model mutation</td>
+              <td><code>build_candidate_patch</code>, <code>apply_candidate_to_model</code></td>
+              <td><code>tuba.routing.adapter</code></td>
+            </tr>
+            <tr>
+              <td>Expansion candidates</td>
+              <td><code>ExpansionAwareRouter</code>, <code>ExpansionLoopGenerator</code>, <code>ExpansionLoopSpec</code></td>
+              <td><code>tuba.routing.hybrid</code>, <code>tuba.routing.expansion</code></td>
+            </tr>
+            <tr>
+              <td>Network routing</td>
+              <td><code>NetworkRouter</code>, <code>NetworkRouteRequest</code></td>
+              <td><code>tuba.routing.network</code></td>
+            </tr>
+            <tr>
+              <td>Solver-loop review</td>
+              <td><code>AutoroutingAgent</code>, <code>SolverLoopConfig</code>, <code>SolverLoopScorer</code></td>
+              <td><code>tuba.routing.agent</code>, <code>tuba.routing.solver_loop</code></td>
+            </tr>
+            <tr>
+              <td>Reports and review</td>
+              <td><code>write_route_report</code>, <code>show_route_scene</code>, <code>build_visualization_scene(..., route_results=[...])</code></td>
+              <td><code>tuba.routing.report</code>, <code>tuba.routing.visualization</code>, <code>tuba.visualization</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>1. Describe the design problem</h2>
+        <p>
+          A route request combines endpoint geometry, pipe definition,
+          clearance requirements, cost preferences, optional routing spaces,
+          optional thermal requirements, and optional solver acceptance
+          criteria. Endpoints may include a departure or approach direction and
+          a minimum straight length.
+        </p>
+        <pre><code>from tuba import Model
+from tuba.routing import GridRouter
+from tuba.routing.types import (
+    PipeRouteRequest,
+    RouteEndpoint,
+    RoutingConstraints,
+    RoutingCostWeights,
+    RoutingGridSpec,
+)
+
+model = Model("RoutingDemo")
+model.add_material("steel", E=210e9, nu=0.3, rho=7850.0, alpha=12e-6)
+model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+model.add_obstacle(
+    id="equipment_box",
+    type="cuboid",
+    min_point=(1.5, -0.4, -0.4),
+    max_point=(2.5, 0.4, 0.4),
+)
+
+request = PipeRouteRequest(
+    id="P-100",
+    start=RouteEndpoint("PumpNozzle", (0.0, 0.0, 0.0), direction=(1.0, 0.0, 0.0), min_straight=0.5),
+    goal=RouteEndpoint("RackTieIn", (4.0, 0.0, 0.0), direction=(0.0, -1.0, 0.0)),
+    section="DN100",
+    material="steel",
+    constraints=RoutingConstraints(clearance=0.10, insulation_thickness=0.03, min_bend_radius=0.20),
+    costs=RoutingCostWeights(length=1.0, bend=5.0, vertical=2.0, support_span=0.5),
+)</code></pre>
+      </section>
+
+      <section class="doc-section">
+        <h2>2. Build the routing grid</h2>
+        <p>
+          <code>RoutingGrid.from_model</code> computes a bounded 3D occupancy
+          grid from the endpoints, model nodes, obstacles, and existing pipe
+          elements. Obstacles and existing pipes are inflated by the route
+          envelope: pipe radius, insulation thickness, and requested clearance.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Input</th>
+              <th>Effect on grid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>RoutingGridSpec.cell_size</code></td>
+              <td>Resolution of the search. Smaller cells are more precise and more expensive.</td>
+            </tr>
+            <tr>
+              <td><code>bounds_min</code>, <code>bounds_max</code>, <code>margin</code></td>
+              <td>Design volume. Explicit bounds must contain both endpoints.</td>
+            </tr>
+            <tr>
+              <td><code>allow_diagonal</code></td>
+              <td>Switches from orthogonal neighbors to 26-neighbor movement.</td>
+            </tr>
+            <tr>
+              <td><code>avoid_obstacles</code></td>
+              <td>Marks cuboid, cylinder, and bounded mesh obstacles as blocked cells.</td>
+            </tr>
+            <tr>
+              <td><code>avoid_existing_pipes</code></td>
+              <td>Marks existing model pipes as blocked envelopes.</td>
+            </tr>
+            <tr>
+              <td><code>RoutingSpace</code></td>
+              <td>Applies allowed, preferred, forbidden, and reserved zones.</td>
+            </tr>
+            <tr>
+              <td><code>max_cells</code></td>
+              <td>Hard guard against accidentally searching an enormous volume.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>3. Generate and rank candidates</h2>
+        <p>
+          <code>GridRouter</code> performs deterministic A* search over the grid.
+          It respects endpoint direction and minimum straight constraints,
+          simplifies the raw grid path into route points, validates bend
+          geometry, and scores each candidate. With <code>candidate_count</code>
+          above one, it encourages alternatives by blocking interior cells from
+          previously found paths.
+        </p>
+        <pre><code>router = GridRouter(
+    RoutingGridSpec(cell_size=0.25, margin=1.0),
+    candidate_count=3,
+)
+
+result = router.route(model, request)
+
+for index, candidate in enumerate(result.candidates):
+    print(index, candidate.is_valid, candidate.cost, candidate.cost_breakdown)
+
+selected = result.selected</code></pre>
+        <div class="note">
+          Candidate scoring covers route length, bend count, vertical travel,
+          maximum support span, optional support count, and optional insulation
+          cost/weight metadata. The <code>clearance</code>,
+          <code>rack_preference</code>, and <code>direction_change</code> weight
+          fields are typed extension points unless a local cost function uses
+          them.
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>4. Apply a selected route</h2>
+        <p>
+          A candidate is only points and segments until it is applied. The
+          adapter converts it to a model patch, creates straight pipe elements,
+          inserts explicit bend geometry, and can add simple rest supports at a
+          spacing. Route bends require a bend radius through
+          <code>request.constraints.min_bend_radius</code> or per-segment
+          metadata.
+        </p>
+        <pre><code>from tuba.routing.adapter import apply_candidate_to_model
+
+created_element_ids = apply_candidate_to_model(
+    model,
+    selected,
+    request,
+    add_supports=True,
+    support_spacing=2.0,
+)</code></pre>
+      </section>
+
+      <section class="doc-section">
+        <h2>5. Use the orchestration agent for reports</h2>
+        <p>
+          <code>AutoroutingAgent</code> runs the router, scores the candidates
+          through the solver-loop scorer, optionally mutates the model, and
+          writes <code>route_report.md</code> plus <code>route_result.json</code>.
+        </p>
+        <pre><code>from tuba.routing import AutoroutingAgent, GridRouter
+from tuba.routing.solver_loop import SolverLoopConfig
+
+run = AutoroutingAgent(
+    router=GridRouter(RoutingGridSpec(cell_size=0.25, margin=1.0), candidate_count=3),
+    solver_config=SolverLoopConfig(
+        run_solver=False,
+        export_study=True,
+        max_solver_candidates=2,
+        work_root="routing_reports/studies",
+        load_case="Hot",
+    ),
+    output_root="routing_reports",
+).route_pipe(model, request, apply=True, add_supports=True, support_spacing=2.0)
+
+print(run.report_path)
+print(run.created_element_ids)</code></pre>
+        <div class="note">
+          With <code>run_solver=False</code> and <code>export_study=True</code>,
+          the agent writes Code_Aster handoff files for candidate review. That
+          is not a completed engineering evaluation. With
+          <code>run_solver=True</code>, Code_Aster must be available and the
+          resulting artifacts are parsed before solver-backed candidate metadata
+          can be trusted.
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>6. Add expansion-loop candidates for hot lines</h2>
+        <p>
+          Expansion-aware routing is a hybrid. It keeps the normal grid
+          candidates, adds generated loop candidates, scores all candidates, and
+          selects the lowest-cost valid option.
+          The current generator emits U-loop candidates only.
+          <code>z_loop</code> and <code>offset_loop</code> are typed future
+          families, not current generator output.
+        </p>
+        <pre><code>from tuba.routing import (
+    ExpansionAwareRouter,
+    ExpansionLoopGenerator,
+    ExpansionLoopSpec,
+    GridRouter,
+    SolverAcceptanceCriteria,
+    ThermalRouteRequirement,
+)
+
+hot_request = PipeRouteRequest(
+    id="HOT-EXP-100",
+    start=RouteEndpoint("PumpDischarge", (0.0, 0.0, 0.0), direction=(1.0, 0.0, 0.0)),
+    goal=RouteEndpoint("RackTieIn", (8.0, 0.0, 0.0), direction=(1.0, 0.0, 0.0)),
+    section="DN100",
+    material="steel",
+    constraints=RoutingConstraints(clearance=0.10, insulation_thickness=0.05, min_bend_radius=0.25),
+    thermal_requirements=ThermalRouteRequirement(
+        design_temperature_c=180.0,
+        reference_temperature_c=20.0,
+        line_length_m=8.0,
+        thermal_expansion_coefficient=12e-6,
+    ),
+    solver_acceptance=SolverAcceptanceCriteria.hot_line_defaults(),
+)
+
+router = ExpansionAwareRouter(
+    base_router=GridRouter(RoutingGridSpec(cell_size=0.5, margin=1.5), candidate_count=1),
+    loop_generator=ExpansionLoopGenerator((
+        ExpansionLoopSpec(family="u_loop", width_m=2.0, depth_m=0.8, plane="xy", min_clearance_m=0.15),
+    )),
+)</code></pre>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Expansion data</th>
+              <th>Used for</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ThermalRouteRequirement</code></td>
+              <td>Captures design/reference temperature, effective line length, coefficient, and metadata.</td>
+            </tr>
+            <tr>
+              <td><code>ExpansionLoopSpec</code></td>
+              <td>Defines generated U-loop width, depth, plane, and additional loop clearance.</td>
+            </tr>
+            <tr>
+              <td><code>reserved_envelope</code></td>
+              <td>Stored on loop candidates so network routing and reviews can protect loop space.</td>
+            </tr>
+            <tr>
+              <td><code>SolverAcceptanceCriteria</code></td>
+              <td>Currently enforced for expansion ratio, sustained ratio, and maximum anchor reaction when real solver results exist.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>7. Route multiple pipes</h2>
+        <p>
+          <code>NetworkRouter</code> routes requests in a deterministic order and
+          applies accepted earlier candidates to a working copy so later pipes
+          see them as existing obstacles. It then checks centerline conflicts
+          and reserved-envelope intrusion, with bounded repair attempts. This is
+          prioritized routing, not a global optimizer.
+        </p>
+        <pre><code>from tuba.routing import NetworkRouter
+from tuba.routing.types import NetworkRouteRequest
+
+network_result = NetworkRouter(
+    grid_spec=RoutingGridSpec(cell_size=0.5, margin=2.0)
+).route_network(
+    model,
+    NetworkRouteRequest(
+        id="rack-lines",
+        pipe_requests=[request, hot_request],
+        order_strategy="large_bore_first",
+        max_reroute_attempts=20,
+    ),
+)</code></pre>
+        <p>
+          Supported order strategies are <code>given</code>,
+          <code>large_bore_first</code>, <code>critical_first</code>, and
+          <code>least_flexible_first</code>.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>8. Review the route</h2>
+        <div class="code-grid">
+          <article>
+            <h3>Markdown and JSON report</h3>
+            <pre><code>from tuba.routing.report import write_route_report
+
+write_route_report(result, "routing_reports/P-100", model=model)</code></pre>
+          </article>
+          <article>
+            <h3>PyVista quick-look</h3>
+            <pre><code>from tuba.routing.visualization import show_route_scene
+
+show_route_scene(model, request=request, result=result)</code></pre>
+          </article>
+          <article>
+            <h3>Browser route review</h3>
+            <pre><code>from tuba.visualization import build_visualization_scene, write_scene_bundle
+
+scene = build_visualization_scene(model, route_results=[result])
+write_scene_bundle(scene, "routing_reports/P-100/review_scene")</code></pre>
+          </article>
+          <article>
+            <h3>Solver-backed review</h3>
+            <pre><code>solver_config = SolverLoopConfig(run_solver=True, export_study=True, load_case="Hot")</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>Troubleshooting</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Symptom</th>
+              <th>Likely cause</th>
+              <th>Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>No route found</code></td>
+              <td>Inflated obstacles, tight clearance, or insufficient design volume.</td>
+              <td>Inspect obstacle envelopes, increase margin/bounds, increase cell size for exploration, or revise clearance.</td>
+            </tr>
+            <tr>
+              <td><code>outside routing grid bounds</code></td>
+              <td>Explicit bounds do not contain an endpoint.</td>
+              <td>Expand <code>bounds_min</code> and <code>bounds_max</code> or remove explicit bounds.</td>
+            </tr>
+            <tr>
+              <td><code>exceeding max_cells</code></td>
+              <td>The grid is too fine for the selected volume.</td>
+              <td>Use a larger <code>cell_size</code>, smaller bounds, or a deliberate higher <code>max_cells</code>.</td>
+            </tr>
+            <tr>
+              <td><code>Route bends require an explicit bend radius</code></td>
+              <td>A candidate with a turn is being applied or visualized without bend-radius data.</td>
+              <td>Set <code>RoutingConstraints(min_bend_radius=...)</code> or provide a segment bend radius.</td>
+            </tr>
+            <tr>
+              <td><code>Solver loop failed</code></td>
+              <td>Code_Aster runtime or candidate study execution failed.</td>
+              <td>Read <code>study.mess</code>, runtime stdout/stderr logs, and rerun <code>code_aster_doctor --check</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section warning">
+        <h2>Current limitations</h2>
+        <ul class="plain-list">
+          <li>Routes are centerline candidates and require engineering review before construction or stress signoff.</li>
+          <li>Mesh obstacles must provide explicit routing bounds; exact mesh voxelization is not implemented.</li>
+          <li>Network routing is sequential with repair attempts, not global multi-line optimization.</li>
+          <li>Expansion-loop generation currently emits U-loops only.</li>
+          <li>exported <code>.comm</code>, <code>.mail</code>, and <code>.export</code> files are handoff artifacts, not completed solver results.</li>
+          <li>Solver acceptance currently enforces expansion ratio, sustained ratio, and anchor reaction when real solver results exist. Nozzle reaction, operating displacement, and operating-clearance fields are typed review or future scorer fields.</li>
+          <li>Support optimization, nonlinear friction, support gaps, lift-off, and construction sequencing are not full routing solvers in this implementation.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

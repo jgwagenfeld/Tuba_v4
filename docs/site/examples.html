@@ -3,27 +3,36 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Tuba v4 preserved result scene, notebooks, and runnable examples." />
+    <meta name="description" content="Tuba v4 preserved result scene, setup path, and runnable examples." />
     <title>Tuba v4 | Examples</title>
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./assets/site.css" />
   </head>
   <body>
-    <header class="topbar" aria-label="Primary navigation">
-      <a class="brand" href="./" aria-label="Tuba v4 home">
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>Tuba v4</span>
       </a>
-      <nav>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a href="./tutorial.html">Tutorial</a>
+        <a href="./modeling.html">Modeling</a>
         <a href="./overview.html">Overview</a>
         <a href="./workflow.html">Workflow</a>
+        <a href="./autorouting.html">Autorouting</a>
         <a href="./commands.html">Commands</a>
         <a aria-current="page" href="./examples.html">Examples</a>
         <a href="./setup.html">Setup</a>
         <a href="./developer.html">Developer</a>
-        <a href="./viewer/?bundle=code-aster-review">Viewer</a>
       </nav>
-    </header>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
 
     <main class="page doc-page wide">
       <section class="intro compact">
@@ -98,15 +107,33 @@
 
       <section class="artifact-strip" aria-labelledby="notebook-title">
         <div>
-          <h2 id="notebook-title">Interactive postprocessor notebook</h2>
+          <h2 id="notebook-title">Run postprocessing locally</h2>
           <p>
-            Use this locally for PyVista quick-look review of solved artifacts.
-            The notebook is copied into the published site as a download.
+            Use the postprocessor notebook after the Python environment and
+            Code_Aster runtime are checked. The setup page shows the commands
+            and when to stop instead of displaying results.
           </p>
         </div>
-        <a class="button" href="./notebooks/10_interactive_postprocessor.ipynb" download>
-          Download notebook
-        </a>
+        <a class="button" href="./setup.html">Read setup</a>
+      </section>
+
+      <section class="doc-section">
+        <h2>Autorouting example outputs</h2>
+        <p>
+          Autorouting examples write review evidence below
+          <code>routing_reports/</code>. Expect <code>route_report.md</code>,
+          <code>route_result.json</code>, and candidate <code>study.*</code>
+          files when study export is enabled. Those study files remain solver
+          handoff artifacts until Code_Aster runs.
+        </p>
+        <pre><code>.\.venv\Scripts\python.exe examples\autoroute_single_pipe.py
+.\.venv\Scripts\python.exe examples\autoroute_network.py
+.\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py</code></pre>
+        <p>
+          Read the autorouting manual for the request fields, grid behavior,
+          solver-loop options, expansion-loop limits, and report contents.
+        </p>
+        <a class="button" href="./autorouting.html">Open autorouting manual</a>
       </section>
 
       <section class="doc-section warning">
