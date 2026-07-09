@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Tuba v4 modeling basics: sections, local coordinates, schema validation, semantic errors, and Code_Aster runtime boundaries."
+    />
+    <title>Tuba v4 | Modeling</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a class="brand sidebar-brand" href="./" aria-label="Tuba v4 home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Tuba v4</span>
+      </a>
+      <nav class="side-nav" aria-label="Documentation pages">
+        <p class="nav-label">Documentation</p>
+        <a href="./">Home</a>
+        <a href="./tutorial.html">Tutorial</a>
+        <a aria-current="page" href="./modeling.html">Modeling</a>
+        <a href="./overview.html">Overview</a>
+        <a href="./workflow.html">Workflow</a>
+        <a href="./autorouting.html">Autorouting</a>
+        <a href="./commands.html">Commands</a>
+        <a href="./examples.html">Examples</a>
+        <a href="./setup.html">Setup</a>
+        <a href="./developer.html">Developer</a>
+      </nav>
+      <div class="sidebar-panel" aria-label="Review shortcuts">
+        <p class="nav-label">Review</p>
+        <a class="side-action" href="./viewer/?bundle=code-aster-review">Open viewer</a>
+        <a class="side-action" href="./setup.html">Setup locally</a>
+      </div>
+    </aside>
+
+    <main class="page doc-page wide">
+      <section class="intro compact">
+        <p class="eyebrow">Modeling basics</p>
+        <h1>How a Tuba model is put together</h1>
+        <p class="lead">
+          A Tuba model is not a free-form script. It is a typed engineering
+          graph: materials and cross-sections define what elements are, nodes
+          and elements define where they are, supports and operations define
+          boundary conditions and loads, and validation checks the graph before
+          a Code_Aster study is written.
+        </p>
+      </section>
+
+      <figure class="figure">
+        <img src="./assets/figures/element_triad.png" width="1600" height="1000"
+             alt="A straight pipe element with its local X (red, axial), Y (green), and Z (blue) axes." />
+        <figcaption>A frame is three orthonormal vectors. Every element carries a local
+          triad: X (red) runs along the member axis, Z (blue) is up, Y (green) = Z × X.</figcaption>
+      </figure>
+
+      <section class="doc-section">
+        <h2>Cross-sections</h2>
+        <figure class="figure">
+          <img src="./assets/figures/sections.png" width="1600" height="1000"
+               alt="Pipe, bar, cable, rectangular, and I-beam sections shown as true extruded 3D solids." />
+          <figcaption>Sections give the 1-D centerline a 3-D body. Left to right: pipe (note the
+            bore and wall), solid bar, cable, rectangular hollow, and I-beam. <code>OD</code>/<code>WT</code>
+            are meters.</figcaption>
+        </figure>
+        <p>
+          Cross-sections are named geometry definitions. Elements do not store
+          their own diameter or wall thickness; they reference a section name.
+          That is why a missing or invalid section blocks export before solver
+          files are trusted.
+        </p>
+        <p>
+          In a pipe section, <code>OD</code> is outside diameter and
+          <code>WT</code> is wall thickness. Both are entered in meters.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Define sections deliberately</h2>
+        <div class="code-grid">
+          <article>
+            <h3>Pipe and support sections</h3>
+            <pre><code>model.add_pipe_section(
+    "DN100",
+    OD=0.1143,
+    WT=0.00602,
+    corrosion_allowance=0.001,
+)
+
+model.add_rectangular_section(
+    "RackTube",
+    height_y=0.10,
+    height_z=0.08,
+    thickness_y=0.006,
+    thickness_z=0.006,
+)</code></pre>
+          </article>
+          <article>
+            <h3>Element references</h3>
+            <pre><code>n0 = model.add_node([0.0, 0.0, 0.0])
+n1 = model.add_node([2.0, 0.0, 0.0])
+
+model.add_element(
+    id="pipe_0",
+    type="pipe_straight",
+    n1=n0,
+    n2=n1,
+    section="DN100",
+    material="Steel",
+)</code></pre>
+          </article>
+        </div>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Section type</th>
+              <th>Required values</th>
+              <th>Typical element types</th>
+              <th>Validation checks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>PipeSection</code></td>
+              <td><code>OD</code>, <code>WT</code>, optional <code>corrosion_allowance</code></td>
+              <td><code>pipe_straight</code>, <code>pipe_bend</code></td>
+              <td><code>OD &gt; 0</code>, <code>WT &gt; 0</code>, <code>2 * WT &lt; OD</code></td>
+            </tr>
+            <tr>
+              <td><code>BarSection</code></td>
+              <td><code>OD</code>, <code>WT</code></td>
+              <td><code>bar</code> or circular beam-like members</td>
+              <td><code>OD &gt; 0</code></td>
+            </tr>
+            <tr>
+              <td><code>CableSection</code></td>
+              <td><code>radius</code>, optional <code>pretension</code></td>
+              <td><code>cable</code></td>
+              <td><code>radius &gt; 0</code></td>
+            </tr>
+            <tr>
+              <td><code>RectangularSection</code></td>
+              <td><code>height_y</code>, <code>height_z</code>, optional wall thicknesses</td>
+              <td><code>beam</code></td>
+              <td><code>height_y &gt; 0</code> and <code>height_z &gt; 0</code></td>
+            </tr>
+            <tr>
+              <td><code>IBeamSection</code></td>
+              <td><code>profile_name</code></td>
+              <td><code>beam</code></td>
+              <td><code>model.validate()</code> requires a non-empty profile name. <code>add_ibeam_section</code> also resolves the profile through <code>SectionCatalog</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          Tuba uses SI units. Distances, diameters, wall thicknesses, bend radii,
+          and section heights are meters. Pressure is pascal, temperature is
+          Celsius, and material modulus values are pascal.
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>How sections reach Code_Aster</h2>
+        <p>
+          During study export, the writer groups elements by section and emits
+          Code_Aster cross-section data. Pipe and bar sections become circular
+          sections. Rectangular sections become rectangular beam data. I-beams
+          become general beam properties loaded from the catalog. Cable sections
+          emit area and initial pretension. Pipe bends additionally emit bend
+          geometry and a bend section entry.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Tuba record</th>
+              <th>Export intent</th>
+              <th>Why the user should care</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>PipeSection("DN100", OD, WT)</code></td>
+              <td>Pipe radius and wall thickness for pipe elements and bends.</td>
+              <td>Wrong diameter changes stiffness, stress, weight, clash envelope, and route clearance.</td>
+            </tr>
+            <tr>
+              <td><code>RectangularSection("RackTube", ...)</code></td>
+              <td>Beam rectangular section properties.</td>
+              <td>Use this for rack/support members, not for pressure pipe.</td>
+            </tr>
+            <tr>
+              <td><code>IBeamSection("IPE200", "IPE200")</code></td>
+              <td>General beam properties from catalog data.</td>
+              <td>The catalog profile name is part of the engineering definition.</td>
+            </tr>
+            <tr>
+              <td><code>CableSection("Stay", radius, pretension)</code></td>
+              <td>Cable area and initial tension.</td>
+              <td>Pretension is not a cosmetic value; it changes the cable setup.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Local coordinate systems</h2>
+        <figure class="figure">
+          <img src="./assets/figures/placement_frame.png" width="1600" height="1000"
+               alt="World coordinate triad and a rotated local placement frame with a pipe authored in local coordinates." />
+          <figcaption>A placement frame is a local coordinate system positioned in the world:
+            <code>axis</code> is local Z, <code>ref_direction</code> is projected to local X,
+            Y = Z × X. Points authored in local coordinates map to the world by
+            <code>origin + basis · p</code>.</figcaption>
+        </figure>
+        <p>
+          Tuba keeps node coordinates in the model-global Cartesian system, but
+          it also supports local coordinate systems for reusable fragments,
+          imported IFC placement, and repeatable editing. Do not assume a node
+          is stored in local coordinates because it has placement metadata.
+        </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>See it live</h2>
+        <p>Drag to orbit. The global gizmo and each component's local axis triad are the
+          same vectors shown above, now interactive.</p>
+        <iframe class="viewer-panel" title="Interactive frames viewer"
+                src="./viewer/?bundle=imported_component_mixed_demo&embed=1"
+                loading="lazy"></iframe>
+      </section>
+
+      <section class="doc-section">
+        <h2>Three coordinate layers</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>What it means</th>
+              <th>Rules</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Model-global coordinates</td>
+              <td>The actual coordinates stored on <code>Node.coords</code>.</td>
+              <td>Every node must be a finite 3-vector. Solver export is based on these coordinates.</td>
+            </tr>
+            <tr>
+              <td>Builder cursor</td>
+              <td>The pipe builder maintains a current point, forward direction, and up vector while it creates nodes and elements.</td>
+              <td>Default forward direction is global X. Default up vector is global Z. <code>run</code> advances in the current direction. Bend commands rotate the current direction.</td>
+            </tr>
+            <tr>
+              <td>Placement frames</td>
+              <td>A named local frame retained for fragments, IFC placement, GUI selection, and provenance.</td>
+              <td><code>axis</code> is local Z. <code>ref_direction</code> is projected to local X. Local Y is computed from Z cross X. Parent frames compose.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="code-grid">
+          <article>
+            <h3>Explicit coordinate system</h3>
+            <pre><code>from tuba import CoordinateSystem
+
+cs = CoordinateSystem(
+    origin=(10.0, 0.0, 2.0),
+    x_axis=(1.0, 0.0, 0.0),
+    y_axis=(0.0, 1.0, 0.0),
+    z_axis=(0.0, 0.0, 1.0),
+)
+
+global_point = cs.to_global_point((1.0, 0.5, 0.0))</code></pre>
+          </article>
+          <article>
+            <h3>Placement frame</h3>
+            <pre><code>from tuba import Model, PlacementFrame
+
+model = Model("Frames")
+model.add_placement_frame(
+    PlacementFrame(
+        id="rack_A",
+        origin=(10.0, 0.0, 0.0),
+        axis=(0.0, 0.0, 1.0),
+        ref_direction=(1.0, 0.0, 0.0),
+    )
+)
+
+point = model.to_global_point((0.5, 0.0, 0.0), frame="placement_frame:rack_A")</code></pre>
+          </article>
+        </div>
+        <div class="note">
+          <code>CoordinateSystem</code> rejects zero axes, non-orthogonal axes,
+          and left-handed bases. <code>PlacementFrame</code> rejects an
+          <code>axis</code> and <code>ref_direction</code> that are colinear.
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>Pipe builder orientation</h2>
+        <figure class="figure">
+          <img src="./assets/figures/builder_route.png" width="1600" height="1000"
+               alt="A pipe routed through an in-plane and an out-of-plane bend, with the local triad reorienting at each element." />
+          <figcaption>The pipe builder is a moving frame. <code>run</code> advances along the
+            current forward (local X); <code>bend</code> rotates it about a plane axis. Watch the
+            red axial arrow turn through the in-plane and the out-of-plane bend.</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="./assets/figures/bend_chord_arc.png" width="1600" height="1000"
+               alt="The straight chord between finite-element nodes at the tangent point versus the true circular bend arc." />
+          <figcaption>A bend stores the true circular arc, but the finite-element nodes sit at
+            the tangent-intersection point — a straight chord. The gap between the amber chord
+            and the blue arc is the bend rise.</figcaption>
+        </figure>
+        <p>
+          The pipe builder is a cursor DSL. It creates real nodes and elements
+          as it moves. The current direction behaves like the route's local X
+          direction for the next span. The up vector gives bend commands a
+          stable reference, and each bend stores explicit center, normal,
+          radius, angle, start tangent, and end tangent metadata.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Geometry effect</th>
+              <th>Common mistake</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>start(point)</code></td>
+              <td>Sets the cursor point and creates or reuses the start node.</td>
+              <td>Forgetting a start point before route commands.</td>
+            </tr>
+            <tr>
+              <td><code>set_direction(vector)</code></td>
+              <td>Sets the next run direction.</td>
+              <td>Passing a zero vector or assuming it creates a new element by itself.</td>
+            </tr>
+            <tr>
+              <td><code>run(length)</code></td>
+              <td>Adds a straight pipe element from the current node to the advanced cursor point.</td>
+              <td>Using negative or unintended lengths instead of setting direction deliberately.</td>
+            </tr>
+            <tr>
+              <td><code>bend(radius, angle, plane)</code></td>
+              <td>Rotates the current direction and creates a pipe bend.</td>
+              <td>Using the wrong plane. <code>XY</code> bends around the up vector, while explicit normals are clearer in 3D routes.</td>
+            </tr>
+            <tr>
+              <td><code>bend_to(point, radius, plane_normal)</code></td>
+              <td>Creates a circular bend ending at an explicit target point.</td>
+              <td>Target too far for the requested radius or missing <code>plane_normal</code> for ambiguous geometry.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <figure class="figure">
+        <img src="./assets/figures/supports.png" width="1600" height="1000"
+             alt="Anchor, guide, rest, and spring support glyphs on a routed pipe." />
+        <figcaption>Supports are boundary conditions with real geometry: anchor, guide, rest,
+          and spring hanger, each aligned to the pipe's local frame.</figcaption>
+      </figure>
+
+      <section class="doc-section">
+        <h2>Schemas and serialized models</h2>
+        <p>
+          <code>model.to_dict()</code> exports the model into a JSON-like
+          structure checked by <code>MODEL_SCHEMA_V4</code>. The schema checks
+          record shape: required blocks, allowed section types, required fields,
+          allowed operation quantities, and placement-frame structure. Semantic
+          validation then checks whether those records make engineering sense
+          together.
+        </p>
+        <div class="code-grid">
+          <article>
+            <h3>Schema-shaped model</h3>
+            <pre><code>{
+  "meta": {"project_name": "Demo", "standard": "ASME_B31.3", "version": "4"},
+  "materials": {"Steel": {"E": 210000000000.0, "nu": 0.3}},
+  "sections": {"DN100": {"type": "pipe", "OD": 0.1143, "WT": 0.00602}},
+  "nodes": {"N0": [0.0, 0.0, 0.0], "N1": [2.0, 0.0, 0.0]},
+  "elements": [
+    {"id": "pipe_0", "type": "pipe_straight", "n1": "N0", "n2": "N1", "section": "DN100", "material": "Steel"}
+  ],
+  "supports": [{"node": "N0", "type": "anchor"}],
+  "load_cases": {"Operating": {"gravity": true, "internal_pressure": 1200000.0, "temperature": 180.0, "ref_temperature": 20.0}}
+}</code></pre>
+          </article>
+          <article>
+            <h3>Validation sequence</h3>
+            <pre><code>from tuba.schema import validate_model_dict
+
+data = model.to_dict()
+validate_model_dict(data)
+
+round_tripped = Model.from_dict(data)
+round_tripped.validate()</code></pre>
+          </article>
+        </div>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Check</th>
+              <th>Function</th>
+              <th>Example failure</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Schema shape</td>
+              <td><code>validate_model_dict(data)</code></td>
+              <td>Missing <code>sections</code>, unsupported element type, missing required field.</td>
+            </tr>
+            <tr>
+              <td>Model semantics</td>
+              <td><code>model.validate()</code></td>
+              <td>Element references a missing node, pipe wall too thick, invalid operation field.</td>
+            </tr>
+            <tr>
+              <td>Solver runtime</td>
+              <td><code>solve_exported_study(...)</code></td>
+              <td>Code_Aster not installed, runtime preflight failed, study execution failed.</td>
+            </tr>
+            <tr>
+              <td>Result import</td>
+              <td><code>parse_result_artifacts(...)</code></td>
+              <td>Missing or empty displacement and internal-force rows block pipe result import. Optional reaction, stress, and RMED artifacts limit downstream review when absent.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>How errors work</h2>
+        <p>
+          Tuba has four error boundaries. The earlier boundary should fail
+          before the later one is trusted. That keeps a bad model from becoming
+          a fake result display.
+        </p>
+        <div class="error-stack" aria-label="Tuba error boundaries">
+          <article>
+            <h3>1. Authoring errors</h3>
+            <p>
+              Raised immediately by builder and helper methods, for example a
+              zero bend axis or an impossible <code>bend_to</code> target.
+            </p>
+          </article>
+          <article>
+            <h3>2. Schema errors</h3>
+            <p>
+              <code>SchemaValidationError</code> means serialized data does not
+              match <code>MODEL_SCHEMA_V4</code>.
+            </p>
+          </article>
+          <article>
+            <h3>3. Model validation errors</h3>
+            <p>
+              <code>ModelValidationError</code> collects semantic model errors
+              and raises them together so users can fix a batch.
+            </p>
+          </article>
+          <article>
+            <h3>4. Solver and artifact errors</h3>
+            <p>
+              Runtime failures remain Code_Aster setup, execution, or artifact
+              import failures. They must not be replaced with fabricated
+              stresses, reactions, or displacements.
+            </p>
+          </article>
+        </div>
+        <pre><code>from tuba.validation import ModelValidationError
+
+try:
+    model.validate()
+except ModelValidationError as exc:
+    print(str(exc))</code></pre>
+      </section>
+
+      <section class="doc-section">
+        <h2>Common validation failures</h2>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Message pattern</th>
+              <th>Meaning</th>
+              <th>Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Element ... references missing section</code></td>
+              <td>The element's <code>section</code> value is not in <code>model.sections</code>.</td>
+              <td>Create the section first or correct the section name.</td>
+            </tr>
+            <tr>
+              <td><code>Pipe section ... WT is too large for OD</code></td>
+              <td>The wall thickness would close or invert the pipe bore.</td>
+              <td>Use realistic <code>OD</code> and <code>WT</code> values in meters.</td>
+            </tr>
+            <tr>
+              <td><code>Element ... has identical start and end nodes</code></td>
+              <td>The element has zero length.</td>
+              <td>Fix node coordinates or the builder command that created the span.</td>
+            </tr>
+            <tr>
+              <td><code>Placement frame ... is invalid</code></td>
+              <td>The frame axes are not a valid right-handed local basis or the placement has colinear axis data.</td>
+              <td>Use finite, non-zero, orthogonal axes. For <code>PlacementFrame</code>, keep <code>axis</code> and <code>ref_direction</code> non-colinear.</td>
+            </tr>
+            <tr>
+              <td><code>Operation ... has unsupported quantity</code></td>
+              <td>The operation field quantity is not one of <code>pressure</code>, <code>temperature</code>, or <code>wind</code>.</td>
+              <td>Use a supported quantity or implement exporter support before documenting it as real.</td>
+            </tr>
+            <tr>
+              <td><code>linear temperature field requires route scope</code></td>
+              <td>Linear temperature fields are currently exported only by route and station range.</td>
+              <td>Provide <code>route_id</code>, <code>station_start</code>, and <code>station_end</code>.</td>
+            </tr>
+            <tr>
+              <td><code>wind field requires a finite non-zero direction vector</code></td>
+              <td>The wind load has no usable direction.</td>
+              <td>Set <code>direction=(x, y, z)</code>. Current wind export is for beam-modeled elements only.</td>
+            </tr>
+            <tr>
+              <td><code>Support references missing node</code></td>
+              <td>A support points to a node id that does not exist.</td>
+              <td>Attach supports to the node returned by <code>add_node</code> or the builder.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section warning">
+        <h2>Debugging order</h2>
+        <ol class="plain-list">
+          <li>Build or import the model data.</li>
+          <li>Run schema validation if the model came from JSON or a patch.</li>
+          <li>Run <code>model.validate()</code> and fix all listed semantic errors.</li>
+          <li>Export the Code_Aster study and inspect handoff files only as handoff files.</li>
+          <li>Run Code_Aster through the configured runtime.</li>
+          <li>Import the result artifacts before plotting, reviewing, or reporting stress, displacement, reaction, compliance, or operating-state results.</li>
+        </ol>
+      </section>
+    </main>
+  </body>
+</html>
