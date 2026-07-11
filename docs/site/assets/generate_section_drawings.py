@@ -334,7 +334,7 @@ def render_plate(out_dir, dims, R):
     draw_ibeam(axes[1, 1], dims["IBeam"], R)
     title_block(axes[1, 2])
     fig.subplots_adjust(left=0.03, right=0.97, top=0.95, bottom=0.05, wspace=0.28, hspace=0.34)
-    fig.savefig(out_dir / "sections.svg", facecolor=SHEET)
+    fig.savefig(out_dir / "sections.svg", facecolor=SHEET, metadata={"Date": None})
     plt.close(fig)
 
 
@@ -344,7 +344,7 @@ def _one(out_dir, fn, name, *args):
     ax.set_facecolor(SHEET)
     fn(ax, *args)
     fig.subplots_adjust(left=0.06, right=0.94, top=0.96, bottom=0.15)
-    fig.savefig(out_dir / name, facecolor=SHEET)
+    fig.savefig(out_dir / name, facecolor=SHEET, metadata={"Date": None})
     plt.close(fig)
 
 
@@ -354,7 +354,7 @@ def render_bend(out_dir):
     ax.set_facecolor(SHEET)
     draw_bend(ax)
     fig.subplots_adjust(left=0.04, right=0.96, top=0.96, bottom=0.12)
-    fig.savefig(out_dir / "bend_detail.svg", facecolor=SHEET)
+    fig.savefig(out_dir / "bend_detail.svg", facecolor=SHEET, metadata={"Date": None})
     plt.close(fig)
 
 
@@ -364,7 +364,7 @@ def render_dataflow(out_dir):
     ax.set_facecolor(SHEET)
     draw_dataflow(ax)
     fig.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
-    fig.savefig(out_dir / "dataflow.svg", facecolor=SHEET)
+    fig.savefig(out_dir / "dataflow.svg", facecolor=SHEET, metadata={"Date": None})
     plt.close(fig)
 
 
