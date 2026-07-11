@@ -67,39 +67,84 @@
 
       <section class="doc-section">
         <h2>Local examples</h2>
+        <p>
+          These are the runnable scripts under <code>examples/</code>, ordered
+          start-here first. None of them launch Code_Aster: they author models,
+          route, export handoff studies, and write review files. Result review
+          comes from the two examples that read preserved solver artifacts. Run any
+          with <code>python examples/&lt;name&gt;.py</code>; outputs land under
+          <code>routing_reports/</code>, <code>runs/</code>, or a scene-bundle
+          directory, and each prints a short summary.
+        </p>
         <table class="reference-table">
           <thead>
             <tr>
               <th>Example</th>
               <th>What it demonstrates</th>
-              <th>Command</th>
+              <th>Needs a solve?</th>
+              <th>Related manual page</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><code>future_ready_semantic_workflow.py</code></td>
-              <td>Model authoring, rack bay, semantic insulation, quantities, BOM, route cost, support load paths, rules, benchmark output.</td>
-              <td><code>python examples/future_ready_semantic_workflow.py</code></td>
+              <td><code>demo.py</code></td>
+              <td>Expansion-loop demo and end-to-end workflow verification. A good first run.</td>
+              <td>No &mdash; export only</td>
+              <td><a href="./workflow.html">Workflow</a></td>
+            </tr>
+            <tr>
+              <td><code>autorouting_basic.py</code></td>
+              <td>A basic pipe autorouting run that writes review files.</td>
+              <td>No &mdash; export only</td>
+              <td><a href="./autorouting.html">Autorouting</a></td>
+            </tr>
+            <tr>
+              <td><code>autoroute_single_pipe.py</code></td>
+              <td>Single-pipe autorouting with study export and report output.</td>
+              <td>No &mdash; export only</td>
+              <td><a href="./autorouting.html">Autorouting</a></td>
+            </tr>
+            <tr>
+              <td><code>autoroute_network.py</code></td>
+              <td>Multi-pipe autorouting with network conflict reporting.</td>
+              <td>No &mdash; export only</td>
+              <td><a href="./autorouting.html">Autorouting</a></td>
             </tr>
             <tr>
               <td><code>autoroute_expansion_loop.py</code></td>
-              <td>Hot-line route request, obstacle clearance, expansion-loop candidate, solver-loop export/scoring configuration.</td>
-              <td><code>python examples/autoroute_expansion_loop.py</code></td>
-            </tr>
-            <tr>
-              <td><code>code_aster_artifact_review.py</code></td>
-              <td>Import of existing solver artifacts into result and review surfaces.</td>
-              <td><code>python examples/code_aster_artifact_review.py</code></td>
-            </tr>
-            <tr>
-              <td><code>realtime_visualization_review.py</code></td>
-              <td>Scene-bundle generation for the browser viewer.</td>
-              <td><code>python examples/realtime_visualization_review.py</code></td>
+              <td>Hot-line route request, obstacle clearance, expansion-loop candidate, and solver-loop export/scoring configuration.</td>
+              <td>No &mdash; export only</td>
+              <td><a href="./autorouting.html">Autorouting</a></td>
             </tr>
             <tr>
               <td><code>operating_state_clash.py</code></td>
               <td>Operating-state geometry, clearance checks, and clash review metadata.</td>
-              <td><code>python examples/operating_state_clash.py</code></td>
+              <td>No &mdash; export only</td>
+              <td><a href="./overview.html">Overview</a></td>
+            </tr>
+            <tr>
+              <td><code>future_ready_semantic_workflow.py</code></td>
+              <td>Authoring, rack bay, semantic insulation, quantities, BOM, route cost, support load paths, rules, and benchmark output.</td>
+              <td>No &mdash; export only</td>
+              <td><a href="./commands.html">Commands</a></td>
+            </tr>
+            <tr>
+              <td><code>imported_component_mixed_system.py</code></td>
+              <td>Connect a custom STEP/STL component to a programmatic Tuba pipe model.</td>
+              <td>No &mdash; export only</td>
+              <td><a href="./modeling.html">Modeling</a></td>
+            </tr>
+            <tr>
+              <td><code>realtime_visualization_review.py</code></td>
+              <td>Scene-bundle generation for the browser viewer.</td>
+              <td>Reads a preserved result state</td>
+              <td><a href="./workflow.html">Workflow</a></td>
+            </tr>
+            <tr>
+              <td><code>code_aster_artifact_review.py</code></td>
+              <td>Import of existing Code_Aster artifacts into result and review surfaces.</td>
+              <td>Reads preserved artifacts</td>
+              <td><a href="./tutorial.html">Tutorial</a></td>
             </tr>
           </tbody>
         </table>

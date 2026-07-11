@@ -45,6 +45,43 @@
         </p>
       </section>
 
+      <section class="doc-section">
+        <h2>Prerequisites</h2>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Requirement</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Python</td><td>3.10, 3.11, or 3.12 (<code>requires-python &gt;= 3.10</code>).</td></tr>
+            <tr><td>Git</td><td>To clone the repository and run from a checkout.</td></tr>
+            <tr><td>Operating system</td><td>The package is OS-independent, but the tested Code_Aster runtime path is Linux &mdash; native, or Windows through WSL Ubuntu.</td></tr>
+            <tr><td>Code_Aster</td><td>Required only for solving. Authoring, export, and reviewing preserved artifacts work without it.</td></tr>
+            <tr><td>Disk / memory</td><td>A few GB for the WSL Code_Aster install; solves are small for tutorial models but scale with mesh size.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Get the repository</h2>
+        <pre><code>git clone https://github.com/jgwagenfeld/Tuba_v4.git
+cd Tuba_v4</code></pre>
+        <p>
+          Tuba installs as an editable package from this checkout. The install
+          extras below decide which optional features are available.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Install</th><th>Adds</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>pip install -e .</code></td><td>Core: model authoring, validation, export, routing, PyVista quick-look (numpy, scipy, gmsh, trimesh, pyvista).</td></tr>
+            <tr><td><code>.[notebook-viz]</code></td><td>JupyterLab, ipywidgets, and the full PyVista/Trame stack for interactive notebooks.</td></tr>
+            <tr><td><code>.[ifc]</code></td><td>IFC4 import/export through <code>ifcopenshell</code>.</td></tr>
+            <tr><td><code>.[code-aster-rmed]</code></td><td><code>h5py</code> for reading RMED/MED result files.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
       <section class="command-list" aria-label="Setup commands">
         <article>
           <h2>1. Create or activate the Python environment</h2>
@@ -92,6 +129,49 @@ jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
           visualization workflows. If <code>--check</code> is blocked, keep notebooks in
           artifact-loading mode and do not display new solver results.
         </p>
+      </section>
+
+      <section class="doc-section">
+        <h2>Getting Code_Aster (<code>run_aster</code>)</h2>
+        <p>
+          Tuba does not ship Code_Aster; it drives an existing install. On Windows
+          the tested path is a Code_Aster install inside WSL Ubuntu (from a
+          Salome-Meca or standalone Code_Aster distribution, code-aster.org), which
+          provides the <code>run_aster</code> runner. Tuba finds it by invoking your
+          selected runtime, so the one thing that must be true is that
+          <code>run_aster</code> resolves on the runtime's <code>PATH</code>.
+        </p>
+        <pre><code># inside WSL Ubuntu: expose a stable wrapper on PATH
+mkdir -p ~/bin
+ln -sf /opt/aster/bin/run_aster ~/bin/run_aster   # adjust to your install path
+echo 'export PATH="$HOME/bin:$PATH"' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc
+run_aster --version</code></pre>
+        <div class="note">
+          A passing <code>code_aster_doctor --check</code> prints the resolved
+          execution method and the discovered <code>run_aster</code> path, and exits
+          zero. That is the signal Tuba is allowed to run <code>run_solver=True</code>.
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>Environment variables</h2>
+        <p>
+          These configure the Code_Aster runtime without editing code. Every
+          <code>CodeAsterSolver</code> constructor argument has a matching variable.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Variable</th><th>Meaning</th><th>Values / example</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>TUBA_CODE_ASTER_EXEC_METHOD</code></td><td>How Tuba launches the runner.</td><td><code>auto</code> (default), <code>wsl</code>, <code>docker</code>, <code>command</code>, <code>python_bridge</code></td></tr>
+            <tr><td><code>TUBA_CODE_ASTER_WSL_DISTRO</code></td><td>WSL distribution to run inside.</td><td><code>Ubuntu</code></td></tr>
+            <tr><td><code>TUBA_CODE_ASTER_DOCKER_IMAGE</code></td><td>Image for the <code>docker</code> method.</td><td><code>simvia/code_aster:stable</code> (default)</td></tr>
+            <tr><td><code>TUBA_CODE_ASTER_RUNNER_COMMAND</code> / <code>TUBA_CODE_ASTER_RUNNER</code></td><td>Explicit runner command for the <code>command</code> method.</td><td>path to <code>run_aster</code></td></tr>
+            <tr><td><code>TUBA_CODE_ASTER_PYTHON</code></td><td>Python that hosts the in-process bridge.</td><td>path to the Code_Aster Python</td></tr>
+            <tr><td><code>TUBA_RUN_CODE_ASTER_INTEGRATION</code></td><td>Opt in to the real-solver smoke test (it skips otherwise).</td><td><code>1</code></td></tr>
+          </tbody>
+        </table>
       </section>
 
       <section class="doc-section">

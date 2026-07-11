@@ -118,8 +118,92 @@
             <tr><td><code>tuba.plotting</code></td><td>PyVista quick-look and export helpers.</td></tr>
             <tr><td><code>tuba.visualization</code></td><td>JSON scene contract and scene bundle writing for <code>viewer/</code>.</td></tr>
             <tr><td><code>viewer/</code></td><td>Three.js browser renderer for review bundles.</td></tr>
+            <tr><td><code>tuba.compliance</code></td><td>ASME B31.3 evaluation with B31J SIF and flexibility factors.</td></tr>
+            <tr><td><code>tuba.optimization</code></td><td>Rule-based, genetic, and LLM-assisted support placement and objectives.</td></tr>
+            <tr><td><code>tuba.clash</code>, <code>tuba.rules</code></td><td>Geometric clash detection and rule checks with markdown/dict reports.</td></tr>
+            <tr><td><code>tuba.quantities</code>, <code>tuba.load_path</code></td><td>Quantity takeoff, wind loads, and support/load-path analysis.</td></tr>
+            <tr><td><code>tuba.external</code></td><td>IFC4 import/export and BOM output.</td></tr>
+            <tr><td><code>tuba.schema</code></td><td>Model and patch JSON schemas and validation.</td></tr>
           </tbody>
         </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Core data records</h2>
+        <p>
+          The model is a graph of small typed dataclasses in <code>tuba.model</code>.
+          Elements and supports reference materials, sections, and nodes by name or
+          id, so these records are the vocabulary the whole system speaks.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Record</th><th>Key fields</th><th>Invariants</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Material</code></td><td><code>name</code>, <code>E</code> (Pa), <code>nu</code>, <code>rho</code> (kg/m&sup3;), <code>alpha</code> (1/K), <code>allowable_stress</code> (&deg;C&nbsp;&rarr;&nbsp;Pa)</td><td>Referenced by <code>Element.material</code>; allowable table interpolated by temperature.</td></tr>
+            <tr><td><code>PipeSection</code></td><td><code>name</code>, <code>OD</code>, <code>WT</code>, <code>corrosion_allowance</code> (m); <code>ID</code> derived</td><td><code>OD &gt; 0</code>, <code>WT &gt; 0</code>, <code>2&middot;WT &lt; OD</code>.</td></tr>
+            <tr><td><code>BarSection</code> / <code>CableSection</code> / <code>RectangularSection</code> / <code>IBeamSection</code></td><td>Bar <code>OD/WT</code>; cable <code>radius/pretension</code>; rectangular <code>height_y/height_z/thickness_*</code>; I-beam <code>profile_name</code> + catalog <code>properties</code></td><td>Referenced by <code>Element.section</code>; see <a href="./modeling.html">Modeling</a>.</td></tr>
+            <tr><td><code>Node</code></td><td><code>id</code>, <code>coords</code> (np.ndarray shape (3,), m)</td><td>Finite 3-vector; deduplicated at a 1e-6 point index.</td></tr>
+            <tr><td><code>Element</code></td><td><code>id</code>, <code>type</code> (<code>pipe_straight</code>/<code>pipe_bend</code>/<code>beam</code>/<code>bar</code>/<code>cable</code>), <code>n1</code>, <code>n2</code>, <code>section</code>, <code>material</code>, bend fields, <code>route_id</code>, <code>station_start/end</code></td><td><code>n1 &ne; n2</code>; <code>section</code>/<code>material</code> must exist.</td></tr>
+            <tr><td><code>BendGeometry</code></td><td><code>center</code>, <code>normal</code>, <code>radius</code>, <code>angle</code>, <code>start_tangent</code>, <code>end_tangent</code>, <code>generation_mode</code></td><td>Stores the true arc; FE nodes sit at the tangent-intersection chord.</td></tr>
+            <tr><td><code>Operation</code> / <code>LoadCase</code></td><td><code>name</code>, <code>gravity</code>, <code>internal_pressure</code> (Pa), <code>temperature</code>/<code>ref_temperature</code> (&deg;C), <code>fields</code>, <code>nodal_forces</code></td><td><code>Operation.to_load_case()</code> compiles to the case the writer consumes.</td></tr>
+            <tr><td><code>FEAResults</code> / <code>ResultState</code></td><td>Parsed node/element results with accessors; <code>ResultState</code> adds <code>study_id</code> and <code>model_revision</code></td><td>Only populated from real solver artifacts.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Naming conventions and ids</h2>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Entity</th><th>Id scheme</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Node</td><td>Auto <code>N0</code>, <code>N1</code>, ... from a per-model counter; identical points (within 1e-6) reuse the same node.</td></tr>
+            <tr><td>Element</td><td>Per-type prefixed counters (e.g. a straight-pipe prefix), or an explicit <code>id=</code> passed to <code>add_element</code>.</td></tr>
+            <tr><td>Support</td><td>Auto <code>support_0</code>, <code>support_1</code>, ... unless an explicit <code>id</code> is given.</td></tr>
+            <tr><td>Study files</td><td><code>study.*</code> handoff files plus <code>study_&lt;table&gt;.csv</code> result tables and a <code>study_tuba_fem.json</code> sidecar.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>How to extend the model, sections, and solvers</h2>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Change</th><th>Start here</th><th>Also touch</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>New builder method</td>
+              <td><code>tuba.builder</code> (<code>PipingBuilder</code>)</td>
+              <td>Emit nodes/elements through the model; add route/station metadata; add a focused builder test.</td>
+            </tr>
+            <tr>
+              <td>New section type</td>
+              <td>Add the dataclass in <code>tuba.model</code> and an <code>add_*_section</code> method</td>
+              <td>Add a <code>profile_for_section</code> branch in <code>tuba.geometry.profiles</code>, the solver cross-section mapping in <code>tuba.solver</code>, and a section drawing in <code>docs/site/assets/generate_section_drawings.py</code>.</td>
+            </tr>
+            <tr>
+              <td>New solver backend</td>
+              <td>Subclass <code>BaseSolver</code> in <code>tuba.solver.base</code></td>
+              <td>Implement <code>solve(model, load_case_name=None) -&gt; FEAResults</code>; keep result import going through the same parsers so review stays uniform.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Serialization and patches</h2>
+        <p>
+          A model round-trips through <code>model.to_dict()</code> /
+          <code>Model.from_dict(data)</code> (and the JSON variants), validated by
+          <code>MODEL_SCHEMA_V4</code> in <code>tuba.schema</code>. Incremental edits
+          go through <code>ModelPatch</code> and <code>ModelTransaction</code> so a GUI
+          or agent can apply a reviewed change set atomically rather than mutating
+          records in place. Keep new model fields in the schema and the round-trip
+          together, or serialization tests will catch the drift.
+        </p>
       </section>
 
       <section class="doc-section">
