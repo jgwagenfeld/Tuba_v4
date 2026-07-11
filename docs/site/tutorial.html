@@ -69,6 +69,34 @@
       </section>
 
       <section class="doc-section">
+        <h2>Units</h2>
+        <p>
+          Every literal in the script is SI. There is no unit system to select;
+          get the units right and the numbers are right.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Quantity</th><th>Unit</th><th>Example in the script</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Length, diameter, wall thickness, bend radius</td><td>meter (m)</td><td><code>OD=0.1143</code> is 114.3 mm</td></tr>
+            <tr><td>Pressure</td><td>pascal (Pa)</td><td><code>pressure=1.2e6</code> is 1.2 MPa</td></tr>
+            <tr><td>Temperature</td><td>degree Celsius (&deg;C)</td><td><code>temperature=180.0</code></td></tr>
+            <tr><td>Force</td><td>newton (N)</td><td>reactions come back in N</td></tr>
+            <tr><td>Density</td><td>kg/m&sup3;</td><td><code>rho=7850.0</code></td></tr>
+            <tr><td>Young's modulus, allowable stress</td><td>pascal (Pa)</td><td><code>E=210e9</code> is 210 GPa</td></tr>
+            <tr><td>Thermal expansion</td><td>1/K</td><td><code>alpha=12e-6</code></td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <code>allowable_stress</code> is a table keyed by temperature: the dict
+          <code>{20.0: 140e6, 180.0: 120e6}</code> means 140 MPa allowable at
+          20&nbsp;&deg;C and 120 MPa at 180&nbsp;&deg;C. Compliance ratios
+          interpolate this table at the operating temperature.
+        </div>
+      </section>
+
+      <section class="doc-section">
         <h2>Prerequisites</h2>
         <p>
           Run these checks before asking Tuba to execute a solve. The hosted
@@ -205,6 +233,14 @@ write_scene_bundle(scene, work_dir / "review_scene")</code></pre>
             </tr>
           </tbody>
         </table>
+        <div class="note">
+          This tutorial turns each bend by angle in a named plane with
+          <code>bend(radius, angle, plane)</code>. When you instead know the exit
+          point the pipe must reach, use <code>bend_to(point, radius, plane_normal)</code>,
+          which fits a circular bend that ends at that target. Both are in the
+          <a href="./commands.html">Pipe builder commands</a>; use <code>bend</code>
+          for angle-driven routing and <code>bend_to</code> for point-driven routing.
+        </div>
       </section>
 
       <section class="doc-section">
@@ -231,6 +267,37 @@ write_scene_bundle(scene, work_dir / "review_scene")</code></pre>
             <tr><td><code>review_scene/</code></td><td>Scene bundle export after result import</td><td>Review surface for already-imported result state.</td></tr>
           </tbody>
         </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Read the results</h2>
+        <p>
+          A successful <code>solve_exported_study</code> returns solver-backed
+          <code>FEAResults</code>. Confirm the run produced numbers, then read the
+          quantities an engineer checks first: peak stress, displacement, and
+          reactions. If these accessors raise or return empty, the solve did not
+          complete &mdash; treat it as a failed run, not a zero result.
+        </p>
+        <pre><code>import numpy as np
+
+# Peak Von Mises stress over the model (Pa). get_max_von_mises is per element.
+peak_vm = max(results.get_max_von_mises(el.id) for el in model.elements)
+print(f"peak Von Mises: {peak_vm / 1e6:.1f} MPa")
+
+# Displacement vector (m) and reaction (N) at a node id, e.g. the anchored start "N0".
+u = results.get_displacement("N0")            # np.ndarray, [ux, uy, uz] in metres
+reaction = results.get_reaction("N0")         # np.ndarray or None
+print(f"|u| at N0: {np.linalg.norm(u) * 1000:.2f} mm")
+
+# Notebook quick-look plots (PyVista):
+results.plot_deformed()
+results.plot_stress()</code></pre>
+        <div class="note">
+          Reading the browser review below: colour is Von Mises stress (the scale
+          legend gives the range), and the deformed shape is nodal displacement,
+          exaggerated by a fixed scale so small movements are visible &mdash; the
+          exaggeration is visual only and does not change the reported values.
+        </div>
       </section>
 
       <section class="doc-section">
