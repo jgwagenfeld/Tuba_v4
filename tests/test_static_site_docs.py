@@ -83,7 +83,7 @@ class TestStaticSiteDocs(unittest.TestCase):
             "tutorial.html": ["tutorial_model.png", "money_shot.png"],
             "modeling.html": [
                 "element_triad.png", "placement_frame.png", "builder_route.png",
-                "bend_chord_arc.png", "sections.png", "supports.png",
+                "bend_chord_arc.png", "sections.svg", "bend_detail.svg", "supports.png",
             ],
             "overview.html": ["money_shot.png"],
             "workflow.html": ["tutorial_model.png", "money_shot.png"],
@@ -101,6 +101,11 @@ class TestStaticSiteDocs(unittest.TestCase):
             for fig in figs:
                 self.assertIn(f"figures/{fig}", text, f"{page} missing {fig}")
                 self.assertTrue((figures_dir / fig).exists(), f"missing figure file {fig}")
+
+        # the stylized 3D sections render is retired in favour of the drawing
+        self.assertFalse((figures_dir / "sections.png").exists(),
+                         "sections.png should be replaced by sections.svg")
+        self.assertNotIn("sections.png", (SITE / "modeling.html").read_text(encoding="utf-8"))
 
     def test_no_page_uses_mermaid_or_the_diagram_loader(self):
         for path in sorted(SITE.glob("*.html")):

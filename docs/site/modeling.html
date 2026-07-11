@@ -59,12 +59,13 @@
 
       <section class="doc-section">
         <h2>Cross-sections</h2>
-        <figure class="figure">
-          <img src="./assets/figures/sections.png" width="1600" height="1000"
-               alt="Pipe, bar, cable, rectangular, and I-beam sections shown as true extruded 3D solids." />
-          <figcaption>Sections give the 1-D centerline a 3-D body. Left to right: pipe (note the
-            bore and wall), solid bar, cable, rectangular hollow, and I-beam. <code>OD</code>/<code>WT</code>
-            are meters.</figcaption>
+        <figure class="figure figure--sheet">
+          <img src="./assets/figures/sections.svg" width="1440" height="940"
+               alt="Dimensioned engineering section details: pipe (bore and wall), solid bar, tension cable, rectangular hollow, and HE200B I-beam, each drawn as an orthographic section view with hatching, centrelines, and dimensions in millimetres." />
+          <figcaption>Cross-sections as dimensioned engineering details (SECTION A&ndash;A, cut normal
+            to the member axis; dimensions in mm). Left to right: pipe with bore and wall, solid bar,
+            tension cable, rectangular hollow, and an HE200B I-beam. Every dimension is read from the
+            live Tuba section object, so the drawing cannot drift from the model.</figcaption>
         </figure>
         <p>
           Cross-sections are named geometry definitions. Elements do not store
@@ -313,6 +314,14 @@ point = model.to_global_point((0.5, 0.0, 0.0), frame="placement_frame:rack_A")</
           <figcaption>A bend stores the true circular arc, but the finite-element nodes sit at
             the tangent-intersection point — a straight chord. The gap between the amber chord
             and the blue arc is the bend rise.</figcaption>
+        </figure>
+        <figure class="figure figure--sheet">
+          <img src="./assets/figures/bend_detail.svg" width="1280" height="920"
+               alt="2D bend-geometry detail: the finite-element chord meeting at the tangent-intersection point versus the true stored circular arc, with the bend radius, the 90-degree included angle, the tangent points, and the bend rise dimensioned." />
+          <figcaption>The same idea as a dimensioned detail: FE elements meet at the
+            tangent-intersection point <strong>PI</strong> (amber chord); the stored
+            <code>BendGeometry</code> is the true arc (blue) of radius <code>R</code>, tangent to
+            each straight run at the tangent points. Their separation is the bend rise.</figcaption>
         </figure>
         <p>
           The pipe builder is a cursor DSL. It creates real nodes and elements

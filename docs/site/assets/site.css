@@ -488,6 +488,18 @@ code {
   line-height: 1.4;
 }
 
+/* Engineering-drawing sheet: white drawing on a light frame with dark caption. */
+.figure--sheet {
+  background: #ffffff;
+  border-color: #c7cdd4;
+}
+
+.figure--sheet figcaption {
+  border-top: 1px solid var(--line);
+  background: #fbfcfa;
+  color: var(--muted);
+}
+
 .figure-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

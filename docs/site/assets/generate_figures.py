@@ -66,25 +66,6 @@ def _triad(plotter, origin, cs, scale, labels) -> None:
                              shape=None, show_points=False, always_visible=True)
 
 
-def fig_sections(out_dir: Path) -> Path:
-    m = Model(project_name="Sections")
-    _steel(m)
-    m.add_pipe_section("Pipe", OD=0.25, WT=0.02)
-    m.add_bar_section("Bar", OD=0.18, WT=0.0)
-    m.add_cable_section("Cable", radius=0.04, pretension=500.0)
-    m.add_rectangular_section("Box", height_y=0.24, height_z=0.14,
-                              thickness_y=0.012, thickness_z=0.012)
-    m.add_ibeam_section("IBeam", "HE200B")
-    members = [("Pipe", "pipe_straight"), ("Bar", "bar"), ("Cable", "cable"),
-               ("Box", "beam"), ("IBeam", "beam")]
-    for i, (sec, etype) in enumerate(members):
-        y = i * 0.7
-        n1 = m.add_node([0.0, y, 0.0])
-        n2 = m.add_node([1.4, y, 0.0])
-        m.add_element(id=f"e_{sec}", type=etype, n1=n1, n2=n2, section=sec, material="steel")
-    return _render(m, out_dir / "sections.png", zoom=1.5)
-
-
 def fig_element_triad(out_dir: Path) -> Path:
     """One straight pipe element with its local X/Y/Z triad."""
     m = Model(project_name="ElementTriad")
@@ -289,7 +270,6 @@ def fig_route_candidates(out_dir: Path) -> Path:
 
 
 FIGURES: dict[str, Callable[[Path], Path]] = {
-    "sections": fig_sections,
     "element_triad": fig_element_triad,
     "placement_frame": fig_placement_frame,
     "builder_route": fig_builder_route,
