@@ -21,6 +21,7 @@ from tuba.geometry.profiles import profile_for_section
 from tuba.sections import SectionCatalog
 
 plt.rcParams["svg.fonttype"] = "none"  # keep dimension text as <text>, searchable
+plt.rcParams["svg.hashsalt"] = "tuba-sections"  # deterministic clip-path ids across runs
 
 FIG_DIR = Path(__file__).resolve().parent / "figures"
 
