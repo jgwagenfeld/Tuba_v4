@@ -438,6 +438,37 @@ write_scene_bundle(scene, "routing_reports/P-100/review_scene")</code></pre>
       </section>
 
       <section class="doc-section">
+        <h2>Cost model and result objects</h2>
+        <p>
+          Candidates are ranked by a transparent additive cost. The total is the
+          sum of independent cost terms; each term is <code>quantity &times; unit_cost</code>,
+          so you can read exactly why one route beat another. The lowest-cost valid
+          candidate becomes <code>result.selected</code>.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr><th>Cost term</th><th>Quantity measured</th><th>Unit</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>length</code></td><td>Total routed centerline length.</td><td>m</td></tr>
+            <tr><td><code>bends</code></td><td>Number of bends on the route.</td><td>count</td></tr>
+            <tr><td><code>vertical</code></td><td>Vertical run that needs extra support.</td><td>m</td></tr>
+            <tr><td><code>support_span</code></td><td>Largest unsupported span (drives support count).</td><td>m</td></tr>
+            <tr><td><code>supports</code></td><td>Support count implied by the route.</td><td>count</td></tr>
+            <tr><td><code>insulation</code></td><td>Insulated length and weight, when specified.</td><td>m / kg</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Each candidate carries a <code>cost_breakdown</code> whose
+          <code>.terms</code> map exposes every term's quantity, unit, unit cost,
+          and total; <code>.total</code> is their sum. The full field reference for
+          <code>RouteCostModel</code>, <code>PipeRouteResult</code>, and
+          <code>PipeRouteCandidate</code> is on the
+          <a href="./commands.html">Commands</a> page under Autorouting.
+        </p>
+      </section>
+
+      <section class="doc-section">
         <h2>Troubleshooting</h2>
         <table class="reference-table">
           <thead>
