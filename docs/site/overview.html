@@ -49,14 +49,16 @@
         <h2>System map</h2>
         <p>
           The model is the center of the system. Builders and autorouting write
-          model geometry. Code_Aster export and execution produce artifacts.
-          Result import feeds the two supported review surfaces.
+          model geometry; <code>validate()</code> gates it; Code_Aster export and
+          execution produce artifacts; result import feeds the two supported
+          review surfaces.
         </p>
-        <figure class="figure">
-          <img src="./assets/figures/money_shot.png" width="1280" height="1000"
-               alt="Deformed, stress-coloured piping model produced by the Tuba pipeline." />
-          <figcaption>From typed model to solved result: the system exists to turn a validated
-            model into reviewable Code_Aster results.</figcaption>
+        <figure class="figure figure--sheet">
+          <img src="./assets/figures/dataflow.svg" width="1500" height="440"
+               alt="Data-flow diagram: Model to validate to export study to Code_Aster to parse artifacts to ResultState, branching to a PyVista notebook view and a web-bundle viewer scene." />
+          <figcaption>Data flow, model to reviewed result: a typed model is validated, exported to
+            a Code_Aster study, solved, and parsed into a <code>ResultState</code> that feeds either
+            a PyVista notebook quick-look or a browser scene bundle.</figcaption>
         </figure>
       </section>
 
@@ -86,6 +88,12 @@
             </p>
           </article>
         </div>
+        <figure class="figure">
+          <img src="./assets/figures/money_shot.png" width="1280" height="1000"
+               alt="Deformed, stress-coloured piping model produced by the Tuba pipeline." />
+          <figcaption>The point of the contract: a validated model becomes a reviewable Code_Aster
+            result &mdash; here a deformed, Von Mises&ndash;coloured operating case.</figcaption>
+        </figure>
       </section>
 
       <section class="doc-section">
