@@ -26,7 +26,12 @@ def test_plate_and_details_render_from_real_dims(tmp_path):
         assert token in text, f"plate missing {token!r}"
 
     for name in ["section_pipe.svg", "section_bar.svg", "section_cable.svg",
-                 "section_rect.svg", "section_ibeam.svg", "bend_detail.svg"]:
+                 "section_rect.svg", "section_ibeam.svg", "bend_detail.svg",
+                 "dataflow.svg"]:
         f = tmp_path / name
         assert f.exists() and f.stat().st_size > 0, name
         ET.parse(f)
+
+    dataflow = (tmp_path / "dataflow.svg").read_text(encoding="utf-8")
+    for token in ["Model", "Code_Aster", "ResultState"]:
+        assert token in dataflow, f"dataflow missing {token!r}"

@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Annulus, PathPatch, Rectangle
+from matplotlib.patches import Circle, Annulus, PathPatch, Rectangle, FancyBboxPatch
 from matplotlib.path import Path as MplPath
 
 from tuba import Model
@@ -240,6 +240,51 @@ def draw_bend(ax):
     _title(ax, "BEND  ·  FE chord vs true arc", "amber = straight FE chord · blue = stored arc")
 
 
+# ---- data-flow architecture diagram (model -> reviewed result) -------------
+def _flow_box(ax, cx, cy, w, h, title, sub, fill="#eef3f4"):
+    ax.add_patch(FancyBboxPatch((cx - w/2, cy - h/2), w, h,
+                 boxstyle="round,pad=0.02,rounding_size=0.12",
+                 linewidth=1.6, edgecolor=STEEL, facecolor=fill, zorder=3))
+    ax.text(cx, cy + 0.15, title, ha="center", va="center", fontsize=12.5,
+            fontweight="bold", color=INK, zorder=4)
+    ax.text(cx, cy - 0.22, sub, ha="center", va="center", fontsize=9.5,
+            color="#5d6570", zorder=4)
+
+
+def _flow_arrow(ax, p1, p2):
+    ax.annotate("", xy=p2, xytext=p1,
+                arrowprops=dict(arrowstyle="-|>", color=STEEL, lw=1.6,
+                                mutation_scale=14, shrinkA=2, shrinkB=2))
+
+
+def draw_dataflow(ax):
+    ax.set_aspect("equal")
+    ax.axis("off")
+    w, h, gap = 2.7, 1.15, 0.75
+    xs = [i * (w + gap) for i in range(6)]
+    cy = 0.0
+    stages = [("Model", "typed graph"),
+              ("validate()", "schema + semantics"),
+              ("Export study", ".comm · .mail · .export"),
+              ("Code_Aster", "solve (WSL)"),
+              ("Parse artifacts", "displ · forces · stress"),
+              ("ResultState", "reviewable")]
+    for x, (t, s) in zip(xs, stages):
+        _flow_box(ax, x, cy, w, h, t, s)
+    for a, b in zip(xs, xs[1:]):
+        _flow_arrow(ax, (a + w/2, cy), (b - w/2, cy))
+    x6 = xs[-1]
+    xr = x6 + w + gap
+    _flow_box(ax, xr, cy + 1.6, w, h, "PyVista", "notebook quick-look", fill="#eaf1ee")
+    _flow_box(ax, xr, cy - 1.6, w, h, "Web bundle", "viewer/ scene", fill="#eaf1ee")
+    _flow_arrow(ax, (x6 + w/2, cy + 0.25), (xr - w/2, cy + 1.6))
+    _flow_arrow(ax, (x6 + w/2, cy - 0.25), (xr - w/2, cy - 1.6))
+    ax.set_xlim(-w/2 - 0.4, xr + w/2 + 0.4)
+    ax.set_ylim(cy - 2.5, cy + 2.6)
+    ax.text((-w/2 + xr + w/2) / 2, cy + 2.4, "DATA FLOW — model to reviewed result",
+            ha="center", va="center", fontsize=13, fontweight="bold", color=INK)
+
+
 # ---- title block + composition --------------------------------------------
 def title_block(ax):
     ax.axis("off")
@@ -313,6 +358,16 @@ def render_bend(out_dir):
     plt.close(fig)
 
 
+def render_dataflow(out_dir):
+    fig, ax = plt.subplots(figsize=(15.0, 4.4), dpi=150)
+    fig.patch.set_facecolor(SHEET)
+    ax.set_facecolor(SHEET)
+    draw_dataflow(ax)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+    fig.savefig(out_dir / "dataflow.svg", facecolor=SHEET)
+    plt.close(fig)
+
+
 def main(out_dir: Path = FIG_DIR) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     dims = build_sections()
@@ -324,7 +379,8 @@ def main(out_dir: Path = FIG_DIR) -> None:
     _one(out_dir, draw_rect, "section_rect.svg", dims["Box"])
     _one(out_dir, draw_ibeam, "section_ibeam.svg", dims["IBeam"], R)
     render_bend(out_dir)
-    print(f"wrote sections.svg + 5 details + bend_detail.svg to {out_dir}")
+    render_dataflow(out_dir)
+    print(f"wrote sections.svg + 5 details + bend_detail.svg + dataflow.svg to {out_dir}")
 
 
 if __name__ == "__main__":
