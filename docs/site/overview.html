@@ -133,12 +133,99 @@
               <td><code>tuba.plotting</code>, <code>tuba.visualization</code>, <code>viewer/</code></td>
             </tr>
             <tr>
-              <td>Coordination</td>
-              <td>IFC pipe-system export/import, BOM, quantities, route alternatives, clash/rule reports, and review metadata.</td>
-              <td><code>tuba.external</code>, <code>tuba.routing</code>, <code>tuba.rules</code></td>
+              <td>Compliance</td>
+              <td>ASME B31.3 sustained and expansion stress checks with B31J stress-intensification and flexibility factors, against temperature-dependent allowables.</td>
+              <td><code>tuba.compliance</code></td>
+            </tr>
+            <tr>
+              <td>Support optimization</td>
+              <td>Rule-based, genetic, and LLM-assisted support placement against stress, deflection, reaction, and cost objectives.</td>
+              <td><code>tuba.optimization</code></td>
+            </tr>
+            <tr>
+              <td>Clash and rules</td>
+              <td>Geometric clash detection and rule checks (clash-free, support spacing) with markdown and dict reports.</td>
+              <td><code>tuba.clash</code>, <code>tuba.rules</code></td>
+            </tr>
+            <tr>
+              <td>Quantities and BOM</td>
+              <td>Per-element takeoff (length, mass, insulation, surface and wind area), model and group totals, and BOM export.</td>
+              <td><code>tuba.quantities</code>, <code>tuba.external</code></td>
+            </tr>
+            <tr>
+              <td>IFC exchange</td>
+              <td>IFC4 export and import of piping networks, structural frames, and supports.</td>
+              <td><code>tuba.external</code></td>
+            </tr>
+            <tr>
+              <td>Autorouting</td>
+              <td>Deterministic A* centerline routing with expansion-loop and multi-pipe network variants, cost scoring, and reports.</td>
+              <td><code>tuba.routing</code></td>
+            </tr>
+            <tr>
+              <td>Load-path analysis</td>
+              <td>Support and rack association plus load-path reporting for review.</td>
+              <td><code>tuba.load_path</code></td>
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Glossary</h2>
+        <p>
+          These terms recur across the manual. They are defined once here so the
+          other pages can use them precisely.
+        </p>
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Route</td><td>A named pipe run. Builder commands create nodes and elements tagged with a route id so fields, reports, and reviews can be scoped to it.</td></tr>
+            <tr><td>Station</td><td>Running arc-length distance along a route centerline from its start, in meters. Used to scope a field to a span (<code>station_start</code> to <code>station_end</code>).</td></tr>
+            <tr><td>Operation</td><td>A uniform operating scenario (gravity, pressure, temperature, wind) that compiles to a load case.</td></tr>
+            <tr><td>Load case</td><td>The compiled set of loads and boundary conditions a Code_Aster study actually solves.</td></tr>
+            <tr><td>Support</td><td>A boundary condition attached to a node: anchor, guide, rest, spring, and directional variants.</td></tr>
+            <tr><td>Section</td><td>A named cross-section definition (pipe, bar, cable, rectangular, or I-beam) that elements reference; see <a href="./modeling.html">Modeling</a>.</td></tr>
+            <tr><td>Placement frame</td><td>A named local coordinate system (<code>axis</code> is local Z, <code>ref_direction</code> projects to local X) for authoring and reusing geometry in local coordinates.</td></tr>
+            <tr><td>Fragment</td><td>A reusable model sub-assembly authored in local coordinates and placed into a model through a coordinate system.</td></tr>
+            <tr><td>SIF</td><td>Stress-intensification factor (B31J). Scales nominal bending stress at fittings and bends for the compliance check.</td></tr>
+            <tr><td>Reserved envelope</td><td>The spatial clearance volume a route reserves so other pipes in a network stay clear of it.</td></tr>
+            <tr><td>Clash</td><td>A geometric interference between modeled bodies (pipe, obstacle, support), detected by the clash engine.</td></tr>
+            <tr><td>Sidecar</td><td>A companion metadata file written next to exported solver files that carries stable Tuba references back to model entities.</td></tr>
+            <tr><td><code>FEAResults</code></td><td>The parsed solver-result object with accessors (<code>get_displacement</code>, <code>get_max_von_mises</code>) and quick-look plots.</td></tr>
+            <tr><td><code>ResultState</code></td><td>A revision-tagged, persisted result snapshot (tied to a study and a model revision) used for review and scene bundles.</td></tr>
+            <tr><td>Scene bundle</td><td>A browser-loadable JSON scene (geometry, metadata, overlays, result states) written for the <code>viewer/</code> app.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="doc-section">
+        <h2>Scope and non-goals</h2>
+        <div class="code-grid">
+          <article>
+            <h3>In scope</h3>
+            <ul class="plain-list">
+              <li>Python-authored piping and supporting-structure models.</li>
+              <li>Code_Aster as the production solver, with study export and artifact import.</li>
+              <li>Result review through PyVista notebooks and browser scene bundles.</li>
+              <li>Coordination tools: compliance, support optimization, clash, quantities, IFC, and autorouting.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>Non-goals</h3>
+            <ul class="plain-list">
+              <li>Tuba does not run Code_Aster in the browser.</li>
+              <li>Exported study files are a handoff, not a solved result.</li>
+              <li>Autorouting produces candidates, not a construction or stress signoff.</li>
+              <li>Stress, displacement, reaction, and compliance displays require Code_Aster-backed artifacts &mdash; never fabricated values.</li>
+            </ul>
+          </article>
+        </div>
       </section>
 
       <section class="doc-section">
