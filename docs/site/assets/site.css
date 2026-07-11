@@ -374,6 +374,31 @@ code {
   font-size: 0.95em;
 }
 
+/* API reference entries (commands.html): signature heading + param table. */
+.api-entry {
+  margin: 20px 0 4px;
+  padding-left: 14px;
+  border-left: 3px solid var(--steel);
+}
+
+.api-entry > h3 {
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #edf1ef;
+  overflow-x: auto;
+  font-family: "Aptos Mono", "Cascadia Code", monospace;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.api-returns {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .code-grid,
 .status-grid {
   display: grid;
