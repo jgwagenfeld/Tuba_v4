@@ -43,6 +43,7 @@ from tuba.visualization.reports import (
 from tuba.visualization.scene_diff import SceneDiffBuildResult, apply_scene_diff, build_scene_diff
 from tuba.visualization.static_report import StaticReport, notebook_iframe_html, write_static_report
 from tuba.visualization.web_export import SceneBundle, write_scene_bundle
+from tuba.visualization.reporting_adapter import write_engineering_review_with_scene
 
 __all__ = [
     "AgentProposal",
@@ -61,6 +62,7 @@ __all__ = [
     "build_visualization_scene",
     "SceneBundle",
     "write_scene_bundle",
+    "write_engineering_review_with_scene",
     "SceneValidationError",
     "validate_scene_dict",
     "export_bcf_topics",

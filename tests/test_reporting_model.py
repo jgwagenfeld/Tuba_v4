@@ -164,11 +164,13 @@ def test_reporting_public_api_exports_the_engineering_review_builder():
     assert reporting.__all__ == (
         "EngineeringReviewError",
         "EngineeringReviewPackage",
+        "EngineeringReviewOutput",
         "ReportColumn",
         "ReportTable",
         "ReviewDiagnostic",
         "ReviewProvenance",
         "build_engineering_review",
+        "write_engineering_review",
     )
     assert hasattr(reporting, "build_engineering_review")
-    assert not hasattr(reporting, "write_engineering_review")
+    assert hasattr(reporting, "write_engineering_review")
