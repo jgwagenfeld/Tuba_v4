@@ -1,0 +1,2 @@
+section,section_type,outer_diameter_m,wall_thickness_m,corrosion_allowance_m,radius_m,pretension_n,height_y_m,height_z_m,thickness_y_m,thickness_z_m,profile_name,properties,area_m2,element_count,total_length_m,total_mass_kg
+DN100,pipe,0.1143,0.00602,0.001,,,,,,,,,0.0020478333482348296,5,7.942477796076938,127.67923655260506

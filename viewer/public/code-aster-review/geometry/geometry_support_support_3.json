@@ -1,0 +1,25 @@
+{
+  "asset_id": "geometry:support:support_3",
+  "bounds": [
+    3.3000000000000003,
+    2.6,
+    2.3,
+    3.3000000000000003,
+    2.6,
+    2.3
+  ],
+  "format": "point",
+  "generation_config": {
+    "entity_ref": "support:support_3",
+    "point": [
+      3.3000000000000003,
+      2.6,
+      2.3
+    ],
+    "source": "tuba.support"
+  },
+  "hash": "sha256:a3c9d36c75e8fb4339589ba0b44fa6ed7f1dc0b82580e8bc3a31302ca1fa1988",
+  "object_ids": [
+    "object:support:support_3"
+  ]
+}

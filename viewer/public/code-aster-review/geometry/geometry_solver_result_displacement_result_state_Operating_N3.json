@@ -1,0 +1,44 @@
+{
+  "asset_id": "geometry:solver_result:displacement:result_state_Operating:N3",
+  "bounds": [
+    3.3000000000000003,
+    2.3,
+    -0.00338798,
+    3.3108267000000002,
+    2.3,
+    0.0
+  ],
+  "format": "vector",
+  "generation_config": {
+    "color": "#7c3aed",
+    "displacement_m": [
+      0.0108267,
+      -9.64305e-20,
+      -0.00338798
+    ],
+    "end": [
+      3.3108267000000002,
+      2.3,
+      -0.00338798
+    ],
+    "load_case": "Operating",
+    "node_id": "N3",
+    "result_state_id": "result_state:Operating",
+    "result_type": "displacement",
+    "rotation_rad": [
+      -0.000766151,
+      -0.00582818,
+      -7.0245e-05
+    ],
+    "source": "tuba.result_state",
+    "start": [
+      3.3000000000000003,
+      2.3,
+      0.0
+    ]
+  },
+  "hash": "sha256:617efe3a8f3ee376f2368a5b9719d33c391fabacec64259abe528acbd67715e8",
+  "object_ids": [
+    "object:solver_result:displacement:result_state_Operating:N3"
+  ]
+}

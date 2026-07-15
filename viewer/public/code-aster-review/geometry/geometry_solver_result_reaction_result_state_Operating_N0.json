@@ -1,0 +1,44 @@
+{
+  "asset_id": "geometry:solver_result:reaction:result_state_Operating:N0",
+  "bounds": [
+    0.0,
+    -0.006032655498964622,
+    0.0,
+    1.0,
+    0.0,
+    0.0006249413688101677
+  ],
+  "format": "vector",
+  "generation_config": {
+    "color": "#dc2626",
+    "end": [
+      1.0,
+      -0.006032655498964622,
+      0.0006249413688101677
+    ],
+    "load_case": "Operating",
+    "node_id": "N0",
+    "reaction_force_n": [
+      663043.0,
+      -3999.91,
+      414.363
+    ],
+    "reaction_moment_nm": [
+      269.219,
+      -413.435,
+      -4030.02
+    ],
+    "result_state_id": "result_state:Operating",
+    "result_type": "reaction",
+    "source": "tuba.result_state",
+    "start": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "hash": "sha256:89247d28cbd56ed66221bd4b7cc88a458df78e096bf3ce6b0647bb8863ea69c7",
+  "object_ids": [
+    "object:solver_result:reaction:result_state_Operating:N0"
+  ]
+}

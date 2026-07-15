@@ -1,0 +1,53 @@
+{
+  "asset_id": "geometry:deformed_mesh:geometry_state:Operating:physical:analysis_mesh:Operating:pipe_bend_0_s5",
+  "bounds": [
+    3.1420284610477993,
+    0.03393375069549349,
+    9.26309e-05,
+    3.1674896679058806,
+    0.04880502630923646,
+    9.66942e-05
+  ],
+  "format": "polyline",
+  "generation_config": {
+    "base_points": [
+      [
+        3.1414190210477995,
+        0.035423620695493485,
+        0.0
+      ],
+      [
+        3.1666710699058807,
+        0.05055911630923646,
+        0.0
+      ]
+    ],
+    "element_id": "pipe_bend_0_s5",
+    "geometry_state_id": "geometry_state:Operating:physical",
+    "load_case": "Operating",
+    "mesh_id": "analysis_mesh:Operating",
+    "node_ids": [
+      "pipe_bend_0_n5",
+      "pipe_bend_0_n6"
+    ],
+    "points": [
+      [
+        3.1420284610477993,
+        0.03393375069549349,
+        9.26309e-05
+      ],
+      [
+        3.1674896679058806,
+        0.04880502630923646,
+        9.66942e-05
+      ]
+    ],
+    "result_state_id": "result_state:Operating",
+    "source": "tuba.deformed_analysis_mesh.element",
+    "visual_scale": 1.0
+  },
+  "hash": "sha256:b281268bd76f66d5473f6ca395bf459ace10add291e76006c0732299fd0c1e76",
+  "object_ids": [
+    "object:deformed_mesh:geometry_state:Operating:physical:analysis_mesh:Operating:pipe_bend_0_s5"
+  ]
+}
