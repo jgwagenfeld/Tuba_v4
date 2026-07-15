@@ -4,6 +4,7 @@ import test from "node:test";
 import { createViewerState, setLayerVisibility } from "../src/sceneLoader.js";
 import { applySceneDiffToState } from "../src/sceneDiff.js";
 import { preserveViewerStateForReload, reduceViewerState } from "../src/viewerState.js";
+import { createWorkflowState } from "../src/workflowState.js";
 
 function bundle(overrides = {}) {
   return {
@@ -276,6 +277,35 @@ test("full scene reload preserves camera, layer visibility, and surviving select
   assert.equal(preserved.layers["deformed:visual_centerline"], undefined);
   assert.deepEqual(preserved.camera, state.camera);
   assert.deepEqual(preserved.visibleObjectIds, ["object:cold"]);
+});
+
+test("viewer state reload preserves a still-valid workflow tab and review controls", () => {
+  const review = {
+    schema_version: "engineering_review.v1",
+    analysis_status: "solved",
+    tables: {}
+  };
+  const initial = {
+    ...createViewerState({ ...bundle(), review, legacyReview: false }),
+    ...createWorkflowState({ review, embed: false })
+  };
+  const selected = reduceViewerState(initial, { type: "selectObjects", objectIds: ["object:cold"] });
+  const previous = reduceViewerState(selected, { type: "setWorkflowTab", tabId: "results" });
+  const nextState = {
+    ...createViewerState({ ...bundle(), review, legacyReview: false }),
+    ...createWorkflowState({ review, embed: false })
+  };
+
+  const preserved = preserveViewerStateForReload(previous, nextState);
+
+  assert.equal(previous.activeTab, "results");
+  assert.deepEqual(previous.selectedObjectIds, ["object:cold"]);
+  assert.equal(previous.activeLoadCase, "Hot");
+  assert.equal(previous.activeResultStateId, "result_state:Hot");
+  assert.equal(preserved.activeTab, "results");
+  assert.deepEqual(preserved.selectedObjectIds, ["object:cold"]);
+  assert.equal(preserved.activeLoadCase, "Hot");
+  assert.equal(preserved.activeResultStateId, "result_state:Hot");
 });
 
 test("scene diff adds objects and geometry while preserving review state", () => {

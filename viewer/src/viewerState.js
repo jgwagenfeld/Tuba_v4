@@ -1,5 +1,6 @@
 import { getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
+import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
 import {
   setActiveLoadCase,
   setActiveResultState,
@@ -52,6 +53,8 @@ export function reduceViewerState(state, action) {
     }
     case "setActiveOverlayIds":
       return { ...state, activeOverlayIds: [...(action.overlayIds ?? [])] };
+    case "setWorkflowTab":
+      return setWorkflowTab(state, action.tabId);
     case "setActiveResultState":
       return setActiveResultState(state, action.resultStateId);
     case "setActiveLoadCase":
@@ -133,6 +136,9 @@ export function preserveViewerStateForReload(previousState, nextState) {
     utilizationThreshold: previousState.utilizationThreshold ?? nextState.utilizationThreshold,
     issueReviewState: previousState.issueReviewState ?? nextState.issueReviewState,
     visualDeformationScale: previousState.visualDeformationScale ?? nextState.visualDeformationScale,
+    activeTab: getVisibleWorkflowTabs(nextState).includes(previousState.activeTab)
+      ? previousState.activeTab
+      : nextState.activeTab,
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id)
   };
   return withVisibility(preserved);
