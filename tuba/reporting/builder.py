@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from datetime import datetime, timezone
 from typing import Any
 
+from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.compliance.asme_b313 import ComplianceReport
@@ -29,6 +30,7 @@ def build_engineering_review(
     model: TubaModel,
     *,
     studies: Iterable[AnalysisStudy] = (),
+    analysis_meshes: Iterable[AnalysisMesh] = (),
     result_states: Iterable[ResultState] = (),
     compliance_reports: Iterable[ComplianceReport] = (),
     package_id: str | None = None,
@@ -40,9 +42,16 @@ def build_engineering_review(
     the supplied study/result lineage has been validated as Code_Aster output.
     """
     study_records = tuple(studies)
+    mesh_records = tuple(analysis_meshes)
     state_records = tuple(result_states)
     compliance_records = tuple(compliance_reports)
-    _validate_lineage(model, study_records, state_records, compliance_records)
+    _validate_lineage(
+        model,
+        study_records,
+        mesh_records,
+        state_records,
+        compliance_records,
+    )
 
     status = _analysis_status(study_records, state_records, compliance_records)
     diagnostics = build_diagnostics(state_records)
@@ -90,6 +99,7 @@ def build_engineering_review(
 def _validate_lineage(
     model: TubaModel,
     studies: tuple[AnalysisStudy, ...],
+    analysis_meshes: tuple[AnalysisMesh, ...],
     result_states: tuple[ResultState, ...],
     compliance_reports: tuple[ComplianceReport, ...],
 ) -> None:
@@ -146,6 +156,14 @@ def _validate_lineage(
             )
 
         analysis_node_ids = _analysis_node_ids(state)
+        if analysis_node_ids:
+            _validate_analysis_node_lineage(
+                state=state,
+                study=study,
+                analysis_node_ids=analysis_node_ids,
+                analysis_meshes=analysis_meshes,
+                model_node_ids=model_node_ids,
+            )
         unknown_displacements = (
             set(state.node_displacements) - model_node_ids - analysis_node_ids
         )
@@ -189,6 +207,50 @@ def _analysis_node_ids(state: ResultState) -> set[str]:
             "of non-empty strings."
         )
     return set(raw_ids)
+
+
+def _validate_analysis_node_lineage(
+    *,
+    state: ResultState,
+    study: AnalysisStudy,
+    analysis_node_ids: set[str],
+    analysis_meshes: tuple[AnalysisMesh, ...],
+    model_node_ids: set[str],
+) -> None:
+    matches = [mesh for mesh in analysis_meshes if mesh.id == state.mesh_id]
+    if len(matches) != 1:
+        raise EngineeringReviewError(
+            f"Result state {state.id!r} with declared analysis nodes requires "
+            f"exactly one matching analysis mesh for {state.mesh_id!r}; "
+            f"received {len(matches)}."
+        )
+    mesh = matches[0]
+    if mesh.model_revision != state.model_revision:
+        raise EngineeringReviewError(
+            f"Analysis mesh {mesh.id!r} model revision {mesh.model_revision} does "
+            f"not match result state revision {state.model_revision}."
+        )
+    if mesh.solver_name.casefold() != state.solver_name.casefold():
+        raise EngineeringReviewError(
+            f"Analysis mesh {mesh.id!r} solver {mesh.solver_name!r} does not match "
+            f"result state solver {state.solver_name!r}."
+        )
+    if mesh.id != study.mesh_id:
+        raise EngineeringReviewError(
+            f"Analysis mesh {mesh.id!r} does not match study mesh {study.mesh_id!r}."
+        )
+    model_nodes_declared_as_analysis = analysis_node_ids & model_node_ids
+    if model_nodes_declared_as_analysis:
+        raise EngineeringReviewError(
+            f"Result state {state.id!r} declares authoring-model nodes as analysis "
+            f"nodes: {sorted(model_nodes_declared_as_analysis)}."
+        )
+    missing = analysis_node_ids - set(mesh.nodes)
+    if missing:
+        raise EngineeringReviewError(
+            f"Result state {state.id!r} declares node IDs absent from the "
+            f"authoritative analysis mesh {mesh.id!r}: {sorted(missing)}."
+        )
 
 
 def _analysis_status(

@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from tuba import Model
-from tuba.analysis import AnalysisStudy
+from tuba.analysis import AnalysisMesh, AnalysisStudy
 from tuba.analysis.results import fea_results_from_result_state, result_state_from_fea_results
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
 
@@ -67,10 +67,37 @@ class TestResultStateConversion(unittest.TestCase):
         )
         return model, study, results
 
+    def _analysis_mesh(self):
+        return AnalysisMesh(
+            id="analysis_mesh:Hot",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={
+                "N0": (0.0, 0.0, 0.0),
+                "N1": (1.0, 0.0, 0.0),
+                "pipe_bend_0_n1": (0.5, 0.0, 0.0),
+            },
+            elements={},
+            groups={},
+            node_sources={},
+            element_sources={},
+        )
+
+    def test_analysis_node_results_require_an_authoritative_analysis_mesh(self):
+        model, study, results = self._model_study_and_results()
+
+        with self.assertRaisesRegex(ValueError, "analysis mesh"):
+            result_state_from_fea_results(model=model, study=study, results=results)
+
     def test_result_state_from_fea_results_preserves_native_and_generated_displacements(self):
         model, study, results = self._model_study_and_results()
 
-        state = result_state_from_fea_results(model=model, study=study, results=results)
+        state = result_state_from_fea_results(
+            model=model,
+            study=study,
+            results=results,
+            analysis_mesh=self._analysis_mesh(),
+        )
         loaded = state.from_dict(state.to_dict())
 
         self.assertEqual(loaded, state)
@@ -85,7 +112,12 @@ class TestResultStateConversion(unittest.TestCase):
 
     def test_fea_results_from_result_state_reconstructs_native_and_analysis_nodes(self):
         model, study, results = self._model_study_and_results()
-        state = result_state_from_fea_results(model=model, study=study, results=results)
+        state = result_state_from_fea_results(
+            model=model,
+            study=study,
+            results=results,
+            analysis_mesh=self._analysis_mesh(),
+        )
 
         reconstructed = fea_results_from_result_state(model=model, result_state=state)
 

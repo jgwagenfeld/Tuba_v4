@@ -41,7 +41,12 @@ def import_code_aster_artifacts(
         diagnostics=diagnostics,
     )
     results = CodeAsterSolver().parse_result_artifacts(model, root, loaded_study.load_case)
-    result_state = result_state_from_fea_results(model=model, study=loaded_study, results=results)
+    result_state = result_state_from_fea_results(
+        model=model,
+        study=loaded_study,
+        results=results,
+        analysis_mesh=analysis_mesh,
+    )
     result_state = _with_artifact_files(result_state, _artifact_files(root, loaded_study))
     rmed_path = root / "study.rmed"
     if rmed_path.exists():

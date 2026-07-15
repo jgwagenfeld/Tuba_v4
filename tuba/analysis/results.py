@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
+from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.study import AnalysisStudy
 
 
@@ -79,13 +80,25 @@ class ResultState:
         )
 
 
-def result_state_from_fea_results(*, model: Any, study: AnalysisStudy, results: FEAResults) -> ResultState:
+def result_state_from_fea_results(
+    *,
+    model: Any,
+    study: AnalysisStudy,
+    results: FEAResults,
+    analysis_mesh: AnalysisMesh | None = None,
+) -> ResultState:
     """Create a persistent result state from in-memory solver results."""
     model_revision = _model_revision(model)
     if model_revision != study.model_revision:
         raise ValueError(
             f"Cannot create ResultState for model revision {model_revision}; study uses revision {study.model_revision}."
         )
+    analysis_node_ids = _validated_analysis_node_ids(
+        model=model,
+        study=study,
+        results=results,
+        analysis_mesh=analysis_mesh,
+    )
 
     node_displacements: dict[str, tuple[float, float, float, float, float, float]] = {}
     node_reactions: dict[str, tuple[float, float, float, float, float, float]] = {}
@@ -111,8 +124,8 @@ def result_state_from_fea_results(*, model: Any, study: AnalysisStudy, results: 
         files["result"] = str(results.result_file)
 
     metadata: dict[str, Any] = {}
-    if results.analysis_node_results:
-        metadata["analysis_node_ids"] = sorted(results.analysis_node_results)
+    if analysis_node_ids:
+        metadata["analysis_node_ids"] = analysis_node_ids
     if results.parser_diagnostics:
         metadata["parser_diagnostics"] = list(results.parser_diagnostics)
     if results.tuyau_subpoints:
@@ -131,6 +144,51 @@ def result_state_from_fea_results(*, model: Any, study: AnalysisStudy, results: 
         files=files,
         metadata=metadata,
     )
+
+
+def _validated_analysis_node_ids(
+    *,
+    model: Any,
+    study: AnalysisStudy,
+    results: FEAResults,
+    analysis_mesh: AnalysisMesh | None,
+) -> list[str]:
+    node_ids = set(results.analysis_node_results)
+    if not node_ids:
+        return []
+    if analysis_mesh is None:
+        raise ValueError(
+            "FEAResults with analysis-node results require an authoritative analysis mesh."
+        )
+    if analysis_mesh.id != study.mesh_id:
+        raise ValueError(
+            f"Analysis mesh {analysis_mesh.id!r} does not match study mesh {study.mesh_id!r}."
+        )
+    if analysis_mesh.model_revision != study.model_revision:
+        raise ValueError(
+            f"Analysis mesh {analysis_mesh.id!r} model revision "
+            f"{analysis_mesh.model_revision} does not match study revision "
+            f"{study.model_revision}."
+        )
+    if analysis_mesh.solver_name.casefold() != study.solver_name.casefold():
+        raise ValueError(
+            f"Analysis mesh {analysis_mesh.id!r} solver {analysis_mesh.solver_name!r} "
+            f"does not match study solver {study.solver_name!r}."
+        )
+    model_node_ids = set(getattr(model, "nodes", {}))
+    misclassified = node_ids & model_node_ids
+    if misclassified:
+        raise ValueError(
+            "Analysis-node results contain authoring-model node IDs: "
+            f"{sorted(misclassified)}."
+        )
+    unknown = node_ids - set(analysis_mesh.nodes)
+    if unknown:
+        raise ValueError(
+            "Analysis-node results are not present in the authoritative analysis mesh: "
+            f"{sorted(unknown)}."
+        )
+    return sorted(node_ids)
 
 
 def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> FEAResults:

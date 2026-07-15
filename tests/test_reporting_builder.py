@@ -5,6 +5,7 @@ from dataclasses import replace
 import pytest
 
 from tests.reporting_fixtures import build_review_model
+from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.reporting import EngineeringReviewError, build_engineering_review
@@ -59,6 +60,24 @@ def code_aster_result_state() -> ResultState:
         },
         files={"result": "artifacts/hot/study.rmed"},
         metadata={"parser_diagnostics": ["SIEQ table omitted one optional component."]},
+    )
+
+
+@pytest.fixture
+def code_aster_analysis_mesh() -> AnalysisMesh:
+    return AnalysisMesh(
+        id="mesh:hot",
+        model_revision=4,
+        solver_name="Code_Aster",
+        nodes={
+            "N0": (0.0, 0.0, 0.0),
+            "N1": (3.0, 4.0, 0.0),
+            "E-20_mid": (1.5, 2.0, 0.0),
+        },
+        elements={},
+        groups={},
+        node_sources={},
+        element_sources={},
     )
 
 
@@ -185,10 +204,94 @@ def test_unknown_result_entities_raise(
         build_engineering_review(review_model, studies=[code_aster_study], result_states=[bad])
 
 
+def test_declared_analysis_nodes_require_a_supplied_analysis_mesh(
+    review_model,
+    code_aster_study,
+    code_aster_result_state,
+):
+    analysis_node_id = "E-20_mid"
+    state = replace(
+        code_aster_result_state,
+        node_displacements={
+            **code_aster_result_state.node_displacements,
+            analysis_node_id: (0.03, 0.04, 0.0, 0.0, 0.0, 0.0),
+        },
+        metadata={
+            **code_aster_result_state.metadata,
+            "analysis_node_ids": [analysis_node_id],
+        },
+    )
+
+    with pytest.raises(EngineeringReviewError, match="analysis mesh"):
+        build_engineering_review(
+            review_model,
+            studies=[code_aster_study],
+            result_states=[state],
+        )
+
+
+def test_declared_analysis_nodes_reject_a_mismatched_analysis_mesh(
+    review_model,
+    code_aster_study,
+    code_aster_result_state,
+    code_aster_analysis_mesh,
+):
+    analysis_node_id = "E-20_mid"
+    state = replace(
+        code_aster_result_state,
+        node_displacements={
+            **code_aster_result_state.node_displacements,
+            analysis_node_id: (0.03, 0.04, 0.0, 0.0, 0.0, 0.0),
+        },
+        metadata={
+            **code_aster_result_state.metadata,
+            "analysis_node_ids": [analysis_node_id],
+        },
+    )
+    mismatched = replace(code_aster_analysis_mesh, id="mesh:other")
+
+    with pytest.raises(EngineeringReviewError, match="matching analysis mesh"):
+        build_engineering_review(
+            review_model,
+            studies=[code_aster_study],
+            result_states=[state],
+            analysis_meshes=[mismatched],
+        )
+
+
+def test_self_declared_analysis_node_must_exist_in_authoritative_mesh(
+    review_model,
+    code_aster_study,
+    code_aster_result_state,
+    code_aster_analysis_mesh,
+):
+    fabricated_node_id = "E-20_typo"
+    state = replace(
+        code_aster_result_state,
+        node_displacements={
+            **code_aster_result_state.node_displacements,
+            fabricated_node_id: (0.03, 0.04, 0.0, 0.0, 0.0, 0.0),
+        },
+        metadata={
+            **code_aster_result_state.metadata,
+            "analysis_node_ids": [fabricated_node_id],
+        },
+    )
+
+    with pytest.raises(EngineeringReviewError, match="authoritative analysis mesh"):
+        build_engineering_review(
+            review_model,
+            studies=[code_aster_study],
+            result_states=[state],
+            analysis_meshes=[code_aster_analysis_mesh],
+        )
+
+
 def test_declared_analysis_nodes_are_traceable_report_locations(
     review_model,
     code_aster_study,
     code_aster_result_state,
+    code_aster_analysis_mesh,
 ):
     analysis_node_id = "E-20_mid"
     state = replace(
@@ -207,6 +310,7 @@ def test_declared_analysis_nodes_are_traceable_report_locations(
         review_model,
         studies=[code_aster_study],
         result_states=[state],
+        analysis_meshes=[code_aster_analysis_mesh],
     )
 
     row = next(

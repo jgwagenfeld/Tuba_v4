@@ -86,6 +86,9 @@ def run_example(
     review = build_engineering_review(
         model,
         studies=[artifact.study],
+        analysis_meshes=(
+            [artifact.analysis_mesh] if artifact.analysis_mesh is not None else []
+        ),
         result_states=[artifact.result_state],
         package_id="review:code_aster_artifact",
         created_at="2026-06-21T00:00:00Z",
