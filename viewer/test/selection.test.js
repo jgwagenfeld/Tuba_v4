@@ -240,6 +240,12 @@ test("fitSelection uses the selected object's geometry asset when object_ids are
   const fitted = fitSelection(selected);
 
   assert.deepEqual(fitted.camera.target, [1, 0, 0]);
-  assert.deepEqual(fitted.camera.fitBounds, [0, -0.1, -0.1, 2, 0.1, 0.1]);
+  assert.deepEqual(fitted.camera.fitRequest, {
+    id: 1,
+    bounds: [0, -0.1, -0.1, 2, 0.1, 0.1]
+  });
   assert.notEqual(fitted.camera.distance, selected.camera.distance);
+
+  const refitted = fitSelection(fitted);
+  assert.equal(refitted.camera.fitRequest.id, 2);
 });

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PerspectiveCamera } from "three";
+import { PerspectiveCamera, Vector3 } from "three";
+
+import * as rendererModule from "../src/renderer.js";
 
 import {
   SUPPORTED_RENDER_FORMATS,
@@ -202,11 +204,52 @@ test("renderer sends requested selection bounds through the existing camera-fit 
   const selectionBounds = [0, -0.05, -0.05, 2, 0.05, 0.05];
   const renderable = buildRenderableScene({
     ...fixtureState(),
-    camera: { mode: "orbit", target: [1, 0, 0], distance: 2, fitBounds: selectionBounds }
+    camera: { mode: "orbit", target: [1, 0, 0], distance: 2, fitRequest: { id: 1, bounds: selectionBounds } }
   });
 
   assert.deepEqual(renderable.camera.userData.fitBounds, selectionBounds);
   assert.deepEqual(renderable.controlsTarget.toArray(), [1, 0, 0]);
+});
+
+test("live camera fitting applies each request once and retains OrbitControls changes", () => {
+  assert.equal(typeof rendererModule.createCameraFitController, "function");
+  const camera = new PerspectiveCamera(45, 1, 0.1, 1000);
+  const controls = { target: new Vector3(), update() {} };
+  const controller = rendererModule.createCameraFitController(camera, controls);
+  const firstState = { camera: { fitRequest: { id: 1, bounds: [0, 0, 0, 2, 2, 2] } } };
+
+  controller.apply(firstState, [-10, -10, -10, 10, 10, 10]);
+  assert.deepEqual(camera.userData.fitBounds, [0, 0, 0, 2, 2, 2]);
+  camera.position.set(9, 8, 7);
+  controls.target.set(6, 5, 4);
+
+  controller.apply(firstState, [-10, -10, -10, 10, 10, 10]);
+  assert.deepEqual(camera.position.toArray(), [9, 8, 7]);
+  assert.deepEqual(controls.target.toArray(), [6, 5, 4]);
+
+  controller.apply(
+    { camera: { fitRequest: { id: 2, bounds: [10, 0, 0, 12, 2, 2] } } },
+    [-10, -10, -10, 10, 10, 10]
+  );
+  assert.deepEqual(camera.userData.fitBounds, [10, 0, 0, 12, 2, 2]);
+  assert.deepEqual(controls.target.toArray(), [11, 1, 1]);
+});
+
+test("live camera fitting performs the initial whole-scene fit only once", () => {
+  assert.equal(typeof rendererModule.createCameraFitController, "function");
+  const camera = new PerspectiveCamera(45, 1, 0.1, 1000);
+  const controls = { target: new Vector3(), update() {} };
+  const controller = rendererModule.createCameraFitController(camera, controls);
+  const state = { camera: {} };
+
+  controller.apply(state, [0, 0, 0, 4, 2, 2]);
+  assert.deepEqual(camera.userData.fitBounds, [0, 0, 0, 4, 2, 2]);
+  camera.position.set(9, 8, 7);
+  controls.target.set(6, 5, 4);
+
+  controller.apply(state, [0, 0, 0, 8, 4, 4]);
+  assert.deepEqual(camera.position.toArray(), [9, 8, 7]);
+  assert.deepEqual(controls.target.toArray(), [6, 5, 4]);
 });
 
 test("pickRenderedObject uses Three.js raycasting metadata", () => {

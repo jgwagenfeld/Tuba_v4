@@ -76,6 +76,58 @@ function reviewState() {
   };
 }
 
+function codeAsterResolutionState() {
+  return {
+    objects: [
+      {
+        id: "object:analysis_mesh:analysis_mesh:Operating:element:pipe_bend_0_s0",
+        entity_ref: "element:pipe_bend_0",
+        kind: "analysis_mesh_element",
+        geometry_asset_id: "geometry:mesh-segment",
+        metadata: { member_id: "pipe_bend_0_s0", source_ref: "element:pipe_bend_0" },
+        source: { analysis_mesh: { member_id: "pipe_bend_0_s0", member_type: "element" } }
+      },
+      {
+        id: "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n1",
+        entity_ref: "element:pipe_bend_0",
+        kind: "analysis_mesh_node",
+        geometry_asset_id: "geometry:mesh-node",
+        metadata: { member_id: "pipe_bend_0_n1", source_ref: "element:pipe_bend_0" },
+        source: { analysis_mesh: { member_id: "pipe_bend_0_n1", member_type: "node" } }
+      },
+      {
+        id: "object:analysis-node-marker",
+        kind: "result_marker",
+        geometry_asset_id: "geometry:analysis-node-marker",
+        source: { analysis_mesh: { member_id: "pipe_bend_0_n2", member_type: "node" } }
+      },
+      {
+        id: "object:element:pipe_bend_0",
+        entity_ref: "element:pipe_bend_0",
+        kind: "pipe",
+        geometry_asset_id: "geometry:pipe-bend"
+      }
+    ],
+    objectMap: {
+      "object:analysis_mesh:analysis_mesh:Operating:element:pipe_bend_0_s0": {
+        entity_ref: "element:pipe_bend_0",
+        kind: "analysis_mesh_element"
+      },
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n1": {
+        entity_ref: "element:pipe_bend_0",
+        kind: "analysis_mesh_node"
+      },
+      "object:element:pipe_bend_0": { entity_ref: "element:pipe_bend_0", kind: "pipe" }
+    },
+    geometryAssets: [
+      { id: "geometry:mesh-segment", format: "polyline", object_ids: ["object:analysis_mesh:analysis_mesh:Operating:element:pipe_bend_0_s0"] },
+      { id: "geometry:mesh-node", format: "point", object_ids: ["object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n1"] },
+      { id: "geometry:analysis-node-marker", format: "marker", object_ids: ["object:analysis-node-marker"] },
+      { id: "geometry:pipe-bend", format: "tube", object_ids: ["object:element:pipe_bend_0"] }
+    ]
+  };
+}
+
 test("resolves direct scene object ids and canonical entity refs", () => {
   const state = reviewState();
 
@@ -92,6 +144,34 @@ test("resolves object-map fallbacks and metadata entity refs", () => {
 
 test("resolves nodes represented only by result vectors", () => {
   assert.equal(resolveEntityObjectId(reviewState(), "node:N2"), "object:displacement");
+});
+
+test("resolves Code_Aster analysis-node refs through structured point metadata", () => {
+  assert.equal(
+    resolveEntityObjectId(codeAsterResolutionState(), "analysis_node:pipe_bend_0_n1"),
+    "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n1"
+  );
+});
+
+test("resolves source analysis-mesh members represented by markers", () => {
+  assert.equal(
+    resolveEntityObjectId(codeAsterResolutionState(), "analysis_node:pipe_bend_0_n2"),
+    "object:analysis-node-marker"
+  );
+});
+
+test("does not resolve structured analysis nodes without spatial geometry", () => {
+  const state = codeAsterResolutionState();
+  state.geometryAssets = state.geometryAssets.filter((asset) => asset.id !== "geometry:mesh-node");
+
+  assert.equal(resolveEntityObjectId(state, "analysis_node:pipe_bend_0_n1"), null);
+});
+
+test("prefers canonical model objects over duplicate analysis geometry", () => {
+  assert.equal(
+    resolveEntityObjectId(codeAsterResolutionState(), "element:pipe_bend_0"),
+    "object:element:pipe_bend_0"
+  );
 });
 
 test("returns null for unresolved report entity refs", () => {

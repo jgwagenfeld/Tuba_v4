@@ -92,7 +92,16 @@ export function fitSelection(state) {
     (merged[2] + merged[5]) / 2
   ];
   const distance = Math.max(Math.hypot(merged[3] - merged[0], merged[4] - merged[1], merged[5] - merged[2]), 1);
-  return { ...state, camera: { ...state.camera, target, distance, fitBounds: merged } };
+  const fitRequestId = Number(state.camera?.fitRequest?.id ?? 0) + 1;
+  return {
+    ...state,
+    camera: {
+      ...state.camera,
+      target,
+      distance,
+      fitRequest: { id: fitRequestId, bounds: merged }
+    }
+  };
 }
 
 export function pickObjectAt(state, point, viewport) {

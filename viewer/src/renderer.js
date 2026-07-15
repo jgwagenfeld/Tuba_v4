@@ -81,7 +81,7 @@ export function buildRenderableScene(state, options = {}) {
   const graph = createThreeSceneGraph(state, options);
   const camera = new THREE.PerspectiveCamera(45, (options.width ?? 1280) / Math.max(options.height ?? 800, 1), 0.01, 10000);
   camera.up.set(0, 0, 1);
-  const fit = fitCameraToBounds(camera, state.camera?.fitBounds ?? graph.bounds);
+  const fit = fitCameraToBounds(camera, state.camera?.fitRequest?.bounds ?? graph.bounds);
   return {
     ...graph,
     camera,
@@ -105,6 +105,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   let currentGraph = null;
+  const cameraFitController = createCameraFitController(camera, controls);
 
   return {
     render(state) {
@@ -114,7 +115,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       camera.aspect = width / height;
 
       const graph = createThreeSceneGraph(state, options);
-      fitCameraToBounds(camera, state.camera?.fitBounds ?? graph.bounds, controls);
+      cameraFitController.apply(state, graph.bounds);
       controls.update();
       graph.camera = camera;
       applySelectionHighlight(graph, state.selectedObjectIds ?? []);
@@ -136,6 +137,27 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     dispose() {
       controls.dispose();
       renderer.dispose();
+    }
+  };
+}
+
+export function createCameraFitController(camera, controls = null) {
+  let initialized = false;
+  let appliedRequestId = null;
+
+  return {
+    apply(state, sceneBounds) {
+      const request = state?.camera?.fitRequest;
+      if (!initialized) {
+        initialized = true;
+        appliedRequestId = request?.id ?? null;
+        return fitCameraToBounds(camera, request?.bounds ?? sceneBounds, controls);
+      }
+      if (!request || request.id === appliedRequestId) {
+        return null;
+      }
+      appliedRequestId = request.id;
+      return fitCameraToBounds(camera, request.bounds, controls);
     }
   };
 }
