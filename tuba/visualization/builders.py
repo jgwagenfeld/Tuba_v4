@@ -114,6 +114,7 @@ def build_visualization_scene(
     result_state_records = list(result_states or [])
     geometry_state_records = list(geometry_states or [])
     analysis_mesh_records = list(analysis_meshes or [])
+    analysis_meshes_by_id = {analysis_mesh.id: analysis_mesh for analysis_mesh in analysis_mesh_records}
     diagnostics: list[SceneDiagnostic] = []
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
@@ -184,6 +185,7 @@ def build_visualization_scene(
         result_objects, result_assets, result_overlays, result_diagnostics = _build_result_state_result_scene(
             model,
             result_state,
+            analysis_meshes_by_id.get(result_state.mesh_id or ""),
         )
         objects.extend(result_objects)
         assets.extend(result_assets)
@@ -1619,6 +1621,7 @@ def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, 
 def _build_result_state_result_scene(
     model: TubaModel,
     result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None,
 ) -> tuple[list[SceneObject], list[GeometryAsset], list[Overlay], list[SceneDiagnostic]]:
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
@@ -1629,7 +1632,7 @@ def _build_result_state_result_scene(
     if stress_overlay is not None:
         overlays.append(stress_overlay)
 
-    displacement_overlay = _result_state_displacement_overlay(model, result_state, diagnostics)
+    displacement_overlay = _result_state_displacement_overlay(model, result_state, analysis_mesh, diagnostics)
     if displacement_overlay is not None:
         displacement_objects, displacement_assets = _result_state_vector_scene(result_state, displacement_overlay)
         objects.extend(displacement_objects)
@@ -1672,6 +1675,11 @@ def _result_state_vector_scene(
     assets: list[GeometryAsset] = []
     vector_object_ids: list[str] = []
     for vector in overlay.data.get("vectors", []):
+        # Analysis-mesh nodes already have authoritative selectable scene
+        # objects. Keep their displacement provenance on the overlay without
+        # multiplying the public bundle with duplicate vector geometry.
+        if vector.get("analysis_mesh_node_object_id"):
+            continue
         start = _numeric_triplet(vector.get("start"))
         end = _numeric_triplet(vector.get("end"))
         if start is None or end is None:
@@ -1809,6 +1817,7 @@ def _result_state_stress_overlay(
 def _result_state_displacement_overlay(
     model: TubaModel,
     result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None,
     diagnostics: list[SceneDiagnostic],
 ) -> Overlay | None:
     vectors: list[dict[str, Any]] = []
@@ -1830,6 +1839,15 @@ def _result_state_displacement_overlay(
         if node_id in model.nodes:
             entry["start"] = _node_coords(model, node_id)
             entry["end"] = [entry["start"][index] + vector[index] for index in range(3)]
+        elif analysis_mesh is not None and node_id in analysis_mesh.nodes:
+            analysis_mesh_node_object_id = f"object:analysis_mesh:{analysis_mesh.id}:node:{node_id}"
+            entry["object_ids"] = [analysis_mesh_node_object_id]
+            entry["analysis_mesh_id"] = analysis_mesh.id
+            entry["analysis_mesh_node_object_id"] = analysis_mesh_node_object_id
+            entry["coordinate_source"] = "analysis_mesh"
+            entry["start"] = [float(value) for value in analysis_mesh.nodes[node_id]]
+            entry["end"] = [entry["start"][index] + vector[index] for index in range(3)]
+            object_ids.append(analysis_mesh_node_object_id)
         else:
             diagnostics.append(
                 SceneDiagnostic(

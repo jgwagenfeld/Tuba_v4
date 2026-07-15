@@ -430,7 +430,14 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
 
         # --- Parse CSV tables ----------------------------------------------
         node_label_map, element_label_map = self._read_solver_label_maps(work_dir)
-        applied_displacements = self._parse_depl_table(model, work_dir, results, node_label_map)
+        analysis_mesh_node_ids = self._read_analysis_mesh_node_ids(work_dir)
+        applied_displacements = self._parse_depl_table(
+            model,
+            work_dir,
+            results,
+            node_label_map,
+            analysis_mesh_node_ids,
+        )
         # Displacement is the primary result of a static solve and is always
         # emitted by a successful run.  A run that exits cleanly but produced no
         # parseable displacement rows (empty/garbled CSV, bad mesh group, no
@@ -570,12 +577,31 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
                 reverse[solver_name] = original
         return reverse
 
+    @staticmethod
+    def _read_analysis_mesh_node_ids(work_dir: Path) -> set[str]:
+        """Read authoritative analysis-node membership from the study manifest."""
+        manifest_path = work_dir / "study_manifest.json"
+        if not manifest_path.exists():
+            return set()
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return set()
+        analysis_mesh = payload.get("analysis_mesh")
+        if not isinstance(analysis_mesh, dict):
+            return set()
+        nodes = analysis_mesh.get("nodes")
+        if not isinstance(nodes, dict):
+            return set()
+        return {node_id for node_id in nodes if isinstance(node_id, str)}
+
     def _parse_depl_table(
         self,
         model: TubaModel,
         work_dir: Path,
         results: FEAResults,
         node_label_map: dict[str, str],
+        analysis_mesh_node_ids: set[str],
     ) -> int:
         """Parse displacement table (unit 39). Returns the number of applied rows."""
         rows = self._parse_csv_table(work_dir / "study_depl.csv")
@@ -601,9 +627,10 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
                 applied += 1
                 continue
             results.analysis_node_results[nid] = NodeResult(node_id=nid, displacement=disp)
-            results.parser_diagnostics.append(
-                f"Preserved displacement row for non-native analysis node {nid!r} without mesh source mapping."
-            )
+            if nid not in analysis_mesh_node_ids:
+                results.parser_diagnostics.append(
+                    f"Preserved displacement row for non-native analysis node {nid!r} without mesh source mapping."
+                )
             applied += 1
         return applied
 

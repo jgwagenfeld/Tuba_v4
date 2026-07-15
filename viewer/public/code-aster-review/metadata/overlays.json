@@ -195,73 +195,6 @@
           "pipe_str_1_mid",
           "pipe_str_2_mid"
         ],
-        "parser_diagnostics": [
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n1' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n2' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n3' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n4' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n5' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n6' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n7' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n8' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n9' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n10' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n11' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n12' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n13' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n14' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_n15' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n1' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n2' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n3' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n4' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n5' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n6' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n7' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n8' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n9' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n10' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n11' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n12' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n13' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n14' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_n15' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_str_0_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_str_1_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_str_2_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s0_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s1_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s2_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s3_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s4_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s5_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s6_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s7_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s8_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s9_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s10_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s11_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s12_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s13_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s14_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_0_s15_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s0_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s1_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s2_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s3_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s4_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s5_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s6_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s7_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s8_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s9_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s10_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s11_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s12_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s13_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s14_mid' without mesh source mapping.",
-          "Preserved displacement row for non-native analysis node 'pipe_bend_1_s15_mid' without mesh source mapping."
-        ],
         "source": "code_aster_artifact_tables",
         "tuyau_subpoints": [
           {
@@ -607729,978 +607662,1953 @@
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n1",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             6.40597e-05,
             -0.000306125,
             2.71673e-05
           ],
+          "end": [
+            3.0294692017988685,
+            0.0011384569983409103,
+            2.71673e-05
+          ],
           "magnitude_m": 0.0003139334690318635,
           "node_id": "pipe_bend_0_n1",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n1"
+          ],
           "rotation_rad": [
             -0.00168279,
             -0.00102992,
             -0.0102835
+          ],
+          "start": [
+            3.0294051420988684,
+            0.0014445819983409103,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n2",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000153976,
             -0.000611699,
             5.03445e-05
           ],
+          "end": [
+            3.0586810726048386,
+            0.0051527168790308706,
+            5.03445e-05
+          ],
           "magnitude_m": 0.000632786570541166,
           "node_id": "pipe_bend_0_n2",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n2"
+          ],
           "rotation_rad": [
             -0.00170069,
             -0.00107047,
             -0.0105783
+          ],
+          "start": [
+            3.0585270966048386,
+            0.005764415879030871,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n3",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000275614,
             -0.000913985,
             6.91832e-05
           ],
+          "end": [
+            3.0873610171763386,
+            0.012003914280337376,
+            6.91832e-05
+          ],
           "magnitude_m": 0.000957140518619518,
           "node_id": "pipe_bend_0_n3",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n3"
+          ],
           "rotation_rad": [
             -0.0017194,
             -0.00111246,
             -0.0108102
+          ],
+          "start": [
+            3.0870854031763386,
+            0.012917899280337375,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n4",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000427785,
             -0.00120833,
             8.33739e-05
           ],
+          "end": [
+            3.1152328147095267,
+            0.021627810246613956,
+            8.33739e-05
+          ],
           "magnitude_m": 0.0012845281633059706,
           "node_id": "pipe_bend_0_n4",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n4"
+          ],
           "rotation_rad": [
             -0.00173871,
             -0.00115606,
             -0.01098
+          ],
+          "start": [
+            3.114805029709527,
+            0.022836140246613956,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n5",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00060944,
             -0.00148987,
             9.26309e-05
           ],
+          "end": [
+            3.1420284610477993,
+            0.03393375069549349,
+            9.26309e-05
+          ],
           "magnitude_m": 0.0016123616883735516,
           "node_id": "pipe_bend_0_n5",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n5"
+          ],
           "rotation_rad": [
             -0.00175838,
             -0.00120139,
             -0.0110901
+          ],
+          "start": [
+            3.1414190210477995,
+            0.035423620695493485,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n6",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000818598,
             -0.00175409,
             9.66942e-05
           ],
+          "end": [
+            3.1674896679058806,
+            0.04880502630923646,
+            9.66942e-05
+          ],
           "magnitude_m": 0.0019381135627247544,
           "node_id": "pipe_bend_0_n6",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n6"
+          ],
           "rotation_rad": [
             -0.00177814,
             -0.00124852,
             -0.0111435
+          ],
+          "start": [
+            3.1666710699058807,
+            0.05055911630923646,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n7",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00105262,
             -0.00199695,
             9.53332e-05
           ],
+          "end": [
+            3.1913706052490936,
+            0.06609991399117887,
+            9.53332e-05
+          ],
           "magnitude_m": 0.0022594040333508833,
           "node_id": "pipe_bend_0_n7",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n7"
+          ],
           "rotation_rad": [
             -0.00179769,
             -0.0012975,
             -0.0111438
+          ],
+          "start": [
+            3.1903179852490937,
+            0.06809686399117887,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n8",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0013083,
             -0.00221493,
             8.83508e-05
           ],
+          "end": [
+            3.213440334355964,
+            0.08565303564403573,
+            8.83508e-05
+          ],
           "magnitude_m": 0.0025739793431107097,
           "node_id": "pipe_bend_0_n8",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n8"
+          ],
           "rotation_rad": [
             -0.00181674,
             -0.0013483,
             -0.0110952
+          ],
+          "start": [
+            3.2121320343559643,
+            0.08786796564403573,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n9",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00158198,
             -0.00240515,
             7.55867e-05
           ],
+          "end": [
+            3.233485116008821,
+            0.10727686475090636,
+            7.55867e-05
+          ],
           "magnitude_m": 0.00287977787200973,
           "node_id": "pipe_bend_0_n9",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n9"
+          ],
           "rotation_rad": [
             -0.00183501,
             -0.00140086,
             -0.0110021
+          ],
+          "start": [
+            3.231903136008821,
+            0.10968201475090636,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n10",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00186968,
             -0.00256542,
             5.69214e-05
           ],
+          "end": [
+            3.2513105636907635,
+            0.13076351009411932,
+            5.69214e-05
+          ],
           "magnitude_m": 0.003174952460207548,
           "node_id": "pipe_bend_0_n10",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n10"
+          ],
           "rotation_rad": [
             -0.00185222,
             -0.00145506,
             -0.0108697
+          ],
+          "start": [
+            3.2494408836907636,
+            0.13332893009411934,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n11",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00216725,
             -0.00269425,
             3.22789e-05
           ],
+          "end": [
+            3.2667436293045062,
+            0.15588672895220063,
+            3.22789e-05
+          ],
           "magnitude_m": 0.0034578891758391,
           "node_id": "pipe_bend_0_n11",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n11"
+          ],
           "rotation_rad": [
             -0.00186811,
             -0.00151073,
             -0.0107033
+          ],
+          "start": [
+            3.2645763793045064,
+            0.15858097895220064,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n12",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00247048,
             -0.00279083,
             1.62973e-06
           ],
+          "end": [
+            3.279634339753386,
+            0.18240414029047303,
+            1.62973e-06
+          ],
           "magnitude_m": 0.003727198166896935,
           "node_id": "pipe_bend_0_n12",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n12"
+          ],
           "rotation_rad": [
             -0.00188246,
             -0.00156766,
             -0.0105086
+          ],
+          "start": [
+            3.277163859753386,
+            0.18519497029047302,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n13",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00277526,
             -0.00285502,
             -3.5006e-05
           ],
+          "end": [
+            3.2898573607196626,
+            0.21005957682366125,
+            -3.5006e-05
+          ],
           "magnitude_m": 0.0039817625102504545,
           "node_id": "pipe_bend_0_n13",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n13"
+          ],
           "rotation_rad": [
             -0.00189508,
             -0.00162562,
             -0.0102916
+          ],
+          "start": [
+            3.2870821007196627,
+            0.21291459682366126,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n14",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00307766,
             -0.0028873,
             -7.75569e-05
           ],
+          "end": [
+            3.297313244120969,
+            0.2385856033951614,
+            -7.75569e-05
+          ],
           "magnitude_m": 0.004220723568102703,
           "node_id": "pipe_bend_0_n14",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n14"
+          ],
           "rotation_rad": [
             -0.00190583,
             -0.00168432,
             -0.0100585
+          ],
+          "start": [
+            3.294235584120969,
+            0.24147290339516142,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n15",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00337402,
             -0.0028887,
             -0.000125898
           ],
+          "end": [
+            3.301929438001659,
+            0.2677061579011317,
+            -0.000125898
+          ],
           "magnitude_m": 0.004443472623613653,
           "node_id": "pipe_bend_0_n15",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n15"
+          ],
           "rotation_rad": [
             -0.0019146,
             -0.00174346,
             -0.00981556
+          ],
+          "start": [
+            3.298555418001659,
+            0.27059485790113175,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n1",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0108194,
             4.63185e-05,
             -0.00340778
           ],
+          "end": [
+            3.3108194,
+            2.329451460598868,
+            -0.0019631980016590897
+          ],
           "magnitude_m": 0.011343479461428147,
           "node_id": "pipe_bend_1_n1",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n1"
+          ],
           "rotation_rad": [
             -0.000726072,
             -0.00588684,
             -4.1159e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.329405142098868,
+            0.0014445819983409103
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n2",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0107943,
             9.42193e-05,
             -0.00342174
           ],
+          "end": [
+            3.3107943000000004,
+            2.3586213159048386,
+            0.002342675879030871
+          ],
           "magnitude_m": 0.01132404938147536,
           "node_id": "pipe_bend_1_n2",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n2"
+          ],
           "rotation_rad": [
             -0.000685492,
             -0.00594412,
             -1.60325e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.3585270966048384,
+            0.005764415879030871
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n3",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0107513,
             0.000142953,
             -0.00342977
           ],
+          "end": [
+            3.3107513,
+            2.3872283561763386,
+            0.009488129280337375
+          ],
           "magnitude_m": 0.011286018319279346,
           "node_id": "pipe_bend_1_n3",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n3"
+          ],
           "rotation_rad": [
             -0.000644495,
             -0.00599958,
             5.06961e-06
+          ],
+          "start": [
+            3.3000000000000003,
+            2.3870854031763384,
+            0.012917899280337375
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n4",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0106907,
             0.000191825,
             -0.00343182
           ],
+          "end": [
+            3.3106907000000003,
+            2.4149968547095266,
+            0.019404320246614013
+          ],
           "magnitude_m": 0.011229659470928981,
           "node_id": "pipe_bend_1_n4",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n4"
+          ],
           "rotation_rad": [
             -0.000603206,
             -0.00605286,
             2.24161e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.4148050297095267,
+            0.022836140246614012
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n5",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.010613,
             0.000240135,
             -0.00342795
           ],
+          "end": [
+            3.3106130000000005,
+            2.441659156047799,
+            0.03199567069549354
+          ],
           "magnitude_m": 0.011155459426698882,
           "node_id": "pipe_bend_1_n5",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n5"
+          ],
           "rotation_rad": [
             -0.000561753,
             -0.00610361,
             3.63308e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.4414190210477993,
+            0.03542362069549354
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n6",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0105188,
             0.000287197,
             -0.00341831
           ],
+          "end": [
+            3.3105188,
+            2.4669582669058805,
+            0.04714080630923654
+          ],
           "magnitude_m": 0.011064017299919094,
           "node_id": "pipe_bend_1_n6",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n6"
+          ],
           "rotation_rad": [
             -0.000520268,
             -0.00615158,
             4.71617e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.4666710699058805,
+            0.05055911630923654
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n7",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0104089,
             0.000332351,
             -0.00340311
           ],
+          "end": [
+            3.3104089,
+            2.4906503362490935,
+            0.064693753991179
+          ],
           "magnitude_m": 0.01095613134593142,
           "node_id": "pipe_bend_1_n7",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n7"
+          ],
           "rotation_rad": [
             -0.00047888,
             -0.00619654,
             5.52705e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.4903179852490935,
+            0.06809686399117901
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n8",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0102843,
             0.000374972,
             -0.00338264
           ],
+          "end": [
+            3.3102843,
+            2.512507006355964,
+            0.08448532564403584
+          ],
           "magnitude_m": 0.010832805908922397,
           "node_id": "pipe_bend_1_n8",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n8"
+          ],
           "rotation_rad": [
             -0.000437716,
             -0.00623832,
             6.10246e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.512132034355964,
+            0.08786796564403584
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n9",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0101461,
             0.000414478,
             -0.00335727
           ],
+          "end": [
+            3.3101461000000003,
+            2.532317614008821,
+            0.10632474475090642
+          ],
           "magnitude_m": 0.010695157739621422,
           "node_id": "pipe_bend_1_n9",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n9"
+          ],
           "rotation_rad": [
             -0.0003969,
             -0.00627678,
             6.47898e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.531903136008821,
+            0.10968201475090641
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n10",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00999571,
             0.000450337,
             -0.00332743
           ],
+          "end": [
+            3.3099957100000004,
+            2.5498912206907636,
+            0.13000150009411932
+          ],
           "magnitude_m": 0.0105446105770943,
           "node_id": "pipe_bend_1_n10",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n10"
+          ],
           "rotation_rad": [
             -0.000356554,
             -0.00631185,
             6.6924e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5494408836907634,
+            0.1333289300941193
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n11",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0098345,
             0.000482076,
             -0.0032936
           ],
+          "end": [
+            3.3098345000000005,
+            2.565058455304506,
+            0.1552873789522006
+          ],
           "magnitude_m": 0.010382561749384204,
           "node_id": "pipe_bend_1_n11",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n11"
+          ],
           "rotation_rad": [
             -0.000316791,
             -0.00634349,
             6.77727e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.564576379304506,
+            0.1585809789522006
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n12",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00966405,
             0.000509288,
             -0.00325631
           ],
+          "end": [
+            3.3096640500000003,
+            2.577673147753386,
+            0.18193866029047298
+          ],
           "magnitude_m": 0.010210621503392631,
           "node_id": "pipe_bend_1_n12",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n12"
+          ],
           "rotation_rad": [
             -0.000277721,
             -0.00637168,
             6.76642e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.577163859753386,
+            0.185194970290473
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n13",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00948601,
             0.000531626,
             -0.00321617
           ],
+          "end": [
+            3.30948601,
+            2.5876137267196624,
+            0.20969842682366127
+          ],
           "magnitude_m": 0.010030491582812679,
           "node_id": "pipe_bend_1_n13",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n13"
+          ],
           "rotation_rad": [
             -0.000239444,
             -0.00639643,
             6.6908e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5870821007196625,
+            0.21291459682366126
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n14",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00930216,
             0.00054886,
             -0.00317363
           ],
+          "end": [
+            3.30930216,
+            2.5947844441209686,
+            0.2382992733951614
+          ],
           "magnitude_m": 0.009843950189944075,
           "node_id": "pipe_bend_1_n14",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n14"
+          ],
           "rotation_rad": [
             -0.000202052,
             -0.0064178,
             6.57936e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5942355841209688,
+            0.24147290339516142
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n15",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00911431,
             0.000560649,
             -0.00313016
           ],
+          "end": [
+            3.3091143100000004,
+            2.599116067001659,
+            0.2674646979011317
+          ],
           "magnitude_m": 0.009653127767874048,
           "node_id": "pipe_bend_1_n15",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n15"
+          ],
           "rotation_rad": [
             -0.000165619,
             -0.00643589,
             6.45954e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.598555418001659,
+            0.2705948579011317
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_0_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             -6.67916e-19,
             0.00372058,
             -0.000371479
           ],
+          "end": [
+            1.5,
+            0.00372058,
+            -0.000371479
+          ],
           "magnitude_m": 0.0037390790555751827,
           "node_id": "pipe_str_0_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_0_mid"
+          ],
           "rotation_rad": [
             -0.000832953,
             0.000244081,
             0.00244888
+          ],
+          "start": [
+            1.5,
+            0.0,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_1_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0096184,
             -0.00143054,
             -0.00207271
           ],
+          "end": [
+            3.3096183999999997,
+            1.2985694599999997,
+            -0.00207271
+          ],
           "magnitude_m": 0.009942645020099028,
           "node_id": "pipe_str_1_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_1_mid"
+          ],
           "rotation_rad": [
             -0.00173007,
             -0.00381547,
             -0.0029843
+          ],
+          "start": [
+            3.3,
+            1.2999999999999998,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_2_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0028495,
             0.000315744,
             -0.00154547
           ],
+          "end": [
+            3.3028495,
+            2.6003157439999995,
+            1.2984545299999999
+          ],
           "magnitude_m": 0.0032569651586156095,
           "node_id": "pipe_str_2_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_2_mid"
+          ],
           "rotation_rad": [
             0.000452374,
             -0.00506052,
             3.17902e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5999999999999996,
+            1.2999999999999998
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s0_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             3.40948e-05,
             -0.000152469,
             1.34342e-05
           ],
+          "end": [
+            3.0147366658494343,
+            0.0005698219991704551,
+            1.34342e-05
+          ],
           "magnitude_m": 0.00015681112549076356,
           "node_id": "pipe_bend_0_s0_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s0_mid"
+          ],
           "rotation_rad": [
             -0.00167435,
             -0.00101018,
             -0.0101141
+          ],
+          "start": [
+            3.014702571049434,
+            0.0007222909991704551,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s1_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000108526,
             -0.000457931,
             3.86166e-05
           ],
+          "end": [
+            3.0440746453518535,
+            0.0031465679386858906,
+            3.86166e-05
+          ],
           "magnitude_m": 0.00047219692420912696,
           "node_id": "pipe_bend_0_s1_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s1_mid"
+          ],
           "rotation_rad": [
             -0.00169175,
             -0.00105013,
             -0.0104386
+          ],
+          "start": [
+            3.0439661193518535,
+            0.0036044989386858906,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s2_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00021464,
             -0.000761973,
             5.96299e-05
           ],
+          "end": [
+            3.0730208898905884,
+            0.008579184579684124,
+            5.96299e-05
+          ],
           "magnitude_m": 0.000793869578270266,
           "node_id": "pipe_bend_0_s2_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s2_mid"
+          ],
           "rotation_rad": [
             -0.00171006,
             -0.00109141,
             -0.0107021
+          ],
+          "start": [
+            3.0728062498905886,
+            0.009341157579684123,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s3_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00035147,
             -0.00106053,
             7.61507e-05
           ],
+          "end": [
+            3.1012966864429328,
+            0.016816489763475665,
+            7.61507e-05
+          ],
           "magnitude_m": 0.0011198455120732013,
           "node_id": "pipe_bend_0_s3_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s3_mid"
+          ],
           "rotation_rad": [
             -0.00172908,
             -0.00113421,
             -0.0109027
+          ],
+          "start": [
+            3.1009452164429328,
+            0.017877019763475666,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s4_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000518424,
             -0.00134869,
             8.78819e-05
           ],
+          "end": [
+            3.1286304493786634,
+            0.02778119047105372,
+            8.78819e-05
+          ],
           "magnitude_m": 0.001447567403689241,
           "node_id": "pipe_bend_0_s4_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s4_mid"
+          ],
           "rotation_rad": [
             -0.00174857,
             -0.00117868,
             -0.0110423
+          ],
+          "start": [
+            3.1281120253786634,
+            0.02912988047105372,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s5_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000713894,
             -0.00162177,
             9.45505e-05
           ],
+          "end": [
+            3.15475893947684,
+            0.04136959850236497,
+            9.45505e-05
+          ],
           "magnitude_m": 0.0017744639678466988,
           "node_id": "pipe_bend_0_s5_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s5_mid"
+          ],
           "rotation_rad": [
             -0.00176828,
             -0.00122491,
             -0.0111237
+          ],
+          "start": [
+            3.15404504547684,
+            0.04299136850236497,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s6_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.000935578,
             -0.00187547,
             9.59112e-05
           ],
+          "end": [
+            3.179430105577487,
+            0.057452520150207666,
+            9.59112e-05
+          ],
           "magnitude_m": 0.0020980688437869334,
           "node_id": "pipe_bend_0_s6_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s6_mid"
+          ],
           "rotation_rad": [
             -0.00178794,
             -0.00127298,
             -0.01115
+          ],
+          "start": [
+            3.178494527577487,
+            0.05932799015020766,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s7_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00118054,
             -0.00210602,
             9.175e-05
           ],
+          "end": [
+            3.202405549802529,
+            0.0758763948176073,
+            9.175e-05
+          ],
           "magnitude_m": 0.002416073880182475,
           "node_id": "pipe_bend_0_s7_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s7_mid"
+          ],
           "rotation_rad": [
             -0.00180724,
             -0.00132287,
             -0.0111253
+          ],
+          "start": [
+            3.201225009802529,
+            0.0779824148176073,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s8_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00144535,
             -0.00231022,
             8.18882e-05
           ],
+          "end": [
+            3.2234629351823925,
+            0.09646477019747104,
+            8.18882e-05
+          ],
           "magnitude_m": 0.0027263269701558617,
           "node_id": "pipe_bend_0_s8_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s8_mid"
+          ],
           "rotation_rad": [
             -0.0018259,
             -0.00137456,
             -0.0110539
+          ],
+          "start": [
+            3.2220175851823925,
+            0.09877499019747105,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s9_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00172617,
             -0.00248553,
             6.61858e-05
           ],
+          "end": [
+            3.242398179849792,
+            0.11901994242251285,
+            6.61858e-05
+          ],
           "magnitude_m": 0.003026863526808178,
           "node_id": "pipe_bend_0_s9_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s9_mid"
+          ],
           "rotation_rad": [
             -0.00184364,
             -0.00142794,
             -0.0109405
+          ],
+          "start": [
+            3.240672009849792,
+            0.12150547242251285,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s10_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00201893,
             -0.00263011,
             4.45447e-05
           ],
+          "end": [
+            3.259027561497635,
+            0.14332484452316,
+            4.45447e-05
+          ],
           "magnitude_m": 0.0033159525309174875,
           "node_id": "pipe_bend_0_s10_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s10_mid"
+          ],
           "rotation_rad": [
             -0.0018602,
             -0.00148288,
             -0.0107904
+          ],
+          "start": [
+            3.257008631497635,
+            0.14595495452315999,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s11_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00231945,
             -0.00274281,
             1.69122e-05
           ],
+          "end": [
+            3.273189569528946,
+            0.1691451646213368,
+            1.69122e-05
+          ],
           "magnitude_m": 0.0035920942388958615,
           "node_id": "pipe_bend_0_s11_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s11_mid"
+          ],
           "rotation_rad": [
             -0.00187532,
             -0.00153918,
             -0.0106091
+          ],
+          "start": [
+            3.2708701195289462,
+            0.17188797462133681,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s12_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00262355,
             -0.00282316,
             -1.67164e-05
           ],
+          "end": [
+            3.284746530236524,
+            0.19623162355706714,
+            -1.67164e-05
+          ],
           "magnitude_m": 0.003854027299608678,
           "node_id": "pipe_bend_0_s12_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s12_mid"
+          ],
           "rotation_rad": [
             -0.0018888,
             -0.00159663,
             -0.0104025
+          ],
+          "start": [
+            3.282122980236524,
+            0.19905478355706713,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s13_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00292722,
             -0.00287135,
             -5.62957e-05
           ],
+          "end": [
+            3.293586062420316,
+            0.22432240010941135,
+            -5.62957e-05
+          ],
           "magnitude_m": 0.00410078491959021,
           "node_id": "pipe_bend_0_s13_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s13_mid"
+          ],
           "rotation_rad": [
             -0.00190049,
             -0.00165496,
             -0.0101766
+          ],
+          "start": [
+            3.290658842420316,
+            0.22719375010941134,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s14_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00322665,
             -0.00288812,
             -0.000101728
           ],
+          "end": [
+            3.299622151061314,
+            0.2531457606481466,
+            -0.000101728
+          ],
           "magnitude_m": 0.004331611240968423,
           "node_id": "pipe_bend_0_s14_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s14_mid"
+          ],
           "rotation_rad": [
             -0.00191025,
             -0.00171388,
             -0.00993784
+          ],
+          "start": [
+            3.2963955010613137,
+            0.2560338806481466,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s15_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00351836,
             -0.00287472,
             -0.000152858
           ],
+          "end": [
+            3.30279606900083,
+            0.28242270895056587,
+            -0.000152858
+          ],
           "magnitude_m": 0.004546013389351598,
           "node_id": "pipe_bend_0_s15_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s15_mid"
+          ],
           "rotation_rad": [
             -0.001918,
             -0.00177311,
             -0.00969239
+          ],
+          "start": [
+            3.2992777090008296,
+            0.28529742895056587,
+            0.0
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s0_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0108232,
             2.31459e-05,
             -0.00339803
           ],
+          "end": [
+            3.3108232,
+            2.314725716949434,
+            -0.0026757390008295447
+          ],
           "magnitude_m": 0.011344108684845486,
           "node_id": "pipe_bend_1_s0_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s0_mid"
+          ],
           "rotation_rad": [
             -0.000746173,
             -0.00585753,
             -5.5467e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.314702571049434,
+            0.0007222909991704551
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s1_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.010807,
             7.02941e-05,
             -0.00341491
           ],
+          "end": [
+            3.310807,
+            2.344036413451853,
+            0.00018958893868589038
+          ],
           "magnitude_m": 0.011333922558787617,
           "node_id": "pipe_bend_1_s1_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s1_mid"
+          ],
           "rotation_rad": [
             -0.000705842,
             -0.00591553,
             -2.82563e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.3439661193518533,
+            0.0036044989386858906
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s2_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0107729,
             0.000118622,
             -0.0034259
           ],
+          "end": [
+            3.3107729000000004,
+            2.3729248718905884,
+            0.005915257579684123
+          ],
           "magnitude_m": 0.011305142033556412,
           "node_id": "pipe_bend_1_s2_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s2_mid"
+          ],
           "rotation_rad": [
             -0.000665038,
             -0.00597194,
             -5.13643e-06
+          ],
+          "start": [
+            3.3000000000000003,
+            2.3728062498905884,
+            0.009341157579684123
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s3_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0107211,
             0.00016744,
             -0.00343093
           ],
+          "end": [
+            3.3107211000000003,
+            2.4011126564429324,
+            0.014446089763475693
+          ],
           "magnitude_m": 0.01125794395209445,
           "node_id": "pipe_bend_1_s3_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s3_mid"
+          ],
           "rotation_rad": [
             -0.000623879,
             -0.00602634,
             1.40819e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.4009452164429326,
+            0.017877019763475693
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s4_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.010652,
             0.000216045,
             -0.00343002
           ],
+          "end": [
+            3.310652,
+            2.4283280703786634,
+            0.025699860471053777
+          ],
           "magnitude_m": 0.011192712657904919,
           "node_id": "pipe_bend_1_s4_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s4_mid"
+          ],
           "rotation_rad": [
             -0.000582492,
             -0.00607839,
             2.97024e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.428112025378663,
+            0.029129880471053776
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s5_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.010566,
             0.000263744,
             -0.00342326
           ],
+          "end": [
+            3.310566,
+            2.45430878947684,
+            0.03956810850236504
+          ],
           "magnitude_m": 0.011109843649896069,
           "node_id": "pipe_bend_1_s5_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s5_mid"
+          ],
           "rotation_rad": [
             -0.000541007,
             -0.00612779,
             4.20616e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.45404504547684,
+            0.04299136850236504
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s6_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0104639,
             0.000309864,
             -0.00341083
           ],
+          "end": [
+            3.3104639000000002,
+            2.478804391577487,
+            0.05591716015020777
+          ],
           "magnitude_m": 0.011010130798378192,
           "node_id": "pipe_bend_1_s6_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s6_mid"
+          ],
           "rotation_rad": [
             -0.000499554,
             -0.00617428,
             5.15143e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.478494527577487,
+            0.059327990150207774
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s7_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0103467,
             0.000353763,
             -0.00339298
           ],
+          "end": [
+            3.3103467,
+            2.501578772802529,
+            0.07458943481760742
+          ],
           "magnitude_m": 0.010894570318767465,
           "node_id": "pipe_bend_1_s7_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s7_mid"
+          ],
           "rotation_rad": [
             -0.000458262,
             -0.00621768,
             5.84253e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.501225009802529,
+            0.07798241481760743
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s8_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0102153,
             0.000394836,
             -0.00337005
           ],
+          "end": [
+            3.3102153000000003,
+            2.522412421182392,
+            0.09540494019747113
+          ],
           "magnitude_m": 0.01076408317319204,
           "node_id": "pipe_bend_1_s8_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s8_mid"
+          ],
           "rotation_rad": [
             -0.000417257,
             -0.00625783,
             6.31612e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5220175851823923,
+            0.09877499019747113
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s9_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.010071,
             0.000432526,
             -0.00334243
           ],
+          "end": [
+            3.310071,
+            2.541104535849792,
+            0.11816304242251287
+          ],
           "magnitude_m": 0.010619979192332535,
           "node_id": "pipe_bend_1_s9_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s9_mid"
+          ],
           "rotation_rad": [
             -0.000376661,
             -0.00629462,
             6.60842e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.540672009849792,
+            0.12150547242251286
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s10_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00991521,
             0.000466331,
             -0.00331059
           ],
+          "end": [
+            3.30991521,
+            2.557474962497635,
+            0.14264436452315996
+          ],
           "magnitude_m": 0.010463692469380061,
           "node_id": "pipe_bend_1_s10_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s10_mid"
+          ],
           "rotation_rad": [
             -0.000336593,
             -0.006328,
             6.75461e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.557008631497635,
+            0.14595495452315996
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s11_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00974937,
             0.000495811,
             -0.00327502
           ],
+          "end": [
+            3.3097493700000005,
+            2.571365930528946,
+            0.16861295462133682
+          ],
           "magnitude_m": 0.010296688785479582,
           "node_id": "pipe_bend_1_s11_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s11_mid"
+          ],
           "rotation_rad": [
             -0.000297163,
             -0.00635793,
             6.78841e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.570870119528946,
+            0.17188797462133681
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s12_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00957511,
             0.000520592,
             -0.00323628
           ],
+          "end": [
+            3.3095751100000004,
+            2.582643572236524,
+            0.19581850355706712
+          ],
           "magnitude_m": 0.01012063514711226,
           "node_id": "pipe_bend_1_s12_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s12_mid"
+          ],
           "rotation_rad": [
             -0.000258477,
             -0.00638442,
             6.74175e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.582122980236524,
+            0.19905478355706713
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s13_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00939416,
             0.000540363,
             -0.00319499
           ],
+          "end": [
+            3.30939416,
+            2.5911992054203155,
+            0.22399876010941133
+          ],
           "magnitude_m": 0.009937313287678365,
           "node_id": "pipe_bend_1_s13_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s13_mid"
+          ],
           "rotation_rad": [
             -0.000220632,
             -0.0064075,
             6.64458e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5906588424203156,
+            0.22719375010941134
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s14_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.0092083,
             0.000554936,
             -0.00315159
           ],
+          "end": [
+            3.3092083000000003,
+            2.5969504370613135,
+            0.2528822906481466
+          ],
           "magnitude_m": 0.009748500519679733,
           "node_id": "pipe_bend_1_s14_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s14_mid"
+          ],
           "rotation_rad": [
             -0.000183713,
             -0.00642722,
             6.52497e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5963955010613136,
+            0.2560338806481466
           ]
         },
         {
+          "analysis_mesh_id": "analysis_mesh:Operating",
+          "analysis_mesh_node_object_id": "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s15_mid",
+          "coordinate_source": "analysis_mesh",
           "displacement_m": [
             0.00901935,
             0.000563985,
             -0.00310775
           ],
+          "end": [
+            3.3090193500000002,
+            2.5998416940008293,
+            0.2821896789505658
+          ],
           "magnitude_m": 0.009556404321983505,
           "node_id": "pipe_bend_1_s15_mid",
-          "object_ids": [],
+          "object_ids": [
+            "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s15_mid"
+          ],
           "rotation_rad": [
             -0.000147766,
             -0.0064438,
             6.40967e-05
+          ],
+          "start": [
+            3.3000000000000003,
+            2.5992777090008294,
+            0.2852974289505658
           ]
         }
       ]
@@ -608714,6 +609622,71 @@
       "object:element:pipe_str_1",
       "object:element:pipe_bend_1",
       "object:element:pipe_str_2",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n1",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n2",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n3",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n4",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n5",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n6",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n7",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n8",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n9",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n10",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n11",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n12",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n13",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n14",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_n15",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n1",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n2",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n3",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n4",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n5",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n6",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n7",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n8",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n9",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n10",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n11",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n12",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n13",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n14",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_n15",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_0_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_1_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_str_2_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s0_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s1_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s2_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s3_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s4_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s5_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s6_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s7_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s8_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s9_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s10_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s11_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s12_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s13_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s14_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_0_s15_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s0_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s1_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s2_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s3_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s4_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s5_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s6_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s7_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s8_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s9_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s10_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s11_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s12_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s13_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s14_mid",
+      "object:analysis_mesh:analysis_mesh:Operating:node:pipe_bend_1_s15_mid",
       "object:solver_result:displacement:result_state_Operating:N2",
       "object:solver_result:displacement:result_state_Operating:N3",
       "object:solver_result:displacement:result_state_Operating:N4"
@@ -608870,86 +609843,6 @@
       "object:solver_result:reaction:result_state_Operating:N3",
       "object:solver_result:reaction:result_state_Operating:N5"
     ],
-    "visible": true
-  },
-  {
-    "data": {
-      "diagnostics": [
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n1' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n2' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n3' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n4' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n5' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n6' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n7' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n8' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n9' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n10' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n11' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n12' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n13' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n14' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_n15' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n1' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n2' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n3' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n4' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n5' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n6' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n7' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n8' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n9' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n10' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n11' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n12' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n13' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n14' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_n15' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_str_0_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_str_1_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_str_2_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s0_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s1_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s2_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s3_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s4_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s5_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s6_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s7_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s8_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s9_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s10_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s11_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s12_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s13_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s14_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_0_s15_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s0_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s1_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s2_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s3_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s4_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s5_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s6_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s7_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s8_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s9_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s10_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s11_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s12_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s13_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s14_mid' without mesh source mapping.",
-        "Preserved displacement row for non-native analysis node 'pipe_bend_1_s15_mid' without mesh source mapping."
-      ],
-      "load_case": "Operating",
-      "mesh_id": "analysis_mesh:Operating",
-      "result_state_id": "result_state:Operating",
-      "result_type": "parser_diagnostics",
-      "study_id": "analysis_study:Operating"
-    },
-    "id": "overlay:solver_result:parser_diagnostics:result_state:Operating",
-    "kind": "solver_result",
-    "name": "Parser diagnostics Operating",
     "visible": true
   },
   {

@@ -95,6 +95,82 @@ const scenarios = {
       });
     }
   },
+  "public-code-aster-review": {
+    bundle: "/code-aster-review",
+    minimumObjects: 1,
+    async beforeNavigate(page) {
+      page.__tubaUnexpectedBrowserEvents = [];
+      page.on("pageerror", (error) => page.__tubaUnexpectedBrowserEvents.push(`pageerror: ${error.message}`));
+      page.on("console", (message) => {
+        if (message.type() === "error") {
+          page.__tubaUnexpectedBrowserEvents.push(`console: ${message.text()}`);
+        }
+      });
+      page.on("requestfailed", (request) => {
+        page.__tubaUnexpectedBrowserEvents.push(
+          `requestfailed: ${request.url()} ${request.failure()?.errorText ?? "unknown"}`
+        );
+      });
+    },
+    async run(page) {
+      await page.waitForFunction(
+        () => window.__tubaViewer?.state?.review?.schema_version === "engineering_review.v1"
+      );
+      const summaryTab = page.getByRole("tab", { name: "Summary", exact: true });
+      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
+
+      const loaded = await page.evaluate(() => {
+        const viewer = window.__tubaViewer;
+        const state = viewer.state;
+        const reviewDiagnostics = state.review?.tables?.diagnostics?.rows ?? [];
+        return {
+          objects: state.objects.length,
+          geometryPayloads: state.geometryPayloads.length,
+          overlays: state.overlays.length,
+          reviewLoadDiagnostics: state.reviewDiagnostics,
+          missingNodeGeometry: state.diagnostics.filter(
+            (diagnostic) => diagnostic.code === "result_state.missing_node_geometry"
+          ),
+          solverParserDiagnostics: reviewDiagnostics.filter(
+            (diagnostic) => diagnostic.code === "SOLVER_PARSER_DIAGNOSTIC"
+          ),
+          parserDiagnosticOverlays: state.overlays.filter(
+            (overlay) => overlay.data?.result_type === "parser_diagnostics"
+          ),
+          renderDiagnostics: viewer.lastRender.diagnostics
+        };
+      });
+      assert.equal(loaded.objects, 216);
+      assert.equal(loaded.geometryPayloads, 213);
+      assert.equal(loaded.overlays, 7);
+      assert.deepEqual(loaded.reviewLoadDiagnostics, []);
+      assert.deepEqual(loaded.missingNodeGeometry, []);
+      assert.deepEqual(loaded.solverParserDiagnostics, []);
+      assert.deepEqual(loaded.parserDiagnosticOverlays, []);
+      assert.deepEqual(loaded.renderDiagnostics, []);
+
+      await page.getByRole("tab", { name: "Results", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
+      assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Operating");
+      assert.equal(
+        await page.getByRole("combobox", { name: /^Result state/ }).inputValue(),
+        "result_state:Operating"
+      );
+      await page.getByRole("button", { name: "Show element:pipe_str_0 in 3D", exact: true }).first().click();
+      await page.waitForFunction(() => {
+        const state = window.__tubaViewer?.state;
+        return (
+          state?.activeTab === "3d" &&
+          state?.selectedObjectIds?.includes("object:element:pipe_str_0") &&
+          state?.activeLoadCase === "Operating" &&
+          state?.activeResultStateId === "result_state:Operating"
+        );
+      });
+      await page.getByRole("heading", { level: 1, name: "3D Engineering Review", exact: true }).waitFor();
+
+      assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
+    }
+  },
   "legacy-workflow": {
     bundle: "/smoke-scene",
     minimumObjects: 3,

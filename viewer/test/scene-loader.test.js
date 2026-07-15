@@ -122,6 +122,50 @@ test("loads scene files before the optional review and exposes review state", as
   assert.equal(state.activeLoadCase, "Hot");
 });
 
+test("starts URL geometry requests concurrently and preserves asset order", async () => {
+  const assets = ["geometry:first", "geometry:second", "geometry:third"].map((id) => ({
+    id,
+    uri: `${id.replace(":", "_")}.json`
+  }));
+  const basePayloads = {
+    "scene.json": { schema_version: "visualization.scene.v1", scene_id: "concurrent", geometry_assets: assets },
+    "metadata/objects.json": [],
+    "metadata/object_map.json": {},
+    "metadata/overlays.json": [],
+    "geometry/geometry_assets.json": assets,
+    "review.json": { schema_version: "engineering_review.v1", analysis_status: "solved", tables: [] }
+  };
+  const geometryResolvers = new Map();
+  const geometryRequests = [];
+  const fetcher = async (url) => {
+    const relativePath = url.replace(/^\/concurrent\//, "");
+    if (relativePath in basePayloads) {
+      return new Response(JSON.stringify(basePayloads[relativePath]), { status: 200 });
+    }
+    geometryRequests.push(relativePath);
+    return new Promise((resolve) => geometryResolvers.set(relativePath, resolve));
+  };
+
+  const loading = loadSceneBundleFromUrl("/concurrent", fetcher);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(geometryRequests, ["geometry_first.json", "geometry_second.json", "geometry_third.json"]);
+  for (const relativePath of [...geometryRequests].reverse()) {
+    geometryResolvers.get(relativePath)(
+      new Response(JSON.stringify({ asset_id: relativePath.replace("geometry_", "geometry:").replace(".json", "") }), {
+        status: 200
+      })
+    );
+  }
+  const bundle = await loading;
+
+  assert.deepEqual(bundle.geometryPayloads.map((payload) => payload.asset_id), [
+    "geometry:first",
+    "geometry:second",
+    "geometry:third"
+  ]);
+});
+
 test("updates layer visibility without mutating prior state", async () => {
   const bundle = await loadSceneBundle(await createFixtureBundle());
   const state = createViewerState(bundle);

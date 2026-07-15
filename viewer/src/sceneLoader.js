@@ -12,13 +12,11 @@ export async function loadSceneBundle(root) {
   const objectMap = await readJson("metadata/object_map.json");
   const overlays = await readJson("metadata/overlays.json");
   const geometryAssets = await readJson("geometry/geometry_assets.json");
-  const geometryPayloads = [];
-
-  for (const asset of scene.geometry_assets ?? geometryAssets) {
-    if (asset.uri) {
-      geometryPayloads.push(await readJson(asset.uri));
-    }
-  }
+  const geometryPayloads = await Promise.all(
+    (scene.geometry_assets ?? geometryAssets)
+      .filter((asset) => asset.uri)
+      .map((asset) => readJson(asset.uri))
+  );
 
   return { scene, objects, objectMap, overlays, geometryAssets, geometryPayloads };
 }
@@ -37,13 +35,11 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
   const objectMap = await readJson("metadata/object_map.json");
   const overlays = await readJson("metadata/overlays.json");
   const geometryAssets = await readJson("geometry/geometry_assets.json");
-  const geometryPayloads = [];
-
-  for (const asset of scene.geometry_assets ?? geometryAssets) {
-    if (asset.uri) {
-      geometryPayloads.push(await readJson(asset.uri));
-    }
-  }
+  const geometryPayloads = await Promise.all(
+    (scene.geometry_assets ?? geometryAssets)
+      .filter((asset) => asset.uri)
+      .map((asset) => readJson(asset.uri))
+  );
 
   const reviewResult = await loadOptionalReview(normalized, fetcher);
 

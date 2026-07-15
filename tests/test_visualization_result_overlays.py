@@ -2,7 +2,8 @@ import unittest
 from dataclasses import replace
 
 from tuba import Model
-from tuba.analysis import ResultState
+from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource, ResultState
+from tuba.refs import EntityRef
 from tuba.visualization import build_visualization_scene
 
 
@@ -72,6 +73,67 @@ class TestVisualizationResultOverlays(unittest.TestCase):
 
         diagnostic_codes = {diagnostic.code for diagnostic in scene.diagnostics}
         self.assertIn("result_state.missing_element_result", diagnostic_codes)
+
+    def test_analysis_mesh_displacement_uses_mesh_node_without_duplicate_vector_geometry(self):
+        model, result_state = _model_and_result_state()
+        generated_node = "pipe_0_mid"
+        result_state = replace(
+            result_state,
+            node_displacements={
+                **result_state.node_displacements,
+                generated_node: (0.003, 0.004, 0.0, 0.0, 0.0, 0.0),
+            },
+        )
+        mesh = AnalysisMesh(
+            id=result_state.mesh_id,
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={"N0": (0.0, 0.0, 0.0), "N1": (1.0, 0.0, 0.0), generated_node: (0.5, 0.0, 0.0)},
+            elements={"pipe_0": ("N0", generated_node, "N1")},
+            groups={"AllPipes": ("pipe_0",)},
+            node_sources={
+                "N0": MeshNodeSource("N0", EntityRef("node", "N0"), "native_node"),
+                "N1": MeshNodeSource("N1", EntityRef("node", "N1"), "native_node"),
+                generated_node: MeshNodeSource(
+                    generated_node,
+                    EntityRef("element", "pipe_0"),
+                    "generated_mid_node",
+                    parametric_t=0.5,
+                ),
+            },
+            element_sources={
+                "pipe_0": MeshElementSource("pipe_0", EntityRef("element", "pipe_0"), "native_element")
+            },
+        )
+
+        scene = build_visualization_scene(
+            model,
+            result_states=[result_state],
+            analysis_meshes=[mesh],
+            scene_id="scene:mapped_displacement",
+        )
+        scene.validate()
+
+        displacement = _result_overlay(scene, "displacement")
+        vector = next(item for item in displacement.data["vectors"] if item["node_id"] == generated_node)
+        mesh_node_object_id = f"object:analysis_mesh:{mesh.id}:node:{generated_node}"
+        self.assertEqual(vector["start"], [0.5, 0.0, 0.0])
+        self.assertEqual(vector["end"], [0.503, 0.004, 0.0])
+        self.assertEqual(vector["object_ids"], [mesh_node_object_id])
+        self.assertIn(mesh_node_object_id, displacement.object_ids)
+        self.assertNotIn("result_state.missing_node_geometry", {item.code for item in scene.diagnostics})
+        self.assertEqual(len([obj for obj in scene.objects if obj.kind == "displacement_vector"]), 2)
+
+    def test_result_state_node_absent_from_model_and_analysis_mesh_still_warns(self):
+        model, result_state = _model_and_result_state()
+        result_state = replace(
+            result_state,
+            node_displacements={**result_state.node_displacements, "missing_node": (0.1, 0.0, 0.0, 0.0, 0.0, 0.0)},
+        )
+
+        scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:unmapped_displacement")
+
+        self.assertIn("result_state.missing_node_geometry", {item.code for item in scene.diagnostics})
 
     def test_result_state_adds_batched_tuyau_subpoint_layer(self):
         model, result_state = _model_and_result_state()
