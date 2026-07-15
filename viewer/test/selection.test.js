@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createViewerState } from "../src/sceneLoader.js";
 import {
+  fitSelection,
   getPropertySections,
   hideSelected,
   isolateSelection,
@@ -226,4 +227,19 @@ test("pickObjectAt selects nearest visible object from projected bounds", () => 
   const picked = pickObjectAt(state, { x: 64, y: 200 }, { width: 400, height: 400 });
 
   assert.equal(picked, "object:element:pipe_0");
+});
+
+test("fitSelection uses the selected object's geometry asset when object_ids are absent", () => {
+  const state = fixtureState();
+  state.geometryAssets = state.geometryAssets.map((asset) => {
+    const { object_ids: _objectIds, ...withoutObjectIds } = asset;
+    return withoutObjectIds;
+  });
+  const selected = selectObject(state, "object:element:pipe_0");
+
+  const fitted = fitSelection(selected);
+
+  assert.deepEqual(fitted.camera.target, [1, 0, 0]);
+  assert.deepEqual(fitted.camera.fitBounds, [0, -0.1, -0.1, 2, 0.1, 0.1]);
+  assert.notEqual(fitted.camera.distance, selected.camera.distance);
 });

@@ -79,6 +79,7 @@ test("creates viewer state with visible layers and scene bounds", async () => {
   const state = createViewerState(bundle);
 
   assert.deepEqual(state.bounds, [0, -0.1, -0.1, 1, 0.1, 0.1]);
+  assert.equal(state.objectMap, bundle.objectMap);
   assert.equal(state.layers.pipe.visible, true);
   assert.deepEqual(state.visibleObjectIds, ["object:element:pipe_0"]);
 });

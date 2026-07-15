@@ -6,6 +6,7 @@ import {
   SUPPORTED_RENDER_FORMATS,
   applyHoverHighlight,
   applySelectionHighlight,
+  buildRenderableScene,
   createThreeSceneGraph,
   fitCameraToBounds,
   pickRenderedObject,
@@ -195,6 +196,17 @@ test("fitCameraToBounds targets scene center and computes a usable distance", ()
   assert.deepEqual(fit.target, [5, 0, 0.75]);
   assert.ok(fit.distance > 10);
   assert.ok(camera.far > camera.near);
+});
+
+test("renderer sends requested selection bounds through the existing camera-fit pipeline", () => {
+  const selectionBounds = [0, -0.05, -0.05, 2, 0.05, 0.05];
+  const renderable = buildRenderableScene({
+    ...fixtureState(),
+    camera: { mode: "orbit", target: [1, 0, 0], distance: 2, fitBounds: selectionBounds }
+  });
+
+  assert.deepEqual(renderable.camera.userData.fitBounds, selectionBounds);
+  assert.deepEqual(renderable.controlsTarget.toArray(), [1, 0, 0]);
 });
 
 test("pickRenderedObject uses Three.js raycasting metadata", () => {

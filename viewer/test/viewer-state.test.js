@@ -8,6 +8,7 @@ import { createWorkflowState } from "../src/workflowState.js";
 
 function bundle(overrides = {}) {
   return {
+    objectMap: { "element:cold": "object:cold" },
     scene: {
       schema_version: "visualization.scene.v1",
       scene_id: "scene:rv09",
@@ -276,6 +277,7 @@ test("full scene reload preserves camera, layer visibility, and surviving select
   assert.deepEqual(preserved.selectedObjectIds, ["object:cold"]);
   assert.equal(preserved.layers["deformed:visual_centerline"], undefined);
   assert.deepEqual(preserved.camera, state.camera);
+  assert.equal(preserved.objectMap["element:cold"], "object:cold");
   assert.deepEqual(preserved.visibleObjectIds, ["object:cold"]);
 });
 
@@ -365,6 +367,7 @@ test("scene diff adds objects and geometry while preserving review state", () =>
   assert.equal(result.state.review, review);
   assert.equal(result.state.reviewDiagnostics, reviewDiagnostics);
   assert.equal(result.state.legacyReview, false);
+  assert.equal(result.state.objectMap["element:cold"], "object:cold");
 });
 
 test("scene diff preserves legacy review state", () => {

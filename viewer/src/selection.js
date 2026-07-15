@@ -72,8 +72,14 @@ export function getPropertySections(state, objectId) {
 
 export function fitSelection(state) {
   const selected = new Set(state.selectedObjectIds ?? []);
+  const selectedAssetIds = new Set(
+    state.objects
+      .filter((obj) => selected.has(obj.id))
+      .map((obj) => obj.geometry_asset_id)
+      .filter(Boolean)
+  );
   const bounds = state.geometryAssets
-    .filter((asset) => (asset.object_ids ?? []).some((id) => selected.has(id)))
+    .filter((asset) => selectedAssetIds.has(asset.id) || (asset.object_ids ?? []).some((id) => selected.has(id)))
     .map((asset) => asset.bounds)
     .filter((bounds) => Array.isArray(bounds) && bounds.length === 6);
   if (bounds.length === 0) {
@@ -86,7 +92,7 @@ export function fitSelection(state) {
     (merged[2] + merged[5]) / 2
   ];
   const distance = Math.max(Math.hypot(merged[3] - merged[0], merged[4] - merged[1], merged[5] - merged[2]), 1);
-  return { ...state, camera: { ...state.camera, target, distance } };
+  return { ...state, camera: { ...state.camera, target, distance, fitBounds: merged } };
 }
 
 export function pickObjectAt(state, point, viewport) {

@@ -79,6 +79,7 @@ export function createViewerState(bundle) {
     units: scene.units ?? {},
     coordinateSystem: scene.coordinate_system ?? {},
     objects,
+    objectMap: bundle.objectMap ?? {},
     geometryAssets,
     geometryPayloads: bundle.geometryPayloads ?? [],
     overlays,

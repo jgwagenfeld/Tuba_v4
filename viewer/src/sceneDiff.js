@@ -35,6 +35,7 @@ export function applySceneDiffToState(state, diffPayload) {
       diagnostics: [...(state.sceneDiagnostics ?? []), ...(diff.diagnostics ?? [])]
     },
     geometryPayloads: state.geometryPayloads ?? [],
+    objectMap: state.objectMap ?? {},
     review: state.review ?? null,
     reviewDiagnostics: state.reviewDiagnostics ?? [],
     legacyReview: state.legacyReview ?? false

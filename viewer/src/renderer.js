@@ -81,7 +81,7 @@ export function buildRenderableScene(state, options = {}) {
   const graph = createThreeSceneGraph(state, options);
   const camera = new THREE.PerspectiveCamera(45, (options.width ?? 1280) / Math.max(options.height ?? 800, 1), 0.01, 10000);
   camera.up.set(0, 0, 1);
-  const fit = fitCameraToBounds(camera, graph.bounds);
+  const fit = fitCameraToBounds(camera, state.camera?.fitBounds ?? graph.bounds);
   return {
     ...graph,
     camera,
@@ -114,7 +114,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       camera.aspect = width / height;
 
       const graph = createThreeSceneGraph(state, options);
-      fitCameraToBounds(camera, graph.bounds, controls);
+      fitCameraToBounds(camera, state.camera?.fitBounds ?? graph.bounds, controls);
       controls.update();
       graph.camera = camera;
       applySelectionHighlight(graph, state.selectedObjectIds ?? []);

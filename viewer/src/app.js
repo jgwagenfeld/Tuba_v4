@@ -23,6 +23,7 @@ import {
   setVisualDeformationScale
 } from "./resultReview.js";
 import { workflowViewModel } from "./reviewTables.js";
+import { getReviewEntityAction, showReviewEntityIn3d } from "./reviewSelection.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
 import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
@@ -217,6 +218,7 @@ function renderSummaryTable(model) {
     return section;
   }
   for (const row of model.rows) {
+    const action = getReviewEntityAction(currentState, row.entityRef);
     const values = document.createElement("dl");
     for (let index = 0; index < model.columns.length; index += 1) {
       const term = document.createElement("dt");
@@ -226,6 +228,9 @@ function renderSummaryTable(model) {
       values.append(term, value);
     }
     section.append(values);
+    if (action) {
+      section.append(createShowIn3dButton(action));
+    }
   }
   return section;
 }
@@ -248,6 +253,8 @@ function renderReviewTable(model) {
   const table = document.createElement("table");
   const head = document.createElement("thead");
   const headerRow = document.createElement("tr");
+  const rowActions = model.rows.map((row) => getReviewEntityAction(currentState, row.entityRef));
+  const hasActions = rowActions.some(Boolean);
   for (const column of model.columns) {
     const cell = document.createElement("th");
     cell.scope = "col";
@@ -257,10 +264,17 @@ function renderReviewTable(model) {
     }
     headerRow.append(cell);
   }
+  if (hasActions) {
+    const actionsHeader = document.createElement("th");
+    actionsHeader.scope = "col";
+    actionsHeader.textContent = "Actions";
+    headerRow.append(actionsHeader);
+  }
   head.append(headerRow);
 
   const body = document.createElement("tbody");
-  for (const row of model.rows) {
+  for (let rowIndex = 0; rowIndex < model.rows.length; rowIndex += 1) {
+    const row = model.rows[rowIndex];
     const tableRow = document.createElement("tr");
     if (row.entityRef) {
       tableRow.dataset.entityRef = row.entityRef;
@@ -273,11 +287,39 @@ function renderReviewTable(model) {
       }
       tableRow.append(cell);
     }
+    if (hasActions) {
+      const actionCell = document.createElement("td");
+      const action = rowActions[rowIndex];
+      if (action) {
+        actionCell.append(createShowIn3dButton(action));
+      }
+      tableRow.append(actionCell);
+    }
     body.append(tableRow);
   }
   table.append(head, body);
   section.append(table);
   return section;
+}
+
+function createShowIn3dButton(action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Show in 3D";
+  button.setAttribute("aria-label", action.accessibleName);
+  button.addEventListener("click", () => showReviewEntity(action.entityRef));
+  return button;
+}
+
+function showReviewEntity(entityRef) {
+  const nextState = showReviewEntityIn3d(currentState, entityRef);
+  if (nextState === currentState) {
+    setStatus(`No 3D object is available for ${entityRef}.`);
+    return;
+  }
+  currentState = nextState;
+  selectedObjectId = currentState.selectedObjectIds[0] ?? null;
+  render();
 }
 
 function appendTableSource(parent, source) {
