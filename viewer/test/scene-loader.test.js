@@ -122,6 +122,19 @@ test("loads scene files before the optional review and exposes review state", as
   assert.equal(state.activeLoadCase, "Hot");
 });
 
+test("reports the requested URL when a scene JSON request receives HTML", async () => {
+  const fetcher = async () =>
+    new Response("<!doctype html><title>Wrong application</title>", {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+
+  await assert.rejects(
+    loadSceneBundleFromUrl("http://127.0.0.1:5173/code-aster-review", fetcher),
+    /Expected JSON from http:\/\/127\.0\.0\.1:5173\/code-aster-review\/scene\.json, but received text\/html.*different application or server/s
+  );
+});
+
 test("starts URL geometry requests concurrently and preserves asset order", async () => {
   const assets = ["geometry:first", "geometry:second", "geometry:third"].map((id) => ({
     id,

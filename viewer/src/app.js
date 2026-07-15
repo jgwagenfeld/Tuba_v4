@@ -58,7 +58,7 @@ const dom = {
 
 const startupParams = new URLSearchParams(window.location.search);
 const startupConfig = Object.freeze({
-  bundleUrl: startupParams.get("bundle") || ".",
+  bundleUrl: startupParams.get("bundle") || "code-aster-review",
   embed: startupParams.get("embed") === "1",
   previewWebSocketUrl: startupParams.get("preview_ws")
 });

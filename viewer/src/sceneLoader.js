@@ -24,9 +24,17 @@ export async function loadSceneBundle(root) {
 export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis.fetch) {
   const normalized = String(baseUrl).replace(/\/+$/, "");
   const readJson = async (relativePath) => {
-    const response = await fetcher(`${normalized}/${relativePath}`);
+    const url = `${normalized}/${relativePath}`;
+    const response = await fetcher(url);
     if (!response.ok) {
       throw new Error(`Failed to load ${relativePath}: ${response.status} ${response.statusText}`);
+    }
+    const contentType = response.headers?.get?.("content-type") ?? "";
+    if (contentType.toLowerCase().includes("text/html")) {
+      throw new Error(
+        `Expected JSON from ${url}, but received ${contentType.split(";")[0]}. ` +
+          "The bundle URL points to a different application or server."
+      );
     }
     return response.json();
   };

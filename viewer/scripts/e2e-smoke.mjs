@@ -171,6 +171,18 @@ const scenarios = {
       assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
     }
   },
+  "default-public-review": {
+    bundle: null,
+    minimumObjects: 1,
+    async run(page) {
+      const loaded = await page.evaluate(() => ({
+        sceneId: window.__tubaViewer?.state?.sceneId,
+        analysisStatus: window.__tubaViewer?.state?.review?.analysis_status
+      }));
+      assert.equal(loaded.sceneId, "scene:code_aster_artifact_review");
+      assert.equal(loaded.analysisStatus, "solved");
+    }
+  },
   "legacy-workflow": {
     bundle: "/smoke-scene",
     minimumObjects: 3,
@@ -608,7 +620,9 @@ try {
   await selected.beforeNavigate?.(page, runtime);
 
   const url = new URL("/", baseUrl);
-  url.searchParams.set("bundle", selected.bundle);
+  if (selected.bundle) {
+    url.searchParams.set("bundle", selected.bundle);
+  }
   for (const [name, value] of Object.entries(selected.query?.(runtime) ?? {})) {
     url.searchParams.set(name, value);
   }
