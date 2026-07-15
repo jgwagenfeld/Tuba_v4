@@ -1,4 +1,5 @@
 import { createViewerState, getVisibleObjectIds } from "./sceneLoader.js";
+import { defaultWorkflowTab, getVisibleWorkflowTabs } from "./workflowState.js";
 
 export function applySceneDiffToState(state, diffPayload) {
   const diff = normalizeDiff(diffPayload);
@@ -105,6 +106,7 @@ function pruneOverlayObjectRefs(overlays, objectIds) {
 function preserveInteractiveState(previousState, nextState) {
   const objectIds = new Set(nextState.objects.map((obj) => obj.id));
   const issueIds = new Set((nextState.issues ?? []).map((issue) => issue.id));
+  const embed = previousState.embed ?? nextState.embed ?? false;
   const layers = { ...nextState.layers };
   for (const [id, previousLayer] of Object.entries(previousState.layers ?? {})) {
     if (layers[id]) {
@@ -134,6 +136,10 @@ function preserveInteractiveState(previousState, nextState) {
     utilizationThreshold: previousState.utilizationThreshold ?? nextState.utilizationThreshold,
     issueReviewState: previousState.issueReviewState ?? nextState.issueReviewState,
     visualDeformationScale: previousState.visualDeformationScale ?? nextState.visualDeformationScale,
+    embed,
+    activeTab: getVisibleWorkflowTabs(nextState).includes(previousState.activeTab)
+      ? previousState.activeTab
+      : defaultWorkflowTab({ review: nextState.review, embed }),
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id)
   };
   return { ...preserved, visibleObjectIds: getVisibleObjectIds(preserved) };

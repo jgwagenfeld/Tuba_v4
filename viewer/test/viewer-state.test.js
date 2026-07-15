@@ -386,6 +386,68 @@ test("scene diff preserves legacy review state", () => {
   assert.equal(result.state.legacyReview, true);
 });
 
+test("viewer state reducer preserves workflow state across a compatible scene diff", () => {
+  const review = {
+    schema_version: "engineering_review.v1",
+    analysis_status: "solved",
+    tables: {}
+  };
+  const initial = {
+    ...createViewerState({ ...bundle(), review, legacyReview: false }),
+    ...createWorkflowState({ review, embed: true })
+  };
+  const selected = reduceViewerState(initial, { type: "selectObjects", objectIds: ["object:cold"] });
+  const workflow = reduceViewerState(selected, { type: "setWorkflowTab", tabId: "results" });
+
+  const result = reduceViewerState(workflow, {
+    type: "applySceneDiff",
+    diff: {
+      diff_id: "diff:preserve-workflow",
+      base_scene_id: "scene:rv09",
+      updated_objects: []
+    }
+  });
+
+  assert.equal(result.activeTab, "results");
+  assert.equal(result.embed, true);
+  assert.deepEqual(result.selectedObjectIds, ["object:cold"]);
+  assert.equal(result.activeLoadCase, "Hot");
+  assert.equal(result.activeResultStateId, "result_state:Hot");
+  assert.equal(result.review, review);
+  assert.equal(result.legacyReview, false);
+});
+
+test("viewer state reducer defaults a hidden workflow tab after a review transition", () => {
+  const review = {
+    schema_version: "engineering_review.v1",
+    analysis_status: "solved",
+    tables: {}
+  };
+  const fullReviewState = {
+    ...createViewerState({ ...bundle(), review, legacyReview: false }),
+    ...createWorkflowState({ review, embed: false })
+  };
+  const legacyState = {
+    ...fullReviewState,
+    review: null,
+    legacyReview: true
+  };
+
+  const result = reduceViewerState(legacyState, {
+    type: "applySceneDiff",
+    diff: {
+      diff_id: "diff:legacy-workflow-fallback",
+      base_scene_id: "scene:rv09",
+      updated_objects: []
+    }
+  });
+
+  assert.equal(result.activeTab, "3d");
+  assert.equal(result.embed, false);
+  assert.equal(result.review, null);
+  assert.equal(result.legacyReview, true);
+});
+
 test("scene diff updates and removes objects while pruning invalid geometry references", () => {
   const state = reduceViewerState(createViewerState(bundle()), { type: "selectObjects", objectIds: ["object:clash"] });
   const diff = {
