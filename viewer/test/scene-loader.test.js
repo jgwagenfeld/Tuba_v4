@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createViewerState, loadSceneBundle, setLayerVisibility } from "../src/sceneLoader.js";
+import {
+  createViewerState,
+  loadSceneBundle,
+  loadSceneBundleFromUrl,
+  setLayerVisibility
+} from "../src/sceneLoader.js";
 
 async function createFixtureBundle() {
   const root = join(tmpdir(), `tuba-viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -76,6 +81,44 @@ test("creates viewer state with visible layers and scene bounds", async () => {
   assert.deepEqual(state.bounds, [0, -0.1, -0.1, 1, 0.1, 0.1]);
   assert.equal(state.layers.pipe.visible, true);
   assert.deepEqual(state.visibleObjectIds, ["object:element:pipe_0"]);
+});
+
+test("loads scene files before the optional review and exposes review state", async () => {
+  const fixtureRoot = new URL("./fixtures/code_aster_results/", import.meta.url);
+  const fixturePaths = [
+    "scene.json",
+    "metadata/objects.json",
+    "metadata/object_map.json",
+    "metadata/overlays.json",
+    "geometry/geometry_assets.json",
+    "review.json"
+  ];
+  const fixtureFiles = Object.fromEntries(
+    await Promise.all(
+      fixturePaths.map(async (path) => [path, await readFile(new URL(path, fixtureRoot), "utf8")])
+    )
+  );
+  const requestedUrls = [];
+  const fetcher = async (url) => {
+    requestedUrls.push(url);
+    const relativePath = url.replace(/^\/bundle\//, "");
+    return relativePath in fixtureFiles
+      ? new Response(fixtureFiles[relativePath], { status: 200 })
+      : new Response("", { status: 404 });
+  };
+
+  const bundle = await loadSceneBundleFromUrl("/bundle", fetcher);
+  const state = createViewerState(bundle);
+
+  assert.equal(requestedUrls.at(-1), "/bundle/review.json");
+  assert.equal(bundle.review.analysis_status, "solved");
+  assert.deepEqual(bundle.reviewDiagnostics, []);
+  assert.equal(bundle.legacyReview, false);
+  assert.equal(state.review, bundle.review);
+  assert.deepEqual(state.reviewDiagnostics, []);
+  assert.equal(state.legacyReview, false);
+  assert.equal(state.sceneId, "scene:code_aster_results");
+  assert.equal(state.activeLoadCase, "Hot");
 });
 
 test("updates layer visibility without mutating prior state", async () => {

@@ -1,0 +1,50 @@
+{
+  "schema_version": "engineering_review.v1",
+  "package_id": "review:viewer_fixture:r0",
+  "created_at": "2026-07-15T00:00:00Z",
+  "project_name": "Viewer Fixture",
+  "model_standard": "ASME_B31.3",
+  "model_revision": 0,
+  "analysis_status": "solved",
+  "units": {
+    "length": "m",
+    "force": "N",
+    "stress": "Pa"
+  },
+  "coordinate_system": {
+    "up_axis": "Z"
+  },
+  "provenance": [],
+  "tables": {
+    "project_summary": {
+      "id": "project_summary",
+      "title": "Project summary",
+      "source": "model",
+      "columns": [
+        { "id": "project_name", "label": "Project" },
+        { "id": "analysis_status", "label": "Analysis status" }
+      ],
+      "rows": [
+        { "project_name": "Viewer Fixture", "analysis_status": "solved" }
+      ]
+    },
+    "result_summary": {
+      "id": "result_summary",
+      "title": "Governing result summary",
+      "source": "result_state",
+      "columns": [
+        { "id": "maximum_value", "label": "Maximum value" },
+        { "id": "result_basis", "label": "Result basis" }
+      ],
+      "rows": [
+        {
+          "maximum_value": 0.0125,
+          "result_basis": "Code_Aster nodal displacement",
+          "display_note": "<strong>plain data</strong>",
+          "components": { "dx": 0.001, "dy": 0.002 }
+        }
+      ]
+    }
+  },
+  "diagnostics": []
+}

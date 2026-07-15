@@ -1,3 +1,5 @@
+import { loadOptionalReview } from "./reviewLoader.js";
+
 const NODE_FS_PROMISES = "node:fs/promises";
 const NODE_PATH = "node:path";
 
@@ -22,7 +24,7 @@ export async function loadSceneBundle(root) {
 }
 
 export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis.fetch) {
-  const normalized = baseUrl.replace(/\/$/, "");
+  const normalized = String(baseUrl).replace(/\/+$/, "");
   const readJson = async (relativePath) => {
     const response = await fetcher(`${normalized}/${relativePath}`);
     if (!response.ok) {
@@ -43,7 +45,19 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
     }
   }
 
-  return { scene, objects, objectMap, overlays, geometryAssets, geometryPayloads };
+  const reviewResult = await loadOptionalReview(normalized, fetcher);
+
+  return {
+    scene,
+    objects,
+    objectMap,
+    overlays,
+    geometryAssets,
+    geometryPayloads,
+    review: reviewResult.review,
+    reviewDiagnostics: reviewResult.diagnostics,
+    legacyReview: reviewResult.legacy
+  };
 }
 
 export function createViewerState(bundle) {
@@ -73,6 +87,9 @@ export function createViewerState(bundle) {
     agentProposals: scene.agent_proposals ?? [],
     sceneDiffs: scene.scene_diffs ?? [],
     sceneDiagnostics: scene.diagnostics ?? [],
+    review: bundle.review ?? null,
+    reviewDiagnostics: bundle.reviewDiagnostics ?? [],
+    legacyReview: bundle.legacyReview ?? false,
     views: scene.views ?? [],
     diagnostics: [...(scene.diagnostics ?? []), ...validateScene(objects, geometryAssets, overlays)],
     layers,
