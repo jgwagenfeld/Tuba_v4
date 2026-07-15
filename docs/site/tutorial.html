@@ -23,7 +23,6 @@
         <a aria-current="page" href="./tutorial.html">Tutorial</a>
         <a href="./modeling.html">Modeling</a>
         <a href="./overview.html">Overview</a>
-        <a href="./workflow.html">Workflow</a>
         <a href="./autorouting.html">Autorouting</a>
         <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
@@ -54,17 +53,48 @@
         <h2>What you are building</h2>
         <div class="figure-grid">
           <figure class="figure">
-            <img src="./assets/figures/tutorial_model.png" width="1600" height="1000"
+            <img src="./assets/figures/tutorial_model.png" width="843" height="639"
                  alt="The tutorial pipe model as geometry with anchor, guide, and rest supports." />
             <figcaption>Step 1 — the model. Python data only: nodes, pipe elements, supports.
               No results yet.</figcaption>
           </figure>
           <figure class="figure">
-            <img src="./assets/figures/money_shot.png" width="1280" height="1000"
+            <img src="./assets/figures/money_shot.png" width="1081" height="646"
                  alt="The same pipe deformed under load and coloured by Von Mises stress." />
             <figcaption>Step 3 — the review. The same model after Code_Aster solved it:
               deformed shape, Von Mises stress. Only shown after real results are imported.</figcaption>
           </figure>
+        </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>The execution sequence</h2>
+        <p>
+          The whole tutorial is these six stages, in order. Each stage has a
+          distinct output; when a later stage's output is missing, do not infer
+          it from an earlier one. A written <code>study.comm</code> proves export
+          only &mdash; it does not prove solver execution or parsed results.
+        </p>
+        <ol class="step-list">
+          <li><strong>Build and validate</strong> &mdash; author the model, then
+            <code>model.validate()</code>. Fix every reported error before export.</li>
+          <li><strong>Export the study</strong> &mdash; <code>export_analysis_study</code>
+            writes <code>.mail</code>, <code>.comm</code>, <code>.export</code>, the
+            manifest, and the sidecar. Handoff only.</li>
+          <li><strong>Run Code_Aster</strong> &mdash; on the configured runtime
+            (WSL by default). Produces result tables and, when requested, an RMED file.</li>
+          <li><strong>Parse artifacts</strong> &mdash; the CSV/RMED tables are read into
+            <code>FEAResults</code> (displacement, reaction, internal force, stress).</li>
+          <li><strong>Snapshot the state</strong> &mdash; wrap the results in a
+            revision-tagged <code>ResultState</code>.</li>
+          <li><strong>Review</strong> &mdash; a PyVista quick-look or a web scene bundle.
+            Pick one path per notebook; do not add a third.</li>
+        </ol>
+        <div class="note">
+          The script below uses <code>solve_exported_study</code>, which runs
+          stages 3&ndash;4 in one call. <code>model.solve(solver="code_aster")</code>
+          is the one-call convenience that runs stages 2&ndash;4 together; the staged
+          path is easier to debug because each stage's output is inspectable.
         </div>
       </section>
 
@@ -302,8 +332,16 @@ results.plot_stress()</code></pre>
 
       <section class="doc-section">
         <h2>Review it in the browser</h2>
-        <iframe class="viewer-panel" title="Code_Aster review viewer"
-                src="./viewer/?bundle=code-aster-review&embed=1" loading="lazy"></iframe>
+        <a class="viewer-cta" href="./viewer/?bundle=code-aster-review"
+           title="Open the interactive Code_Aster review viewer">
+          <img src="./assets/figures/money_shot.png" width="1081" height="646"
+               alt="Preview of the solved pipe in the review viewer: deformed shape coloured by Von Mises stress." />
+          <span class="viewer-cta__bar">
+            <span class="viewer-cta__play" aria-hidden="true">&#9654;</span>
+            Open the interactive Code_Aster review viewer
+            <span class="viewer-cta__hint">orbit, section, and inspect results &rarr;</span>
+          </span>
+        </a>
       </section>
 
       <section class="doc-section">

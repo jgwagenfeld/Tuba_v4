@@ -20,7 +20,6 @@
         <a href="./tutorial.html">Tutorial</a>
         <a href="./modeling.html">Modeling</a>
         <a href="./overview.html">Overview</a>
-        <a href="./workflow.html">Workflow</a>
         <a href="./autorouting.html">Autorouting</a>
         <a aria-current="page" href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
@@ -704,6 +703,66 @@
           </table>
           <p class="api-returns">Returns: <code>SceneBundle</code></p>
         </div>
+      </section>
+
+      <section class="doc-section">
+        <h2>Tabular reports (line list, sections, reactions)</h2>
+        <p>
+          The same scene also drives the sign-and-archive deliverables a piping
+          engineer expects &mdash; a line list, a cross-section schedule, a
+          load-case summary, and per-load-case stress, reaction, and
+          displacement tables. Each report is a pure function
+          (<code>scene &rarr; list[dict]</code>) in <code>tuba.visualization.reports</code>,
+          so it feeds a CSV, an HTML table, or a DataFrame equally well.
+        </p>
+
+        <div class="api-entry">
+          <h3><code>build_reports(scene: VisualizationScene) -&gt; dict[str, list[dict]]</code></h3>
+          <p>Return every report keyed by name: <code>line_list</code>, <code>section_schedule</code>, <code>load_case_summary</code>, <code>stress</code>, <code>reactions</code>, <code>displacements</code>. Call any one directly (e.g. <code>line_list(scene)</code>) for a single table.</p>
+        </div>
+
+        <div class="api-entry">
+          <h3><code>write_report_csvs(scene: VisualizationScene, directory: str | Path) -&gt; list[Path]</code></h3>
+          <p>Write one CSV per non-empty report into <code>directory</code> and return the paths.</p>
+        </div>
+
+        <p>
+          <code>write_static_report</code> calls this for you: it drops the CSVs
+          under <code>reports/</code> and renders each table into the shareable
+          <code>index.html</code> alongside a download link.
+        </p>
+        <pre><code>from tuba.visualization import build_visualization_scene, line_list, write_report_csvs
+from tuba.visualization.static_report import write_static_report
+
+scene = build_visualization_scene(model, solver_results=results, result_states=[state])
+
+# One table as plain rows...
+for row in line_list(scene):
+    print(row["name"], row["od_m"], row["length_m"], row["mass_kg"])
+
+# ...or the full self-contained report folder (HTML tables + CSVs + scene bundle).
+report = write_static_report(scene, "reports/HOT-100", title="HOT-100 review")
+print(report.index_path)</code></pre>
+
+        <p>A typical <code>line_list</code> renders like this:</p>
+        <table class="reference-table">
+          <thead><tr><th>id</th><th>name</th><th>type</th><th>from_node</th><th>to_node</th><th>length_m</th><th>od_m</th><th>section</th><th>material</th><th>mass_kg</th></tr></thead>
+          <tbody>
+            <tr><td><code>object:element:pipe_0</code></td><td>pipe_0</td><td>pipe_straight</td><td>N0</td><td>N1</td><td>1.0</td><td>0.1</td><td>PipeSec</td><td>Steel</td><td>22.2</td></tr>
+          </tbody>
+        </table>
+        <p>and the <code>reactions</code> report gives 6-DOF support loads per load case:</p>
+        <table class="reference-table">
+          <thead><tr><th>load_case</th><th>node</th><th>support</th><th>fx_n</th><th>fy_n</th><th>fz_n</th><th>mx_nm</th><th>my_nm</th><th>mz_nm</th><th>magnitude_n</th></tr></thead>
+          <tbody>
+            <tr><td>Hot</td><td>N0</td><td>support_anchor_0</td><td>900.0</td><td>0.0</td><td>-300.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>948.68</td></tr>
+          </tbody>
+        </table>
+        <p>
+          <code>stress</code> adds a <code>status</code> column
+          (<code>ok</code> / <code>warning</code> / <code>critical</code>) from the
+          utilization thresholds, so the report doubles as a quick compliance scan.
+        </p>
       </section>
 
       <section class="doc-section">

@@ -471,6 +471,58 @@ code {
   background: #101316;
 }
 
+/* Click-to-open poster for the interactive viewer. A static preview always
+   shows (no black WebGL void), and the live viewer opens in its own page. */
+.viewer-cta {
+  display: block;
+  position: relative;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #101316;
+  text-decoration: none;
+  color: inherit;
+}
+.viewer-cta img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.viewer-cta__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+.viewer-cta__play {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+}
+.viewer-cta__hint {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--muted);
+}
+.viewer-cta:hover {
+  border-color: var(--accent);
+}
+.viewer-cta:hover .viewer-cta__hint {
+  color: var(--accent);
+}
+
 .visual-section {
   display: grid;
   gap: 14px;

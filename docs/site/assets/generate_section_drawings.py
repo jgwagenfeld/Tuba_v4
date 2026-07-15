@@ -286,6 +286,66 @@ def draw_dataflow(ax):
             ha="center", va="center", fontsize=13, fontweight="bold", color=INK)
 
 
+# ---- result-provenance diagram (handoff vs solved result) ------------------
+WARN_FILL, WARN_INK = "#f6ece7", "#9b3f2b"
+OK_FILL, OK_INK = "#e7f0ea", "#2f7d55"
+
+
+def _chip(ax, cx, cy, w, h, lines, ec=MUTED, fill="#f4f6f7"):
+    ax.add_patch(FancyBboxPatch((cx - w / 2, cy - h / 2), w, h,
+                 boxstyle="round,pad=0.02,rounding_size=0.1",
+                 linewidth=1.3, edgecolor=ec, facecolor=fill, zorder=3))
+    ax.text(cx, cy, "\n".join(lines), ha="center", va="center", fontsize=10,
+            color=INK, family="monospace", zorder=4, linespacing=1.5)
+
+
+def _verdict(ax, cx, cy, w, h, title, ec, fill):
+    ax.add_patch(FancyBboxPatch((cx - w / 2, cy - h / 2), w, h,
+                 boxstyle="round,pad=0.02,rounding_size=0.12",
+                 linewidth=1.8, edgecolor=ec, facecolor=fill, zorder=3))
+    ax.text(cx, cy, title, ha="center", va="center", fontsize=13.5,
+            fontweight="bold", color=ec, zorder=4)
+
+
+def draw_provenance(ax):
+    ax.set_aspect("equal")
+    ax.axis("off")
+    w, h = 2.7, 1.15
+    x_proc, x_chip, x_verd = 1.5, 7.0, 12.4
+    cw, vw = 5.4, 3.2
+    top, bot = 1.55, -1.55
+
+    # top lane — export handoff (not a result)
+    _flow_box(ax, x_proc, top, w, h, "Export study", "before solve")
+    _chip(ax, x_chip, top, cw, h,
+          ["study.comm    study.mail", "study.export    study_manifest.json"])
+    _verdict(ax, x_verd, top, vw, h, "NOT a result", WARN_INK, WARN_FILL)
+    _flow_arrow(ax, (x_proc + w / 2, top), (x_chip - cw / 2, top))
+    _flow_arrow(ax, (x_chip + cw / 2, top), (x_verd - vw / 2, top))
+    ax.text(x_chip, top + h / 2 + 0.28, "handoff — proves export, not evaluation",
+            ha="center", va="bottom", fontsize=10, style="italic", color=MUTED)
+
+    # bottom lane — solved artifacts (a result)
+    _flow_box(ax, x_proc, bot, w, h, "Run Code_Aster", "solve (WSL)")
+    _chip(ax, x_chip, bot, cw, h,
+          ["study_depl   study_effo   study_reac", "study_sieq   study.rmed"],
+          ec=OK_INK, fill=OK_FILL)
+    _verdict(ax, x_verd, bot, vw, h, "RESULT", OK_INK, OK_FILL)
+    _flow_arrow(ax, (x_proc + w / 2, bot), (x_chip - cw / 2, bot))
+    _flow_arrow(ax, (x_chip + cw / 2, bot), (x_verd - vw / 2, bot))
+    ax.text(x_chip, bot - h / 2 - 0.28, "evidence — parsed from a real Code_Aster run",
+            ha="center", va="top", fontsize=10, style="italic", color=MUTED)
+
+    # the solve advances the same study from handoff to evidence
+    _flow_arrow(ax, (x_proc, top - h / 2), (x_proc, bot + h / 2))
+
+    ax.set_xlim(-0.2, x_verd + vw / 2 + 0.3)
+    ax.set_ylim(bot - 1.5, top + 1.5)
+    ax.text((-0.2 + x_verd + vw / 2 + 0.3) / 2, top + 1.35,
+            "RESULT PROVENANCE — stress, displacement, reaction and compliance require the solved lane",
+            ha="center", va="center", fontsize=12.5, fontweight="bold", color=INK)
+
+
 # ---- title block + composition --------------------------------------------
 def title_block(ax):
     ax.axis("off")
@@ -369,6 +429,16 @@ def render_dataflow(out_dir):
     plt.close(fig)
 
 
+def render_provenance(out_dir):
+    fig, ax = plt.subplots(figsize=(15.0, 5.0), dpi=150)
+    fig.patch.set_facecolor(SHEET)
+    ax.set_facecolor(SHEET)
+    draw_provenance(ax)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+    fig.savefig(out_dir / "provenance.svg", facecolor=SHEET, metadata={"Date": None})
+    plt.close(fig)
+
+
 def main(out_dir: Path = FIG_DIR) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     dims = build_sections()
@@ -381,7 +451,8 @@ def main(out_dir: Path = FIG_DIR) -> None:
     _one(out_dir, draw_ibeam, "section_ibeam.svg", dims["IBeam"], R)
     render_bend(out_dir)
     render_dataflow(out_dir)
-    print(f"wrote sections.svg + 5 details + bend_detail.svg + dataflow.svg to {out_dir}")
+    render_provenance(out_dir)
+    print(f"wrote sections.svg + 5 details + bend_detail.svg + dataflow.svg + provenance.svg to {out_dir}")
 
 
 if __name__ == "__main__":

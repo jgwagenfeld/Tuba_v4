@@ -23,7 +23,6 @@
         <a href="./tutorial.html">Tutorial</a>
         <a aria-current="page" href="./modeling.html">Modeling</a>
         <a href="./overview.html">Overview</a>
-        <a href="./workflow.html">Workflow</a>
         <a href="./autorouting.html">Autorouting</a>
         <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
@@ -50,12 +49,40 @@
         </p>
       </section>
 
-      <figure class="figure">
-        <img src="./assets/figures/element_triad.png" width="1600" height="1000"
-             alt="A straight pipe element with its local X (red, axial), Y (green), and Z (blue) axes." />
-        <figcaption>A frame is three orthonormal vectors. Every element carries a local
-          triad: X (red) runs along the member axis, Z (blue) is up, Y (green) = Z × X.</figcaption>
-      </figure>
+      <section class="doc-section">
+        <h2>Global and local coordinate systems</h2>
+        <p>
+          Every node in a Tuba model lives in one <strong>global</strong> (world)
+          Cartesian system &mdash; a single right-handed X/Y/Z that all geometry,
+          supports, and solver export share. When you write
+          <code>[2.0, 0.0, 0.0]</code>, that point is in global metres. The small
+          gizmo in the corner of every 3-D figure shows this world frame.
+        </p>
+        <p>
+          On top of that, Tuba attaches <strong>local</strong> coordinate systems
+          where they make authoring and analysis natural. Every element carries
+          its own local triad, and reusable geometry can be authored in a named
+          <a href="#placement-frames">placement frame</a> and mapped back to the
+          world. A local frame is just an origin and three orthonormal vectors; a
+          point in local coordinates becomes global through
+          <code>origin + basis · p</code>.
+        </p>
+        <figure class="figure">
+          <img src="./assets/figures/element_triad.png" width="1085" height="794"
+               alt="A straight pipe element, drawn translucent, with its local X axis (red) running down the bore along the pipe, local Z (blue) up, and local Y (green) sideways." />
+          <figcaption>The pipe is drawn translucent so you can see local <strong>X</strong> (red)
+            running straight down the bore. Every element frame follows the same rule: local X is
+            the member axis, local Z is the member&rsquo;s up, and local Y completes the
+            right-handed set (Y = Z &times; X).</figcaption>
+        </figure>
+        <p>
+          This element frame is what makes direction-dependent data unambiguous.
+          Section orientation, bend planes, and local member forces
+          (axial, shear, bending, torsion) are all expressed in it &mdash; so
+          &ldquo;bending about local Y&rdquo; means the same thing on a horizontal
+          run and a vertical riser, even though their world directions differ.
+        </p>
+      </section>
 
       <section class="doc-section">
         <h2>Cross-sections</h2>
@@ -206,10 +233,10 @@ model.add_element(
         </table>
       </section>
 
-      <section class="doc-section">
-        <h2>Local coordinate systems</h2>
+      <section class="doc-section" id="placement-frames">
+        <h2>Placement frames</h2>
         <figure class="figure">
-          <img src="./assets/figures/placement_frame.png" width="1600" height="1000"
+          <img src="./assets/figures/placement_frame.png" width="629" height="907"
                alt="World coordinate triad and a rotated local placement frame with a pipe authored in local coordinates." />
           <figcaption>A placement frame is a local coordinate system positioned in the world:
             <code>axis</code> is local Z, <code>ref_direction</code> is projected to local X,
@@ -226,11 +253,19 @@ model.add_element(
 
       <section class="doc-section">
         <h2>See it live</h2>
-        <p>Drag to orbit. The global gizmo and each component's local axis triad are the
-          same vectors shown above, now interactive.</p>
-        <iframe class="viewer-panel" title="Interactive frames viewer"
-                src="./viewer/?bundle=imported_component_mixed_demo&embed=1"
-                loading="lazy"></iframe>
+        <p>The global gizmo and each component's local axis triad are the same
+          vectors shown above &mdash; open the viewer to orbit the scene and select
+          objects.</p>
+        <a class="viewer-cta" href="./viewer/?bundle=imported_component_mixed_demo"
+           title="Open the interactive frames viewer">
+          <img src="./assets/figures/viewer_frames_poster.png" width="1366" height="1324"
+               alt="Preview of the frames viewer: a pipe with a support, an imported component box, and its local X/Y/Z coordinate axes, listed in the layer tree." />
+          <span class="viewer-cta__bar">
+            <span class="viewer-cta__play" aria-hidden="true">&#9654;</span>
+            Open the interactive frames viewer
+            <span class="viewer-cta__hint">world &amp; local axes, live &rarr;</span>
+          </span>
+        </a>
       </section>
 
       <section class="doc-section">
@@ -302,14 +337,14 @@ point = model.to_global_point((0.5, 0.0, 0.0), frame="placement_frame:rack_A")</
       <section class="doc-section">
         <h2>Pipe builder orientation</h2>
         <figure class="figure">
-          <img src="./assets/figures/builder_route.png" width="1600" height="1000"
+          <img src="./assets/figures/builder_route.png" width="880" height="714"
                alt="A pipe routed through an in-plane and an out-of-plane bend, with the local triad reorienting at each element." />
           <figcaption>The pipe builder is a moving frame. <code>run</code> advances along the
             current forward (local X); <code>bend</code> rotates it about a plane axis. Watch the
             red axial arrow turn through the in-plane and the out-of-plane bend.</figcaption>
         </figure>
         <figure class="figure">
-          <img src="./assets/figures/bend_chord_arc.png" width="1600" height="1000"
+          <img src="./assets/figures/bend_chord_arc.png" width="806" height="933"
                alt="The straight chord between finite-element nodes at the tangent point versus the true circular bend arc." />
           <figcaption>A bend stores the true circular arc, but the finite-element nodes sit at
             the tangent-intersection point — a straight chord. The gap between the amber chord
@@ -369,7 +404,7 @@ point = model.to_global_point((0.5, 0.0, 0.0), frame="placement_frame:rack_A")</
       </section>
 
       <figure class="figure">
-        <img src="./assets/figures/supports.png" width="1600" height="1000"
+        <img src="./assets/figures/supports.png" width="1223" height="814"
              alt="Anchor, guide, rest, and spring support glyphs on a routed pipe." />
         <figcaption>Supports are boundary conditions with real geometry: anchor, guide, rest,
           and spring hanger, each aligned to the pipe's local frame.</figcaption>

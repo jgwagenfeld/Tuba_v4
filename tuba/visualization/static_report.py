@@ -8,8 +8,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from tuba.visualization.reports import build_reports, write_report_csvs
 from tuba.visualization.scene import SceneDiagnostic, VisualizationScene
 from tuba.visualization.web_export import SceneBundle, write_scene_bundle
+
+_REPORT_TITLES = {
+    "line_list": "Line list",
+    "section_schedule": "Cross-section schedule",
+    "load_case_summary": "Load case summary",
+    "stress": "Stress / utilization",
+    "reactions": "Support reactions",
+    "displacements": "Nodal displacements",
+}
 
 
 @dataclass(frozen=True)
@@ -45,8 +55,11 @@ def write_static_report(
     _write_json(issue_summary_path, issue_summary)
     _write_json(root / "metadata" / "issue_summary.json", issue_summary)
 
+    csv_paths = write_report_csvs(scene, root / "reports")
+
     index_path = root / "index.html"
     manifest = {
+        "reports": {path.stem: f"reports/{path.name}" for path in csv_paths},
         "title": report_title,
         "scene_id": scene.scene_id,
         "model_id": scene.model_id,
@@ -146,6 +159,7 @@ def _report_html(title: str, scene: VisualizationScene, issue_summary: dict[str,
         f"<tr><td>{html.escape(issue['id'])}</td><td>{html.escape(issue['severity'])}</td><td>{html.escape(issue['status'])}</td><td>{html.escape(issue['title'])}</td></tr>"
         for issue in issue_summary["issues"]
     )
+    report_sections = _reports_html(scene, manifest.get("reports", {}))
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -172,12 +186,42 @@ def _report_html(title: str, scene: VisualizationScene, issue_summary: dict[str,
     <table><thead><tr><th>ID</th><th>Kind</th><th>Name</th></tr></thead><tbody>{object_rows}</tbody></table>
     <h2>Issues</h2>
     <table><thead><tr><th>ID</th><th>Severity</th><th>Status</th><th>Title</th></tr></thead><tbody>{issue_rows}</tbody></table>
+    {report_sections}
   </main>
   <script id="tuba-scene" type="application/json">{scene_json}</script>
   <script id="tuba-report-data" type="application/json">{json_data}</script>
 </body>
 </html>
 """
+
+
+def _reports_html(scene: VisualizationScene, report_uris: dict[str, str]) -> str:
+    sections = []
+    for name, rows in build_reports(scene).items():
+        if not rows:
+            continue
+        title = _REPORT_TITLES.get(name, name)
+        headers = list(rows[0].keys())
+        head = "".join(f"<th>{html.escape(header)}</th>" for header in headers)
+        body = "\n".join(
+            "<tr>" + "".join(f"<td>{html.escape(_cell(row.get(header)))}</td>" for header in headers) + "</tr>"
+            for row in rows
+        )
+        csv_uri = report_uris.get(name)
+        link = f' <a class="viewer-link" href="{html.escape(csv_uri, quote=True)}">CSV</a>' if csv_uri else ""
+        sections.append(
+            f"<h2>{html.escape(title)}{link}</h2>"
+            f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+        )
+    return "\n".join(sections)
+
+
+def _cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    return str(value)
 
 
 def _try_capture_screenshot(index_path: Path, screenshot_path: Path, *, backend: str) -> dict[str, Any] | None:

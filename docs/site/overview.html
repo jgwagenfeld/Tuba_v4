@@ -20,7 +20,6 @@
         <a href="./tutorial.html">Tutorial</a>
         <a href="./modeling.html">Modeling</a>
         <a aria-current="page" href="./overview.html">Overview</a>
-        <a href="./workflow.html">Workflow</a>
         <a href="./autorouting.html">Autorouting</a>
         <a href="./commands.html">Commands</a>
         <a href="./examples.html">Examples</a>
@@ -89,7 +88,7 @@
           </article>
         </div>
         <figure class="figure">
-          <img src="./assets/figures/money_shot.png" width="1280" height="1000"
+          <img src="./assets/figures/money_shot.png" width="1081" height="646"
                alt="Deformed, stress-coloured piping model produced by the Tuba pipeline." />
           <figcaption>The point of the contract: a validated model becomes a reviewable Code_Aster
             result &mdash; here a deformed, Von Mises&ndash;coloured operating case.</figcaption>
@@ -264,7 +263,7 @@
         </table>
       </section>
 
-      <section class="doc-section warning">
+      <section class="doc-section warning" id="result-boundary">
         <h2>Result boundary</h2>
         <p>
           Do not present fabricated, mock, hand-built, or proxy values as solver
@@ -273,6 +272,13 @@
           expansion, operating-state clash, compliance, and result visualization
           require Code_Aster-backed artifacts.
         </p>
+        <figure class="figure figure--sheet">
+          <img src="./assets/figures/provenance.svg" width="1500" height="500"
+               alt="Provenance diagram: the export lane writes .comm, .mail, .export, and manifest files and is NOT a result; running Code_Aster produces depl, effo, reac, sieq, and rmed artifacts, which are the RESULT. The solve advances the same study from the handoff lane to the evidence lane." />
+          <figcaption>The same rule as a picture: exported study files are a handoff (not a result);
+            only the artifacts a real Code_Aster run parses out — displacement, force, reaction, stress —
+            back an engineering result. This is why other pages gate result displays on the solved lane.</figcaption>
+        </figure>
       </section>
     </main>
   </body>

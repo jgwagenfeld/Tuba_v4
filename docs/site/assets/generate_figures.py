@@ -6,10 +6,11 @@ Outputs committed PNGs under docs/site/assets/figures/. No solver required.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 import pyvista as pv
+from PIL import Image
 
 from tuba import Model
 from tuba.plotting.scenes import build_model_scene
@@ -18,6 +19,29 @@ from tuba.plotting.export import export_screenshot
 
 FIG_DIR = Path(__file__).resolve().parent / "figures"
 RES = (1600, 1000)
+
+
+def _autocrop(path: Path, *, pad_frac: float = 0.05, min_pad: int = 24) -> None:
+    """Crop the solid-colour background margin so the subject fills the frame.
+
+    Background colour is read from the top-left corner, so this works on both the
+    dark model renders (#111827) and the light route schematics (#f7f8fa) without
+    knowing which is which. Padding is a fraction of the subject's larger side, so
+    every figure keeps the same visual breathing room regardless of subject size.
+    """
+    im = Image.open(path).convert("RGB")
+    arr = np.asarray(im, dtype=int)
+    h, w, _ = arr.shape
+    bg = arr[0, 0]
+    mask = np.abs(arr - bg).sum(axis=2) > 24
+    if not mask.any():
+        return
+    ys, xs = np.where(mask)
+    y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
+    pad = max(min_pad, round(pad_frac * max(y1 - y0, x1 - x0)))
+    box = (max(0, x0 - pad), max(0, y0 - pad),
+           min(w, x1 + 1 + pad), min(h, y1 + 1 + pad))
+    im.crop(box).save(path)
 
 
 def _steel(model: Model) -> None:
@@ -29,18 +53,29 @@ def _steel(model: Model) -> None:
 
 def _render(model, path: Path, *, results=None, deform_scale=None,
             local_axes=False, local_axes_scale=0.45,
-            supports=False, supports_scale=0.085,
-            res=RES, zoom=1.5) -> Path:
+            supports=False, supports_scale=0.085, body_opacity=None,
+            res=RES, zoom=1.5, post: Optional[Callable[["pv.Plotter"], None]] = None) -> Path:
     plotter = build_model_scene(model, results, off_screen=True, title="",
                                 deform_scale=deform_scale)
+    if body_opacity is not None:
+        # Only the pipe body exists at this point (axes/supports are added below),
+        # so make it translucent to reveal the local X axis that runs down the bore.
+        for actor in list(plotter.renderer.actors.values()):
+            try:
+                actor.prop.opacity = body_opacity
+            except AttributeError:
+                pass
     if local_axes:
         add_local_axes_to_plotter(plotter, model, scale=local_axes_scale)
     if supports:
         _add_supports_to_plotter(plotter, model, scale=supports_scale)
+    if post is not None:
+        post(plotter)
     plotter.reset_camera()
     plotter.camera.zoom(zoom)
     export_screenshot(plotter, str(path), resolution=res)
     plotter.close()
+    _autocrop(path)
     return path
 
 
@@ -67,15 +102,31 @@ def _triad(plotter, origin, cs, scale, labels) -> None:
 
 
 def fig_element_triad(out_dir: Path) -> Path:
-    """One straight pipe element with its local X/Y/Z triad."""
+    """One straight pipe element with its local X/Y/Z triad (X runs down the bore)."""
+    from tuba.plotting.plots import _get_element_local_frame
+
     m = Model(project_name="ElementTriad")
     _steel(m)
     m.add_pipe_section("DN150", OD=0.1683, WT=0.0071)
     with m.pipe(section="DN150", material="steel", route="P") as p:
         p.start([0.0, 0.0, 0.0])
         p.run(2.5)
+
+    elem = m.elements[0]
+    mid = (m.nodes[elem.n1].coords + m.nodes[elem.n2].coords) / 2.0
+    frame = _get_element_local_frame(m, elem)
+    scale = 0.7
+
+    def label_axes(plotter):
+        tips = [mid + np.asarray(v, float) * scale * 1.1 for v in frame]
+        plotter.add_point_labels(
+            np.array(tips),
+            ["local X — along the pipe", "local Y", "local Z"],
+            font_size=17, text_color="white", shape=None, show_points=False,
+            always_visible=True)
+
     return _render(m, out_dir / "element_triad.png", local_axes=True,
-                   local_axes_scale=0.7, zoom=1.4)
+                   local_axes_scale=scale, body_opacity=0.4, zoom=1.4, post=label_axes)
 
 
 def fig_placement_frame(out_dir: Path) -> Path:
@@ -96,10 +147,12 @@ def fig_placement_frame(out_dir: Path) -> Path:
     _triad(plotter, (0.0, 0.0, 0.0), CoordinateSystem.identity(), 1.1,
            ["world X", "world Y", "world Z"])
     _triad(plotter, cs.origin, cs, 1.0, ["local X", "local Y", "local Z"])
+    plotter.hide_axes()  # redundant with the drawn world triad; its corner widget only skews the crop
     plotter.reset_camera()
     plotter.camera.zoom(1.2)
     export_screenshot(plotter, str(out_dir / "placement_frame.png"), resolution=RES)
     plotter.close()
+    _autocrop(out_dir / "placement_frame.png")
     return out_dir / "placement_frame.png"
 
 
@@ -173,6 +226,7 @@ def fig_bend_chord_arc(out_dir: Path) -> Path:
     plotter.camera.zoom(1.6)
     export_screenshot(plotter, str(out_dir / "bend_chord_arc.png"), resolution=RES)
     plotter.close()
+    _autocrop(out_dir / "bend_chord_arc.png")
     return out_dir / "bend_chord_arc.png"
 
 
@@ -207,6 +261,34 @@ def fig_tutorial_model(out_dir: Path) -> Path:
                    supports=True, supports_scale=0.09, zoom=1.4)
 
 
+def _vmis_legend(plotter) -> None:
+    """Replace the default VMIS scalar bar with a titled one that fits the frame.
+
+    The stock bar renders its title and top exponent tick hard against the window
+    edge, so both clip. This re-draws the same mapper as an explicit horizontal
+    bar, centred and inset, with a readable title and non-clipping ticks (Pa in
+    scientific notation — the array is Pa, so no misleading unit conversion)."""
+    mappers = plotter.scalar_bars._scalar_bar_mappers.get("VMIS")
+    mapper = mappers[0] if mappers else None
+    try:
+        plotter.remove_scalar_bar("VMIS")
+    except (StopIteration, KeyError, IndexError):
+        pass
+    plotter.add_scalar_bar(
+        title="Von Mises stress (Pa)",
+        mapper=mapper,
+        color="#e5e7eb",
+        title_font_size=26,
+        label_font_size=20,
+        position_x=0.22,
+        position_y=0.09,
+        width=0.56,
+        height=0.045,
+        n_labels=5,
+        fmt="%.1e",
+    )
+
+
 def fig_money_shot(out_dir: Path) -> Path:
     """Deformed shape + Von Mises stress from the committed viz_gallery_operating study (no solver)."""
     from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
@@ -215,7 +297,7 @@ def fig_money_shot(out_dir: Path) -> Path:
     work_dir = REPO_ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating"
     run = load_or_run_code_aster_results(model, "Operating", work_dir, run_solver=False)
     return _render(model, out_dir / "money_shot.png", results=run.results,
-                   deform_scale=35.0, zoom=1.35, res=(1280, 1000))
+                   deform_scale=35.0, zoom=1.35, res=(1280, 1000), post=_vmis_legend)
 
 
 def _route_model_and_request():
@@ -249,6 +331,7 @@ def fig_route_preroute(out_dir: Path) -> Path:
     plotter.camera.zoom(1.3)
     export_screenshot(plotter, str(out_dir / "route_preroute.png"), resolution=RES)
     plotter.close()
+    _autocrop(out_dir / "route_preroute.png")
     return out_dir / "route_preroute.png"
 
 
@@ -266,6 +349,7 @@ def fig_route_candidates(out_dir: Path) -> Path:
     plotter.camera.zoom(1.3)
     export_screenshot(plotter, str(out_dir / "route_candidates.png"), resolution=RES)
     plotter.close()
+    _autocrop(out_dir / "route_candidates.png")
     return out_dir / "route_candidates.png"
 
 
