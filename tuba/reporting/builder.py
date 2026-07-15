@@ -16,6 +16,7 @@ from tuba.reporting.model import (
     ReviewProvenance,
 )
 from tuba.reporting.tables import (
+    build_code_compliance_table,
     build_diagnostics,
     build_diagnostics_table,
     build_model_tables,
@@ -49,7 +50,22 @@ def build_engineering_review(
     if study_records:
         tables.append(build_studies_table(study_records))
     if state_records:
-        tables.extend(build_result_tables(model, study_records, state_records))
+        tables.extend(
+            build_result_tables(
+                model,
+                study_records,
+                state_records,
+                compliance_reports=compliance_records,
+            )
+        )
+    if compliance_records:
+        tables.append(
+            build_code_compliance_table(
+                study_records,
+                state_records,
+                compliance_records,
+            )
+        )
     tables.append(
         build_diagnostics_table(
             diagnostics,
@@ -91,6 +107,7 @@ def _validate_lineage(
 
     result_ids: set[str] = set()
     result_load_cases: set[str] = set()
+    result_load_case_counts: dict[str, int] = {}
     model_node_ids = set(model.nodes)
     model_element_ids = {element.id for element in model.elements}
     for state in result_states:
@@ -142,11 +159,18 @@ def _validate_lineage(
                 f"{sorted(unknown_elements)}."
             )
         result_load_cases.add(state.load_case)
+        result_load_case_counts[state.load_case] = (
+            result_load_case_counts.get(state.load_case, 0) + 1
+        )
 
     for report in compliance_reports:
         if report.load_case not in result_load_cases:
             raise EngineeringReviewError(
                 f"Compliance load case {report.load_case!r} has no matching result state."
+            )
+        if result_load_case_counts[report.load_case] != 1:
+            raise EngineeringReviewError(
+                f"Compliance load case {report.load_case!r} matches multiple result states."
             )
 
 

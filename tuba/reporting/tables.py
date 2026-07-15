@@ -8,6 +8,7 @@ from typing import Any
 
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
+from tuba.compliance.asme_b313 import ComplianceReport
 from tuba.model import (
     BarSection,
     CableSection,
@@ -401,6 +402,8 @@ def build_result_tables(
     model: TubaModel,
     studies: Iterable[AnalysisStudy],
     result_states: Iterable[ResultState],
+    *,
+    compliance_reports: Iterable[ComplianceReport] = (),
 ) -> tuple[ReportTable, ...]:
     """Build Code_Aster-derived tables after the caller validates lineage."""
     study_by_id = {study.id: study for study in studies}
@@ -411,7 +414,12 @@ def build_result_tables(
                 f"Result state {state.id!r} does not reference a supplied study."
             )
     return (
-        build_result_summary_table(model, study_by_id, states),
+        build_result_summary_table(
+            model,
+            study_by_id,
+            states,
+            compliance_reports=compliance_reports,
+        ),
         build_displacements_table(study_by_id, states),
         build_reactions_table(model, study_by_id, states),
         build_element_forces_table(model, study_by_id, states),
@@ -528,9 +536,12 @@ def build_result_summary_table(
     model: TubaModel,
     studies_by_id: Mapping[str, AnalysisStudy],
     result_states: Iterable[ResultState],
+    *,
+    compliance_reports: Iterable[ComplianceReport] = (),
 ) -> ReportTable:
+    states = tuple(result_states)
     rows: list[dict[str, Any]] = []
-    for state in result_states:
+    for state in states:
         study = studies_by_id[state.study_id]
         identity = _solver_identity(study, state)
         displacement_rows = list(_displacement_rows(studies_by_id, (state,)))
@@ -602,6 +613,50 @@ def build_result_summary_table(
                     governing_entity_ref=governing["entity_ref"],
                 )
             )
+    states_by_load_case = {state.load_case: state for state in states}
+    for report in compliance_reports:
+        state = states_by_load_case[report.load_case]
+        identity = _solver_identity(studies_by_id[state.study_id], state)
+        if not report.results:
+            continue
+        sustained = max(
+            report.results,
+            key=lambda result: (
+                result.sustained_ratio,
+                result.element_id,
+                result.node_id,
+            ),
+        )
+        rows.append(
+            _summary_row(
+                identity,
+                result_type="sustained_code_utilization",
+                maximum_value=sustained.sustained_ratio,
+                unit="ratio",
+                result_basis=f"{report.code_name}-{report.code_edition} sustained code check",
+                governing_entity_ref=f"element:{sustained.element_id}",
+                governing_location=sustained.node_id,
+            )
+        )
+        expansion = max(
+            report.results,
+            key=lambda result: (
+                result.expansion_ratio,
+                result.element_id,
+                result.node_id,
+            ),
+        )
+        rows.append(
+            _summary_row(
+                identity,
+                result_type="expansion_code_utilization",
+                maximum_value=expansion.expansion_ratio,
+                unit="ratio",
+                result_basis=f"{report.code_name}-{report.code_edition} expansion code check",
+                governing_entity_ref=f"element:{expansion.element_id}",
+                governing_location=expansion.node_id,
+            )
+        )
     return ReportTable(
         id="result_summary",
         title="Governing result summary",
@@ -614,6 +669,91 @@ def build_result_summary_table(
             ReportColumn("result_basis", "Result basis"),
             ReportColumn("governing_entity_ref", "Governing entity"),
             ReportColumn("governing_location", "Governing location"),
+        ),
+        rows=tuple(rows),
+    )
+
+
+def build_code_compliance_table(
+    studies: Iterable[AnalysisStudy],
+    result_states: Iterable[ResultState],
+    compliance_reports: Iterable[ComplianceReport],
+) -> ReportTable:
+    """Build authoritative piping-code checks from compliance reports only."""
+    studies_by_id = {study.id: study for study in studies}
+    states_by_load_case = {state.load_case: state for state in result_states}
+    rows: list[dict[str, Any]] = []
+    for report in compliance_reports:
+        state = states_by_load_case[report.load_case]
+        identity = _solver_identity(studies_by_id[state.study_id], state)
+        for result in report.results:
+            rows.append(
+                {
+                    **identity,
+                    "code_name": report.code_name,
+                    "code_edition": report.code_edition,
+                    "entity_ref": f"element:{result.element_id}",
+                    "element_id": result.element_id,
+                    "node_id": result.node_id,
+                    "sustained_stress_pa": result.sustained_stress,
+                    "sustained_allowable_pa": result.sustained_allowable,
+                    "sustained_ratio": result.sustained_ratio,
+                    "sustained_pass": result.sustained_pass,
+                    "expansion_stress_pa": result.expansion_stress,
+                    "expansion_allowable_pa": result.expansion_allowable,
+                    "expansion_ratio": result.expansion_ratio,
+                    "expansion_pass": result.expansion_pass,
+                    "pressure": result.pressure,
+                    "Do": result.Do,
+                    "t": result.t,
+                    "Z": result.Z,
+                    "i_i": result.i_i,
+                    "i_o": result.i_o,
+                    "k": result.k,
+                    "h": result.h,
+                    "M_i": result.M_i,
+                    "M_o": result.M_o,
+                    "M_t": result.M_t,
+                    "moment_basis": result.moment_basis,
+                    "S_h": result.S_h,
+                    "S_c": result.S_c,
+                    "f": result.f,
+                }
+            )
+    return ReportTable(
+        id="code_compliance",
+        title="Piping code compliance",
+        source="compliance_report",
+        columns=SOLVER_COLUMNS
+        + (
+            ReportColumn("code_name", "Code"),
+            ReportColumn("code_edition", "Edition"),
+            ReportColumn("entity_ref", "Entity reference"),
+            ReportColumn("element_id", "Element"),
+            ReportColumn("node_id", "Node"),
+            ReportColumn("sustained_stress_pa", "Sustained stress", unit="Pa"),
+            ReportColumn("sustained_allowable_pa", "Sustained allowable", unit="Pa"),
+            ReportColumn("sustained_ratio", "Sustained code utilization"),
+            ReportColumn("sustained_pass", "Sustained pass"),
+            ReportColumn("expansion_stress_pa", "Expansion stress", unit="Pa"),
+            ReportColumn("expansion_allowable_pa", "Expansion allowable", unit="Pa"),
+            ReportColumn("expansion_ratio", "Expansion code utilization"),
+            ReportColumn("expansion_pass", "Expansion pass"),
+            ReportColumn("pressure", "Pressure", unit="Pa"),
+            ReportColumn("Do", "Outer diameter", unit="m"),
+            ReportColumn("t", "Corroded wall thickness", unit="m"),
+            ReportColumn("Z", "Section modulus", unit="m^3"),
+            ReportColumn("i_i", "In-plane SIF"),
+            ReportColumn("i_o", "Out-of-plane SIF"),
+            ReportColumn("k", "Flexibility factor"),
+            ReportColumn("h", "Flexibility characteristic"),
+            ReportColumn("M_i", "In-plane moment", unit="N*m"),
+            ReportColumn("M_o", "Out-of-plane moment", unit="N*m"),
+            ReportColumn("M_t", "Torsional moment", unit="N*m"),
+            ReportColumn("moment_basis", "Moment basis"),
+            ReportColumn("S_h", "Hot allowable", unit="Pa"),
+            ReportColumn("S_c", "Cold allowable", unit="Pa"),
+            ReportColumn("f", "Stress-range reduction factor"),
         ),
         rows=tuple(rows),
     )

@@ -132,6 +132,8 @@ class ComplianceReport:
 
     results: List[ElementComplianceResult] = field(default_factory=list)
     load_case: Optional[str] = None
+    code_name: str = "ASME B31.3"
+    code_edition: str = "2020"
 
     # ------------------------------------------------------------------
     # Helpers
@@ -170,7 +172,7 @@ class ComplianceReport:
         )
 
         lines = [
-            f"ASME B31.3 Compliance — {status}",
+            f"{self.code_name}-{self.code_edition} Compliance — {status}",
             f"  Load case       : {self.load_case or '(default)'}",
             f"  Elements checked : {n_total}",
             f"  Failures         : {n_fail}",
@@ -349,10 +351,13 @@ class ASMEB313Evaluator:
         use_liberal_allowable: bool = False,
     ) -> None:
         self.use_liberal_allowable = use_liberal_allowable
+        self.edition = str(_edition_year(edition))
         # When a cycle count is given, compute f per the (edition-gated) code
         # curve; otherwise use the explicit f_factor (default 1.0).
         self.f: float = (
-            stress_range_reduction_factor(cycles, edition) if cycles is not None else f_factor
+            stress_range_reduction_factor(cycles, self.edition)
+            if cycles is not None
+            else f_factor
         )
 
     # ------------------------------------------------------------------
@@ -385,7 +390,7 @@ class ASMEB313Evaluator:
         ComplianceReport
             Report containing per-element-end compliance results.
         """
-        report = ComplianceReport(load_case=results.load_case)
+        report = ComplianceReport(load_case=results.load_case, code_edition=self.edition)
 
         # Resolve the active load case
         lc = self._resolve_load_case(model, results.load_case)

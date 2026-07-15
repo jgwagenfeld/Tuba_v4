@@ -14,12 +14,14 @@ import numpy as np
 import tuba
 from tuba.compliance import (
     ASMEB313Evaluator,
+    ComplianceReport,
     SIFSet,
     bend_local_axes,
     compute_sif_set,
     compute_sifs,
     stress_range_reduction_factor,
 )
+from tuba.compliance.asme_b313 import ElementComplianceResult
 from tuba.solver.base import ElementResult, FEAResults
 
 INCH = 0.0254
@@ -75,7 +77,14 @@ class TestSIFSetStructure(unittest.TestCase):
         m.add_pipe_section("P", OD=0.1143, WT=0.006)
         n0 = m.add_node([0, 0, 0])
         n1 = m.add_node([1, 0, 0])
-        m.add_element(id="pipe_str_0", type="pipe_straight", n1=n0, n2=n1, section="P", material="steel")
+        m.add_element(
+            id="pipe_str_0",
+            type="pipe_straight",
+            n1=n0,
+            n2=n1,
+            section="P",
+            material="steel",
+        )
         sif = compute_sif_set(m.elements[0], m)
         self.assertEqual((sif.i_i, sif.i_o, sif.i_t, sif.i_a, sif.k_i, sif.k_o), (1.0,) * 6)
         self.assertEqual(sif.basis, "straight")
@@ -111,6 +120,42 @@ class TestStressRangeReductionFactor(unittest.TestCase):
     def test_cap_and_floor(self):
         self.assertEqual(stress_range_reduction_factor(1_000, "2020"), 1.2)     # capped at 1.2
         self.assertEqual(stress_range_reduction_factor(1_000_000_000, "2020"), 0.15)  # floored at 0.15
+
+
+class TestComplianceReportMetadata(unittest.TestCase):
+    def test_report_states_default_code_and_edition(self):
+        report = ComplianceReport(load_case="Hot")
+
+        self.assertEqual(report.code_name, "ASME B31.3")
+        self.assertEqual(report.code_edition, "2020")
+        self.assertIn("ASME B31.3-2020 Compliance", report.summary())
+
+    def test_existing_positional_construction_remains_compatible(self):
+        result = ElementComplianceResult(
+            "E-1", "N-1", 1.0, 2.0, 0.5, True, 1.0, 2.0, 0.5, True
+        )
+
+        report = ComplianceReport([result], "Hot")
+
+        self.assertEqual(report.results, [result])
+        self.assertEqual(report.load_case, "Hot")
+
+    def test_evaluator_propagates_selected_edition(self):
+        m = tuba.Model("edition")
+        m.add_material("steel", E=210e9, nu=0.3, allowable_stress={20.0: 120e6})
+        m.add_pipe_section("P", OD=0.1143, WT=0.006)
+        n0 = m.add_node([0.0, 0.0, 0.0])
+        n1 = m.add_node([1.0, 0.0, 0.0])
+        m.add_element(id="pipe_str_0", type="pipe_straight", n1=n0, n2=n1, section="P", material="steel")
+        m.define_load_case("Hot", pressure=0.0, temperature=20.0, ref_temperature=20.0)
+        results = FEAResults(solver_name="test", load_case="Hot")
+        zero = np.zeros(6)
+        results.element_results["pipe_str_0"] = ElementResult("pipe_str_0", zero, zero)
+
+        report = ASMEB313Evaluator(edition="2022").evaluate(m, results)
+
+        self.assertEqual(report.code_edition, "2022")
+        self.assertIn("ASME B31.3-2022 Compliance", report.summary())
 
 
 class TestLiberalAllowable(unittest.TestCase):
