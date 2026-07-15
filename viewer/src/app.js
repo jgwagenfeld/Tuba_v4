@@ -22,17 +22,26 @@ import {
   setUtilizationThreshold,
   setVisualDeformationScale
 } from "./resultReview.js";
+import { workflowViewModel } from "./reviewTables.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
 import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
+import { WORKFLOW_TABS, createWorkflowState, getVisibleWorkflowTabs } from "./workflowState.js";
 
 const dom = {
+  appShell: document.querySelector("[data-embed]"),
+  appHeader: document.querySelector("[data-app-header]"),
   status: document.querySelector("[data-status]"),
   sceneTitle: document.querySelector("[data-scene-title]"),
   sceneMeta: document.querySelector("[data-scene-meta]"),
+  workflowTabs: document.querySelector("[data-workflow-tabs]"),
+  workflowPanel: document.querySelector("[data-workflow-panel]"),
+  viewerWorkspace: document.querySelector("[data-viewer-workspace]"),
   layerList: document.querySelector("[data-layer-list]"),
   overlayList: document.querySelector("[data-overlay-list]"),
+  resultTools: document.querySelector("[data-result-tools]"),
+  resultToolsHome: document.querySelector("[data-result-tools-home]"),
   resultControls: document.querySelector("[data-result-controls]"),
   resultLegend: document.querySelector("[data-result-legend]"),
   hotspotList: document.querySelector("[data-hotspot-list]"),
@@ -62,12 +71,14 @@ globalThis.__tubaViewerPreviewEvents ??= [];
 async function main() {
   const params = new URLSearchParams(window.location.search);
   currentBundleUrl = params.get("bundle") || ".";
-  if (params.get("embed") === "1") {
+  const embed = params.get("embed") === "1";
+  if (embed) {
     document.body.dataset.embed = "true";
   }
+  dom.appShell.dataset.embed = String(embed);
   try {
     setStatus(`Loading ${currentBundleUrl}`);
-    await loadBundle(currentBundleUrl, { preserve: false });
+    await loadBundle(currentBundleUrl, { preserve: false, embed });
     setStatus("Ready");
     render();
     if (params.get("preview_ws")) {
@@ -80,12 +91,18 @@ async function main() {
 
 async function loadBundle(bundleUrl, options = {}) {
   currentBundle = await loadSceneBundleFromUrl(bundleUrl);
-  const nextState = createViewerState(currentBundle);
+  const viewerState = createViewerState(currentBundle);
+  const workflowState = createWorkflowState({
+    review: viewerState.review,
+    embed: options.embed ?? currentState?.embed ?? false
+  });
+  const nextState = { ...viewerState, ...workflowState };
   currentState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
 }
 
 function render() {
   renderHeader();
+  renderWorkflowTabs();
   renderLayers();
   renderOverlays();
   renderResultControls();
@@ -94,7 +111,174 @@ function render() {
   renderIssues();
   renderObjects();
   renderProperties();
+  renderWorkflow();
   renderCanvas();
+}
+
+function renderWorkflowTabs() {
+  dom.workflowTabs.replaceChildren();
+  dom.workflowTabs.hidden = currentState.embed;
+  dom.appHeader.hidden = currentState.embed;
+  dom.workflowPanel.id = "engineering-workflow-panel";
+  const visibleTabs = new Set(getVisibleWorkflowTabs(currentState));
+  for (const tab of WORKFLOW_TABS) {
+    if (!visibleTabs.has(tab.id)) {
+      continue;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = `workflow-tab-${tab.id}`;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-controls", dom.workflowPanel.id);
+    button.setAttribute("aria-selected", String(tab.id === currentState.activeTab));
+    button.tabIndex = tab.id === currentState.activeTab ? 0 : -1;
+    button.textContent = tab.label;
+    button.addEventListener("click", () => {
+      currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: tab.id });
+      render();
+    });
+    dom.workflowTabs.append(button);
+  }
+}
+
+function renderWorkflow() {
+  dom.workflowPanel.replaceChildren();
+  dom.resultToolsHome.append(dom.resultTools);
+  dom.diagnosticList.hidden = true;
+  dom.appShell.append(dom.diagnosticList);
+
+  const activeTab = currentState.activeTab;
+  const isThreeDimensional = activeTab === "3d";
+  dom.viewerWorkspace.hidden = !isThreeDimensional;
+  dom.workflowPanel.hidden = isThreeDimensional || currentState.embed;
+  if (isThreeDimensional || currentState.embed) {
+    dom.workflowPanel.removeAttribute("aria-labelledby");
+    return;
+  }
+
+  dom.workflowPanel.setAttribute("aria-labelledby", `workflow-tab-${activeTab}`);
+  const tab = WORKFLOW_TABS.find((candidate) => candidate.id === activeTab);
+  const heading = document.createElement("h1");
+  heading.textContent = tab?.label ?? "Engineering review";
+  dom.workflowPanel.append(heading);
+
+  if (activeTab === "results" || activeTab === "load-cases") {
+    dom.workflowPanel.append(dom.resultTools);
+  }
+  if (activeTab === "diagnostics") {
+    dom.diagnosticList.hidden = false;
+    dom.workflowPanel.append(dom.diagnosticList);
+  }
+
+  if (!currentState.review) {
+    return;
+  }
+  const model = workflowViewModel(currentState.review, activeTab);
+  if (model.unavailableReason) {
+    const unavailable = document.createElement("p");
+    unavailable.className = "workflow-unavailable";
+    unavailable.textContent = model.unavailableReason;
+    dom.workflowPanel.append(unavailable);
+    return;
+  }
+
+  if (activeTab === "summary") {
+    for (const table of model.tables) {
+      dom.workflowPanel.append(renderSummaryTable(table));
+    }
+    return;
+  }
+  for (const table of model.tables) {
+    dom.workflowPanel.append(renderReviewTable(table));
+  }
+}
+
+function renderSummaryTable(model) {
+  const section = document.createElement("section");
+  section.className = "review-summary-card";
+  const heading = document.createElement("h2");
+  heading.textContent = model.title;
+  section.append(heading);
+  appendTableSource(section, model.source);
+
+  if (model.rows.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = model.unavailableReason ?? "No rows.";
+    section.append(empty);
+    return section;
+  }
+  for (const row of model.rows) {
+    const values = document.createElement("dl");
+    for (let index = 0; index < model.columns.length; index += 1) {
+      const term = document.createElement("dt");
+      term.textContent = model.columns[index].label;
+      const value = document.createElement("dd");
+      value.textContent = row.cells[index].text;
+      values.append(term, value);
+    }
+    section.append(values);
+  }
+  return section;
+}
+
+function renderReviewTable(model) {
+  const section = document.createElement("section");
+  section.className = "review-table-section";
+  const heading = document.createElement("h2");
+  heading.textContent = model.title;
+  section.append(heading);
+  appendTableSource(section, model.source);
+
+  if (model.rows.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = model.unavailableReason ?? "No rows.";
+    section.append(empty);
+    return section;
+  }
+
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  for (const column of model.columns) {
+    const cell = document.createElement("th");
+    cell.scope = "col";
+    cell.textContent = column.label;
+    if (column.description) {
+      cell.title = column.description;
+    }
+    headerRow.append(cell);
+  }
+  head.append(headerRow);
+
+  const body = document.createElement("tbody");
+  for (const row of model.rows) {
+    const tableRow = document.createElement("tr");
+    if (row.entityRef) {
+      tableRow.dataset.entityRef = row.entityRef;
+    }
+    for (const cellModel of row.cells) {
+      const cell = document.createElement("td");
+      cell.textContent = cellModel.text;
+      if (cellModel.tone) {
+        cell.dataset.tone = cellModel.tone;
+      }
+      tableRow.append(cell);
+    }
+    body.append(tableRow);
+  }
+  table.append(head, body);
+  section.append(table);
+  return section;
+}
+
+function appendTableSource(parent, source) {
+  if (!source) {
+    return;
+  }
+  const provenance = document.createElement("p");
+  provenance.className = "meta";
+  provenance.textContent = `Source: ${source}`;
+  parent.append(provenance);
 }
 
 function renderResultControls() {
@@ -265,7 +449,11 @@ function renderOverlays() {
 
 function renderDiagnostics() {
   dom.diagnosticList.replaceChildren();
-  const diagnostics = currentState.diagnostics ?? [];
+  const diagnostics = [
+    ...(currentState.diagnostics ?? []),
+    ...(currentState.reviewDiagnostics ?? []),
+    ...(currentState.review?.diagnostics ?? [])
+  ];
   if (diagnostics.length === 0) {
     const empty = document.createElement("div");
     empty.className = "meta";
@@ -276,7 +464,7 @@ function renderDiagnostics() {
   for (const diagnostic of diagnostics) {
     const row = document.createElement("div");
     row.className = "tree-row";
-    row.textContent = `${diagnostic.severity || "info"} - ${diagnostic.code || "diagnostic"}`;
+    row.textContent = `${diagnostic.severity || "info"} - ${diagnostic.code || "diagnostic"}: ${diagnostic.message || "No detail supplied."}`;
     dom.diagnosticList.append(row);
   }
 }

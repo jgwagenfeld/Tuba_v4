@@ -8,42 +8,63 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <main>
-      <aside class="sidebar">
-        <h1 data-scene-title>Scene</h1>
+    <main class="app-shell" data-embed="false">
+      <header class="app-header" data-app-header>
+        <div>
+          <strong>Tuba Engineering Review</strong>
+          <span data-scene-title>Scene</span>
+        </div>
         <div class="meta" data-scene-meta></div>
-        <h2>Layers</h2>
-        <div data-layer-list></div>
-        <h2>Overlays</h2>
-        <div data-overlay-list></div>
-        <h2>Results</h2>
-        <div class="result-controls" data-result-controls></div>
-        <div class="result-legend" data-result-legend></div>
-        <h2>Hotspots</h2>
-        <div data-hotspot-list></div>
-        <h2>Diagnostics</h2>
-        <div data-diagnostic-list></div>
-        <h2>Tree</h2>
-        <div data-tree></div>
-        <h2>Issues</h2>
-        <div data-issue-list></div>
-        <h2>Search</h2>
-        <input type="search" data-search placeholder="Find object, material, route" />
-        <h2>Objects</h2>
-        <div data-object-list></div>
-      </aside>
-      <section class="viewport">
-        <header>
-          <div>Tuba Viewer</div>
-          <div data-status>Starting</div>
-        </header>
-        <canvas data-canvas width="1280" height="800"></canvas>
+        <div data-status>Starting</div>
+      </header>
+      <nav class="workflow-tabs" role="tablist" aria-label="Engineering review" data-workflow-tabs></nav>
+      <section class="workflow-panel" role="tabpanel" data-workflow-panel></section>
+      <section class="viewer-workspace" data-viewer-workspace hidden>
+        <aside class="sidebar" data-scene-tools>
+          <section>
+            <h2>Layers</h2>
+            <div data-layer-list></div>
+          </section>
+          <section>
+            <h2>Overlays</h2>
+            <div data-overlay-list></div>
+          </section>
+          <div data-result-tools-home>
+            <section data-result-tools>
+              <h2>Results</h2>
+              <div class="result-controls" data-result-controls></div>
+              <div class="result-legend" data-result-legend></div>
+              <h2>Hotspots</h2>
+              <div data-hotspot-list></div>
+            </section>
+          </div>
+          <section>
+            <h2>Tree</h2>
+            <div data-tree></div>
+          </section>
+          <section>
+            <h2>Issues</h2>
+            <div data-issue-list></div>
+          </section>
+          <section>
+            <h2>Search</h2>
+            <input type="search" data-search aria-label="Search objects" placeholder="Find object, material, route" />
+          </section>
+          <section>
+            <h2>Objects</h2>
+            <div data-object-list></div>
+          </section>
+        </aside>
+        <section class="viewport">
+          <canvas data-canvas width="1280" height="800"></canvas>
+        </section>
+        <aside class="inspector">
+          <h2>Properties</h2>
+          <div class="property-actions" data-property-actions></div>
+          <div class="property-sections" data-properties>Select an object.</div>
+        </aside>
       </section>
-      <aside class="inspector">
-        <h2>Properties</h2>
-        <div class="property-actions" data-property-actions></div>
-        <div class="property-sections" data-properties>Select an object.</div>
-      </aside>
+      <section hidden data-diagnostic-list></section>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

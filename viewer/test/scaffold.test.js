@@ -48,6 +48,51 @@ test("viewer app enters through TypeScript and owns CSS layout", async () => {
   assert.match(css, /data-canvas/);
 });
 
+test("scaffold exposes one semantic engineering workflow shell", async () => {
+  const html = await readViewerFile("index.html");
+  const hooks = [
+    "status",
+    "scene-title",
+    "scene-meta",
+    "workflow-tabs",
+    "workflow-panel",
+    "viewer-workspace",
+    "scene-tools",
+    "layer-list",
+    "overlay-list",
+    "result-controls",
+    "result-legend",
+    "hotspot-list",
+    "tree",
+    "issue-list",
+    "search",
+    "object-list",
+    "property-actions",
+    "properties",
+    "canvas",
+    "diagnostic-list"
+  ];
+
+  assert.match(html, /<main[^>]*class="app-shell"[^>]*data-embed="false"/);
+  assert.match(html, /<nav[^>]*role="tablist"[^>]*aria-label="Engineering review"[^>]*data-workflow-tabs/);
+  assert.match(html, /<section[^>]*role="tabpanel"[^>]*data-workflow-panel/);
+  assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace[^>]*hidden/);
+  assert.match(html, /<input[^>]*type="search"[^>]*data-search[^>]*aria-label="Search objects"/);
+  for (const hook of hooks) {
+    assert.equal((html.match(new RegExp(`data-${hook}(?:=|[\\s>])`, "g")) ?? []).length, 1, `data-${hook} must occur once`);
+  }
+});
+
+test("browser table orchestration uses text content and the workflow reducer", async () => {
+  const app = await readViewerFile("src/app.js");
+
+  assert.match(app, /workflowViewModel/);
+  assert.match(app, /type:\s*["']setWorkflowTab["']/);
+  assert.match(app, /setAttribute\(["']aria-selected["']/);
+  assert.match(app, /\.textContent\s*=/);
+  assert.doesNotMatch(app, /\.innerHTML\s*=/);
+});
+
 test("browser entry modules avoid literal Node imports", async () => {
   const sceneLoader = await readViewerFile("src/sceneLoader.js");
 
