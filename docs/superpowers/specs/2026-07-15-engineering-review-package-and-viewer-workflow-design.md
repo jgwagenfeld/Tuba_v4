@@ -1,7 +1,7 @@
 # Engineering Review Package And Viewer Workflow Design
 
 **Date:** 2026-07-15
-**Status:** Proposed for implementation
+**Status:** Approved for implementation
 **Branch:** `codex/future-ready-workpackages`
 
 ## 1. Purpose
