@@ -12,7 +12,25 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 
-from tuba.reporting.model import EngineeringReviewPackage, ReportTable
+from tuba.reporting.model import (
+    EngineeringReviewError,
+    EngineeringReviewPackage,
+    ReportTable,
+    _validate_report_table_id,
+)
+
+
+_MANIFEST_SCHEMA = "engineering_review_manifest.v1"
+_SCENE_METADATA_URIS = (
+    "metadata/objects.json",
+    "metadata/object_map.json",
+    "metadata/overlays.json",
+    "metadata/issues.json",
+    "metadata/route_reviews.json",
+    "metadata/agent_proposals.json",
+    "metadata/scene_diffs.json",
+    "geometry/geometry_assets.json",
+)
 
 
 @dataclass(frozen=True)
@@ -39,13 +57,25 @@ def write_engineering_review(
     The optional callback is the only scene integration seam. This module does
     not depend on a renderer or on :mod:`tuba.visualization`.
     """
+    _validate_export_inputs(review)
+
     root = Path(path)
+    root.mkdir(parents=True, exist_ok=True)
+    resolved_root = root.resolve()
     reports_dir = root / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
+    resolved_reports_dir = reports_dir.resolve()
+    _require_path_within(
+        resolved_reports_dir,
+        resolved_root,
+        description="reports directory",
+    )
+
+    _remove_previous_generated_artifacts(root, resolved_root)
 
     scene_uri = scene_writer(root) if scene_writer is not None else None
     if scene_uri is not None:
-        scene_uri = _relative_uri(scene_uri)
+        scene_uri = _validated_scene_uri(root, resolved_root, scene_uri)
 
     payload = review.to_dict()
     if scene_uri is not None:
@@ -55,7 +85,7 @@ def write_engineering_review(
     _write_json(review_path, payload)
 
     csv_paths = {
-        table.id: _write_table_csv(table, reports_dir)
+        table.id: _write_table_csv(table, reports_dir, resolved_reports_dir)
         for table in review.tables
         if table.rows
     }
@@ -90,8 +120,23 @@ def _write_json(path: Path, data: Any) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
-def _write_table_csv(table: ReportTable, reports_dir: Path) -> Path:
-    path = reports_dir / f"{table.id}.csv"
+def _write_table_csv(
+    table: ReportTable,
+    reports_dir: Path,
+    resolved_reports_dir: Path,
+) -> Path:
+    _validate_report_table_id(table.id)
+    candidate = reports_dir / f"{table.id}.csv"
+    if candidate.is_symlink():
+        raise EngineeringReviewError(
+            f"CSV destination for report table {table.id!r} must not be a symbolic link."
+        )
+    path = candidate.resolve()
+    _require_path_within(
+        path,
+        resolved_reports_dir,
+        description=f"CSV destination for report table {table.id!r}",
+    )
     stream = StringIO(newline="")
     writer = csv.writer(stream, lineterminator="\n")
     column_ids = [column.id for column in table.columns]
@@ -131,7 +176,7 @@ def _build_manifest(
         if table.id in csv_paths
     }
     return {
-        "schema_version": "engineering_review_manifest.v1",
+        "schema_version": _MANIFEST_SCHEMA,
         "package_id": review.package_id,
         "title": title or f"{review.project_name} engineering review",
         "review_uri": "review.json",
@@ -287,9 +332,144 @@ def _relative_uri(value: str) -> str:
     if (
         parts.scheme
         or parts.netloc
+        or parts.query
+        or parts.fragment
         or not parts.path
         or path.is_absolute()
         or ".." in path.parts
     ):
-        raise ValueError(f"Archive links must be relative paths, got {value!r}.")
+        raise EngineeringReviewError(
+            f"Archive links must be relative paths without traversal, got {value!r}."
+        )
     return uri
+
+
+def _validate_export_inputs(review: EngineeringReviewPackage) -> None:
+    if review.scene_uri is not None:
+        raise EngineeringReviewError(
+            "EngineeringReviewPackage.scene_uri cannot be exported directly; "
+            "supply a scene_writer that materializes the scene in the output archive."
+        )
+
+    seen_destinations: set[str] = set()
+    for table in review.tables:
+        _validate_report_table_id(table.id)
+        destination = f"{table.id}.csv".casefold()
+        if destination in seen_destinations:
+            raise EngineeringReviewError(
+                f"Report table id {table.id!r} collides with another portable CSV filename."
+            )
+        seen_destinations.add(destination)
+
+
+def _validated_scene_uri(root: Path, resolved_root: Path, value: str) -> str:
+    uri = _relative_uri(value)
+    scene_path = (root / PurePosixPath(uri)).resolve()
+    _require_path_within(scene_path, resolved_root, description="scene URI")
+    if not scene_path.is_file():
+        raise EngineeringReviewError(
+            f"Scene writer URI {uri!r} must identify an existing file in the output archive."
+        )
+    return uri
+
+
+def _require_path_within(path: Path, parent: Path, *, description: str) -> None:
+    try:
+        path.relative_to(parent)
+    except ValueError as error:
+        raise EngineeringReviewError(
+            f"{description.capitalize()} resolves outside the output archive: {path}."
+        ) from error
+
+
+def _remove_previous_generated_artifacts(root: Path, resolved_root: Path) -> None:
+    for path in _previous_generated_paths(root, resolved_root):
+        if path.is_file() or path.is_symlink():
+            path.unlink()
+
+
+def _previous_generated_paths(root: Path, resolved_root: Path) -> tuple[Path, ...]:
+    manifest = _read_json_object(root / "report_manifest.json")
+    if manifest is None or manifest.get("schema_version") != _MANIFEST_SCHEMA:
+        return ()
+
+    paths: set[Path] = set()
+    reports = manifest.get("reports")
+    if isinstance(reports, Mapping):
+        for table_id, uri in reports.items():
+            if not isinstance(table_id, str) or not isinstance(uri, str):
+                continue
+            try:
+                _validate_report_table_id(table_id)
+            except EngineeringReviewError:
+                continue
+            if uri != f"reports/{table_id}.csv":
+                continue
+            path = _safe_existing_generated_path(root, resolved_root, uri)
+            if path is not None:
+                paths.add(path)
+
+    scene_uri = manifest.get("scene_uri")
+    if isinstance(scene_uri, str):
+        scene_path = _safe_existing_generated_path(root, resolved_root, scene_uri)
+        if scene_path is not None:
+            paths.add(scene_path)
+        if scene_uri == "scene.json":
+            scene_payload = _read_json_object(root / scene_uri)
+            if scene_payload is not None:
+                assets = scene_payload.get("geometry_assets")
+                if isinstance(assets, list):
+                    for asset in assets:
+                        if not isinstance(asset, Mapping):
+                            continue
+                        asset_uri = asset.get("uri")
+                        if not isinstance(asset_uri, str) or not _is_geometry_payload_uri(
+                            asset_uri
+                        ):
+                            continue
+                        asset_path = _safe_existing_generated_path(
+                            root, resolved_root, asset_uri
+                        )
+                        if asset_path is not None:
+                            paths.add(asset_path)
+            for uri in _SCENE_METADATA_URIS:
+                path = _safe_existing_generated_path(root, resolved_root, uri)
+                if path is not None:
+                    paths.add(path)
+
+    return tuple(sorted(paths, key=lambda path: path.as_posix()))
+
+
+def _safe_existing_generated_path(
+    root: Path,
+    resolved_root: Path,
+    uri: str,
+) -> Path | None:
+    try:
+        relative_uri = _relative_uri(uri)
+        path = resolved_root / PurePosixPath(relative_uri)
+        resolved_path = path.resolve()
+        _require_path_within(
+            resolved_path, resolved_root, description="generated artifact"
+        )
+    except EngineeringReviewError:
+        return None
+    return path if path.is_file() or path.is_symlink() else None
+
+
+def _is_geometry_payload_uri(uri: str) -> bool:
+    path = PurePosixPath(uri)
+    return (
+        len(path.parts) == 2
+        and path.parts[0] == "geometry"
+        and path.suffix == ".json"
+        and uri == f"geometry/{path.name}"
+    )
+
+
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None

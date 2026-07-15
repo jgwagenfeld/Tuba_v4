@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from math import isfinite
@@ -10,6 +11,30 @@ from typing import Any
 
 class EngineeringReviewError(ValueError):
     """Raised when an engineering review package violates its contract."""
+
+
+_PORTABLE_TABLE_ID = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+_WINDOWS_RESERVED_FILENAMES = {
+    "aux",
+    "clock$",
+    "con",
+    "nul",
+    "prn",
+    *(f"com{number}" for number in range(1, 10)),
+    *(f"lpt{number}" for number in range(1, 10)),
+}
+
+
+def _validate_report_table_id(table_id: str) -> None:
+    if (
+        not _PORTABLE_TABLE_ID.fullmatch(table_id)
+        or table_id in _WINDOWS_RESERVED_FILENAMES
+    ):
+        raise EngineeringReviewError(
+            f"Report table id {table_id!r} must be a portable lowercase "
+            "filename-safe identifier using only a-z, 0-9, '_' or '-', and "
+            "must not be a reserved Windows filename."
+        )
 
 
 def _json_value(value: Any) -> Any:
@@ -93,6 +118,9 @@ class ReportTable:
     rows: tuple[Mapping[str, Any], ...]
     source: str
     unavailable_reason: str | None = None
+
+    def __post_init__(self) -> None:
+        _validate_report_table_id(self.id)
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -10,6 +10,7 @@ from tests.reporting_fixtures import build_review_model
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.reporting import (
+    EngineeringReviewError,
     EngineeringReviewPackage,
     ReportColumn,
     ReportTable,
@@ -186,6 +187,172 @@ def test_repeated_writes_are_byte_deterministic_and_links_are_relative(
     assert all(not value.startswith(("/", "http:", "https:")) for value in manifest["reports"].values())
     assert first.review_path.read_bytes().endswith(b"\n")
     assert first.manifest_path.read_bytes().endswith(b"\n")
+
+
+@pytest.mark.parametrize(
+    "table_id",
+    (
+        "../escape",
+        "nested/report",
+        "nested\\report",
+        "/absolute",
+        "C:\\absolute",
+        "Line_List",
+        "line.list",
+        "line_list.",
+        "con",
+    ),
+)
+def test_report_table_rejects_nonportable_or_unsafe_ids(table_id):
+    with pytest.raises(EngineeringReviewError, match="portable lowercase"):
+        ReportTable(
+            id=table_id,
+            title="Unsafe table",
+            source="model",
+            columns=(ReportColumn("value", "Value"),),
+            rows=({"value": 1},),
+        )
+
+
+@pytest.mark.parametrize("table_id", ("../escape", "nested/report", "LINE_LIST"))
+def test_export_revalidates_table_ids_before_resolving_csv_paths(
+    tmp_path, solved_review, table_id
+):
+    table = ReportTable(
+        id="safe_table",
+        title="Safe table",
+        source="model",
+        columns=(ReportColumn("value", "Value"),),
+        rows=({"value": 1},),
+    )
+    object.__setattr__(table, "id", table_id)
+    compromised_review = replace(solved_review, tables=(table,))
+
+    with pytest.raises(EngineeringReviewError, match="portable lowercase"):
+        write_engineering_review(compromised_review, tmp_path / "review")
+
+    assert not (tmp_path / "review" / "escape.csv").exists()
+
+
+def test_export_rejects_case_aliases_instead_of_sanitizing_to_one_file(
+    tmp_path, solved_review
+):
+    first = ReportTable(
+        id="line_list",
+        title="First",
+        source="model",
+        columns=(ReportColumn("value", "Value"),),
+        rows=({"value": 1},),
+    )
+    alias = ReportTable(
+        id="other_table",
+        title="Alias",
+        source="model",
+        columns=(ReportColumn("value", "Value"),),
+        rows=({"value": 2},),
+    )
+    object.__setattr__(alias, "id", "LINE_LIST")
+    compromised_review = replace(solved_review, tables=(first, alias))
+
+    with pytest.raises(EngineeringReviewError, match="portable lowercase"):
+        write_engineering_review(compromised_review, tmp_path)
+
+    assert not (tmp_path / "reports" / "line_list.csv").exists()
+
+
+@pytest.mark.parametrize(
+    "scene_uri",
+    ("/scene.json", "../scene.json", "https://example.test/scene.json"),
+)
+def test_export_rejects_prepopulated_unsafe_scene_uri_without_writer(
+    tmp_path, solved_review, scene_uri
+):
+    review = replace(solved_review, scene_uri=scene_uri)
+    output_root = tmp_path / "review"
+
+    with pytest.raises(EngineeringReviewError, match="scene_writer"):
+        write_engineering_review(review, output_root)
+
+    assert not output_root.exists()
+
+
+def test_export_rejects_prepopulated_relative_scene_uri_without_writer(
+    tmp_path, solved_review
+):
+    review = replace(solved_review, scene_uri="scene.json")
+
+    with pytest.raises(EngineeringReviewError, match="scene_writer"):
+        write_engineering_review(review, tmp_path)
+
+
+def test_export_rejects_dangling_scene_writer_uri(tmp_path, solved_review):
+    with pytest.raises(EngineeringReviewError, match="existing file"):
+        write_engineering_review(
+            solved_review,
+            tmp_path,
+            scene_writer=lambda _root: "scene.json",
+        )
+
+
+def test_reused_output_removes_only_obsolete_generated_reports_and_scene(
+    tmp_path, solved_review
+):
+    scene = VisualizationScene(
+        scene_id="scene:stale",
+        model_id="model:HOT-100",
+        objects=[
+            SceneObject(
+                id="object:E-20",
+                kind="pipe",
+                geometry_asset_id="geometry:E-20",
+                entity_ref="element:E-20",
+            )
+        ],
+        geometry_assets=[
+            GeometryAsset(
+                id="geometry:E-20",
+                format="procedural_pipe",
+                bounds=[0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                object_ids=["object:E-20"],
+                generation_config={"entity_ref": "element:E-20"},
+            )
+        ],
+    )
+    write_engineering_review_with_scene(solved_review, tmp_path, scene=scene)
+    stale_result_csv = tmp_path / "reports" / "fe_stress.csv"
+    stale_geometry = tmp_path / "geometry" / "geometry_E-20.json"
+    assert stale_result_csv.is_file()
+    assert stale_geometry.is_file()
+
+    user_files = (
+        tmp_path / "notes.txt",
+        tmp_path / "reports" / "user.csv",
+        tmp_path / "metadata" / "user.json",
+        tmp_path / "geometry" / "user.bin",
+    )
+    for path in user_files:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("keep", encoding="utf-8")
+
+    scene_path = tmp_path / "scene.json"
+    scene_payload = json.loads(scene_path.read_text(encoding="utf-8"))
+    scene_payload["geometry_assets"].append({"uri": "geometry/user.bin"})
+    scene_path.write_text(json.dumps(scene_payload), encoding="utf-8")
+
+    model_only_review = build_engineering_review(
+        build_review_model(),
+        package_id="review:model-only",
+        created_at="2026-07-15T00:00:00Z",
+    )
+    output = write_engineering_review(model_only_review, tmp_path)
+
+    assert output.scene_uri is None
+    assert not stale_result_csv.exists()
+    assert not (tmp_path / "scene.json").exists()
+    assert not (tmp_path / "metadata" / "objects.json").exists()
+    assert not (tmp_path / "geometry" / "geometry_assets.json").exists()
+    assert not stale_geometry.exists()
+    assert all(path.read_text(encoding="utf-8") == "keep" for path in user_files)
 
 
 def test_visualization_adapter_preserves_scene_bundle_layout(tmp_path, solved_review):
