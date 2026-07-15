@@ -27,7 +27,7 @@ import { applySceneDiffToState } from "./sceneDiff.js";
 import { createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
 import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
-import { WORKFLOW_TABS, createWorkflowState, getVisibleWorkflowTabs } from "./workflowState.js";
+import { WORKFLOW_TABS, createWorkflowState, getVisibleWorkflowTabs, workflowTabForKey } from "./workflowState.js";
 
 const dom = {
   appShell: document.querySelector("[data-embed]"),
@@ -119,7 +119,6 @@ function renderWorkflowTabs() {
   dom.workflowTabs.replaceChildren();
   dom.workflowTabs.hidden = currentState.embed;
   dom.appHeader.hidden = currentState.embed;
-  dom.workflowPanel.id = "engineering-workflow-panel";
   const visibleTabs = new Set(getVisibleWorkflowTabs(currentState));
   for (const tab of WORKFLOW_TABS) {
     if (!visibleTabs.has(tab.id)) {
@@ -129,13 +128,23 @@ function renderWorkflowTabs() {
     button.type = "button";
     button.id = `workflow-tab-${tab.id}`;
     button.setAttribute("role", "tab");
-    button.setAttribute("aria-controls", dom.workflowPanel.id);
+    button.setAttribute("aria-controls", tab.id === "3d" ? dom.viewerWorkspace.id : dom.workflowPanel.id);
     button.setAttribute("aria-selected", String(tab.id === currentState.activeTab));
     button.tabIndex = tab.id === currentState.activeTab ? 0 : -1;
     button.textContent = tab.label;
     button.addEventListener("click", () => {
       currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: tab.id });
       render();
+    });
+    button.addEventListener("keydown", (event) => {
+      const nextTabId = workflowTabForKey(currentState, tab.id, event.key);
+      if (!nextTabId) {
+        return;
+      }
+      event.preventDefault();
+      currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: nextTabId });
+      render();
+      document.getElementById(`workflow-tab-${nextTabId}`)?.focus();
     });
     dom.workflowTabs.append(button);
   }

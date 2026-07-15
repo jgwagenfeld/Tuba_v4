@@ -36,3 +36,24 @@ export function setWorkflowTab(state, tabId) {
   }
   return { ...state, activeTab: tabId };
 }
+
+export function workflowTabForKey(state, currentTabId, key) {
+  const tabIds = getVisibleWorkflowTabs(state);
+  const currentIndex = tabIds.indexOf(currentTabId);
+  if (currentIndex < 0 || tabIds.length === 0) {
+    return null;
+  }
+  if (key === "Home") {
+    return tabIds[0];
+  }
+  if (key === "End") {
+    return tabIds.at(-1);
+  }
+  if (key === "ArrowRight") {
+    return tabIds[(currentIndex + 1) % tabIds.length];
+  }
+  if (key === "ArrowLeft") {
+    return tabIds[(currentIndex - 1 + tabIds.length) % tabIds.length];
+  }
+  return null;
+}

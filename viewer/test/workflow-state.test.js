@@ -5,6 +5,7 @@ import {
   WORKFLOW_TABS,
   createWorkflowState,
   getVisibleWorkflowTabs,
+  workflowTabForKey,
   setWorkflowTab
 } from "../src/workflowState.js";
 
@@ -40,4 +41,20 @@ test("workflow tab changes reject hidden and unknown tabs", () => {
 
   assert.throws(() => setWorkflowTab(legacyState, "summary"), /not visible/i);
   assert.throws(() => setWorkflowTab(reviewState, "unknown"), /unknown workflow tab/i);
+});
+
+test("workflow keyboard navigation wraps across visible tabs", () => {
+  const state = createWorkflowState({ review: reviewFixture, embed: false });
+
+  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "summary", "ArrowRight"), "model");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
+});
+
+test("workflow keyboard navigation supports Home and End in legacy mode", () => {
+  const state = createWorkflowState({ review: null, embed: false });
+
+  assert.equal(workflowTabForKey(state, "diagnostics", "Home"), "3d");
+  assert.equal(workflowTabForKey(state, "3d", "End"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "3d", "Enter"), null);
 });

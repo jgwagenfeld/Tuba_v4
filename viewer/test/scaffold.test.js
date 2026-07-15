@@ -75,8 +75,8 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
 
   assert.match(html, /<main[^>]*class="app-shell"[^>]*data-embed="false"/);
   assert.match(html, /<nav[^>]*role="tablist"[^>]*aria-label="Engineering review"[^>]*data-workflow-tabs/);
-  assert.match(html, /<section[^>]*role="tabpanel"[^>]*data-workflow-panel/);
-  assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace[^>]*hidden/);
+  assert.match(html, /<section[^>]*id="engineering-workflow-panel"[^>]*role="tabpanel"[^>]*tabindex="0"[^>]*data-workflow-panel/);
+  assert.match(html, /<section[^>]*id="engineering-3d-panel"[^>]*class="viewer-workspace"[^>]*role="tabpanel"[^>]*aria-labelledby="workflow-tab-3d"[^>]*tabindex="0"[^>]*data-viewer-workspace[^>]*hidden/);
   assert.match(html, /<input[^>]*type="search"[^>]*data-search[^>]*aria-label="Search objects"/);
   for (const hook of hooks) {
     assert.equal((html.match(new RegExp(`data-${hook}(?:=|[\\s>])`, "g")) ?? []).length, 1, `data-${hook} must occur once`);
@@ -89,6 +89,8 @@ test("browser table orchestration uses text content and the workflow reducer", a
   assert.match(app, /workflowViewModel/);
   assert.match(app, /type:\s*["']setWorkflowTab["']/);
   assert.match(app, /setAttribute\(["']aria-selected["']/);
+  assert.match(app, /addEventListener\(["']keydown["']/);
+  assert.match(app, /workflowTabForKey/);
   assert.match(app, /\.textContent\s*=/);
   assert.doesNotMatch(app, /\.innerHTML\s*=/);
 });

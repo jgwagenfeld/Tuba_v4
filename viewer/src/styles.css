@@ -8,18 +8,64 @@
   box-sizing: border-box;
 }
 
+html,
 body {
-  margin: 0;
-  overflow: hidden;
+  height: 100%;
   min-height: 100vh;
 }
 
-main {
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+.app-shell {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100vh;
   min-height: 0;
   overflow: hidden;
+}
+
+.app-header,
+.workflow-tabs,
+.workflow-panel,
+.viewer-workspace {
+  min-width: 0;
+  width: 100%;
+}
+
+.workflow-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid #d5dce7;
+  background: #ffffff;
+  padding: 6px 12px;
+}
+
+.workflow-tabs button {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.workflow-panel {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.viewer-workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr) minmax(280px, 360px);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.viewer-workspace[hidden] {
+  display: none;
 }
 
 aside,
@@ -30,7 +76,7 @@ section {
 .sidebar,
 .inspector {
   min-height: 0;
-  height: 100vh;
+  height: 100%;
   border-right: 1px solid #d5dce7;
   background: #ffffff;
   padding: 16px;
@@ -44,7 +90,8 @@ section {
 
 .viewport {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
   min-width: 0;
 }
@@ -163,8 +210,8 @@ button.selected {
   min-height: 0;
 }
 
-body[data-embed="true"] main {
-  grid-template-columns: 1fr;
+body[data-embed="true"] .app-shell {
+  grid-template-rows: minmax(0, 1fr);
 }
 
 body[data-embed="true"] .sidebar,
@@ -174,12 +221,17 @@ body[data-embed="true"] .viewport header {
 }
 
 body[data-embed="true"] .viewport {
-  display: block;
+  display: grid;
+  height: 100%;
+}
+
+body[data-embed="true"] .viewer-workspace,
+body[data-embed="true"] [data-canvas] {
   height: 100vh;
 }
 
-body[data-embed="true"] [data-canvas] {
-  height: 100vh;
+body[data-embed="true"] .viewer-workspace {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 pre {
@@ -240,9 +292,10 @@ pre {
 }
 
 @media (max-width: 900px) {
-  main {
+  .viewer-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(220px, 32vh) minmax(420px, 1fr) minmax(220px, 34vh);
+    overflow: auto;
   }
 
   .sidebar,
@@ -252,7 +305,7 @@ pre {
     border-bottom: 1px solid #d5dce7;
   }
 
-  body[data-embed="true"] main {
+  body[data-embed="true"] .viewer-workspace {
     grid-template-rows: 1fr;
   }
 }

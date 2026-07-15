@@ -59,6 +59,36 @@ const scenarios = {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 7,
     async run(page) {
+      const shellLayout = await page.evaluate(() => {
+        const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect();
+        const shell = rect("[data-embed]");
+        const header = rect("[data-app-header]");
+        const panel = rect("[data-workflow-panel]");
+        return { shell, header, panel };
+      });
+      assert.ok(shellLayout.header.width >= shellLayout.shell.width - 1, `header must span shell: ${JSON.stringify(shellLayout)}`);
+      assert.ok(shellLayout.panel.width >= shellLayout.shell.width - 1, `review panel must span shell: ${JSON.stringify(shellLayout)}`);
+      assert.ok(shellLayout.panel.height >= 500, `review panel must fill remaining viewport: ${JSON.stringify(shellLayout)}`);
+
+      const summaryTab = page.getByRole("tab", { name: "Summary", exact: true });
+      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
+      assert.equal(await summaryTab.getAttribute("aria-controls"), "engineering-workflow-panel");
+      await summaryTab.focus();
+      await summaryTab.press("ArrowRight");
+      const modelTab = page.getByRole("tab", { name: "Model", exact: true });
+      assert.equal(await modelTab.getAttribute("aria-selected"), "true");
+      assert.equal(await modelTab.evaluate((element) => element === document.activeElement), true);
+      await modelTab.press("Home");
+      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
+      await summaryTab.press("End");
+      const diagnosticsTab = page.getByRole("tab", { name: "Diagnostics", exact: true });
+      assert.equal(await diagnosticsTab.getAttribute("aria-selected"), "true");
+      await diagnosticsTab.press("Home");
+      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
+
+      assert.equal(await page.locator("[data-result-tools]").count(), 1);
+      await page.getByRole("tab", { name: "Results", exact: true }).click();
+      assert.equal(await page.locator("[data-workflow-panel] > [data-result-tools]").count(), 1);
       let legend = await page.locator("[data-result-legend]").textContent();
       assert.match(legend, /max_von_mises/);
       assert.match(legend, /Pa/);
@@ -76,15 +106,36 @@ const scenarios = {
       assert.doesNotMatch(hotspots, /Warm pipe/);
 
       await page.locator("[data-hotspot-list]").getByRole("button", { name: /Hot pipe/ }).click();
-      let properties = await page.locator("[data-properties]").textContent();
-      assert.match(properties, /max_von_mises/);
-      assert.match(properties, /57000000/);
+      await page.getByRole("tab", { name: "Load Cases", exact: true }).click();
+      assert.equal(await page.locator("[data-workflow-panel] > [data-result-tools]").count(), 1);
+      await page.getByRole("tab", { name: "Results", exact: true }).click();
 
       await page.getByLabel(/Displacement vector scale/i).evaluate((input) => {
         input.value = "10";
         input.dispatchEvent(new Event("input", { bubbles: true }));
       });
       await page.waitForFunction(() => window.__tubaViewer?.state?.resultVectorScales?.displacement === 10);
+
+      const threeDimensionalTab = page.getByRole("tab", { name: "3D", exact: true });
+      assert.equal(await threeDimensionalTab.getAttribute("aria-controls"), "engineering-3d-panel");
+      await threeDimensionalTab.click();
+      assert.equal(await page.locator("[data-result-tools-home] > [data-result-tools]").count(), 1);
+      assert.equal(await page.locator("[data-viewer-workspace]").getAttribute("aria-labelledby"), "workflow-tab-3d");
+      const workspaceLayout = await page.evaluate(() => {
+        const workspace = document.querySelector("[data-viewer-workspace]").getBoundingClientRect();
+        const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
+        return {
+          workspace: { width: workspace.width, height: workspace.height },
+          canvas: { width: canvas.width, height: canvas.height }
+        };
+      });
+      assert.ok(workspaceLayout.workspace.width >= 1000, `3D workspace width is too small: ${JSON.stringify(workspaceLayout)}`);
+      assert.ok(workspaceLayout.workspace.height >= 500, `3D workspace height is too small: ${JSON.stringify(workspaceLayout)}`);
+      assert.ok(workspaceLayout.canvas.width >= 400, `3D canvas width is too small: ${JSON.stringify(workspaceLayout)}`);
+      assert.ok(workspaceLayout.canvas.height >= 500, `3D canvas height is too small: ${JSON.stringify(workspaceLayout)}`);
+      let properties = await page.locator("[data-properties]").textContent();
+      assert.match(properties, /max_von_mises/);
+      assert.match(properties, /57000000/);
 
       await page.getByLabel(/Deformed Visual Centerline/).uncheck();
       await page.waitForFunction(() => {
@@ -110,6 +161,27 @@ const scenarios = {
       properties = await page.locator("[data-properties]").textContent();
       assert.match(properties, /operating_distance_m/);
       assert.match(properties, /0\.04/);
+
+      const embedUrl = new URL(page.url());
+      embedUrl.searchParams.set("embed", "1");
+      await page.goto(embedUrl.toString(), { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => /Ready/.test(document.querySelector("[data-status]")?.textContent ?? ""));
+      await page.waitForFunction(() => document.querySelector("[data-canvas]")?.dataset.renderer === "three");
+      const embedLayout = await page.evaluate(() => {
+        const workspace = document.querySelector("[data-viewer-workspace]").getBoundingClientRect();
+        const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          workspace: { width: workspace.width, height: workspace.height },
+          canvas: { width: canvas.width, height: canvas.height },
+          activeTab: window.__tubaViewer?.state?.activeTab
+        };
+      });
+      assert.equal(embedLayout.activeTab, "3d");
+      assert.ok(embedLayout.workspace.width >= embedLayout.viewport.width - 1, `embed workspace must fill viewport width: ${JSON.stringify(embedLayout)}`);
+      assert.ok(embedLayout.workspace.height >= embedLayout.viewport.height - 1, `embed workspace must fill viewport height: ${JSON.stringify(embedLayout)}`);
+      assert.ok(embedLayout.canvas.width >= embedLayout.viewport.width - 1, `embed canvas must fill viewport width: ${JSON.stringify(embedLayout)}`);
+      assert.ok(embedLayout.canvas.height >= embedLayout.viewport.height - 1, `embed canvas must fill viewport height: ${JSON.stringify(embedLayout)}`);
     }
   },
   "clash-review": {
