@@ -112,7 +112,35 @@ def test_package_serialization_is_recursively_json_safe_and_deterministic():
         }
     ]
     assert payload["scene_uri"] == "scene.json"
-    json.dumps(payload)
+    json.dumps(payload, allow_nan=False)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [float("nan"), float("inf"), float("-inf")],
+    ids=("nan", "positive-infinity", "negative-infinity"),
+)
+def test_package_rejects_non_finite_json_numbers(value):
+    table = ReportTable(
+        id="results",
+        title="Results",
+        columns=(ReportColumn("value", "Value"),),
+        rows=({"value": value},),
+        source="model",
+    )
+    package = EngineeringReviewPackage(
+        package_id="review:test",
+        created_at="2026-07-15T00:00:00Z",
+        project_name="Test",
+        model_standard="ASME_B31.3",
+        model_revision=0,
+        analysis_status="not_solved",
+        tables=(table,),
+    )
+
+    with pytest.raises(EngineeringReviewError, match="non-finite JSON number"):
+        payload = package.to_dict()
+        json.dumps(payload, allow_nan=False)
 
 
 def test_package_raises_explicit_error_for_missing_table():

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any
 
 
@@ -19,6 +20,10 @@ def _json_value(value: Any) -> Any:
         return {key: _json_value(value[key]) for key in sorted(value)}
     if isinstance(value, (list, tuple)):
         return [_json_value(item) for item in value]
+    if isinstance(value, float) and not isfinite(value):
+        raise EngineeringReviewError(
+            f"Report data contains a non-finite JSON number {value!r}."
+        )
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     raise EngineeringReviewError(
