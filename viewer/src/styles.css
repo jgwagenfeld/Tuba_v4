@@ -11,7 +11,9 @@
   --line: #bac3c5;
   --accent: #5ed8e5;
   --accent-ink: #075b66;
-  --focus: #0b7684;
+  --focus-on-light: #0b7684;
+  --focus-on-dark: #5ed8e5;
+  --sidebar-control: #26323a;
   --success: #17613f;
   --success-surface: #dff4e8;
   --danger: #8f241d;
@@ -57,8 +59,26 @@ textarea,
 }
 
 :focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 3px solid var(--focus-on-light);
   outline-offset: 3px;
+}
+
+.workflow-tabs :focus-visible,
+.sidebar :focus-visible,
+.inspector :focus-visible,
+.viewer-workspace:focus-visible,
+[data-canvas]:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .app-shell {
@@ -570,14 +590,19 @@ button {
 }
 
 button:hover {
-  border-color: var(--focus);
+  border-color: var(--focus-on-light);
 }
 
 .sidebar button,
 .inspector button {
   border-color: var(--graphite-line);
-  background: #26323a;
+  background: var(--sidebar-control);
   color: var(--chrome-text);
+}
+
+.sidebar button:hover,
+.inspector button:hover {
+  border-color: var(--focus-on-dark);
 }
 
 button.selected,

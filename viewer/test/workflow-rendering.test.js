@@ -34,7 +34,9 @@ test("workflow rendering provides sticky tabs, horizontal tables, visible focus,
   assert.match(css, /\.workflow-tabs\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.review-table-scroll\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /\.workflow-tab\[aria-selected="true"\]/);
-  assert.match(css, /:focus-visible/);
+  assert.match(css, /:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus-on-light\)/s);
+  assert.match(css, /\.workflow-tabs\s+:focus-visible,[\s\S]*outline-color:\s*var\(--focus-on-dark\)/s);
+  assert.match(css, /\.visually-hidden\s*\{[^}]*position:\s*absolute[^}]*clip:/s);
   assert.match(css, /\[data-diagnostic-list\]\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   assert.match(css, /@media\s*\(max-width:\s*900px\)[\s\S]*\.viewport\s*\{[^}]*grid-area:\s*viewport/s);
@@ -89,6 +91,9 @@ test("workflow rendering core palette meets WCAG AA text contrast", async () => 
     ["muted", "paper", 4.5],
     ["chrome-text", "graphite", 4.5],
     ["accent", "graphite", 3],
+    ["focus-on-light", "paper", 3],
+    ["focus-on-dark", "graphite-raised", 3],
+    ["focus-on-dark", "sidebar-control", 3],
     ["danger", "danger-surface", 4.5],
     ["success", "success-surface", 4.5]
   ]) {

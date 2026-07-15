@@ -70,6 +70,18 @@ const scenarios = {
       assert.ok(shellLayout.panel.width >= shellLayout.shell.width - 1, `review panel must span shell: ${JSON.stringify(shellLayout)}`);
       assert.ok(shellLayout.panel.height >= 500, `review panel must fill remaining viewport: ${JSON.stringify(shellLayout)}`);
 
+      const workflowPanel = page.locator("[data-workflow-panel]");
+      await workflowPanel.focus();
+      const lightFocus = await workflowPanel.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { backgroundColor: style.backgroundColor, outlineColor: style.outlineColor, outlineWidth: style.outlineWidth };
+      });
+      assert.deepEqual(lightFocus, {
+        backgroundColor: "rgb(243, 244, 242)",
+        outlineColor: "rgb(11, 118, 132)",
+        outlineWidth: "3px"
+      });
+
       const summaryTab = page.getByRole("tab", { name: "Summary", exact: true });
       assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
       assert.equal(await summaryTab.getAttribute("aria-controls"), "engineering-workflow-panel");
@@ -78,6 +90,19 @@ const scenarios = {
       const modelTab = page.getByRole("tab", { name: "Model", exact: true });
       assert.equal(await modelTab.getAttribute("aria-selected"), "true");
       assert.equal(await modelTab.evaluate((element) => element === document.activeElement), true);
+      const darkChromeFocus = await modelTab.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          backgroundColor: getComputedStyle(element.parentElement).backgroundColor,
+          outlineColor: style.outlineColor,
+          outlineWidth: style.outlineWidth
+        };
+      });
+      assert.deepEqual(darkChromeFocus, {
+        backgroundColor: "rgb(32, 42, 49)",
+        outlineColor: "rgb(94, 216, 229)",
+        outlineWidth: "3px"
+      });
       await modelTab.press("Home");
       assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
       await summaryTab.press("End");
@@ -119,6 +144,21 @@ const scenarios = {
       const threeDimensionalTab = page.getByRole("tab", { name: "3D", exact: true });
       assert.equal(await threeDimensionalTab.getAttribute("aria-controls"), "engineering-3d-panel");
       await threeDimensionalTab.click();
+      const threeDimensionalHeading = page.getByRole("heading", { level: 1, name: "3D Engineering Review" });
+      assert.equal(await threeDimensionalHeading.count(), 1);
+      const objectButton = page.locator("[data-object-list] button").first();
+      await objectButton.focus();
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Shift+Tab");
+      const darkControlFocus = await objectButton.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { backgroundColor: style.backgroundColor, outlineColor: style.outlineColor, outlineWidth: style.outlineWidth };
+      });
+      assert.deepEqual(darkControlFocus, {
+        backgroundColor: "rgb(38, 50, 58)",
+        outlineColor: "rgb(94, 216, 229)",
+        outlineWidth: "3px"
+      });
       assert.equal(await page.locator("[data-result-tools-home] > [data-result-tools]").count(), 1);
       assert.equal(await page.locator("[data-viewer-workspace]").getAttribute("aria-labelledby"), "workflow-tab-3d");
       const workspaceLayout = await page.evaluate(() => {
@@ -178,6 +218,7 @@ const scenarios = {
         };
       });
       assert.equal(embedLayout.activeTab, "3d");
+      assert.equal(await page.getByRole("heading", { level: 1, name: "3D Engineering Review" }).count(), 1);
       assert.ok(embedLayout.workspace.width >= embedLayout.viewport.width - 1, `embed workspace must fill viewport width: ${JSON.stringify(embedLayout)}`);
       assert.ok(embedLayout.workspace.height >= embedLayout.viewport.height - 1, `embed workspace must fill viewport height: ${JSON.stringify(embedLayout)}`);
       assert.ok(embedLayout.canvas.width >= embedLayout.viewport.width - 1, `embed canvas must fill viewport width: ${JSON.stringify(embedLayout)}`);

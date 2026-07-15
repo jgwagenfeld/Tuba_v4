@@ -57,6 +57,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "workflow-tabs",
     "workflow-panel",
     "viewer-workspace",
+    "3d-heading",
     "scene-tools",
     "layer-list",
     "overlay-list",
@@ -77,6 +78,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<nav[^>]*role="tablist"[^>]*aria-label="Engineering review"[^>]*data-workflow-tabs/);
   assert.match(html, /<section[^>]*id="engineering-workflow-panel"[^>]*role="tabpanel"[^>]*tabindex="0"[^>]*data-workflow-panel/);
   assert.match(html, /<section[^>]*id="engineering-3d-panel"[^>]*class="viewer-workspace"[^>]*role="tabpanel"[^>]*aria-labelledby="workflow-tab-3d"[^>]*tabindex="0"[^>]*data-viewer-workspace[^>]*hidden/);
+  assert.equal((html.match(/<h1[^>]*class="visually-hidden"[^>]*data-3d-heading[^>]*>3D Engineering Review<\/h1>/g) ?? []).length, 1);
   assert.match(html, /<canvas[^>]*data-canvas[^>]*tabindex="0"[^>]*aria-label="Interactive 3D engineering review viewport"/);
   assert.match(html, /<input[^>]*type="search"[^>]*data-search[^>]*aria-label="Search objects"/);
   for (const hook of hooks) {
