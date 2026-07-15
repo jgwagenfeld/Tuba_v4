@@ -286,7 +286,7 @@ def test_export_rejects_prepopulated_relative_scene_uri_without_writer(
 
 
 def test_export_rejects_dangling_scene_writer_uri(tmp_path, solved_review):
-    with pytest.raises(EngineeringReviewError, match="existing file"):
+    with pytest.raises(EngineeringReviewError, match="existing regular file"):
         write_engineering_review(
             solved_review,
             tmp_path,
@@ -353,6 +353,118 @@ def test_reused_output_removes_only_obsolete_generated_reports_and_scene(
     assert not (tmp_path / "geometry" / "geometry_assets.json").exists()
     assert not stale_geometry.exists()
     assert all(path.read_text(encoding="utf-8") == "keep" for path in user_files)
+
+
+@pytest.mark.parametrize(
+    "fixed_uri",
+    ("review.json", "report_manifest.json", "index.html"),
+)
+def test_export_rejects_symlinked_fixed_destinations_without_following_them(
+    tmp_path, solved_review, fixed_uri
+):
+    output_root = tmp_path / "archive"
+    output_root.mkdir()
+    unrelated = output_root / "reports" / "user.csv"
+    unrelated.parent.mkdir()
+    unrelated.write_text("keep", encoding="utf-8")
+
+    outside = tmp_path / "outside" / fixed_uri
+    outside.parent.mkdir()
+    if fixed_uri == "report_manifest.json":
+        outside.write_text(
+            json.dumps(
+                {
+                    "schema_version": "engineering_review_manifest.v1",
+                    "reports": {"user": "reports/user.csv"},
+                }
+            ),
+            encoding="utf-8",
+        )
+    else:
+        outside.write_text("outside-original", encoding="utf-8")
+    _symlink_file_or_skip(output_root / fixed_uri, outside)
+    original_outside = outside.read_bytes()
+
+    with pytest.raises(EngineeringReviewError, match="symbolic link"):
+        write_engineering_review(solved_review, output_root)
+
+    assert outside.read_bytes() == original_outside
+    assert unrelated.read_text(encoding="utf-8") == "keep"
+
+
+@pytest.mark.parametrize(
+    "scene_uri",
+    (
+        "review.json",
+        "report_manifest.json",
+        "index.html",
+        "reports/line_list.csv",
+    ),
+)
+def test_scene_uri_cannot_collide_with_exporter_owned_destinations(
+    tmp_path, solved_review, scene_uri
+):
+    def write_colliding_scene(root):
+        scene_path = root / scene_uri
+        scene_path.parent.mkdir(parents=True, exist_ok=True)
+        scene_path.write_text("scene-data", encoding="utf-8")
+        return scene_uri
+
+    with pytest.raises(EngineeringReviewError, match="collides"):
+        write_engineering_review(
+            solved_review,
+            tmp_path,
+            scene_writer=write_colliding_scene,
+        )
+
+    assert (tmp_path / scene_uri).read_text(encoding="utf-8") == "scene-data"
+
+
+def test_scene_uri_must_be_a_regular_file_not_an_in_archive_symlink(
+    tmp_path, solved_review
+):
+    def write_symlinked_scene(root):
+        target = root / "actual_scene.json"
+        target.write_text("{}", encoding="utf-8")
+        _symlink_file_or_skip(root / "scene.json", target)
+        return "scene.json"
+
+    with pytest.raises(EngineeringReviewError, match="symbolic link"):
+        write_engineering_review(
+            solved_review,
+            tmp_path,
+            scene_writer=write_symlinked_scene,
+        )
+
+
+def test_scene_file_is_rechecked_after_exporter_writes(tmp_path, solved_review):
+    scene_path = tmp_path / "scene.json"
+
+    class ReviewThatRemovesScene:
+        def __getattr__(self, name):
+            return getattr(solved_review, name)
+
+        def to_dict(self):
+            scene_path.unlink()
+            return solved_review.to_dict()
+
+    def write_scene(root):
+        (root / "scene.json").write_text("{}", encoding="utf-8")
+        return "scene.json"
+
+    with pytest.raises(EngineeringReviewError, match="existing regular file"):
+        write_engineering_review(
+            ReviewThatRemovesScene(),  # type: ignore[arg-type]
+            tmp_path,
+            scene_writer=write_scene,
+        )
+
+
+def _symlink_file_or_skip(link, target):
+    try:
+        link.symlink_to(target)
+    except OSError as error:
+        pytest.skip(f"File symlinks are unavailable on this platform: {error}")
 
 
 def test_visualization_adapter_preserves_scene_bundle_layout(tmp_path, solved_review):

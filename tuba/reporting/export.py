@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import stat
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from html import escape
@@ -71,34 +72,71 @@ def write_engineering_review(
         description="reports directory",
     )
 
+    fixed_paths = {
+        uri: _validated_exporter_destination(root, resolved_root, uri)
+        for uri in ("review.json", "report_manifest.json", "index.html")
+    }
+    csv_destinations = {
+        table.id: _validated_exporter_destination(
+            root,
+            resolved_root,
+            f"reports/{table.id}.csv",
+        )
+        for table in review.tables
+        if table.rows
+    }
+    owned_destinations = {
+        path.resolve() for path in (*fixed_paths.values(), *csv_destinations.values())
+    }
+
     _remove_previous_generated_artifacts(root, resolved_root)
 
     scene_uri = scene_writer(root) if scene_writer is not None else None
     if scene_uri is not None:
-        scene_uri = _validated_scene_uri(root, resolved_root, scene_uri)
+        scene_uri = _validated_scene_uri(
+            root,
+            resolved_root,
+            scene_uri,
+            owned_destinations=owned_destinations,
+        )
 
     payload = review.to_dict()
     if scene_uri is not None:
         payload["scene_uri"] = scene_uri
 
-    review_path = root / "review.json"
+    review_path = _validated_exporter_destination(
+        root, resolved_root, "review.json"
+    )
     _write_json(review_path, payload)
 
     csv_paths = {
-        table.id: _write_table_csv(table, reports_dir, resolved_reports_dir)
+        table.id: _write_table_csv(
+            table,
+            csv_destinations[table.id],
+            resolved_reports_dir,
+        )
         for table in review.tables
         if table.rows
     }
     manifest = _build_manifest(review, csv_paths, scene_uri=scene_uri, title=title)
-    manifest_path = root / "report_manifest.json"
+    manifest_path = _validated_exporter_destination(
+        root, resolved_root, "report_manifest.json"
+    )
     _write_json(manifest_path, manifest)
 
-    index_path = root / "index.html"
+    index_path = _validated_exporter_destination(root, resolved_root, "index.html")
     index_path.write_text(
         _render_html(review, manifest, title=title),
         encoding="utf-8",
         newline="\n",
     )
+    if scene_uri is not None:
+        scene_uri = _validated_scene_uri(
+            root,
+            resolved_root,
+            scene_uri,
+            owned_destinations=owned_destinations,
+        )
     return EngineeringReviewOutput(
         root=root,
         index_path=index_path,
@@ -122,11 +160,11 @@ def _write_json(path: Path, data: Any) -> None:
 
 def _write_table_csv(
     table: ReportTable,
-    reports_dir: Path,
+    destination: Path,
     resolved_reports_dir: Path,
 ) -> Path:
     _validate_report_table_id(table.id)
-    candidate = reports_dir / f"{table.id}.csv"
+    candidate = destination
     if candidate.is_symlink():
         raise EngineeringReviewError(
             f"CSV destination for report table {table.id!r} must not be a symbolic link."
@@ -362,15 +400,62 @@ def _validate_export_inputs(review: EngineeringReviewPackage) -> None:
         seen_destinations.add(destination)
 
 
-def _validated_scene_uri(root: Path, resolved_root: Path, value: str) -> str:
-    uri = _relative_uri(value)
-    scene_path = (root / PurePosixPath(uri)).resolve()
-    _require_path_within(scene_path, resolved_root, description="scene URI")
-    if not scene_path.is_file():
+def _validated_scene_uri(
+    root: Path,
+    resolved_root: Path,
+    value: str,
+    *,
+    owned_destinations: set[Path],
+) -> str:
+    uri = PurePosixPath(_relative_uri(value)).as_posix()
+    scene_path = root / PurePosixPath(uri)
+    if scene_path.is_symlink():
         raise EngineeringReviewError(
-            f"Scene writer URI {uri!r} must identify an existing file in the output archive."
+            f"Scene writer URI {uri!r} must not be a symbolic link."
+        )
+    resolved_scene_path = scene_path.resolve()
+    _require_path_within(resolved_scene_path, resolved_root, description="scene URI")
+    if resolved_scene_path in owned_destinations:
+        raise EngineeringReviewError(
+            f"Scene writer URI {uri!r} collides with an exporter-owned destination."
+        )
+    if not _is_regular_file(scene_path):
+        raise EngineeringReviewError(
+            f"Scene writer URI {uri!r} must identify an existing regular file "
+            "in the output archive."
         )
     return uri
+
+
+def _validated_exporter_destination(
+    root: Path,
+    resolved_root: Path,
+    uri: str,
+) -> Path:
+    relative_uri = _relative_uri(uri)
+    path = root / PurePosixPath(relative_uri)
+    if path.is_symlink():
+        raise EngineeringReviewError(
+            f"Exporter-owned destination {relative_uri!r} must not be a symbolic link."
+        )
+    resolved_path = path.resolve()
+    _require_path_within(
+        resolved_path,
+        resolved_root,
+        description=f"exporter-owned destination {relative_uri!r}",
+    )
+    if path.exists() and not _is_regular_file(path):
+        raise EngineeringReviewError(
+            f"Exporter-owned destination {relative_uri!r} must be a regular file."
+        )
+    return path
+
+
+def _is_regular_file(path: Path) -> bool:
+    try:
+        return stat.S_ISREG(path.stat().st_mode)
+    except OSError:
+        return False
 
 
 def _require_path_within(path: Path, parent: Path, *, description: str) -> None:
@@ -468,6 +553,8 @@ def _is_geometry_payload_uri(uri: str) -> bool:
 
 
 def _read_json_object(path: Path) -> dict[str, Any] | None:
+    if path.is_symlink():
+        return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
