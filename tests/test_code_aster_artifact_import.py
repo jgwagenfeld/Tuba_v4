@@ -66,17 +66,55 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         n1_vector = next(vector for vector in displacement.data["vectors"] if vector["node_id"] == n1)
         self.assertEqual(n1_vector["displacement_m"], [0.0, 0.015, 0.0])
 
-    def test_artifact_review_example_writes_scene_bundle(self):
+    def test_artifact_review_example_writes_engineering_review(self):
         from examples.code_aster_artifact_review import run_example
 
         with TemporaryDirectory() as tmpdir:
             summary = run_example(tmpdir)
+            root = Path(summary["bundle_root"])
             scene = json.loads(Path(summary["scene"]).read_text(encoding="utf-8"))
+            review = json.loads((root / "review.json").read_text(encoding="utf-8"))
+            output_files = {
+                relative: (root / relative).exists()
+                for relative in (
+                    "review.json",
+                    "report_manifest.json",
+                    "index.html",
+                    "reports/fe_stress.csv",
+                    "reports/displacements.csv",
+                    "scene.json",
+                )
+            }
 
         self.assertEqual(summary["result_source"], "code_aster_artifact_tables")
-        self.assertEqual(summary["result_state_id"], "result_state:Hot")
+        self.assertEqual(summary["artifact_provenance"], "committed_real_code_aster_artifacts")
+        self.assertEqual(summary["result_state_id"], "result_state:Operating")
         self.assertGreater(summary["counts"]["scene_objects"], 0)
         self.assertIn("solver_result", {overlay["kind"] for overlay in scene["overlays"]})
+        self.assertTrue(all(output_files.values()), output_files)
+        provenance = next(
+            record
+            for record in review["provenance"]
+            if record["kind"] == "result_state"
+        )
+        self.assertIn("pipe_bend_0_n1", provenance["metadata"]["analysis_node_ids"])
+        analysis_row = next(
+            row
+            for row in review["tables"]["displacements"]["rows"]
+            if row["node_id"] == "pipe_bend_0_n1"
+        )
+        self.assertEqual(analysis_row["entity_ref"], "analysis_node:pipe_bend_0_n1")
+        self.assertEqual(analysis_row["location_kind"], "analysis_node")
+
+    def test_artifact_review_fixture_mode_is_explicitly_non_engineering(self):
+        from examples.code_aster_artifact_review import run_example
+
+        with TemporaryDirectory() as tmpdir:
+            summary = run_example(tmpdir, test_fixture_mode=True)
+            review = json.loads((Path(summary["bundle_root"]) / "review.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(summary["artifact_provenance"], "deterministic_non_engineering_test_fixture")
+        self.assertIn("non-engineering test fixture", json.dumps(review).lower())
 
     def test_artifact_review_chain_exports_ifc_result_provenance(self):
         model, n0, n1 = self._model()

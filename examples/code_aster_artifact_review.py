@@ -1,4 +1,10 @@
-"""Build a viewer bundle from existing Code_Aster result artifact files."""
+"""Build an engineering review and web scene from real Code_Aster artifacts.
+
+The default input is the committed, solved ``VizGalleryDemo`` artifact set used
+by the matching notebooks. Production review values must come from a real
+Code_Aster run/import. Deterministic generated tables are available only through
+the explicit ``test_fixture_mode`` and are non-engineering test data.
+"""
 
 from __future__ import annotations
 
@@ -12,20 +18,61 @@ from tuba.analysis import (
     create_visual_deformed_geometry_state,
 )
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.reporting import build_engineering_review
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import (
+    build_visualization_scene,
+    write_engineering_review_with_scene,
+)
 
 
-def run_example(output_dir: str | Path = ".benchmarks/code_aster_artifact_review") -> dict[str, Any]:
+def run_example(
+    output_dir: str | Path = ".benchmarks/code_aster_artifact_review",
+    *,
+    artifact_dir: str | Path | None = None,
+    test_fixture_mode: bool = False,
+) -> dict[str, Any]:
+    """Write the review package without running Code_Aster.
+
+    ``artifact_dir`` must contain solved Code_Aster outputs matching the model.
+    ``test_fixture_mode`` is reserved for portable automated tests and must not
+    be used for engineering review or published result artifacts.
+    """
+    if artifact_dir is not None and test_fixture_mode:
+        raise ValueError("artifact_dir and test_fixture_mode are mutually exclusive")
+
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    model, n0, n1 = _build_model()
+    if test_fixture_mode:
+        model, n0, n1 = _build_fixture_model()
+        resolved_artifact_dir = output_path / "non_engineering_test_fixture"
+        CodeAsterSolver(work_dir=resolved_artifact_dir).export_analysis_study(
+            model, "Hot", resolved_artifact_dir
+        )
+        _write_sample_result_tables(resolved_artifact_dir, n0=n0, n1=n1)
+        artifact_provenance = "deterministic_non_engineering_test_fixture"
+    else:
+        model = _build_model()
+        resolved_artifact_dir = (
+            Path(artifact_dir)
+            if artifact_dir is not None
+            else Path(__file__).resolve().parents[1]
+            / "notebooks"
+            / "code_aster_results"
+            / "viz_gallery_operating"
+        )
+        artifact_provenance = (
+            "provided_real_code_aster_artifacts"
+            if artifact_dir is not None
+            else "committed_real_code_aster_artifacts"
+        )
 
-    artifact_dir = output_path / "code_aster_artifacts"
-    study = CodeAsterSolver(work_dir=artifact_dir).export_analysis_study(model, "Hot", artifact_dir)
-    _write_sample_result_tables(artifact_dir, n0=n0, n1=n1)
-
-    artifact = import_code_aster_artifacts(model=model, work_dir=artifact_dir)
+    artifact = import_code_aster_artifacts(model=model, work_dir=resolved_artifact_dir)
+    if test_fixture_mode:
+        artifact.result_state.metadata["source"] = artifact_provenance
+        artifact.result_state.metadata["provenance_warning"] = (
+            "Non-engineering test fixture; values are deterministic generated test data."
+        )
     operating_state = create_operating_geometry_state(model=model, result_state=artifact.result_state)
     visual_state = create_visual_deformed_geometry_state(model=model, result_state=artifact.result_state, visual_scale=40.0)
     scene = build_visualization_scene(
@@ -36,15 +83,28 @@ def run_example(output_dir: str | Path = ".benchmarks/code_aster_artifact_review
         scene_id="scene:code_aster_artifact_review",
         created_at="2026-06-21T00:00:00Z",
     )
-    bundle = write_scene_bundle(scene, output_path / "review_scene")
+    review = build_engineering_review(
+        model,
+        studies=[artifact.study],
+        result_states=[artifact.result_state],
+        package_id="review:code_aster_artifact",
+        created_at="2026-06-21T00:00:00Z",
+    )
+    bundle = write_engineering_review_with_scene(
+        review,
+        output_path / "review_scene",
+        scene=scene,
+        title="Code_Aster artifact engineering review",
+    )
     summary = {
         "project_name": model.project_name,
-        "study_id": study.id,
-        "artifact_dir": str(artifact_dir),
+        "study_id": artifact.study.id,
+        "artifact_dir": str(resolved_artifact_dir),
+        "artifact_provenance": artifact_provenance,
         "result_source": artifact.result_state.metadata["source"],
         "result_state_id": artifact.result_state.id,
         "bundle_root": str(bundle.root),
-        "scene": str(bundle.scene_path),
+        "scene": str(bundle.root / bundle.scene_uri),
         "diagnostics": artifact.diagnostics,
         "counts": {
             "scene_objects": len(scene.objects),
@@ -57,7 +117,43 @@ def run_example(output_dir: str | Path = ".benchmarks/code_aster_artifact_review
     return summary
 
 
-def _build_model():
+def _build_model() -> Model:
+    """Rebuild the model that produced ``viz_gallery_operating`` artifacts."""
+    model = Model("VizGalleryDemo", standard="ASME_B31.3")
+    model.add_material(
+        "Steel",
+        E=2.1e11,
+        nu=0.3,
+        rho=7850.0,
+        alpha=1.2e-5,
+        allowable_stress={20.0: 137e6, 150.0: 127e6},
+    )
+    model.add_pipe_section(
+        "DN100", OD=0.1143, WT=0.00602, corrosion_allowance=0.001
+    )
+    model.define_load_case(
+        "Operating",
+        gravity=True,
+        pressure=1.5e6,
+        temperature=150.0,
+        ref_temperature=20.0,
+    )
+    with model.pipe(section="DN100", material="Steel") as builder:
+        builder.start([0.0, 0.0, 0.0], support="anchor")
+        builder.run(3.0)
+        builder.add_support(type="guide")
+        builder.bend(radius=0.3, angle=90.0, plane="XY")
+        builder.run(2.0)
+        builder.add_support(type="rest")
+        builder.bend(radius=0.3, angle=90.0, plane="XZ")
+        builder.run(2.0)
+        builder.end(support="anchor")
+    model.validate()
+    return model
+
+
+def _build_fixture_model():
+    """Build the small model used only by the non-engineering test fixture."""
     model = Model(project_name="CodeAsterArtifactReview")
     model.add_material("Steel", E=2.0e11, nu=0.3, allowable_stress={20.0: 137e6})
     model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
@@ -70,6 +166,7 @@ def _build_model():
 
 
 def _write_sample_result_tables(work_dir: Path, *, n0: str, n1: str) -> None:
+    """Write deterministic non-engineering tables for explicit tests only."""
     work_dir.mkdir(parents=True, exist_ok=True)
     (work_dir / "study_depl.csv").write_text(
         "\n".join(

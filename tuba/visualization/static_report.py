@@ -16,7 +16,7 @@ _REPORT_TITLES = {
     "line_list": "Line list",
     "section_schedule": "Cross-section schedule",
     "load_case_summary": "Load case summary",
-    "stress": "Stress / utilization",
+    "stress": "FE Von Mises (not piping-code stress)",
     "reactions": "Support reactions",
     "displacements": "Nodal displacements",
 }
@@ -59,6 +59,8 @@ def write_static_report(
 
     index_path = root / "index.html"
     manifest = {
+        "report_kind": "legacy_scene_derived",
+        "code_compliance": "unavailable",
         "reports": {path.stem: f"reports/{path.name}" for path in csv_paths},
         "title": report_title,
         "scene_id": scene.scene_id,
@@ -174,6 +176,7 @@ def _report_html(title: str, scene: VisualizationScene, issue_summary: dict[str,
     th, td {{ border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; }}
     th {{ background: #e5e7eb; }}
     .meta {{ color: #4b5563; margin-bottom: 20px; }}
+    .legacy-warning {{ border-left: 4px solid #b45309; background: #fffbeb; padding: 12px 16px; margin: 18px 0; }}
     .viewer-link {{ display: inline-block; margin: 8px 0 18px; }}
   </style>
 </head>
@@ -181,6 +184,9 @@ def _report_html(title: str, scene: VisualizationScene, issue_summary: dict[str,
   <main>
     <h1>{escaped_title}</h1>
     <div class="meta">{html.escape(scene.scene_id)} | {len(scene.objects)} objects | {len(scene.issues)} issues</div>
+    <aside class="legacy-warning"><strong>Legacy scene-derived report</strong><br>
+      Code compliance unavailable. Scene overlays may show FE Von Mises (not piping-code stress),
+      reactions, or displacements, but they do not establish piping-code compliance.</aside>
     <a class="viewer-link" href="scene.json">Open scene manifest</a>
     <h2>Objects</h2>
     <table><thead><tr><th>ID</th><th>Kind</th><th>Name</th></tr></thead><tbody>{object_rows}</tbody></table>

@@ -1,9 +1,10 @@
-"""Tabular engineering reports derived from a VisualizationScene.
+"""Legacy tabular reports derived from a :class:`VisualizationScene`.
 
 Line list, cross-section schedule, load-case summary, and per-load-case stress /
-reaction / displacement tables - the deliverables a piping engineer signs and
-archives. Each report function is pure: scene in, list-of-row-dicts out, so it
-can feed a CSV, an HTML table, a DataFrame, or a notebook cell equally well.
+reaction / displacement tables remain available for scene-bundle compatibility.
+They are scene-derived convenience views, not authoritative engineering-review
+records or piping-code compliance results. Each report function remains pure:
+scene in, list-of-row-dicts out.
 """
 
 from __future__ import annotations
@@ -72,7 +73,7 @@ def section_schedule(scene: VisualizationScene) -> list[dict[str, Any]]:
 
 
 def load_case_summary(scene: VisualizationScene) -> list[dict[str, Any]]:
-    """One row per load case: worst stress / utilization / reaction / displacement."""
+    """Summarize scene FE overlays; utilization is not piping-code compliance."""
     cases: dict[str, dict[str, Any]] = {}
     for overlay in scene.overlays:
         data = overlay.data or {}
@@ -103,7 +104,7 @@ def load_case_summary(scene: VisualizationScene) -> list[dict[str, Any]]:
 
 
 def stress_report(scene: VisualizationScene) -> list[dict[str, Any]]:
-    """One row per (element, load case) from stress solver results."""
+    """Return scene FE Von Mises rows, not piping-code stress checks."""
     names = {obj.id: obj.name for obj in scene.objects}
     rows: list[dict[str, Any]] = []
     for overlay in _overlays(scene, kind="solver_result", result_type="stress"):

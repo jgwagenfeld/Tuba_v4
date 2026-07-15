@@ -111,6 +111,8 @@ def result_state_from_fea_results(*, model: Any, study: AnalysisStudy, results: 
         files["result"] = str(results.result_file)
 
     metadata: dict[str, Any] = {}
+    if results.analysis_node_results:
+        metadata["analysis_node_ids"] = sorted(results.analysis_node_results)
     if results.parser_diagnostics:
         metadata["parser_diagnostics"] = list(results.parser_diagnostics)
     if results.tuyau_subpoints:

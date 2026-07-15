@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from tuba.visualization import Overlay, SceneObject, VisualizationScene
 from tuba.visualization.reports import (
     build_reports,
+    displacement_report,
     line_list,
     load_case_summary,
     reaction_report,
@@ -59,6 +60,21 @@ def _scene():
 
 
 class TestVisualizationReports(unittest.TestCase):
+    def test_legacy_report_imports_keep_list_of_dict_return_types(self):
+        reports = (
+            line_list,
+            section_schedule,
+            load_case_summary,
+            stress_report,
+            reaction_report,
+            displacement_report,
+        )
+
+        for report in reports:
+            rows = report(_scene())
+            self.assertIsInstance(rows, list)
+            self.assertTrue(all(isinstance(row, dict) for row in rows))
+
     def test_line_list_and_section_schedule(self):
         rows = line_list(_scene())
         self.assertEqual(rows[0]["from_node"], "N0")

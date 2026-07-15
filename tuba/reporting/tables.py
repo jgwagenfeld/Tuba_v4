@@ -439,6 +439,7 @@ def build_displacements_table(
         columns=SOLVER_COLUMNS
         + (
             ReportColumn("entity_ref", "Entity reference"),
+            ReportColumn("location_kind", "Location kind"),
             ReportColumn("node_id", "Node"),
             ReportColumn("dx", "DX", unit="m"),
             ReportColumn("dy", "DY", unit="m"),
@@ -466,6 +467,7 @@ def build_reactions_table(
         columns=SOLVER_COLUMNS
         + (
             ReportColumn("entity_ref", "Entity reference"),
+            ReportColumn("location_kind", "Location kind"),
             ReportColumn("node_id", "Node"),
             ReportColumn("support_ids", "Supports"),
             ReportColumn("fx", "FX", unit="N"),
@@ -558,6 +560,7 @@ def build_result_summary_table(
                     unit="m",
                     result_basis="Code_Aster nodal displacement",
                     governing_entity_ref=governing["entity_ref"],
+                    governing_location=governing["node_id"],
                 )
             )
         reaction_rows = list(_reaction_rows(model, studies_by_id, (state,)))
@@ -574,6 +577,7 @@ def build_result_summary_table(
                     unit="N",
                     result_basis="Code_Aster nodal reaction",
                     governing_entity_ref=governing["entity_ref"],
+                    governing_location=governing["node_id"],
                 )
             )
         force_rows = list(_element_force_rows(model, studies_by_id, (state,)))
@@ -851,9 +855,11 @@ def _displacement_rows(
         identity = _solver_identity(studies_by_id[state.study_id], state)
         for node_id, values in sorted(state.node_displacements.items()):
             dx, dy, dz, drx, dry, drz = values
+            entity_ref, location_kind = _node_location(state, node_id)
             yield {
                 **identity,
-                "entity_ref": f"node:{node_id}",
+                "entity_ref": entity_ref,
+                "location_kind": location_kind,
                 "node_id": node_id,
                 "dx": dx,
                 "dy": dy,
@@ -882,9 +888,11 @@ def _reaction_rows(
         identity = _solver_identity(studies_by_id[state.study_id], state)
         for node_id, values in sorted(state.node_reactions.items()):
             fx, fy, fz, mx, my, mz = values
+            entity_ref, location_kind = _node_location(state, node_id)
             yield {
                 **identity,
-                "entity_ref": f"node:{node_id}",
+                "entity_ref": entity_ref,
+                "location_kind": location_kind,
                 "node_id": node_id,
                 "support_ids": list(support_ids_by_node.get(node_id, ())),
                 "fx": fx,
@@ -896,6 +904,13 @@ def _reaction_rows(
                 "force_magnitude": math.sqrt(fx * fx + fy * fy + fz * fz),
                 "moment_magnitude": math.sqrt(mx * mx + my * my + mz * mz),
             }
+
+
+def _node_location(state: ResultState, node_id: str) -> tuple[str, str]:
+    analysis_node_ids = set(state.metadata.get("analysis_node_ids", ()))
+    if node_id in analysis_node_ids:
+        return f"analysis_node:{node_id}", "analysis_node"
+    return f"node:{node_id}", "model_node"
 
 
 def _element_force_rows(

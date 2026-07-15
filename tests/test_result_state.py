@@ -79,6 +79,7 @@ class TestResultStateConversion(unittest.TestCase):
         self.assertEqual(state.node_displacements["pipe_bend_0_n1"], (0.010, 0.020, 0.030, 0.001, 0.002, 0.003))
         self.assertEqual(state.node_reactions["N0"], (100.0, 0.0, -500.0, 0.0, 0.0, 0.0))
         self.assertEqual(state.element_results["pipe_0"]["max_von_mises"], 120.0e6)
+        self.assertEqual(state.metadata["analysis_node_ids"], ["pipe_bend_0_n1"])
         self.assertEqual(state.metadata["parser_diagnostics"], ["diagnostic"])
         self.assertEqual(state.metadata["tuyau_subpoints"][0]["subpoint_index"], 7)
 

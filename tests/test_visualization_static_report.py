@@ -57,6 +57,17 @@ class TestVisualizationStaticReport(unittest.TestCase):
         self.assertEqual(issues["counts"]["warning"], 1)
         self.assertEqual(issues["issues"][0]["id"], "issue:clearance")
 
+    def test_scene_only_static_report_labels_missing_authoritative_inputs(self):
+        with TemporaryDirectory() as tmpdir:
+            report = write_static_report(self._scene(), tmpdir)
+            html = report.index_path.read_text(encoding="utf-8")
+
+        self.assertIn("Legacy scene-derived report", html)
+        self.assertIn("Code compliance unavailable", html)
+        self.assertIn("FE Von Mises (not piping-code stress)", html)
+        self.assertNotIn("ASME compliant", html)
+        self.assertNotIn("Piping-code compliance: passed", html)
+
     def test_notebook_iframe_html_targets_report_index(self):
         html = notebook_iframe_html("reports/static_review", width="900", height=500)
 

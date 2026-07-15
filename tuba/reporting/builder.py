@@ -145,8 +145,13 @@ def _validate_lineage(
                 f"study mesh {study.mesh_id!r}."
             )
 
-        unknown_displacements = set(state.node_displacements) - model_node_ids
-        unknown_reactions = set(state.node_reactions) - model_node_ids
+        analysis_node_ids = _analysis_node_ids(state)
+        unknown_displacements = (
+            set(state.node_displacements) - model_node_ids - analysis_node_ids
+        )
+        unknown_reactions = (
+            set(state.node_reactions) - model_node_ids - analysis_node_ids
+        )
         if unknown_displacements or unknown_reactions:
             unknown = sorted(unknown_displacements | unknown_reactions)
             raise EngineeringReviewError(
@@ -172,6 +177,18 @@ def _validate_lineage(
             raise EngineeringReviewError(
                 f"Compliance load case {report.load_case!r} matches multiple result states."
             )
+
+
+def _analysis_node_ids(state: ResultState) -> set[str]:
+    raw_ids = state.metadata.get("analysis_node_ids", ())
+    if not isinstance(raw_ids, (list, tuple)) or not all(
+        isinstance(node_id, str) and node_id for node_id in raw_ids
+    ):
+        raise EngineeringReviewError(
+            f"Result state {state.id!r} analysis_node_ids metadata must be a list "
+            "of non-empty strings."
+        )
+    return set(raw_ids)
 
 
 def _analysis_status(

@@ -18,6 +18,7 @@ TubaModel
   -> Code_Aster execution
   -> imported result artifacts
   -> FEAResults / ResultState
+  -> renderer-independent engineering review package
   -> PyVista quick-look or web review bundle
 ```
 
@@ -68,6 +69,7 @@ Historical root-level `*_design.md`, `*_specification.md`, and
 | `tuba.solver.code_aster_runtime` | runtime discovery/execution | WSL, command runner, Python bridge, and Docker fallback command construction. |
 | `tuba.analysis.*` | `AnalysisStudy`, `AnalysisMesh`, `ResultState`, artifact import helpers | Traceability from Tuba model to solver files and parsed outputs. |
 | `tuba.solver.base` | `FEAResults` | Solver-neutral result container and plotting convenience methods. |
+| `tuba.reporting` | `build_engineering_review(...)`, `write_engineering_review(...)` | Renderer-independent review tables, solver lineage, manifest, CSV, JSON, and printable HTML. It does not run Code_Aster. |
 | `tuba.plotting` | `results.plot_*()` | PyVista quick-look, notebook rendering, PLY/glTF export. |
 | `tuba.visualization` | `build_visualization_scene(...)`, `write_scene_bundle(...)` | JSON scene contract for the Three.js viewer and review bundles. |
 | `tuba.routing` | `GridRouter`, `NetworkRouter`, `AutoroutingAgent`, `SolverLoopScorer` | Route candidates, route reports, optional solver export/scoring. |
@@ -211,7 +213,28 @@ results = artifact.results
 
 Only use this for directories that already contain real Code_Aster artifacts.
 
-### 5. Display Results Through One Of Two Paths
+### 5. Build The Engineering Review
+
+Reporting is function-first and renderer-independent:
+
+```python
+from tuba.reporting import build_engineering_review, write_engineering_review
+
+review = build_engineering_review(
+    model,
+    studies=[artifact.study],
+    result_states=[artifact.result_state],
+)
+output = write_engineering_review(review, "runs/demo_hot/review")
+```
+
+These functions validate and serialize supplied records; they do not export a
+study or run Code_Aster. FE stress retains the exact result basis `FE Von Mises
+(not piping-code stress)`. A piping-code compliance table is emitted only from
+an explicit compliance report. Solver FE stress and scene utilization are not
+piping-code compliance.
+
+### 6. Display Results Through One Of Two Paths
 
 There are exactly two result-display paths.
 
@@ -234,7 +257,11 @@ The reviewable web scene path is:
 
 ```python
 from tuba.analysis.results import result_state_from_fea_results
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import (
+    build_visualization_scene,
+    write_engineering_review_with_scene,
+    write_scene_bundle,
+)
 
 result_state = result_state_from_fea_results(
     model=model,
@@ -248,11 +275,24 @@ scene = build_visualization_scene(
 )
 
 bundle = write_scene_bundle(scene, "runs/demo_hot/review_scene")
+
+# Optional: add the authoritative report files while retaining that scene layout.
+review_output = write_engineering_review_with_scene(
+    review,
+    "runs/demo_hot/engineering_review_scene",
+    scene=scene,
+)
 ```
 
 The `viewer/` Three.js app renders that bundle. Use this path for shareable
 review, object maps, route alternatives, issues, overlays, deformed states, and
 static review reports.
+
+`write_engineering_review_with_scene(...)` is an adapter around this same web
+review path, not a solver and not a third display system. Scene-only bundles
+without `review.json` remain supported. Legacy `write_static_report(scene,
+...)` remains import-compatible, but its HTML is labeled `Legacy scene-derived
+report` and states `Code compliance unavailable`.
 
 Do not add a third display path.
 

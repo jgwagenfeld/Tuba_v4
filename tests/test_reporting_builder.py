@@ -185,6 +185,55 @@ def test_unknown_result_entities_raise(
         build_engineering_review(review_model, studies=[code_aster_study], result_states=[bad])
 
 
+def test_declared_analysis_nodes_are_traceable_report_locations(
+    review_model,
+    code_aster_study,
+    code_aster_result_state,
+):
+    analysis_node_id = "E-20_mid"
+    state = replace(
+        code_aster_result_state,
+        node_displacements={
+            **code_aster_result_state.node_displacements,
+            analysis_node_id: (0.03, 0.04, 0.0, 0.0, 0.0, 0.0),
+        },
+        metadata={
+            **code_aster_result_state.metadata,
+            "analysis_node_ids": [analysis_node_id],
+        },
+    )
+
+    review = build_engineering_review(
+        review_model,
+        studies=[code_aster_study],
+        result_states=[state],
+    )
+
+    row = next(
+        row
+        for row in review.table("displacements").rows
+        if row["node_id"] == analysis_node_id
+    )
+    assert row["entity_ref"] == f"analysis_node:{analysis_node_id}"
+    assert row["location_kind"] == "analysis_node"
+    assert {
+        key: row[key]
+        for key in ("solver_name", "study_id", "result_state_id", "load_case")
+    } == {
+        "solver_name": "Code_Aster",
+        "study_id": "study:hot",
+        "result_state_id": "result:hot",
+        "load_case": "Hot",
+    }
+    summary = next(
+        row
+        for row in review.table("result_summary").rows
+        if row["result_type"] == "translation_magnitude"
+    )
+    assert summary["governing_entity_ref"] == f"analysis_node:{analysis_node_id}"
+    assert summary["governing_location"] == analysis_node_id
+
+
 def test_solver_result_tables_are_traceable_and_explicit(solved_review):
     assert solved_review.analysis_status == "solved"
     assert tuple(solved_review.tables_by_id)[-7:] == (
