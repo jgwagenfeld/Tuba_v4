@@ -8,10 +8,12 @@ export async function loadSceneBundle(root) {
   const { join } = await import(/* @vite-ignore */ NODE_PATH);
   const readJson = async (relativePath) => JSON.parse(await readFile(join(root, relativePath), "utf8"));
   const scene = await readJson("scene.json");
-  const objects = await readJson("metadata/objects.json");
+  const objects = Array.isArray(scene.objects) ? scene.objects : await readJson("metadata/objects.json");
   const objectMap = await readJson("metadata/object_map.json");
-  const overlays = await readJson("metadata/overlays.json");
-  const geometryAssets = await readJson("geometry/geometry_assets.json");
+  const overlays = Array.isArray(scene.overlays) ? scene.overlays : await readJson("metadata/overlays.json");
+  const geometryAssets = Array.isArray(scene.geometry_assets)
+    ? scene.geometry_assets
+    : await readJson("geometry/geometry_assets.json");
   const geometryPayloads = await Promise.all(
     (scene.geometry_assets ?? geometryAssets)
       .filter((asset) => asset.uri)
@@ -39,10 +41,12 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
     return response.json();
   };
   const scene = await readJson("scene.json");
-  const objects = await readJson("metadata/objects.json");
+  const objects = Array.isArray(scene.objects) ? scene.objects : await readJson("metadata/objects.json");
   const objectMap = await readJson("metadata/object_map.json");
-  const overlays = await readJson("metadata/overlays.json");
-  const geometryAssets = await readJson("geometry/geometry_assets.json");
+  const overlays = Array.isArray(scene.overlays) ? scene.overlays : await readJson("metadata/overlays.json");
+  const geometryAssets = Array.isArray(scene.geometry_assets)
+    ? scene.geometry_assets
+    : await readJson("geometry/geometry_assets.json");
   const geometryPayloads = await Promise.all(
     (scene.geometry_assets ?? geometryAssets)
       .filter((asset) => asset.uri)

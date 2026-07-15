@@ -1591,7 +1591,7 @@ def _build_solver_result_scene(
 
 def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, Overlay]:
     object_id = f"object:result_state:{result_state.id}"
-    payload = result_state.to_dict()
+    payload = _compact_result_state_payload(result_state)
     scene_object = SceneObject(
         id=object_id,
         kind="result_state",
@@ -1616,6 +1616,19 @@ def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, 
         data=payload,
     )
     return scene_object, overlay
+
+
+def _compact_result_state_payload(result_state: ResultState) -> dict[str, Any]:
+    payload = result_state.to_dict()
+    metadata = dict(payload.get("metadata", {}))
+    subpoints = metadata.pop("tuyau_subpoints", None)
+    if isinstance(subpoints, list):
+        metadata["tuyau_subpoint_count"] = len(subpoints)
+        source_file = result_state.files.get("tuyau_subpoints") or result_state.files.get("sieq")
+        if source_file:
+            metadata["tuyau_subpoints_file"] = source_file
+    payload["metadata"] = metadata
+    return payload
 
 
 def _build_result_state_result_scene(

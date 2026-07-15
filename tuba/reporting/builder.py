@@ -316,7 +316,7 @@ def build_provenance(
             )
         )
     for state in sorted(result_states, key=lambda record: record.id):
-        metadata = dict(state.metadata)
+        metadata = _compact_result_metadata(state)
         metadata.update(
             {
                 "mesh_id": state.mesh_id,
@@ -335,6 +335,17 @@ def build_provenance(
             )
         )
     return tuple(records)
+
+
+def _compact_result_metadata(state: ResultState) -> dict[str, Any]:
+    metadata = dict(state.metadata)
+    subpoints = metadata.pop("tuyau_subpoints", None)
+    if isinstance(subpoints, list):
+        metadata["tuyau_subpoint_count"] = len(subpoints)
+        source_file = state.files.get("tuyau_subpoints") or state.files.get("sieq")
+        if source_file:
+            metadata["tuyau_subpoints_file"] = source_file
+    return metadata
 
 
 def _default_package_id(model: TubaModel) -> str:

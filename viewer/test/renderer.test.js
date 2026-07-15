@@ -252,6 +252,89 @@ test("live camera fitting performs the initial whole-scene fit only once", () =>
   assert.deepEqual(controls.target.toArray(), [6, 5, 4]);
 });
 
+test("scene graph cache reuses geometry for selection-only state changes", () => {
+  const state = fixtureState();
+  const selected = { ...state, selectedObjectIds: ["object:pipe"] };
+  const builds = [];
+  const cache = rendererModule.createSceneGraphCache?.((nextState) => {
+    builds.push(nextState);
+    return { state: nextState };
+  });
+
+  assert.ok(cache);
+  assert.strictEqual(cache.get(state), cache.get(selected));
+  assert.equal(builds.length, 1);
+});
+
+test("scene graph cache reuses geometry when visibility changes", () => {
+  const state = fixtureState();
+  const visible = { ...state, visibleObjectIds: ["object:pipe"] };
+  const builds = [];
+  const disposed = [];
+  const cache = rendererModule.createSceneGraphCache?.(
+    (nextState) => {
+      const graph = { state: nextState };
+      builds.push(graph);
+      return graph;
+    },
+    (graph) => disposed.push(graph)
+  );
+
+  assert.ok(cache);
+  assert.strictEqual(cache.get(state), cache.get(visible));
+  assert.equal(builds.length, 1);
+  assert.deepEqual(disposed, []);
+});
+
+test("scene graph cache rebuilds when visibility changes deformed-reference materials", () => {
+  const state = fixtureState();
+  state.geometryAssets.push({
+    id: "geometry:visual-deformed",
+    format: "tube",
+    bounds: [0, -0.05, -0.05, 2, 0.05, 0.05],
+    object_ids: ["object:visual-deformed"],
+    generation_config: {
+      source: "tuba.deformed_centerline",
+      points: [[0, 0, 0], [2, 0, 0]],
+      base_points: [[0, 0, 0], [2, 0, 0]],
+      visual_scale: 40
+    }
+  });
+  state.visibleObjectIds.push("object:visual-deformed");
+  const hidden = {
+    ...state,
+    visibleObjectIds: state.visibleObjectIds.filter((objectId) => objectId !== "object:visual-deformed")
+  };
+  const builds = [];
+  const disposed = [];
+  const cache = rendererModule.createSceneGraphCache(
+    (nextState) => {
+      const graph = { state: nextState };
+      builds.push(graph);
+      return graph;
+    },
+    (graph) => disposed.push(graph)
+  );
+
+  assert.notStrictEqual(cache.get(state), cache.get(hidden));
+  assert.equal(builds.length, 2);
+  assert.deepEqual(disposed, [builds[0]]);
+});
+
+test("scene graph visibility updates hide cached renderables without rebuilding", () => {
+  const state = fixtureState();
+  const graph = createThreeSceneGraph(state);
+
+  rendererModule.updateSceneGraphVisibility?.(graph, {
+    ...state,
+    visibleObjectIds: ["object:pipe"]
+  });
+
+  assert.equal(graph.objectsByObjectId.get("object:pipe").visible, true);
+  assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, false);
+  assert.equal(graph.renderedObjectCount, 1);
+});
+
 test("pickRenderedObject uses Three.js raycasting metadata", () => {
   const graph = createThreeSceneGraph({
     bounds: [-1, -1, -1, 1, 1, 1],
@@ -275,6 +358,34 @@ test("pickRenderedObject uses Three.js raycasting metadata", () => {
   graph.camera = camera;
 
   assert.equal(pickRenderedObject(graph, { x: 50, y: 50 }, { width: 100, height: 100 }), "object:marker");
+});
+
+test("pickRenderedObject skips dense TUYAU glyph instances", () => {
+  const state = fixtureState();
+  state.geometryAssets.push({
+    id: "geometry:dense-tuyau",
+    format: "tuyau_subpoint_glyphs",
+    bounds: [-1, -1, -1, 1, 1, 1],
+    object_ids: ["object:dense-tuyau"],
+    generation_config: {
+      starts: [[0, 0, 0]],
+      ends: [[0, 0, 0.1]],
+      values: [1]
+    }
+  });
+  state.visibleObjectIds.push("object:dense-tuyau");
+  const graph = createThreeSceneGraph(state);
+  const denseGlyphs = graph.objectsByObjectId.get("object:dense-tuyau");
+  denseGlyphs.raycast = () => {
+    throw new Error("dense glyph raycast should not run");
+  };
+  const camera = new PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, -4, 0);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  graph.camera = camera;
+
+  assert.doesNotThrow(() => pickRenderedObject(graph, { x: 50, y: 50 }, { width: 100, height: 100 }));
 });
 
 test("applyHoverHighlight records hover target and marks matching materials", () => {

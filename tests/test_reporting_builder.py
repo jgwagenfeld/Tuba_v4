@@ -476,3 +476,27 @@ def test_review_provenance_retains_supplied_study_and_result_artifacts(solved_re
     assert solved_review.provenance[1].metadata["parser_diagnostics"] == [
         "SIEQ table omitted one optional component."
     ]
+
+
+def test_review_provenance_summarizes_bulk_tuyau_rows(
+    review_model, code_aster_study, code_aster_result_state
+):
+    result_state = replace(
+        code_aster_result_state,
+        files={**code_aster_result_state.files, "tuyau_subpoints": "artifacts/hot/study_sieq.csv"},
+        metadata={
+            **code_aster_result_state.metadata,
+            "tuyau_subpoints": [{"value": 1.0}, {"value": 2.0}],
+        },
+    )
+
+    review = build_engineering_review(
+        review_model,
+        studies=[code_aster_study],
+        result_states=[result_state],
+    )
+    metadata = review.provenance[1].metadata
+
+    assert "tuyau_subpoints" not in metadata
+    assert metadata["tuyau_subpoint_count"] == 2
+    assert metadata["tuyau_subpoints_file"] == "artifacts/hot/study_sieq.csv"

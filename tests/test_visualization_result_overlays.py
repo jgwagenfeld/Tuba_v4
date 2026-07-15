@@ -183,6 +183,8 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         subpoint = next(obj for obj in scene.objects if obj.kind == "tuyau_subpoint_field")
         asset = next(asset for asset in scene.geometry_assets if asset.id == subpoint.geometry_asset_id)
         overlay = _result_overlay(scene, "tuyau_subpoints")
+        result_state_overlay = next(item for item in scene.overlays if item.kind == "result_state")
+        result_state_object = next(item for item in scene.objects if item.kind == "result_state")
 
         self.assertEqual(asset.format, "tuyau_subpoint_glyphs")
         self.assertEqual(asset.generation_config["source"], "tuba.tuyau_subpoint_field")
@@ -208,6 +210,9 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(overlay.data["range"], {"min": 42.0e6, "max": 84.0e6})
         self.assertEqual(overlay.data["source_file"], "study_sieq.csv")
         self.assertEqual(overlay.data["position_source"], "code_aster_tuyau_subpoint_formula")
+        self.assertNotIn("tuyau_subpoints", result_state_overlay.data["metadata"])
+        self.assertEqual(result_state_overlay.data["metadata"]["tuyau_subpoint_count"], 2)
+        self.assertNotIn("tuyau_subpoints", result_state_object.source["tuba_result_state"]["metadata"])
 
 
 def _result_overlay(scene, result_type):

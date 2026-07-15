@@ -89,6 +89,67 @@ export function buildRenderableScene(state, options = {}) {
   };
 }
 
+const SCENE_GRAPH_STATE_KEYS = [
+  "bounds",
+  "geometryAssets",
+  "geometryPayloads",
+  "overlays",
+  "activeLoadCase",
+  "activeResultStateId",
+  "activeGeometryStateId",
+  "resultVectorScales",
+  "displacementVectorScale",
+  "reactionVectorScale",
+  "visualDeformationScale"
+];
+
+export function createSceneGraphCache(buildGraph, disposeGraph = () => {}) {
+  let currentState = null;
+  let currentGraph = null;
+  return {
+    get(state) {
+      const visibilityChanged = currentState?.visibleObjectIds !== state?.visibleObjectIds;
+      const deformedReferenceModeChanged =
+        visibilityChanged &&
+        stateHasVisibleVisualDeformedGeometry(currentState) !== stateHasVisibleVisualDeformedGeometry(state);
+      const rebuild =
+        !currentGraph ||
+        deformedReferenceModeChanged ||
+        SCENE_GRAPH_STATE_KEYS.some((key) => currentState?.[key] !== state?.[key]);
+      if (rebuild) {
+        const previousGraph = currentGraph;
+        currentGraph = buildGraph(state);
+        if (previousGraph) {
+          disposeGraph(previousGraph);
+        }
+      }
+      currentState = state;
+      return currentGraph;
+    },
+    clear() {
+      if (currentGraph) {
+        disposeGraph(currentGraph);
+      }
+      currentState = null;
+      currentGraph = null;
+    }
+  };
+}
+
+function stateHasVisibleVisualDeformedGeometry(state) {
+  if (!state) {
+    return false;
+  }
+  const payloadsByAssetId = new Map(
+    (state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload])
+  );
+  return hasVisibleVisualDeformedGeometry(
+    state,
+    payloadsByAssetId,
+    new Set(state.visibleObjectIds ?? [])
+  );
+}
+
 export function createThreeCanvasRenderer(canvas, options = {}) {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -105,6 +166,10 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   let currentGraph = null;
+  const graphCache = createSceneGraphCache(
+    (state) => createThreeSceneGraph(state, options),
+    disposeThreeSceneGraph
+  );
   const cameraFitController = createCameraFitController(camera, controls);
 
   return {
@@ -114,7 +179,12 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
 
-      const graph = createThreeSceneGraph(state, options);
+      if (currentGraph && !hasAllVisibleAssets(currentGraph, state)) {
+        graphCache.clear();
+        currentGraph = null;
+      }
+      const graph = graphCache.get(state);
+      updateSceneGraphVisibility(graph, state);
       cameraFitController.apply(state, graph.bounds);
       controls.update();
       graph.camera = camera;
@@ -135,10 +205,30 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       renderer.render(currentGraph.scene, camera);
     },
     dispose() {
+      graphCache.clear();
       controls.dispose();
       renderer.dispose();
     }
   };
+}
+
+function disposeThreeSceneGraph(graph) {
+  const geometries = new Set();
+  const materials = new Set();
+  graph?.scene?.traverse((object) => {
+    if (object.geometry) {
+      geometries.add(object.geometry);
+    }
+    for (const material of Array.isArray(object.material) ? object.material : object.material ? [object.material] : []) {
+      materials.add(material);
+    }
+  });
+  for (const geometry of geometries) {
+    geometry.dispose();
+  }
+  for (const material of materials) {
+    material.dispose();
+  }
 }
 
 export function createCameraFitController(camera, controls = null) {
@@ -169,7 +259,7 @@ export function createThreeViewport(canvas, options = {}) {
       const graph = canvasRenderer.render(state);
       return {
         ...graph,
-        renderableObjects: [...new Set(graph.objectsByObjectId.values())]
+        renderableObjects: [...new Set(graph.objectsByObjectId.values())].filter((object) => object.visible !== false)
       };
     },
     render() {
@@ -191,7 +281,10 @@ export function pickRenderedObject(graph, point, viewport) {
   graph.camera.updateMatrixWorld();
   graph.scene?.updateMatrixWorld(true);
   raycaster.setFromCamera(normalized, graph.camera);
-  const intersections = raycaster.intersectObjects(graph.renderableObjects, true);
+  const raycastTargets = graph.renderableObjects.filter(
+    (object) => object.visible !== false && object.userData?.format !== "tuyau_subpoint_glyphs"
+  );
+  const intersections = raycaster.intersectObjects(raycastTargets, true);
   for (const intersection of intersections) {
     const objectId = intersection.object.userData?.primaryObjectId || intersection.object.userData?.objectId;
     if (objectId) {
@@ -199,6 +292,28 @@ export function pickRenderedObject(graph, point, viewport) {
     }
   }
   return pickNearestProjectedObject(graph, point, viewport);
+}
+
+export function updateSceneGraphVisibility(graph, state) {
+  const visibleIds = new Set(state.visibleObjectIds ?? []);
+  let renderedObjectCount = 0;
+  for (const object of graph.renderableObjects ?? []) {
+    const objectIds = object.userData?.objectIds ?? [];
+    object.visible = objectIds.length === 0 || objectIds.some((objectId) => visibleIds.has(objectId));
+    if (object.visible) {
+      renderedObjectCount += 1;
+    }
+  }
+  graph.renderedObjectCount = renderedObjectCount;
+  return graph;
+}
+
+function hasAllVisibleAssets(graph, state) {
+  const cachedAssetIds = new Set((graph.renderableObjects ?? []).map((object) => object.userData?.assetId));
+  const visibleIds = new Set(state.visibleObjectIds ?? []);
+  return (state.geometryAssets ?? [])
+    .filter((asset) => isAssetVisible(asset, visibleIds))
+    .every((asset) => cachedAssetIds.has(asset.id));
 }
 
 export function applyHoverHighlight(graph, objectId) {
@@ -822,6 +937,9 @@ function invalidAsset(asset, message) {
 function pickNearestProjectedObject(graph, point, viewport) {
   let best = null;
   for (const object of graph.renderableObjects ?? []) {
+    if (object.visible === false) {
+      continue;
+    }
     const objectId = object.userData?.primaryObjectId || object.userData?.objectId;
     if (!objectId) {
       continue;

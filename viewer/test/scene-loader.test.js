@@ -112,6 +112,9 @@ test("loads scene files before the optional review and exposes review state", as
   const state = createViewerState(bundle);
 
   assert.equal(requestedUrls.at(-1), "/bundle/review.json");
+  assert.equal(requestedUrls.includes("/bundle/metadata/objects.json"), false);
+  assert.equal(requestedUrls.includes("/bundle/metadata/overlays.json"), false);
+  assert.equal(requestedUrls.includes("/bundle/geometry/geometry_assets.json"), false);
   assert.equal(bundle.review.analysis_status, "solved");
   assert.deepEqual(bundle.reviewDiagnostics, []);
   assert.equal(bundle.legacyReview, false);
