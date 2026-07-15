@@ -182,6 +182,59 @@ def test_compliance_report_without_matching_solved_load_case_raises(
         )
 
 
+@pytest.mark.parametrize(
+    ("element_id", "node_id", "message"),
+    [
+        ("E-missing", "N0", "unknown model element"),
+        ("E-20", "N-missing", "unknown model node"),
+        ("E-20", "N2", "is not an endpoint"),
+    ],
+)
+def test_compliance_result_requires_authoritative_model_lineage(
+    review_model,
+    code_aster_study,
+    code_aster_result_state,
+    full_review_compliance,
+    element_id,
+    node_id,
+    message,
+):
+    invalid_result = replace(
+        full_review_compliance.results[0],
+        element_id=element_id,
+        node_id=node_id,
+    )
+    invalid_report = replace(full_review_compliance, results=[invalid_result])
+
+    with pytest.raises(EngineeringReviewError, match=message):
+        build_engineering_review(
+            review_model,
+            studies=[code_aster_study],
+            result_states=[code_aster_result_state],
+            compliance_reports=[invalid_report],
+        )
+
+
+def test_compliance_result_accepts_model_element_endpoint_lineage(
+    review_model,
+    code_aster_study,
+    code_aster_result_state,
+    full_review_compliance,
+):
+    review = build_engineering_review(
+        review_model,
+        studies=[code_aster_study],
+        result_states=[code_aster_result_state],
+        compliance_reports=[full_review_compliance],
+    )
+
+    assert review.analysis_status == "compliance_complete"
+    assert [
+        (row["element_id"], row["node_id"])
+        for row in review.table("code_compliance").rows
+    ] == [("E-20", "N0"), ("E-20", "N1")]
+
+
 def test_compliance_report_with_ambiguous_solved_load_case_raises(
     review_model, code_aster_study, code_aster_result_state, full_review_compliance
 ):

@@ -1,5 +1,6 @@
 import { createViewerState, getVisibleObjectIds } from "./sceneLoader.js";
 import { defaultWorkflowTab, getVisibleWorkflowTabs } from "./workflowState.js";
+import { coherentResultContext } from "./resultReview.js";
 
 export function applySceneDiffToState(state, diffPayload) {
   const diff = normalizeDiff(diffPayload);
@@ -118,6 +119,7 @@ function preserveInteractiveState(previousState, nextState) {
     const previous = (previousState.overlays ?? []).find((candidate) => candidate.id === overlay.id);
     return previous ? { ...overlay, visible: previous.visible } : overlay;
   });
+  const resultContext = coherentResultContext(previousState, nextState);
   const preserved = {
     ...nextState,
     layers,
@@ -127,9 +129,8 @@ function preserveInteractiveState(previousState, nextState) {
     hiddenObjectIds: (previousState.hiddenObjectIds ?? []).filter((id) => objectIds.has(id)),
     isolatedObjectIds: (previousState.isolatedObjectIds ?? []).filter((id) => objectIds.has(id)),
     activeIssueId: issueIds.has(previousState.activeIssueId) ? previousState.activeIssueId : nextState.activeIssueId,
-    activeResultStateId: previousState.activeResultStateId ?? nextState.activeResultStateId,
+    ...resultContext,
     activeGeometryStateId: previousState.activeGeometryStateId ?? nextState.activeGeometryStateId,
-    activeLoadCase: previousState.activeLoadCase ?? nextState.activeLoadCase,
     displacementVectorScale: previousState.displacementVectorScale ?? nextState.displacementVectorScale,
     reactionVectorScale: previousState.reactionVectorScale ?? nextState.reactionVectorScale,
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,

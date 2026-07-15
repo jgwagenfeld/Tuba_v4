@@ -195,6 +195,23 @@ def _validate_lineage(
             raise EngineeringReviewError(
                 f"Compliance load case {report.load_case!r} matches multiple result states."
             )
+        for result in report.results:
+            element = model.get_element(result.element_id)
+            if element is None:
+                raise EngineeringReviewError(
+                    f"Compliance result for load case {report.load_case!r} references "
+                    f"unknown model element {result.element_id!r}."
+                )
+            if result.node_id not in model.nodes:
+                raise EngineeringReviewError(
+                    f"Compliance result for element {result.element_id!r} references "
+                    f"unknown model node {result.node_id!r}."
+                )
+            if result.node_id not in {element.n1, element.n2}:
+                raise EngineeringReviewError(
+                    f"Compliance result node {result.node_id!r} is not an endpoint of "
+                    f"model element {result.element_id!r}."
+                )
 
 
 def _analysis_node_ids(state: ResultState) -> set[str]:

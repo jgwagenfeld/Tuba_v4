@@ -310,6 +310,64 @@ test("viewer state reload preserves a still-valid workflow tab and review contro
   assert.equal(preserved.activeResultStateId, "result_state:Hot");
 });
 
+test("full scene reload adopts the new coherent result pair when the old load case disappears", () => {
+  const previous = {
+    ...createViewerState(bundle()),
+    camera: { mode: "orbit", target: [4, 5, 6], distance: 9 },
+    issueReviewState: { "issue:kept": { status: "resolved", comment: "Checked" } },
+    review: { schema_version: "engineering_review.v1", analysis_status: "solved", tables: {} },
+    reviewDiagnostics: [{ code: "review:kept" }]
+  };
+  const coldOverlay = {
+    id: "overlay:result:cold",
+    kind: "result_state",
+    name: "Cold result",
+    object_ids: ["object:deformed"],
+    data: { id: "result_state:Cold", load_case: "Cold" },
+    visible: true
+  };
+  const nextState = createViewerState(bundle({ overlays: [coldOverlay] }));
+
+  const preserved = preserveViewerStateForReload(previous, nextState);
+
+  assert.equal(preserved.activeResultStateId, "result_state:Cold");
+  assert.equal(preserved.activeLoadCase, "Cold");
+  assert.deepEqual(preserved.camera, previous.camera);
+  assert.deepEqual(preserved.issueReviewState, previous.issueReviewState);
+  assert.equal(preserved.review, nextState.review);
+});
+
+test("full scene reload preserves an old result pair only when both fields remain compatible", () => {
+  const base = bundle().scene;
+  const hot = base.overlays.find((overlay) => overlay.kind === "result_state");
+  const cold = {
+    id: "overlay:result:cold",
+    kind: "result_state",
+    name: "Cold result",
+    object_ids: ["object:deformed"],
+    data: { id: "result_state:Cold", load_case: "Cold" },
+    visible: true
+  };
+  const previous = createViewerState(bundle());
+  const nextState = createViewerState(bundle({ overlays: [cold, hot] }));
+
+  const preserved = preserveViewerStateForReload(previous, nextState);
+
+  assert.equal(preserved.activeResultStateId, "result_state:Hot");
+  assert.equal(preserved.activeLoadCase, "Hot");
+});
+
+test("full scene reload keeps an absent result context absent", () => {
+  const withoutResults = bundle().scene.overlays.filter((overlay) => overlay.kind !== "result_state");
+  const previous = createViewerState(bundle({ overlays: withoutResults }));
+  const nextState = createViewerState(bundle({ overlays: withoutResults }));
+
+  const preserved = preserveViewerStateForReload(previous, nextState);
+
+  assert.equal(preserved.activeResultStateId, null);
+  assert.equal(preserved.activeLoadCase, null);
+});
+
 test("scene diff adds objects and geometry while preserving review state", () => {
   const review = {
     schema_version: "engineering_review.v1",
@@ -418,6 +476,48 @@ test("viewer state reducer preserves workflow state across a compatible scene di
   assert.equal(result.activeResultStateId, "result_state:Hot");
   assert.equal(result.review, review);
   assert.equal(result.legacyReview, false);
+});
+
+test("compatible scene diff adopts a new coherent result pair when the old load case disappears", () => {
+  const state = {
+    ...createViewerState(bundle()),
+    camera: { mode: "orbit", target: [1, 2, 3], distance: 7 },
+    issueReviewState: { "issue:kept": { status: "accepted", comment: "Reviewed" } },
+    review: { schema_version: "engineering_review.v1", analysis_status: "solved", tables: {} }
+  };
+
+  const result = applySceneDiffToState(state, {
+    diff_id: "diff:cold-replaces-hot",
+    base_scene_id: "scene:rv09",
+    updated_overlays: [{
+      id: "overlay:result:hot",
+      kind: "result_state",
+      name: "Cold result",
+      object_ids: ["object:deformed"],
+      data: { id: "result_state:Cold", load_case: "Cold" },
+      visible: true
+    }]
+  });
+
+  assert.equal(result.state.activeResultStateId, "result_state:Cold");
+  assert.equal(result.state.activeLoadCase, "Cold");
+  assert.deepEqual(result.state.camera, state.camera);
+  assert.deepEqual(result.state.issueReviewState, state.issueReviewState);
+  assert.equal(result.state.review, state.review);
+});
+
+test("compatible scene diff keeps an absent result context absent", () => {
+  const overlays = bundle().scene.overlays.filter((overlay) => overlay.kind !== "result_state");
+  const state = createViewerState(bundle({ overlays }));
+
+  const result = applySceneDiffToState(state, {
+    diff_id: "diff:no-result-context",
+    base_scene_id: "scene:rv09",
+    updated_objects: []
+  });
+
+  assert.equal(result.state.activeResultStateId, null);
+  assert.equal(result.state.activeLoadCase, null);
 });
 
 test("viewer state reducer defaults a hidden workflow tab after a review transition", () => {

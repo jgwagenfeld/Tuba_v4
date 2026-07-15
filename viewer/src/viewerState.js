@@ -2,6 +2,7 @@ import { getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
 import {
+  coherentResultContext,
   setActiveLoadCase,
   setActiveResultState,
   setResultThreshold,
@@ -116,8 +117,8 @@ export function preserveViewerStateForReload(previousState, nextState) {
     const previous = (previousState.overlays ?? []).find((candidate) => candidate.id === overlay.id);
     return previous ? { ...overlay, visible: previous.visible } : overlay;
   });
-  const resultStateIds = new Set((nextState.resultStates ?? []).map((overlay) => overlay.data?.id ?? overlay.id));
   const geometryStateIds = new Set((nextState.geometryStates ?? []).map((overlay) => overlay.data?.id ?? overlay.id));
+  const resultContext = coherentResultContext(previousState, nextState);
   const preserved = {
     ...nextState,
     layers,
@@ -126,9 +127,8 @@ export function preserveViewerStateForReload(previousState, nextState) {
     selectedObjectIds: (previousState.selectedObjectIds ?? []).filter((id) => objectIds.has(id)),
     hiddenObjectIds: (previousState.hiddenObjectIds ?? []).filter((id) => objectIds.has(id)),
     isolatedObjectIds: (previousState.isolatedObjectIds ?? []).filter((id) => objectIds.has(id)),
-    activeResultStateId: resultStateIds.has(previousState.activeResultStateId) ? previousState.activeResultStateId : nextState.activeResultStateId,
+    ...resultContext,
     activeGeometryStateId: geometryStateIds.has(previousState.activeGeometryStateId) ? previousState.activeGeometryStateId : nextState.activeGeometryStateId,
-    activeLoadCase: previousState.activeLoadCase ?? nextState.activeLoadCase,
     displacementVectorScale: previousState.displacementVectorScale ?? nextState.displacementVectorScale,
     reactionVectorScale: previousState.reactionVectorScale ?? nextState.reactionVectorScale,
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,

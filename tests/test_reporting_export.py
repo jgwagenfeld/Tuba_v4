@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Iterator, Mapping
 from dataclasses import replace
+from typing import Any
 
 import pytest
 
@@ -107,6 +109,60 @@ def test_csv_headers_follow_columns_and_nested_values_are_compact_sorted_json(
         sort_keys=True,
         separators=(",", ":"),
     )
+
+
+def test_custom_mapping_values_are_aligned_across_json_csv_and_html(
+    tmp_path, solved_review
+):
+    class CustomMapping(Mapping[str, Any]):
+        def __init__(self, values: dict[str, Any]):
+            self._values = values
+
+        def __getitem__(self, key: str) -> Any:
+            return self._values[key]
+
+        def __iter__(self) -> Iterator[str]:
+            return iter(self._values)
+
+        def __len__(self) -> int:
+            return len(self._values)
+
+    nested = CustomMapping(
+        {
+            "z": [CustomMapping({"b": 2, "a": 1})],
+            "a": CustomMapping({"enabled": True}),
+        }
+    )
+    mapping_table = ReportTable(
+        id="custom_mapping",
+        title="Custom mapping",
+        source="model",
+        columns=(ReportColumn("value", "Value"),),
+        rows=({"value": nested},),
+    )
+    review = replace(solved_review, tables=solved_review.tables + (mapping_table,))
+
+    output = write_engineering_review(review, tmp_path)
+    payload = json.loads(output.review_path.read_text(encoding="utf-8"))
+    with output.csv_paths["custom_mapping"].open(
+        encoding="utf-8", newline=""
+    ) as csv_file:
+        csv_rows = list(csv.reader(csv_file))
+    html = output.index_path.read_text(encoding="utf-8")
+
+    expected = {"a": {"enabled": True}, "z": [{"a": 1, "b": 2}]}
+    expected_compact = json.dumps(
+        expected,
+        allow_nan=False,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    assert payload["tables"]["custom_mapping"]["rows"][0]["value"] == expected
+    assert csv_rows == [["value"], [expected_compact]]
+    assert expected_compact.replace('"', "&quot;") in html
+    assert "CustomMapping" not in html
+    assert "CustomMapping" not in csv_rows[1][0]
 
 
 def test_printable_html_has_fixed_section_order_csv_links_and_escaped_content(

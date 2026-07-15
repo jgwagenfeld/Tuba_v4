@@ -27,6 +27,36 @@ export function getResultStateOptions(state) {
   });
 }
 
+export function coherentResultContext(previousState, nextState) {
+  const options = getResultStateOptions(nextState);
+  const previous = options.find(
+    (option) =>
+      option.id === previousState.activeResultStateId &&
+      option.loadCase === previousState.activeLoadCase
+  );
+  if (previous) {
+    return {
+      activeResultStateId: previous.id,
+      activeLoadCase: previous.loadCase
+    };
+  }
+
+  const next =
+    options.find(
+      (option) =>
+        option.id === nextState.activeResultStateId &&
+        option.loadCase === nextState.activeLoadCase
+    ) ??
+    options.find((option) => option.id === nextState.activeResultStateId) ??
+    options.find((option) => option.loadCase === nextState.activeLoadCase) ??
+    options[0] ??
+    null;
+  return {
+    activeResultStateId: next?.id ?? null,
+    activeLoadCase: next?.loadCase ?? nextState.activeLoadCase ?? null
+  };
+}
+
 export function getGeometryStateOptions(state) {
   return (state.geometryStates ?? []).map((overlay) => {
     const data = overlay.data ?? {};

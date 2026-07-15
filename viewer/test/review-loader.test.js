@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { loadOptionalReview, normalizeReview } from "../src/reviewLoader.js";
+import { workflowViewModel } from "../src/reviewTables.js";
 
 const reviewFixture = JSON.parse(
   await readFile(new URL("./fixtures/code_aster_results/review.json", import.meta.url), "utf8")
@@ -96,6 +97,69 @@ test("reports malformed review contracts without fabricating tables", async () =
   ]) {
     assert.throws(() => normalizeReview(malformed), /engineering review/i);
   }
+});
+
+test("rejects malformed nested table contracts and keeps review rendering usable", async (t) => {
+  const malformedTables = [
+    { id: "bad_columns", title: "Bad columns", source: "fixture", columns: {}, rows: [] },
+    { id: "bad_rows", title: "Bad rows", source: "fixture", columns: [], rows: {} },
+    {
+      id: "bad_row",
+      title: "Bad row",
+      source: "fixture",
+      columns: [{ id: "value", label: "Value" }],
+      rows: ["not a mapping"]
+    },
+    {
+      id: "bad_column",
+      title: "Bad column",
+      source: "fixture",
+      columns: [{ id: "", label: "Value" }],
+      rows: []
+    },
+    {
+      id: "bad_value",
+      title: "Bad value",
+      source: "fixture",
+      columns: [{ id: "value", label: "Value" }],
+      rows: [{ value: Number.NaN }]
+    }
+  ];
+
+  for (const malformedTable of malformedTables) {
+    await t.test(malformedTable.id, async () => {
+      const payload = {
+        ...reviewFixture,
+        tables: { [malformedTable.id]: malformedTable }
+      };
+      const result = await loadOptionalReview(
+        "/bundle",
+        async () => ({
+          status: 200,
+          ok: true,
+          statusText: "",
+          json: async () => payload
+        })
+      );
+
+      assert.equal(result.review, null);
+      assert.equal(result.diagnostics[0].code, "viewer.review.invalid_contract");
+      assert.doesNotThrow(() => workflowViewModel(result.review, "results"));
+    });
+  }
+});
+
+test("accepts the generated public engineering review contract", async () => {
+  const publicReview = JSON.parse(
+    await readFile(new URL("../public/code-aster-review/review.json", import.meta.url), "utf8")
+  );
+
+  const normalized = normalizeReview(publicReview);
+
+  assert.equal(normalized.tables.project_summary.id, "project_summary");
+  assert.ok(normalized.tables.project_summary.columns.length > 0);
+  assert.ok(normalized.tables.project_summary.rows.length > 0);
+  assert.doesNotThrow(() => workflowViewModel(normalized, "results"));
 });
 
 test("normalizes stable review table order and lookup while preserving row values as data", () => {

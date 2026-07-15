@@ -17,6 +17,7 @@ from tuba.reporting.model import (
     EngineeringReviewError,
     EngineeringReviewPackage,
     ReportTable,
+    _json_value,
     _validate_report_table_id,
 )
 
@@ -186,19 +187,20 @@ def _write_table_csv(
 
 
 def _csv_value(value: Any) -> Any:
-    if isinstance(value, (dict, list, tuple)):
+    normalized = _json_value(value)
+    if isinstance(normalized, (dict, list)):
         return json.dumps(
-            value,
+            normalized,
             allow_nan=False,
             ensure_ascii=False,
             sort_keys=True,
             separators=(",", ":"),
         )
-    if value is None:
+    if normalized is None:
         return ""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    return value
+    if isinstance(normalized, bool):
+        return "true" if normalized else "false"
+    return normalized
 
 
 def _build_manifest(
@@ -332,19 +334,20 @@ def _render_table(table: ReportTable, *, csv_uri: str | None) -> list[str]:
 
 
 def _display_value(value: Any) -> str:
-    if isinstance(value, (dict, list, tuple)):
+    normalized = _json_value(value)
+    if isinstance(normalized, (dict, list)):
         return json.dumps(
-            value,
+            normalized,
             allow_nan=False,
             ensure_ascii=False,
             sort_keys=True,
             separators=(",", ":"),
         )
-    if value is None:
+    if normalized is None:
         return ""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    return str(value)
+    if isinstance(normalized, bool):
+        return "true" if normalized else "false"
+    return str(normalized)
 
 
 def _unavailable_message(
