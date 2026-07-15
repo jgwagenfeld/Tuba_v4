@@ -279,8 +279,26 @@ test("full scene reload preserves camera, layer visibility, and surviving select
 });
 
 test("scene diff adds objects and geometry while preserving review state", () => {
+  const review = {
+    schema_version: "engineering_review.v1",
+    analysis_status: "solved",
+    tables: { project_summary: { id: "project_summary", rows: [] } },
+    tableOrder: ["project_summary"]
+  };
+  const reviewDiagnostics = [
+    {
+      severity: "warning",
+      code: "viewer.review.fixture_warning",
+      source: "review.json",
+      message: "Fixture warning"
+    }
+  ];
   const state = reduceViewerState(
-    setLayerVisibility(createViewerState(bundle()), "deformed:visual_centerline", false),
+    setLayerVisibility(
+      createViewerState({ ...bundle(), review, reviewDiagnostics, legacyReview: false }),
+      "deformed:visual_centerline",
+      false
+    ),
     { type: "selectObjects", objectIds: ["object:cold"] },
   );
   const diff = {
@@ -314,6 +332,28 @@ test("scene diff adds objects and geometry while preserving review state", () =>
   assert.ok(result.state.layers.supports);
   assert.ok(result.state.visibleObjectIds.includes("object:support"));
   assert.equal(result.state.objects.find((obj) => obj.id === "object:support").name, "Diff support");
+  assert.equal(result.state.review, review);
+  assert.equal(result.state.reviewDiagnostics, reviewDiagnostics);
+  assert.equal(result.state.legacyReview, false);
+});
+
+test("scene diff preserves legacy review state", () => {
+  const state = createViewerState({
+    ...bundle(),
+    review: null,
+    reviewDiagnostics: [],
+    legacyReview: true
+  });
+
+  const result = applySceneDiffToState(state, {
+    diff_id: "diff:legacy-review",
+    base_scene_id: "scene:rv09"
+  });
+
+  assert.equal(result.applied, true);
+  assert.equal(result.state.review, null);
+  assert.deepEqual(result.state.reviewDiagnostics, []);
+  assert.equal(result.state.legacyReview, true);
 });
 
 test("scene diff updates and removes objects while pruning invalid geometry references", () => {

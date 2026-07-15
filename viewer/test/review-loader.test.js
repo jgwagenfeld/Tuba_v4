@@ -68,7 +68,7 @@ test("reports network and non-404 failures without review tables", async (t) => 
   });
 });
 
-test("reports invalid JSON without fabricating tables", async () => {
+test("reports invalid review JSON without fabricating tables", async () => {
   const result = await loadOptionalReview(
     "/bundle",
     async () => new Response("{", { status: 200 })
@@ -98,7 +98,7 @@ test("reports malformed review contracts without fabricating tables", async () =
   }
 });
 
-test("normalizes stable table order and lookup while preserving row values as data", () => {
+test("normalizes stable review table order and lookup while preserving row values as data", () => {
   const normalized = normalizeReview(reviewFixture);
 
   assert.deepEqual(normalized.tableOrder, ["project_summary", "result_summary"]);
