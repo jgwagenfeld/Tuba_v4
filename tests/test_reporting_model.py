@@ -158,7 +158,7 @@ def test_package_raises_explicit_error_for_missing_table():
         package.table("nodes")
 
 
-def test_reporting_public_api_does_not_export_future_builder_names():
+def test_reporting_public_api_exports_the_engineering_review_builder():
     import tuba.reporting as reporting
 
     assert reporting.__all__ == (
@@ -168,6 +168,7 @@ def test_reporting_public_api_does_not_export_future_builder_names():
         "ReportTable",
         "ReviewDiagnostic",
         "ReviewProvenance",
+        "build_engineering_review",
     )
-    assert not hasattr(reporting, "build_engineering_review")
+    assert hasattr(reporting, "build_engineering_review")
     assert not hasattr(reporting, "write_engineering_review")
