@@ -10,12 +10,12 @@
   <body>
     <main class="app-shell" data-embed="false">
       <header class="app-header" data-app-header>
-        <div>
-          <strong>Tuba Engineering Review</strong>
-          <span data-scene-title>Scene</span>
+        <div class="app-identity">
+          <span class="app-kicker">TUBA / ENGINEERING REVIEW</span>
+          <strong data-scene-title>Scene</strong>
         </div>
         <div class="meta" data-scene-meta></div>
-        <div data-status>Starting</div>
+        <div class="runtime-status" data-status role="status" aria-live="polite">Starting</div>
       </header>
       <nav class="workflow-tabs" role="tablist" aria-label="Engineering review" data-workflow-tabs></nav>
       <section id="engineering-workflow-panel" class="workflow-panel" role="tabpanel" tabindex="0" data-workflow-panel></section>
@@ -56,7 +56,7 @@
           </section>
         </aside>
         <section class="viewport">
-          <canvas data-canvas width="1280" height="800"></canvas>
+          <canvas data-canvas tabindex="0" aria-label="Interactive 3D engineering review viewport" width="1280" height="800"></canvas>
         </section>
         <aside class="inspector">
           <h2>Properties</h2>

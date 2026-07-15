@@ -182,6 +182,11 @@ const scenarios = {
       assert.ok(embedLayout.workspace.height >= embedLayout.viewport.height - 1, `embed workspace must fill viewport height: ${JSON.stringify(embedLayout)}`);
       assert.ok(embedLayout.canvas.width >= embedLayout.viewport.width - 1, `embed canvas must fill viewport width: ${JSON.stringify(embedLayout)}`);
       assert.ok(embedLayout.canvas.height >= embedLayout.viewport.height - 1, `embed canvas must fill viewport height: ${JSON.stringify(embedLayout)}`);
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => window.__tubaViewer?.state?.activeTab === "3d");
+      assert.equal(await page.locator("[data-app-header]").isVisible(), false);
+      assert.equal(await page.locator("[data-workflow-tabs]").isVisible(), false);
     }
   },
   "clash-review": {
@@ -238,6 +243,7 @@ const scenarios = {
 
       runtime.send({ type: "scene_reloaded", run_id: "run:live-preview", bundle_url: "/test/fixtures/code_aster_results" });
       await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "scene:code_aster_results");
+      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.activeTab), "3d");
       const navigationCount = await page.evaluate(() => performance.getEntriesByType("navigation").length);
       assert.equal(navigationCount, 1);
 

@@ -1,0 +1,114 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import test from "node:test";
+
+import { WORKFLOW_TABS, createWorkflowState, workflowTabForKey } from "../src/workflowState.js";
+
+const viewerRoot = new URL("..", import.meta.url);
+
+async function readViewerFile(...parts) {
+  return readFile(new URL(path.posix.join(...parts), viewerRoot), "utf8");
+}
+
+test("workflow rendering exposes the seven engineer review tabs", () => {
+  assert.deepEqual(
+    WORKFLOW_TABS.map((tab) => tab.label),
+    ["Summary", "Model", "Load Cases", "Results", "Compliance", "3D", "Diagnostics"]
+  );
+});
+
+test("workflow rendering keyboard navigation wraps and supports Home and End", () => {
+  const state = createWorkflowState({ review: { tables: {} } });
+
+  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
+  assert.equal(workflowTabForKey(state, "results", "Home"), "summary");
+  assert.equal(workflowTabForKey(state, "results", "End"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "results", "Enter"), null);
+});
+
+test("workflow rendering provides sticky tabs, horizontal tables, visible focus, and viewport-first narrow layout", async () => {
+  const css = await readViewerFile("src/styles.css");
+
+  assert.match(css, /\.workflow-tabs\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\.review-table-scroll\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(css, /\.workflow-tab\[aria-selected="true"\]/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /\[data-diagnostic-list\]\[hidden\]\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+  assert.match(css, /@media\s*\(max-width:\s*900px\)[\s\S]*\.viewport\s*\{[^}]*grid-area:\s*viewport/s);
+  assert.match(css, /@media\s*\(max-width:\s*900px\)[\s\S]*\.viewer-workspace\s*\{[^}]*grid-template-areas:\s*"viewport"\s*"tools"\s*"inspector"/s);
+  assert.match(css, /@media\s*\(max-width:\s*900px\)[\s\S]*\.sidebar\s*\{[^}]*min-height:\s*24rem/s);
+});
+
+test("workflow rendering uses explicit labeled status, verdict, and severity badges", async () => {
+  const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
+
+  assert.match(app, /className\s*=\s*"workflow-tab"/);
+  assert.match(app, /className\s*=\s*"status-badge"/);
+  assert.match(app, /className\s*=\s*"verdict"/);
+  assert.match(app, /className\s*=\s*"severity-badge"/);
+  assert.match(css, /\.status-badge\[data-status="solved"\]/);
+  assert.match(css, /\.verdict\[data-pass="true"\]/);
+  assert.match(css, /\.severity-badge\[data-severity="error"\]/);
+});
+
+test("workflow rendering consolidates diagnostics, provenance, issues, and load diagnostics with trace fields", async () => {
+  const app = await readViewerFile("src/app.js");
+
+  assert.match(app, /renderDiagnosticGroup/);
+  assert.match(app, /review\?\.provenance/);
+  assert.match(app, /currentState\.issues/);
+  for (const field of ["source", "code", "target"]) {
+    assert.match(app, new RegExp(`diagnostic\\.${field}`));
+  }
+  assert.match(app, /if \(activeTab === "diagnostics"\)[\s\S]*return;/);
+});
+
+test("workflow rendering parses embed once and pins reloads to the 3D workflow", async () => {
+  const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
+
+  assert.equal((app.match(/new URLSearchParams/g) ?? []).length, 1);
+  assert.match(app, /const startupConfig\s*=/);
+  assert.match(app, /activeTab:\s*"3d"/);
+  assert.match(css, /\[data-embed="true"\]\s+\.app-header[\s\S]*display:\s*none/);
+  assert.match(css, /\[data-embed="true"\]\s+\.workflow-tabs[\s\S]*display:\s*none/);
+});
+
+test("workflow rendering core palette meets WCAG AA text contrast", async () => {
+  const css = await readViewerFile("src/styles.css");
+  const tokens = Object.fromEntries(
+    [...css.matchAll(/--([a-z-]+):\s*(#[0-9a-f]{6})\s*;/gi)].map((match) => [match[1], match[2]])
+  );
+
+  for (const [foreground, background, minimum] of [
+    ["text", "paper", 4.5],
+    ["muted", "paper", 4.5],
+    ["chrome-text", "graphite", 4.5],
+    ["accent", "graphite", 3],
+    ["danger", "danger-surface", 4.5],
+    ["success", "success-surface", 4.5]
+  ]) {
+    assert.ok(tokens[foreground], `missing --${foreground}`);
+    assert.ok(tokens[background], `missing --${background}`);
+    const ratio = contrastRatio(tokens[foreground], tokens[background]);
+    assert.ok(ratio >= minimum, `${foreground} on ${background} contrast ${ratio.toFixed(2)} must be >= ${minimum}`);
+  }
+});
+
+function contrastRatio(foreground, background) {
+  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
+  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(hex) {
+  const channels = hex.match(/[0-9a-f]{2}/gi).map((channel) => Number.parseInt(channel, 16) / 255);
+  const [red, green, blue] = channels.map((channel) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  );
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}

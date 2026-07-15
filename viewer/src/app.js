@@ -56,6 +56,13 @@ const dom = {
   canvas: document.querySelector("[data-canvas]")
 };
 
+const startupParams = new URLSearchParams(window.location.search);
+const startupConfig = Object.freeze({
+  bundleUrl: startupParams.get("bundle") || ".",
+  embed: startupParams.get("embed") === "1",
+  previewWebSocketUrl: startupParams.get("preview_ws")
+});
+
 let currentBundle = null;
 let currentBundleUrl = ".";
 let currentState = null;
@@ -70,20 +77,16 @@ globalThis.__tubaViewerBootId = bootId;
 globalThis.__tubaViewerPreviewEvents ??= [];
 
 async function main() {
-  const params = new URLSearchParams(window.location.search);
-  currentBundleUrl = params.get("bundle") || ".";
-  const embed = params.get("embed") === "1";
-  if (embed) {
-    document.body.dataset.embed = "true";
-  }
-  dom.appShell.dataset.embed = String(embed);
+  currentBundleUrl = startupConfig.bundleUrl;
+  document.body.dataset.embed = String(startupConfig.embed);
+  dom.appShell.dataset.embed = String(startupConfig.embed);
   try {
     setStatus(`Loading ${currentBundleUrl}`);
-    await loadBundle(currentBundleUrl, { preserve: false, embed });
+    await loadBundle(currentBundleUrl, { preserve: false });
     setStatus("Ready");
     render();
-    if (params.get("preview_ws")) {
-      connectLivePreview(params.get("preview_ws"));
+    if (startupConfig.previewWebSocketUrl) {
+      connectLivePreview(startupConfig.previewWebSocketUrl);
     }
   } catch (error) {
     setStatus(error.message, true);
@@ -95,10 +98,13 @@ async function loadBundle(bundleUrl, options = {}) {
   const viewerState = createViewerState(currentBundle);
   const workflowState = createWorkflowState({
     review: viewerState.review,
-    embed: options.embed ?? currentState?.embed ?? false
+    embed: startupConfig.embed
   });
   const nextState = { ...viewerState, ...workflowState };
-  currentState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
+  const loadedState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
+  currentState = startupConfig.embed
+    ? { ...loadedState, embed: true, activeTab: "3d" }
+    : loadedState;
 }
 
 function render() {
@@ -127,6 +133,7 @@ function renderWorkflowTabs() {
     }
     const button = document.createElement("button");
     button.type = "button";
+    button.className = "workflow-tab";
     button.id = `workflow-tab-${tab.id}`;
     button.setAttribute("role", "tab");
     button.setAttribute("aria-controls", tab.id === "3d" ? dom.viewerWorkspace.id : dom.workflowPanel.id);
@@ -178,6 +185,7 @@ function renderWorkflow() {
   if (activeTab === "diagnostics") {
     dom.diagnosticList.hidden = false;
     dom.workflowPanel.append(dom.diagnosticList);
+    return;
   }
 
   if (!currentState.review) {
@@ -193,6 +201,7 @@ function renderWorkflow() {
   }
 
   if (activeTab === "summary") {
+    dom.workflowPanel.append(renderReviewOverview(currentState.review));
     for (const table of model.tables) {
       dom.workflowPanel.append(renderSummaryTable(table));
     }
@@ -201,6 +210,35 @@ function renderWorkflow() {
   for (const table of model.tables) {
     dom.workflowPanel.append(renderReviewTable(table));
   }
+}
+
+function renderReviewOverview(review) {
+  const overview = document.createElement("section");
+  overview.className = "review-overview";
+  overview.setAttribute("aria-label", "Review status and provenance");
+  overview.append(
+    renderOverviewCard("Analysis status", review.analysis_status, "status"),
+    renderOverviewCard("Package", review.package_id ?? "Not identified"),
+    renderOverviewCard("Model revision", review.model_revision ?? "Not stated"),
+    renderOverviewCard("Provenance records", String(review.provenance?.length ?? 0))
+  );
+  return overview;
+}
+
+function renderOverviewCard(labelText, valueText, kind = "text") {
+  const card = document.createElement("article");
+  card.className = "review-overview-card";
+  const label = document.createElement("span");
+  label.className = "review-overview-label";
+  label.textContent = labelText;
+  const value = document.createElement("strong");
+  value.textContent = String(valueText).replaceAll("_", " ");
+  if (kind === "status") {
+    value.className = "status-badge";
+    value.dataset.status = String(valueText);
+  }
+  card.append(label, value);
+  return card;
 }
 
 function renderSummaryTable(model) {
@@ -224,7 +262,7 @@ function renderSummaryTable(model) {
       const term = document.createElement("dt");
       term.textContent = model.columns[index].label;
       const value = document.createElement("dd");
-      value.textContent = row.cells[index].text;
+      value.append(renderCellValue(row.cells[index]));
       values.append(term, value);
     }
     section.append(values);
@@ -250,6 +288,11 @@ function renderReviewTable(model) {
     return section;
   }
 
+  const tableScroll = document.createElement("div");
+  tableScroll.className = "review-table-scroll";
+  tableScroll.tabIndex = 0;
+  tableScroll.setAttribute("role", "region");
+  tableScroll.setAttribute("aria-label", `${model.title} table`);
   const table = document.createElement("table");
   const head = document.createElement("thead");
   const headerRow = document.createElement("tr");
@@ -281,7 +324,7 @@ function renderReviewTable(model) {
     }
     for (const cellModel of row.cells) {
       const cell = document.createElement("td");
-      cell.textContent = cellModel.text;
+      cell.append(renderCellValue(cellModel));
       if (cellModel.tone) {
         cell.dataset.tone = cellModel.tone;
       }
@@ -298,8 +341,25 @@ function renderReviewTable(model) {
     body.append(tableRow);
   }
   table.append(head, body);
-  section.append(table);
+  tableScroll.append(table);
+  section.append(tableScroll);
   return section;
+}
+
+function renderCellValue(cellModel) {
+  const value = document.createElement("span");
+  value.textContent = cellModel.text;
+  if (cellModel.tone === "pass" || cellModel.tone === "fail") {
+    value.className = "verdict";
+    value.dataset.pass = String(cellModel.tone === "pass");
+  } else if (["error", "warning", "info"].includes(cellModel.tone)) {
+    value.className = "severity-badge";
+    value.dataset.severity = cellModel.tone;
+  } else if (cellModel.columnId === "analysis_status") {
+    value.className = "status-badge";
+    value.dataset.status = cellModel.text;
+  }
+  return value;
 }
 
 function createShowIn3dButton(action) {
@@ -500,24 +560,80 @@ function renderOverlays() {
 
 function renderDiagnostics() {
   dom.diagnosticList.replaceChildren();
-  const diagnostics = [
-    ...(currentState.diagnostics ?? []),
-    ...(currentState.reviewDiagnostics ?? []),
-    ...(currentState.review?.diagnostics ?? [])
-  ];
+  dom.diagnosticList.className = "diagnostics-workflow";
+  const reviewDiagnostics = currentState.review?.tables?.diagnostics?.rows ?? currentState.review?.diagnostics ?? [];
+  const allSceneDiagnostics = currentState.diagnostics ?? [];
+  const previewDiagnostics = allSceneDiagnostics.filter(isLoadOrPreviewDiagnostic);
+  const sceneDiagnostics = allSceneDiagnostics.filter((diagnostic) => !isLoadOrPreviewDiagnostic(diagnostic));
+  const loadDiagnostics = [...(currentState.reviewDiagnostics ?? []), ...previewDiagnostics];
+  const provenance = (currentState.review?.provenance ?? []).map((record) => ({
+    severity: "info",
+    code: `PROVENANCE_${String(record.kind ?? "record").toUpperCase()}`,
+    source: record.solver_name ?? record.kind ?? "review package",
+    target: record.id ?? record.load_case ?? "review",
+    message: `${record.load_case ? `Load case ${record.load_case}; ` : ""}${Object.keys(record.files ?? {}).length} linked artifact(s).`
+  }));
+  const issues = (currentState.issues ?? []).map((issue) => ({
+    severity: issue.severity ?? "warning",
+    code: issue.id ?? "SCENE_ISSUE",
+    source: "scene issue",
+    target: (issue.entity_ref ?? issue.load_case ?? (issue.object_ids ?? []).join(", ")) || "scene",
+    message: issue.title ?? issue.message ?? "Scene issue without detail."
+  }));
+
+  renderDiagnosticGroup("Review diagnostics", reviewDiagnostics);
+  renderDiagnosticGroup("Review provenance", provenance);
+  renderDiagnosticGroup("Scene diagnostics", sceneDiagnostics);
+  renderDiagnosticGroup("Scene issues", issues);
+  renderDiagnosticGroup("Load and preview diagnostics", loadDiagnostics);
+}
+
+function isLoadOrPreviewDiagnostic(diagnostic) {
+  const code = String(diagnostic?.code ?? "").toLowerCase();
+  return code.startsWith("viewer.review.") || code.includes("preview");
+}
+
+function renderDiagnosticGroup(title, diagnostics) {
+  const section = document.createElement("section");
+  section.className = "diagnostic-group";
+  const heading = document.createElement("h2");
+  heading.textContent = `${title} (${diagnostics.length})`;
+  section.append(heading);
+
   if (diagnostics.length === 0) {
-    const empty = document.createElement("div");
+    const empty = document.createElement("p");
     empty.className = "meta";
-    empty.textContent = "No diagnostics.";
-    dom.diagnosticList.append(empty);
+    empty.textContent = "None reported.";
+    section.append(empty);
+    dom.diagnosticList.append(section);
     return;
   }
+
   for (const diagnostic of diagnostics) {
-    const row = document.createElement("div");
-    row.className = "tree-row";
-    row.textContent = `${diagnostic.severity || "info"} - ${diagnostic.code || "diagnostic"}: ${diagnostic.message || "No detail supplied."}`;
-    dom.diagnosticList.append(row);
+    const item = document.createElement("article");
+    item.className = "diagnostic-item";
+    const badge = document.createElement("span");
+    badge.className = "severity-badge";
+    badge.dataset.severity = String(diagnostic.severity ?? "info").toLowerCase();
+    badge.textContent = String(diagnostic.severity ?? "info").toUpperCase();
+    const message = document.createElement("p");
+    message.textContent = diagnostic.message ?? "No detail supplied.";
+    const trace = document.createElement("dl");
+    appendTraceField(trace, "Source", diagnostic.source ?? "Not supplied");
+    appendTraceField(trace, "Code", diagnostic.code ?? "diagnostic");
+    appendTraceField(trace, "Target", diagnostic.target ?? "Not supplied");
+    item.append(badge, message, trace);
+    section.append(item);
   }
+  dom.diagnosticList.append(section);
+}
+
+function appendTraceField(parent, labelText, valueText) {
+  const term = document.createElement("dt");
+  term.textContent = labelText;
+  const value = document.createElement("dd");
+  value.textContent = String(valueText);
+  parent.append(term, value);
 }
 
 function renderObjects() {
