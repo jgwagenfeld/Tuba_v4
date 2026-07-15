@@ -101,8 +101,15 @@ test("reports malformed review contracts without fabricating tables", async () =
 test("normalizes stable review table order and lookup while preserving row values as data", () => {
   const normalized = normalizeReview(reviewFixture);
 
-  assert.deepEqual(normalized.tableOrder, ["project_summary", "result_summary"]);
-  assert.deepEqual(Object.keys(normalized.tables), ["project_summary", "result_summary"]);
+  assert.deepEqual(normalized.tableOrder, [
+    "project_summary",
+    "line_list",
+    "load_cases",
+    "studies",
+    "result_summary",
+    "fe_stress"
+  ]);
+  assert.deepEqual(Object.keys(normalized.tables), normalized.tableOrder);
   assert.equal(normalized.tables.result_summary.id, "result_summary");
   assert.equal(
     normalized.tables.result_summary.rows[0].display_note,

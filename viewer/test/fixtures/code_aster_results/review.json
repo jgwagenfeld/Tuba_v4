@@ -1,8 +1,8 @@
 {
   "schema_version": "engineering_review.v1",
-  "package_id": "review:viewer_fixture:r0",
+  "package_id": "review:test_fixture:code_aster_results:r0",
   "created_at": "2026-07-15T00:00:00Z",
-  "project_name": "Viewer Fixture",
+  "project_name": "Viewer non-engineering test fixture",
   "model_standard": "ASME_B31.3",
   "model_revision": 0,
   "analysis_status": "solved",
@@ -14,7 +14,21 @@
   "coordinate_system": {
     "up_axis": "Z"
   },
-  "provenance": [],
+  "provenance": [
+    {
+      "kind": "test_fixture",
+      "id": "fixture:code_aster_results",
+      "solver_name": "Code_Aster",
+      "load_case": "Hot",
+      "files": {},
+      "metadata": {
+        "engineering_use": "prohibited",
+        "result_state_id": "result_state:Hot",
+        "scene_id": "scene:code_aster_results",
+        "test_only": true
+      }
+    }
+  ],
   "tables": {
     "project_summary": {
       "id": "project_summary",
@@ -22,10 +36,78 @@
       "source": "model",
       "columns": [
         { "id": "project_name", "label": "Project" },
-        { "id": "analysis_status", "label": "Analysis status" }
+        { "id": "analysis_status", "label": "Analysis status" },
+        { "id": "element_count", "label": "Elements" },
+        { "id": "load_case_count", "label": "Load cases and operations" }
       ],
       "rows": [
-        { "project_name": "Viewer Fixture", "analysis_status": "solved" }
+        {
+          "project_name": "Viewer non-engineering test fixture",
+          "analysis_status": "solved",
+          "element_count": 2,
+          "load_case_count": 1
+        }
+      ]
+    },
+    "line_list": {
+      "id": "line_list",
+      "title": "Line list",
+      "source": "model",
+      "columns": [
+        { "id": "element_id", "label": "Element" },
+        { "id": "element_type", "label": "Type" },
+        { "id": "section", "label": "Section" },
+        { "id": "material", "label": "Material" },
+        { "id": "length_m", "label": "Length", "unit": "m" }
+      ],
+      "rows": [
+        {
+          "element_id": "pipe_hot",
+          "element_type": "pipe_straight",
+          "section": "PipeSec",
+          "material": "Steel",
+          "length_m": 2.0
+        }
+      ]
+    },
+    "load_cases": {
+      "id": "load_cases",
+      "title": "Load cases and operations",
+      "source": "model",
+      "columns": [
+        { "id": "load_case", "label": "Load case" },
+        { "id": "definition_type", "label": "Definition type" },
+        { "id": "gravity", "label": "Gravity" },
+        { "id": "temperature_c", "label": "Temperature", "unit": "degC" }
+      ],
+      "rows": [
+        {
+          "load_case": "Hot",
+          "definition_type": "load_case",
+          "gravity": true,
+          "temperature_c": 120.0
+        }
+      ]
+    },
+    "studies": {
+      "id": "studies",
+      "title": "Analysis studies",
+      "source": "study",
+      "columns": [
+        { "id": "study_id", "label": "Study ID" },
+        { "id": "solver_name", "label": "Solver" },
+        { "id": "load_case", "label": "Load case" },
+        { "id": "model_revision", "label": "Model revision" },
+        { "id": "mesh_id", "label": "Mesh ID" }
+      ],
+      "rows": [
+        {
+          "study_id": "study:Hot",
+          "solver_name": "Code_Aster",
+          "load_case": "Hot",
+          "model_revision": 0,
+          "mesh_id": "analysis_mesh:Hot"
+        }
       ]
     },
     "result_summary": {
@@ -33,15 +115,56 @@
       "title": "Governing result summary",
       "source": "result_state",
       "columns": [
+        { "id": "solver_name", "label": "Solver" },
+        { "id": "study_id", "label": "Study ID" },
+        { "id": "result_state_id", "label": "Result state ID" },
+        { "id": "load_case", "label": "Load case" },
+        { "id": "result_type", "label": "Result type" },
         { "id": "maximum_value", "label": "Maximum value" },
+        { "id": "unit", "label": "Unit" },
+        { "id": "result_basis", "label": "Result basis" },
+        { "id": "governing_entity_ref", "label": "Governing entity" }
+      ],
+      "rows": [
+        {
+          "solver_name": "Code_Aster",
+          "study_id": "study:Hot",
+          "result_state_id": "result_state:Hot",
+          "load_case": "Hot",
+          "result_type": "fe_von_mises",
+          "maximum_value": 57000000.0,
+          "unit": "Pa",
+          "result_basis": "FE Von Mises (not piping-code stress)",
+          "governing_entity_ref": "element:pipe_hot",
+          "display_note": "<strong>plain data</strong>",
+          "components": { "dx": 0.001, "dy": 0.002 }
+        }
+      ]
+    },
+    "fe_stress": {
+      "id": "fe_stress",
+      "title": "Finite-element Von Mises stress",
+      "source": "result_state",
+      "columns": [
+        { "id": "solver_name", "label": "Solver" },
+        { "id": "study_id", "label": "Study ID" },
+        { "id": "result_state_id", "label": "Result state ID" },
+        { "id": "load_case", "label": "Load case" },
+        { "id": "entity_ref", "label": "Entity reference" },
+        { "id": "element_id", "label": "Element" },
+        { "id": "max_von_mises_pa", "label": "Maximum Von Mises", "unit": "Pa" },
         { "id": "result_basis", "label": "Result basis" }
       ],
       "rows": [
         {
-          "maximum_value": 0.0125,
-          "result_basis": "Code_Aster nodal displacement",
-          "display_note": "<strong>plain data</strong>",
-          "components": { "dx": 0.001, "dy": 0.002 }
+          "solver_name": "Code_Aster",
+          "study_id": "study:Hot",
+          "result_state_id": "result_state:Hot",
+          "load_case": "Hot",
+          "entity_ref": "element:pipe_hot",
+          "element_id": "pipe_hot",
+          "max_von_mises_pa": 57000000.0,
+          "result_basis": "FE Von Mises (not piping-code stress)"
         }
       ]
     }

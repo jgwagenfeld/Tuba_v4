@@ -55,6 +55,90 @@ const scenarios = {
       assert.match(properties, /native_element/);
     }
   },
+  "review-workflow": {
+    bundle: "/test/fixtures/code_aster_results",
+    minimumObjects: 7,
+    async run(page) {
+      const summaryTab = page.getByRole("tab", { name: "Summary", exact: true });
+      await summaryTab.waitFor();
+      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
+
+      await page.getByRole("tab", { name: "Model", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Model", exact: true }).waitFor();
+      await page.getByRole("tab", { name: "Load Cases", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Load Cases", exact: true }).waitFor();
+      await page.getByRole("tab", { name: "Results", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
+
+      assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Hot");
+      assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).inputValue(), "result_state:Hot");
+      await page.getByRole("button", { name: "Show element:pipe_hot in 3D", exact: true }).first().click();
+      await page.waitForFunction(() => {
+        const state = window.__tubaViewer?.state;
+        return (
+          state?.activeTab === "3d" &&
+          state?.selectedObjectIds?.includes("object:pipe:hot") &&
+          state?.activeLoadCase === "Hot" &&
+          state?.activeResultStateId === "result_state:Hot"
+        );
+      });
+
+      const reviewContext = await page.evaluate(() => ({
+        activeLoadCase: window.__tubaViewer?.state?.activeLoadCase,
+        activeResultStateId: window.__tubaViewer?.state?.activeResultStateId,
+        selectedObjectIds: window.__tubaViewer?.state?.selectedObjectIds
+      }));
+      assert.deepEqual(reviewContext, {
+        activeLoadCase: "Hot",
+        activeResultStateId: "result_state:Hot",
+        selectedObjectIds: ["object:pipe:hot"]
+      });
+    }
+  },
+  "legacy-workflow": {
+    bundle: "/smoke-scene",
+    minimumObjects: 3,
+    async beforeNavigate(page) {
+      await page.route("**/smoke-scene/review.json", (route) =>
+        route.fulfill({ status: 404, contentType: "application/json", body: "" })
+      );
+    },
+    async run(page) {
+      const threeDimensionalTab = page.getByRole("tab", { name: "3D", exact: true });
+      await threeDimensionalTab.waitFor();
+      assert.equal(await threeDimensionalTab.getAttribute("aria-selected"), "true");
+      assert.equal(await page.getByRole("tab", { name: "Diagnostics", exact: true }).count(), 1);
+      assert.equal(await page.getByRole("tab", { name: "Summary", exact: true }).count(), 0);
+      assert.equal(await page.getByRole("status").getAttribute("data-error"), "false");
+      const legacyState = await page.evaluate(() => ({
+        activeTab: window.__tubaViewer?.state?.activeTab,
+        legacyReview: window.__tubaViewer?.state?.legacyReview,
+        review: window.__tubaViewer?.state?.review,
+        reviewDiagnostics: window.__tubaViewer?.state?.reviewDiagnostics
+      }));
+      assert.deepEqual(legacyState, {
+        activeTab: "3d",
+        legacyReview: true,
+        review: null,
+        reviewDiagnostics: []
+      });
+    }
+  },
+  "embedded-review": {
+    bundle: "/test/fixtures/code_aster_results",
+    minimumObjects: 7,
+    query() {
+      return { embed: "1" };
+    },
+    async run(page) {
+      await page.getByRole("heading", { level: 1, name: "3D Engineering Review" }).waitFor();
+      await page.waitForFunction(() => window.__tubaViewer?.state?.activeTab === "3d");
+      assert.equal(await page.getByRole("banner").isVisible(), false);
+      assert.equal(await page.getByRole("tablist", { name: "Engineering review" }).isVisible(), false);
+      assert.equal(await page.getByLabel("Interactive 3D engineering review viewport").isVisible(), true);
+      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.embed), true);
+    }
+  },
   "code-aster-results": {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 7,
@@ -234,6 +318,8 @@ const scenarios = {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 7,
     async run(page) {
+      await page.getByRole("tab", { name: "3D", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "3D Engineering Review" }).waitFor();
       await page.getByLabel(/Operating-only/).check();
       await page.waitForFunction(() => /ERROR - Hot - open/.test(document.querySelector("[data-issue-list]")?.textContent ?? ""));
       await page.getByRole("button", { name: /^ERROR - Operating pipe\/rack clash$/ }).click();
@@ -443,6 +529,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { height: 800, width: 1280 } });
   page.setDefaultTimeout(15_000);
+  await selected.beforeNavigate?.(page, runtime);
 
   const url = new URL("/", baseUrl);
   url.searchParams.set("bundle", selected.bundle);

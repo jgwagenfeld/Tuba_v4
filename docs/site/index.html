@@ -68,6 +68,32 @@
         </figure>
       </div>
 
+      <section class="doc-section" aria-labelledby="review-workflow-title">
+        <p class="eyebrow">Interactive engineering review</p>
+        <h2 id="review-workflow-title">One package, seven review workflows</h2>
+        <p>
+          After the mandatory Code_Aster solve and artifact import, Python
+          writes the engineering review package. The Three.js viewer consumes
+          that package; it does not calculate stresses, reactions,
+          displacements, or compliance in the browser.
+        </p>
+        <ol>
+          <li><strong>Summary</strong> &mdash; status, provenance, governing results, and warnings.</li>
+          <li><strong>Model</strong> &mdash; nodes, line list, sections, materials, and supports.</li>
+          <li><strong>Load Cases</strong> &mdash; definitions, studies, and solve lineage.</li>
+          <li><strong>Results</strong> &mdash; Code_Aster result states, FE stress, displacements, reactions, and forces.</li>
+          <li><strong>Compliance</strong> &mdash; explicit piping-code checks when a ComplianceReport is supplied.</li>
+          <li><strong>3D</strong> &mdash; spatial selection, overlays, issues, and display-only deformation controls.</li>
+          <li><strong>Diagnostics</strong> &mdash; package, scene, parser, and provenance diagnostics.</li>
+        </ol>
+        <p>
+          Use <code>tuba.plotting</code> with PyVista for quick-look and export.
+          Use <code>tuba.visualization</code> plus the Three.js viewer for a
+          shareable review bundle. Both display real Code_Aster-backed results;
+          neither replaces the solve.
+        </p>
+      </section>
+
       <section class="content-grid toc-grid" aria-label="Documentation sections">
         <a class="doc-card" href="./tutorial.html">
           <span class="card-kicker">01</span>

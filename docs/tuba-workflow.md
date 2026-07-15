@@ -69,3 +69,48 @@ does not create a third visualization path. Existing scene bundles without
 `review.json` remain valid. The legacy `write_static_report(scene, ...)` API
 also remains callable, but its output is explicitly labeled scene-derived and
 states that code compliance is unavailable.
+
+## Viewer Review Workflow
+
+The Three.js viewer is the interactive consumer of the engineering review
+package. It reads the exported `review.json`, CSV tables, scene metadata, and
+geometry assets. It performs no engineering calculations in JavaScript.
+Code_Aster must solve the study and Tuba must import the result artifacts before
+stress, displacement, reaction, or operating-state results can be displayed.
+
+The full review package opens on **Summary** and provides seven workflows:
+
+1. **Summary** — analysis status, provenance, model counts, governing results,
+   and warnings.
+2. **Model** — nodes, line list, sections, materials, and supports.
+3. **Load Cases** — load definitions, linked studies, and solve lineage.
+4. **Results** — active load/result state, displacements, reactions, element
+   forces, and FE stress. FE stress remains labeled
+   `FE Von Mises (not piping-code stress)`.
+5. **Compliance** — code and edition, sustained and expansion checks, or an
+   explicit unavailable state when no `ComplianceReport` was supplied.
+6. **3D** — the reviewable scene, overlays, selection, issue focus, and
+   display-only deformation/vector scales. A table row can select its mapped
+   scene object without changing the active load case or result state.
+7. **Diagnostics** — review, scene, parser, issue, and artifact-provenance
+   diagnostics.
+
+Legacy scene-only bundles open on **3D** without treating a missing
+`review.json` as an error. `embed=1` also opens the compact 3D surface and hides
+the full workflow chrome.
+
+## Visualization Paths
+
+Tuba has two result-display paths:
+
+- `tuba/plotting/` is the PyVista **quick-look and export** path used by
+  `FEAResults.plot_*()`. It reads real `.rmed` artifacts and supports notebook,
+  PLY, glTF, and Blender output.
+- `tuba/visualization/` plus `viewer/` is the Three.js **reviewable web-scene**
+  path. Python writes the scene and engineering review package; the browser
+  displays those contracts for shareable review.
+
+Reporting packages feed these existing consumers; they are not a third
+visualization path. Exported `.comm`, `.mail`, or `.export` files alone are not
+a completed engineering evaluation, and neither viewer path makes Code_Aster
+optional.
