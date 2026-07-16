@@ -8,6 +8,8 @@ export const WORKFLOW_TABS = Object.freeze([
   { id: "compliance", label: "Compliance", requiresReview: true }
 ]);
 
+const EVIDENCE_TAB_IDS = Object.freeze(["summary", "diagnostics", "compliance"]);
+
 export function getVisibleWorkflowTabs({ review } = {}) {
   return review ? WORKFLOW_TABS.map((tab) => tab.id) : ["3d", "diagnostics"];
 }
@@ -42,7 +44,14 @@ export function setWorkflowTab(state, tabId) {
 }
 
 export function workflowTabForKey(state, currentTabId, key) {
-  const tabIds = getVisibleCockpitTaskIds(state);
+  return tabForKey(getVisibleCockpitTaskIds(state), currentTabId, key);
+}
+
+export function evidenceTabForKey(currentTabId, key) {
+  return tabForKey(EVIDENCE_TAB_IDS, currentTabId, key);
+}
+
+function tabForKey(tabIds, currentTabId, key) {
   const currentIndex = tabIds.indexOf(currentTabId);
   if (currentIndex < 0 || tabIds.length === 0) {
     return null;

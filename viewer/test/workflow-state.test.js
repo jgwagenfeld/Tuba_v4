@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as workflowState from "../src/workflowState.js";
 
 import {
   WORKFLOW_TABS,
@@ -74,4 +75,17 @@ test("workflow keyboard navigation supports Home and End in legacy mode", () => 
   assert.equal(workflowTabForKey(state, "diagnostics", "Home"), "3d");
   assert.equal(workflowTabForKey(state, "3d", "End"), "diagnostics");
   assert.equal(workflowTabForKey(state, "3d", "Enter"), null);
+});
+
+test("evidence keyboard navigation wraps and supports Home and End", () => {
+  assert.equal(typeof workflowState.evidenceTabForKey, "function");
+  const evidenceTabForKey = workflowState.evidenceTabForKey;
+
+  assert.equal(evidenceTabForKey("summary", "ArrowLeft"), "compliance");
+  assert.equal(evidenceTabForKey("summary", "ArrowRight"), "diagnostics");
+  assert.equal(evidenceTabForKey("compliance", "ArrowRight"), "summary");
+  assert.equal(evidenceTabForKey("diagnostics", "Home"), "summary");
+  assert.equal(evidenceTabForKey("summary", "End"), "compliance");
+  assert.equal(evidenceTabForKey("summary", "Enter"), null);
+  assert.equal(evidenceTabForKey("model", "ArrowRight"), null);
 });

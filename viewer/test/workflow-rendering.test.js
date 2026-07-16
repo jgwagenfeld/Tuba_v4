@@ -66,6 +66,10 @@ test("workflow rendering keeps the viewport persistent and separates tasks from 
   assert.match(app, /\["summary", "Governing Results"\]/);
   assert.match(app, /\["diagnostics", "Warnings"\]/);
   assert.match(app, /\["compliance", "Compliance"\]/);
+  assert.match(app, /const focusableId = tabs\.some\(\(\[id\]\) => id === currentState\.activeTab\)/);
+  assert.match(app, /button\.tabIndex = id === focusableId \? 0 : -1/);
+  assert.match(app, /evidenceTabForKey\(id, event\.key\)/);
+  assert.match(app, /activateTask\(nextId\)[\s\S]*data-evidence-tab="\$\{nextId\}"[\s\S]*\.focus\(\)/);
   assert.doesNotMatch(app, /dom\.viewerWorkspace\.hidden\s*=/);
 });
 

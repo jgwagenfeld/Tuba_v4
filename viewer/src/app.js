@@ -30,7 +30,7 @@ import { applySceneDiffToState } from "./sceneDiff.js";
 import { createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
 import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
-import { WORKFLOW_TABS, createWorkflowState, getVisibleCockpitTaskIds, workflowTabForKey } from "./workflowState.js";
+import { WORKFLOW_TABS, createWorkflowState, evidenceTabForKey, getVisibleCockpitTaskIds, workflowTabForKey } from "./workflowState.js";
 
 const dom = {
   appShell: document.querySelector("[data-embed]"),
@@ -194,6 +194,9 @@ function renderEvidenceTabs() {
         ["compliance", "Compliance"]
       ]
     : [["diagnostics", "Warnings"]];
+  const focusableId = tabs.some(([id]) => id === currentState.activeTab)
+    ? currentState.activeTab
+    : tabs[0][0];
   for (const [id, label] of tabs) {
     const button = document.createElement("button");
     button.type = "button";
@@ -201,9 +204,17 @@ function renderEvidenceTabs() {
     button.setAttribute("role", "tab");
     button.setAttribute("aria-controls", dom.workflowPanel.id);
     button.setAttribute("aria-selected", String(id === currentState.activeTab));
-    button.tabIndex = id === currentState.activeTab ? 0 : -1;
+    button.tabIndex = id === focusableId ? 0 : -1;
     button.textContent = label;
     button.addEventListener("click", () => activateTask(id));
+    button.dataset.evidenceTab = id;
+    button.addEventListener("keydown", (event) => {
+      const nextId = evidenceTabForKey(id, event.key);
+      if (!nextId || !dom.evidenceTabs.querySelector(`[data-evidence-tab="${nextId}"]`)) return;
+      event.preventDefault();
+      activateTask(nextId);
+      dom.evidenceTabs.querySelector(`[data-evidence-tab="${nextId}"]`)?.focus();
+    });
     dom.evidenceTabs.append(button);
   }
   dom.evidenceDock.classList.toggle("expanded", evidenceExpanded);
