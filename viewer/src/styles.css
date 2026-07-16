@@ -239,6 +239,15 @@ textarea,
   background: var(--line);
 }
 
+.cockpit-status {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: var(--line);
+}
+
 .review-overview-card {
   display: grid;
   align-content: space-between;
@@ -792,6 +801,11 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 }
 
 @media (max-width: 800px) {
+  .cockpit-status {
+    grid-template-columns: repeat(5, minmax(8rem, 1fr));
+    overflow-x: auto;
+  }
+
   .viewer-workspace,
   .viewer-workspace:has(.inspector[hidden]) {
     grid-template-columns: minmax(0, 1fr);

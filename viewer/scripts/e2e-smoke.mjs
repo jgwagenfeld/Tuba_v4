@@ -8,6 +8,32 @@ import { createServer } from "vite";
 
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scenario = process.argv[2] ?? "smoke";
+
+async function rememberCanvas(page) {
+  await page.locator("[data-canvas]").evaluate((canvas) => {
+    window.__tubaE2eCanvas = canvas;
+    canvas.dataset.e2ePersistent = "true";
+  });
+}
+
+async function assertSameCanvas(page) {
+  assert.equal(
+    await page.evaluate(() => document.querySelector('[data-canvas][data-e2e-persistent="true"]') === window.__tubaE2eCanvas),
+    true
+  );
+  assert.equal(await page.locator('[data-canvas][data-e2e-persistent="true"]').isVisible(), true);
+}
+
+async function assertInspectorIdentity(page, objectId, entityRef) {
+  const identity = page.locator("[data-properties] .property-section").filter({
+    has: page.getByRole("heading", { level: 3, name: "Identity", exact: true })
+  });
+  assert.equal(await identity.isVisible(), true);
+  const text = await identity.textContent();
+  assert.ok(text.includes(objectId), `inspector identity must include ${objectId}: ${text}`);
+  assert.ok(text.includes(entityRef), `inspector identity must include ${entityRef}: ${text}`);
+}
+
 const scenarios = {
   smoke: {
     bundle: "/smoke-scene",
@@ -17,7 +43,11 @@ const scenarios = {
     bundle: "/test/fixtures/layer_state_scene",
     minimumObjects: 3,
     async run(page) {
-      await page.getByText("Layers", { exact: true }).click();
+      const layers = page.locator("[data-display-tools-home] details").filter({ hasText: "Layers" });
+      await layers.evaluate((details) => {
+        details.open = true;
+      });
+      assert.equal(await layers.evaluate((details) => details.open), true);
       await page.getByLabel(/Deformed Visual Centerline/).uncheck();
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
@@ -70,19 +100,59 @@ const scenarios = {
         await page.getByRole("tab", { name: "Governing Results", exact: true }).getAttribute("aria-selected"),
         "true"
       );
+      await rememberCanvas(page);
 
       await page.getByRole("button", { name: "Model", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Model", exact: true }).waitFor();
-      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      await assertSameCanvas(page);
       await page.getByRole("button", { name: "Load Cases", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Load Cases", exact: true }).waitFor();
-      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
-      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      await assertSameCanvas(page);
 
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Hot");
       assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).inputValue(), "result_state:Hot");
+      await page.setViewportSize({ width: 800, height: 900 });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const compactLayout = await page.evaluate(() => {
+        const workspace = document.querySelector("[data-viewer-workspace]").getBoundingClientRect();
+        const launcher = document.querySelector("[data-task-rail]");
+        const rail = launcher.getBoundingClientRect();
+        const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
+        const style = getComputedStyle(launcher);
+        return {
+          workspace: { left: workspace.left, right: workspace.right },
+          rail: { top: rail.top, bottom: rail.bottom },
+          canvas: { left: canvas.left, right: canvas.right, top: canvas.top, width: canvas.width, height: canvas.height },
+          display: style.display,
+          overflowX: style.overflowX,
+          overflowY: style.overflowY
+        };
+      });
+      assert.equal(compactLayout.display, "flex");
+      assert.equal(compactLayout.overflowX, "auto");
+      assert.equal(compactLayout.overflowY, "hidden");
+      assert.ok(compactLayout.rail.bottom <= compactLayout.canvas.top + 1, JSON.stringify(compactLayout));
+      assert.ok(Math.abs(compactLayout.canvas.left - compactLayout.workspace.left) <= 1, JSON.stringify(compactLayout));
+      assert.ok(Math.abs(compactLayout.canvas.right - compactLayout.workspace.right) <= 1, JSON.stringify(compactLayout));
+      assert.ok(compactLayout.canvas.width >= 480, `compact canvas width is too small: ${JSON.stringify(compactLayout)}`);
+      assert.ok(compactLayout.canvas.height >= 240, `compact canvas height is too small: ${JSON.stringify(compactLayout)}`);
+      const compactStatus = await page.locator("[data-cockpit-status]").textContent();
+      assert.match(compactStatus, /Analysis\s*solved/i);
+      assert.match(compactStatus, /Governing case\s*Not available/i);
+      await page.getByRole("tab", { name: "Warnings", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Issues", exact: true }).waitFor();
+      await assertSameCanvas(page);
+      await page.getByRole("button", { name: "Results", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
+      assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
+      await assertSameCanvas(page);
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.evaluate(() => window.innerWidth), 1440);
+      await assertSameCanvas(page);
       await page.setViewportSize({ width: 1024, height: 768 });
       await page.getByRole("button", { name: "Show element:pipe_hot in 3D", exact: true }).first().click();
       await page.waitForFunction(() => {
@@ -96,6 +166,7 @@ const scenarios = {
       });
       assert.equal(await page.locator("[data-canvas]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isVisible(), true);
+      await assertInspectorIdentity(page, "object:pipe:hot", "element:pipe_hot");
       assert.equal(
         await page.locator('[data-workflow-panel] tr[data-entity-ref="element:pipe_hot"][data-selected="true"]').first().isVisible(),
         true
@@ -162,6 +233,7 @@ const scenarios = {
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-cockpit-status]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
+      await rememberCanvas(page);
 
       const loaded = await page.evaluate(() => {
         const viewer = window.__tubaViewer;
@@ -195,6 +267,7 @@ const scenarios = {
 
       await page.getByRole("button", { name: "Results", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
+      await assertSameCanvas(page);
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Operating");
       assert.equal(
         await page.getByRole("combobox", { name: /^Result state/ }).inputValue(),
@@ -212,6 +285,7 @@ const scenarios = {
       });
       assert.equal(await page.locator("[data-canvas]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isVisible(), true);
+      await assertInspectorIdentity(page, "object:element:pipe_str_0", "element:pipe_str_0");
       assert.equal(
         await page.locator('[data-workflow-panel] tr[data-entity-ref="element:pipe_str_0"][data-selected="true"]').first().isVisible(),
         true
