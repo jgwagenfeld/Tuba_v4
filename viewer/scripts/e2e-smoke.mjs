@@ -17,6 +17,7 @@ const scenarios = {
     bundle: "/test/fixtures/layer_state_scene",
     minimumObjects: 3,
     async run(page) {
+      await page.getByText("Layers", { exact: true }).click();
       await page.getByLabel(/Deformed Visual Centerline/).uncheck();
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
@@ -59,36 +60,75 @@ const scenarios = {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 7,
     async run(page) {
-      const summaryTab = page.getByRole("tab", { name: "Summary", exact: true });
-      await summaryTab.waitFor();
-      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
+      const reviewTask = page.getByRole("button", { name: "Review", exact: true });
+      await reviewTask.waitFor();
+      assert.equal(await reviewTask.getAttribute("aria-current"), "page");
+      assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
+      assert.equal(await page.locator("[data-cockpit-status]").isVisible(), true);
+      assert.equal(await page.locator("[data-inspector]").isHidden(), true);
+      assert.equal(
+        await page.getByRole("tab", { name: "Governing Results", exact: true }).getAttribute("aria-selected"),
+        "true"
+      );
 
-      await page.getByRole("tab", { name: "Model", exact: true }).click();
+      await page.getByRole("button", { name: "Model", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Model", exact: true }).waitFor();
-      await page.getByRole("tab", { name: "Load Cases", exact: true }).click();
+      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      await page.getByRole("button", { name: "Load Cases", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Load Cases", exact: true }).waitFor();
-      await page.getByRole("tab", { name: "Results", exact: true }).click();
+      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      await page.getByRole("button", { name: "Results", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
+      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
 
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Hot");
       assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).inputValue(), "result_state:Hot");
+      await page.setViewportSize({ width: 1024, height: 768 });
       await page.getByRole("button", { name: "Show element:pipe_hot in 3D", exact: true }).first().click();
       await page.waitForFunction(() => {
         const state = window.__tubaViewer?.state;
         return (
-          state?.activeTab === "3d" &&
+          state?.activeTab === "results" &&
           state?.selectedObjectIds?.includes("object:pipe:hot") &&
           state?.activeLoadCase === "Hot" &&
           state?.activeResultStateId === "result_state:Hot"
         );
       });
+      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      assert.equal(await page.locator("[data-inspector]").isVisible(), true);
+      assert.equal(
+        await page.locator('[data-workflow-panel] tr[data-entity-ref="element:pipe_hot"][data-selected="true"]').first().isVisible(),
+        true
+      );
+      const narrowLayout = await page.evaluate(() => {
+        const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
+        const inspector = document.querySelector("[data-inspector]");
+        const drawer = inspector.getBoundingClientRect();
+        return {
+          canvas: { left: canvas.left, right: canvas.right, top: canvas.top, bottom: canvas.bottom, width: canvas.width },
+          drawer: { left: drawer.left, right: drawer.right, top: drawer.top, bottom: drawer.bottom },
+          drawerPosition: getComputedStyle(inspector).position
+        };
+      });
+      assert.equal(narrowLayout.drawerPosition, "absolute");
+      assert.ok(
+        narrowLayout.drawer.left < narrowLayout.canvas.right &&
+          narrowLayout.drawer.right > narrowLayout.canvas.left &&
+          narrowLayout.drawer.top < narrowLayout.canvas.bottom &&
+          narrowLayout.drawer.bottom > narrowLayout.canvas.top,
+        `inspector must overlap the canvas as a drawer: ${JSON.stringify(narrowLayout)}`
+      );
+      assert.ok(narrowLayout.canvas.width >= 480, `canvas width is too small: ${JSON.stringify(narrowLayout)}`);
+      await page.setViewportSize({ width: 1440, height: 900 });
 
       const reviewContext = await page.evaluate(() => ({
+        activeTab: window.__tubaViewer?.state?.activeTab,
         activeLoadCase: window.__tubaViewer?.state?.activeLoadCase,
         activeResultStateId: window.__tubaViewer?.state?.activeResultStateId,
         selectedObjectIds: window.__tubaViewer?.state?.selectedObjectIds
       }));
       assert.deepEqual(reviewContext, {
+        activeTab: "results",
         activeLoadCase: "Hot",
         activeResultStateId: "result_state:Hot",
         selectedObjectIds: ["object:pipe:hot"]
@@ -116,8 +156,12 @@ const scenarios = {
       await page.waitForFunction(
         () => window.__tubaViewer?.state?.review?.schema_version === "engineering_review.v1"
       );
-      const summaryTab = page.getByRole("tab", { name: "Summary", exact: true });
-      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
+      const reviewTask = page.getByRole("button", { name: "Review", exact: true });
+      await reviewTask.waitFor();
+      assert.equal(await reviewTask.getAttribute("aria-current"), "page");
+      assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
+      assert.equal(await page.locator("[data-cockpit-status]").isVisible(), true);
+      assert.equal(await page.locator("[data-inspector]").isHidden(), true);
 
       const loaded = await page.evaluate(() => {
         const viewer = window.__tubaViewer;
@@ -149,7 +193,7 @@ const scenarios = {
       assert.deepEqual(loaded.parserDiagnosticOverlays, []);
       assert.deepEqual(loaded.renderDiagnostics, []);
 
-      await page.getByRole("tab", { name: "Results", exact: true }).click();
+      await page.getByRole("button", { name: "Results", exact: true }).click();
       await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Operating");
       assert.equal(
@@ -160,13 +204,18 @@ const scenarios = {
       await page.waitForFunction(() => {
         const state = window.__tubaViewer?.state;
         return (
-          state?.activeTab === "3d" &&
+          state?.activeTab === "results" &&
           state?.selectedObjectIds?.includes("object:element:pipe_str_0") &&
           state?.activeLoadCase === "Operating" &&
           state?.activeResultStateId === "result_state:Operating"
         );
       });
-      await page.getByRole("heading", { level: 1, name: "3D Engineering Review", exact: true }).waitFor();
+      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      assert.equal(await page.locator("[data-inspector]").isVisible(), true);
+      assert.equal(
+        await page.locator('[data-workflow-panel] tr[data-entity-ref="element:pipe_str_0"][data-selected="true"]').first().isVisible(),
+        true
+      );
 
       assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
     }
@@ -192,11 +241,16 @@ const scenarios = {
       );
     },
     async run(page) {
-      const threeDimensionalTab = page.getByRole("tab", { name: "3D", exact: true });
-      await threeDimensionalTab.waitFor();
-      assert.equal(await threeDimensionalTab.getAttribute("aria-selected"), "true");
-      assert.equal(await page.getByRole("tab", { name: "Diagnostics", exact: true }).count(), 1);
-      assert.equal(await page.getByRole("tab", { name: "Summary", exact: true }).count(), 0);
+      const displayTask = page.getByRole("button", { name: "Display", exact: true });
+      await displayTask.waitFor();
+      assert.equal(await displayTask.getAttribute("aria-current"), "page");
+      assert.equal(await page.getByRole("button", { name: "Issues", exact: true }).count(), 1);
+      assert.equal(await page.getByRole("button", { name: "Review", exact: true }).count(), 0);
+      assert.equal(await page.getByRole("tab", { name: "Warnings", exact: true }).count(), 1);
+      assert.equal(await page.getByRole("tab", { name: "Governing Results", exact: true }).count(), 0);
+      assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
+      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
+      assert.equal(await page.locator("[data-inspector]").isHidden(), true);
       assert.equal(await page.getByRole("status").getAttribute("data-error"), "false");
       const legacyState = await page.evaluate(() => ({
         activeTab: window.__tubaViewer?.state?.activeTab,
@@ -219,10 +273,12 @@ const scenarios = {
       return { embed: "1" };
     },
     async run(page) {
-      await page.getByRole("heading", { level: 1, name: "3D Engineering Review" }).waitFor();
       await page.waitForFunction(() => window.__tubaViewer?.state?.activeTab === "3d");
       assert.equal(await page.getByRole("banner").isVisible(), false);
-      assert.equal(await page.getByRole("tablist", { name: "Engineering review" }).isVisible(), false);
+      assert.equal(await page.locator("[data-task-rail]").isVisible(), false);
+      assert.equal(await page.locator("[data-cockpit-status]").isVisible(), false);
+      assert.equal(await page.locator("[data-evidence-dock]").isVisible(), false);
+      assert.equal(await page.locator("[data-inspector]").isVisible(), false);
       assert.equal(await page.getByLabel("Interactive 3D engineering review viewport").isVisible(), true);
       assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.embed), true);
     }
