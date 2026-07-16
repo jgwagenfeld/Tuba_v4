@@ -47,9 +47,9 @@ test("workflow rendering uses the responsive cockpit grid and preserves embed mo
   assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)/s);
   assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"rail viewport inspector"[^;]*"rail evidence inspector"/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.inspector[\s\S]*position:\s*absolute/);
-  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-rail/);
+  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*height:\s*auto[^}]*max-height:\s*8rem[^}]*overflow-x:\s*auto[^}]*overflow-y:\s*hidden/s);
   assert.match(css, /\[data-embed="true"\][\s\S]*grid-template-areas:\s*"viewport"/);
-  assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)[^}]*grid-template-areas:\s*"viewport"/s);
+  assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace,\s*body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)[^}]*grid-template-areas:\s*"viewport"/s);
 });
 
 test("workflow rendering uses explicit labeled status, verdict, and severity badges", async () => {
