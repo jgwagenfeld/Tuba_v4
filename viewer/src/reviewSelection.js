@@ -54,7 +54,7 @@ export function showReviewEntityIn3d(state, entityRef) {
     return state;
   }
   const selected = selectObject(state, objectId);
-  return fitSelection({ ...selected, activeTab: "3d" });
+  return fitSelection(selected);
 }
 
 function mappedObjectIdsForEntity(objectMap, entityRef, objectsById) {

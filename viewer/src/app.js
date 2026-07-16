@@ -4,6 +4,8 @@ import {
   focusIssue,
   getIssueSummary,
   groupIssues,
+  restoreViewState,
+  saveViewState,
   searchObjects,
   setOverlayVisibility
 } from "./controls.js";
@@ -22,13 +24,13 @@ import {
   setUtilizationThreshold,
   setVisualDeformationScale
 } from "./resultReview.js";
-import { workflowViewModel } from "./reviewTables.js";
+import { cockpitStatusViewModel, workflowViewModel } from "./reviewTables.js";
 import { getReviewEntityAction, showReviewEntityIn3d } from "./reviewSelection.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
 import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
-import { WORKFLOW_TABS, createWorkflowState, getVisibleWorkflowTabs, workflowTabForKey } from "./workflowState.js";
+import { WORKFLOW_TABS, createWorkflowState, getVisibleCockpitTaskIds, workflowTabForKey } from "./workflowState.js";
 
 const dom = {
   appShell: document.querySelector("[data-embed]"),
@@ -36,9 +38,20 @@ const dom = {
   status: document.querySelector("[data-status]"),
   sceneTitle: document.querySelector("[data-scene-title]"),
   sceneMeta: document.querySelector("[data-scene-meta]"),
+  reportLink: document.querySelector("[data-report-link]"),
+  cockpitStatus: document.querySelector("[data-cockpit-status]"),
+  taskRail: document.querySelector("[data-task-rail]"),
+  taskPanel: document.querySelector("[data-task-panel]"),
   workflowTabs: document.querySelector("[data-workflow-tabs]"),
   workflowPanel: document.querySelector("[data-workflow-panel]"),
   viewerWorkspace: document.querySelector("[data-viewer-workspace]"),
+  evidenceDock: document.querySelector("[data-evidence-dock]"),
+  evidenceExpand: document.querySelector("[data-evidence-expand]"),
+  evidenceTabs: document.querySelector("[data-evidence-tabs]"),
+  inspector: document.querySelector("[data-inspector]"),
+  modelToolsHome: document.querySelector("[data-model-tools-home]"),
+  issueToolsHome: document.querySelector("[data-issue-tools-home]"),
+  displayToolsHome: document.querySelector("[data-display-tools-home]"),
   layerList: document.querySelector("[data-layer-list]"),
   overlayList: document.querySelector("[data-overlay-list]"),
   resultTools: document.querySelector("[data-result-tools]"),
@@ -51,6 +64,7 @@ const dom = {
   tree: document.querySelector("[data-tree]"),
   issueList: document.querySelector("[data-issue-list]"),
   objectList: document.querySelector("[data-object-list]"),
+  savedViews: document.querySelector("[data-saved-views]"),
   properties: document.querySelector("[data-properties]"),
   propertyActions: document.querySelector("[data-property-actions]"),
   canvas: document.querySelector("[data-canvas]")
@@ -69,6 +83,8 @@ let currentState = null;
 let selectedObjectId = null;
 let currentSearch = "";
 let issueFilters = { operatingOnly: false };
+let evidenceExpanded = false;
+const savedViews = [];
 let viewportRenderer = null;
 let lastRenderGraph = null;
 let hoveredObjectId = null;
@@ -109,7 +125,9 @@ async function loadBundle(bundleUrl, options = {}) {
 
 function render() {
   renderHeader();
-  renderWorkflowTabs();
+  renderCockpitStatus();
+  renderTaskRail();
+  renderEvidenceTabs();
   renderLayers();
   renderOverlays();
   renderResultControls();
@@ -117,78 +135,137 @@ function render() {
   renderTree();
   renderIssues();
   renderObjects();
+  renderTaskPanel();
   renderProperties();
   renderWorkflow();
   renderCanvas();
 }
 
-function renderWorkflowTabs() {
+function renderTaskRail() {
   dom.workflowTabs.replaceChildren();
-  dom.workflowTabs.hidden = currentState.embed;
+  dom.taskRail.hidden = currentState.embed;
   dom.appHeader.hidden = currentState.embed;
-  const visibleTabs = new Set(getVisibleWorkflowTabs(currentState));
-  for (const tab of WORKFLOW_TABS) {
-    if (!visibleTabs.has(tab.id)) {
-      continue;
+  const visibleIds = new Set(getVisibleCockpitTaskIds(currentState));
+  for (const [headingText, ids] of [
+    ["Review", ["summary"]],
+    ["Explore", ["model", "load-cases", "results", "diagnostics"]],
+    ["Display", ["3d"]]
+  ]) {
+    const groupIds = ids.filter((id) => visibleIds.has(id));
+    if (groupIds.length === 0) continue;
+    const group = document.createElement("section");
+    const heading = document.createElement("h2");
+    heading.textContent = headingText;
+    group.append(heading);
+    for (const id of groupIds) {
+      const task = WORKFLOW_TABS.find((candidate) => candidate.id === id);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "task-button";
+      button.dataset.task = id;
+      button.setAttribute("aria-current", id === currentState.activeTab ? "page" : "false");
+      button.textContent = task.label;
+      button.addEventListener("click", () => activateTask(id));
+      button.addEventListener("keydown", (event) => {
+        const nextId = workflowTabForKey(currentState, id, event.key);
+        if (!nextId) return;
+        event.preventDefault();
+        activateTask(nextId);
+        dom.workflowTabs.querySelector(`[data-task="${nextId}"]`)?.focus();
+      });
+      group.append(button);
     }
+    dom.workflowTabs.append(group);
+  }
+}
+
+function activateTask(id) {
+  currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: id });
+  render();
+}
+
+function renderEvidenceTabs() {
+  dom.evidenceTabs.replaceChildren();
+  dom.evidenceDock.hidden = currentState.embed;
+  const tabs = currentState.review
+    ? [
+        ["summary", "Governing Results"],
+        ["diagnostics", "Warnings"],
+        ["compliance", "Compliance"]
+      ]
+    : [["diagnostics", "Warnings"]];
+  for (const [id, label] of tabs) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "workflow-tab";
-    button.id = `workflow-tab-${tab.id}`;
+    button.id = `evidence-tab-${id}`;
     button.setAttribute("role", "tab");
-    button.setAttribute("aria-controls", tab.id === "3d" ? dom.viewerWorkspace.id : dom.workflowPanel.id);
-    button.setAttribute("aria-selected", String(tab.id === currentState.activeTab));
-    button.tabIndex = tab.id === currentState.activeTab ? 0 : -1;
-    button.textContent = tab.label;
+    button.setAttribute("aria-controls", dom.workflowPanel.id);
+    button.setAttribute("aria-selected", String(id === currentState.activeTab));
+    button.tabIndex = id === currentState.activeTab ? 0 : -1;
+    button.textContent = label;
+    button.addEventListener("click", () => activateTask(id));
+    dom.evidenceTabs.append(button);
+  }
+  dom.evidenceDock.classList.toggle("expanded", evidenceExpanded);
+  dom.evidenceExpand.textContent = evidenceExpanded ? "Collapse Evidence" : "Expand Evidence";
+}
+
+function renderTaskPanel() {
+  dom.taskPanel.replaceChildren();
+  const home = {
+    model: dom.modelToolsHome,
+    results: dom.resultToolsHome,
+    diagnostics: dom.issueToolsHome,
+    "3d": dom.displayToolsHome
+  }[currentState.activeTab];
+  if (currentState.activeTab === "3d") renderSavedViews();
+  if (home) dom.taskPanel.append(home);
+}
+
+function renderSavedViews() {
+  dom.savedViews.replaceChildren();
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.textContent = "Save Current View";
+  saveButton.addEventListener("click", () => {
+    const name = `View ${savedViews.length + 1}`;
+    savedViews.push(saveViewState(currentState, name));
+    render();
+  });
+  dom.savedViews.append(saveButton);
+  for (const view of savedViews) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = view.name;
     button.addEventListener("click", () => {
-      currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: tab.id });
+      currentState = restoreViewState(currentState, view);
+      selectedObjectId = currentState.selectedObjectIds[0] ?? null;
       render();
     });
-    button.addEventListener("keydown", (event) => {
-      const nextTabId = workflowTabForKey(currentState, tab.id, event.key);
-      if (!nextTabId) {
-        return;
-      }
-      event.preventDefault();
-      currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: nextTabId });
-      render();
-      document.getElementById(`workflow-tab-${nextTabId}`)?.focus();
-    });
-    dom.workflowTabs.append(button);
+    dom.savedViews.append(button);
   }
 }
 
 function renderWorkflow() {
   dom.workflowPanel.replaceChildren();
-  dom.resultToolsHome.append(dom.resultTools);
-  dom.diagnosticList.hidden = true;
-  dom.appShell.append(dom.diagnosticList);
-
   const activeTab = currentState.activeTab;
-  const isThreeDimensional = activeTab === "3d";
-  dom.viewerWorkspace.hidden = !isThreeDimensional;
-  dom.workflowPanel.hidden = isThreeDimensional || currentState.embed;
-  if (isThreeDimensional || currentState.embed) {
+  if (["summary", "diagnostics", "compliance"].includes(activeTab)) {
+    dom.workflowPanel.setAttribute("aria-labelledby", `evidence-tab-${activeTab}`);
+  } else {
     dom.workflowPanel.removeAttribute("aria-labelledby");
-    return;
   }
-
-  dom.workflowPanel.setAttribute("aria-labelledby", `workflow-tab-${activeTab}`);
   const tab = WORKFLOW_TABS.find((candidate) => candidate.id === activeTab);
   const heading = document.createElement("h1");
   heading.textContent = tab?.label ?? "Engineering review";
   dom.workflowPanel.append(heading);
 
-  if (activeTab === "results" || activeTab === "load-cases") {
-    dom.workflowPanel.append(dom.resultTools);
-  }
   if (activeTab === "diagnostics") {
     dom.diagnosticList.hidden = false;
     dom.workflowPanel.append(dom.diagnosticList);
     return;
   }
 
-  if (!currentState.review) {
+  if (!currentState.review || activeTab === "3d") {
     return;
   }
   const model = workflowViewModel(currentState.review, activeTab);
@@ -223,6 +300,22 @@ function renderReviewOverview(review) {
     renderOverviewCard("Provenance records", String(review.provenance?.length ?? 0))
   );
   return overview;
+}
+
+function renderCockpitStatus() {
+  dom.cockpitStatus.replaceChildren();
+  dom.cockpitStatus.hidden = currentState.embed;
+  if (!currentState.review) return;
+  const status = cockpitStatusViewModel(currentState.review);
+  for (const [label, value] of [
+    ["Analysis", status.analysisStatus],
+    ["Compliance", status.complianceStatus],
+    ["Governing case", status.governingLoadCase],
+    ["Attention", `${status.warningCount} warning(s)`],
+    ["Governing ratio", status.governingRatio]
+  ]) {
+    dom.cockpitStatus.append(renderOverviewCard(label, value, label === "Analysis" ? "status" : "text"));
+  }
 }
 
 function renderOverviewCard(labelText, valueText, kind = "text") {
@@ -319,6 +412,10 @@ function renderReviewTable(model) {
   for (let rowIndex = 0; rowIndex < model.rows.length; rowIndex += 1) {
     const row = model.rows[rowIndex];
     const tableRow = document.createElement("tr");
+    const action = rowActions[rowIndex];
+    if (action && currentState.selectedObjectIds.includes(action.objectId)) {
+      tableRow.dataset.selected = "true";
+    }
     if (row.entityRef) {
       tableRow.dataset.entityRef = row.entityRef;
     }
@@ -332,7 +429,6 @@ function renderReviewTable(model) {
     }
     if (hasActions) {
       const actionCell = document.createElement("td");
-      const action = rowActions[rowIndex];
       if (action) {
         actionCell.append(createShowIn3dButton(action));
       }
@@ -514,8 +610,11 @@ function renderResultControls() {
 }
 
 function renderHeader() {
-  dom.sceneTitle.textContent = currentState.sceneId;
-  dom.sceneMeta.textContent = `${currentState.objects.length} objects | ${currentState.issues.length} issues`;
+  dom.sceneTitle.textContent = currentState.review?.project_name ?? currentState.sceneId;
+  dom.sceneMeta.textContent = currentState.review
+    ? `${currentState.review.model_standard} · Revision ${currentState.review.model_revision} · ${currentState.review.units.length} / ${currentState.review.units.force} / ${currentState.review.units.stress}`
+    : `${currentState.objects.length} objects | ${currentState.issues.length} issues`;
+  dom.reportLink.href = `${currentBundleUrl}/index.html`;
 }
 
 function renderLayers() {
@@ -716,6 +815,7 @@ function renderProperties() {
   dom.propertyActions.replaceChildren();
   dom.properties.replaceChildren();
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
+  dom.inspector.hidden = sections.length === 0 && !issueSummary;
   if (sections.length === 0) {
     if (issueSummary) {
       dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
@@ -1072,6 +1172,12 @@ function formatScale(value) {
 dom.searchInput.addEventListener("input", () => {
   currentSearch = dom.searchInput.value;
   renderObjects();
+});
+
+dom.evidenceExpand.addEventListener("click", () => {
+  evidenceExpanded = !evidenceExpanded;
+  dom.evidenceDock.classList.toggle("expanded", evidenceExpanded);
+  dom.evidenceExpand.textContent = evidenceExpanded ? "Collapse Evidence" : "Expand Evidence";
 });
 
 main();

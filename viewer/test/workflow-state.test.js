@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   WORKFLOW_TABS,
   createWorkflowState,
+  getVisibleCockpitTaskIds,
   getVisibleWorkflowTabs,
   workflowTabForKey,
   setWorkflowTab
@@ -17,8 +18,16 @@ const reviewFixture = {
 
 test("workflow tabs follow the engineering review order", () => {
   assert.deepEqual(
-    WORKFLOW_TABS.map((tab) => tab.id),
-    ["summary", "model", "load-cases", "results", "compliance", "3d", "diagnostics"]
+    WORKFLOW_TABS.map(({ id, label }) => [id, label]),
+    [
+      ["summary", "Review"],
+      ["model", "Model"],
+      ["load-cases", "Load Cases"],
+      ["results", "Results"],
+      ["diagnostics", "Issues"],
+      ["3d", "Display"],
+      ["compliance", "Compliance"]
+    ]
   );
 });
 
@@ -33,6 +42,14 @@ test("legacy and embed workflow modes default to 3d", () => {
 
 test("legacy workflow hides data tabs but retains 3d and diagnostics", () => {
   assert.deepEqual(getVisibleWorkflowTabs({ review: null }), ["3d", "diagnostics"]);
+  assert.deepEqual(getVisibleCockpitTaskIds({ review: null }), ["3d", "diagnostics"]);
+});
+
+test("cockpit tasks omit the evidence-only compliance destination", () => {
+  assert.deepEqual(
+    getVisibleCockpitTaskIds({ review: reviewFixture }),
+    ["summary", "model", "load-cases", "results", "diagnostics", "3d"]
+  );
 });
 
 test("workflow tab changes reject hidden and unknown tabs", () => {
@@ -46,9 +63,9 @@ test("workflow tab changes reject hidden and unknown tabs", () => {
 test("workflow keyboard navigation wraps across visible tabs", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
 
-  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "3d");
   assert.equal(workflowTabForKey(state, "summary", "ArrowRight"), "model");
-  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "3d");
 });
 
 test("workflow keyboard navigation supports Home and End in legacy mode", () => {

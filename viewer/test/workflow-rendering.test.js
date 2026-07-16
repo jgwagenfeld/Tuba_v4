@@ -14,17 +14,17 @@ async function readViewerFile(...parts) {
 test("workflow rendering exposes the seven engineer review tabs", () => {
   assert.deepEqual(
     WORKFLOW_TABS.map((tab) => tab.label),
-    ["Summary", "Model", "Load Cases", "Results", "Compliance", "3D", "Diagnostics"]
+    ["Review", "Model", "Load Cases", "Results", "Issues", "Display", "Compliance"]
   );
 });
 
 test("workflow rendering keyboard navigation wraps and supports Home and End", () => {
   const state = createWorkflowState({ review: { tables: {} } });
 
-  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
-  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
+  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "3d");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "3d");
   assert.equal(workflowTabForKey(state, "results", "Home"), "summary");
-  assert.equal(workflowTabForKey(state, "results", "End"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "results", "End"), "3d");
   assert.equal(workflowTabForKey(state, "results", "Enter"), null);
 });
 
@@ -48,13 +48,36 @@ test("workflow rendering uses explicit labeled status, verdict, and severity bad
   const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");
 
-  assert.match(app, /className\s*=\s*"workflow-tab"/);
+  assert.match(app, /className\s*=\s*"task-button"/);
   assert.match(app, /className\s*=\s*"status-badge"/);
   assert.match(app, /className\s*=\s*"verdict"/);
   assert.match(app, /className\s*=\s*"severity-badge"/);
   assert.match(css, /\.status-badge\[data-status="solved"\]/);
   assert.match(css, /\.verdict\[data-pass="true"\]/);
   assert.match(css, /\.severity-badge\[data-severity="error"\]/);
+});
+
+test("workflow rendering keeps the viewport persistent and separates tasks from evidence tabs", async () => {
+  const app = await readViewerFile("src/app.js");
+
+  assert.match(app, /function renderTaskRail\(\)/);
+  assert.match(app, /setAttribute\("aria-current", id === currentState\.activeTab \? "page" : "false"\)/);
+  assert.match(app, /function renderEvidenceTabs\(\)/);
+  assert.match(app, /\["summary", "Governing Results"\]/);
+  assert.match(app, /\["diagnostics", "Warnings"\]/);
+  assert.match(app, /\["compliance", "Compliance"\]/);
+  assert.doesNotMatch(app, /dom\.viewerWorkspace\.hidden\s*=/);
+});
+
+test("workflow rendering adds cockpit status, report links, saved views, and reverse selection highlighting", async () => {
+  const app = await readViewerFile("src/app.js");
+
+  assert.match(app, /cockpitStatusViewModel\(currentState\.review\)/);
+  assert.match(app, /dom\.reportLink\.href\s*=\s*`\$\{currentBundleUrl\}\/index\.html`/);
+  assert.match(app, /saveViewState\(currentState, name\)/);
+  assert.match(app, /restoreViewState\(currentState, view\)/);
+  assert.match(app, /tableRow\.dataset\.selected\s*=\s*"true"/);
+  assert.match(app, /dom\.inspector\.hidden\s*=\s*sections\.length === 0 && !issueSummary/);
 });
 
 test("workflow rendering consolidates diagnostics, provenance, issues, and load diagnostics with trace fields", async () => {
@@ -69,7 +92,7 @@ test("workflow rendering consolidates diagnostics, provenance, issues, and load 
   assert.match(app, /if \(activeTab === "diagnostics"\)[\s\S]*return;/);
 });
 
-test("workflow rendering parses embed once and pins reloads to the 3D workflow", async () => {
+test("workflow rendering parses embed once and pins reloads to the display workflow", async () => {
   const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");
 

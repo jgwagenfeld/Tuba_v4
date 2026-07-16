@@ -1,17 +1,21 @@
 export const WORKFLOW_TABS = Object.freeze([
-  { id: "summary", label: "Summary", requiresReview: true },
+  { id: "summary", label: "Review", requiresReview: true },
   { id: "model", label: "Model", requiresReview: true },
   { id: "load-cases", label: "Load Cases", requiresReview: true },
   { id: "results", label: "Results", requiresReview: true },
-  { id: "compliance", label: "Compliance", requiresReview: true },
-  { id: "3d", label: "3D", requiresReview: false },
-  { id: "diagnostics", label: "Diagnostics", requiresReview: false }
+  { id: "diagnostics", label: "Issues", requiresReview: false },
+  { id: "3d", label: "Display", requiresReview: false },
+  { id: "compliance", label: "Compliance", requiresReview: true }
 ]);
 
 export function getVisibleWorkflowTabs({ review } = {}) {
-  return WORKFLOW_TABS
-    .filter((tab) => !tab.requiresReview || Boolean(review))
-    .map((tab) => tab.id);
+  return review ? WORKFLOW_TABS.map((tab) => tab.id) : ["3d", "diagnostics"];
+}
+
+export function getVisibleCockpitTaskIds({ review } = {}) {
+  return review
+    ? ["summary", "model", "load-cases", "results", "diagnostics", "3d"]
+    : ["3d", "diagnostics"];
 }
 
 export function defaultWorkflowTab({ review, embed } = {}) {
@@ -38,7 +42,7 @@ export function setWorkflowTab(state, tabId) {
 }
 
 export function workflowTabForKey(state, currentTabId, key) {
-  const tabIds = getVisibleWorkflowTabs(state);
+  const tabIds = getVisibleCockpitTaskIds(state);
   const currentIndex = tabIds.indexOf(currentTabId);
   if (currentIndex < 0 || tabIds.length === 0) {
     return null;

@@ -191,12 +191,12 @@ test("describes accessible actions only for resolvable report rows", () => {
   assert.equal(getReviewEntityAction(state, "element:missing"), null);
 });
 
-test("show in 3d selects, fits, and preserves the full review context", () => {
+test("show in 3d selects, fits, and preserves the active cockpit task and review context", () => {
   const state = reviewState();
 
   const next = showReviewEntityIn3d(state, "element:pipe_0");
 
-  assert.equal(next.activeTab, "3d");
+  assert.equal(next.activeTab, state.activeTab);
   assert.deepEqual(next.selectedObjectIds, ["object:pipe"]);
   assert.notDeepEqual(next.camera, state.camera);
   assert.deepEqual(next.camera.target, [1, 0, 0]);

@@ -51,14 +51,21 @@ test("viewer app enters through TypeScript and owns CSS layout", async () => {
 test("scaffold exposes one semantic engineering workflow shell", async () => {
   const html = await readViewerFile("index.html");
   const hooks = [
+    "app-header",
     "status",
     "scene-title",
     "scene-meta",
+    "report-link",
+    "cockpit-status",
+    "task-rail",
+    "task-panel",
     "workflow-tabs",
     "workflow-panel",
     "viewer-workspace",
-    "3d-heading",
-    "scene-tools",
+    "inspector",
+    "evidence-dock",
+    "evidence-expand",
+    "evidence-tabs",
     "layer-list",
     "overlay-list",
     "result-controls",
@@ -75,10 +82,17 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   ];
 
   assert.match(html, /<main[^>]*class="app-shell"[^>]*data-embed="false"/);
-  assert.match(html, /<nav[^>]*role="tablist"[^>]*aria-label="Engineering review"[^>]*data-workflow-tabs/);
-  assert.match(html, /<section[^>]*id="engineering-workflow-panel"[^>]*role="tabpanel"[^>]*tabindex="0"[^>]*data-workflow-panel/);
-  assert.match(html, /<section[^>]*id="engineering-3d-panel"[^>]*class="viewer-workspace"[^>]*role="tabpanel"[^>]*aria-labelledby="workflow-tab-3d"[^>]*tabindex="0"[^>]*data-viewer-workspace[^>]*hidden/);
-  assert.equal((html.match(/<h1[^>]*class="visually-hidden"[^>]*data-3d-heading[^>]*>3D Engineering Review<\/h1>/g) ?? []).length, 1);
+  assert.match(html, /<section[^>]*class="cockpit-status"[^>]*aria-label="Engineering review status"[^>]*data-cockpit-status/);
+  assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace/);
+  assert.match(html, /<aside[^>]*class="cockpit-rail"[^>]*data-task-rail/);
+  assert.match(html, /<nav[^>]*aria-label="Engineering review tasks"[^>]*data-workflow-tabs/);
+  assert.match(html, /<div[^>]*class="task-panel"[^>]*data-task-panel/);
+  assert.match(html, /<aside[^>]*class="inspector"[^>]*data-inspector[^>]*hidden/);
+  assert.match(html, /<section[^>]*class="evidence-dock"[^>]*aria-label="Engineering evidence"[^>]*data-evidence-dock/);
+  assert.doesNotMatch(html, /class="[^"]*\bworkflow-tabs\b/);
+  for (const inventory of ["layer-list", "overlay-list", "tree", "object-list"]) {
+    assert.match(html, new RegExp(`<details[^>]*>[\\s\\S]*?data-${inventory}(?:=|[\\s>])[\\s\\S]*?<\\/details>`));
+  }
   assert.match(html, /<canvas[^>]*data-canvas[^>]*tabindex="0"[^>]*aria-label="Interactive 3D engineering review viewport"/);
   assert.match(html, /<input[^>]*type="search"[^>]*data-search[^>]*aria-label="Search objects"/);
   for (const hook of hooks) {
@@ -91,7 +105,7 @@ test("browser table orchestration uses text content and the workflow reducer", a
 
   assert.match(app, /workflowViewModel/);
   assert.match(app, /type:\s*["']setWorkflowTab["']/);
-  assert.match(app, /setAttribute\(["']aria-selected["']/);
+  assert.match(app, /setAttribute\(["']aria-current["']/);
   assert.match(app, /addEventListener\(["']keydown["']/);
   assert.match(app, /workflowTabForKey/);
   assert.match(app, /\.textContent\s*=/);
