@@ -3,6 +3,7 @@
 **Date:** 2026-07-15
 **Status:** Approved for implementation
 **Branch:** `codex/future-ready-workpackages`
+**Cockpit refinement approved:** 2026-07-16
 
 ## 1. Purpose
 
@@ -243,43 +244,79 @@ display, following the repository contract.
 
 ### 8.1 Navigation
 
-Replace the always-visible debug inventory with top-level workflow tabs:
+The full viewer is a review cockpit whose first question is: "Is this analysis
+acceptable, and what needs attention?" It replaces the seven equal-weight tabs
+and the permanent debug sidebar with five regions:
 
-1. **Summary** — analysis status, provenance, model counts, governing results,
-   compliance verdict, warnings;
-2. **Model** — nodes, line list, sections, materials, and supports;
-3. **Load Cases** — definitions, nodal loads/fields, linked studies and solve
-   status;
-4. **Results** — result-state/load-case controls, summary tables, hotspots,
-   displacements, reactions, element forces, and FE stress;
-5. **Compliance** — code/edition, sustained and expansion checks, governing
-   ratios, and a clear unavailable state when no compliance report exists;
-6. **3D** — the existing Three.js viewport, layers, overlays, object search,
-   selection, property inspection, issue focus, and deformation/vector scales;
-7. **Diagnostics** — scene diagnostics, parser/report diagnostics, issues,
-   artifact provenance, and review state.
+1. **Header** — project, model revision, standard, units, runtime state, and
+   report export;
+2. **Status strip** — analysis status, compliance verdict, governing load case,
+   warning count, and governing ratio/location;
+3. **Task rail** — Review, Model, Load Cases, Results, Issues, and Display;
+4. **3D evidence viewport** — the existing Three.js viewport with only the
+   controls relevant to the active task;
+5. **Context surfaces** — a selection inspector on the right and an evidence
+   dock below the viewport.
 
-The 3D renderer and scene state remain intact. The change is information
-architecture, not a renderer rewrite.
+The task rail groups rather than duplicates controls:
+
+- **Review** contains Overview, Governing Results, and Warnings;
+- **Explore** contains Model, Load Cases, Results, and Issues;
+- **Display** contains Layers & Overlays and Saved Views;
+- search remains pinned at the bottom of the rail;
+- raw object, mesh-group, and layer inventories start collapsed and expand only
+  on request.
+
+The selection inspector is closed when nothing is selected. Selecting a model
+object, hotspot, warning, or report row opens it with the smallest useful set of
+identity and governing-result fields. Full properties remain available as a
+secondary action.
+
+The evidence dock defaults to Governing Results and also exposes Warnings,
+Compliance, and Reports. It may expand over the viewport for table-heavy work,
+but it does not create a separate report application. Table selection and 3D
+selection are bidirectional and preserve the active load case/result state.
+
+The 3D renderer, scene state, review tables, and existing reducers remain the
+implementation seams. This is an information-architecture change, not a
+renderer rewrite or a new UI framework.
 
 ### 8.2 Bundle loading
 
 The viewer tries to load `review.json` after loading the existing scene bundle.
 A 404 is a supported legacy condition and does not produce an error. When
-review data is present, tabs render the authoritative tables. When absent, the
-viewer exposes the 3D and Diagnostics workflows and may show clearly labeled
-scene-derived summaries.
+review data is present, cockpit tasks and the evidence dock render the
+authoritative tables. When absent, the viewer exposes the 3D viewport and
+Diagnostics and may show clearly labeled scene-derived summaries.
 
-The full viewer defaults to **Summary** when `review.json` exists and **3D** for
-legacy scene-only bundles. `embed=1` always defaults to **3D** and keeps the
-compact embedded presentation.
+The full viewer defaults to **Review / Overview** when `review.json` exists and
+to the 3D viewport for legacy scene-only bundles. `embed=1` always defaults to
+3D and keeps the compact embedded presentation.
 
 ### 8.3 Interaction between tables and 3D
 
 Rows containing an object/entity reference provide a `Show in 3D` action. It
-selects the object, switches to the 3D tab, fits the selection, and preserves
-the active load case/result state. This is the main bridge between tabular
-engineering review and spatial review.
+selects and fits the object in the persistent viewport, opens the selection
+inspector, and preserves the active load case/result state. Selecting the same
+object in 3D highlights its active evidence row when one exists.
+
+### 8.4 Responsive and failure states
+
+The cockpit is desktop-first. Below 1200 px the inspector becomes a drawer and
+the evidence dock starts collapsed. Below 800 px the task rail collapses to a
+compact launcher. The existing `embed=1` layout remains the minimal narrow 3D
+surface; no separate mobile application is introduced.
+
+Status is explicit and fail-safe:
+
+- an unsolved package keeps model review available and disables solver-result
+  controls with the existing `not_solved` explanation;
+- missing compliance is neutral `Not available`, never `Fail` or `Pass`;
+- invalid review data keeps legacy 3D and Diagnostics usable;
+- scene/review reference mismatches remain diagnostics and never fabricate a
+  selection or result;
+- keyboard focus, task navigation, dock tabs, and live runtime status remain
+  accessible.
 
 ## 9. Static HTML Deliverable
 
@@ -318,18 +355,20 @@ Implementation follows red-green-refactor.
 ### Viewer unit tests
 
 - optional review loading and legacy 404 behavior;
-- tab visibility and default tab rules;
+- cockpit task visibility and default task rules;
 - table rendering and unavailable states;
-- `Show in 3D` selection handoff;
+- bidirectional evidence-row and 3D selection handoff;
+- collapsed long inventories and contextual inspector visibility;
 - existing result controls, layer visibility, issue review, and scene-diff state
   remain functional.
 
 ### Browser tests
 
-- full review bundle opens on Summary and navigates through every tab;
+- full review bundle opens on Review / Overview and exposes every cockpit task;
 - legacy bundle opens on 3D;
 - embedded bundle opens compact 3D;
-- a governing-result row focuses the correct object in 3D;
+- a governing-result row focuses the correct object and opens its inspector;
+- inspector drawer and evidence dock remain usable at the narrow breakpoint;
 - a nonblank WebGL frame is rendered after navigation.
 
 ### Integration verification
@@ -348,6 +387,9 @@ Implementation follows red-green-refactor.
 - Adding a third visualization path.
 - Implementing electronic signatures, approvals, document control, or a report
   database.
+- Adding chat, model editing, or a new UI framework in the cockpit refinement.
+- Persisting cockpit panel state in URLs before a concrete sharing workflow
+  requires it.
 - Adding a server-side PDF dependency; printable HTML is the first PDF path.
 - Implementing every dynamic, fatigue, flange, nozzle, spring-hanger, or
   equipment-code report before Tuba has authoritative domain results for it.
@@ -361,7 +403,8 @@ Implementation follows red-green-refactor.
 4. Adapt existing visualization report/static-report APIs without breaking
    callers.
 5. Publish `review.json` alongside scene bundles.
-6. Restructure the viewer into workflow tabs and add table-to-3D navigation.
+6. Restructure the viewer into the review cockpit and add bidirectional
+   table-to-3D navigation.
 7. Regenerate the committed Code_Aster review artifact and update public docs.
 8. Run focused, viewer, package, build, browser, and available Code_Aster gates.
 
@@ -380,9 +423,13 @@ Implementation follows red-green-refactor.
 - Printable HTML and `review.json` contain the same table values.
 - Existing `tuba.visualization.reports` imports and scene-only bundles remain
   functional.
-- The viewer presents Summary, Model, Load Cases, Results, Compliance, 3D, and
-  Diagnostics workflows.
-- A report row can focus its referenced object in the 3D viewer.
+- The viewer presents the approved header, status strip, task rail, persistent
+  3D evidence viewport, contextual inspector, and evidence dock.
+- Review, Model, Load Cases, Results, Issues, and Display tasks expose the
+  existing authoritative tables and scene controls without a permanent raw
+  inventory.
+- A report row can focus its referenced object in 3D, and 3D selection can
+  highlight its active evidence row.
 - `embed=1` retains a compact interactive 3D experience.
 - Existing viewer tests pass, new reporting/viewer tests pass, the Vite build
   succeeds, browser E2E passes, and real Code_Aster verification is either
