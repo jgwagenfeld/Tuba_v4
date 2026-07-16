@@ -65,6 +65,7 @@ textarea,
 
 .workflow-tabs :focus-visible,
 .sidebar :focus-visible,
+.cockpit-rail :focus-visible,
 .inspector :focus-visible,
 .viewer-workspace:focus-visible,
 [data-canvas]:focus-visible {
@@ -439,13 +440,24 @@ textarea,
 }
 
 .viewer-workspace {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(13.5rem, 17rem) minmax(26rem, 1fr) minmax(17rem, 22rem);
-  grid-template-areas: "tools viewport inspector";
+  grid-template-columns: 12rem minmax(24rem, 1fr) minmax(16rem, 20rem);
+  grid-template-rows: minmax(0, 1fr) minmax(8rem, 28vh);
+  grid-template-areas:
+    "rail viewport inspector"
+    "rail evidence inspector";
   height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--graphite);
+}
+
+.viewer-workspace:has(.inspector[hidden]) {
+  grid-template-columns: 12rem minmax(24rem, 1fr);
+  grid-template-areas:
+    "rail viewport"
+    "rail evidence";
 }
 
 .viewer-workspace[hidden] {
@@ -458,6 +470,7 @@ section {
 }
 
 .sidebar,
+.cockpit-rail,
 .inspector {
   min-height: 0;
   height: 100%;
@@ -473,9 +486,20 @@ section {
   border-right: 1px solid var(--graphite-line);
 }
 
+.cockpit-rail {
+  grid-area: rail;
+  overflow: auto;
+  border-right: 1px solid var(--graphite-line);
+}
+
 .inspector {
   grid-area: inspector;
+  overflow: auto;
   border-left: 1px solid var(--graphite-line);
+}
+
+.inspector[hidden] {
+  display: none;
 }
 
 .viewport {
@@ -488,6 +512,12 @@ section {
   background: #0e1418;
 }
 
+.evidence-dock {
+  grid-area: evidence;
+  min-width: 0;
+  overflow: auto;
+}
+
 h1,
 h2,
 h3 {
@@ -495,6 +525,7 @@ h3 {
 }
 
 .sidebar h2,
+.cockpit-rail h2,
 .inspector h2 {
   margin: 1rem 0 0.5rem;
   color: #d9e0e2;
@@ -515,6 +546,7 @@ h3 {
 }
 
 .sidebar .meta,
+.cockpit-rail .meta,
 .inspector .meta {
   color: #b9c5c9;
 }
@@ -530,6 +562,7 @@ h3 {
 }
 
 .sidebar label,
+.cockpit-rail label,
 .inspector label {
   color: #d9e0e2;
   font-size: 0.8rem;
@@ -594,6 +627,7 @@ button:hover {
 }
 
 .sidebar button,
+.cockpit-rail button,
 .inspector button {
   border-color: var(--graphite-line);
   background: var(--sidebar-control);
@@ -601,12 +635,14 @@ button:hover {
 }
 
 .sidebar button:hover,
+.cockpit-rail button:hover,
 .inspector button:hover {
   border-color: var(--focus-on-dark);
 }
 
 button.selected,
 .sidebar button.selected,
+.cockpit-rail button.selected,
 .inspector button.selected {
   border-color: var(--accent);
   background: #153b43;
@@ -681,6 +717,9 @@ pre {
 [data-embed="true"] .app-header,
 [data-embed="true"] .workflow-tabs,
 [data-embed="true"] .sidebar,
+[data-embed="true"] .cockpit-status,
+[data-embed="true"] .cockpit-rail,
+[data-embed="true"] .evidence-dock,
 [data-embed="true"] .inspector {
   display: none;
 }
@@ -695,9 +734,30 @@ body[data-embed="true"] [data-canvas] {
   height: 100vh;
 }
 
-body[data-embed="true"] .viewer-workspace {
+body[data-embed="true"] .viewer-workspace,
+body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   grid-template-areas: "viewport";
+}
+
+@media (max-width: 1200px) {
+  .viewer-workspace,
+  .viewer-workspace:has(.inspector[hidden]) {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(8rem, 20vh);
+    grid-template-areas:
+      "rail viewport"
+      "rail evidence";
+  }
+
+  .inspector {
+    position: absolute;
+    z-index: 4;
+    inset: 0 0 0 auto;
+    width: min(20rem, 100%);
+    box-shadow: -0.5rem 0 1rem rgba(14, 20, 24, 0.35);
+  }
 }
 
 @media (max-width: 900px) {
@@ -721,35 +781,6 @@ body[data-embed="true"] .viewer-workspace {
     grid-column: 1 / -1;
   }
 
-  .viewport {
-    grid-area: viewport;
-    min-height: clamp(18rem, 55vh, 32rem);
-  }
-
-  .viewer-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-    grid-template-areas: "viewport" "tools" "inspector";
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .sidebar,
-  .inspector {
-    height: auto;
-    max-height: none;
-    border: 0;
-    border-top: 1px solid var(--graphite-line);
-  }
-
-  .sidebar {
-    min-height: 24rem;
-  }
-
-  .inspector {
-    min-height: 16rem;
-  }
-
   body[data-embed="true"] .viewport {
     min-height: 100vh;
   }
@@ -757,6 +788,60 @@ body[data-embed="true"] .viewer-workspace {
   body[data-embed="true"] .viewer-workspace {
     grid-template-rows: minmax(0, 1fr);
     overflow: hidden;
+  }
+}
+
+@media (max-width: 800px) {
+  .viewer-workspace,
+  .viewer-workspace:has(.inspector[hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) minmax(8rem, 20vh);
+    grid-template-areas:
+      "rail"
+      "viewport"
+      "evidence";
+  }
+
+  .cockpit-rail {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    height: auto;
+    max-height: 8rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--graphite-line);
+  }
+
+  .cockpit-rail [data-workflow-tabs] {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.25rem;
+  }
+
+  .cockpit-rail [data-workflow-tabs] > section {
+    display: contents;
+  }
+
+  .cockpit-rail [data-workflow-tabs] h2 {
+    display: none;
+  }
+
+  .cockpit-rail .workflow-tab {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .cockpit-rail .task-panel:not(:empty) {
+    flex: 0 0 min(18rem, 70vw);
+    max-height: 6rem;
+    overflow: auto;
+  }
+
+  body[data-embed="true"] .viewer-workspace {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "viewport";
   }
 }
 

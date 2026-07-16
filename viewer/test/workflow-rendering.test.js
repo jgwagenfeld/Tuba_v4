@@ -28,7 +28,7 @@ test("workflow rendering keyboard navigation wraps and supports Home and End", (
   assert.equal(workflowTabForKey(state, "results", "Enter"), null);
 });
 
-test("workflow rendering provides sticky tabs, horizontal tables, visible focus, and viewport-first narrow layout", async () => {
+test("workflow rendering provides sticky tabs, horizontal tables, and visible focus", async () => {
   const css = await readViewerFile("src/styles.css");
 
   assert.match(css, /\.workflow-tabs\s*\{[^}]*position:\s*sticky/s);
@@ -39,9 +39,17 @@ test("workflow rendering provides sticky tabs, horizontal tables, visible focus,
   assert.match(css, /\.visually-hidden\s*\{[^}]*position:\s*absolute[^}]*clip:/s);
   assert.match(css, /\[data-diagnostic-list\]\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
-  assert.match(css, /@media\s*\(max-width:\s*900px\)[\s\S]*\.viewport\s*\{[^}]*grid-area:\s*viewport/s);
-  assert.match(css, /@media\s*\(max-width:\s*900px\)[\s\S]*\.viewer-workspace\s*\{[^}]*grid-template-areas:\s*"viewport"\s*"tools"\s*"inspector"/s);
-  assert.match(css, /@media\s*\(max-width:\s*900px\)[\s\S]*\.sidebar\s*\{[^}]*min-height:\s*24rem/s);
+});
+
+test("workflow rendering uses the responsive cockpit grid and preserves embed mode", async () => {
+  const css = await readViewerFile("src/styles.css");
+
+  assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)/s);
+  assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"rail viewport inspector"[^;]*"rail evidence inspector"/s);
+  assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.inspector[\s\S]*position:\s*absolute/);
+  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-rail/);
+  assert.match(css, /\[data-embed="true"\][\s\S]*grid-template-areas:\s*"viewport"/);
+  assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)[^}]*grid-template-areas:\s*"viewport"/s);
 });
 
 test("workflow rendering uses explicit labeled status, verdict, and severity badges", async () => {
