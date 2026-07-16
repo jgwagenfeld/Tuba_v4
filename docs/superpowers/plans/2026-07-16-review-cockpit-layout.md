@@ -4,7 +4,7 @@
 
 **Goal:** Replace the viewer's seven equal-weight pages and permanent debug inventory with the approved review cockpit while preserving the existing Code_Aster-backed tables, state reducers, Three.js viewport, and embed mode.
 
-**Architecture:** Keep `activeTab` and the existing table/rendering functions as internal compatibility seams. Add one pure status view-model helper, reorganize the existing DOM into a persistent viewport with a task rail, contextual inspector, and evidence dock, then restyle it with CSS grid. Do not add a framework, dependency, router, or scene schema.
+**Architecture:** Keep task `activeTab` and the existing table/rendering functions as internal compatibility seams. Give the evidence dock its own local selected-tab state, add one pure status view-model helper, reorganize the existing DOM into a persistent viewport with a task rail, contextual inspector, and evidence dock, then restyle it with CSS grid. Do not add a framework, dependency, router, or scene schema.
 
 **Tech Stack:** Vanilla TypeScript/JavaScript, semantic HTML, CSS Grid, Three.js, Node test runner, Playwright smoke tests.
 
@@ -144,7 +144,7 @@ assert.deepEqual(
 assert.equal(createWorkflowState({ review: reviewFixture }).activeTab, "summary");
 ```
 
-Compliance remains an evidence-dock destination and is omitted from the primary task-rail button set. Export `getVisibleCockpitTaskIds(state)` for `summary`, `model`, `load-cases`, `results`, `diagnostics`, and `3d`; make `workflowTabForKey` use that list so keyboard navigation never focuses the hidden Compliance destination. Legacy state still exposes `3d` and `diagnostics`.
+Compliance and Reports remain evidence-dock destinations and are omitted from the primary task-rail button set. Export `getVisibleCockpitTaskIds(state)` for `summary`, `model`, `load-cases`, `results`, `diagnostics`, and `3d`; make `workflowTabForKey` use that list so keyboard navigation never focuses evidence-only destinations. Legacy state still exposes `3d` and `diagnostics`.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
@@ -213,7 +213,7 @@ function renderTaskRail() {
 
 `activateTask(id)` dispatches the existing `setWorkflowTab` action and calls `render()`. Arrow, Home, and End behavior stays in `workflowTabForKey` for the ordered primary tasks.
 
-`renderEvidenceTabs()` exposes `summary` as Governing Results, `diagnostics` as Warnings, and `compliance` as Compliance. These buttons use tab semantics because they change the dock panel; task-rail buttons use normal navigation semantics.
+`renderEvidenceTabs()` exposes `summary` as Governing Results, `diagnostics` as Warnings, `compliance` as Compliance, and `reports` as Reports. The dock keeps its own selected-tab state, defaults to Governing Results, and does not follow task `activeTab`. These buttons use tab semantics because they change the dock panel; task-rail buttons use normal navigation semantics.
 
 - [ ] **Step 5: Render status, contextual tools, and evidence dock**
 
@@ -251,7 +251,7 @@ function renderCockpitStatus() {
 
 When `renderReviewTable()` resolves a row action whose `objectId` is in `currentState.selectedObjectIds`, set `tableRow.dataset.selected = "true"`. This is the reverse 3D-to-evidence highlight and uses the existing selection bridge.
 
-Set `[data-report-link].href` to `${currentBundleUrl}/index.html`. The evidence expand button toggles one `evidenceExpanded` boolean and the `.expanded` class; it introduces no reducer or persisted state.
+Set `[data-report-link].href` and the Reports evidence destination to the existing `${currentBundleUrl}/index.html` artifact. Hide both when review data is absent. The evidence expand button toggles one `evidenceExpanded` boolean, `aria-expanded`, and the `.expanded` class; it introduces no reducer or persisted state.
 
 - [ ] **Step 6: Run focused tests and verify GREEN**
 
@@ -323,7 +323,7 @@ When the inspector is hidden, set the workspace column template through `:has(.i
 
 - [ ] **Step 4: Add responsive and embed rules**
 
-At 1200 px, make the inspector an absolute right drawer and default the evidence dock to a shorter row. At 800 px, reduce the rail to a compact horizontal launcher above the viewport. Preserve the existing embed rules so only the canvas/viewport is visible.
+At 1200 px, make the inspector an absolute right drawer and default the evidence dock to a collapsed row whose expanded state overlays the viewport. At 800 px, reduce the rail to a compact horizontal launcher above the viewport. Preserve the existing embed rules so only the canvas/viewport is visible.
 
 - [ ] **Step 5: Run the CSS test and verify GREEN**
 
@@ -348,7 +348,7 @@ git commit -m style-viewer-review-cockpit
 
 **Interfaces:**
 - Consumes: cockpit DOM and state from Tasks 1-3.
-- Produces: browser proof for review default, task navigation, persistent 3D, contextual inspector, evidence selection, responsive drawer, legacy mode, and embed mode.
+- Produces: browser proof for review default, task navigation, persistent 3D, contextual inspector, independent evidence selection, responsive drawer/dock expansion, Reports navigation, legacy mode, and embed mode.
 
 - [ ] **Step 1: Update the public review smoke expectations**
 

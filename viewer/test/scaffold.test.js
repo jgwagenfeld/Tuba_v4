@@ -89,6 +89,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<div[^>]*class="task-panel"[^>]*data-task-panel/);
   assert.match(html, /<aside[^>]*class="inspector"[^>]*data-inspector[^>]*hidden/);
   assert.match(html, /<section[^>]*class="evidence-dock"[^>]*aria-label="Engineering evidence"[^>]*data-evidence-dock/);
+  assert.match(html, /<button[^>]*type="button"[^>]*aria-expanded="false"[^>]*data-evidence-expand/);
   assert.doesNotMatch(html, /class="[^"]*\bworkflow-tabs\b/);
   for (const inventory of ["layer-list", "overlay-list", "tree", "object-list"]) {
     assert.match(html, new RegExp(`<details[^>]*>[\\s\\S]*?data-${inventory}(?:=|[\\s>])[\\s\\S]*?<\\/details>`));

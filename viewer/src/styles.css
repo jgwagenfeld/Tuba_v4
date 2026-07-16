@@ -63,7 +63,7 @@ textarea,
   outline-offset: 3px;
 }
 
-.workflow-tabs :focus-visible,
+[data-workflow-tabs] :focus-visible,
 .sidebar :focus-visible,
 .cockpit-rail :focus-visible,
 .inspector :focus-visible,
@@ -92,7 +92,7 @@ textarea,
 }
 
 .app-header,
-.workflow-tabs,
+[data-workflow-tabs],
 .workflow-panel,
 .viewer-workspace {
   min-width: 0;
@@ -101,7 +101,8 @@ textarea,
 
 .app-header {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) auto auto;
+  grid-template-columns: minmax(12rem, 1fr) minmax(16rem, auto) auto auto;
+  grid-template-areas: "identity meta report runtime";
   align-items: center;
   gap: 1rem;
   min-height: 3.5rem;
@@ -112,6 +113,7 @@ textarea,
 }
 
 .app-identity {
+  grid-area: identity;
   display: grid;
   min-width: 0;
   gap: 0.1rem;
@@ -140,7 +142,37 @@ textarea,
   color: #b9c5c9;
 }
 
+.app-header .meta {
+  grid-area: meta;
+}
+
+.report-link {
+  grid-area: report;
+  justify-self: end;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  color: var(--accent);
+  font-size: 0.8rem;
+  padding: 0.35rem 0.55rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.report-link:hover {
+  border-color: var(--focus-on-dark);
+  color: var(--chrome-text);
+}
+
+.report-link:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.report-link[hidden] {
+  display: none;
+}
+
 .runtime-status {
+  grid-area: runtime;
   border: 1px solid var(--graphite-line);
   color: var(--chrome-text);
   font-family: "Cascadia Mono", Consolas, monospace;
@@ -164,7 +196,7 @@ textarea,
   color: #ff857d;
 }
 
-.workflow-tabs {
+[data-workflow-tabs] {
   position: sticky;
   z-index: 5;
   top: 0;
@@ -177,7 +209,7 @@ textarea,
   scrollbar-width: thin;
 }
 
-.workflow-tab {
+.cockpit-rail .task-button {
   flex: 0 0 auto;
   width: auto;
   min-height: 2.75rem;
@@ -191,12 +223,12 @@ textarea,
   text-align: center;
 }
 
-.workflow-tab:hover {
+.cockpit-rail .task-button:hover {
   background: #2a353d;
   color: var(--chrome-text);
 }
 
-.workflow-tab[aria-selected="true"] {
+.cockpit-rail .task-button[aria-current="page"] {
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 650;
@@ -469,6 +501,10 @@ textarea,
     "rail evidence";
 }
 
+.viewer-workspace:has(.evidence-dock.expanded) {
+  grid-template-rows: minmax(0, 1fr) minmax(16rem, 50vh);
+}
+
 .viewer-workspace[hidden] {
   display: none;
 }
@@ -525,6 +561,34 @@ section {
   grid-area: evidence;
   min-width: 0;
   overflow: auto;
+  background: var(--paper);
+}
+
+.evidence-dock > [data-evidence-expand] {
+  width: auto;
+  margin: 0.5rem;
+}
+
+.evidence-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 0.5rem 0.5rem;
+}
+
+.evidence-tabs button {
+  width: auto;
+}
+
+.evidence-tabs button[aria-selected="true"] {
+  border-color: var(--accent-ink);
+  color: var(--accent-ink);
+  font-weight: 650;
+}
+
+.evidence-report-link {
+  display: inline-block;
+  margin: 0 auto;
+  background: var(--graphite);
 }
 
 h1,
@@ -724,7 +788,6 @@ pre {
 }
 
 [data-embed="true"] .app-header,
-[data-embed="true"] .workflow-tabs,
 [data-embed="true"] .sidebar,
 [data-embed="true"] .cockpit-status,
 [data-embed="true"] .cockpit-rail,
@@ -752,9 +815,10 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
 @media (max-width: 1200px) {
   .viewer-workspace,
-  .viewer-workspace:has(.inspector[hidden]) {
+  .viewer-workspace:has(.inspector[hidden]),
+  .viewer-workspace:has(.evidence-dock.expanded) {
     grid-template-columns: 12rem minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(8rem, 20vh);
+    grid-template-rows: minmax(0, 1fr) 3.25rem;
     grid-template-areas:
       "rail viewport"
       "rail evidence";
@@ -767,11 +831,32 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     width: min(20rem, 100%);
     box-shadow: -0.5rem 0 1rem rgba(14, 20, 24, 0.35);
   }
+
+  .evidence-dock:not(.expanded) {
+    max-height: 3.25rem;
+    overflow: hidden;
+  }
+
+  .evidence-dock:not(.expanded) .evidence-tabs,
+  .evidence-dock:not(.expanded) .workflow-panel {
+    display: none;
+  }
+
+  .evidence-dock.expanded {
+    position: absolute;
+    z-index: 3;
+    inset: auto 0 0 12rem;
+    height: min(60vh, 32rem);
+    max-height: none;
+    overflow: auto;
+    box-shadow: 0 -0.5rem 1rem rgba(14, 20, 24, 0.35);
+  }
 }
 
 @media (max-width: 900px) {
   .app-header {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "identity report runtime";
   }
 
   .app-header .meta {
@@ -842,9 +927,13 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     display: none;
   }
 
-  .cockpit-rail .workflow-tab {
+  .cockpit-rail .task-button {
     width: auto;
     white-space: nowrap;
+  }
+
+  .evidence-dock.expanded {
+    left: 0;
   }
 
   .cockpit-rail .task-panel:not(:empty) {
@@ -861,8 +950,16 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
 @media (max-width: 520px) {
   .app-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "identity runtime"
+      "report report";
     min-height: 3.25rem;
     padding-inline: 0.7rem;
+  }
+
+  .report-link {
+    justify-self: start;
   }
 
   .app-kicker {
@@ -875,11 +972,11 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     text-overflow: ellipsis;
   }
 
-  .workflow-tabs {
+  [data-workflow-tabs] {
     padding-inline: 0.25rem;
   }
 
-  .workflow-tab {
+  .cockpit-rail .task-button {
     padding-inline: 0.65rem;
   }
 

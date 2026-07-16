@@ -71,13 +71,14 @@ export function cockpitStatusViewModel(review) {
     (row) => typeof row.sustained_pass === "boolean" && typeof row.expansion_pass === "boolean"
   );
   const compliancePassed = complianceRows.every((row) => row.sustained_pass === true && row.expansion_pass === true);
+  const authoritativeGoverning = complianceComplete ? governing : null;
   return {
     analysisStatus: review?.analysis_status ?? unavailable,
     complianceStatus: complianceComplete ? compliancePassed ? "Pass" : "Fail" : unavailable,
-    governingLoadCase: governing?.row?.load_case ?? unavailable,
+    governingLoadCase: authoritativeGoverning?.row?.load_case ?? unavailable,
     warningCount: (diagnostics?.rows ?? []).filter((row) => row.severity === "warning").length,
-    governingRatio: governing ? String(governing.ratio) : unavailable,
-    governingLocation: governing?.row?.entity_ref ?? unavailable
+    governingRatio: authoritativeGoverning ? String(authoritativeGoverning.ratio) : unavailable,
+    governingLocation: authoritativeGoverning?.row?.entity_ref ?? unavailable
   };
 }
 

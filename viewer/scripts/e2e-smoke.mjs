@@ -34,6 +34,15 @@ async function assertInspectorIdentity(page, objectId, entityRef) {
   assert.ok(text.includes(entityRef), `inspector identity must include ${entityRef}: ${text}`);
 }
 
+async function assertSelectedEvidenceTab(page, label) {
+  const selected = page.locator('[data-evidence-tabs] [role="tab"][aria-selected="true"]');
+  const focusable = page.locator('[data-evidence-tabs] [role="tab"][tabindex="0"]');
+  assert.equal(await selected.count(), 1);
+  assert.equal(await focusable.count(), 1);
+  assert.equal(await selected.textContent(), label);
+  assert.equal(await focusable.textContent(), label);
+}
+
 const scenarios = {
   smoke: {
     bundle: "/smoke-scene",
@@ -100,16 +109,41 @@ const scenarios = {
         await page.getByRole("tab", { name: "Governing Results", exact: true }).getAttribute("aria-selected"),
         "true"
       );
+      await assertSelectedEvidenceTab(page, "Governing Results");
+      await page.getByRole("heading", { level: 1, name: "Governing Results", exact: true }).waitFor();
+      assert.equal(await page.locator("[data-report-link]").isVisible(), true);
+      const headerLayout = await page.locator("[data-app-header]").evaluate((header) => ({
+        columns: getComputedStyle(header).gridTemplateColumns.split(" ").length,
+        centers: [...header.children].map((child) => {
+          const rect = child.getBoundingClientRect();
+          return rect.top + rect.height / 2;
+        })
+      }));
+      assert.equal(headerLayout.columns, 4);
+      assert.ok(
+        headerLayout.centers.every((center) => Math.abs(center - headerLayout.centers[0]) <= 1),
+        JSON.stringify(headerLayout)
+      );
+
+      await page.getByRole("tab", { name: "Reports", exact: true }).click();
+      await assertSelectedEvidenceTab(page, "Reports");
+      await page.getByRole("heading", { level: 1, name: "Reports", exact: true }).waitFor();
+      assert.match(await page.locator("[data-evidence-report-link]").getAttribute("href"), /code_aster_results\/index\.html$/);
+      await page.getByRole("tab", { name: "Governing Results", exact: true }).click();
       await rememberCanvas(page);
 
       await page.getByRole("button", { name: "Model", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Model", exact: true }).waitFor();
+      await assertSelectedEvidenceTab(page, "Governing Results");
+      await page.getByRole("heading", { level: 1, name: "Governing Results", exact: true }).waitFor();
       await assertSameCanvas(page);
       await page.getByRole("button", { name: "Load Cases", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Load Cases", exact: true }).waitFor();
+      await assertSelectedEvidenceTab(page, "Governing Results");
+      await assertSameCanvas(page);
+      await page.getByRole("button", { name: "Display", exact: true }).click();
+      await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
+      await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
 
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Hot");
@@ -142,18 +176,41 @@ const scenarios = {
       const compactStatus = await page.locator("[data-cockpit-status]").textContent();
       assert.match(compactStatus, /Analysis\s*solved/i);
       assert.match(compactStatus, /Governing case\s*Not available/i);
+      const compactExpand = page.locator("[data-evidence-expand]");
+      assert.equal(await compactExpand.getAttribute("aria-expanded"), "false");
+      await compactExpand.click();
+      assert.equal(await compactExpand.getAttribute("aria-expanded"), "true");
       await page.getByRole("tab", { name: "Warnings", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Issues", exact: true }).waitFor();
+      await page.getByRole("heading", { level: 1, name: "Warnings", exact: true }).waitFor();
+      await assertSelectedEvidenceTab(page, "Warnings");
       await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
       assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
+      await assertSelectedEvidenceTab(page, "Warnings");
       await assertSameCanvas(page);
+      await compactExpand.click();
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.innerWidth), 1440);
       await assertSameCanvas(page);
       await page.setViewportSize({ width: 1024, height: 768 });
+      const expandEvidence = page.locator("[data-evidence-expand]");
+      assert.equal(await expandEvidence.getAttribute("aria-expanded"), "false");
+      const collapsedDock = await page.locator("[data-evidence-dock]").evaluate((dock) => ({
+        height: dock.getBoundingClientRect().height,
+        position: getComputedStyle(dock).position
+      }));
+      await expandEvidence.click();
+      assert.equal(await expandEvidence.getAttribute("aria-expanded"), "true");
+      const expandedDock = await page.locator("[data-evidence-dock]").evaluate((dock) => ({
+        height: dock.getBoundingClientRect().height,
+        position: getComputedStyle(dock).position
+      }));
+      assert.equal(expandedDock.position, "absolute");
+      assert.ok(expandedDock.height > collapsedDock.height + 100, JSON.stringify({ collapsedDock, expandedDock }));
+      await page.getByRole("tab", { name: "Governing Results", exact: true }).click();
+      await assertSelectedEvidenceTab(page, "Governing Results");
+      const expandedCanvasHeight = await page.locator("[data-canvas]").evaluate((canvas) => canvas.getBoundingClientRect().height);
       await page.getByRole("button", { name: "Show element:pipe_hot in 3D", exact: true }).first().click();
       await page.waitForFunction(() => {
         const state = window.__tubaViewer?.state;
@@ -166,11 +223,16 @@ const scenarios = {
       });
       assert.equal(await page.locator("[data-canvas]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isVisible(), true);
+      assert.ok(
+        Math.abs(await page.locator("[data-canvas]").evaluate((canvas) => canvas.getBoundingClientRect().height) - expandedCanvasHeight) <= 1,
+        "opening the inspector must not make the expanded evidence overlay shrink the canvas"
+      );
       await assertInspectorIdentity(page, "object:pipe:hot", "element:pipe_hot");
       assert.equal(
         await page.locator('[data-workflow-panel] tr[data-entity-ref="element:pipe_hot"][data-selected="true"]').first().isVisible(),
         true
       );
+      await expandEvidence.click();
       const narrowLayout = await page.evaluate(() => {
         const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
         const inspector = document.querySelector("[data-inspector]");
@@ -266,7 +328,8 @@ const scenarios = {
       assert.deepEqual(loaded.renderDiagnostics, []);
 
       await page.getByRole("button", { name: "Results", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Results", exact: true }).waitFor();
+      assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
+      await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Operating");
       assert.equal(
@@ -322,6 +385,8 @@ const scenarios = {
       assert.equal(await page.getByRole("button", { name: "Review", exact: true }).count(), 0);
       assert.equal(await page.getByRole("tab", { name: "Warnings", exact: true }).count(), 1);
       assert.equal(await page.getByRole("tab", { name: "Governing Results", exact: true }).count(), 0);
+      assert.equal(await page.getByRole("tab", { name: "Reports", exact: true }).count(), 0);
+      assert.equal(await page.locator("[data-report-link]").isVisible(), false);
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-canvas]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
@@ -338,6 +403,44 @@ const scenarios = {
         review: null,
         reviewDiagnostics: []
       });
+    }
+  },
+  "partial-compliance-neutrality": {
+    bundle: "/test/fixtures/code_aster_results",
+    minimumObjects: 7,
+    async beforeNavigate(page) {
+      await page.route("**/test/fixtures/code_aster_results/review.json", async (route) => {
+        const response = await route.fetch();
+        const review = await response.json();
+        review.analysis_status = "compliance_complete";
+        review.tables.code_compliance = {
+          id: "code_compliance",
+          title: "Code compliance",
+          source: "compliance_report",
+          columns: [
+            { id: "load_case", label: "Load case" },
+            { id: "entity_ref", label: "Entity reference" },
+            { id: "sustained_ratio", label: "Sustained ratio" },
+            { id: "sustained_pass", label: "Sustained pass" },
+            { id: "expansion_ratio", label: "Expansion ratio" },
+            { id: "expansion_pass", label: "Expansion pass" }
+          ],
+          rows: [{
+            load_case: "Partial Operating",
+            entity_ref: "element:pipe_partial",
+            sustained_ratio: 0.74,
+            expansion_ratio: 0.86
+          }]
+        };
+        await route.fulfill({ response, json: review });
+      });
+    },
+    async run(page) {
+      const status = await page.locator("[data-cockpit-status]").textContent();
+      assert.match(status, /Compliance\s*Not available/i);
+      assert.match(status, /Governing case\s*Not available/i);
+      assert.match(status, /Governing ratio\s*Not available/i);
+      assert.doesNotMatch(status, /Partial Operating|pipe_partial|0\.86/);
     }
   },
   "embedded-review": {

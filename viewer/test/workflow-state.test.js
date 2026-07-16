@@ -78,14 +78,20 @@ test("workflow keyboard navigation supports Home and End in legacy mode", () => 
 });
 
 test("evidence keyboard navigation wraps and supports Home and End", () => {
+  assert.equal(typeof workflowState.getVisibleEvidenceTabIds, "function");
   assert.equal(typeof workflowState.evidenceTabForKey, "function");
+  const getVisibleEvidenceTabIds = workflowState.getVisibleEvidenceTabIds;
   const evidenceTabForKey = workflowState.evidenceTabForKey;
+  const reviewState = { review: reviewFixture };
 
-  assert.equal(evidenceTabForKey("summary", "ArrowLeft"), "compliance");
-  assert.equal(evidenceTabForKey("summary", "ArrowRight"), "diagnostics");
-  assert.equal(evidenceTabForKey("compliance", "ArrowRight"), "summary");
-  assert.equal(evidenceTabForKey("diagnostics", "Home"), "summary");
-  assert.equal(evidenceTabForKey("summary", "End"), "compliance");
-  assert.equal(evidenceTabForKey("summary", "Enter"), null);
-  assert.equal(evidenceTabForKey("model", "ArrowRight"), null);
+  assert.deepEqual(getVisibleEvidenceTabIds(reviewState), ["summary", "diagnostics", "compliance", "reports"]);
+  assert.deepEqual(getVisibleEvidenceTabIds({ review: null }), ["diagnostics"]);
+  assert.equal(evidenceTabForKey(reviewState, "summary", "ArrowLeft"), "reports");
+  assert.equal(evidenceTabForKey(reviewState, "summary", "ArrowRight"), "diagnostics");
+  assert.equal(evidenceTabForKey(reviewState, "reports", "ArrowRight"), "summary");
+  assert.equal(evidenceTabForKey(reviewState, "diagnostics", "Home"), "summary");
+  assert.equal(evidenceTabForKey(reviewState, "summary", "End"), "reports");
+  assert.equal(evidenceTabForKey(reviewState, "summary", "Enter"), null);
+  assert.equal(evidenceTabForKey(reviewState, "model", "ArrowRight"), null);
+  assert.equal(evidenceTabForKey({ review: null }, "diagnostics", "ArrowRight"), "diagnostics");
 });

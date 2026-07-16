@@ -30,7 +30,14 @@ import { applySceneDiffToState } from "./sceneDiff.js";
 import { createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
 import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
-import { WORKFLOW_TABS, createWorkflowState, evidenceTabForKey, getVisibleCockpitTaskIds, workflowTabForKey } from "./workflowState.js";
+import {
+  WORKFLOW_TABS,
+  createWorkflowState,
+  evidenceTabForKey,
+  getVisibleCockpitTaskIds,
+  getVisibleEvidenceTabIds,
+  workflowTabForKey
+} from "./workflowState.js";
 
 const dom = {
   appShell: document.querySelector("[data-embed]"),
@@ -84,6 +91,7 @@ let selectedObjectId = null;
 let currentSearch = "";
 let issueFilters = { operatingOnly: false };
 let evidenceExpanded = false;
+let activeEvidenceTab = "summary";
 const savedViews = [];
 let viewportRenderer = null;
 let lastRenderGraph = null;
@@ -121,6 +129,7 @@ async function loadBundle(bundleUrl, options = {}) {
   currentState = startupConfig.embed
     ? { ...loadedState, embed: true, activeTab: "3d" }
     : loadedState;
+  activeEvidenceTab = currentState.review ? "summary" : "diagnostics";
 }
 
 function render() {
@@ -187,38 +196,42 @@ function activateTask(id) {
 function renderEvidenceTabs() {
   dom.evidenceTabs.replaceChildren();
   dom.evidenceDock.hidden = currentState.embed;
-  const tabs = currentState.review
-    ? [
-        ["summary", "Governing Results"],
-        ["diagnostics", "Warnings"],
-        ["compliance", "Compliance"]
-      ]
-    : [["diagnostics", "Warnings"]];
-  const focusableId = tabs.some(([id]) => id === currentState.activeTab)
-    ? currentState.activeTab
-    : tabs[0][0];
+  const labels = new Map([
+    ["summary", "Governing Results"],
+    ["diagnostics", "Warnings"],
+    ["compliance", "Compliance"],
+    ["reports", "Reports"]
+  ]);
+  const tabs = getVisibleEvidenceTabIds(currentState).map((id) => [id, labels.get(id)]);
   for (const [id, label] of tabs) {
     const button = document.createElement("button");
     button.type = "button";
     button.id = `evidence-tab-${id}`;
     button.setAttribute("role", "tab");
     button.setAttribute("aria-controls", dom.workflowPanel.id);
-    button.setAttribute("aria-selected", String(id === currentState.activeTab));
-    button.tabIndex = id === focusableId ? 0 : -1;
+    button.setAttribute("aria-selected", String(id === activeEvidenceTab));
+    button.tabIndex = id === activeEvidenceTab ? 0 : -1;
     button.textContent = label;
-    button.addEventListener("click", () => activateTask(id));
+    button.addEventListener("click", () => activateEvidence(id));
     button.dataset.evidenceTab = id;
     button.addEventListener("keydown", (event) => {
-      const nextId = evidenceTabForKey(id, event.key);
+      const nextId = evidenceTabForKey(currentState, id, event.key);
       if (!nextId || !dom.evidenceTabs.querySelector(`[data-evidence-tab="${nextId}"]`)) return;
       event.preventDefault();
-      activateTask(nextId);
+      activateEvidence(nextId);
       dom.evidenceTabs.querySelector(`[data-evidence-tab="${nextId}"]`)?.focus();
     });
     dom.evidenceTabs.append(button);
   }
   dom.evidenceDock.classList.toggle("expanded", evidenceExpanded);
+  dom.evidenceExpand.setAttribute("aria-expanded", String(evidenceExpanded));
   dom.evidenceExpand.textContent = evidenceExpanded ? "Collapse Evidence" : "Expand Evidence";
+}
+
+function activateEvidence(id) {
+  if (!getVisibleEvidenceTabIds(currentState).includes(id)) return;
+  activeEvidenceTab = id;
+  render();
 }
 
 function renderTaskPanel() {
@@ -259,15 +272,16 @@ function renderSavedViews() {
 
 function renderWorkflow() {
   dom.workflowPanel.replaceChildren();
-  const activeTab = currentState.activeTab;
-  if (["summary", "diagnostics", "compliance"].includes(activeTab)) {
-    dom.workflowPanel.setAttribute("aria-labelledby", `evidence-tab-${activeTab}`);
-  } else {
-    dom.workflowPanel.removeAttribute("aria-labelledby");
-  }
-  const tab = WORKFLOW_TABS.find((candidate) => candidate.id === activeTab);
+  const activeTab = activeEvidenceTab;
+  dom.workflowPanel.setAttribute("aria-labelledby", `evidence-tab-${activeTab}`);
+  const headingLabels = {
+    summary: "Governing Results",
+    diagnostics: "Warnings",
+    compliance: "Compliance",
+    reports: "Reports"
+  };
   const heading = document.createElement("h1");
-  heading.textContent = tab?.label ?? "Engineering review";
+  heading.textContent = headingLabels[activeTab] ?? "Engineering review";
   dom.workflowPanel.append(heading);
 
   if (activeTab === "diagnostics") {
@@ -276,7 +290,17 @@ function renderWorkflow() {
     return;
   }
 
-  if (!currentState.review || activeTab === "3d") {
+  if (activeTab === "reports") {
+    const link = document.createElement("a");
+    link.className = "report-link evidence-report-link";
+    link.dataset.evidenceReportLink = "";
+    link.href = `${currentBundleUrl}/index.html`;
+    link.textContent = "Open printable engineering report";
+    dom.workflowPanel.append(link);
+    return;
+  }
+
+  if (!currentState.review) {
     return;
   }
   const model = workflowViewModel(currentState.review, activeTab);
@@ -291,7 +315,7 @@ function renderWorkflow() {
   if (activeTab === "summary") {
     dom.workflowPanel.append(renderReviewOverview(currentState.review));
     for (const table of model.tables) {
-      dom.workflowPanel.append(renderSummaryTable(table));
+      dom.workflowPanel.append(table.id === "result_summary" ? renderReviewTable(table) : renderSummaryTable(table));
     }
     return;
   }
@@ -323,7 +347,12 @@ function renderCockpitStatus() {
     ["Compliance", status.complianceStatus],
     ["Governing case", status.governingLoadCase],
     ["Attention", `${status.warningCount} warning(s)`],
-    ["Governing ratio", status.governingRatio]
+    [
+      "Governing ratio",
+      status.governingRatio === "Not available"
+        ? status.governingRatio
+        : `${status.governingRatio} at ${status.governingLocation}`
+    ]
   ]) {
     dom.cockpitStatus.append(renderOverviewCard(label, value, label === "Analysis" ? "status" : "text"));
   }
@@ -625,7 +654,12 @@ function renderHeader() {
   dom.sceneMeta.textContent = currentState.review
     ? `${currentState.review.model_standard} · Revision ${currentState.review.model_revision} · ${currentState.review.units.length} / ${currentState.review.units.force} / ${currentState.review.units.stress}`
     : `${currentState.objects.length} objects | ${currentState.issues.length} issues`;
-  dom.reportLink.href = `${currentBundleUrl}/index.html`;
+  dom.reportLink.hidden = !currentState.review;
+  if (currentState.review) {
+    dom.reportLink.href = `${currentBundleUrl}/index.html`;
+  } else {
+    dom.reportLink.removeAttribute("href");
+  }
 }
 
 function renderLayers() {
@@ -1187,8 +1221,7 @@ dom.searchInput.addEventListener("input", () => {
 
 dom.evidenceExpand.addEventListener("click", () => {
   evidenceExpanded = !evidenceExpanded;
-  dom.evidenceDock.classList.toggle("expanded", evidenceExpanded);
-  dom.evidenceExpand.textContent = evidenceExpanded ? "Collapse Evidence" : "Expand Evidence";
+  renderEvidenceTabs();
 });
 
 main();

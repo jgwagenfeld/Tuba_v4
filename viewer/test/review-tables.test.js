@@ -136,11 +136,10 @@ test("cockpit status keeps partial compliance evidence neutral", () => {
       code_compliance: {
         ...reviewWithCompliance.tables.code_compliance,
         rows: [{
-          load_case: "Operating",
+          load_case: "Partial Operating",
           entity_ref: "element:pipe_partial",
-          sustained_ratio: null,
-          sustained_pass: true,
-          expansion_ratio: ""
+          sustained_ratio: 0.74,
+          expansion_ratio: 0.86
         }]
       }
     }
@@ -148,6 +147,7 @@ test("cockpit status keeps partial compliance evidence neutral", () => {
 
   const status = cockpitStatusViewModel(review);
   assert.equal(status.complianceStatus, "Not available");
+  assert.equal(status.governingLoadCase, "Not available");
   assert.equal(status.governingRatio, "Not available");
   assert.equal(status.governingLocation, "Not available");
 });

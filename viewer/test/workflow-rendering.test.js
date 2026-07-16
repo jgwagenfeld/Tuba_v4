@@ -28,14 +28,15 @@ test("workflow rendering keyboard navigation wraps and supports Home and End", (
   assert.equal(workflowTabForKey(state, "results", "Enter"), null);
 });
 
-test("workflow rendering provides sticky tabs, horizontal tables, and visible focus", async () => {
+test("workflow rendering styles real task buttons, horizontal tables, and visible focus", async () => {
   const css = await readViewerFile("src/styles.css");
 
-  assert.match(css, /\.workflow-tabs\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /\[data-workflow-tabs\]\s*\{/s);
   assert.match(css, /\.review-table-scroll\s*\{[^}]*overflow-x:\s*auto/s);
-  assert.match(css, /\.workflow-tab\[aria-selected="true"\]/);
+  assert.match(css, /\.task-button\[aria-current="page"\]/);
+  assert.doesNotMatch(css, /\.workflow-tab\b/);
   assert.match(css, /:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus-on-light\)/s);
-  assert.match(css, /\.workflow-tabs\s+:focus-visible,[\s\S]*outline-color:\s*var\(--focus-on-dark\)/s);
+  assert.match(css, /\[data-workflow-tabs\]\s+:focus-visible,[\s\S]*outline-color:\s*var\(--focus-on-dark\)/s);
   assert.match(css, /\.visually-hidden\s*\{[^}]*position:\s*absolute[^}]*clip:/s);
   assert.match(css, /\[data-diagnostic-list\]\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
@@ -45,9 +46,12 @@ test("workflow rendering uses the responsive cockpit grid and preserves embed mo
   const css = await readViewerFile("src/styles.css");
 
   assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)/s);
+  assert.match(css, /\.app-header\s*\{[^}]*grid-template-columns:\s*minmax\(12rem, 1fr\) minmax\(16rem, auto\) auto auto/s);
   assert.match(css, /\.cockpit-status\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/s);
   assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"rail viewport inspector"[^;]*"rail evidence inspector"/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.inspector[\s\S]*position:\s*absolute/);
+  assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.evidence-dock:not\(\.expanded\)[^}]*max-height:\s*3\.25rem/s);
+  assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.evidence-dock\.expanded\s*\{[^}]*position:\s*absolute[^}]*height:\s*min\(60vh, 32rem\)/s);
   assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*height:\s*auto[^}]*max-height:\s*8rem[^}]*overflow-x:\s*auto[^}]*overflow-y:\s*hidden/s);
   assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-status\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(8rem, 1fr\)\)[^}]*overflow-x:\s*auto/s);
   assert.match(css, /\[data-embed="true"\][\s\S]*grid-template-areas:\s*"viewport"/);
@@ -76,22 +80,33 @@ test("workflow rendering keeps the viewport persistent and separates tasks from 
   assert.match(app, /\["summary", "Governing Results"\]/);
   assert.match(app, /\["diagnostics", "Warnings"\]/);
   assert.match(app, /\["compliance", "Compliance"\]/);
-  assert.match(app, /const focusableId = tabs\.some\(\(\[id\]\) => id === currentState\.activeTab\)/);
-  assert.match(app, /button\.tabIndex = id === focusableId \? 0 : -1/);
-  assert.match(app, /evidenceTabForKey\(id, event\.key\)/);
-  assert.match(app, /activateTask\(nextId\)[\s\S]*data-evidence-tab="\$\{nextId\}"[\s\S]*\.focus\(\)/);
+  assert.match(app, /\["reports", "Reports"\]/);
+  assert.match(app, /let activeEvidenceTab\s*=\s*"summary"/);
+  assert.match(app, /button\.setAttribute\("aria-selected", String\(id === activeEvidenceTab\)\)/);
+  assert.match(app, /button\.tabIndex = id === activeEvidenceTab \? 0 : -1/);
+  assert.match(app, /evidenceTabForKey\(currentState, id, event\.key\)/);
+  assert.match(app, /activateEvidence\(nextId\)[\s\S]*data-evidence-tab="\$\{nextId\}"[\s\S]*\.focus\(\)/);
+  assert.match(app, /const activeTab = activeEvidenceTab/);
   assert.doesNotMatch(app, /dom\.viewerWorkspace\.hidden\s*=/);
 });
 
 test("workflow rendering adds cockpit status, report links, saved views, and reverse selection highlighting", async () => {
   const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
 
   assert.match(app, /cockpitStatusViewModel\(currentState\.review\)/);
   assert.match(app, /dom\.reportLink\.href\s*=\s*`\$\{currentBundleUrl\}\/index\.html`/);
+  assert.match(app, /dom\.reportLink\.hidden\s*=\s*!currentState\.review/);
+  assert.match(app, /dataset\.evidenceReportLink/);
+  assert.match(app, /setAttribute\("aria-expanded", String\(evidenceExpanded\)\)/);
+  assert.match(app, /status\.governingLocation/);
   assert.match(app, /saveViewState\(currentState, name\)/);
   assert.match(app, /restoreViewState\(currentState, view\)/);
   assert.match(app, /tableRow\.dataset\.selected\s*=\s*"true"/);
   assert.match(app, /dom\.inspector\.hidden\s*=\s*sections\.length === 0 && !issueSummary/);
+
+  assert.match(css, /\.report-link\s*\{[^}]*color:\s*var\(--accent\)/s);
+  assert.match(css, /\.report-link:focus-visible\s*\{[^}]*outline-color:\s*var\(--focus-on-dark\)/s);
 });
 
 test("workflow rendering consolidates diagnostics, provenance, issues, and load diagnostics with trace fields", async () => {
@@ -114,7 +129,7 @@ test("workflow rendering parses embed once and pins reloads to the display workf
   assert.match(app, /const startupConfig\s*=/);
   assert.match(app, /activeTab:\s*"3d"/);
   assert.match(css, /\[data-embed="true"\]\s+\.app-header[\s\S]*display:\s*none/);
-  assert.match(css, /\[data-embed="true"\]\s+\.workflow-tabs[\s\S]*display:\s*none/);
+  assert.match(css, /\[data-embed="true"\]\s+\.cockpit-rail[\s\S]*display:\s*none/);
 });
 
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {
