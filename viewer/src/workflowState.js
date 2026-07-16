@@ -55,6 +55,11 @@ export function evidenceTabForKey(state, currentTabId, key) {
   return tabForKey(getVisibleEvidenceTabIds(state), currentTabId, key);
 }
 
+export function evidenceTabForReload(state, currentTabId) {
+  const visibleIds = getVisibleEvidenceTabIds(state);
+  return visibleIds.includes(currentTabId) ? currentTabId : visibleIds[0];
+}
+
 function tabForKey(tabIds, currentTabId, key) {
   const currentIndex = tabIds.indexOf(currentTabId);
   if (currentIndex < 0 || tabIds.length === 0) {

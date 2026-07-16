@@ -252,6 +252,27 @@ const scenarios = {
         `inspector must overlap the canvas as a drawer: ${JSON.stringify(narrowLayout)}`
       );
       assert.ok(narrowLayout.canvas.width >= 480, `canvas width is too small: ${JSON.stringify(narrowLayout)}`);
+      await page.setViewportSize({ width: 800, height: 900 });
+      await expandEvidence.click();
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const compactExpandedLayout = await page.evaluate(() => {
+        const workspace = document.querySelector("[data-viewer-workspace]");
+        const workspaceRect = workspace.getBoundingClientRect();
+        const canvasRect = document.querySelector("[data-canvas]").getBoundingClientRect();
+        return {
+          columns: getComputedStyle(workspace).gridTemplateColumns.split(" ").length,
+          workspace: { left: workspaceRect.left, right: workspaceRect.right },
+          canvas: { left: canvasRect.left, right: canvasRect.right, width: canvasRect.width }
+        };
+      });
+      assert.equal(compactExpandedLayout.columns, 1, JSON.stringify(compactExpandedLayout));
+      assert.ok(
+        Math.abs(compactExpandedLayout.canvas.left - compactExpandedLayout.workspace.left) <= 1 &&
+          Math.abs(compactExpandedLayout.canvas.right - compactExpandedLayout.workspace.right) <= 1,
+        JSON.stringify(compactExpandedLayout)
+      );
+      assert.ok(compactExpandedLayout.canvas.width >= 480, JSON.stringify(compactExpandedLayout));
+      await expandEvidence.click();
       await page.setViewportSize({ width: 1440, height: 900 });
 
       const reviewContext = await page.evaluate(() => ({

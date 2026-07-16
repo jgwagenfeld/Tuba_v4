@@ -95,3 +95,13 @@ test("evidence keyboard navigation wraps and supports Home and End", () => {
   assert.equal(evidenceTabForKey(reviewState, "model", "ArrowRight"), null);
   assert.equal(evidenceTabForKey({ review: null }, "diagnostics", "ArrowRight"), "diagnostics");
 });
+
+test("evidence reload preserves visible tabs and falls back when a destination disappears", () => {
+  assert.equal(typeof workflowState.evidenceTabForReload, "function");
+  const evidenceTabForReload = workflowState.evidenceTabForReload;
+
+  assert.equal(evidenceTabForReload({ review: reviewFixture }, "reports"), "reports");
+  assert.equal(evidenceTabForReload({ review: reviewFixture }, "compliance"), "compliance");
+  assert.equal(evidenceTabForReload({ review: null }, "reports"), "diagnostics");
+  assert.equal(evidenceTabForReload({ review: reviewFixture }, "unknown"), "summary");
+});

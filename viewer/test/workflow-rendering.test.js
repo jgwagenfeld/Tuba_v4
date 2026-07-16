@@ -82,6 +82,7 @@ test("workflow rendering keeps the viewport persistent and separates tasks from 
   assert.match(app, /\["compliance", "Compliance"\]/);
   assert.match(app, /\["reports", "Reports"\]/);
   assert.match(app, /let activeEvidenceTab\s*=\s*"summary"/);
+  assert.match(app, /activeEvidenceTab\s*=\s*evidenceTabForReload\(currentState, activeEvidenceTab\)/);
   assert.match(app, /button\.setAttribute\("aria-selected", String\(id === activeEvidenceTab\)\)/);
   assert.match(app, /button\.tabIndex = id === activeEvidenceTab \? 0 : -1/);
   assert.match(app, /evidenceTabForKey\(currentState, id, event\.key\)/);

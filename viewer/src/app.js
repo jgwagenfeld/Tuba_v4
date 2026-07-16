@@ -34,6 +34,7 @@ import {
   WORKFLOW_TABS,
   createWorkflowState,
   evidenceTabForKey,
+  evidenceTabForReload,
   getVisibleCockpitTaskIds,
   getVisibleEvidenceTabIds,
   workflowTabForKey
@@ -129,7 +130,7 @@ async function loadBundle(bundleUrl, options = {}) {
   currentState = startupConfig.embed
     ? { ...loadedState, embed: true, activeTab: "3d" }
     : loadedState;
-  activeEvidenceTab = currentState.review ? "summary" : "diagnostics";
+  activeEvidenceTab = evidenceTabForReload(currentState, activeEvidenceTab);
 }
 
 function render() {
