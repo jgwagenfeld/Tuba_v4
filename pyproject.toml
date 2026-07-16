@@ -22,7 +22,6 @@ dependencies = [
     "numpy>=1.20",
     "scipy>=1.7",
     "meshio>=5.0",
-    "pyvista>=0.38",
     "jsonschema>=4.0",
     "gmsh>=4.11",
     "trimesh>=4.0",
@@ -30,6 +29,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# PyVista (pulls VTK, ~100 MB) backs the tuba.plotting quick-look/export path
+# only; the web-review path (tuba.visualization + viewer/) does not need it.
+viz = [
+    "pyvista>=0.38",
+]
 code-aster-rmed = [
     "h5py>=3.10",
 ]

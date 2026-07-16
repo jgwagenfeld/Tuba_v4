@@ -38,7 +38,7 @@ def _require_pyvista():
     if not _HAS_PYVISTA:
         raise ImportError(
             "PyVista is required for visualization. "
-            "Install it with: pip install pyvista"
+            "Install it with: pip install 'tuba[viz]'"
         )
 
 

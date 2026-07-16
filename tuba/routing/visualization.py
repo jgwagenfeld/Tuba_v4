@@ -22,7 +22,8 @@ def _require_pyvista() -> None:
     if not _HAS_PYVISTA:
         raise ImportError(
             "PyVista is required for route visualization. "
-            "Install notebook support with: pip install 'jupyterlab>=3' ipywidgets 'pyvista[all,trame]'"
+            "Install it with: pip install 'tuba[viz]' "
+            "(or 'tuba[notebook-viz]' for interactive notebook rendering)."
         )
 
 

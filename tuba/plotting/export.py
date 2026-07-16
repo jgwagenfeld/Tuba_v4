@@ -30,7 +30,7 @@ except ImportError:
 
 def _require_pyvista():
     if not _HAS_PYVISTA:
-        raise ImportError("PyVista is required for export: pip install pyvista")
+        raise ImportError("PyVista is required for export: pip install 'tuba[viz]'")
 
 
 # ---------------------------------------------------------------------------
