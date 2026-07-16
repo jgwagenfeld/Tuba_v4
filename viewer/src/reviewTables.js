@@ -59,18 +59,21 @@ export function cockpitStatusViewModel(review) {
   const compliance = table("code_compliance");
   const complianceRows = compliance?.rows ?? [];
   const governing = complianceRows.reduce((best, row) => {
-    const candidates = [
-      { ratio: Number(row.sustained_ratio), kind: "Sustained" },
-      { ratio: Number(row.expansion_ratio), kind: "Expansion" }
-    ].filter(({ ratio }) => Number.isFinite(ratio));
-    const candidate = candidates.sort((left, right) => right.ratio - left.ratio)[0];
-    return candidate && (!best || candidate.ratio > best.ratio) ? { ...candidate, row } : best;
+    const candidate = [row.sustained_ratio, row.expansion_ratio]
+      .filter((value) => value !== null && value !== undefined && value !== "")
+      .map(Number)
+      .filter(Number.isFinite)
+      .sort((left, right) => right - left)[0];
+    return candidate !== undefined && (!best || candidate > best.ratio) ? { ratio: candidate, row } : best;
   }, null);
   const diagnostics = table("diagnostics");
+  const complianceComplete = complianceRows.length > 0 && complianceRows.every(
+    (row) => typeof row.sustained_pass === "boolean" && typeof row.expansion_pass === "boolean"
+  );
   const compliancePassed = complianceRows.every((row) => row.sustained_pass === true && row.expansion_pass === true);
   return {
     analysisStatus: review?.analysis_status ?? unavailable,
-    complianceStatus: complianceRows.length === 0 ? unavailable : compliancePassed ? "Pass" : "Fail",
+    complianceStatus: complianceComplete ? compliancePassed ? "Pass" : "Fail" : unavailable,
     governingLoadCase: governing?.row?.load_case ?? unavailable,
     warningCount: (diagnostics?.rows ?? []).filter((row) => row.severity === "warning").length,
     governingRatio: governing ? String(governing.ratio) : unavailable,

@@ -128,6 +128,30 @@ test("cockpit status keeps missing compliance neutral", () => {
   assert.equal(status.governingLocation, "Not available");
 });
 
+test("cockpit status keeps partial compliance evidence neutral", () => {
+  const review = {
+    ...reviewWithCompliance,
+    tables: {
+      ...reviewWithCompliance.tables,
+      code_compliance: {
+        ...reviewWithCompliance.tables.code_compliance,
+        rows: [{
+          load_case: "Operating",
+          entity_ref: "element:pipe_partial",
+          sustained_ratio: null,
+          sustained_pass: true,
+          expansion_ratio: ""
+        }]
+      }
+    }
+  };
+
+  const status = cockpitStatusViewModel(review);
+  assert.equal(status.complianceStatus, "Not available");
+  assert.equal(status.governingRatio, "Not available");
+  assert.equal(status.governingLocation, "Not available");
+});
+
 test("review table maps workflow tabs to stable authoritative table ids", () => {
   assert.deepEqual(tableIdsForWorkflow("model"), ["nodes", "line_list", "section_schedule", "materials", "supports"]);
   assert.deepEqual(tableIdsForWorkflow("load-cases"), ["load_cases", "studies"]);
