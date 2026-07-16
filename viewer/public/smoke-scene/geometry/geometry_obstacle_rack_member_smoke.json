@@ -1,13 +1,1 @@
-{
-  "asset_id": "geometry:obstacle:rack_member_smoke",
-  "object_ids": ["object:obstacle:rack_member_smoke"],
-  "generation_config": {
-    "source": "tuba.obstacle",
-    "obstacle": {
-      "id": "rack_member_smoke",
-      "type": "cuboid",
-      "min_point": [1.35, -0.25, -0.2],
-      "max_point": [1.75, 0.25, 0.2]
-    }
-  }
-}
+{"asset_id":"geometry:obstacle:rack_member_smoke","generation_config":{"obstacle":{"id":"rack_member_smoke","max_point":[1.75,0.25,0.2],"min_point":[1.35,-0.25,-0.2],"type":"cuboid"},"source":"tuba.obstacle"},"object_ids":["object:obstacle:rack_member_smoke"]}

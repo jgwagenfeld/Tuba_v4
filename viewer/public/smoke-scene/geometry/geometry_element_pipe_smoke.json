@@ -1,10 +1,1 @@
-{
-  "asset_id": "geometry:element:pipe_smoke",
-  "object_ids": ["object:element:pipe_smoke"],
-  "generation_config": {
-    "source": "tuba.element",
-    "entity_ref": "element:pipe_smoke",
-    "points": [[0, 0, 0], [3, 0, 0]],
-    "radius_m": 0.08
-  }
-}
+{"asset_id":"geometry:element:pipe_smoke","generation_config":{"entity_ref":"element:pipe_smoke","points":[[0,0,0],[3,0,0]],"radius_m":0.08,"source":"tuba.element"},"object_ids":["object:element:pipe_smoke"]}

@@ -1,9 +1,1 @@
-{
-  "asset_id": "geometry:analysis_mesh:smoke:element:pipe_smoke",
-  "object_ids": ["object:analysis_mesh:smoke:element:pipe_smoke"],
-  "generation_config": {
-    "source": "tuba.analysis_mesh.element",
-    "mesh_id": "analysis_mesh:smoke",
-    "points": [[0, 0.16, 0.12], [3, 0.16, 0.12]]
-  }
-}
+{"asset_id":"geometry:analysis_mesh:smoke:element:pipe_smoke","generation_config":{"mesh_id":"analysis_mesh:smoke","points":[[0,0.16,0.12],[3,0.16,0.12]],"source":"tuba.analysis_mesh.element"},"object_ids":["object:analysis_mesh:smoke:element:pipe_smoke"]}

@@ -1,12 +1,1 @@
-{
-  "asset_id": "geometry:solver_result:reaction:Hot:N0",
-  "object_ids": ["object:solver_result:reaction:Hot:N0"],
-  "generation_config": {
-    "source": "tuba.solver_results",
-    "result_type": "reaction",
-    "load_case": "Hot",
-    "start": [0, 0, 0],
-    "end": [0, 0, 0.75],
-    "reaction_force_n": [0, 0, 750]
-  }
-}
+{"asset_id":"geometry:solver_result:reaction:Hot:N0","generation_config":{"end":[0,0,0.75],"load_case":"Hot","reaction_force_n":[0,0,750],"result_type":"reaction","source":"tuba.solver_results","start":[0,0,0]},"object_ids":["object:solver_result:reaction:Hot:N0"]}

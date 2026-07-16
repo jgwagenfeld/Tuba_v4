@@ -51,7 +51,11 @@ def write_scene_bundle(scene: VisualizationScene, path: str | Path) -> SceneBund
         asset_payload["hash"] = asset_hash
         geometry_payload["hash"] = asset_hash
         scene_payload["geometry_assets"].append(asset_payload)
-        _write_json(root / asset_payload["uri"], geometry_payload)
+        # Per-asset geometry payloads are machine-only point clouds (a tuyau
+        # subpoint asset holds ~24k glyphs); write them compact. The content hash
+        # above is computed over the canonical compact form, so dropping the
+        # indentation changes neither the data nor the hash.
+        _write_json(root / asset_payload["uri"], geometry_payload, compact=True)
 
     # Validate the payload that consumers will actually read.
     VisualizationScene.from_dict(scene_payload).validate()
@@ -108,9 +112,12 @@ def _object_map(objects: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return result
 
 
-def _write_json(path: Path, data: Any) -> None:
+def _write_json(path: Path, data: Any, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(data, indent=2, sort_keys=True)
+    if compact:
+        text = json.dumps(data, separators=(",", ":"), sort_keys=True)
+    else:
+        text = json.dumps(data, indent=2, sort_keys=True)
     if path.exists() and path.read_text(encoding="utf-8") == text:
         return
     path.write_text(text, encoding="utf-8")

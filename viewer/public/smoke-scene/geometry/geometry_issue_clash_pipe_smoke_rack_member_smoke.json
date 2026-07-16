@@ -1,14 +1,1 @@
-{
-  "asset_id": "geometry:issue:clash:pipe_smoke:rack_member_smoke",
-  "object_ids": ["object:issue:clash:pipe_smoke:rack_member_smoke"],
-  "generation_config": {
-    "source": "tuba.clash",
-    "issue_id": "issue:clash:pipe_smoke:rack_member_smoke",
-    "point": [1.55, 0.07, 0],
-    "clash": {
-      "severity": "operating_only_hard",
-      "distance_m": 0.04,
-      "penetration_m": 0.02
-    }
-  }
-}
+{"asset_id":"geometry:issue:clash:pipe_smoke:rack_member_smoke","generation_config":{"clash":{"distance_m":0.04,"penetration_m":0.02,"severity":"operating_only_hard"},"issue_id":"issue:clash:pipe_smoke:rack_member_smoke","point":[1.55,0.07,0],"source":"tuba.clash"},"object_ids":["object:issue:clash:pipe_smoke:rack_member_smoke"]}
