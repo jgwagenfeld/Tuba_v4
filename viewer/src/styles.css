@@ -962,10 +962,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     gap: 0.25rem;
   }
 
-  .cockpit-rail [data-workflow-tabs] h2 {
-    display: none;
-  }
-
   .cockpit-rail .task-button {
     width: auto;
     white-space: nowrap;
