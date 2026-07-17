@@ -67,7 +67,9 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "evidence-expand",
     "evidence-tabs",
     "layer-list",
-    "overlay-list",
+    "display-strip",
+    "category-switches",
+    "saved-views",
     "result-controls",
     "result-legend",
     "hotspot-list",
@@ -91,7 +93,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<section[^>]*class="evidence-dock"[^>]*aria-label="Engineering evidence"[^>]*data-evidence-dock/);
   assert.match(html, /<button[^>]*type="button"[^>]*aria-expanded="false"[^>]*data-evidence-expand/);
   assert.doesNotMatch(html, /class="[^"]*\bworkflow-tabs\b/);
-  for (const inventory of ["layer-list", "overlay-list", "tree", "object-list"]) {
+  for (const inventory of ["layer-list", "tree", "object-list"]) {
     assert.match(html, new RegExp(`<details[^>]*>[\\s\\S]*?data-${inventory}(?:=|[\\s>])[\\s\\S]*?<\\/details>`));
   }
   assert.match(html, /<canvas[^>]*data-canvas[^>]*tabindex="0"[^>]*aria-label="Interactive 3D engineering review viewport"/);
