@@ -371,6 +371,11 @@ const scenarios = {
       assert.deepEqual(loaded.parserDiagnosticOverlays, []);
       assert.deepEqual(loaded.renderDiagnostics, []);
 
+      // The summary preset hides analysis mesh on load, dropping the scene to 37 renderable
+      // objects — below MAX_HOVER_PICK_OBJECTS. Re-enable it so the hover-skip path is exercised.
+      await page.getByLabel("Analysis mesh", { exact: true }).check();
+      await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.renderableCount ?? 0) > 50);
+
       const hoverBurst = await page.locator("[data-canvas]").evaluate((canvas) => {
         const rect = canvas.getBoundingClientRect();
         const nativeRequestAnimationFrame = window.requestAnimationFrame;
