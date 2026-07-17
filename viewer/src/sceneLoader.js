@@ -312,7 +312,7 @@ const CATEGORY_ORDER = [
 export function categoryForLayerId(layerId) {
   const id = String(layerId);
   if (id === "overlay:physical_envelope") return "envelopes";
-  if (id === "overlay:reaction_vector" || id === "overlay:displacement_vector") return "results";
+  if (id === "overlay:solver_result") return "results";
   if (id.startsWith("overlay:")) return "overlays";
   if (id.startsWith("analysis_mesh:")) return "analysis_mesh";
   if (id.startsWith("result:") || id.startsWith("solver_result:") || id.startsWith("deformed:")) return "results";

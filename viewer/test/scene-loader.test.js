@@ -211,8 +211,8 @@ test("categoryForLayerId maps namespaces to display categories", () => {
 
 test("categoryForLayerId co-categorizes double-gate overlay layers with their objects", () => {
   assert.equal(categoryForLayerId("overlay:physical_envelope"), "envelopes");
-  assert.equal(categoryForLayerId("overlay:reaction_vector"), "results");
-  assert.equal(categoryForLayerId("overlay:displacement_vector"), "results");
+  // Vector/result overlays are emitted with kind "solver_result".
+  assert.equal(categoryForLayerId("overlay:solver_result"), "results");
   // Other overlay gates stay in the Overlays category.
   assert.equal(categoryForLayerId("overlay:clash"), "overlays");
 });
@@ -227,6 +227,18 @@ test("categorizeLayers puts both envelope gates under the Envelopes category", (
   assert.ok(envelopes, "envelopes category is present");
   assert.ok(envelopes.layerIds.includes("physical_envelope:insulation"));
   assert.ok(envelopes.layerIds.includes("overlay:physical_envelope"));
+});
+
+test("categorizeLayers puts both vector gates under the Results category", () => {
+  const layers = {
+    "result:reaction": { id: "result:reaction", count: 7 },
+    "overlay:solver_result": { id: "overlay:solver_result", count: 1, source: "overlay" }
+  };
+  const categories = categorizeLayers(layers);
+  const results = categories.find((category) => category.id === "results");
+  assert.ok(results, "results category is present");
+  assert.ok(results.layerIds.includes("result:reaction"));
+  assert.ok(results.layerIds.includes("overlay:solver_result"));
 });
 
 test("categorizeLayers orders categories and collapses mesh groups", () => {
