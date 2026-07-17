@@ -298,3 +298,60 @@ function labelForLayer(key) {
     .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
     .join(" ");
 }
+
+const CATEGORY_ORDER = [
+  { id: "geometry", label: "Geometry" },
+  { id: "analysis_mesh", label: "Analysis mesh" },
+  { id: "results", label: "Results" },
+  { id: "overlays", label: "Overlays" },
+  { id: "envelopes", label: "Envelopes" },
+  { id: "other", label: "Other" }
+];
+
+export function categoryForLayerId(layerId) {
+  const id = String(layerId);
+  if (id.startsWith("overlay:")) return "overlays";
+  if (id.startsWith("analysis_mesh:")) return "analysis_mesh";
+  if (id.startsWith("result:") || id.startsWith("solver_result:") || id.startsWith("deformed:")) return "results";
+  if (id.startsWith("physical_envelope:")) return "envelopes";
+  if (!id.includes(":")) return "geometry";
+  return "other";
+}
+
+export function categorizeLayers(layers) {
+  const byCategory = new Map(CATEGORY_ORDER.map((category) => [category.id, []]));
+  for (const layer of Object.values(layers ?? {})) {
+    byCategory.get(categoryForLayerId(layer.id)).push(layer);
+  }
+  const result = [];
+  for (const category of CATEGORY_ORDER) {
+    const members = byCategory.get(category.id);
+    if (members.length === 0) continue;
+    const leaves = [];
+    const groupLeaves = [];
+    for (const layer of members) {
+      const entry = { layerId: layer.id, label: leafLabel(layer.id), count: layer.count };
+      if (/:group:[^:]+$/.test(layer.id)) {
+        groupLeaves.push(entry);
+      } else {
+        leaves.push(entry);
+      }
+    }
+    result.push({
+      id: category.id,
+      label: category.label,
+      layerIds: members.map((layer) => layer.id),
+      leaves,
+      groups: groupLeaves.length > 0 ? [{ label: "Groups", leaves: groupLeaves }] : []
+    });
+  }
+  return result;
+}
+
+function leafLabel(layerId) {
+  const last = String(layerId).split(":").at(-1);
+  return last
+    .split(/[_-]+/)
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}

@@ -8,7 +8,9 @@ import {
   createViewerState,
   loadSceneBundle,
   loadSceneBundleFromUrl,
-  setLayerVisibility
+  setLayerVisibility,
+  categoryForLayerId,
+  categorizeLayers
 } from "../src/sceneLoader.js";
 
 async function createFixtureBundle() {
@@ -191,4 +193,45 @@ test("updates layer visibility without mutating prior state", async () => {
   assert.equal(state.layers.pipe.visible, true);
   assert.equal(next.layers.pipe.visible, false);
   assert.deepEqual(next.visibleObjectIds, []);
+});
+
+test("categoryForLayerId maps namespaces to display categories", () => {
+  assert.equal(categoryForLayerId("pipe"), "geometry");
+  assert.equal(categoryForLayerId("imported_components"), "geometry");
+  assert.equal(categoryForLayerId("analysis_mesh:nodes"), "analysis_mesh");
+  assert.equal(categoryForLayerId("analysis_mesh:group:GN_N0"), "analysis_mesh");
+  assert.equal(categoryForLayerId("result:reaction"), "results");
+  assert.equal(categoryForLayerId("solver_result:tuyau_subpoints"), "results");
+  assert.equal(categoryForLayerId("deformed:mesh"), "results");
+  assert.equal(categoryForLayerId("overlay:clash"), "overlays");
+  assert.equal(categoryForLayerId("physical_envelope:insulation"), "envelopes");
+  assert.equal(categoryForLayerId("weird:namespace"), "other");
+});
+
+test("categorizeLayers orders categories and collapses mesh groups", () => {
+  const layers = {
+    pipe: { id: "pipe", label: "Pipe", visible: true, count: 105, source: "object" },
+    "analysis_mesh:nodes": { id: "analysis_mesh:nodes", label: "Analysis Mesh Nodes", visible: true, count: 71, source: "object" },
+    "analysis_mesh:group:GN_N0": { id: "analysis_mesh:group:GN_N0", label: "Analysis Mesh Group GN N0", visible: true, count: 1, source: "object" },
+    "analysis_mesh:group:MAT_Steel": { id: "analysis_mesh:group:MAT_Steel", label: "Analysis Mesh Group MAT Steel", visible: true, count: 105, source: "object" },
+    "overlay:clash": { id: "overlay:clash", label: "Overlay Clash", visible: true, count: 2, source: "overlay", overlayKind: "clash" }
+  };
+
+  const categories = categorizeLayers(layers);
+  assert.deepEqual(categories.map((category) => category.id), ["geometry", "analysis_mesh", "overlays"]);
+
+  const geometry = categories.find((category) => category.id === "geometry");
+  assert.deepEqual(geometry.layerIds, ["pipe"]);
+  assert.deepEqual(geometry.leaves, [{ layerId: "pipe", label: "Pipe", count: 105 }]);
+  assert.deepEqual(geometry.groups, []);
+
+  const mesh = categories.find((category) => category.id === "analysis_mesh");
+  assert.deepEqual(mesh.layerIds, ["analysis_mesh:nodes", "analysis_mesh:group:GN_N0", "analysis_mesh:group:MAT_Steel"]);
+  assert.deepEqual(mesh.leaves, [{ layerId: "analysis_mesh:nodes", label: "Nodes", count: 71 }]);
+  assert.equal(mesh.groups.length, 1);
+  assert.equal(mesh.groups[0].label, "Groups");
+  assert.deepEqual(mesh.groups[0].leaves, [
+    { layerId: "analysis_mesh:group:GN_N0", label: "GN N0", count: 1 },
+    { layerId: "analysis_mesh:group:MAT_Steel", label: "MAT Steel", count: 105 }
+  ]);
 });
