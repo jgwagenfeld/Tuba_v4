@@ -142,6 +142,15 @@ test("app renders a pinned display strip with category switches and applies pres
   assert.doesNotMatch(app, /\["Explore", \[/);
 });
 
+test("display strip is pinned at the bottom of a scrolling cockpit rail", async () => {
+  const css = await readViewerFile("src/styles.css");
+  // Rail is a flex column so the strip can pin below a scrolling task panel.
+  assert.match(css, /\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
+  assert.match(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*overflow-y:\s*auto/s);
+  // Strip does not shrink away, so it stays visible even when the panel is tall.
+  assert.match(css, /\.display-strip\s*\{[^}]*flex-shrink:\s*0/s);
+});
+
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {
   const css = await readViewerFile("src/styles.css");
   const tokens = Object.fromEntries(

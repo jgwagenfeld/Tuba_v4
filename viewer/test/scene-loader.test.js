@@ -209,6 +209,26 @@ test("categoryForLayerId maps namespaces to display categories", () => {
   assert.equal(categoryForLayerId("weird:namespace"), "other");
 });
 
+test("categoryForLayerId co-categorizes double-gate overlay layers with their objects", () => {
+  assert.equal(categoryForLayerId("overlay:physical_envelope"), "envelopes");
+  assert.equal(categoryForLayerId("overlay:reaction_vector"), "results");
+  assert.equal(categoryForLayerId("overlay:displacement_vector"), "results");
+  // Other overlay gates stay in the Overlays category.
+  assert.equal(categoryForLayerId("overlay:clash"), "overlays");
+});
+
+test("categorizeLayers puts both envelope gates under the Envelopes category", () => {
+  const layers = {
+    "physical_envelope:insulation": { id: "physical_envelope:insulation", count: 3 },
+    "overlay:physical_envelope": { id: "overlay:physical_envelope", count: 1, source: "overlay" }
+  };
+  const categories = categorizeLayers(layers);
+  const envelopes = categories.find((category) => category.id === "envelopes");
+  assert.ok(envelopes, "envelopes category is present");
+  assert.ok(envelopes.layerIds.includes("physical_envelope:insulation"));
+  assert.ok(envelopes.layerIds.includes("overlay:physical_envelope"));
+});
+
 test("categorizeLayers orders categories and collapses mesh groups", () => {
   const layers = {
     pipe: { id: "pipe", label: "Pipe", visible: true, count: 105, source: "object" },

@@ -235,6 +235,7 @@ textarea,
 }
 
 .display-strip {
+  flex-shrink: 0;
   border-top: 1px solid var(--graphite-line);
   padding: 0.5rem 0.75rem;
   display: grid;
@@ -575,8 +576,16 @@ section {
 
 .cockpit-rail {
   grid-area: rail;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-right: 1px solid var(--graphite-line);
+}
+
+.cockpit-rail .task-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .inspector {
@@ -667,7 +676,6 @@ h3 {
 }
 
 [data-layer-list],
-[data-overlay-list],
 [data-tree],
 [data-object-list],
 [data-hotspot-list],
@@ -946,6 +954,7 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
   .cockpit-rail {
     display: flex;
+    flex-direction: row;
     align-items: flex-start;
     gap: 0.5rem;
     height: auto;
@@ -954,6 +963,12 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     overflow-y: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--graphite-line);
+  }
+
+  .cockpit-rail .display-strip {
+    flex: 0 0 min(18rem, 70vw);
+    max-height: 8rem;
+    overflow-y: auto;
   }
 
   .cockpit-rail [data-workflow-tabs] {
