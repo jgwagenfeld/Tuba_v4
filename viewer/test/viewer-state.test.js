@@ -281,6 +281,30 @@ test("full scene reload preserves camera, layer visibility, and surviving select
   assert.deepEqual(preserved.visibleObjectIds, ["object:cold"]);
 });
 
+test("live reload inherits a new overlay's visibility from the preserved kind layer", () => {
+  const previous = setLayerVisibility(createViewerState(bundle()), "overlay:clash", false);
+  assert.equal(previous.layers["overlay:clash"].visible, false);
+
+  const nextScene = createViewerState(
+    bundle({
+      overlays: [
+        { id: "overlay:clash:reloaded", kind: "clash", name: "Clash", object_ids: ["object:cold", "object:clash"], visible: true },
+        { id: "overlay:result:hot", kind: "result_state", name: "Hot result", object_ids: ["object:deformed"], data: { id: "result_state:Hot", load_case: "Hot" }, visible: true },
+      ],
+    }),
+  );
+
+  const preserved = preserveViewerStateForReload(previous, nextScene);
+
+  const reloadedClash = preserved.overlays.find((overlay) => overlay.id === "overlay:clash:reloaded");
+  assert.equal(reloadedClash.visible, false);
+  assert.ok(!preserved.visibleOverlayIds.includes("overlay:clash:reloaded"));
+
+  // Exact-id match path must not regress: a visible overlay whose kind layer stays visible remains visible.
+  assert.equal(preserved.overlays.find((overlay) => overlay.id === "overlay:result:hot").visible, true);
+  assert.ok(preserved.visibleOverlayIds.includes("overlay:result:hot"));
+});
+
 test("viewer state reload preserves a still-valid workflow tab and review controls", () => {
   const review = {
     schema_version: "engineering_review.v1",

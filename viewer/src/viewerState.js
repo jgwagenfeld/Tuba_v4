@@ -115,7 +115,11 @@ export function preserveViewerStateForReload(previousState, nextState) {
   }
   const overlays = (nextState.overlays ?? []).map((overlay) => {
     const previous = (previousState.overlays ?? []).find((candidate) => candidate.id === overlay.id);
-    return previous ? { ...overlay, visible: previous.visible } : overlay;
+    if (previous) {
+      return { ...overlay, visible: previous.visible };
+    }
+    const overlayLayer = layers[`overlay:${overlay.kind || "overlay"}`];
+    return overlayLayer ? { ...overlay, visible: overlayLayer.visible } : overlay;
   });
   const geometryStateIds = new Set((nextState.geometryStates ?? []).map((overlay) => overlay.data?.id ?? overlay.id));
   const resultContext = coherentResultContext(previousState, nextState);
