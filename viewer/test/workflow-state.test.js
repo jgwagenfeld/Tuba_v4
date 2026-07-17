@@ -54,6 +54,7 @@ test("legacy mode keeps model and issues tasks and defaults to model", () => {
 
 test("embed still defaults to the 3d canvas destination", () => {
   assert.equal(defaultWorkflowTab({ review: reviewFixture, embed: true }), "3d");
+  assert.equal(createWorkflowState({ review: reviewFixture, embed: true }).activeTab, "3d");
 });
 
 test("visibility presets hide analysis mesh everywhere and scope results/overlays per task", () => {
@@ -71,6 +72,8 @@ test("visibility presets hide analysis mesh everywhere and scope results/overlay
   });
   assert.equal(visibilityPresetForTask("3d"), null);
   assert.equal(visibilityPresetForTask("unknown"), null);
+  assert.equal(visibilityPresetForTask("toString"), null);
+  assert.equal(visibilityPresetForTask("constructor"), null);
 });
 
 test("workflow tab changes reject hidden and unknown tabs", () => {

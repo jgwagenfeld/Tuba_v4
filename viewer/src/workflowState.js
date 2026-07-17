@@ -35,7 +35,7 @@ const TASK_VISIBILITY_PRESETS = Object.freeze({
 });
 
 export function visibilityPresetForTask(taskId) {
-  return TASK_VISIBILITY_PRESETS[taskId] ?? null;
+  return Object.hasOwn(TASK_VISIBILITY_PRESETS, taskId) ? TASK_VISIBILITY_PRESETS[taskId] : null;
 }
 
 export function createWorkflowState({ review = null, embed = false } = {}) {
