@@ -6,8 +6,7 @@ import {
   groupIssues,
   restoreViewState,
   saveViewState,
-  searchObjects,
-  setOverlayVisibility
+  searchObjects
 } from "./controls.js";
 import { applyHoverHighlight, createThreeViewport, pickRenderedObject } from "./renderer.js";
 import {
@@ -27,7 +26,7 @@ import {
 import { cockpitStatusViewModel, workflowViewModel } from "./reviewTables.js";
 import { getReviewEntityAction, showReviewEntityIn3d } from "./reviewSelection.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
-import { createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
+import { applyTaskVisibilityPreset, categorizeLayers, createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
 import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
@@ -59,9 +58,9 @@ const dom = {
   inspector: document.querySelector("[data-inspector]"),
   modelToolsHome: document.querySelector("[data-model-tools-home]"),
   issueToolsHome: document.querySelector("[data-issue-tools-home]"),
-  displayToolsHome: document.querySelector("[data-display-tools-home]"),
+  displayStrip: document.querySelector("[data-display-strip]"),
+  categorySwitches: document.querySelector("[data-category-switches]"),
   layerList: document.querySelector("[data-layer-list]"),
-  overlayList: document.querySelector("[data-overlay-list]"),
   resultTools: document.querySelector("[data-result-tools]"),
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
   resultControls: document.querySelector("[data-result-controls]"),
@@ -94,9 +93,17 @@ let issueFilters = { operatingOnly: false };
 let evidenceExpanded = false;
 let activeEvidenceTab = "summary";
 const savedViews = [];
+// ponytail: dense-scene hover stays off until picking has a spatial index/BVH.
+const MAX_HOVER_PICK_OBJECTS = 50;
+const ORBIT_CLICK_DRAG_THRESHOLD_PX = 4;
 let viewportRenderer = null;
 let lastRenderGraph = null;
 let hoveredObjectId = null;
+let hoverFrameId = null;
+let pendingHoverPoint = null;
+let orbiting = false;
+let pointerDownPoint = null;
+let suppressNextCanvasClick = false;
 const bootId = globalThis.__tubaViewerBootId ?? `boot:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 globalThis.__tubaViewerBootId = bootId;
 globalThis.__tubaViewerPreviewEvents ??= [];
@@ -130,6 +137,9 @@ async function loadBundle(bundleUrl, options = {}) {
   currentState = startupConfig.embed
     ? { ...loadedState, embed: true, activeTab: "3d" }
     : loadedState;
+  if (!options.preserve) {
+    currentState = applyTaskVisibilityPreset(currentState, currentState.activeTab);
+  }
   activeEvidenceTab = evidenceTabForReload(currentState, activeEvidenceTab);
 }
 
@@ -138,8 +148,7 @@ function render() {
   renderCockpitStatus();
   renderTaskRail();
   renderEvidenceTabs();
-  renderLayers();
-  renderOverlays();
+  renderDisplayStrip();
   renderResultControls();
   renderDiagnostics();
   renderTree();
@@ -155,42 +164,30 @@ function renderTaskRail() {
   dom.workflowTabs.replaceChildren();
   dom.taskRail.hidden = currentState.embed;
   dom.appHeader.hidden = currentState.embed;
-  const visibleIds = new Set(getVisibleCockpitTaskIds(currentState));
-  for (const [headingText, ids] of [
-    ["Review", ["summary"]],
-    ["Explore", ["model", "load-cases", "results", "diagnostics"]],
-    ["Display", ["3d"]]
-  ]) {
-    const groupIds = ids.filter((id) => visibleIds.has(id));
-    if (groupIds.length === 0) continue;
-    const group = document.createElement("section");
-    const heading = document.createElement("h2");
-    heading.textContent = headingText;
-    group.append(heading);
-    for (const id of groupIds) {
-      const task = WORKFLOW_TABS.find((candidate) => candidate.id === id);
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "task-button";
-      button.dataset.task = id;
-      button.setAttribute("aria-current", id === currentState.activeTab ? "page" : "false");
-      button.textContent = task.label;
-      button.addEventListener("click", () => activateTask(id));
-      button.addEventListener("keydown", (event) => {
-        const nextId = workflowTabForKey(currentState, id, event.key);
-        if (!nextId) return;
-        event.preventDefault();
-        activateTask(nextId);
-        dom.workflowTabs.querySelector(`[data-task="${nextId}"]`)?.focus();
-      });
-      group.append(button);
-    }
-    dom.workflowTabs.append(group);
+  for (const id of getVisibleCockpitTaskIds(currentState)) {
+    const task = WORKFLOW_TABS.find((candidate) => candidate.id === id);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "task-button";
+    button.dataset.task = id;
+    button.setAttribute("aria-current", id === currentState.activeTab ? "page" : "false");
+    button.textContent = task.label;
+    button.addEventListener("click", () => activateTask(id));
+    button.addEventListener("keydown", (event) => {
+      const nextId = workflowTabForKey(currentState, id, event.key);
+      if (!nextId) return;
+      event.preventDefault();
+      activateTask(nextId);
+      dom.workflowTabs.querySelector(`[data-task="${nextId}"]`)?.focus();
+    });
+    dom.workflowTabs.append(button);
   }
 }
 
 function activateTask(id) {
   currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: id });
+  currentState = applyTaskVisibilityPreset(currentState, id);
+  selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
   render();
 }
 
@@ -240,10 +237,8 @@ function renderTaskPanel() {
   const home = {
     model: dom.modelToolsHome,
     results: dom.resultToolsHome,
-    diagnostics: dom.issueToolsHome,
-    "3d": dom.displayToolsHome
+    diagnostics: dom.issueToolsHome
   }[currentState.activeTab];
-  if (currentState.activeTab === "3d") renderSavedViews();
   if (home) dom.taskPanel.append(home);
 }
 
@@ -663,44 +658,69 @@ function renderHeader() {
   }
 }
 
-function renderLayers() {
-  dom.layerList.replaceChildren();
-  for (const layer of Object.values(currentState.layers)) {
+function renderDisplayStrip() {
+  dom.displayStrip.hidden = currentState.embed;
+  dom.categorySwitches.replaceChildren();
+  const categories = categorizeLayers(currentState.layers);
+  for (const category of categories) {
     const label = document.createElement("label");
+    label.className = "category-switch";
     const input = document.createElement("input");
     input.type = "checkbox";
-    input.checked = layer.visible;
+    const visibles = category.layerIds.map((id) => currentState.layers[id]?.visible !== false);
+    input.checked = visibles.every(Boolean);
+    input.indeterminate = !input.checked && visibles.some(Boolean);
     input.addEventListener("change", () => {
-      currentState = setLayerVisibility(currentState, layer.id, input.checked);
+      let next = currentState;
+      for (const layerId of category.layerIds) {
+        next = setLayerVisibility(next, layerId, input.checked);
+      }
+      currentState = next;
       render();
     });
-    label.append(input, ` ${layer.label} (${layer.count})`);
-    dom.layerList.append(label);
+    label.append(input, ` ${category.label}`);
+    dom.categorySwitches.append(label);
+  }
+  renderLayerTree(categories);
+  renderSavedViews();
+}
+
+function renderLayerTree(categories) {
+  dom.layerList.replaceChildren();
+  for (const category of categories) {
+    const group = document.createElement("section");
+    const heading = document.createElement("h3");
+    heading.textContent = category.label;
+    group.append(heading);
+    for (const leaf of category.leaves) {
+      group.append(layerToggle(leaf));
+    }
+    for (const sub of category.groups) {
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = `${sub.label} (${sub.leaves.length})`;
+      details.append(summary);
+      for (const leaf of sub.leaves) {
+        details.append(layerToggle(leaf));
+      }
+      group.append(details);
+    }
+    dom.layerList.append(group);
   }
 }
 
-function renderOverlays() {
-  dom.overlayList.replaceChildren();
-  const overlays = currentState.overlays ?? [];
-  if (overlays.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "meta";
-    empty.textContent = "No overlays.";
-    dom.overlayList.append(empty);
-    return;
-  }
-  for (const overlay of overlays) {
-    const label = document.createElement("label");
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.checked = overlay.visible !== false;
-    input.addEventListener("change", () => {
-      currentState = setOverlayVisibility(currentState, overlay.id, input.checked);
-      render();
-    });
-    label.append(input, ` ${overlay.name || overlay.id}`);
-    dom.overlayList.append(label);
-  }
+function layerToggle(leaf) {
+  const layer = currentState.layers[leaf.layerId];
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = layer?.visible !== false;
+  input.addEventListener("change", () => {
+    currentState = setLayerVisibility(currentState, leaf.layerId, input.checked);
+    render();
+  });
+  label.append(input, ` ${leaf.label} (${leaf.count})`);
+  return label;
 }
 
 function renderDiagnostics() {
@@ -1012,6 +1032,10 @@ function renderCanvas() {
 }
 
 dom.canvas.addEventListener("click", (event) => {
+  if (suppressNextCanvasClick) {
+    suppressNextCanvasClick = false;
+    return;
+  }
   if (!currentState) {
     return;
   }
@@ -1027,23 +1051,59 @@ dom.canvas.addEventListener("click", (event) => {
   }
 });
 
+dom.canvas.addEventListener("pointerdown", (event) => {
+  orbiting = true;
+  pointerDownPoint = { x: event.clientX, y: event.clientY };
+  suppressNextCanvasClick = false;
+  pendingHoverPoint = null;
+});
+
+dom.canvas.addEventListener("pointermove", (event) => {
+  if (!pointerDownPoint) return;
+  const deltaX = event.clientX - pointerDownPoint.x;
+  const deltaY = event.clientY - pointerDownPoint.y;
+  if (deltaX * deltaX + deltaY * deltaY > ORBIT_CLICK_DRAG_THRESHOLD_PX ** 2) {
+    suppressNextCanvasClick = true;
+  }
+});
+
+globalThis.addEventListener("pointerup", () => {
+  orbiting = false;
+  pointerDownPoint = null;
+});
+
+globalThis.addEventListener("pointercancel", () => {
+  orbiting = false;
+  pointerDownPoint = null;
+  suppressNextCanvasClick = false;
+});
+
 dom.canvas.addEventListener("mousemove", (event) => {
-  if (!currentState || !lastRenderGraph) {
-    return;
-  }
-  const rect = dom.canvas.getBoundingClientRect();
-  const objectId = pickRenderedObject(
-    lastRenderGraph,
-    { x: event.clientX - rect.left, y: event.clientY - rect.top },
-    { width: rect.width, height: rect.height }
-  );
-  if (objectId === hoveredObjectId) {
-    return;
-  }
-  hoveredObjectId = objectId;
-  dom.canvas.dataset.hoverObjectId = objectId ?? "";
-  applyHoverHighlight(lastRenderGraph, objectId);
-  viewportRenderer.render();
+  if (
+    orbiting ||
+    !currentState ||
+    !lastRenderGraph ||
+    lastRenderGraph.renderableObjects.length > MAX_HOVER_PICK_OBJECTS
+  ) return;
+  pendingHoverPoint = { x: event.clientX, y: event.clientY };
+  if (hoverFrameId !== null) return;
+  hoverFrameId = requestAnimationFrame(() => {
+    hoverFrameId = null;
+    if (orbiting || !pendingHoverPoint || !lastRenderGraph) return;
+    const rect = dom.canvas.getBoundingClientRect();
+    const objectId = pickRenderedObject(
+      lastRenderGraph,
+      { x: pendingHoverPoint.x - rect.left, y: pendingHoverPoint.y - rect.top },
+      { width: rect.width, height: rect.height },
+      { projectedFallback: false }
+    );
+    pendingHoverPoint = null;
+    if (objectId === hoveredObjectId) return;
+    hoveredObjectId = objectId;
+    dom.canvas.dataset.hoverObjectId = objectId ?? "";
+    applyHoverHighlight(lastRenderGraph, objectId);
+    viewportRenderer.render();
+  });
 });
 
 function setStatus(message, error = false) {

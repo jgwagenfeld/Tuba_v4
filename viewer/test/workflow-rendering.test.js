@@ -133,6 +133,15 @@ test("workflow rendering parses embed once and pins reloads to the display workf
   assert.match(css, /\[data-embed="true"\]\s+\.cockpit-rail[\s\S]*display:\s*none/);
 });
 
+test("app renders a pinned display strip with category switches and applies presets", async () => {
+  const app = await readViewerFile("src/app.js");
+  assert.match(app, /data-display-strip|data-category-switches/);
+  assert.match(app, /renderDisplayStrip/);
+  assert.match(app, /applyTaskVisibilityPreset/);
+  // Rail no longer groups tasks under Review/Explore/Display headings:
+  assert.doesNotMatch(app, /\["Explore", \[/);
+});
+
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {
   const css = await readViewerFile("src/styles.css");
   const tokens = Object.fromEntries(
