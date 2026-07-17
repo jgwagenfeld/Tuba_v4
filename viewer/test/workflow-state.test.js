@@ -5,8 +5,10 @@ import * as workflowState from "../src/workflowState.js";
 import {
   WORKFLOW_TABS,
   createWorkflowState,
+  defaultWorkflowTab,
   getVisibleCockpitTaskIds,
   getVisibleWorkflowTabs,
+  visibilityPresetForTask,
   workflowTabForKey,
   setWorkflowTab
 } from "../src/workflowState.js";
@@ -36,21 +38,39 @@ test("full review workflow defaults to summary", () => {
   assert.equal(createWorkflowState({ review: reviewFixture, embed: false }).activeTab, "summary");
 });
 
-test("legacy and embed workflow modes default to 3d", () => {
-  assert.equal(createWorkflowState({ review: null, embed: false }).activeTab, "3d");
-  assert.equal(createWorkflowState({ review: reviewFixture, embed: true }).activeTab, "3d");
-});
-
-test("legacy workflow hides data tabs but retains 3d and diagnostics", () => {
-  assert.deepEqual(getVisibleWorkflowTabs({ review: null }), ["3d", "diagnostics"]);
-  assert.deepEqual(getVisibleCockpitTaskIds({ review: null }), ["3d", "diagnostics"]);
-});
-
-test("cockpit tasks omit the evidence-only compliance destination", () => {
+test("cockpit tasks are the four focused destinations in review mode", () => {
   assert.deepEqual(
     getVisibleCockpitTaskIds({ review: reviewFixture }),
-    ["summary", "model", "load-cases", "results", "diagnostics", "3d"]
+    ["summary", "model", "results", "diagnostics"]
   );
+});
+
+test("legacy mode keeps model and issues tasks and defaults to model", () => {
+  assert.deepEqual(getVisibleCockpitTaskIds({ review: null }), ["model", "diagnostics"]);
+  assert.deepEqual(getVisibleWorkflowTabs({ review: null }), ["model", "diagnostics"]);
+  assert.equal(defaultWorkflowTab({ review: null, embed: false }), "model");
+  assert.equal(createWorkflowState({ review: null, embed: false }).activeTab, "model");
+});
+
+test("embed still defaults to the 3d canvas destination", () => {
+  assert.equal(defaultWorkflowTab({ review: reviewFixture, embed: true }), "3d");
+});
+
+test("visibility presets hide analysis mesh everywhere and scope results/overlays per task", () => {
+  assert.deepEqual(visibilityPresetForTask("summary"), {
+    geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false
+  });
+  assert.deepEqual(visibilityPresetForTask("model"), {
+    geometry: true, analysis_mesh: false, results: false, overlays: false, envelopes: false
+  });
+  assert.deepEqual(visibilityPresetForTask("results"), {
+    geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false
+  });
+  assert.deepEqual(visibilityPresetForTask("diagnostics"), {
+    geometry: true, analysis_mesh: false, results: false, overlays: true, envelopes: false
+  });
+  assert.equal(visibilityPresetForTask("3d"), null);
+  assert.equal(visibilityPresetForTask("unknown"), null);
 });
 
 test("workflow tab changes reject hidden and unknown tabs", () => {
@@ -64,17 +84,17 @@ test("workflow tab changes reject hidden and unknown tabs", () => {
 test("workflow keyboard navigation wraps across visible tabs", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
 
-  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "3d");
+  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
   assert.equal(workflowTabForKey(state, "summary", "ArrowRight"), "model");
-  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "3d");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
 });
 
 test("workflow keyboard navigation supports Home and End in legacy mode", () => {
   const state = createWorkflowState({ review: null, embed: false });
 
-  assert.equal(workflowTabForKey(state, "diagnostics", "Home"), "3d");
-  assert.equal(workflowTabForKey(state, "3d", "End"), "diagnostics");
-  assert.equal(workflowTabForKey(state, "3d", "Enter"), null);
+  assert.equal(workflowTabForKey(state, "diagnostics", "Home"), "model");
+  assert.equal(workflowTabForKey(state, "model", "End"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "model", "Enter"), null);
 });
 
 test("evidence keyboard navigation wraps and supports Home and End", () => {

@@ -11,13 +11,11 @@ export const WORKFLOW_TABS = Object.freeze([
 const EVIDENCE_TAB_IDS = Object.freeze(["summary", "diagnostics", "compliance", "reports"]);
 
 export function getVisibleWorkflowTabs({ review } = {}) {
-  return review ? WORKFLOW_TABS.map((tab) => tab.id) : ["3d", "diagnostics"];
+  return review ? WORKFLOW_TABS.map((tab) => tab.id) : ["model", "diagnostics"];
 }
 
 export function getVisibleCockpitTaskIds({ review } = {}) {
-  return review
-    ? ["summary", "model", "load-cases", "results", "diagnostics", "3d"]
-    : ["3d", "diagnostics"];
+  return review ? ["summary", "model", "results", "diagnostics"] : ["model", "diagnostics"];
 }
 
 export function getVisibleEvidenceTabIds({ review } = {}) {
@@ -25,7 +23,19 @@ export function getVisibleEvidenceTabIds({ review } = {}) {
 }
 
 export function defaultWorkflowTab({ review, embed } = {}) {
-  return embed || !review ? "3d" : "summary";
+  if (embed) return "3d";
+  return review ? "summary" : "model";
+}
+
+const TASK_VISIBILITY_PRESETS = Object.freeze({
+  summary: { geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false },
+  model: { geometry: true, analysis_mesh: false, results: false, overlays: false, envelopes: false },
+  results: { geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false },
+  diagnostics: { geometry: true, analysis_mesh: false, results: false, overlays: true, envelopes: false }
+});
+
+export function visibilityPresetForTask(taskId) {
+  return TASK_VISIBILITY_PRESETS[taskId] ?? null;
 }
 
 export function createWorkflowState({ review = null, embed = false } = {}) {
