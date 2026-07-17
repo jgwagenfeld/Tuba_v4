@@ -196,22 +196,22 @@ textarea,
   color: #ff857d;
 }
 
-[data-workflow-tabs] {
+.cockpit-rail [data-workflow-tabs] {
   position: sticky;
   z-index: 5;
   top: 0;
-  display: flex;
-  gap: 0;
-  overflow-x: auto;
+  display: grid;
+  gap: 0.75rem;
+  overflow: visible;
   border-bottom: 1px solid var(--graphite-line);
   background: var(--graphite-raised);
-  padding-inline: 0.75rem;
+  padding: 0 0 0.75rem;
   scrollbar-width: thin;
 }
 
 .cockpit-rail .task-button {
   flex: 0 0 auto;
-  width: auto;
+  width: 100%;
   min-height: 2.75rem;
   border: 0;
   border-bottom: 3px solid transparent;
@@ -220,7 +220,7 @@ textarea,
   color: #c5ced1;
   cursor: pointer;
   padding: 0.65rem 0.85rem 0.55rem;
-  text-align: center;
+  text-align: left;
 }
 
 .cockpit-rail .task-button:hover {
@@ -232,6 +232,48 @@ textarea,
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 650;
+}
+
+.display-strip {
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.5rem 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.display-strip[hidden] {
+  display: none;
+}
+
+.category-switches {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.category-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.layer-tree > summary {
+  cursor: pointer;
+}
+
+.layer-tree section {
+  margin: 0.25rem 0 0.25rem 0.25rem;
+}
+
+.layer-tree h3 {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  margin: 0.4rem 0 0.2rem;
+}
+
+.layer-tree details {
+  margin-left: 0.5rem;
 }
 
 .workflow-panel {
@@ -918,10 +960,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     display: flex;
     flex: 0 0 auto;
     gap: 0.25rem;
-  }
-
-  .cockpit-rail [data-workflow-tabs] > section {
-    display: contents;
   }
 
   .cockpit-rail [data-workflow-tabs] h2 {

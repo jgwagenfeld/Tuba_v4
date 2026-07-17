@@ -50,20 +50,30 @@ const scenarios = {
   },
   "layer-state": {
     bundle: "/test/fixtures/layer_state_scene",
-    minimumObjects: 3,
+    // The default "model" task preset hides the results + overlays categories, so only
+    // object:cold renders on load; the scenario turns them on before exercising toggles.
+    minimumObjects: 1,
     async run(page) {
-      const layers = page.locator("[data-display-tools-home] details").filter({ hasText: "Layers" });
+      const layers = page.locator(".layer-tree");
       await layers.evaluate((details) => {
         details.open = true;
       });
       assert.equal(await layers.evaluate((details) => details.open), true);
-      await page.getByLabel(/Deformed Visual Centerline/).uncheck();
+      // Reveal the preset-hidden categories via the display-strip category switches.
+      await page.getByLabel(/^\s*Results\s*$/).check();
+      await page.getByLabel(/^\s*Overlays\s*$/).check();
+      await page.waitForFunction(() => {
+        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
+        return ids.length === 3 && ids.includes("object:cold") && ids.includes("object:deformed") && ids.includes("object:clash");
+      });
+
+      await page.getByLabel(/Visual Centerline/).uncheck();
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 2 && ids.includes("object:cold") && ids.includes("object:clash") && !ids.includes("object:deformed");
       });
 
-      await page.getByLabel(/Overlay Clash/).uncheck();
+      await page.getByLabel(/^\s*Overlays\s*$/).uncheck(); // category switch hides overlay:* layers
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 1 && ids[0] === "object:cold";
@@ -136,12 +146,6 @@ const scenarios = {
       await assertSelectedEvidenceTab(page, "Governing Results");
       await page.getByRole("heading", { level: 1, name: "Governing Results", exact: true }).waitFor();
       await assertSameCanvas(page);
-      await page.getByRole("button", { name: "Load Cases", exact: true }).click();
-      await assertSelectedEvidenceTab(page, "Governing Results");
-      await assertSameCanvas(page);
-      await page.getByRole("button", { name: "Display", exact: true }).click();
-      await assertSelectedEvidenceTab(page, "Governing Results");
-      await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
       await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
@@ -194,6 +198,25 @@ const scenarios = {
       assert.equal(await page.evaluate(() => window.innerWidth), 1440);
       await assertSameCanvas(page);
       await page.setViewportSize({ width: 1024, height: 768 });
+      const railLayout = await page.locator("[data-workflow-tabs]").evaluate((nav) => {
+        const buttons = [...nav.querySelectorAll("button")].map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { text: button.textContent, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+        });
+        const overlaps = [];
+        for (let left = 0; left < buttons.length; left += 1) {
+          for (let right = left + 1; right < buttons.length; right += 1) {
+            const a = buttons[left];
+            const b = buttons[right];
+            if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) {
+              overlaps.push([a.text, b.text]);
+            }
+          }
+        }
+        return { clientWidth: nav.clientWidth, scrollWidth: nav.scrollWidth, overlaps };
+      });
+      assert.deepEqual(railLayout.overlaps, [], JSON.stringify(railLayout));
+      assert.ok(railLayout.scrollWidth <= railLayout.clientWidth + 1, JSON.stringify(railLayout));
       const expandEvidence = page.locator("[data-evidence-expand]");
       assert.equal(await expandEvidence.getAttribute("aria-expanded"), "false");
       const collapsedDock = await page.locator("[data-evidence-dock]").evaluate((dock) => ({
@@ -348,6 +371,77 @@ const scenarios = {
       assert.deepEqual(loaded.parserDiagnosticOverlays, []);
       assert.deepEqual(loaded.renderDiagnostics, []);
 
+      const hoverBurst = await page.locator("[data-canvas]").evaluate((canvas) => {
+        const rect = canvas.getBoundingClientRect();
+        const nativeRequestAnimationFrame = window.requestAnimationFrame;
+        let scheduledAnimationFrames = 0;
+        window.requestAnimationFrame = (...args) => {
+          scheduledAnimationFrames += 1;
+          return nativeRequestAnimationFrame.apply(window, args);
+        };
+        const started = performance.now();
+        try {
+          for (let index = 0; index < 30; index += 1) {
+            canvas.dispatchEvent(new MouseEvent("mousemove", {
+              bubbles: true,
+              clientX: rect.left + 10 + ((rect.width - 20) * index) / 29,
+              clientY: rect.top + rect.height / 2
+            }));
+          }
+          return { elapsedMs: performance.now() - started, scheduledAnimationFrames };
+        } finally {
+          window.requestAnimationFrame = nativeRequestAnimationFrame;
+        }
+      });
+      assert.ok(hoverBurst.elapsedMs < 50, `dense-scene hover dispatch took ${hoverBurst.elapsedMs.toFixed(1)}ms`);
+      assert.equal(hoverBurst.scheduledAnimationFrames, 0, "dense-scene hover must skip picking frames");
+
+      const canvas = page.locator("[data-canvas]");
+      const fingerprint = () => canvas.evaluate((target) => {
+        const gl = target.getContext("webgl2") || target.getContext("webgl");
+        const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+        gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        let hash = 2166136261;
+        const step = Math.max(4, Math.floor(pixels.length / 4096 / 4) * 4);
+        for (let index = 0; index < pixels.length; index += step) {
+          hash = Math.imul(hash ^ pixels[index], 16777619);
+        }
+        return hash >>> 0;
+      });
+      await canvas.evaluate((target) => {
+        window.__tubaBlockCanvasApp = (event) => event.stopImmediatePropagation();
+        target.addEventListener("mousemove", window.__tubaBlockCanvasApp, true);
+        target.addEventListener("click", window.__tubaBlockCanvasApp, true);
+      });
+      const beforeOrbit = await fingerprint();
+      const canvasBox = await canvas.boundingBox();
+      const orbitStarted = Date.now();
+      await page.mouse.move(canvasBox.x + canvasBox.width * 0.5, canvasBox.y + canvasBox.height * 0.5);
+      await page.mouse.down();
+      await page.mouse.move(canvasBox.x + canvasBox.width * 0.75, canvasBox.y + canvasBox.height * 0.65, { steps: 12 });
+      await page.mouse.up();
+      const orbitElapsedMs = Date.now() - orbitStarted;
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const afterOrbit = await fingerprint();
+      await canvas.evaluate((target) => {
+        target.removeEventListener("mousemove", window.__tubaBlockCanvasApp, true);
+        target.removeEventListener("click", window.__tubaBlockCanvasApp, true);
+        delete window.__tubaBlockCanvasApp;
+      });
+      assert.notEqual(afterOrbit, beforeOrbit, "OrbitControls must redraw without the hover handler");
+      assert.ok(orbitElapsedMs < 1500, `OrbitControls redraws must be frame-coalesced, took ${orbitElapsedMs}ms`);
+
+      const selectionBeforeRealOrbit = await page.evaluate(() => window.__tubaViewer?.state?.selectedObjectIds ?? []);
+      const realOrbitStarted = Date.now();
+      await page.mouse.move(canvasBox.x + canvasBox.width * 0.5, canvasBox.y + canvasBox.height * 0.5);
+      await page.mouse.down();
+      await page.mouse.move(canvasBox.x + canvasBox.width * 0.75, canvasBox.y + canvasBox.height * 0.65, { steps: 12 });
+      await page.mouse.up();
+      const realOrbitElapsedMs = Date.now() - realOrbitStarted;
+      const selectionAfterRealOrbit = await page.evaluate(() => window.__tubaViewer?.state?.selectedObjectIds ?? []);
+      assert.ok(realOrbitElapsedMs < 1500, `a real orbit gesture must not trigger click picking, took ${realOrbitElapsedMs}ms`);
+      assert.deepEqual(selectionAfterRealOrbit, selectionBeforeRealOrbit, "an orbit gesture must not change selection");
+
       await page.getByRole("button", { name: "Results", exact: true }).click();
       assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
       await assertSelectedEvidenceTab(page, "Governing Results");
@@ -399,11 +493,12 @@ const scenarios = {
       );
     },
     async run(page) {
-      const displayTask = page.getByRole("button", { name: "Display", exact: true });
-      await displayTask.waitFor();
-      assert.equal(await displayTask.getAttribute("aria-current"), "page");
+      const modelTask = page.getByRole("button", { name: "Model", exact: true });
+      await modelTask.waitFor();
+      assert.equal(await modelTask.getAttribute("aria-current"), "page");
       assert.equal(await page.getByRole("button", { name: "Issues", exact: true }).count(), 1);
       assert.equal(await page.getByRole("button", { name: "Review", exact: true }).count(), 0);
+      assert.equal(await page.getByRole("button", { name: "Display", exact: true }).count(), 0);
       assert.equal(await page.getByRole("tab", { name: "Warnings", exact: true }).count(), 1);
       assert.equal(await page.getByRole("tab", { name: "Governing Results", exact: true }).count(), 0);
       assert.equal(await page.getByRole("tab", { name: "Reports", exact: true }).count(), 0);
@@ -419,7 +514,7 @@ const scenarios = {
         reviewDiagnostics: window.__tubaViewer?.state?.reviewDiagnostics
       }));
       assert.deepEqual(legacyState, {
-        activeTab: "3d",
+        activeTab: "model",
         legacyReview: true,
         review: null,
         reviewDiagnostics: []
