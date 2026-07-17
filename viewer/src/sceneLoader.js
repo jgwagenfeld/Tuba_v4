@@ -1,4 +1,5 @@
 import { loadOptionalReview } from "./reviewLoader.js";
+import { visibilityPresetForTask } from "./workflowState.js";
 
 const NODE_FS_PROMISES = "node:fs/promises";
 const NODE_PATH = "node:path";
@@ -346,6 +347,20 @@ export function categorizeLayers(layers) {
     });
   }
   return result;
+}
+
+export function applyTaskVisibilityPreset(state, taskId) {
+  const preset = visibilityPresetForTask(taskId);
+  if (!preset) return state;
+  let next = state;
+  for (const category of categorizeLayers(state.layers)) {
+    if (!(category.id in preset)) continue;
+    const visible = preset[category.id];
+    for (const layerId of category.layerIds) {
+      next = setLayerVisibility(next, layerId, visible);
+    }
+  }
+  return next;
 }
 
 function leafLabel(layerId) {

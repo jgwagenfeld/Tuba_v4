@@ -10,7 +10,8 @@ import {
   loadSceneBundleFromUrl,
   setLayerVisibility,
   categoryForLayerId,
-  categorizeLayers
+  categorizeLayers,
+  applyTaskVisibilityPreset
 } from "../src/sceneLoader.js";
 
 async function createFixtureBundle() {
@@ -234,4 +235,24 @@ test("categorizeLayers orders categories and collapses mesh groups", () => {
     { layerId: "analysis_mesh:group:GN_N0", label: "GN N0", count: 1 },
     { layerId: "analysis_mesh:group:MAT_Steel", label: "MAT Steel", count: 105 }
   ]);
+});
+
+test("applyTaskVisibilityPreset toggles categories to match the task preset", () => {
+  const layers = {
+    pipe: { id: "pipe", label: "Pipe", visible: true, count: 3, source: "object", objectIds: [] },
+    "analysis_mesh:nodes": { id: "analysis_mesh:nodes", label: "Nodes", visible: true, count: 5, source: "object", objectIds: [] },
+    "overlay:clash": { id: "overlay:clash", label: "Overlay Clash", visible: true, count: 1, source: "overlay", overlayKind: "clash", overlayIds: [] }
+  };
+  const state = { objects: [], overlays: [], hiddenObjectIds: [], isolatedObjectIds: [], geometryAssets: [], layers };
+
+  const modelState = applyTaskVisibilityPreset(state, "model");
+  assert.equal(modelState.layers.pipe.visible, true);
+  assert.equal(modelState.layers["analysis_mesh:nodes"].visible, false);
+  assert.equal(modelState.layers["overlay:clash"].visible, false);
+
+  const resultsState = applyTaskVisibilityPreset(modelState, "results");
+  assert.equal(resultsState.layers["overlay:clash"].visible, true);
+  assert.equal(resultsState.layers["analysis_mesh:nodes"].visible, false);
+
+  assert.equal(applyTaskVisibilityPreset(state, "3d"), state);
 });
