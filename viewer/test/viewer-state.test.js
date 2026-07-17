@@ -545,7 +545,7 @@ test("viewer state reducer defaults a hidden workflow tab after a review transit
     }
   });
 
-  assert.equal(result.activeTab, "3d");
+  assert.equal(result.activeTab, "model");
   assert.equal(result.embed, false);
   assert.equal(result.review, null);
   assert.equal(result.legacyReview, true);

@@ -21,17 +21,17 @@ test("workflow rendering exposes the seven engineer review tabs", () => {
 test("workflow rendering keyboard navigation wraps and supports Home and End", () => {
   const state = createWorkflowState({ review: { tables: {} } });
 
-  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "3d");
-  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "3d");
+  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
   assert.equal(workflowTabForKey(state, "results", "Home"), "summary");
-  assert.equal(workflowTabForKey(state, "results", "End"), "3d");
+  assert.equal(workflowTabForKey(state, "results", "End"), "diagnostics");
   assert.equal(workflowTabForKey(state, "results", "Enter"), null);
 });
 
 test("workflow rendering styles real task buttons, horizontal tables, and visible focus", async () => {
   const css = await readViewerFile("src/styles.css");
 
-  assert.match(css, /\[data-workflow-tabs\]\s*\{/s);
+  assert.match(css, /\.cockpit-rail\s+\[data-workflow-tabs\]\s*\{[^}]*display:\s*grid/s);
   assert.match(css, /\.review-table-scroll\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /\.task-button\[aria-current="page"\]/);
   assert.doesNotMatch(css, /\.workflow-tab\b/);
