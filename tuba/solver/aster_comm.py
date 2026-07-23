@@ -20,6 +20,11 @@ from tuba.model import (
     RectangularSection,
     TubaModel,
 )
+from tuba.solver.modelisation import (
+    discrete_support_group,
+    modelisation_assignments,
+    needs_discrete_element,
+)
 from tuba.solver.aster_loads import (
     group_ma_value,
     has_pressure_load,
@@ -119,9 +124,7 @@ class _CommWriterMixin:
         used_sec_names = sorted({e.section for e in model.elements})
 
         # Check for POI1 requirements (discrete springs or masses)
-        has_springs = any(s.stiffness_matrix is not None or s.stiffness is not None for s in model.supports if s.type == "spring")
-        has_masses = any(s.mass > 0.0 for s in model.supports)
-        has_poi1 = has_springs or has_masses
+        has_poi1 = any(needs_discrete_element(s) for s in model.supports)
 
         # Check if the model requires non-linear simulation (contact, friction, rests)
         is_nonlinear = any(s.type == "rest" or s.friction_coefficient > 0.0 for s in model.supports)
@@ -152,8 +155,8 @@ class _CommWriterMixin:
             w("    MAILLAGE=MAIL0,")
             w("    CREA_POI1=(")
             for s in model.supports:
-                if (s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None)) or s.mass > 0.0:
-                    w(f"        _F(NOM_GROUP_MA='{map_name(f'DIS_{s.node}')}', NOEUD='{map_name(s.node)}'),")
+                if needs_discrete_element(s):
+                    w(f"        _F(NOM_GROUP_MA='{map_name(discrete_support_group(s.node))}', NOEUD='{map_name(s.node)}'),")
             w("    ),")
             w(");")
         else:
@@ -167,37 +170,12 @@ class _CommWriterMixin:
         w("MODELE = AFFE_MODELE(")
         w("    MAILLAGE=MAIL,")
         w("    AFFE=(")
-        if pipe_straights or pipe_bends:
+        for group_name, modelisation in modelisation_assignments(model).items():
             w("        _F(")
-            w(f"            GROUP_MA='{map_name('AllPipes')}',")
+            w(f"            GROUP_MA='{map_name(group_name)}',")
             w("            PHENOMENE='MECANIQUE',")
-            w("            MODELISATION='TUYAU_3M',")
+            w(f"            MODELISATION='{modelisation}',")
             w("        ),")
-        if beam_elems:
-            w("        _F(")
-            w(f"            GROUP_MA='{map_name('G_TUBE')}',")
-            w("            PHENOMENE='MECANIQUE',")
-            w("            MODELISATION='POU_D_T',")
-            w("        ),")
-        if bar_elems:
-            w("        _F(")
-            w(f"            GROUP_MA='{map_name('G_BAR')}',")
-            w("            PHENOMENE='MECANIQUE',")
-            w("            MODELISATION='BARRE',")
-            w("        ),")
-        if cable_elems:
-            w("        _F(")
-            w(f"            GROUP_MA='{map_name('G_CABLE')}',")
-            w("            PHENOMENE='MECANIQUE',")
-            w("            MODELISATION='CABLE',")
-            w("        ),")
-        for s in model.supports:
-            if (s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None)) or s.mass > 0.0:
-                w("        _F(")
-                w(f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',")
-                w("            PHENOMENE='MECANIQUE',")
-                w("            MODELISATION='DIS_TR',")
-                w("        ),")
         w("    ),")
         w(");")
         w()

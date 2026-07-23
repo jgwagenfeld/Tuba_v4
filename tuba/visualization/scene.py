@@ -251,6 +251,117 @@ class Overlay:
         return data
 
 
+#: The four layer categories. Each is a rule, not a bucket:
+#: what was authored, what was solved, what came back, what comments on it.
+LAYER_CATEGORIES = ("design", "analysis_mesh", "results", "annotations")
+
+
+@dataclass
+class SceneLayer:
+    """A toggleable group of scene content.
+
+    Layers used to be reconstructed viewer-side by guessing at layer-id string
+    prefixes. The builders know the truth, so they state it here instead.
+    """
+
+    id: str
+    category: str
+    label: str
+    parent_id: str | None = None
+    default_visible: bool = True
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SceneLayer":
+        known = {"id", "category", "label", "parent_id", "default_visible"}
+        return cls(
+            id=data["id"],
+            category=data["category"],
+            label=data.get("label", ""),
+            parent_id=data.get("parent_id"),
+            default_visible=data.get("default_visible", True),
+            extra=_extra(data, known),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "id": self.id,
+            "category": self.category,
+            "label": self.label,
+            "default_visible": self.default_visible,
+        }
+        _add_optional(data, "parent_id", self.parent_id)
+        data.update(self.extra)
+        return data
+
+
+@dataclass
+class ResultField:
+    """A selectable result field: what can colour the scene.
+
+    Decouples "which fields exist" from "which overlay happens to hold values",
+    so the viewer lists fields rather than overlays. Follows the MED model of
+    (support, components) and the ParaView rule of one field, one scale.
+    """
+
+    id: str
+    label: str
+    load_case: str
+    result_state_id: str
+    overlay_id: str
+    support: str = "node"  # node | cell | subpoint | gauss
+    components: tuple[str, ...] = ("magnitude",)
+    unit: str = ""
+    range: tuple[float, float] | None = None
+    compliance_role: str | None = None
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ResultField":
+        known = {
+            "id",
+            "label",
+            "load_case",
+            "result_state_id",
+            "overlay_id",
+            "support",
+            "components",
+            "unit",
+            "range",
+            "compliance_role",
+        }
+        value_range = data.get("range")
+        return cls(
+            id=data["id"],
+            label=data.get("label", ""),
+            load_case=data.get("load_case", ""),
+            result_state_id=data.get("result_state_id", ""),
+            overlay_id=data["overlay_id"],
+            support=data.get("support", "node"),
+            components=tuple(data.get("components", ("magnitude",))),
+            unit=data.get("unit", ""),
+            range=(float(value_range[0]), float(value_range[1])) if value_range else None,
+            compliance_role=data.get("compliance_role"),
+            extra=_extra(data, known),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "id": self.id,
+            "label": self.label,
+            "load_case": self.load_case,
+            "result_state_id": self.result_state_id,
+            "overlay_id": self.overlay_id,
+            "support": self.support,
+            "components": list(self.components),
+        }
+        _add_optional(data, "unit", self.unit, skip_empty=True)
+        _add_optional(data, "range", list(self.range) if self.range else None)
+        _add_optional(data, "compliance_role", self.compliance_role)
+        data.update(self.extra)
+        return data
+
+
 @dataclass
 class Issue:
     id: str
@@ -589,6 +700,8 @@ class VisualizationScene:
     materials: list[SceneMaterial] = field(default_factory=list)
     styles: list[SceneStyle] = field(default_factory=list)
     overlays: list[Overlay] = field(default_factory=list)
+    layers: list[SceneLayer] = field(default_factory=list)
+    result_fields: list[ResultField] = field(default_factory=list)
     issues: list[Issue] = field(default_factory=list)
     route_reviews: list[RouteReview] = field(default_factory=list)
     agent_proposals: list[AgentProposal] = field(default_factory=list)
@@ -611,6 +724,8 @@ class VisualizationScene:
             "materials",
             "styles",
             "overlays",
+            "layers",
+            "result_fields",
             "issues",
             "route_reviews",
             "agent_proposals",
@@ -630,6 +745,8 @@ class VisualizationScene:
             materials=_materials_from_dicts(data.get("materials", [])),
             styles=_styles_from_dicts(data.get("styles", [])),
             overlays=_overlays_from_dicts(data.get("overlays", [])),
+            layers=[SceneLayer.from_dict(value) for value in data.get("layers", [])],
+            result_fields=[ResultField.from_dict(value) for value in data.get("result_fields", [])],
             issues=_issues_from_dicts(data.get("issues", [])),
             route_reviews=_route_reviews_from_dicts(data.get("route_reviews", [])),
             agent_proposals=_agent_proposals_from_dicts(data.get("agent_proposals", [])),
@@ -651,6 +768,8 @@ class VisualizationScene:
             "materials": [material.to_dict() for material in self.materials],
             "styles": [style.to_dict() for style in self.styles],
             "overlays": [overlay.to_dict() for overlay in self.overlays],
+            "layers": [layer.to_dict() for layer in self.layers],
+            "result_fields": [result_field.to_dict() for result_field in self.result_fields],
             "issues": [issue.to_dict() for issue in self.issues],
             "route_reviews": [review.to_dict() for review in self.route_reviews],
             "agent_proposals": [proposal.to_dict() for proposal in self.agent_proposals],
@@ -704,6 +823,28 @@ class VisualizationScene:
         for issue in self.issues:
             if issue.view_id and issue.view_id not in view_ids:
                 raise SceneValidationError(f"Issue {issue.id!r} references missing view {issue.view_id!r}.")
+
+        _require_unique("layer", [layer.id for layer in self.layers])
+        _require_unique("result field", [result_field.id for result_field in self.result_fields])
+
+        layer_ids = {layer.id for layer in self.layers}
+        for layer in self.layers:
+            if layer.category not in LAYER_CATEGORIES:
+                raise SceneValidationError(
+                    f"Layer {layer.id!r} has unknown category {layer.category!r}; "
+                    f"expected one of {', '.join(LAYER_CATEGORIES)}."
+                )
+            if layer.parent_id and layer.parent_id not in layer_ids:
+                raise SceneValidationError(f"Layer {layer.id!r} references missing parent layer {layer.parent_id!r}.")
+
+        overlay_ids = {overlay.id for overlay in self.overlays}
+        for result_field in self.result_fields:
+            if result_field.overlay_id not in overlay_ids:
+                raise SceneValidationError(
+                    f"Result field {result_field.id!r} references missing overlay {result_field.overlay_id!r}."
+                )
+            if not result_field.components:
+                raise SceneValidationError(f"Result field {result_field.id!r} must declare at least one component.")
 
 
 def _add_optional(data: dict[str, Any], key: str, value: Any, *, skip_empty: bool = False) -> None:

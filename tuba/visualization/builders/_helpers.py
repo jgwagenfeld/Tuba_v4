@@ -7,6 +7,7 @@ from typing import Iterable
 import numpy as np
 from tuba.model import Element
 from tuba.model import TubaModel
+from tuba.model import sample_bend_geometry
 from tuba.refs import EntityRef
 from tuba.clash.types import ClashResult
 from tuba.load_path import LoadPathReport
@@ -23,6 +24,7 @@ class SceneBuildOptions:
     include_elements: bool = True
     include_supports: bool = True
     include_obstacles: bool = True
+    include_loads: bool = True
     include_imported_components: bool = True
     include_physical: bool = True
     include_quantities: bool = True
@@ -168,6 +170,10 @@ def _groups_for_element(model: TubaModel, element_id: str) -> list[str]:
             groups.append(group_id)
     return groups
 def _element_points(model: TubaModel, elem: Element) -> list[list[float]]:
+    if elem.type == "pipe_bend":
+        if elem.bend_geometry is None:
+            raise ValueError(f"Cannot visualize pipe bend {elem.id!r} without explicit bend_geometry.")
+        return _points_to_lists(sample_bend_geometry(_node_coords(model, elem.n1), elem.bend_geometry, n_segments=16))
     return [_node_coords(model, elem.n1), _node_coords(model, elem.n2)]
 def _node_coords(model: TubaModel, node_id: str) -> list[float]:
     return [float(value) for value in model.nodes[node_id].coords.tolist()]

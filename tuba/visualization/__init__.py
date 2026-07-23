@@ -10,13 +10,16 @@ For interactive PyVista result plotting in notebooks (``results.plot_*``,
 """
 
 from tuba.visualization.scene import (
+    LAYER_CATEGORIES,
     AgentProposal,
     GeometryAsset,
     Issue,
     Overlay,
+    ResultField,
     RouteReview,
     SceneDiagnostic,
     SceneDiff,
+    SceneLayer,
     SceneMaterial,
     SceneObject,
     SceneStyle,
@@ -29,30 +32,22 @@ from tuba.visualization.bcf import export_bcf_topics, import_bcf_topics
 from tuba.visualization.agent_workspace import AgenticPythonWorkspace, AgentWorkspaceSession, WorkspaceCellResult
 from tuba.visualization.live_preview import LivePreviewResult, preview_json_patch, preview_python_script
 from tuba.visualization.performance import benchmark_scene_build, benchmark_viewer_smoke
-from tuba.visualization.reports import (
-    REPORTS,
-    build_reports,
-    displacement_report,
-    line_list,
-    load_case_summary,
-    reaction_report,
-    section_schedule,
-    stress_report,
-    write_report_csvs,
-)
 from tuba.visualization.scene_diff import SceneDiffBuildResult, apply_scene_diff, build_scene_diff
-from tuba.visualization.static_report import StaticReport, notebook_iframe_html, write_static_report
 from tuba.visualization.web_export import SceneBundle, write_scene_bundle
 from tuba.visualization.reporting_adapter import write_engineering_review_with_scene
+from tuba.visualization.viewer import viewer_assets_path
 
 __all__ = [
+    "LAYER_CATEGORIES",
     "AgentProposal",
     "GeometryAsset",
     "Issue",
     "Overlay",
+    "ResultField",
     "RouteReview",
     "SceneDiagnostic",
     "SceneDiff",
+    "SceneLayer",
     "SceneMaterial",
     "SceneObject",
     "SceneStyle",
@@ -63,27 +58,16 @@ __all__ = [
     "SceneBundle",
     "write_scene_bundle",
     "write_engineering_review_with_scene",
+    "viewer_assets_path",
     "SceneValidationError",
     "validate_scene_dict",
     "export_bcf_topics",
     "import_bcf_topics",
     "benchmark_scene_build",
     "benchmark_viewer_smoke",
-    "REPORTS",
-    "build_reports",
-    "line_list",
-    "section_schedule",
-    "load_case_summary",
-    "stress_report",
-    "reaction_report",
-    "displacement_report",
-    "write_report_csvs",
     "SceneDiffBuildResult",
     "apply_scene_diff",
     "build_scene_diff",
-    "StaticReport",
-    "notebook_iframe_html",
-    "write_static_report",
     "LivePreviewResult",
     "preview_json_patch",
     "preview_python_script",

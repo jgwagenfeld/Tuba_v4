@@ -28,6 +28,8 @@ from tuba.visualization.scene import VisualizationScene
 from tuba.visualization.builders._helpers import SceneBuildOptions, _default_scene_id, _normalize_ifc_guid_map
 from tuba.visualization.builders._objects import _build_element_object, _build_obstacle_object, _build_support_object
 from tuba.visualization.builders._imported import _build_imported_component_scene
+from tuba.visualization.builders._layers import build_layer_registry, build_result_fields
+from tuba.visualization.builders._loads import build_load_scene
 from tuba.visualization.builders._states import _build_analysis_mesh_scene, _build_deformed_state_scene, _build_geometry_state_record
 from tuba.visualization.builders._results import _build_result_state_record, _build_result_state_result_scene, _build_solver_result_scene
 from tuba.visualization.builders._review import _build_agent_proposal_preview, _build_clash_issue_scene, _build_cost_quantity_overlays, _build_external_source_scene, _build_field_context_scene, _build_load_path_scene, _build_route_result_scene, _build_rule_issue_scene, _build_runtime_state_overlay
@@ -99,6 +101,12 @@ def build_visualization_scene(
             scene_object, asset = _build_obstacle_object(obstacle)
             objects.append(scene_object)
             assets.append(asset)
+
+    if opts.include_loads:
+        load_objects, load_assets, load_case_overlays = build_load_scene(model)
+        objects.extend(load_objects)
+        assets.extend(load_assets)
+        overlays.extend(load_case_overlays)
 
     if opts.include_imported_components:
         mixed_objects, mixed_assets, mixed_diagnostics = _build_imported_component_scene(model)
@@ -224,6 +232,9 @@ def build_visualization_scene(
     if runtime_states:
         overlays.append(_build_runtime_state_overlay(runtime_states))
 
+    layers, layer_diagnostics = build_layer_registry(objects, overlays, analysis_mesh_records)
+    diagnostics.extend(layer_diagnostics)
+
     scene = VisualizationScene(
         scene_id=resolved_scene_id,
         model_id=model_id or getattr(model, "project_name", "tuba_model"),
@@ -233,6 +244,8 @@ def build_visualization_scene(
         objects=objects,
         geometry_assets=assets,
         overlays=overlays,
+        layers=layers,
+        result_fields=build_result_fields(overlays),
         issues=issues,
         route_reviews=route_reviews,
         agent_proposals=proposal_records,

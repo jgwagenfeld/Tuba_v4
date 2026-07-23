@@ -273,7 +273,21 @@ class MixedCodeAsterStudyExporter:
             node_sources=node_sources,
             element_sources=element_sources,
             files={"med": str(med_path)},
+            modelisations=self._modelisation_assignments(model),
         )
+
+    @staticmethod
+    def _modelisation_assignments(model: TubaModel) -> dict[str, str]:
+        """``GROUP_MA`` -> ``MODELISATION`` for the mixed 1D/3D study.
+
+        Single source for AFFE_MODELE emission and AnalysisMesh metadata. Note
+        this differs from the pure-piping path in tuba.solver.modelisation:
+        here ``G_TUBE`` is the TUYAU shell-beam region, not a POU_D_T beam.
+        """
+        assignments = {"G_TUBE": "TUYAU_3M"}
+        for region in model.analysis_regions.values():
+            assignments[region.mesh_group] = region.code_aster_modelisation
+        return assignments
 
     def _write_comm(
         self,
@@ -289,14 +303,13 @@ class MixedCodeAsterStudyExporter:
             "MODELE = AFFE_MODELE(",
             "    MAILLAGE=MAIL0,",
             "    AFFE=(",
-            f"        _F(GROUP_MA=('{name_map['G_TUBE']}',), PHENOMENE='MECANIQUE', MODELISATION='TUYAU_3M'),",
         ]
-        for region in model.analysis_regions.values():
+        for group_name, modelisation in self._modelisation_assignments(model).items():
             lines.append(
                 "        _F("
-                f"GROUP_MA=('{name_map[region.mesh_group]}',), "
+                f"GROUP_MA=('{name_map[group_name]}',), "
                 "PHENOMENE='MECANIQUE', "
-                f"MODELISATION='{region.code_aster_modelisation}'"
+                f"MODELISATION='{modelisation}'"
                 "),"
             )
         lines.extend(["    ),", ")"])

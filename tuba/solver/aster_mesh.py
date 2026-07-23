@@ -17,6 +17,7 @@ import numpy as np
 from tuba.model import Element, TubaModel
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
 from tuba.refs import EntityRef
+from tuba.solver.modelisation import modelisation_assignments
 
 logger = logging.getLogger(__name__)
 
@@ -441,6 +442,7 @@ class _MeshWriterMixin:
             node_sources=node_sources,
             element_sources=element_sources,
             files={"mail": str(mail_path)},
+            modelisations=modelisation_assignments(model),
         )
 
     def _pipe_straight_midpoint_nodes(

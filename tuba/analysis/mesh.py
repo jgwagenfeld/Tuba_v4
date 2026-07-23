@@ -96,6 +96,35 @@ class MeshElementSource:
         )
 
 
+#: Code_Aster ``MODELISATION`` -> (topological dimension, result support).
+#:
+#: ``TUYAU_3M`` is the one that surprises people: it is topologically a 1D mesh
+#: (SEG3/SEG4) whose stress recovery lives at circumferential sub-points, so the
+#: mesh is 1D while the results are effectively 2.5D.
+MODELISATION_INFO: dict[str, tuple[int, str]] = {
+    "TUYAU_3M": (1, "subpoint"),
+    "POU_D_T": (1, "cell"),
+    "POU_D_E": (1, "cell"),
+    "BARRE": (1, "cell"),
+    "CABLE": (1, "cell"),
+    "DIS_TR": (0, "node"),
+    "DIS_T": (0, "node"),
+    "DKT": (2, "cell"),
+    "COQUE_3D": (2, "cell"),
+    "3D": (3, "gauss"),
+}
+
+
+def modelisation_info(modelisation: str) -> tuple[int, str]:
+    """Return ``(topological_dim, result_support)`` for a ``MODELISATION``.
+
+    Unknown modelisations report ``(-1, "unknown")`` rather than raising: the
+    viewer must be able to render a mesh badge for a modelisation Tuba does not
+    model yet without the whole scene build failing.
+    """
+    return MODELISATION_INFO.get(modelisation, (-1, "unknown"))
+
+
 @dataclass(frozen=True)
 class AnalysisMesh:
     id: str
@@ -107,6 +136,8 @@ class AnalysisMesh:
     node_sources: dict[str, MeshNodeSource]
     element_sources: dict[str, MeshElementSource]
     files: dict[str, str] = field(default_factory=dict)
+    #: ``GROUP_MA`` name -> Code_Aster ``MODELISATION``, mirroring ``AFFE_MODELE``.
+    modelisations: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "AnalysisMesh id")
@@ -146,6 +177,14 @@ class AnalysisMesh:
         object.__setattr__(self, "node_sources", node_sources)
         object.__setattr__(self, "element_sources", element_sources)
         object.__setattr__(self, "files", dict(self.files))
+        modelisations = {str(key): str(value) for key, value in self.modelisations.items()}
+        for group_name, modelisation in modelisations.items():
+            if not group_name or not modelisation:
+                raise ValueError("AnalysisMesh modelisations must map non-empty group names to non-empty values.")
+        # Group existence is deliberately not checked: POI1 groups for discrete
+        # springs/masses (``DIS_<node>``) are created by CREA_MAILLAGE inside the
+        # .comm, so they are named in AFFE_MODELE without existing in `groups`.
+        object.__setattr__(self, "modelisations", modelisations)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -158,6 +197,7 @@ class AnalysisMesh:
             "node_sources": {key: value.to_dict() for key, value in self.node_sources.items()},
             "element_sources": {key: value.to_dict() for key, value in self.element_sources.items()},
             "files": dict(self.files),
+            "modelisations": dict(self.modelisations),
         }
 
     @classmethod
@@ -174,6 +214,7 @@ class AnalysisMesh:
                 key: MeshElementSource.from_dict(value) for key, value in data.get("element_sources", {}).items()
             },
             files=dict(data.get("files", {})),
+            modelisations=dict(data.get("modelisations", {})),
         )
 
 
