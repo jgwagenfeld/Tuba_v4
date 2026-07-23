@@ -16,6 +16,7 @@ import {
   setColoringComponent,
   setColoringField,
   setColoringLoadCase,
+  shouldShowComplianceNotice,
   withCoherentColoring
 } from "../src/coloring.js";
 import { preserveViewerStateForReload } from "../src/viewerState.js";
@@ -179,6 +180,41 @@ test("compliance role surfaces as a notice", () => {
   });
   assert.equal(getComplianceNotice(state), "FE stress - not ASME code stress");
   assert.equal(getComplianceNotice(baseState()), null);
+});
+
+test("compliance notice follows the coloured scene, not the open task", () => {
+  // Regression: the notice used to sit beside the legend, which the cockpit
+  // detaches under Review/Model/Issues while the scene stays colour-mapped -
+  // producing an FE-stress view with the caveat missing.
+  const state = {
+    ...baseState({
+      overlays: [TUYAU_OVERLAY],
+      resultFields: [field("field:tuyau:Operating", TUYAU_OVERLAY, { support: "subpoint" })]
+    }),
+    layers: { "overlay:solver_result": { id: "overlay:solver_result", visible: true } }
+  };
+  const categories = [{ id: "results", layerIds: ["overlay:solver_result"] }];
+  assert.equal(shouldShowComplianceNotice(state, categories), true);
+
+  const hidden = { ...state, layers: { "overlay:solver_result": { id: "overlay:solver_result", visible: false } } };
+  assert.equal(shouldShowComplianceNotice(hidden, categories), false);
+});
+
+test("compliance notice stays away when the field declares no role", () => {
+  const state = { ...baseState(), layers: { "overlay:solver_result": { id: "overlay:solver_result", visible: true } } };
+  assert.equal(shouldShowComplianceNotice(state, [{ id: "results", layerIds: ["overlay:solver_result"] }]), false);
+});
+
+test("compliance notice needs a results category to attach to", () => {
+  const state = {
+    ...baseState({
+      overlays: [TUYAU_OVERLAY],
+      resultFields: [field("field:tuyau:Operating", TUYAU_OVERLAY, { support: "subpoint" })]
+    }),
+    layers: {}
+  };
+  assert.equal(shouldShowComplianceNotice(state, []), false);
+  assert.equal(shouldShowComplianceNotice(state, undefined), false);
 });
 
 test("reload keeps the selection when the field survives", () => {

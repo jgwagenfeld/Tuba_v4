@@ -17,7 +17,8 @@ import {
   getFieldOptions,
   setColoringComponent,
   setColoringField,
-  setColoringLoadCase
+  setColoringLoadCase,
+  shouldShowComplianceNotice
 } from "./coloring.js";
 import {
   getGeometryStateOptions,
@@ -656,16 +657,6 @@ function renderResultControls() {
       `${legend.field}${component}: ${formatEngineeringValue(legend.range.min)} - ${formatEngineeringValue(legend.range.max)} ${legend.unit}`.trim();
     dom.resultLegend.append(scale);
 
-    // Persistent, never a tooltip: an FE stress plot mislabelled as code
-    // stress is a compliance problem, so it travels with the legend.
-    const notice = getComplianceNotice(currentState);
-    if (notice) {
-      const badge = document.createElement("div");
-      badge.className = "compliance-notice";
-      badge.dataset.complianceNotice = "";
-      badge.textContent = `⚠ ${notice}`;
-      dom.resultLegend.append(badge);
-    }
   }
 
   const hotspots = getHotspots(currentState);
@@ -733,8 +724,25 @@ function renderDisplayStrip() {
     }
     dom.categorySwitches.append(label);
   }
+  renderComplianceNotice(categories);
   renderLayerTree(categories);
   renderSavedViews();
+}
+
+// Lives in the pinned strip rather than beside the legend, because the result
+// panel is detached under the Review/Model/Issues tasks while the scene stays
+// colour-mapped. A colour-mapped FE stress view with the "not code stress"
+// caveat missing is the exact screenshot this is here to prevent.
+function renderComplianceNotice(categories) {
+  if (!shouldShowComplianceNotice(currentState, categories)) {
+    return;
+  }
+  const notice = getComplianceNotice(currentState);
+  const badge = document.createElement("div");
+  badge.className = "compliance-notice";
+  badge.dataset.complianceNotice = "";
+  badge.textContent = `⚠ ${notice}`;
+  dom.categorySwitches.append(badge);
 }
 
 // One line per category saying what is actually in it. For the analysis mesh

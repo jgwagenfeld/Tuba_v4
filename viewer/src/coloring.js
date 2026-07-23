@@ -138,6 +138,16 @@ export function getComplianceNotice(state) {
   return role.replace(/_/g, " ");
 }
 
+// The notice belongs wherever a compliance-flagged field is actually tinting
+// the scene. The result panel is detached under the Review/Model/Issues tasks
+// while the scene stays colour-mapped, so this is driven by the Results layer
+// being visible rather than by which task is open.
+export function shouldShowComplianceNotice(state, categories) {
+  if (!getComplianceNotice(state)) return false;
+  const results = (categories ?? []).find((category) => category.id === "results");
+  return Boolean(results?.layerIds.some((id) => state.layers?.[id]?.visible !== false));
+}
+
 export function getColoringValues(state) {
   const field = getActiveField(state);
   if (!field) return {};
