@@ -9,7 +9,7 @@ async function readViewerFile(...parts) {
   return readFile(new URL(path.posix.join(...parts), viewerRoot), "utf8");
 }
 
-test("viewer exposes the Vite TypeScript scaffold commands", async () => {
+test("viewer exposes the Vite JavaScript scaffold commands", async () => {
   const packageJson = JSON.parse(await readViewerFile("package.json"));
 
   for (const scriptName of ["build", "dev", "e2e", "preview", "test"]) {
@@ -23,25 +23,23 @@ test("viewer exposes the Vite TypeScript scaffold commands", async () => {
   assert.ok(packageJson.dependencies?.three, "three dependency is required");
   assert.ok(packageJson.devDependencies?.["@playwright/test"], "playwright test dependency is required");
   assert.ok(packageJson.devDependencies?.vite, "vite dependency is required");
-  assert.ok(packageJson.devDependencies?.typescript, "typescript dependency is required");
+  assert.equal(packageJson.devDependencies?.typescript, undefined);
 });
 
-test("viewer has Vite and TypeScript config files", async () => {
-  const viteConfig = await readViewerFile("vite.config.ts");
-  const tsConfig = JSON.parse(await readViewerFile("tsconfig.json"));
+test("viewer has one Vite JavaScript config", async () => {
+  const viteConfig = await readViewerFile("vite.config.js");
 
   assert.match(viteConfig, /defineConfig/);
   assert.match(viteConfig, /chunkSizeWarningLimit:\s*1024/);
-  assert.equal(tsConfig.compilerOptions.moduleResolution, "Bundler");
-  assert.ok(tsConfig.include.includes("src/**/*.ts"));
+  await assert.rejects(readViewerFile("tsconfig.json"), { code: "ENOENT" });
 });
 
-test("viewer app enters through TypeScript and owns CSS layout", async () => {
+test("viewer app enters through JavaScript and owns CSS layout", async () => {
   const html = await readViewerFile("index.html");
-  const main = await readViewerFile("src/main.ts");
+  const main = await readViewerFile("src/main.js");
   const css = await readViewerFile("src/styles.css");
 
-  assert.match(html, /\/src\/main\.ts/);
+  assert.match(html, /\/src\/main\.js/);
   assert.doesNotMatch(html, /<style>/);
   assert.match(main, /import "\.\/styles\.css"/);
   assert.match(main, /import "\.\/app\.js"/);

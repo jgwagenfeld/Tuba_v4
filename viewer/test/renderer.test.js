@@ -189,6 +189,8 @@ test("scene graph renders TUYAU sub-points as one instanced glyph batch", () => 
   const mesh = graph.objectsByObjectId.get("object:tuyau");
   assert.equal(mesh.isInstancedMesh, true);
   assert.equal(mesh.count, 2);
+  assert.equal(mesh.material.vertexColors, false);
+  assert.equal(mesh.instanceColor.count, 2);
 });
 
 test("fitCameraToBounds targets scene center and computes a usable distance", () => {
@@ -335,6 +337,25 @@ test("scene graph visibility updates hide cached renderables without rebuilding"
   assert.equal(graph.renderedObjectCount, 1);
 });
 
+test("interaction mode temporarily hides detail geometry and restores visibility", () => {
+  const graph = createThreeSceneGraph(fixtureState());
+
+  rendererModule.setSceneGraphInteractionMode?.(graph, true);
+
+  assert.equal(typeof rendererModule.setSceneGraphInteractionMode, "function");
+  assert.equal(graph.objectsByObjectId.get("object:pipe").visible, true);
+  assert.equal(graph.objectsByObjectId.get("object:box").visible, true);
+  assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, false);
+  assert.equal(graph.objectsByObjectId.get("object:node").visible, false);
+  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, false);
+
+  rendererModule.setSceneGraphInteractionMode(graph, false);
+
+  assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, true);
+  assert.equal(graph.objectsByObjectId.get("object:node").visible, true);
+  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, true);
+});
+
 test("pickRenderedObject uses Three.js raycasting metadata", () => {
   const graph = createThreeSceneGraph({
     bounds: [-1, -1, -1, 1, 1, 1],
@@ -388,6 +409,33 @@ test("pickRenderedObject skips dense TUYAU glyph instances", () => {
   assert.doesNotThrow(() => pickRenderedObject(graph, { x: 50, y: 50 }, { width: 100, height: 100 }));
 });
 
+test("pickRenderedObject can skip projected fallback for hover misses", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [-1, -1, -1, 1, 1, 1],
+    geometryAssets: [
+      {
+        id: "geometry:marker",
+        format: "marker",
+        bounds: [0, 0, 0, 0, 0, 0],
+        object_ids: ["object:marker"],
+        generation_config: { point: [0, 0, 0], radius_m: 0.1 }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:marker"]
+  });
+  const camera = new PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, -4, 0);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  graph.camera = camera;
+
+  assert.equal(
+    pickRenderedObject(graph, { x: 0, y: 0 }, { width: 100, height: 100 }, { projectedFallback: false }),
+    null
+  );
+});
+
 test("applyHoverHighlight records hover target and marks matching materials", () => {
   const graph = createThreeSceneGraph(fixtureState());
 
@@ -395,6 +443,28 @@ test("applyHoverHighlight records hover target and marks matching materials", ()
 
   assert.equal(graph.highlightedObjectId, "object:pipe");
   assert.equal(graph.objectsByObjectId.get("object:pipe").userData.hovered, true);
+});
+
+test("applyHoverHighlight only revisits the previous and next objects", () => {
+  const graph = createThreeSceneGraph(fixtureState());
+  applyHoverHighlight(graph, "object:pipe");
+  graph.objectsByObjectId.get("object:box").traverse = () => {
+    throw new Error("unrelated objects must not be traversed");
+  };
+
+  assert.doesNotThrow(() => applyHoverHighlight(graph, "object:issue"));
+  assert.equal(graph.objectsByObjectId.get("object:pipe").userData.hovered, false);
+  assert.equal(graph.objectsByObjectId.get("object:issue").userData.hovered, true);
+});
+
+test("clearing hover preserves an existing selection highlight", () => {
+  const graph = createThreeSceneGraph(fixtureState());
+  applySelectionHighlight(graph, ["object:pipe"]);
+
+  applyHoverHighlight(graph, "object:pipe");
+  applyHoverHighlight(graph, "object:issue");
+
+  assert.equal(graph.objectsByObjectId.get("object:pipe").material.emissive.getHex(), 0xf59e0b);
 });
 
 test("applySelectionHighlight marks focused clash review objects", () => {

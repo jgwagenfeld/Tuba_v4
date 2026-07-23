@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
 import {
   colorForScalarValue,
   getObjectScalarColor,
@@ -24,6 +25,7 @@ export const SUPPORTED_RENDER_FORMATS = new Set([
 
 const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
 const REFERENCE_GEOMETRY_OPACITY = 0.32;
+const INTERACTION_DETAIL_FORMATS = new Set(["line", "point", "polyline", "tuyau_subpoint_glyphs", "vector"]);
 
 export function createThreeSceneGraph(state, options = {}) {
   const scene = new THREE.Scene();
@@ -163,9 +165,77 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   camera.up.set(0, 0, 1);
 
   const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
+  controls.enableDamping = false;
+
+  // Orientation gizmo. ViewHelper draws itself into a corner viewport on top of the
+  // scene, so the main pass must not auto-clear underneath it.
+  renderer.autoClear = false;
+  const viewHelper = new ViewHelper(camera, canvas);
+  viewHelper.setLabels("X", "Y", "Z");
+
   let currentGraph = null;
+  let redrawFrameId = null;
+  const cameraDirection = new THREE.Vector3();
+  // Rendering is on-demand, so nothing re-reads the canvas box between state
+  // renders. Without this the drawing buffer keeps its old size after a window
+  // or panel resize and the frame is stretched into the new box - geometry
+  // reads as squashed and cut off.
+  const syncCanvasSize = () => {
+    const width = Math.max(1, Math.floor(canvas.clientWidth || canvas.width || 1));
+    const height = Math.max(1, Math.floor(canvas.clientHeight || canvas.height || 1));
+    const size = renderer.getSize(new THREE.Vector2());
+    if (size.x === width && size.y === height) {
+      return false;
+    }
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    return true;
+  };
+  const drawFrame = (graph) => {
+    renderer.clear();
+    renderer.render(graph.scene, camera);
+    viewHelper.render(renderer);
+    canvas.dataset.cameraDirection = camera
+      .getWorldDirection(cameraDirection)
+      .toArray()
+      .map((value) => value.toFixed(3))
+      .join(",");
+  };
+  const redrawScene = () => {
+    if (redrawFrameId !== null) return;
+    redrawFrameId = requestAnimationFrame(() => {
+      redrawFrameId = null;
+      if (currentGraph) drawFrame(currentGraph);
+    });
+  };
+  // ponytail: fixed 1/60s step instead of a real clock — the gizmo turn is a short
+  // constant-rate slerp, so drift is invisible. Swap in THREE.Clock if it ever matters.
+  const animateGizmo = () => {
+    viewHelper.update(1 / 60);
+    controls.update();
+    if (currentGraph) drawFrame(currentGraph);
+    if (viewHelper.animating) requestAnimationFrame(animateGizmo);
+  };
+  const startInteraction = () => {
+    if (currentGraph) setSceneGraphInteractionMode(currentGraph, true);
+    redrawScene();
+  };
+  const endInteraction = () => {
+    if (currentGraph) setSceneGraphInteractionMode(currentGraph, false);
+    redrawScene();
+  };
+  controls.addEventListener("change", redrawScene);
+  controls.addEventListener("start", startInteraction);
+  controls.addEventListener("end", endInteraction);
+  // Guarded: the node test environment has no ResizeObserver.
+  const resizeObserver =
+    typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(() => {
+          if (syncCanvasSize()) redrawScene();
+        });
+  resizeObserver?.observe(canvas);
   const graphCache = createSceneGraphCache(
     (state) => createThreeSceneGraph(state, options),
     disposeThreeSceneGraph
@@ -174,10 +244,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
 
   return {
     render(state) {
-      const width = Math.max(1, Math.floor(canvas.clientWidth || canvas.width || 1));
-      const height = Math.max(1, Math.floor(canvas.clientHeight || canvas.height || 1));
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
+      syncCanvasSize();
 
       if (currentGraph && !hasAllVisibleAssets(currentGraph, state)) {
         graphCache.clear();
@@ -189,7 +256,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       controls.update();
       graph.camera = camera;
       applySelectionHighlight(graph, state.selectedObjectIds ?? []);
-      renderer.render(graph.scene, camera);
+      drawFrame(graph);
       currentGraph = graph;
 
       canvas.dataset.renderer = "three";
@@ -198,15 +265,23 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       return graph;
     },
     redraw() {
-      if (!currentGraph) {
-        return;
-      }
-      controls.update();
-      renderer.render(currentGraph.scene, camera);
+      redrawScene();
+    },
+    handleGizmoClick(event) {
+      viewHelper.center.copy(controls.target);
+      if (!viewHelper.handleClick(event)) return false;
+      requestAnimationFrame(animateGizmo);
+      return true;
     },
     dispose() {
       graphCache.clear();
+      if (redrawFrameId !== null) cancelAnimationFrame(redrawFrameId);
+      resizeObserver?.disconnect();
+      controls.removeEventListener("change", redrawScene);
+      controls.removeEventListener("start", startInteraction);
+      controls.removeEventListener("end", endInteraction);
       controls.dispose();
+      viewHelper.dispose();
       renderer.dispose();
     }
   };
@@ -265,13 +340,16 @@ export function createThreeViewport(canvas, options = {}) {
     render() {
       canvasRenderer.redraw();
     },
+    handleGizmoClick(event) {
+      return canvasRenderer.handleGizmoClick(event);
+    },
     dispose() {
       canvasRenderer.dispose();
     }
   };
 }
 
-export function pickRenderedObject(graph, point, viewport) {
+export function pickRenderedObject(graph, point, viewport, options = {}) {
   if (!graph?.camera || !graph.renderableObjects?.length) {
     return null;
   }
@@ -291,7 +369,7 @@ export function pickRenderedObject(graph, point, viewport) {
       return objectId;
     }
   }
-  return pickNearestProjectedObject(graph, point, viewport);
+  return options.projectedFallback === false ? null : pickNearestProjectedObject(graph, point, viewport);
 }
 
 export function updateSceneGraphVisibility(graph, state) {
@@ -308,6 +386,24 @@ export function updateSceneGraphVisibility(graph, state) {
   return graph;
 }
 
+export function setSceneGraphInteractionMode(graph, active) {
+  let renderedObjectCount = 0;
+  for (const object of graph.renderableObjects ?? []) {
+    if (active) {
+      if (!Object.hasOwn(object.userData, "visibleBeforeInteraction")) {
+        object.userData.visibleBeforeInteraction = object.visible;
+      }
+      if (INTERACTION_DETAIL_FORMATS.has(object.userData?.format)) object.visible = false;
+    } else if (Object.hasOwn(object.userData, "visibleBeforeInteraction")) {
+      object.visible = object.userData.visibleBeforeInteraction;
+      delete object.userData.visibleBeforeInteraction;
+    }
+    if (object.visible) renderedObjectCount += 1;
+  }
+  graph.renderedObjectCount = renderedObjectCount;
+  return graph;
+}
+
 function hasAllVisibleAssets(graph, state) {
   const cachedAssetIds = new Set((graph.renderableObjects ?? []).map((object) => object.userData?.assetId));
   const visibleIds = new Set(state.visibleObjectIds ?? []);
@@ -317,21 +413,27 @@ function hasAllVisibleAssets(graph, state) {
 }
 
 export function applyHoverHighlight(graph, objectId) {
-  graph.highlightedObjectId = objectId ?? null;
-  for (const object of graph.renderableObjects ?? []) {
-    const hovered = Boolean(objectId && (object.userData.objectIds ?? []).includes(objectId));
-    object.userData.hovered = hovered;
-    object.traverse((child) => {
-      child.userData.hovered = hovered;
-      const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
-      for (const material of materials) {
-        if (material.emissive) {
-          material.emissive.setHex(hovered ? 0x1d4ed8 : 0x000000);
-        }
-      }
-    });
+  if (graph.highlightedObjectId === (objectId ?? null)) {
+    return graph;
   }
+  setObjectHover(graph.objectsByObjectId?.get(graph.highlightedObjectId), false);
+  graph.highlightedObjectId = objectId ?? null;
+  setObjectHover(graph.objectsByObjectId?.get(objectId), true);
   return graph;
+}
+
+function setObjectHover(object, hovered) {
+  if (!object) return;
+  object.userData.hovered = hovered;
+  object.traverse((child) => {
+    child.userData.hovered = hovered;
+    const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+    for (const material of materials) {
+      if (material.emissive) {
+        material.emissive.setHex(hovered ? 0x1d4ed8 : child.userData.selected ? 0xf59e0b : 0x000000);
+      }
+    }
+  });
 }
 
 export function applySelectionHighlight(graph, objectIds = []) {
@@ -477,8 +579,7 @@ function createTuyauSubpointGlyphs(asset, config, format, state) {
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     opacity: 0.94,
-    transparent: true,
-    vertexColors: true
+    transparent: true
   });
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   const matrix = new THREE.Matrix4();

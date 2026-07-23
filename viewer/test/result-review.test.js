@@ -111,6 +111,27 @@ test("scalar color uses active solver result values", () => {
   assert.notEqual(coldColor, hotColor);
 });
 
+test("visible TUYAU sub-point results own the scalar legend", () => {
+  const state = resultState();
+  state.overlays.push({
+    id: "overlay:tuyau:Hot",
+    kind: "solver_result",
+    name: "TUYAU FE VMIS Hot",
+    data: {
+      result_type: "tuyau_subpoints",
+      result_state_id: "result_state:Hot",
+      load_case: "Hot",
+      values: { "object:tuyau": 84000000 },
+      legend: { field: "FE VMIS (not code stress)", unit: "Pa", range: { min: 42000000, max: 84000000 } }
+    }
+  });
+
+  assert.equal(getScalarLegend(state).field, "FE VMIS (not code stress)");
+
+  state.overlays.at(-1).visible = false;
+  assert.equal(getScalarLegend(state).field, "max_von_mises");
+});
+
 test("visual deformation and vector display controls do not mutate clash issue metadata", () => {
   const state = resultState();
   const originalIssues = state.issues;
