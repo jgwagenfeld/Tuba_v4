@@ -48,6 +48,33 @@ const scenarios = {
     bundle: "/smoke-scene",
     minimumObjects: 3
   },
+  "view-gizmo": {
+    bundle: "/smoke-scene",
+    minimumObjects: 3,
+    async run(page) {
+      const canvas = page.locator("[data-canvas]");
+      const before = await canvas.evaluate((node) => node.dataset.cameraDirection);
+      assert.ok(before, "renderer must publish the camera direction");
+
+      // The gizmo occupies a 128px box in the bottom-right corner spanning [-2, 2] world
+      // units, so its axis balls sit 32px from the box centre. After the initial fit the
+      // camera looks from (1, -1, 0.65), which puts world +Z at 0.909 screen-up.
+      const box = await canvas.boundingBox();
+      await page.mouse.click(box.x + box.width - 64, box.y + box.height - 64 - 29);
+
+      await page.waitForFunction(
+        (previous) => document.querySelector("[data-canvas]")?.dataset.cameraDirection !== previous,
+        before
+      );
+      await page.waitForFunction(() => {
+        const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
+        return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
+      });
+
+      // Hitting the gizmo must not double as a pick in the scene behind it.
+      assert.deepEqual(await page.evaluate(() => window.__tubaViewer?.state?.selectedObjectIds ?? []), []);
+    }
+  },
   "layer-state": {
     bundle: "/test/fixtures/layer_state_scene",
     // The default "model" task preset hides the results + overlays categories, so only
