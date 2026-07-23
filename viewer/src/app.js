@@ -85,6 +85,7 @@ const dom = {
   savedViews: document.querySelector("[data-saved-views]"),
   properties: document.querySelector("[data-properties]"),
   propertyActions: document.querySelector("[data-property-actions]"),
+  bundlePicker: document.querySelector("[data-bundle-picker]"),
   canvas: document.querySelector("[data-canvas]")
 };
 
@@ -128,12 +129,67 @@ async function main() {
     await loadBundle(currentBundleUrl, { preserve: false });
     setStatus("Ready");
     render();
+    await initBundlePicker();
     if (startupConfig.previewWebSocketUrl) {
       connectLivePreview(startupConfig.previewWebSocketUrl);
     }
   } catch (error) {
     setStatus(error.message, true);
   }
+}
+
+// Populate the header dropdown from the /bundles.json manifest (served by the
+// vite plugin in dev, emitted at build). Absent manifest or a lone example ->
+// stay hidden; this is a convenience control, never a hard dependency.
+async function initBundlePicker() {
+  if (startupConfig.embed || !dom.bundlePicker) {
+    return;
+  }
+  let bundles = [];
+  try {
+    const response = await fetch("./bundles.json");
+    if (response.ok) {
+      bundles = await response.json();
+    }
+  } catch {
+    // No manifest available (e.g. bundle served without the vite plugin).
+  }
+  if (!Array.isArray(bundles) || bundles.length <= 1) {
+    dom.bundlePicker.hidden = true;
+    return;
+  }
+  dom.bundlePicker.replaceChildren(
+    ...bundles.map((id) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = labelForBundle(id);
+      option.selected = id === currentBundleUrl;
+      return option;
+    })
+  );
+  dom.bundlePicker.hidden = false;
+  dom.bundlePicker.addEventListener("change", () => switchBundle(dom.bundlePicker.value));
+}
+
+async function switchBundle(bundleId) {
+  currentBundleUrl = bundleId;
+  const url = new URL(window.location.href);
+  url.searchParams.set("bundle", bundleId);
+  window.history.replaceState({}, "", url);
+  setStatus(`Loading ${bundleId}`);
+  try {
+    await loadBundle(bundleId, { preserve: false });
+    setStatus("Ready");
+    render();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function labelForBundle(bundleId) {
+  return String(bundleId)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 async function loadBundle(bundleUrl, options = {}) {
@@ -702,6 +758,9 @@ function renderDisplayStrip() {
     label.className = "category-switch";
     const input = document.createElement("input");
     input.type = "checkbox";
+    // Pin the accessible name to the category so the decorative caption below
+    // does not fold into it (e.g. "Results Displacement · Reaction").
+    input.setAttribute("aria-label", category.label);
     const visibles = category.layerIds.map((id) => currentState.layers[id]?.visible !== false);
     input.checked = visibles.every(Boolean);
     input.indeterminate = !input.checked && visibles.some(Boolean);
@@ -719,6 +778,7 @@ function renderDisplayStrip() {
       const hint = document.createElement("span");
       hint.className = "category-hint";
       hint.dataset.categoryHint = category.id;
+      hint.setAttribute("aria-hidden", "true");
       hint.textContent = summary;
       label.append(hint);
     }

@@ -75,6 +75,32 @@ const scenarios = {
       assert.deepEqual(await page.evaluate(() => window.__tubaViewer?.state?.selectedObjectIds ?? []), []);
     }
   },
+  "bundle-picker": {
+    bundle: "smoke-scene",
+    minimumObjects: 3,
+    async run(page) {
+      const picker = page.locator("[data-bundle-picker]");
+      await picker.waitFor({ state: "visible" });
+
+      // The dropdown lists every public/ example the vite plugin discovered.
+      const options = await picker.locator("option").evaluateAll((nodes) => nodes.map((node) => node.value));
+      assert.ok(options.includes("smoke-scene"), `picker must list smoke-scene: ${options}`);
+      assert.ok(options.includes("code-aster-review"), `picker must list code-aster-review: ${options}`);
+      assert.ok(options.length >= 3, `picker must list every example: ${options}`);
+      assert.equal(await picker.inputValue(), "smoke-scene");
+
+      const sceneBefore = await page.evaluate(() => window.__tubaViewer?.state?.sceneId);
+
+      // Selecting another example loads it and rewrites the ?bundle= query.
+      await picker.selectOption("code-aster-review");
+      await page.waitForFunction(
+        (previous) => window.__tubaViewer?.state?.sceneId && window.__tubaViewer.state.sceneId !== previous,
+        sceneBefore
+      );
+      assert.match(new URL(page.url()).searchParams.get("bundle") ?? "", /code-aster-review/);
+      assert.equal(await picker.inputValue(), "code-aster-review");
+    }
+  },
   "layer-state": {
     bundle: "/test/fixtures/layer_state_scene",
     // The default "model" task preset hides the results + overlays categories, so only
@@ -87,8 +113,10 @@ const scenarios = {
       });
       assert.equal(await layers.evaluate((details) => details.open), true);
       // Reveal the preset-hidden categories via the display-strip category switches.
+      // object:cold -> design, object:deformed -> results, object:clash -> annotations
+      // (this fixture carries no scene.layers, so it exercises the legacy fallback).
       await page.getByLabel(/^\s*Results\s*$/).check();
-      await page.getByLabel(/^\s*Overlays\s*$/).check();
+      await page.getByLabel(/^\s*Annotations\s*$/).check();
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 3 && ids.includes("object:cold") && ids.includes("object:deformed") && ids.includes("object:clash");
@@ -100,7 +128,7 @@ const scenarios = {
         return ids.length === 2 && ids.includes("object:cold") && ids.includes("object:clash") && !ids.includes("object:deformed");
       });
 
-      await page.getByLabel(/^\s*Overlays\s*$/).uncheck(); // category switch hides overlay:* layers
+      await page.getByLabel(/^\s*Annotations\s*$/).uncheck(); // category switch hides the clash marker
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 1 && ids[0] === "object:cold";

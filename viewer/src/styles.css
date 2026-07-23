@@ -128,6 +128,23 @@ textarea,
   white-space: nowrap;
 }
 
+.bundle-picker {
+  margin-top: 0.2rem;
+  justify-self: start;
+  width: auto;
+  max-width: 100%;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.35rem;
+}
+
+.bundle-picker[hidden] {
+  display: none;
+}
+
 .app-kicker,
 .review-overview-label {
   color: var(--muted);
