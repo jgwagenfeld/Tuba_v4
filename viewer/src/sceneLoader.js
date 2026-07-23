@@ -1,5 +1,6 @@
 import { loadOptionalReview } from "./reviewLoader.js";
 import { visibilityPresetForTask } from "./workflowState.js";
+import { createColoringState } from "./coloring.js";
 
 const NODE_FS_PROMISES = "node:fs/promises";
 const NODE_PATH = "node:path";
@@ -75,7 +76,8 @@ export function createViewerState(bundle) {
   const geometryAssets = scene.geometry_assets?.length ? scene.geometry_assets : bundle.geometryAssets ?? [];
   const overlays = scene.overlays?.length ? scene.overlays : bundle.overlays ?? [];
   const objectLayerIds = Object.fromEntries(objects.map((obj) => [obj.id, layerIdsForObject(obj)]));
-  const layers = buildLayerRegistry(objects, overlays, objectLayerIds);
+  const sceneLayers = Array.isArray(scene.layers) ? scene.layers : [];
+  const layers = buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers);
   const resultStates = overlays.filter((overlay) => overlay.kind === "result_state");
   const geometryStates = overlays.filter((overlay) => overlay.kind === "geometry_state");
   const activeResultState = resultStates[0] ?? null;
@@ -113,6 +115,7 @@ export function createViewerState(bundle) {
     activeOverlayIds: [],
     resultStates,
     geometryStates,
+    resultFields: Array.isArray(scene.result_fields) ? scene.result_fields : [],
     activeLoadCase: activeResultState?.data?.load_case ?? activeGeometryState?.data?.load_case ?? null,
     activeResultStateId: activeResultState?.data?.id ?? activeResultState?.id ?? null,
     activeGeometryStateId: activeGeometryState?.data?.id ?? activeGeometryState?.id ?? null,
@@ -125,7 +128,11 @@ export function createViewerState(bundle) {
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id),
     visibleObjectIds: []
   };
-  return { ...state, visibleObjectIds: getVisibleObjectIds(state) };
+  return {
+    ...state,
+    coloring: createColoringState(state),
+    visibleObjectIds: getVisibleObjectIds(state)
+  };
 }
 
 export function setLayerVisibility(state, layerId, visible) {
@@ -202,11 +209,25 @@ function overlayHiddenObjectIds(state) {
   return ids;
 }
 
-function buildLayerRegistry(objects, overlays, objectLayerIds) {
+function buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers = []) {
+  const declared = new Map(sceneLayers.map((layer) => [layer.id, layer]));
   const layers = {};
+  const decorate = (id) => {
+    const spec = declared.get(id);
+    return spec ? { category: spec.category, label: spec.label || labelForLayer(id), meshIdentity: spec.mesh_identity } : {};
+  };
+
   for (const obj of objects) {
     for (const id of objectLayerIds[obj.id] ?? [obj.kind || "object"]) {
-      layers[id] ??= { id, label: labelForLayer(id), visible: true, count: 0, source: "object", objectIds: [] };
+      layers[id] ??= {
+        id,
+        label: labelForLayer(id),
+        visible: true,
+        count: 0,
+        source: "object",
+        objectIds: [],
+        ...decorate(id)
+      };
       layers[id].count += 1;
       layers[id].objectIds.push(obj.id);
     }
@@ -220,13 +241,27 @@ function buildLayerRegistry(objects, overlays, objectLayerIds) {
       count: 0,
       source: "overlay",
       overlayKind: overlay.kind || "overlay",
-      overlayIds: []
+      overlayIds: [],
+      ...decorate(id)
     };
     layers[id].count += 1;
     layers[id].overlayIds.push(overlay.id);
     if (overlay.visible === false) {
       layers[id].visible = false;
     }
+  }
+  // Layers the scene declares but no object or overlay populates - the mesh
+  // identity badge is one, since it describes the mesh rather than drawing it.
+  for (const spec of sceneLayers) {
+    layers[spec.id] ??= {
+      id: spec.id,
+      label: spec.label || labelForLayer(spec.id),
+      visible: spec.default_visible !== false,
+      count: 0,
+      source: "scene",
+      category: spec.category,
+      meshIdentity: spec.mesh_identity
+    };
   }
   return layers;
 }
@@ -300,16 +335,27 @@ function labelForLayer(key) {
     .join(" ");
 }
 
+// Four categories, each a rule rather than a bucket: what was authored, what
+// was solved, what came back, what comments on it. The scene states these
+// directly (SceneLayer.category); the prefix rules below are only a fallback
+// for bundles written before the contract carried them.
 const CATEGORY_ORDER = [
-  { id: "geometry", label: "Geometry" },
+  { id: "design", label: "Design" },
   { id: "analysis_mesh", label: "Analysis mesh" },
   { id: "results", label: "Results" },
-  { id: "overlays", label: "Overlays" },
-  { id: "envelopes", label: "Envelopes" },
-  { id: "other", label: "Other" }
+  { id: "annotations", label: "Annotations" }
 ];
 
-export function categoryForLayerId(layerId) {
+const LEGACY_CATEGORY_REMAP = {
+  geometry: "design",
+  envelopes: "design",
+  analysis_mesh: "analysis_mesh",
+  results: "results",
+  overlays: "annotations",
+  other: "annotations"
+};
+
+export function legacyCategoryForLayerId(layerId) {
   const id = String(layerId);
   if (id === "overlay:physical_envelope") return "envelopes";
   if (id === "overlay:solver_result") return "results";
@@ -321,18 +367,31 @@ export function categoryForLayerId(layerId) {
   return "other";
 }
 
+export function categoryForLayerId(layerId, declaredCategory = null) {
+  if (declaredCategory && CATEGORY_ORDER.some((category) => category.id === declaredCategory)) {
+    return declaredCategory;
+  }
+  return LEGACY_CATEGORY_REMAP[legacyCategoryForLayerId(layerId)] ?? "annotations";
+}
+
 export function categorizeLayers(layers) {
   const byCategory = new Map(CATEGORY_ORDER.map((category) => [category.id, []]));
   for (const layer of Object.values(layers ?? {})) {
-    byCategory.get(categoryForLayerId(layer.id)).push(layer);
+    byCategory.get(categoryForLayerId(layer.id, layer.category)).push(layer);
   }
   const result = [];
   for (const category of CATEGORY_ORDER) {
     const members = byCategory.get(category.id);
     if (members.length === 0) continue;
+    // Metadata-only layers describe content rather than gating it (the mesh
+    // identity badge is one). They must stay out of the tree and out of the
+    // master toggle, or they show up as a phantom leaf that toggles nothing.
+    const gates = members.filter((layer) => !isMetadataLayer(layer));
+    const metadata = members.filter(isMetadataLayer);
+    if (gates.length === 0 && metadata.length === 0) continue;
     const leaves = [];
     const groupLeaves = [];
-    for (const layer of members) {
+    for (const layer of gates) {
       const entry = { layerId: layer.id, label: leafLabel(layer.id), count: layer.count };
       if (/:group:[^:]+$/.test(layer.id)) {
         groupLeaves.push(entry);
@@ -343,12 +402,17 @@ export function categorizeLayers(layers) {
     result.push({
       id: category.id,
       label: category.label,
-      layerIds: members.map((layer) => layer.id),
+      layerIds: gates.map((layer) => layer.id),
       leaves,
-      groups: groupLeaves.length > 0 ? [{ label: "Groups", leaves: groupLeaves }] : []
+      groups: groupLeaves.length > 0 ? [{ label: "Groups", leaves: groupLeaves }] : [],
+      meshIdentity: metadata.map((layer) => layer.meshIdentity).find(Boolean) ?? null
     });
   }
   return result;
+}
+
+function isMetadataLayer(layer) {
+  return layer.source === "scene" && !layer.count;
 }
 
 export function applyTaskVisibilityPreset(state, taskId) {

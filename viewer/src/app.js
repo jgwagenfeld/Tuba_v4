@@ -10,6 +10,16 @@ import {
 } from "./controls.js";
 import { applyHoverHighlight, createThreeViewport, pickRenderedObject } from "./renderer.js";
 import {
+  componentIsSelectable,
+  getActiveComponent,
+  getActiveField,
+  getComplianceNotice,
+  getFieldOptions,
+  setColoringComponent,
+  setColoringField,
+  setColoringLoadCase
+} from "./coloring.js";
+import {
   getGeometryStateOptions,
   getHotspots,
   getLoadCaseOptions,
@@ -543,13 +553,32 @@ function renderResultControls() {
   if (loadCases.length > 0) {
     dom.resultControls.append(
       selectControl("Load case", currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
-        currentState = setActiveLoadCase(currentState, value);
+        currentState = setColoringLoadCase(setActiveLoadCase(currentState, value), value);
         render();
       })
     );
   }
 
-  if (resultStates.length > 0) {
+  // Field and component are the coloring channel: what tints the scene, kept
+  // apart from what is drawn. Only shown when the scene carries a catalogue.
+  const fieldOptions = getFieldOptions(currentState);
+  if (fieldOptions.length > 0) {
+    dom.resultControls.append(
+      selectControl("Field", getActiveField(currentState)?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
+        currentState = setColoringField(currentState, value);
+        render();
+      })
+    );
+    if (componentIsSelectable(currentState)) {
+      const components = (getActiveField(currentState)?.components ?? []).map((id) => ({ id, label: id }));
+      dom.resultControls.append(
+        selectControl("Component", getActiveComponent(currentState), components, (value) => {
+          currentState = setColoringComponent(currentState, value);
+          render();
+        })
+      );
+    }
+  } else if (resultStates.length > 0) {
     dom.resultControls.append(
       selectControl("Result state", currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
         currentState = setActiveResultState(currentState, value);
@@ -621,7 +650,22 @@ function renderResultControls() {
 
   const legend = getScalarLegend(currentState);
   if (legend) {
-    dom.resultLegend.textContent = `${legend.field}: ${formatEngineeringValue(legend.range.min)} - ${formatEngineeringValue(legend.range.max)} ${legend.unit}`.trim();
+    const scale = document.createElement("div");
+    const component = legend.component && legend.component !== "magnitude" ? ` ${legend.component}` : "";
+    scale.textContent =
+      `${legend.field}${component}: ${formatEngineeringValue(legend.range.min)} - ${formatEngineeringValue(legend.range.max)} ${legend.unit}`.trim();
+    dom.resultLegend.append(scale);
+
+    // Persistent, never a tooltip: an FE stress plot mislabelled as code
+    // stress is a compliance problem, so it travels with the legend.
+    const notice = getComplianceNotice(currentState);
+    if (notice) {
+      const badge = document.createElement("div");
+      badge.className = "compliance-notice";
+      badge.dataset.complianceNotice = "";
+      badge.textContent = `⚠ ${notice}`;
+      dom.resultLegend.append(badge);
+    }
   }
 
   const hotspots = getHotspots(currentState);
@@ -679,10 +723,30 @@ function renderDisplayStrip() {
       render();
     });
     label.append(input, ` ${category.label}`);
+    const summary = categorySummary(category);
+    if (summary) {
+      const hint = document.createElement("span");
+      hint.className = "category-hint";
+      hint.dataset.categoryHint = category.id;
+      hint.textContent = summary;
+      label.append(hint);
+    }
     dom.categorySwitches.append(label);
   }
   renderLayerTree(categories);
   renderSavedViews();
+}
+
+// One line per category saying what is actually in it. For the analysis mesh
+// that line is the answer to "1D, 2D, or TUYAU?" - the mesh identity the scene
+// now carries rather than leaving the reader to guess from element names.
+function categorySummary(category) {
+  const lead = category.meshIdentity?.modelisations?.[0];
+  if (lead) {
+    return `${lead.topological_dim}D · ${lead.modelisation} · ${lead.result_support} recovery`;
+  }
+  const names = category.leaves.map((leaf) => leaf.label).slice(0, 3);
+  return names.length > 0 ? names.join(" · ") : null;
 }
 
 function renderLayerTree(categories) {
@@ -1037,6 +1101,9 @@ dom.canvas.addEventListener("click", (event) => {
     return;
   }
   if (!currentState) {
+    return;
+  }
+  if (viewportRenderer?.handleGizmoClick(event)) {
     return;
   }
   const rect = dom.canvas.getBoundingClientRect();

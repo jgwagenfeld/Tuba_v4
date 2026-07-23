@@ -2,6 +2,12 @@ import { getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
 import {
+  setColoringComponent,
+  setColoringField,
+  setColoringLoadCase,
+  withCoherentColoring
+} from "./coloring.js";
+import {
   coherentResultContext,
   setActiveLoadCase,
   setActiveResultState,
@@ -59,7 +65,11 @@ export function reduceViewerState(state, action) {
     case "setActiveResultState":
       return setActiveResultState(state, action.resultStateId);
     case "setActiveLoadCase":
-      return setActiveLoadCase(state, action.loadCase);
+      return setColoringLoadCase(setActiveLoadCase(state, action.loadCase), action.loadCase);
+    case "setColoringField":
+      return setColoringField(state, action.fieldId);
+    case "setColoringComponent":
+      return setColoringComponent(state, action.component);
     case "setActiveGeometryState": {
       return {
         ...state,
@@ -143,9 +153,12 @@ export function preserveViewerStateForReload(previousState, nextState) {
     activeTab: getVisibleWorkflowTabs(nextState).includes(previousState.activeTab)
       ? previousState.activeTab
       : nextState.activeTab,
+    // Carried over so a reload keeps the user's field selection, then snapped
+    // back onto what the new scene actually offers.
+    coloring: previousState.coloring ?? nextState.coloring,
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id)
   };
-  return withVisibility(preserved);
+  return withVisibility(withCoherentColoring(preserved));
 }
 
 export function createViewerStore(initialState) {

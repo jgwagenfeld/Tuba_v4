@@ -253,8 +253,19 @@ textarea,
 
 .category-switch {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.35rem;
+}
+
+.category-hint {
+  color: #9aa7ad;
+  font-size: 0.68rem;
+  margin-left: auto;
+  overflow: hidden;
+  padding-left: 0.5rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .layer-tree > summary {
@@ -732,6 +743,14 @@ input[type="range"] {
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 0.72rem;
   padding: 0.3rem 0 0.3rem 0.55rem;
+}
+
+/* Travels with the legend and is never collapsed away: mislabelling FE stress
+   as code stress is a compliance problem, not a display preference. */
+.compliance-notice {
+  color: #f0b429;
+  font-weight: 600;
+  margin-top: 0.25rem;
 }
 
 button {

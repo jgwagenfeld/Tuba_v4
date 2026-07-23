@@ -1,3 +1,5 @@
+import { getColoringLegend, getColoringValues } from "./coloring.js";
+
 export function getLoadCaseOptions(state) {
   const byLoadCase = new Map();
   for (const overlay of [...(state.resultStates ?? []), ...(state.geometryStates ?? []), ...solverResultOverlays(state)]) {
@@ -106,7 +108,13 @@ export function getSolverResultOverlays(state, resultType = null) {
 }
 
 export function getActiveScalarOverlay(state) {
+  // When the scene carries a field catalogue the choice is explicit. The
+  // priority chain below is the legacy path for bundles written before it.
+  if ((state.resultFields ?? []).length > 0) {
+    return getColoringLegend(state)?.overlay ?? null;
+  }
   return (
+    getSolverResultOverlays(state, "tuyau_subpoints")[0] ??
     getSolverResultOverlays(state, "stress")[0] ??
     getSolverResultOverlays(state).find((overlay) => hasNumericObjectValues(overlay.data?.values)) ??
     null
@@ -114,6 +122,19 @@ export function getActiveScalarOverlay(state) {
 }
 
 export function getScalarLegend(state) {
+  if ((state.resultFields ?? []).length > 0) {
+    const legend = getColoringLegend(state);
+    return legend
+      ? {
+          ...legend,
+          colorMap: legend.overlay?.data?.legend?.color_map ?? "turbo",
+          thresholds: {
+            stress_min: numberOrNull(state.resultThreshold),
+            utilization_min: numberOrNull(state.utilizationThreshold)
+          }
+        }
+      : null;
+  }
   const overlay = getActiveScalarOverlay(state);
   if (!overlay) {
     return null;
@@ -144,9 +165,10 @@ export function getHotspots(state) {
     return [];
   }
   const data = overlay.data ?? {};
+  const values = (state.resultFields ?? []).length > 0 ? getColoringValues(state) : data.values ?? {};
   const hotspots = Array.isArray(data.hotspots) && data.hotspots.length > 0
     ? data.hotspots
-    : Object.entries(data.values ?? {}).map(([objectId, value]) => ({
+    : Object.entries(values).map(([objectId, value]) => ({
         object_id: objectId,
         value,
         unit: data.unit
@@ -157,7 +179,7 @@ export function getHotspots(state) {
     .map((hotspot) => {
       const objectId = hotspot.object_id ?? hotspot.objectId;
       const object = (state.objects ?? []).find((candidate) => candidate.id === objectId);
-      const value = Number(hotspot.value ?? data.values?.[objectId]);
+      const value = Number(hotspot.value ?? values[objectId]);
       const utilization = numberOrNull(hotspot.utilization ?? data.utilization_values?.[objectId]);
       return {
         objectId,
@@ -179,8 +201,7 @@ export function getObjectScalarColor(state, objectIds) {
     return null;
   }
   const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
-  const data = overlay.data ?? {};
-  const values = data.values ?? {};
+  const values = (state.resultFields ?? []).length > 0 ? getColoringValues(state) : overlay.data?.values ?? {};
   const found = ids
     .map((id) => Number(values[id]))
     .filter((value) => Number.isFinite(value));

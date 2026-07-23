@@ -10,6 +10,7 @@ import {
   loadSceneBundleFromUrl,
   setLayerVisibility,
   categoryForLayerId,
+  legacyCategoryForLayerId,
   categorizeLayers,
   applyTaskVisibilityPreset
 } from "../src/sceneLoader.js";
@@ -196,37 +197,127 @@ test("updates layer visibility without mutating prior state", async () => {
   assert.deepEqual(next.visibleObjectIds, []);
 });
 
-test("categoryForLayerId maps namespaces to display categories", () => {
-  assert.equal(categoryForLayerId("pipe"), "geometry");
-  assert.equal(categoryForLayerId("imported_components"), "geometry");
+test("categoryForLayerId prefers the category the scene declares", () => {
+  // The builders state the category outright; the id is not consulted.
+  assert.equal(categoryForLayerId("anything:at:all", "design"), "design");
+  assert.equal(categoryForLayerId("pipe", "annotations"), "annotations");
+  // A category the viewer does not know falls back to the id rules.
+  assert.equal(categoryForLayerId("analysis_mesh:nodes", "not_a_category"), "analysis_mesh");
+});
+
+test("categoryForLayerId falls back to legacy prefixes, remapped onto four categories", () => {
+  assert.equal(categoryForLayerId("pipe"), "design");
+  assert.equal(categoryForLayerId("imported_components"), "design");
+  assert.equal(categoryForLayerId("physical_envelope:insulation"), "design");
+  assert.equal(categoryForLayerId("overlay:physical_envelope"), "design");
   assert.equal(categoryForLayerId("analysis_mesh:nodes"), "analysis_mesh");
   assert.equal(categoryForLayerId("analysis_mesh:group:GN_N0"), "analysis_mesh");
   assert.equal(categoryForLayerId("result:reaction"), "results");
   assert.equal(categoryForLayerId("solver_result:tuyau_subpoints"), "results");
   assert.equal(categoryForLayerId("deformed:mesh"), "results");
-  assert.equal(categoryForLayerId("overlay:clash"), "overlays");
-  assert.equal(categoryForLayerId("physical_envelope:insulation"), "envelopes");
-  assert.equal(categoryForLayerId("weird:namespace"), "other");
-});
-
-test("categoryForLayerId co-categorizes double-gate overlay layers with their objects", () => {
-  assert.equal(categoryForLayerId("overlay:physical_envelope"), "envelopes");
-  // Vector/result overlays are emitted with kind "solver_result".
   assert.equal(categoryForLayerId("overlay:solver_result"), "results");
-  // Other overlay gates stay in the Overlays category.
-  assert.equal(categoryForLayerId("overlay:clash"), "overlays");
+  assert.equal(categoryForLayerId("overlay:clash"), "annotations");
+  assert.equal(categoryForLayerId("weird:namespace"), "annotations");
 });
 
-test("categorizeLayers puts both envelope gates under the Envelopes category", () => {
+test("legacyCategoryForLayerId still reports the pre-restructure taxonomy", () => {
+  assert.equal(legacyCategoryForLayerId("physical_envelope:insulation"), "envelopes");
+  assert.equal(legacyCategoryForLayerId("overlay:clash"), "overlays");
+  assert.equal(legacyCategoryForLayerId("weird:namespace"), "other");
+});
+
+test("categorizeLayers folds envelopes into Design", () => {
   const layers = {
     "physical_envelope:insulation": { id: "physical_envelope:insulation", count: 3 },
     "overlay:physical_envelope": { id: "overlay:physical_envelope", count: 1, source: "overlay" }
   };
   const categories = categorizeLayers(layers);
-  const envelopes = categories.find((category) => category.id === "envelopes");
-  assert.ok(envelopes, "envelopes category is present");
-  assert.ok(envelopes.layerIds.includes("physical_envelope:insulation"));
-  assert.ok(envelopes.layerIds.includes("overlay:physical_envelope"));
+  const design = categories.find((category) => category.id === "design");
+  assert.ok(design, "design category is present");
+  assert.ok(design.layerIds.includes("physical_envelope:insulation"));
+  assert.ok(design.layerIds.includes("overlay:physical_envelope"));
+});
+
+test("metadata-only layers surface as category identity, not as a toggle", () => {
+  const layers = {
+    "analysis_mesh:nodes": { id: "analysis_mesh:nodes", category: "analysis_mesh", count: 12, source: "object" },
+    "analysis_mesh:identity:m1": {
+      id: "analysis_mesh:identity:m1",
+      category: "analysis_mesh",
+      count: 0,
+      source: "scene",
+      visible: false,
+      meshIdentity: { modelisations: [{ modelisation: "TUYAU_3M", topological_dim: 1, result_support: "subpoint" }] }
+    }
+  };
+  const mesh = categorizeLayers(layers).find((category) => category.id === "analysis_mesh");
+  // It must not gate the master switch, or a never-visible metadata row would
+  // hold the category permanently indeterminate.
+  assert.deepEqual(mesh.layerIds, ["analysis_mesh:nodes"]);
+  assert.deepEqual(mesh.leaves, [{ layerId: "analysis_mesh:nodes", label: "Nodes", count: 12 }]);
+  assert.equal(mesh.meshIdentity.modelisations[0].modelisation, "TUYAU_3M");
+});
+
+test("categories without mesh identity report none", () => {
+  const categories = categorizeLayers({ pipe: { id: "pipe", category: "design", count: 1, source: "object" } });
+  assert.equal(categories[0].meshIdentity, null);
+});
+
+test("createViewerState reads declared layers and the field catalogue", () => {
+  const scene = {
+    scene_id: "s",
+    model_id: "m",
+    objects: [{ id: "o1", kind: "applied_load", layer_ids: ["design:loads"] }],
+    overlays: [{ id: "overlay:solver_result:stress:Hot", kind: "solver_result", data: { values: { o1: 5 } } }],
+    geometry_assets: [],
+    layers: [
+      { id: "design:loads", category: "design", label: "Loads" },
+      { id: "overlay:solver_result", category: "results", label: "Solver result" }
+    ],
+    result_fields: [
+      {
+        id: "field:stress",
+        label: "VMIS",
+        load_case: "Hot",
+        result_state_id: "rs",
+        overlay_id: "overlay:solver_result:stress:Hot",
+        support: "cell",
+        components: ["magnitude"]
+      }
+    ]
+  };
+  const state = createViewerState({ scene, objects: scene.objects, overlays: scene.overlays, geometryAssets: [], geometryPayloads: [] });
+  assert.equal(state.layers["design:loads"].category, "design");
+  assert.equal(state.layers["overlay:solver_result"].category, "results");
+  assert.equal(state.resultFields.length, 1);
+  assert.equal(state.coloring.fieldId, "field:stress");
+  assert.equal(state.coloring.loadCase, "Hot");
+});
+
+test("createViewerState on a legacy scene has no fields and empty coloring", () => {
+  const scene = {
+    scene_id: "s",
+    model_id: "m",
+    objects: [{ id: "o1", kind: "pipe" }],
+    overlays: [],
+    geometry_assets: []
+  };
+  const state = createViewerState({ scene, objects: scene.objects, overlays: [], geometryAssets: [], geometryPayloads: [] });
+  assert.deepEqual(state.resultFields, []);
+  assert.equal(state.coloring.fieldId, null);
+  // Legacy ids still land in a real category rather than an "other" bin.
+  assert.equal(categorizeLayers(state.layers)[0].id, "design");
+});
+
+test("categorizeLayers honours declared categories over id prefixes", () => {
+  const layers = {
+    "design:loads": { id: "design:loads", category: "design", count: 2 },
+    pipe: { id: "pipe", category: "design", count: 4 },
+    "overlay:load_case": { id: "overlay:load_case", category: "design", count: 1, source: "overlay" }
+  };
+  const categories = categorizeLayers(layers);
+  assert.deepEqual(categories.map((category) => category.id), ["design"]);
+  assert.deepEqual(categories[0].layerIds.sort(), ["design:loads", "overlay:load_case", "pipe"]);
 });
 
 test("categorizeLayers puts both vector gates under the Results category", () => {
@@ -251,12 +342,12 @@ test("categorizeLayers orders categories and collapses mesh groups", () => {
   };
 
   const categories = categorizeLayers(layers);
-  assert.deepEqual(categories.map((category) => category.id), ["geometry", "analysis_mesh", "overlays"]);
+  assert.deepEqual(categories.map((category) => category.id), ["design", "analysis_mesh", "annotations"]);
 
-  const geometry = categories.find((category) => category.id === "geometry");
-  assert.deepEqual(geometry.layerIds, ["pipe"]);
-  assert.deepEqual(geometry.leaves, [{ layerId: "pipe", label: "Pipe", count: 105 }]);
-  assert.deepEqual(geometry.groups, []);
+  const design = categories.find((category) => category.id === "design");
+  assert.deepEqual(design.layerIds, ["pipe"]);
+  assert.deepEqual(design.leaves, [{ layerId: "pipe", label: "Pipe", count: 105 }]);
+  assert.deepEqual(design.groups, []);
 
   const mesh = categories.find((category) => category.id === "analysis_mesh");
   assert.deepEqual(mesh.layerIds, ["analysis_mesh:nodes", "analysis_mesh:group:GN_N0", "analysis_mesh:group:MAT_Steel"]);

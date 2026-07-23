@@ -28,10 +28,10 @@ export function defaultWorkflowTab({ review, embed } = {}) {
 }
 
 const TASK_VISIBILITY_PRESETS = Object.freeze({
-  summary: { geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false },
-  model: { geometry: true, analysis_mesh: false, results: false, overlays: false, envelopes: false },
-  results: { geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false },
-  diagnostics: { geometry: true, analysis_mesh: false, results: false, overlays: true, envelopes: false }
+  summary: { design: true, analysis_mesh: false, results: true, annotations: true },
+  model: { design: true, analysis_mesh: false, results: false, annotations: false },
+  results: { design: true, analysis_mesh: false, results: true, annotations: true },
+  diagnostics: { design: true, analysis_mesh: false, results: false, annotations: true }
 });
 
 export function visibilityPresetForTask(taskId) {

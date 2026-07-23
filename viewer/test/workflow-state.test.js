@@ -57,18 +57,18 @@ test("embed still defaults to the 3d canvas destination", () => {
   assert.equal(createWorkflowState({ review: reviewFixture, embed: true }).activeTab, "3d");
 });
 
-test("visibility presets hide analysis mesh everywhere and scope results/overlays per task", () => {
+test("visibility presets hide analysis mesh everywhere and scope results/annotations per task", () => {
   assert.deepEqual(visibilityPresetForTask("summary"), {
-    geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false
+    design: true, analysis_mesh: false, results: true, annotations: true
   });
   assert.deepEqual(visibilityPresetForTask("model"), {
-    geometry: true, analysis_mesh: false, results: false, overlays: false, envelopes: false
+    design: true, analysis_mesh: false, results: false, annotations: false
   });
   assert.deepEqual(visibilityPresetForTask("results"), {
-    geometry: true, analysis_mesh: false, results: true, overlays: true, envelopes: false
+    design: true, analysis_mesh: false, results: true, annotations: true
   });
   assert.deepEqual(visibilityPresetForTask("diagnostics"), {
-    geometry: true, analysis_mesh: false, results: false, overlays: true, envelopes: false
+    design: true, analysis_mesh: false, results: false, annotations: true
   });
   assert.equal(visibilityPresetForTask("3d"), null);
   assert.equal(visibilityPresetForTask("unknown"), null);
