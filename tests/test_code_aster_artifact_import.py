@@ -66,6 +66,16 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         n1_vector = next(vector for vector in displacement.data["vectors"] if vector["node_id"] == n1)
         self.assertEqual(n1_vector["displacement_m"], [0.0, 0.015, 0.0])
 
+    def test_import_without_manifest_is_rejected(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+
+            with self.assertRaisesRegex(FileNotFoundError, "study_manifest.json"):
+                import_code_aster_artifacts(model=model, work_dir=work_dir)
+
     def test_artifact_review_example_writes_engineering_review(self):
         from examples.code_aster_artifact_review import run_example
 

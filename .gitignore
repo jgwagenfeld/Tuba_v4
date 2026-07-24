@@ -12,14 +12,6 @@ htmlcov/
 venv/
 env/
 
-# External source checkouts/downloads
-/adapy/
-/adapy-main/
-/adapy-main.zip
-/ada-py/
-/ada-py-main/
-/ada-py-main.zip
-
 build/
 dist/
 *.egg-info/
@@ -67,3 +59,6 @@ notebooks/advanced_piping_rack.ifc
 /advanced_piping_rack.ifc
 /bim_demo.ifc
 /bim_demo_model.json
+
+# Agent scratch notes (specs/decisions/todos)
+.agents/

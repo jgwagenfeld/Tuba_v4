@@ -29,10 +29,8 @@ surfaces only.
 - Prefer a Python-managed Code_Aster runtime/bridge when implementing execution
   paths. Shell runners, Docker, and legacy `as_run` should be fallbacks, not the
   product definition.
-- Do not vendor or copy ada-py code. ada-py is GPL-3.0-or-later, while Tuba
-  core remains LGPL. Tuba may independently implement the same
-  write/execute/postprocess architecture, but solver integration must remain
-  native Tuba code with external-process Code_Aster execution.
+- Solver integration must remain native Tuba code with external-process
+  Code_Aster execution.
 
 ## Documentation Rules
 

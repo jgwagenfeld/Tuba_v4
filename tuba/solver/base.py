@@ -1,13 +1,11 @@
 """
 tuba.solver.base — Abstract solver interface and result containers.
 
-Every solver backend (Code_Aster, CalculiX, …) must subclass
-:class:`BaseSolver` and populate :class:`FEAResults`.
+These types carry parsed Code_Aster results into compliance and display paths.
 """
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -149,16 +147,3 @@ class FEAResults:
         """Export to glTF for universal 3-D viewing."""
         from tuba.plotting.export import export_gltf
         export_gltf(self, path)
-
-
-# ---------------------------------------------------------------------------
-# Abstract solver
-# ---------------------------------------------------------------------------
-
-class BaseSolver(ABC):
-    """Interface that every solver backend must implement."""
-
-    @abstractmethod
-    def solve(self, model, load_case_name: Optional[str] = None) -> FEAResults:
-        """Run the analysis and return populated :class:`FEAResults`."""
-        ...

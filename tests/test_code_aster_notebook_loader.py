@@ -190,6 +190,7 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
 
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            CodeAsterSolver(work_dir=root).export_analysis_study(model, "PointLoad", root)
             _write_beam_solver_tables(root, n0="N0", n1="N1")
 
             loaded = load_or_run_code_aster_results(model, "PointLoad", root, run_solver=False)

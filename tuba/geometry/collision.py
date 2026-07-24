@@ -7,23 +7,38 @@ from __future__ import annotations
 
 from typing import List, Dict, Any, Tuple, Optional
 import numpy as np
-from scipy.spatial.transform import Rotation
-
-try:
-    import trimesh
-    _HAS_TRIMESH = True
-except ImportError:
-    _HAS_TRIMESH = False
 
 from tuba.model import TubaModel, Element
-from tuba.geometry.importer import StepGeometryImporter
 from tuba.physical import physical_properties_for_element
 
 
-def create_cylinder_mesh(p1: np.ndarray, p2: np.ndarray, radius: float) -> Optional[trimesh.Trimesh]:
+def _quaternion_matrix(quaternion) -> np.ndarray:
+    """Return a rotation matrix for a ``[w, x, y, z]`` quaternion."""
+    w, x, y, z = np.asarray(quaternion, dtype=float)
+    norm = np.linalg.norm([w, x, y, z])
+    if norm <= 1e-12:
+        raise ValueError("Obstacle orientation quaternion must be non-zero.")
+    w, x, y, z = (value / norm for value in (w, x, y, z))
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        ]
+    )
+
+
+def _load_trimesh():
+    try:
+        import trimesh
+    except ImportError as exc:
+        raise ImportError("trimesh is required for collision checking.") from exc
+    return trimesh
+
+
+def create_cylinder_mesh(p1: np.ndarray, p2: np.ndarray, radius: float) -> Optional[Any]:
     """Helper to create a Trimesh cylinder connecting p1 and p2 with a given radius."""
-    if not _HAS_TRIMESH:
-        raise ImportError("trimesh is required for collision checking.")
+    trimesh = _load_trimesh()
 
     v = p2 - p1
     height = np.linalg.norm(v)
@@ -65,14 +80,14 @@ class PipingCollisionChecker:
     """Checks for 3D geometric collisions between the piping model elements and obstacles."""
 
     def __init__(self, model: TubaModel):
-        if not _HAS_TRIMESH:
-            raise ImportError("trimesh is required for collision checking.")
+        self._trimesh = _load_trimesh()
         self.model = model
-        self.manager = trimesh.collision.CollisionManager()
+        self.manager = self._trimesh.collision.CollisionManager()
         self._load_obstacles()
 
     def _load_obstacles(self):
         """Build and load trimesh representations of all obstacles in the model."""
+        trimesh = self._trimesh
         importer = None
 
         for idx, obs in enumerate(self.model.obstacles):
@@ -113,6 +128,8 @@ class PipingCollisionChecker:
                 
                 # Lazy initialize importer
                 if importer is None:
+                    from tuba.geometry.importer import StepGeometryImporter
+
                     importer = StepGeometryImporter()
 
                 # Import mesh from STEP/STL file
@@ -122,9 +139,7 @@ class PipingCollisionChecker:
                 pos = obs.get("position", [0.0, 0.0, 0.0])
                 q = obs.get("orientation", [1.0, 0.0, 0.0, 0.0]) # [qw, qx, qy, qz]
                 
-                # Scipy expects [qx, qy, qz, qw]
-                q_scipy = [q[1], q[2], q[3], q[0]]
-                rot = Rotation.from_quat(q_scipy).as_matrix()
+                rot = _quaternion_matrix(q)
 
                 transform = np.eye(4)
                 transform[:3, :3] = rot

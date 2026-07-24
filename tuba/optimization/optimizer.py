@@ -16,9 +16,6 @@ from tuba.optimization.objectives import ObjectiveEvaluator
 class BasePipingOptimizer(ABC):
     """Abstract base class for piping optimization algorithms."""
 
-    def __init__(self, solver_name: str = "code_aster") -> None:
-        self.solver_name = solver_name
-
     @abstractmethod
     def optimize(
         self,
@@ -31,31 +28,6 @@ class BasePipingOptimizer(ABC):
         Returns the optimized model and the associated FEA results.
         """
         pass
-
-
-class RuleBasedSupportPlacer(BasePipingOptimizer):
-    """Disabled legacy support placer.
-
-    Rule-based span placement mutates support layouts from engineering rules of
-    thumb before solver validation. That is not an acceptable production
-    workflow for Tuba v4; use explicit support definitions or a solver-scored
-    optimizer that refuses unsolved candidates.
-    """
-
-    def __init__(self, solver_name: str = "code_aster", deflection_limit_m: float = 0.0025) -> None:
-        super().__init__(solver_name)
-        self.deflection_limit = deflection_limit_m
-
-    def optimize(
-        self,
-        model: TubaModel,
-        evaluator: ObjectiveEvaluator,
-        **kwargs,
-    ) -> Tuple[TubaModel, Optional[FEAResults]]:
-        raise NotImplementedError(
-            "RuleBasedSupportPlacer is disabled because it creates heuristic support layouts. "
-            "Define supports explicitly or use a solver-scored optimizer that requires successful Code_Aster results."
-        )
 
 
 class LLMSupportOptimizer(BasePipingOptimizer):
@@ -194,7 +166,7 @@ class LLMSupportOptimizer(BasePipingOptimizer):
         artifacts are unavailable.
         """
         try:
-            results = model.solve(solver=self.solver_name)
+            results = model.solve()
         except Exception as exc:
             raise RuntimeError(
                 "LLMSupportOptimizer requires a successful solver run; no support layout was optimized."
@@ -218,14 +190,12 @@ class GeneticSupportPlacer(BasePipingOptimizer):
 
     def __init__(
         self,
-        solver_name: str = "code_aster",
         population_size: int = 20,
         generations: int = 30,
         mutation_rate: float = 0.15,
         tournament_size: int = 3,
         spring_stiffness_matrix: Sequence[float] | None = None,
     ) -> None:
-        super().__init__(solver_name)
         self.population_size = population_size
         self.generations = generations
         self.mutation_rate = mutation_rate
@@ -337,7 +307,7 @@ class GeneticSupportPlacer(BasePipingOptimizer):
                 self._apply_chromosome(temp_model, candidate_nodes, chromosome)
 
                 try:
-                    results = temp_model.solve(solver=self.solver_name)
+                    results = temp_model.solve()
                 except Exception:
                     scores.append(float("inf"))
                     continue

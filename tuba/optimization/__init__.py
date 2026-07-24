@@ -17,7 +17,6 @@ from tuba.optimization.objectives import (
 from tuba.optimization.optimizer import (
     BasePipingOptimizer,
     GeneticSupportPlacer,
-    RuleBasedSupportPlacer,
     LLMSupportOptimizer,
 )
 
@@ -31,6 +30,5 @@ __all__ = [
     "ObjectiveEvaluator",
     "BasePipingOptimizer",
     "GeneticSupportPlacer",
-    "RuleBasedSupportPlacer",
     "LLMSupportOptimizer",
 ]

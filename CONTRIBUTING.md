@@ -45,12 +45,6 @@ Use the existing display paths:
 Do not add a separate viewer path for solver results unless the project first
 decides to replace one of the existing paths.
 
-## ada-py Boundary
-
-`ada-py` is useful reference material for interoperability ideas, but it is
-GPL-3.0-or-later. Do not copy or vendor `ada-py` code into Tuba core. Any future
-adapter must keep the license boundary explicit.
-
 ## Useful Checks
 
 ```powershell

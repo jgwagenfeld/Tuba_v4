@@ -25,6 +25,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                     [
                         "NOEUD,DX,DY,DZ,DRX,DRY,DRZ",
                         "N0,0.001,0.0,0.0,0.0,0.0,0.0",
+                        "N1,0.002,0.0,0.0,0.0,0.0,0.0",
                         "pipe_bend_0_n1,0.010,0.020,0.030,0.001,0.002,0.003",
                     ]
                 ),
@@ -79,12 +80,14 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             root.joinpath("study_depl.csv").write_text(
                 "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
                 "N0,0.001,0.0,0.0,0.0,0.0,0.0\n"
+                "N1,0.002,0.0,0.0,0.0,0.0,0.0\n"
                 "unmapped_analysis_node,0.010,0.020,0.030,0.0,0.0,0.0\n",
                 encoding="utf-8",
             )
             root.joinpath("study_effo.csv").write_text(
                 "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
-                "pipe_bend_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n",
+                "pipe_bend_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n"
+                "pipe_bend_0,N1,100.0,0.0,0.0,0.0,0.0,0.0\n",
                 encoding="utf-8",
             )
             root.joinpath("study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
@@ -131,7 +134,9 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             # Displacement solved, but the force table came back empty (post-processing
             # failed or labels mismatched). Zero forces would silently pass compliance.
             Path(tmpdir, "study_depl.csv").write_text(
-                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\nN0,0.001,0.0,0.0,0.0,0.0,0.0\n",
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                "N0,0.001,0.0,0.0,0.0,0.0,0.0\n"
+                "N1,0.002,0.0,0.0,0.0,0.0,0.0\n",
                 encoding="utf-8",
             )
             Path(tmpdir, "study_effo.csv").write_text("MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n", encoding="utf-8")
@@ -140,6 +145,59 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
 
             with self.assertRaises(RuntimeError):
                 CodeAsterSolver()._parse_results(model, Path(tmpdir))
+
+    def test_parse_raises_on_partial_displacement_results(self):
+        model = Model(project_name="PartialDisplacements")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\nN0,0.001,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                "pipe_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n"
+                "pipe_0,N1,100.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
+            root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "missing displacement results.*N1"):
+                CodeAsterSolver()._parse_results(model, root)
+
+    def test_parse_raises_when_pipe_force_endpoint_is_missing(self):
+        model = Model(project_name="PartialForces")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                "N0,0.001,0.0,0.0,0.0,0.0,0.0\n"
+                "N1,0.002,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                "pipe_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
+            root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "missing internal-force results.*pipe_0:N1"):
+                CodeAsterSolver()._parse_results(model, root)
 
     def test_parse_result_tables_does_not_auto_open_rmed(self):
         model = Model(project_name="RmedBoundary")
@@ -160,11 +218,15 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             (root / "study_depl.csv").write_text(
-                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\nN0,0.001,0.0,0.0,0.0,0.0,0.0\n",
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                "N0,0.001,0.0,0.0,0.0,0.0,0.0\n"
+                "N1,0.002,0.0,0.0,0.0,0.0,0.0\n",
                 encoding="utf-8",
             )
             (root / "study_effo.csv").write_text(
-                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\npipe_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n",
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                "pipe_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n"
+                "pipe_0,N1,100.0,0.0,0.0,0.0,0.0,0.0\n",
                 encoding="utf-8",
             )
             (root / "study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")

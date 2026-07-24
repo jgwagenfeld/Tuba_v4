@@ -829,7 +829,6 @@ dependencies = [
     { name = "rich", version = "15.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.11.*'" },
     { name = "rich-rst" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
-    { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_version < '0'" },
     { name = "typing-extensions", version = "4.15.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9a/19/5c438b428b3dca208eb920804dc16aeb3ca1e85d6163d17e8fb0785ead19/cyclopts-4.18.0.tar.gz", hash = "sha256:fb7b730f21932e0784f7e54462df0447aaa1fbf034d65b605bd8a25dce58b188", size = 182821 }
@@ -936,7 +935,6 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "typing-extensions", version = "4.15.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371 }
@@ -3764,27 +3762,6 @@ wheels = [
 ]
 
 [[package]]
-name = "scipy"
-version = "1.10.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/84/a9/2bf119f3f9cff1f376f924e39cfae18dec92a1514784046d185731301281/scipy-1.10.1.tar.gz", hash = "sha256:2cf9dfb80a7b4589ba4c40ce7588986d6d5cebc5457cad2c2880f6bc2d42f3a5", size = 42407997 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/ac/b1f1bbf7b01d96495f35be003b881f10f85bf6559efb6e9578da832c2140/scipy-1.10.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:e7354fd7527a4b0377ce55f286805b34e8c54b91be865bac273f527e1b839019", size = 35093243 },
-    { url = "https://files.pythonhosted.org/packages/ea/e5/452086ebed676ce4000ceb5eeeb0ee4f8c6f67c7e70fb9323a370ff95c1f/scipy-1.10.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:4b3f429188c66603a1a5c549fb414e4d3bdc2a24792e061ffbd607d3d75fd84e", size = 28772969 },
-    { url = "https://files.pythonhosted.org/packages/04/0b/a1b119c869b79a2ab459b7f9fd7e2dea75a9c7d432e64e915e75586bd00b/scipy-1.10.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1553b5dcddd64ba9a0d95355e63fe6c3fc303a8fd77c7bc91e77d61363f7433f", size = 30886961 },
-    { url = "https://files.pythonhosted.org/packages/1f/4b/3bacad9a166350cb2e518cea80ab891016933cc1653f15c90279512c5fa9/scipy-1.10.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4c0ff64b06b10e35215abce517252b375e580a6125fd5fdf6421b98efbefb2d2", size = 34422544 },
-    { url = "https://files.pythonhosted.org/packages/ec/e3/b06ac3738bf365e89710205a471abe7dceec672a51c244b469bc5d1291c7/scipy-1.10.1-cp310-cp310-win_amd64.whl", hash = "sha256:fae8a7b898c42dffe3f7361c40d5952b6bf32d10c4569098d276b4c547905ee1", size = 42484848 },
-    { url = "https://files.pythonhosted.org/packages/e7/53/053cd3669be0d474deae8fe5f757bff4c4f480b8a410231e0631c068873d/scipy-1.10.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:0f1564ea217e82c1bbe75ddf7285ba0709ecd503f048cb1236ae9995f64217bd", size = 35003170 },
-    { url = "https://files.pythonhosted.org/packages/0d/3e/d05b9de83677195886fb79844fcca19609a538db63b1790fa373155bc3cf/scipy-1.10.1-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:d925fa1c81b772882aa55bcc10bf88324dadb66ff85d548c71515f6689c6dac5", size = 28717513 },
-    { url = "https://files.pythonhosted.org/packages/a5/3d/b69746c50e44893da57a68457da3d7e5bb75f6a37fbace3769b70d017488/scipy-1.10.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:aaea0a6be54462ec027de54fca511540980d1e9eea68b2d5c1dbfe084797be35", size = 30687257 },
-    { url = "https://files.pythonhosted.org/packages/21/cd/fe2d4af234b80dc08c911ce63fdaee5badcdde3e9bcd9a68884580652ef0/scipy-1.10.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:15a35c4242ec5f292c3dd364a7c71a61be87a3d4ddcc693372813c0b73c9af1d", size = 34124096 },
-    { url = "https://files.pythonhosted.org/packages/65/76/903324159e4a3566e518c558aeb21571d642f781d842d8dd0fd9c6b0645a/scipy-1.10.1-cp311-cp311-win_amd64.whl", hash = "sha256:43b8e0bcb877faf0abfb613d51026cd5cc78918e9530e375727bf0625c82788f", size = 42238704 },
-]
-
-[[package]]
 name = "scooby"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4139,17 +4116,17 @@ source = { editable = "." }
 dependencies = [
     { name = "gmsh" },
     { name = "jsonschema" },
-    { name = "meshio" },
     { name = "numpy" },
-    { name = "python-fcl", version = "0.7.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "python-fcl", version = "0.7.0.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "scipy" },
-    { name = "trimesh" },
 ]
 
 [package.optional-dependencies]
 code-aster-rmed = [
     { name = "h5py" },
+]
+collision = [
+    { name = "python-fcl", version = "0.7.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "python-fcl", version = "0.7.0.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "trimesh" },
 ]
 dev = [
     { name = "pytest" },
@@ -4157,16 +4134,21 @@ dev = [
 ifc = [
     { name = "ifcopenshell" },
 ]
+mixed = [
+    { name = "meshio" },
+]
 notebook-viz = [
     { name = "ipywidgets" },
     { name = "jupyter-server-proxy" },
     { name = "jupyterlab" },
+    { name = "meshio" },
     { name = "pyvista", extra = ["all"] },
     { name = "trame" },
     { name = "trame-vtk" },
     { name = "trame-vuetify" },
 ]
 viz = [
+    { name = "meshio" },
     { name = "pyvista" },
 ]
 
@@ -4179,17 +4161,18 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.0" },
     { name = "jupyter-server-proxy", marker = "extra == 'notebook-viz'" },
     { name = "jupyterlab", marker = "extra == 'notebook-viz'", specifier = ">=3" },
-    { name = "meshio", specifier = ">=5.0" },
+    { name = "meshio", marker = "extra == 'mixed'", specifier = ">=5.0" },
+    { name = "meshio", marker = "extra == 'notebook-viz'", specifier = ">=5.0" },
+    { name = "meshio", marker = "extra == 'viz'", specifier = ">=5.0" },
     { name = "numpy", specifier = ">=1.20" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
-    { name = "python-fcl", specifier = ">=0.7.0" },
+    { name = "python-fcl", marker = "extra == 'collision'", specifier = ">=0.7.0" },
     { name = "pyvista", marker = "extra == 'viz'", specifier = ">=0.38" },
     { name = "pyvista", extras = ["all"], marker = "extra == 'notebook-viz'", specifier = ">=0.48" },
-    { name = "scipy", specifier = ">=1.7" },
     { name = "trame", marker = "extra == 'notebook-viz'", specifier = ">=3" },
     { name = "trame-vtk", marker = "extra == 'notebook-viz'", specifier = ">=2" },
     { name = "trame-vuetify", marker = "extra == 'notebook-viz'", specifier = ">=3" },
-    { name = "trimesh", specifier = ">=4.0" },
+    { name = "trimesh", marker = "extra == 'collision'", specifier = ">=4.0" },
 ]
 
 [[package]]

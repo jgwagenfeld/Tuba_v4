@@ -7,7 +7,7 @@ from tuba import Model, Material, PipeSection, PipingBuilder
 from tuba.solver.base import FEAResults, NodeResult, ElementResult
 from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
 from tuba.compliance.asme_b313 import ASMEB313Evaluator
-from tuba.optimization.optimizer import GeneticSupportPlacer, LLMSupportOptimizer, RuleBasedSupportPlacer
+from tuba.optimization.optimizer import GeneticSupportPlacer, LLMSupportOptimizer
 from tuba.plotting.pipeline import build_mesh_from_model, build_3d_mesh_from_model
 
 
@@ -198,13 +198,6 @@ class TestModelAndBuilder(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "spring_stiffness_matrix"):
             placer._apply_chromosome(model, ["N1"], np.array([3]))
-
-    def test_rule_based_support_placer_is_disabled(self):
-        model = Model(project_name="NoHeuristicSupportPlacement")
-        placer = RuleBasedSupportPlacer()
-
-        with self.assertRaisesRegex(NotImplementedError, "heuristic support layouts"):
-            placer.optimize(model, evaluator=None)
 
     def test_load_case_ref_temperature_roundtrip(self):
         model = Model(project_name="LoadCaseRoundtrip")

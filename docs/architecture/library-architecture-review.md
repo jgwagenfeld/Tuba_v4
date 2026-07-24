@@ -49,7 +49,6 @@ Read these first before changing architecture:
 | `docs/architecture/user-facing-piping-dsl-and-agent-ops.md` | Roadmap for cleaner DSL and agent operations. Some basics are shipped; higher-level verbs remain roadmap. |
 | `docs/architecture/expansion-aware-autorouting.md` | Current expansion-aware routing decision and limits. |
 | `docs/architecture/step-mixed-code-aster.md` | Mixed STEP/Code_Aster export warning. Export is not completed evaluation. |
-| `docs/architecture/adapy-alignment.md` | Reference-only ada-py license and interoperability boundary. |
 | `docs/architecture/b31j-compliance-migration.md` | Compliance status and blocked B31J work. |
 
 Historical root-level `*_design.md`, `*_specification.md`, and
@@ -169,7 +168,7 @@ results = solver.solve_exported_study(model, study)
 The manifest and sidecar are not decoration. They map shortened Code_Aster
 names and generated analysis-mesh entities back to stable Tuba references.
 
-`model.solve(solver="code_aster", operation="Hot", exec_method="wsl",
+`model.solve(operation="Hot", exec_method="wsl",
 wsl_distro="Ubuntu")` dispatches to the same backend, but the explicit solver
 object is clearer for architecture and debugging.
 
@@ -290,9 +289,7 @@ static review reports.
 
 `write_engineering_review_with_scene(...)` is an adapter around this same web
 review path, not a solver and not a third display system. Scene-only bundles
-without `review.json` remain supported. Legacy `write_static_report(scene,
-...)` remains import-compatible, but its HTML is labeled `Legacy scene-derived
-report` and states `Code compliance unavailable`.
+without `review.json` remain supported.
 
 Do not add a third display path.
 
@@ -419,7 +416,6 @@ instead of local memory.
   engineering evaluation.
 - Do not display stress, displacement, reaction, compliance, or operating-state
   clash results from mock or hand-built values in user-facing workflows.
-- Do not vendor ada-py code into Tuba core.
 - Do not add a third visualization surface.
 - Do not expand roadmap DSL examples into current-code docs unless the methods
   exist on `TubaModel` or `PipingBuilder`.

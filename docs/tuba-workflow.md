@@ -66,9 +66,7 @@ output = write_engineering_review_with_scene(
 
 This adapter combines reporting with the existing web-review display path; it
 does not create a third visualization path. Existing scene bundles without
-`review.json` remain valid. The legacy `write_static_report(scene, ...)` API
-also remains callable, but its output is explicitly labeled scene-derived and
-states that code compliance is unavailable.
+`review.json` remain valid.
 
 ## Viewer Review Workflow
 

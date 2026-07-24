@@ -13,7 +13,16 @@ from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
 import numpy as np
-from scipy.spatial.transform import Rotation
+
+
+def _rotate_about_axis(vector: np.ndarray, axis: np.ndarray, angle: float) -> np.ndarray:
+    """Rotate *vector* with Rodrigues' formula."""
+    axis = axis / np.linalg.norm(axis)
+    return (
+        vector * np.cos(angle)
+        + np.cross(axis, vector) * np.sin(angle)
+        + axis * np.dot(axis, vector) * (1.0 - np.cos(angle))
+    )
 
 
 class PipingBuilder:
@@ -154,8 +163,7 @@ class PipingBuilder:
             axis = self.direction.copy()
 
         theta = np.radians(angle)
-        rot = Rotation.from_rotvec(axis * theta)
-        new_direction = rot.apply(self.direction)
+        new_direction = _rotate_about_axis(self.direction, axis, theta)
         new_direction /= np.linalg.norm(new_direction)  # normalise
 
         # Tangent length from bend geometry
@@ -318,8 +326,7 @@ class PipingBuilder:
             raise ValueError("Bend axis must be non-zero.")
         axis = axis / np.linalg.norm(axis)
         theta = np.radians(angle)
-        rot = Rotation.from_rotvec(axis * theta)
-        new_direction = rot.apply(self.direction)
+        new_direction = _rotate_about_axis(self.direction, axis, theta)
         new_direction /= np.linalg.norm(new_direction)
 
         tangent_len = radius * abs(np.tan(theta / 2.0))

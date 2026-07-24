@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from tuba import EntityRef, Model
+from tuba.model import sample_bend_geometry
 from tuba.visualization import SceneBuildOptions, build_visualization_scene
 from tuba.visualization.builders import _find_element
 
@@ -100,6 +101,22 @@ class TestVisualizationBuilders(unittest.TestCase):
         model.elements = ScanBlockedElements(model.elements)
 
         self.assertEqual(_find_element(model, elem.id), elem)
+
+    def test_scene_pipe_bend_uses_sampled_bend_geometry(self):
+        model = Model(project_name="VisualizationBend")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        with model.pipe("PipeSec", "Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0])
+            pipe.bend(radius=1.0, angle=90.0, plane="XY")
+
+        bend = model.elements[0]
+        scene = build_visualization_scene(model)
+        asset = next(item for item in scene.geometry_assets if item.id == f"geometry:element:{bend.id}")
+        expected = sample_bend_geometry(model.nodes[bend.n1].coords, bend.bend_geometry, n_segments=16)
+
+        self.assertEqual(asset.generation_config["points"], expected.tolist())
+        self.assertGreater(len(asset.generation_config["points"]), 2)
 
 
 if __name__ == "__main__":

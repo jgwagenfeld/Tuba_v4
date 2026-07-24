@@ -30,7 +30,6 @@ class TestCodeAsterRealSmoke(unittest.TestCase):
 
         with TemporaryDirectory() as tmpdir:
             results = model.solve(
-                "code_aster",
                 load_case="Operating",
                 work_dir=tmpdir,
                 exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"),

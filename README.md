@@ -34,10 +34,6 @@ Read these first - they describe what the code actually does today:
 | `docs/architecture/*` | Focused design decisions and explicitly labeled roadmap docs |
 | `docs/code_aster_installation.md` | Canonical Code_Aster setup |
 
-Historical (pre-implementation, superseded - do not trust against the code):
-the root `*_design.md` / `*_specification.md` / `*_strategy.md` files, each
-banner-flagged at the top.
-
 ## Code_Aster Runtime
 
 Code_Aster execution is required for production stress, displacement, reaction,
@@ -103,10 +99,21 @@ $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
 ## Installation
 
 ```bash
-pip install -e .
+pip install tuba
 ```
 
 Tuba v4 requires Python 3.10 or newer.
+
+Install only the optional surfaces you use:
+
+```bash
+pip install "tuba[viz]"       # PyVista quick-look and RMED reading
+pip install "tuba[collision]" # exact Trimesh/FCL collision checks
+pip install "tuba[ifc]"       # IFC exchange
+```
+
+The wheel includes the built Three.js review application. Its installed asset
+directory is available through `tuba.visualization.viewer_assets_path()`.
 
 ## Quick Notebook Path
 
@@ -264,8 +271,7 @@ Current limitations:
 - Route geometry is centerline-based and still requires engineering review.
 - Mesh obstacles use conservative bounds when available, not exact voxelization.
 - Slope, rack preferences, stress-code allowables, valve/instrument placement,
-  constructability checks, and support optimization are API hooks but not full
-  engineering-grade solvers yet.
+  constructability checks, and automatic support placement are not implemented.
 
 Troubleshooting:
 
@@ -303,11 +309,6 @@ source of truth. Pipe flow elements are emitted as `IfcPipeSegment` and
 sets carry section, material, bend, support, stress, and operating-state
 metadata for round-trip and coordination review.
 
-`ada-py` is treated as a reference interoperability project, not a core
-dependency or runtime bridge. See
-[`docs/architecture/adapy-alignment.md`](docs/architecture/adapy-alignment.md)
-before adding any bridge.
-
 ## Reusable Fragments And Agent Workflows
 
 Reusable local-coordinate assemblies are represented as `ModelFragment` objects
@@ -324,3 +325,8 @@ I-beam profile data is loaded through `SectionCatalog` from `tuba.sections`.
 The runtime package no longer carries the old vendored Euclid geometry code or
 Salome section-generation scripts; active profile data lives under
 `tuba/sections/data`.
+
+## License
+
+Tuba v4 is licensed under `LGPL-3.0-or-later`. See `LICENSE` and
+`LICENSE.GPL`.

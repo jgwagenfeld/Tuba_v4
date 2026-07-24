@@ -590,7 +590,7 @@
         </div>
 
         <div class="api-entry">
-          <h3><code>import_code_aster_artifacts(*, model, work_dir: str | Path, study: AnalysisStudy | None = None, load_case: str | None = None) -&gt; CodeAsterArtifactImport</code></h3>
+          <h3><code>import_code_aster_artifacts(*, model, work_dir: str | Path, study: AnalysisStudy | None = None) -&gt; CodeAsterArtifactImport</code></h3>
           <p>Import a solved Code_Aster artifact directory into a reviewable artifact object, without running the solver.</p>
           <table class="reference-table">
             <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Units</th><th>Description</th></tr></thead>
@@ -867,18 +867,17 @@ print(report.index_path)</code></pre>
         <p>
           Optimizers score candidate support layouts with an
           <code>ObjectiveEvaluator</code> and a Code_Aster solve. All optimizers
-          subclass <code>BasePipingOptimizer(solver_name="code_aster")</code> and
+          subclass <code>BasePipingOptimizer</code> and
           implement <code>optimize(self, model, evaluator, **kwargs) -&gt; Tuple[TubaModel, Optional[FEAResults]]</code>,
           which returns the optimized model and its FEA results.
         </p>
 
         <div class="api-entry">
-          <h3><code>GeneticSupportPlacer(solver_name="code_aster", population_size=20, generations=30, mutation_rate=0.15, tournament_size=3, spring_stiffness_matrix=None)</code></h3>
+          <h3><code>GeneticSupportPlacer(population_size=20, generations=30, mutation_rate=0.15, tournament_size=3, spring_stiffness_matrix=None)</code></h3>
           <p>Genetic-algorithm optimizer that evolves per-node support-type chromosomes (none / rest / guide, plus spring when a stiffness matrix is supplied) to minimize the objective score. Its <code>optimize()</code> runs tournament selection, uniform crossover, mutation, and elitism, then applies the best solver-backed layout in place.</p>
           <table class="reference-table">
             <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Units</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>solver_name</code></td><td><code>str</code></td><td><code>"code_aster"</code></td><td>&mdash;</td><td>FEA solver used to score each candidate.</td></tr>
               <tr><td><code>population_size</code></td><td><code>int</code></td><td><code>20</code></td><td>&mdash;</td><td>Number of chromosomes per generation.</td></tr>
               <tr><td><code>generations</code></td><td><code>int</code></td><td><code>30</code></td><td>&mdash;</td><td>Number of evolutionary generations to run.</td></tr>
               <tr><td><code>mutation_rate</code></td><td><code>float</code></td><td><code>0.15</code></td><td>&mdash;</td><td>Per-gene probability of random mutation.</td></tr>
@@ -893,7 +892,7 @@ print(report.index_path)</code></pre>
         <p>
           A bridge for LLMs to optimize supports: it serializes model and stress
           state to JSON context and applies structured layout suggestions. It
-          inherits the base <code>__init__(solver_name="code_aster")</code>.
+          uses the single Code_Aster solve path.
         </p>
         <table class="reference-table">
           <thead>
@@ -905,14 +904,6 @@ print(report.index_path)</code></pre>
             <tr><td><code>optimize(self, model, evaluator, **kwargs) -&gt; Tuple[TubaModel, Optional[FEAResults]]</code></td><td>Solve the model and return fresh results; raises <code>RuntimeError</code> if the solver fails or returns None. It does not itself mutate the layout.</td></tr>
           </tbody>
         </table>
-        <div class="note">
-          <code>RuleBasedSupportPlacer(solver_name="code_aster", deflection_limit_m=0.0025)</code>
-          is a disabled legacy heuristic placer. Constructing it works, but its
-          <code>optimize()</code> always raises <code>NotImplementedError</code>,
-          because rule-based heuristic layouts are not an accepted production
-          workflow.
-        </div>
-
         <h3>Objectives</h3>
         <p>
           Every objective subclasses <code>BaseObjective(weight=1.0)</code> and

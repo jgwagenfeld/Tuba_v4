@@ -91,7 +91,7 @@ def load_or_run_code_aster_results(
         missing_before = tuple(_missing_result_tables(root, model))
         if missing_before:
             raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
-        artifact = import_code_aster_artifacts(model=model, work_dir=root, study=None, load_case=load_case)
+        artifact = import_code_aster_artifacts(model=model, work_dir=root)
         artifact.results._model = model
         return CodeAsterNotebookRun(
             results=artifact.results,
@@ -119,7 +119,7 @@ def load_or_run_code_aster_results(
     if missing_after:
         raise FileNotFoundError(_missing_tables_message(root, missing_after, run_solver=True))
 
-    artifact = import_code_aster_artifacts(model=model, work_dir=root, study=study, load_case=load_case)
+    artifact = import_code_aster_artifacts(model=model, work_dir=root, study=study)
     artifact.results._model = model
     return CodeAsterNotebookRun(
         results=artifact.results,

@@ -34,7 +34,6 @@ from tuba.model import (
     IBeamSection,
 )
 from tuba.solver.base import (
-    BaseSolver,
     ElementResult,
     FEAResults,
     NodeResult,
@@ -56,7 +55,7 @@ _TUBA_GENE_TUYAU = np.array([0.0, 0.0, 1.0], dtype=float)
 # Solver
 # ---------------------------------------------------------------------------
 
-class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
+class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     """Headless Code_Aster backend for piping stress analysis.
 
     Parameters
@@ -431,7 +430,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         # --- Parse CSV tables ----------------------------------------------
         node_label_map, element_label_map = self._read_solver_label_maps(work_dir)
         analysis_mesh_node_ids = self._read_analysis_mesh_node_ids(work_dir)
-        applied_displacements = self._parse_depl_table(
+        displacement_nodes = self._parse_depl_table(
             model,
             work_dir,
             results,
@@ -444,21 +443,27 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         # loads) would otherwise return the all-zero seed above as if it were a
         # valid result.  Refuse that, per the "never present non-real values as
         # solver results" contract (AGENTS.md).
-        if applied_displacements == 0:
+        if not displacement_nodes:
             raise RuntimeError(
                 f"Code_Aster produced no displacement results in {work_dir} "
                 "(study_depl.csv is missing or has no parseable rows). The solver "
                 "run did not generate real results; refusing to return an all-zero "
                 "result. Inspect study.mess for solver errors."
             )
-        applied_forces = self._parse_effo_table(model, work_dir, results, node_label_map, element_label_map)
+        missing_displacements = sorted(set(model.nodes) - displacement_nodes)
+        if missing_displacements:
+            raise RuntimeError(
+                f"Code_Aster output is missing displacement results for model node(s) "
+                f"{missing_displacements} in {work_dir}. Refusing to substitute zeros."
+            )
+        force_endpoints = self._parse_effo_table(model, work_dir, results, node_label_map, element_label_map)
         # Element internal forces are what the ASME B31.3 evaluator turns into code
         # stress. If displacement parsed but the force table is missing/empty/mismapped,
         # every stress-bearing element keeps its all-zero seed and compliance would
         # silently report PASS on fictitious zero moments. Refuse that, mirroring the
         # displacement guard above and the AGENTS.md "no proxy values as results" contract.
         pipe_elements = [elem for elem in model.elements if elem.type in ("pipe_straight", "pipe_bend")]
-        if pipe_elements and applied_forces == 0:
+        if pipe_elements and not force_endpoints:
             raise RuntimeError(
                 f"Code_Aster produced no element internal forces in {work_dir} "
                 "(study_effo.csv is missing or has no parseable rows) even though the "
@@ -466,11 +471,17 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
                 "results that would pass compliance on fictitious stress. Inspect "
                 "study.mess for solver errors."
             )
-        if pipe_elements and applied_forces < len(pipe_elements):
-            results.parser_diagnostics.append(
-                f"Only {applied_forces}/{len(pipe_elements)} pipe elements received internal "
-                "forces from study_effo.csv; compliance for the remainder is based on zero "
-                "forces (possible solver label mismatch)."
+        expected_force_endpoints = {
+            (element.id, node_id)
+            for element in pipe_elements
+            for node_id in (element.n1, element.n2)
+        }
+        missing_force_endpoints = sorted(expected_force_endpoints - force_endpoints)
+        if missing_force_endpoints:
+            labels = [f"{element_id}:{node_id}" for element_id, node_id in missing_force_endpoints]
+            raise RuntimeError(
+                f"Code_Aster output is missing internal-force results for pipe endpoint(s) "
+                f"{labels} in {work_dir}. Refusing to substitute zeros."
             )
         self._parse_reac_table(model, work_dir, results, node_label_map)
         self._parse_sieq_table(model, work_dir, results, node_label_map, element_label_map)
@@ -602,10 +613,10 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         results: FEAResults,
         node_label_map: dict[str, str],
         analysis_mesh_node_ids: set[str],
-    ) -> int:
-        """Parse displacement table (unit 39). Returns the number of applied rows."""
+    ) -> set[str]:
+        """Parse displacement table (unit 39); return covered model-node IDs."""
         rows = self._parse_csv_table(work_dir / "study_depl.csv")
-        applied = 0
+        covered_model_nodes: set[str] = set()
         for row in rows:
             raw_nid = row.get("NOEUD", "").strip()
             nid = node_label_map.get(raw_nid, raw_nid)
@@ -624,15 +635,14 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
                 continue
             if nid in results.node_results:
                 results.node_results[nid].displacement = disp
-                applied += 1
+                covered_model_nodes.add(nid)
                 continue
             results.analysis_node_results[nid] = NodeResult(node_id=nid, displacement=disp)
             if nid not in analysis_mesh_node_ids:
                 results.parser_diagnostics.append(
                     f"Preserved displacement row for non-native analysis node {nid!r} without mesh source mapping."
                 )
-            applied += 1
-        return applied
+        return covered_model_nodes
 
     def _parse_effo_table(
         self,
@@ -641,7 +651,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         results: FEAResults,
         node_label_map: dict[str, str],
         element_label_map: dict[str, str],
-    ) -> int:
+    ) -> set[tuple[str, str]]:
         """Parse internal-force table (unit 38, ``EFGE_ELNO``).
 
         Each row contains ``MAILLE`` (element) and ``NOEUD`` (node).
@@ -649,14 +659,12 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
         We map them to ``forces_n1`` / ``forces_n2`` by matching the
         ``NOEUD`` field against the element's ``n1`` / ``n2``.
 
-        Returns the number of distinct elements that received at least one
-        parsed force vector, so the caller can detect a run that produced no
-        usable internal forces.
+        Returns the model element/node endpoints that received parsed forces.
         """
         rows = self._parse_csv_table(work_dir / "study_effo.csv")
         # Build a quick lookup: element_id → Element
         elem_map: Dict[str, Element] = {e.id: e for e in model.elements}
-        covered: set[str] = set()
+        covered: set[tuple[str, str]] = set()
 
         for row in rows:
             raw_eid = row.get("MAILLE", "").strip()
@@ -695,11 +703,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin, BaseSolver):
             er = results.element_results[orig_eid]
             if nid == elem.n1:
                 er.forces_n1 = forces
-                covered.add(orig_eid)
+                covered.add((orig_eid, nid))
             elif nid == elem.n2:
                 er.forces_n2 = forces
-                covered.add(orig_eid)
-        return len(covered)
+                covered.add((orig_eid, nid))
+        return covered
 
     def _parse_reac_table(
         self,

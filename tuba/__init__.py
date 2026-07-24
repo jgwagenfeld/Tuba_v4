@@ -7,7 +7,7 @@ Top-level API:
     model.add_pipe_section(...)
     with model.pipe(section=..., material=...) as builder:
         builder.start(...).run(...).bend(...).end(...)
-    results = model.solve(solver="code_aster")
+    results = model.solve()
 """
 
 from tuba.model import (
@@ -24,43 +24,59 @@ from tuba.model import (
     OperationField,
     TubaModel as Model,
 )
-from tuba.builder import BuildStep, BuiltRun, PipeRunRecipe, PipingBuilder
-from tuba.coordinates import CoordinateSystem
-from tuba.placements import PlacementAssignment, PlacementFrame
-from tuba.fragments import ModelFragment, PlacementResult, place_fragment
-from tuba.patches import (
-    AddElement,
-    AddInsulationSpec,
-    AddNode,
-    AddPlacementFrame,
-    AddSupport,
-    AssignAttribute,
-    AssignPlacement,
-    CreateGroup,
-    ModelPatch,
-    ModelTransaction,
-    PatchResult,
-    RemovePlacementAssignment,
-)
-from tuba.attributes import AttributeAssignment, InsulationSpec
-from tuba.assemblies import RackBay
-from tuba.physical import ElementPhysicalProperties, ElementQuantities, element_length, element_quantities, physical_properties_for_element
-from tuba.quantities import QuantityRecord, QuantityTakeoff, quantity_takeoff, wind_loads
-from tuba.load_path import LoadPathReport, SupportRackAssociation, analyze_load_paths
-from tuba.rules import ClashFreeRule, RuleEngine, RuleReport, RuleResult, SupportSpacingRule, rule_report_to_markdown
-from tuba.clash import ClashResult, ClashEngine, TrimeshClashEngine, clash_report_to_dict, clash_report_to_markdown
-from tuba.refs import EntityRef, resolve_entity_ref
-from tuba.schema import MODEL_SCHEMA_V4, PATCH_SCHEMA_V1, SchemaValidationError, validate_model_dict, validate_patch_dict
-from tuba.sections import IBeamProfile, SectionCatalog
-from tuba.validation import ModelValidationError, validate_model
-
 __version__ = "4.0.0"
 
+_LAZY_EXPORTS = {
+    "BuildStep": "tuba.builder", "BuiltRun": "tuba.builder",
+    "PipeRunRecipe": "tuba.builder", "PipingBuilder": "tuba.builder",
+    "CoordinateSystem": "tuba.coordinates",
+    "PlacementAssignment": "tuba.placements", "PlacementFrame": "tuba.placements",
+    "ModelFragment": "tuba.fragments", "PlacementResult": "tuba.fragments",
+    "place_fragment": "tuba.fragments",
+    "AddElement": "tuba.patches", "AddInsulationSpec": "tuba.patches",
+    "AddNode": "tuba.patches", "AddPlacementFrame": "tuba.patches",
+    "AddSupport": "tuba.patches", "AssignAttribute": "tuba.patches",
+    "AssignPlacement": "tuba.patches", "CreateGroup": "tuba.patches",
+    "ModelPatch": "tuba.patches", "ModelTransaction": "tuba.patches",
+    "PatchResult": "tuba.patches", "RemovePlacementAssignment": "tuba.patches",
+    "AttributeAssignment": "tuba.attributes", "InsulationSpec": "tuba.attributes",
+    "RackBay": "tuba.assemblies",
+    "ElementPhysicalProperties": "tuba.physical", "ElementQuantities": "tuba.physical",
+    "element_length": "tuba.physical", "element_quantities": "tuba.physical",
+    "physical_properties_for_element": "tuba.physical",
+    "QuantityRecord": "tuba.quantities", "QuantityTakeoff": "tuba.quantities",
+    "quantity_takeoff": "tuba.quantities", "wind_loads": "tuba.quantities",
+    "LoadPathReport": "tuba.load_path", "SupportRackAssociation": "tuba.load_path",
+    "analyze_load_paths": "tuba.load_path",
+    "ClashFreeRule": "tuba.rules", "RuleEngine": "tuba.rules",
+    "RuleReport": "tuba.rules", "RuleResult": "tuba.rules",
+    "SupportSpacingRule": "tuba.rules", "rule_report_to_markdown": "tuba.rules",
+    "ClashResult": "tuba.clash", "ClashEngine": "tuba.clash",
+    "TrimeshClashEngine": "tuba.clash", "clash_report_to_dict": "tuba.clash",
+    "clash_report_to_markdown": "tuba.clash",
+    "EntityRef": "tuba.refs", "resolve_entity_ref": "tuba.refs",
+    "MODEL_SCHEMA_V4": "tuba.schema", "PATCH_SCHEMA_V1": "tuba.schema",
+    "SchemaValidationError": "tuba.schema", "validate_model_dict": "tuba.schema",
+    "validate_patch_dict": "tuba.schema",
+    "IBeamProfile": "tuba.sections", "SectionCatalog": "tuba.sections",
+    "ModelValidationError": "tuba.validation", "validate_model": "tuba.validation",
+    "write_model_benchmark_summary": "tuba.benchmarks",
+}
 
-def write_model_benchmark_summary(*args, **kwargs):
-    from tuba.benchmarks import write_model_benchmark_summary as _write_model_benchmark_summary
 
-    return _write_model_benchmark_summary(*args, **kwargs)
+def __getattr__(name):
+    module_name = _LAZY_EXPORTS.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from importlib import import_module
+
+    value = getattr(import_module(module_name), name)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(set(globals()) | set(__all__))
 
 
 __all__ = [

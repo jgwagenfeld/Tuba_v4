@@ -31,7 +31,7 @@ class TestCodeAsterRealSmoke(unittest.TestCase):
         model.define_load_case("Operating", gravity=True, pressure=1.0e6, temperature=120.0, ref_temperature=20.0)
 
         with TemporaryDirectory() as tmpdir:
-            results = model.solve("code_aster", load_case="Operating", work_dir=tmpdir)
+            results = model.solve(load_case="Operating", work_dir=tmpdir)
             root = Path(tmpdir)
 
             self.assertTrue((root / "study.export").exists())

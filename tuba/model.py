@@ -1090,21 +1090,18 @@ class TubaModel:
             return np.asarray(vector, dtype=float)
         return self.resolve_placement_frame(frame).to_global_vector(vector)
 
-    # -- Solver dispatch -----------------------------------------------------
+    # -- Code_Aster solve ----------------------------------------------------
 
     def solve(
         self,
-        solver: str = "code_aster",
         load_case: Optional[str] = None,
         operation: Optional[str] = None,
         **kwargs,
     ):
-        """Run FEA using the specified solver backend.
+        """Run Code_Aster and return its parsed results.
 
         Parameters
         ----------
-        solver : str
-            ``"code_aster"`` (default and currently only supported backend).
         load_case : str, optional
             Name of the load case to solve.  If *None*, the first defined
             load case is used.
@@ -1119,15 +1116,10 @@ class TubaModel:
         if load_case is not None and operation is not None:
             raise ValueError("Pass either load_case or operation, not both.")
 
-        if solver == "code_aster":
-            from tuba.solver.aster import CodeAsterSolver
-
-            s = CodeAsterSolver(**kwargs)
-        else:
-            raise ValueError(f"Unknown solver backend: {solver!r}")
+        from tuba.solver.aster import CodeAsterSolver
 
         lc_name = operation or load_case
-        return s.solve(self, lc_name)
+        return CodeAsterSolver(**kwargs).solve(self, lc_name)
 
     def validate(self) -> None:
         """Validate model references and structural invariants."""
