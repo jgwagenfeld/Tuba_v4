@@ -58,6 +58,7 @@ class TestVisualizerScenes(unittest.TestCase):
         model = Model(project_name="Scene")
         model.add_material("Steel", E=2.0e11, nu=0.3)
         model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        model.define_load_case("Hot")
         with model.pipe(section="PipeSec", material="Steel") as b:
             b.start([0.0, 0.0, 0.0]).run(1.0)
 

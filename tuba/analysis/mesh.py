@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from tuba.analysis.provenance import SolverInputIdentity
+
 from tuba.refs import EntityRef
 
 
@@ -138,6 +140,7 @@ class AnalysisMesh:
     files: dict[str, str] = field(default_factory=dict)
     #: ``GROUP_MA`` name -> Code_Aster ``MODELISATION``, mirroring ``AFFE_MODELE``.
     modelisations: dict[str, str] = field(default_factory=dict)
+    solver_input_identity: SolverInputIdentity | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "AnalysisMesh id")
@@ -187,7 +190,7 @@ class AnalysisMesh:
         object.__setattr__(self, "modelisations", modelisations)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "id": self.id,
             "model_revision": self.model_revision,
             "solver_name": self.solver_name,
@@ -199,6 +202,9 @@ class AnalysisMesh:
             "files": dict(self.files),
             "modelisations": dict(self.modelisations),
         }
+        if self.solver_input_identity is not None:
+            data["solver_input_identity"] = self.solver_input_identity.to_dict()
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AnalysisMesh":
@@ -215,6 +221,11 @@ class AnalysisMesh:
             },
             files=dict(data.get("files", {})),
             modelisations=dict(data.get("modelisations", {})),
+            solver_input_identity=(
+                SolverInputIdentity.from_dict(data["solver_input_identity"])
+                if data.get("solver_input_identity") is not None
+                else None
+            ),
         )
 
 

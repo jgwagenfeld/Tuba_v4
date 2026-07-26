@@ -12,6 +12,7 @@ for rendering. Handles:
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -66,24 +67,34 @@ def load_rmed(path: str) -> "pv.UnstructuredGrid":
     if not _HAS_MESHIO:
         raise ImportError("meshio is required to read .rmed files: pip install meshio")
 
-    mesh_io = meshio.read(str(path))
+    try:
+        mesh_io = meshio.read(str(path), file_format="med")
+    except (KeyError, TypeError):
+        # Code_Aster pipe studies can contain section-point ELGA supports such
+        # as ``SP_PIPE SE3`` and fields present on only one MED cell block.
+        # meshio 5.3 cannot represent either case.  Read the same MED datasets
+        # while retaining every supported nodal/ELNO array and deliberately
+        # skipping only unsupported integration-point supports.
+        mesh_io = _read_code_aster_med_fields(path)
 
     points = mesh_io.points
     if points.shape[1] == 2:
         points = np.column_stack([points, np.zeros(len(points))])
 
-    cells, cell_types = [], []
-    for cell_block in mesh_io.cells:
+    cells, cell_types, supported_blocks = [], [], []
+    vtk_cell_types = {
+        "line": 3,       # VTK_LINE
+        "line3": 21,     # VTK_QUADRATIC_EDGE
+        "triangle": 5,
+        "quad": 9,
+    }
+    for block_index, cell_block in enumerate(mesh_io.cells):
         ct = cell_block.type
         data = cell_block.data
-        if ct == "line":
-            vtk_type = 3  # VTK_LINE
-        elif ct == "triangle":
-            vtk_type = 5
-        elif ct == "quad":
-            vtk_type = 9
-        else:
+        vtk_type = vtk_cell_types.get(ct)
+        if vtk_type is None:
             continue  # skip unsupported
+        supported_blocks.append((block_index, cell_block))
         for conn in data:
             cells.append(np.concatenate([[len(conn)], conn]))
             cell_types.append(vtk_type)
@@ -100,11 +111,138 @@ def load_rmed(path: str) -> "pv.UnstructuredGrid":
 
     # Transfer cell data
     for name, blocks in mesh_io.cell_data.items():
-        combined = np.concatenate(blocks) if isinstance(blocks, list) else blocks
+        selected = [
+            np.asarray(blocks[index])
+            for index, _block in supported_blocks
+            if blocks[index] is not None
+        ]
+        if not selected:
+            continue
+        if any(array.shape[1:] != selected[0].shape[1:] for array in selected[1:]):
+            # Mixed MED element families can expose different ELNO/Gauss
+            # cardinalities.  Such arrays cannot be represented as one VTK
+            # cell field without discarding their element-local meaning.
+            continue
+        combined = np.concatenate(selected)
         if len(combined) == grid.n_cells:
-            grid.cell_data[name] = combined
+            grid.cell_data[name] = combined.reshape(len(combined), -1)
+
+    displacement = _latest_result_array(mesh_io.point_data, "DEPL")
+    if displacement is not None and displacement.ndim == 2 and displacement.shape[1] >= 3:
+        grid.point_data["DEPL"] = displacement[:, :3]
+        grid.point_data["DEPL_magnitude"] = np.linalg.norm(displacement[:, :3], axis=1)
+
+    stress_blocks = _latest_result_array(mesh_io.cell_data, "SIEQ")
+    if stress_blocks is not None:
+        point_stress = np.full(len(points), np.nan)
+        for (block_index, cell_block) in supported_blocks:
+            if stress_blocks[block_index] is None:
+                continue
+            block = np.asarray(stress_blocks[block_index])
+            if block.ndim < 3:
+                continue
+            for connection, values in zip(cell_block.data, block[:, :, 0]):
+                for point_index, value in zip(connection, values):
+                    current = point_stress[point_index]
+                    point_stress[point_index] = value if np.isnan(current) else max(current, value)
+        if np.isfinite(point_stress).any():
+            grid.point_data["VMIS"] = point_stress
 
     return grid
+
+
+def _read_code_aster_med_fields(path: str):
+    """Read supported MED geometry/results when meshio rejects Aster supports.
+
+    This compatibility reader intentionally uses meshio's MED value decoders,
+    so profiles and Fortran-order result arrays retain their established
+    semantics.  Unsupported Code_Aster integration-point supports are omitted;
+    no substitute or zero-valued solver data is created.
+    """
+    import h5py
+    from meshio.med import _med
+
+    with h5py.File(path, "r") as med_file:
+        meshes = med_file["ENS_MAA"]
+        if len(meshes) != 1:
+            raise ValueError(f"RMED must contain exactly one mesh, found {len(meshes)}.")
+        mesh = meshes[next(iter(meshes))]
+        dimension = mesh.attrs["ESP"]
+        if "NOE" not in mesh:
+            if len(mesh) != 1:
+                raise ValueError(f"RMED mesh must contain exactly one time step, found {len(mesh)}.")
+            mesh = mesh[next(iter(mesh))]
+
+        coordinates = mesh["NOE"]["COO"]
+        point_count = coordinates.attrs["NBR"]
+        points = coordinates[()].reshape((point_count, dimension), order="F")
+
+        cells = []
+        cell_types = []
+        cell_data = {}
+        for med_type, cell_group in mesh["MAI"].items():
+            cell_type = _med.med_to_meshio_type[med_type]
+            connectivity = cell_group["NOD"]
+            cell_count = connectivity.attrs["NBR"]
+            cells.append(
+                meshio.CellBlock(
+                    cell_type,
+                    connectivity[()].reshape(cell_count, -1, order="F") - 1,
+                )
+            )
+            cell_types.append(cell_type)
+            if "FAM" in cell_group:
+                cell_data.setdefault("cell_tags", []).append(cell_group["FAM"][()])
+
+        point_data = {}
+        if "FAM" in mesh["NOE"]:
+            point_data["point_tags"] = mesh["NOE"]["FAM"][()]
+
+        profiles = med_file["PROFILS"] if "PROFILS" in med_file else None
+        for field_name, field in med_file.get("CHA", {}).items():
+            steps = sorted(field.keys())
+            names = [field_name]
+            if len(steps) > 1:
+                names = [
+                    f"{field_name}[{index}] - {field[step].attrs['PDT']:g}"
+                    for index, step in enumerate(steps)
+                ]
+            for name, step in zip(names, steps):
+                med_data = field[step]
+                for support in med_data:
+                    if support == "NOE":
+                        point_data[name] = _med._read_nodal_data(med_data, profiles)
+                        continue
+                    med_cell_type = support.partition(".")[2]
+                    cell_type = _med.med_to_meshio_type.get(med_cell_type)
+                    if cell_type not in cell_types:
+                        continue
+                    values = cell_data.setdefault(name, [None] * len(cell_types))
+                    values[cell_types.index(cell_type)] = _med._read_cell_data(
+                        med_data[support], profiles
+                    )
+
+    return SimpleNamespace(
+        points=points,
+        cells=cells,
+        point_data=point_data,
+        cell_data=cell_data,
+    )
+
+
+def _latest_result_array(data: dict, field: str):
+    matches = [(name, value) for name, value in data.items() if field in name.upper()]
+    if not matches:
+        return None
+
+    def step(item):
+        name = item[0]
+        try:
+            return int(name.rsplit("[", 1)[1].split("]", 1)[0])
+        except (IndexError, ValueError):
+            return -1
+
+    return max(matches, key=step)[1]
 
 
 # ---------------------------------------------------------------------------
@@ -671,13 +809,23 @@ def _get_element_3d_mesh(
         mesh.point_data["FORC_NODA"] = np.array(forc_3d)
         mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
     
-    # Map Temperature if load case exists
-    temp_val = 20.0
-    if results is not None and results.load_case in model.load_cases:
-        temp_val = model.load_cases[results.load_case].temperature
-    elif model.load_cases:
-        temp_val = next(iter(model.load_cases.values())).temperature
-    mesh.point_data["TEMP"] = np.full(len(points_3d), temp_val)
+    # Map temperature only from a resolvable model case. Solver results with a
+    # named unknown case are stale or misbound and must not acquire a 20 C value.
+    if results is not None and results.load_case is not None:
+        try:
+            _, resolved_case = model.resolve_load_case(results.load_case)
+        except ValueError as exc:
+            raise ValueError(
+                f"Cannot map temperature for result load case {results.load_case!r}."
+            ) from exc
+        mesh.point_data["TEMP"] = np.full(len(points_3d), resolved_case.temperature)
+    elif results is None:
+        try:
+            _, resolved_case = model.resolve_load_case()
+        except ValueError:
+            resolved_case = None
+        if resolved_case is not None:
+            mesh.point_data["TEMP"] = np.full(len(points_3d), resolved_case.temperature)
     
     return mesh
 

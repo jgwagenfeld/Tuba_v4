@@ -26,6 +26,7 @@ n0 = model.add_node([0.0, 0.0, 0.0])
 n1 = model.add_node([1.0, 0.0, 0.0])
 model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
 model.add_support(node=n0, type="anchor", id="support_anchor_0")
+model.define_load_case("Hot", temperature=20.0, ref_temperature=20.0)
 
 results = FEAResults(solver_name="fixture", load_case="Hot")
 results._model = model

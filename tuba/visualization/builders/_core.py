@@ -8,6 +8,11 @@ from typing import Iterable
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    require_matching_solver_input_identities,
+    validate_solver_input_identity,
+)
 from tuba.analysis.states import GeometryState
 from tuba.refs import EntityRef
 from tuba.clash.types import ClashResult
@@ -68,6 +73,35 @@ def build_visualization_scene(
     geometry_state_records = list(geometry_states or [])
     analysis_mesh_records = list(analysis_meshes or [])
     analysis_meshes_by_id = {analysis_mesh.id: analysis_mesh for analysis_mesh in analysis_mesh_records}
+    owned_mesh_ids = {state.mesh_id for state in result_state_records if state.mesh_id}
+    for analysis_mesh in analysis_mesh_records:
+        if analysis_mesh.solver_input_identity is not None and analysis_mesh.id not in owned_mesh_ids:
+            raise ValueError(
+                f"Provenance-bearing analysis mesh {analysis_mesh.id!r} requires a supplied "
+                "owning result state."
+            )
+    for result_state in result_state_records:
+        validate_solver_input_identity(
+            model,
+            result_state.solver_input_identity,
+            context=f"ResultState {result_state.id!r}",
+            expected_load_case=result_state.load_case,
+            expected_compiler_id=CODE_ASTER_COMPILER_ID,
+        )
+        analysis_mesh = analysis_meshes_by_id.get(result_state.mesh_id or "")
+        if analysis_mesh is not None:
+            require_matching_solver_input_identities(
+                result_state.solver_input_identity,
+                analysis_mesh.solver_input_identity,
+                context=f"ResultState {result_state.id!r} and analysis mesh {analysis_mesh.id!r}",
+            )
+            validate_solver_input_identity(
+                model,
+                analysis_mesh.solver_input_identity,
+                context=f"Analysis mesh {analysis_mesh.id!r}",
+                expected_load_case=result_state.load_case,
+                expected_compiler_id=CODE_ASTER_COMPILER_ID,
+            )
     diagnostics: list[SceneDiagnostic] = []
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
@@ -252,7 +286,26 @@ def build_visualization_scene(
         views=views,
         scene_diffs=scene_diffs,
         diagnostics=diagnostics,
-        extra={"ifc_context": dict(ifc_context)} if ifc_context else {},
+        extra=_scene_provenance_extra(result_state_records, analysis_mesh_records, ifc_context),
     )
     scene.validate()
     return scene
+
+
+def _scene_provenance_extra(
+    result_states: list[ResultState],
+    analysis_meshes: list[AnalysisMesh],
+    ifc_context: dict[str, Any] | None,
+) -> dict[str, Any]:
+    extra = {"ifc_context": dict(ifc_context)} if ifc_context else {}
+    identities = {
+        identity.fingerprint: identity.to_dict()
+        for identity in [
+            *(state.solver_input_identity for state in result_states),
+            *(mesh.solver_input_identity for mesh in analysis_meshes),
+        ]
+        if identity is not None
+    }
+    if identities:
+        extra["solver_input_identities"] = [identities[key] for key in sorted(identities)]
+    return extra

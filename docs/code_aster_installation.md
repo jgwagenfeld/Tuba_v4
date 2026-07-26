@@ -248,7 +248,7 @@ stopping at missing result tables.
 Recommended notebook environment:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"
+.\.venv\Scripts\python.exe -m pip install -e ".[course]"
 jupyter lab notebooks\00_welcome_and_setup.ipynb
 ```
 

@@ -1,6 +1,11 @@
 """Analysis study, mesh, result, and geometry-state records."""
 
 from tuba.analysis.mesh import AnalysisMesh, MeshElementSource, MeshNodeSource
+from tuba.analysis.provenance import (
+    SolverInputIdentity,
+    build_solver_input_identity,
+    validate_solver_input_identity,
+)
 from tuba.analysis.projection import DeformedCenterline, project_deformed_centerline
 from tuba.analysis.results import ResultState
 from tuba.analysis.states import (
@@ -19,8 +24,11 @@ __all__ = [
     "MeshElementSource",
     "MeshNodeSource",
     "ResultState",
+    "SolverInputIdentity",
+    "build_solver_input_identity",
     "create_cold_geometry_state",
     "create_operating_geometry_state",
     "create_visual_deformed_geometry_state",
     "project_deformed_centerline",
+    "validate_solver_input_identity",
 ]

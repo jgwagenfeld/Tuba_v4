@@ -2,6 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
+import nbformat
+
 
 NOTEBOOK_DIR = Path(__file__).resolve().parents[1] / "notebooks"
 
@@ -12,6 +14,43 @@ def _notebook_text(name: str) -> str:
 
 
 class TestNotebookCourseDidactics(unittest.TestCase):
+    def test_notebooks_are_current_clean_and_portable(self):
+        for path in sorted(NOTEBOOK_DIR.glob("*.ipynb")):
+            with self.subTest(path=path.name):
+                notebook = nbformat.read(path, as_version=nbformat.NO_CONVERT)
+                nbformat.validate(notebook)
+                self.assertEqual(nbformat.current_nbformat, notebook.nbformat)
+                self.assertEqual(nbformat.current_nbformat_minor, notebook.nbformat_minor)
+                self.assertEqual("python3", notebook.metadata.kernelspec.name)
+                self.assertEqual("Python 3", notebook.metadata.kernelspec.display_name)
+                self.assertNotIn("widgets", notebook.metadata)
+                self.assertFalse(
+                    [output for cell in notebook.cells for output in cell.get("outputs", [])]
+                )
+
+    def test_notebook_course_uses_installed_viewer_launcher(self):
+        text = "\n".join(_notebook_text(path.name) for path in NOTEBOOK_DIR.glob("*.ipynb"))
+        self.assertIn("tuba-viewer", text)
+        self.assertNotIn("npm.cmd run dev", text)
+        self.assertNotIn("viewer/public", text)
+        self.assertNotIn("publish_viewer_bundle", text)
+
+    def test_visualization_review_uses_its_analysis_mesh(self):
+        text = _notebook_text("04_visualization_gallery.ipynb")
+        review_call = text[text.index("review = build_engineering_review(") :]
+        self.assertIn("analysis_meshes=analysis_meshes", review_call.split(")", 1)[0])
+
+    def test_support_lesson_updates_existing_supports_instead_of_duplicating_them(self):
+        text = _notebook_text("02_supports_and_loading.ipynb")
+        self.assertIn("Adding another support would append", text)
+        self.assertNotIn('model.add_support(\n    node="N2"', text)
+        self.assertNotIn('model.add_support(\n    node="N3"', text)
+
+    def test_design_evaluation_lesson_does_not_claim_to_run_optimization(self):
+        text = _notebook_text("06_structural_frames_and_optimization.ipynb")
+        self.assertIn("No optimization is run in this lesson", text)
+        self.assertNotIn("Solver-Scored Support Optimization", text)
+
     def test_notebooks_use_plain_coordinates_for_add_node_examples(self):
         offenders: list[str] = []
         for path in sorted(NOTEBOOK_DIR.glob("*.ipynb")):

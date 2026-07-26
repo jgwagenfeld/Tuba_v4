@@ -11,17 +11,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv sync --all-extras
-      - run: uv run pytest tests/test_package_release.py
-      - run: uv build
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - run: uv sync --all-extras --locked
+      - run: uv run python scripts/check_release_tag.py "${GITHUB_REF_TYPE}" "${GITHUB_REF_NAME}"
+      - run: npm ci
+        working-directory: viewer
+      - run: npm test
+        working-directory: viewer
+      - run: uv run python scripts/prepare_release.py
+      - run: uv run pytest
+      - run: uv run python scripts/check_notebooks.py
+      - run: uv build --no-sources
       - run: uvx twine check dist/*
+      - run: uv run python scripts/verify_release_wheel.py dist
       - uses: actions/upload-artifact@v4
         with:
           name: distributions
           path: dist/
 
+  code-aster-integration:
+    runs-on: [self-hosted, code-aster]
+    env:
+      TUBA_RUN_CODE_ASTER_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --locked
+      - run: uv run python -m tuba.solver.code_aster_doctor --check
+      - run: uv run pytest tests/test_code_aster_real_smoke.py
+
   publish:
-    needs: build
+    needs: [build, code-aster-integration]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:

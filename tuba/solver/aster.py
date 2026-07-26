@@ -18,6 +18,7 @@ import math
 import os
 import re
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
 
@@ -41,6 +42,13 @@ from tuba.solver.base import (
 from tuba.solver.aster_sidecar import SolverNameMap, build_solver_name_map, dump_solver_sidecar
 from tuba.solver.code_aster_runtime import CodeAsterRuntimeConfig, run_code_aster_export
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
+    build_solver_input_identity,
+    require_matching_solver_input_identities,
+    validate_solver_input_identity,
+)
 from tuba.refs import EntityRef
 from tuba.solver.aster_comm import _CommWriterMixin
 from tuba.solver.aster_mesh import _MeshWriterMixin
@@ -213,6 +221,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             wdir = Path(tempfile.mkdtemp(prefix="tuba_aster_"))
 
         model_revision = int(getattr(model, "revision", 0))
+        solver_input_identity = build_solver_input_identity(model, load_case_name)
         mail_path = wdir / "study.mail"
         comm_path = wdir / "study.comm"
         export_path = wdir / "study.export"
@@ -228,6 +237,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         )
         if analysis_mesh is None:
             raise RuntimeError("Analysis mesh provenance was not collected.")
+        analysis_mesh = replace(analysis_mesh, solver_input_identity=solver_input_identity)
         extra_solver_names = [
             f"DIS_{support.node}"
             for support in model.supports
@@ -257,6 +267,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             analysis_mesh_id=analysis_mesh.id,
             name_map=name_map,
             lineage=lineage,
+            solver_input_identity=solver_input_identity,
         )
         self._write_mail(model, mail_path, name_map=solver_name_map)
         self._write_comm(model, load_case, comm_path, name_map=solver_name_map)
@@ -277,6 +288,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             },
             mesh_id=analysis_mesh.id,
             metadata={"project_name": model.project_name},
+            solver_input_identity=solver_input_identity,
         )
         manifest = {
             "study": study.to_dict(),
@@ -300,8 +312,92 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         """Execute an already-exported Code_Aster analysis study and parse its artifacts."""
         self._require_solve_ready_study(study)
         work_dir = Path(study.work_dir)
+        self._validate_exported_study_identities(model, study, work_dir)
         self._execute(work_dir)
         return self.parse_result_artifacts(model, work_dir, study.load_case)
+
+    def _validate_exported_study_identities(
+        self,
+        model: TubaModel,
+        study: AnalysisStudy,
+        work_dir: Path,
+    ) -> None:
+        identities: list[tuple[str, SolverInputIdentity | None]] = [
+            (f"Study {study.id!r}", study.solver_input_identity)
+        ]
+
+        manifest_path = work_dir / "study_manifest.json"
+        if manifest_path.exists():
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                manifest_study = AnalysisStudy.from_dict(manifest["study"])
+                manifest_mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
+            except Exception as exc:  # noqa: BLE001
+                raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: {exc}") from exc
+            self._require_solve_ready_study(manifest_study)
+            if manifest_study.load_case != study.load_case:
+                raise ValueError(
+                    f"Code_Aster manifest load case {manifest_study.load_case!r} does not "
+                    f"match study load case {study.load_case!r}."
+                )
+            if manifest_mesh.id != study.mesh_id:
+                raise ValueError(
+                    f"Code_Aster manifest mesh {manifest_mesh.id!r} does not match study mesh {study.mesh_id!r}."
+                )
+            identities.extend(
+                (
+                    ("Code_Aster manifest study", manifest_study.solver_input_identity),
+                    ("Code_Aster manifest analysis mesh", manifest_mesh.solver_input_identity),
+                )
+            )
+
+        sidecar_path = work_dir / "study_tuba_fem.json"
+        if sidecar_path.exists():
+            try:
+                sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+                sidecar_identity = (
+                    SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
+                    if sidecar.get("solver_input_identity") is not None
+                    else None
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise ValueError(f"Invalid Code_Aster sidecar {sidecar_path}: {exc}") from exc
+            if sidecar.get("load_case") != study.load_case:
+                raise ValueError(
+                    f"Code_Aster sidecar load case {sidecar.get('load_case')!r} does not "
+                    f"match study load case {study.load_case!r}."
+                )
+            if sidecar.get("analysis_mesh_id") != study.mesh_id:
+                raise ValueError(
+                    f"Code_Aster sidecar mesh {sidecar.get('analysis_mesh_id')!r} does not "
+                    f"match study mesh {study.mesh_id!r}."
+                )
+            if sidecar_identity is None and any(identity is not None for _context, identity in identities):
+                raise ValueError(
+                    "Code_Aster sidecar is missing a solver input identity alongside an "
+                    "identity-bearing study or manifest; refusing to trust its name_map."
+                )
+            identities.append(("Code_Aster sidecar", sidecar_identity))
+
+        known_identity: tuple[str, SolverInputIdentity] | None = None
+        for context, identity in identities:
+            validate_solver_input_identity(
+                model,
+                identity,
+                context=context,
+                expected_load_case=study.load_case,
+                expected_compiler_id=CODE_ASTER_COMPILER_ID,
+            )
+            if identity is None:
+                continue
+            if known_identity is not None:
+                require_matching_solver_input_identities(
+                    known_identity[1],
+                    identity,
+                    context=f"{known_identity[0]} and {context}",
+                )
+            else:
+                known_identity = (context, identity)
 
     def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
         metadata = study.metadata
@@ -622,17 +718,33 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             nid = node_label_map.get(raw_nid, raw_nid)
             if not nid:
                 continue
-            try:
-                disp = np.array([
-                    float(row.get("DX", 0)),
-                    float(row.get("DY", 0)),
-                    float(row.get("DZ", 0)),
-                    float(row.get("DRX", 0)),
-                    float(row.get("DRY", 0)),
-                    float(row.get("DRZ", 0)),
-                ])
-            except (ValueError, TypeError):
-                continue
+
+            def finite_component(component: str, kind: str) -> float:
+                raw_value = row.get(component, "").strip()
+                try:
+                    value = float(raw_value)
+                except (ValueError, TypeError) as exc:
+                    raise RuntimeError(
+                        f"Code_Aster displacement row has invalid {kind} "
+                        f"{component}={raw_value!r} for node {nid!r}; {kind}s must "
+                        "be finite numeric values. Refusing to mark the node covered."
+                    ) from exc
+                if not np.isfinite(value):
+                    raise RuntimeError(
+                        f"Code_Aster displacement row has invalid {kind} "
+                        f"{component}={raw_value!r} for node {nid!r}; {kind}s must "
+                        "be finite numeric values. Refusing to mark the node covered."
+                    )
+                return value
+
+            translations = [finite_component(component, "translation") for component in ("DX", "DY", "DZ")]
+            rotations = [
+                np.nan
+                if row.get(component, "").strip() == "-"
+                else finite_component(component, "rotation")
+                for component in ("DRX", "DRY", "DRZ")
+            ]
+            disp = np.array([*translations, *rotations])
             if nid in results.node_results:
                 results.node_results[nid].displacement = disp
                 covered_model_nodes.add(nid)
@@ -685,21 +797,43 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
             if orig_eid not in results.element_results:
                 continue
-            try:
-                forces = np.array([
-                    float(row.get("N", row.get("NXX", 0))),
-                    float(row.get("VY", 0)),
-                    float(row.get("VZ", 0)),
-                    float(row.get("MT", 0)),
-                    float(row.get("MFY", 0)),
-                    float(row.get("MFZ", 0)),
-                ])
-            except (ValueError, TypeError):
+            elem = elem_map.get(orig_eid)
+            if elem is None or nid not in (elem.n1, elem.n2):
                 continue
 
-            elem = elem_map.get(orig_eid)
-            if elem is None:
-                continue
+            def finite_force_component(component: str, *aliases: str) -> float:
+                raw_value = ""
+                for alias in aliases:
+                    candidate = row.get(alias)
+                    if candidate is not None and candidate.strip():
+                        raw_value = candidate.strip()
+                        break
+                try:
+                    value = float(raw_value)
+                except (ValueError, TypeError) as exc:
+                    raise RuntimeError(
+                        f"Code_Aster row has invalid internal-force component "
+                        f"{component}={raw_value!r} for element endpoint {orig_eid}:{nid}; "
+                        "all force and moment components must be finite numeric values. "
+                        "Refusing to mark the endpoint covered."
+                    ) from exc
+                if not np.isfinite(value):
+                    raise RuntimeError(
+                        f"Code_Aster row has invalid internal-force component "
+                        f"{component}={raw_value!r} for element endpoint {orig_eid}:{nid}; "
+                        "all force and moment components must be finite numeric values. "
+                        "Refusing to mark the endpoint covered."
+                    )
+                return value
+
+            forces = np.array([
+                finite_force_component("N", "N", "NXX"),
+                finite_force_component("VY", "VY"),
+                finite_force_component("VZ", "VZ"),
+                finite_force_component("MT", "MT"),
+                finite_force_component("MFY", "MFY"),
+                finite_force_component("MFZ", "MFZ"),
+            ])
             er = results.element_results[orig_eid]
             if nid == elem.n1:
                 er.forces_n1 = forces

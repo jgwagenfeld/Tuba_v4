@@ -33,6 +33,11 @@ from tuba.mixed import (
 from tuba.refs import EntityRef, resolve_entity_ref
 
 
+# Stable model-schema identity. This intentionally does not track the package
+# release version; readers continue to accept legacy records through from_dict.
+MODEL_SERIALIZATION_VERSION = "tuba.model.v4"
+
+
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -906,6 +911,11 @@ class TubaModel:
         temperature: float = 20.0,
         ref_temperature: float = 20.0,
     ) -> LoadCase:
+        if name in self.operations:
+            raise ValueError(
+                f"Cannot define load case {name!r}: an operation already uses that name; "
+                "load cases and operations share one namespace."
+            )
         lc = LoadCase(
             name=name,
             gravity=gravity,
@@ -926,6 +936,11 @@ class TubaModel:
         metadata: Optional[Dict[str, Any]] = None,
         fields: Optional[List[Dict[str, Any] | OperationField]] = None,
     ) -> Operation:
+        if name in self.load_cases:
+            raise ValueError(
+                f"Cannot define operation {name!r}: a load case already uses that name; "
+                "load cases and operations share one namespace."
+            )
         op = Operation(
             name=name,
             gravity=gravity,
@@ -1135,7 +1150,7 @@ class TubaModel:
             "meta": {
                 "project_name": self.project_name,
                 "standard": self.standard,
-                "version": "4.0.0",
+                "version": MODEL_SERIALIZATION_VERSION,
             },
             "materials": {
                 name: {

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
+from tuba.analysis.provenance import MIXED_CODE_ASTER_COMPILER_ID, build_solver_input_identity
 from tuba.model import TubaModel
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar
@@ -30,8 +32,7 @@ class MixedCodeAsterStudyExporter:
         load_case_name: str,
         output_dir: str | Path,
     ) -> AnalysisStudy:
-        if load_case_name not in model.load_cases:
-            raise ValueError(f"Load case {load_case_name!r} not found.")
+        load_case_name, _ = model.resolve_load_case(load_case_name)
 
         model.validate()
         root = Path(output_dir)
@@ -46,6 +47,12 @@ class MixedCodeAsterStudyExporter:
         name_map = self._group_name_map(model)
         self._write_med(model, med_path)
         analysis_mesh = self._build_analysis_mesh(model, med_path)
+        solver_input_identity = build_solver_input_identity(
+            model,
+            load_case_name,
+            compiler_id=MIXED_CODE_ASTER_COMPILER_ID,
+        )
+        analysis_mesh = replace(analysis_mesh, solver_input_identity=solver_input_identity)
         self._write_comm(model, load_case_name, comm_path, name_map=name_map)
         self._write_export(root, export_path)
 
@@ -57,6 +64,7 @@ class MixedCodeAsterStudyExporter:
             name_map=name_map,
             lineage=self._build_lineage(model, name_map),
             mixed_analysis=self._mixed_payload(model),
+            solver_input_identity=solver_input_identity,
         )
 
         study = AnalysisStudy(
@@ -80,6 +88,7 @@ class MixedCodeAsterStudyExporter:
                 "code_aster_solve_ready": False,
                 "runtime_blocker": self.RUNTIME_BLOCKER,
             },
+            solver_input_identity=solver_input_identity,
         )
         manifest = {
             "study": study.to_dict(),

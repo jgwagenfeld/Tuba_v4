@@ -22,6 +22,7 @@ generated/
 *.html
 !docs/site/**/*.html
 !viewer/index.html
+!tuba/visualization/_viewer/index.html
 viewer/dist/
 viewer/node_modules/
 

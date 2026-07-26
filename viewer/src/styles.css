@@ -631,6 +631,7 @@ section {
 }
 
 .viewport {
+  position: relative;
   grid-area: viewport;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -638,6 +639,26 @@ section {
   min-height: 0;
   min-width: 0;
   background: #0e1418;
+}
+
+.viewport-guidance {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+  background: rgb(14 20 24 / 78%);
+  color: #f2f5f6;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.reset-view {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: auto;
 }
 
 .evidence-dock {

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { defineConfig } from "vite";
 
@@ -18,6 +18,9 @@ function bundleManifest() {
   const payload = () => JSON.stringify(listBundles());
   return {
     name: "tuba-bundle-manifest",
+    transformIndexHtml(html) {
+      return html.replace(/\r\n/g, "\n");
+    },
     configureServer(server) {
       server.middlewares.use("/bundles.json", (_request, response) => {
         response.setHeader("content-type", "application/json");
@@ -25,17 +28,23 @@ function bundleManifest() {
       });
     },
     generateBundle() {
-      this.emitFile({ type: "asset", fileName: "bundles.json", source: payload() });
+      this.emitFile({ type: "asset", fileName: "bundles.json", source: "[]" });
+      this.emitFile({
+        type: "asset",
+        fileName: "favicon.svg",
+        source: readFileSync(join(PUBLIC_DIR, "favicon.svg"))
+      });
     }
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: ".",
   base: "./",
+  publicDir: command === "serve" ? PUBLIC_DIR : false,
   plugins: [bundleManifest()],
   build: {
-    outDir: "dist",
+    outDir: "../tuba/visualization/_viewer",
     emptyOutDir: true,
     sourcemap: false,
     chunkSizeWarningLimit: 1024
@@ -48,4 +57,4 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 4173
   }
-});
+}));

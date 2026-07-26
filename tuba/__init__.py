@@ -10,6 +10,8 @@ Top-level API:
     results = model.solve()
 """
 
+from importlib.metadata import version
+
 from tuba.model import (
     Material,
     PipeSection,
@@ -24,7 +26,7 @@ from tuba.model import (
     OperationField,
     TubaModel as Model,
 )
-__version__ = "4.0.0"
+__version__ = version("tuba")
 
 _LAZY_EXPORTS = {
     "BuildStep": "tuba.builder", "BuiltRun": "tuba.builder",

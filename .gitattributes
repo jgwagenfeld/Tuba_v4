@@ -1,0 +1,4 @@
+viewer/index.html text eol=lf
+viewer/public/favicon.svg text eol=lf
+tuba/visualization/_viewer/** text eol=lf
+tuba/visualization/_viewer/assets/*.js -whitespace

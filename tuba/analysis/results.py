@@ -11,6 +11,13 @@ import numpy as np
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.study import AnalysisStudy
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
+    require_matching_solver_input_identities,
+    validate_solver_input_identity,
+)
 
 
 @dataclass(frozen=True)
@@ -26,6 +33,7 @@ class ResultState:
     element_results: dict[str, dict[str, Any]]
     files: dict[str, str] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    solver_input_identity: SolverInputIdentity | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "ResultState id")
@@ -49,7 +57,7 @@ class ResultState:
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "id": self.id,
             "study_id": self.study_id,
             "model_revision": self.model_revision,
@@ -62,6 +70,9 @@ class ResultState:
             "files": dict(self.files),
             "metadata": dict(self.metadata),
         }
+        if self.solver_input_identity is not None:
+            data["solver_input_identity"] = self.solver_input_identity.to_dict()
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ResultState":
@@ -77,6 +88,11 @@ class ResultState:
             element_results={key: dict(value) for key, value in data.get("element_results", {}).items()},
             files=dict(data.get("files", {})),
             metadata=dict(data.get("metadata", {})),
+            solver_input_identity=(
+                SolverInputIdentity.from_dict(data["solver_input_identity"])
+                if data.get("solver_input_identity") is not None
+                else None
+            ),
         )
 
 
@@ -92,6 +108,31 @@ def result_state_from_fea_results(
     if model_revision != study.model_revision:
         raise ValueError(
             f"Cannot create ResultState for model revision {model_revision}; study uses revision {study.model_revision}."
+        )
+    compiler_id = (
+        MIXED_CODE_ASTER_COMPILER_ID
+        if study.metadata.get("mixed_analysis")
+        else CODE_ASTER_COMPILER_ID
+    )
+    validate_solver_input_identity(
+        model,
+        study.solver_input_identity,
+        context=f"Study {study.id!r}",
+        expected_load_case=study.load_case,
+        expected_compiler_id=compiler_id,
+    )
+    if analysis_mesh is not None:
+        validate_solver_input_identity(
+            model,
+            analysis_mesh.solver_input_identity,
+            context=f"Analysis mesh {analysis_mesh.id!r}",
+            expected_load_case=study.load_case,
+            expected_compiler_id=compiler_id,
+        )
+        require_matching_solver_input_identities(
+            study.solver_input_identity,
+            analysis_mesh.solver_input_identity,
+            context=f"Study {study.id!r} and analysis mesh {analysis_mesh.id!r}",
         )
     analysis_node_ids = _validated_analysis_node_ids(
         model=model,
@@ -143,6 +184,10 @@ def result_state_from_fea_results(
         element_results=element_results,
         files=files,
         metadata=metadata,
+        solver_input_identity=(
+            study.solver_input_identity
+            or (analysis_mesh.solver_input_identity if analysis_mesh is not None else None)
+        ),
     )
 
 
@@ -198,6 +243,13 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
         raise ValueError(
             f"Cannot apply ResultState revision {result_state.model_revision} to model revision {model_revision}."
         )
+    validate_solver_input_identity(
+        model,
+        result_state.solver_input_identity,
+        context=f"ResultState {result_state.id!r}",
+        expected_load_case=result_state.load_case,
+        expected_compiler_id=CODE_ASTER_COMPILER_ID,
+    )
 
     results = FEAResults(solver_name=result_state.solver_name, load_case=result_state.load_case)
     results._model = model
@@ -207,7 +259,9 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
     results.tuyau_subpoints.extend(dict(row) for row in result_state.metadata.get("tuyau_subpoints", []))
 
     for node_id in getattr(model, "nodes", {}):
-        displacement = np.asarray(result_state.node_displacements.get(node_id, (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)), dtype=float)
+        if node_id not in result_state.node_displacements:
+            raise ValueError(f"ResultState {result_state.id!r} is missing displacement for model node {node_id!r}.")
+        displacement = np.asarray(result_state.node_displacements[node_id], dtype=float)
         reaction = result_state.node_reactions.get(node_id)
         results.node_results[node_id] = NodeResult(
             node_id=node_id,
@@ -224,14 +278,21 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
         )
 
     for element in getattr(model, "elements", []):
-        data = result_state.element_results.get(element.id, {})
+        if element.id not in result_state.element_results:
+            raise ValueError(f"ResultState {result_state.id!r} is missing element result for {element.id!r}.")
+        data = result_state.element_results[element.id]
+        for field_name in ("forces_n1", "forces_n2", "von_mises_n1", "von_mises_n2", "max_von_mises"):
+            if field_name not in data:
+                raise ValueError(
+                    f"ResultState {result_state.id!r} element {element.id!r} is missing result field {field_name!r}."
+                )
         results.element_results[element.id] = ElementResult(
             element_id=element.id,
-            forces_n1=np.asarray(data.get("forces_n1", (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)), dtype=float),
-            forces_n2=np.asarray(data.get("forces_n2", (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)), dtype=float),
-            von_mises_n1=float(data.get("von_mises_n1", 0.0)),
-            von_mises_n2=float(data.get("von_mises_n2", 0.0)),
-            max_von_mises=float(data.get("max_von_mises", 0.0)),
+            forces_n1=np.asarray(data["forces_n1"], dtype=float),
+            forces_n2=np.asarray(data["forces_n2"], dtype=float),
+            von_mises_n1=float(data["von_mises_n1"]),
+            von_mises_n2=float(data["von_mises_n2"]),
+            max_von_mises=float(data["max_von_mises"]),
         )
     return results
 

@@ -95,6 +95,11 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     assert.match(html, new RegExp(`<details[^>]*>[\\s\\S]*?data-${inventory}(?:=|[\\s>])[\\s\\S]*?<\\/details>`));
   }
   assert.match(html, /<canvas[^>]*data-canvas[^>]*tabindex="0"[^>]*aria-label="Interactive 3D engineering review viewport"/);
+  assert.match(
+    html,
+    /<p[^>]*data-viewport-guidance[^>]*>[^<]*Orbit[^<]*Zoom[^<]*Select[^<]*axes[^<]*reset[^<]*<\/p>/i
+  );
+  assert.match(html, /<button[^>]*data-reset-view[^>]*aria-label="Reset 3D view"/);
   assert.match(html, /<input[^>]*type="search"[^>]*data-search[^>]*aria-label="Search objects"/);
   for (const hook of hooks) {
     assert.equal((html.match(new RegExp(`data-${hook}(?:=|[\\s>])`, "g")) ?? []).length, 1, `data-${hook} must occur once`);

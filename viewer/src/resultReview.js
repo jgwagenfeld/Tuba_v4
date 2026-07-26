@@ -184,6 +184,9 @@ export function getHotspots(state) {
       return {
         objectId,
         objectName: object?.name ?? objectId,
+        elementId: hotspot.element_id ?? hotspot.elementId,
+        rowIndex: hotspot.row_index ?? hotspot.rowIndex,
+        subpointIndex: hotspot.subpoint_index ?? hotspot.subpointIndex,
         unit: hotspot.unit ?? data.unit ?? "",
         utilization,
         value

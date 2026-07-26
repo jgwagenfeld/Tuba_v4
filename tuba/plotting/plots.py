@@ -57,16 +57,14 @@ def _get_mesh(
     model: Optional["TubaModel"] = None,
 ) -> "pv.PolyData":
     """Build (or retrieve) the 3D mesh from results."""
-    from tuba.plotting.pipeline import build_3d_mesh_from_model
+    from tuba.plotting.pipeline import build_3d_mesh_from_model, load_rmed
+
+    if results.result_file is not None:
+        return load_rmed(str(results.result_file))
 
     mdl = model or getattr(results, "_model", None)
     if mdl is not None:
         return build_3d_mesh_from_model(mdl, results)
-
-    # If no model reference, attempt to load from result file
-    if results.result_file is not None:
-        from tuba.plotting.pipeline import load_rmed
-        return load_rmed(str(results.result_file))
 
     raise RuntimeError(
         "Cannot build visualization mesh: no model reference or result file available. "
@@ -517,7 +515,7 @@ def plot_deformed_stress(
     """
     _require_pyvista()
     mdl = model or getattr(results, "_model", None)
-    if mdl is not None:
+    if results.result_file is None and mdl is not None:
         from tuba.plotting.scenes import build_model_scene
 
         p = build_model_scene(

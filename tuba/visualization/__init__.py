@@ -35,7 +35,12 @@ from tuba.visualization.performance import benchmark_scene_build, benchmark_view
 from tuba.visualization.scene_diff import SceneDiffBuildResult, apply_scene_diff, build_scene_diff
 from tuba.visualization.web_export import SceneBundle, write_scene_bundle
 from tuba.visualization.reporting_adapter import write_engineering_review_with_scene
-from tuba.visualization.viewer import viewer_assets_path
+
+
+def viewer_assets_path():
+    from tuba.visualization.viewer import viewer_assets_path as _viewer_assets_path
+
+    return _viewer_assets_path()
 
 __all__ = [
     "LAYER_CATEGORIES",

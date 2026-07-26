@@ -11,6 +11,128 @@ from tuba.solver.aster import CodeAsterSolver
 
 
 class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
+    def _parse_single_node_displacement(self, displacement_fields: str):
+        model = Model(project_name="InvalidDisplacement")
+        node_id = model.add_node([0.0, 0.0, 0.0])
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                f"{node_id},{displacement_fields}\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n", encoding="utf-8"
+            )
+            root.joinpath("study_reac.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8"
+            )
+            root.joinpath("study_sieq.csv").write_text(
+                "MAILLE,NOEUD,VMIS\n", encoding="utf-8"
+            )
+            return CodeAsterSolver()._parse_results(model, root)
+
+    def _parse_single_pipe_forces(self, force_table: str):
+        model = Model(project_name="InvalidInternalForces")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(
+            id="pipe_0",
+            type="pipe_straight",
+            n1=n0,
+            n2=n1,
+            section="PipeSec",
+            material="Steel",
+        )
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                "N0,0.0,0.0,0.0,0.0,0.0,0.0\n"
+                "N1,0.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text(force_table, encoding="utf-8")
+            root.joinpath("study_reac.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8"
+            )
+            root.joinpath("study_sieq.csv").write_text(
+                "MAILLE,NOEUD,VMIS\n", encoding="utf-8"
+            )
+            return CodeAsterSolver()._parse_results(model, root)
+
+    def test_depl_parser_rejects_unavailable_translation(self):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r"invalid translation DX='-' for node 'N0'.*finite",
+        ):
+            self._parse_single_node_displacement("-,0.0,0.0,-,-,-")
+
+    def test_depl_parser_rejects_non_finite_translations(self):
+        cases = {
+            "NaN": "0.0,NaN,0.0,-,-,-",
+            "positive infinity": "0.0,0.0,Inf,-,-,-",
+            "negative infinity": "-Inf,0.0,0.0,-,-,-",
+        }
+        for label, fields in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    r"invalid translation (?:DX|DY|DZ)='(?:NaN|Inf|-Inf)' for node 'N0'.*finite",
+                ):
+                    self._parse_single_node_displacement(fields)
+
+    def test_depl_parser_preserves_translation_when_rotations_are_not_applicable(self):
+        model = Model(project_name="CableDisplacement")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_cable_section("CableSec", radius=0.01, pretension=500.0)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="cable_0", type="cable", n1=n0, n2=n1, section="CableSec", material="Steel")
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                f"{n0},0.0,0.0,0.0,-,-,-\n"
+                f"{n1},0.001,0.002,0.003,-,-,-\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text("MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n", encoding="utf-8")
+            root.joinpath("study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
+            root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
+
+            results = CodeAsterSolver()._parse_results(model, root)
+
+        self.assertTrue(np.allclose(results.get_displacement(n1)[:3], [0.001, 0.002, 0.003]))
+        self.assertTrue(np.isnan(results.get_displacement(n1)[3:]).all())
+
+    def test_effo_parser_rejects_missing_moment_component(self):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r"invalid internal-force component MFY=.*pipe_0:N0.*finite",
+        ):
+            self._parse_single_pipe_forces(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFZ\n"
+                "pipe_0,N0,100.0,0.0,0.0,0.0,0.0\n"
+                "pipe_0,N1,100.0,0.0,0.0,0.0,0.0\n"
+            )
+
+    def test_effo_parser_rejects_non_finite_components(self):
+        for value in ("NaN", "Inf", "-Inf"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    rf"invalid internal-force component MFY='{value}'.*pipe_0:N0.*finite",
+                ):
+                    self._parse_single_pipe_forces(
+                        "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                        f"pipe_0,N0,100.0,0.0,0.0,0.0,{value},0.0\n"
+                        "pipe_0,N1,100.0,0.0,0.0,0.0,0.0,0.0\n"
+                    )
+
     def test_depl_parser_preserves_generated_mesh_node_displacements(self):
         model = Model(project_name="GeneratedMeshResults")
         model.add_material("Steel", E=2.0e11, nu=0.3)

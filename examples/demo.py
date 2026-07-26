@@ -102,7 +102,7 @@ def main():
     print("\n[6/6] Next command for a configured runtime:")
     print("     python -m tuba.solver.code_aster_doctor --check")
     print('     $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"')
-    print("     .\\.venv\\Scripts\\python.exe -m pytest tests/integration/test_code_aster_real_smoke.py -q")
+    print("     .\\.venv\\Scripts\\python.exe -m pytest tests/test_code_aster_real_smoke.py -q")
 
     print("\nNo compliance report or stress plot was produced from synthetic values.")
 

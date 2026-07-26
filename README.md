@@ -114,14 +114,23 @@ pip install "tuba[ifc]"       # IFC exchange
 
 The wheel includes the built Three.js review application. Its installed asset
 directory is available through `tuba.visualization.viewer_assets_path()`.
+Start it against a generated scene bundle with:
+
+```bash
+python -m tuba.visualization.viewer path/to/bundle --open
+```
+
+The command validates `scene.json`, serves only the packaged viewer and selected
+bundle, and prints the exact local URL. `tuba-viewer` is the equivalent installed
+console command.
 
 ## Quick Notebook Path
 
-For the fastest interactive result workflow, install the notebook extra and
-open the welcome notebook first:
+One install command provides every dependency used by all 14 course and
+supplemental notebooks:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"
+.\.venv\Scripts\python.exe -m pip install -e ".[course]"
 jupyter lab notebooks\00_welcome_and_setup.ipynb
 ```
 
@@ -141,7 +150,7 @@ Course sequence:
 | `03_stress_analysis_and_compliance.ipynb` | Code_Aster-backed stress and ASME B31.3 checks |
 | `04_visualization_gallery.ipynb` | Result visualization and export formats |
 | `05_autorouting.ipynb` | Deterministic routing and Code_Aster study handoff |
-| `06_structural_frames_and_optimization.ipynb` | Pipe racks and optional support optimization |
+| `06_structural_frames_and_optimization.ipynb` | Pipe racks and Code_Aster-backed design evaluation |
 | `07_bim_data_exchange.ipynb` | JSON and IFC/BIM exchange with solver properties |
 | `08_expansion_aware_autorouting.ipynb` | Hot-line routing with reserved expansion envelopes |
 | `09_imported_component_mixed_system.ipynb` | Imported CAD component placement and pipe coupling |
@@ -202,7 +211,7 @@ envelope.
 For interactive autorouting review, open the quick-iteration notebook:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"
+.\.venv\Scripts\python.exe -m pip install -e ".[course]"
 jupyter lab notebooks\autorouting_quick_iteration.ipynb
 jupyter lab notebooks\08_expansion_aware_autorouting.ipynb
 ```

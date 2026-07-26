@@ -273,6 +273,11 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       requestAnimationFrame(animateGizmo);
       return true;
     },
+    resetView() {
+      if (!currentGraph) return;
+      fitCameraToBounds(camera, currentGraph.bounds, controls);
+      drawFrame(currentGraph);
+    },
     dispose() {
       graphCache.clear();
       if (redrawFrameId !== null) cancelAnimationFrame(redrawFrameId);
@@ -342,6 +347,9 @@ export function createThreeViewport(canvas, options = {}) {
     },
     handleGizmoClick(event) {
       return canvasRenderer.handleGizmoClick(event);
+    },
+    resetView() {
+      canvasRenderer.resetView();
     },
     dispose() {
       canvasRenderer.dispose();

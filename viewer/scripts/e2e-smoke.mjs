@@ -137,8 +137,13 @@ const scenarios = {
   },
   "scene-inspection": {
     bundle: "/test/fixtures/inspection_scene",
-    minimumObjects: 3,
+    minimumObjects: 1,
     async run(page) {
+      await page.getByLabel(/^\s*Annotations\s*$/).check();
+      await page.getByLabel(/^\s*Analysis mesh\s*$/).check();
+      await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.objectIds ?? []).length === 3);
+      await page.locator("[data-model-tools-home] details").filter({ hasText: "Objects" }).locator("summary").click();
+
       await page.getByRole("button", { name: /Insulated pipe/ }).click();
       let properties = await page.locator("[data-properties]").textContent();
       assert.match(properties, /mineral_wool/);
@@ -167,6 +172,11 @@ const scenarios = {
       const reviewTask = page.getByRole("button", { name: "Review", exact: true });
       await reviewTask.waitFor();
       assert.equal(await reviewTask.getAttribute("aria-current"), "page");
+      await reviewTask.focus();
+      assert.deepEqual(await reviewTask.evaluate((button) => {
+        const style = getComputedStyle(button);
+        return { outlineColor: style.outlineColor, outlineWidth: style.outlineWidth };
+      }), { outlineColor: "rgb(94, 216, 229)", outlineWidth: "3px" });
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-cockpit-status]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
@@ -207,6 +217,40 @@ const scenarios = {
 
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Hot");
       assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).inputValue(), "result_state:Hot");
+      assert.match(await page.locator("[data-result-legend]").textContent(), /max_von_mises.*Pa/);
+      assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe/);
+      await page.getByLabel(/Stress threshold/i).evaluate((input) => {
+        input.value = "50000000";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      const thresholdHotspots = await page.locator("[data-hotspot-list]").textContent();
+      assert.match(thresholdHotspots, /Hot pipe/);
+      assert.doesNotMatch(thresholdHotspots, /Warm pipe/);
+      await page.getByLabel(/Displacement vector scale/i).evaluate((input) => {
+        input.value = "10";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await page.waitForFunction(() => window.__tubaViewer?.state?.resultVectorScales?.displacement === 10);
+      await page.locator("[data-display-strip] details.layer-tree summary").click();
+      const visualCenterline = page.getByLabel(/^\s*Visual Centerline/);
+      const physicalCenterline = page.getByLabel(/^\s*Physical Centerline/);
+      await visualCenterline.uncheck();
+      await page.waitForFunction(() => {
+        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
+        return ids.includes("object:deformed_physical") && !ids.includes("object:deformed_visual");
+      });
+      assert.equal(await physicalCenterline.isChecked(), true);
+      await visualCenterline.check();
+      await page.waitForFunction(() => {
+        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
+        return ids.includes("object:deformed_physical") && ids.includes("object:deformed_visual");
+      });
+      await physicalCenterline.uncheck();
+      await page.waitForFunction(() => {
+        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
+        return !ids.includes("object:deformed_physical") && ids.includes("object:deformed_visual");
+      });
+      assert.equal(await visualCenterline.isChecked(), true);
       await page.setViewportSize({ width: 800, height: 900 });
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const compactLayout = await page.evaluate(() => {
@@ -352,6 +396,25 @@ const scenarios = {
       assert.ok(compactExpandedLayout.canvas.width >= 480, JSON.stringify(compactExpandedLayout));
       await expandEvidence.click();
       await page.setViewportSize({ width: 1440, height: 900 });
+
+      await page.getByLabel(/Stress threshold/i).evaluate((input) => {
+        input.value = "0";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      const hotspotList = page.locator("[data-hotspot-list]");
+      await hotspotList.getByRole("button", { name: /Warm pipe/ }).click();
+      await page.waitForFunction(() => window.__tubaViewer?.state?.selectedObjectIds?.[0] === "object:pipe:warm");
+      await hotspotList.getByRole("button", { name: /Hot pipe/ }).click();
+      await page.waitForFunction(() => {
+        const selected = window.__tubaViewer?.state?.selectedObjectIds ?? [];
+        return selected.length === 1 && selected[0] === "object:pipe:hot";
+      });
+      assert.equal(await page.locator("[data-inspector]").isVisible(), true);
+      const hotspotProperties = await page.locator("[data-properties]").textContent();
+      assert.match(hotspotProperties, /element:pipe_hot/);
+      assert.match(hotspotProperties, /Result Values/);
+      assert.match(hotspotProperties, /57000000/);
+      assert.match(hotspotProperties, /Pa/);
 
       const reviewContext = await page.evaluate(() => ({
         activeTab: window.__tubaViewer?.state?.activeTab,
@@ -636,187 +699,11 @@ const scenarios = {
       assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.embed), true);
     }
   },
-  "code-aster-results": {
-    bundle: "/test/fixtures/code_aster_results",
-    minimumObjects: 7,
-    async run(page) {
-      const shellLayout = await page.evaluate(() => {
-        const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect();
-        const shell = rect("[data-embed]");
-        const header = rect("[data-app-header]");
-        const panel = rect("[data-workflow-panel]");
-        return { shell, header, panel };
-      });
-      assert.ok(shellLayout.header.width >= shellLayout.shell.width - 1, `header must span shell: ${JSON.stringify(shellLayout)}`);
-      assert.ok(shellLayout.panel.width >= shellLayout.shell.width - 1, `review panel must span shell: ${JSON.stringify(shellLayout)}`);
-      assert.ok(shellLayout.panel.height >= 500, `review panel must fill remaining viewport: ${JSON.stringify(shellLayout)}`);
-
-      const workflowPanel = page.locator("[data-workflow-panel]");
-      await workflowPanel.focus();
-      const lightFocus = await workflowPanel.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return { backgroundColor: style.backgroundColor, outlineColor: style.outlineColor, outlineWidth: style.outlineWidth };
-      });
-      assert.deepEqual(lightFocus, {
-        backgroundColor: "rgb(243, 244, 242)",
-        outlineColor: "rgb(11, 118, 132)",
-        outlineWidth: "3px"
-      });
-
-      const summaryTab = page.getByRole("tab", { name: "Summary", exact: true });
-      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
-      assert.equal(await summaryTab.getAttribute("aria-controls"), "engineering-workflow-panel");
-      await summaryTab.focus();
-      await summaryTab.press("ArrowRight");
-      const modelTab = page.getByRole("tab", { name: "Model", exact: true });
-      assert.equal(await modelTab.getAttribute("aria-selected"), "true");
-      assert.equal(await modelTab.evaluate((element) => element === document.activeElement), true);
-      const darkChromeFocus = await modelTab.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return {
-          backgroundColor: getComputedStyle(element.parentElement).backgroundColor,
-          outlineColor: style.outlineColor,
-          outlineWidth: style.outlineWidth
-        };
-      });
-      assert.deepEqual(darkChromeFocus, {
-        backgroundColor: "rgb(32, 42, 49)",
-        outlineColor: "rgb(94, 216, 229)",
-        outlineWidth: "3px"
-      });
-      await modelTab.press("Home");
-      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
-      await summaryTab.press("End");
-      const diagnosticsTab = page.getByRole("tab", { name: "Diagnostics", exact: true });
-      assert.equal(await diagnosticsTab.getAttribute("aria-selected"), "true");
-      await diagnosticsTab.press("Home");
-      assert.equal(await summaryTab.getAttribute("aria-selected"), "true");
-
-      assert.equal(await page.locator("[data-result-tools]").count(), 1);
-      await page.getByRole("tab", { name: "Results", exact: true }).click();
-      assert.equal(await page.locator("[data-workflow-panel] > [data-result-tools]").count(), 1);
-      let legend = await page.locator("[data-result-legend]").textContent();
-      assert.match(legend, /max_von_mises/);
-      assert.match(legend, /Pa/);
-
-      let hotspots = await page.locator("[data-hotspot-list]").textContent();
-      assert.match(hotspots, /Hot pipe/);
-      assert.match(hotspots, /Warm pipe/);
-
-      await page.getByLabel(/Stress threshold/i).evaluate((input) => {
-        input.value = "50000000";
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-      hotspots = await page.locator("[data-hotspot-list]").textContent();
-      assert.match(hotspots, /Hot pipe/);
-      assert.doesNotMatch(hotspots, /Warm pipe/);
-
-      await page.locator("[data-hotspot-list]").getByRole("button", { name: /Hot pipe/ }).click();
-      await page.getByRole("tab", { name: "Load Cases", exact: true }).click();
-      assert.equal(await page.locator("[data-workflow-panel] > [data-result-tools]").count(), 1);
-      await page.getByRole("tab", { name: "Results", exact: true }).click();
-
-      await page.getByLabel(/Displacement vector scale/i).evaluate((input) => {
-        input.value = "10";
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      });
-      await page.waitForFunction(() => window.__tubaViewer?.state?.resultVectorScales?.displacement === 10);
-
-      const threeDimensionalTab = page.getByRole("tab", { name: "3D", exact: true });
-      assert.equal(await threeDimensionalTab.getAttribute("aria-controls"), "engineering-3d-panel");
-      await threeDimensionalTab.click();
-      const threeDimensionalHeading = page.getByRole("heading", { level: 1, name: "3D Engineering Review" });
-      assert.equal(await threeDimensionalHeading.count(), 1);
-      const objectButton = page.locator("[data-object-list] button").first();
-      await objectButton.focus();
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Shift+Tab");
-      const darkControlFocus = await objectButton.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return { backgroundColor: style.backgroundColor, outlineColor: style.outlineColor, outlineWidth: style.outlineWidth };
-      });
-      assert.deepEqual(darkControlFocus, {
-        backgroundColor: "rgb(38, 50, 58)",
-        outlineColor: "rgb(94, 216, 229)",
-        outlineWidth: "3px"
-      });
-      assert.equal(await page.locator("[data-result-tools-home] > [data-result-tools]").count(), 1);
-      assert.equal(await page.locator("[data-viewer-workspace]").getAttribute("aria-labelledby"), "workflow-tab-3d");
-      const workspaceLayout = await page.evaluate(() => {
-        const workspace = document.querySelector("[data-viewer-workspace]").getBoundingClientRect();
-        const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
-        return {
-          workspace: { width: workspace.width, height: workspace.height },
-          canvas: { width: canvas.width, height: canvas.height }
-        };
-      });
-      assert.ok(workspaceLayout.workspace.width >= 1000, `3D workspace width is too small: ${JSON.stringify(workspaceLayout)}`);
-      assert.ok(workspaceLayout.workspace.height >= 500, `3D workspace height is too small: ${JSON.stringify(workspaceLayout)}`);
-      assert.ok(workspaceLayout.canvas.width >= 400, `3D canvas width is too small: ${JSON.stringify(workspaceLayout)}`);
-      assert.ok(workspaceLayout.canvas.height >= 500, `3D canvas height is too small: ${JSON.stringify(workspaceLayout)}`);
-      let properties = await page.locator("[data-properties]").textContent();
-      assert.match(properties, /max_von_mises/);
-      assert.match(properties, /57000000/);
-
-      await page.getByLabel(/Deformed Visual Centerline/).uncheck();
-      await page.waitForFunction(() => {
-        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return ids.includes("object:deformed_physical") && !ids.includes("object:deformed_visual");
-      });
-      await page.getByLabel(/Deformed Physical Centerline/).uncheck();
-      await page.waitForFunction(() => {
-        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return !ids.includes("object:deformed_physical") && !ids.includes("object:deformed_visual");
-      });
-
-      await page.getByRole("button", { name: /Operating clash marker/ }).click();
-      properties = await page.locator("[data-properties]").textContent();
-      assert.match(properties, /operating_distance_m/);
-      assert.match(properties, /0\.04/);
-
-      await page.getByLabel(/Visual deformation scale/i).evaluate((input) => {
-        input.value = "80";
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      });
-      await page.waitForFunction(() => window.__tubaViewer?.state?.visualDeformationScale === 80);
-      properties = await page.locator("[data-properties]").textContent();
-      assert.match(properties, /operating_distance_m/);
-      assert.match(properties, /0\.04/);
-
-      const embedUrl = new URL(page.url());
-      embedUrl.searchParams.set("embed", "1");
-      await page.goto(embedUrl.toString(), { waitUntil: "domcontentloaded" });
-      await page.waitForFunction(() => /Ready/.test(document.querySelector("[data-status]")?.textContent ?? ""));
-      await page.waitForFunction(() => document.querySelector("[data-canvas]")?.dataset.renderer === "three");
-      const embedLayout = await page.evaluate(() => {
-        const workspace = document.querySelector("[data-viewer-workspace]").getBoundingClientRect();
-        const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
-        return {
-          viewport: { width: window.innerWidth, height: window.innerHeight },
-          workspace: { width: workspace.width, height: workspace.height },
-          canvas: { width: canvas.width, height: canvas.height },
-          activeTab: window.__tubaViewer?.state?.activeTab
-        };
-      });
-      assert.equal(embedLayout.activeTab, "3d");
-      assert.equal(await page.getByRole("heading", { level: 1, name: "3D Engineering Review" }).count(), 1);
-      assert.ok(embedLayout.workspace.width >= embedLayout.viewport.width - 1, `embed workspace must fill viewport width: ${JSON.stringify(embedLayout)}`);
-      assert.ok(embedLayout.workspace.height >= embedLayout.viewport.height - 1, `embed workspace must fill viewport height: ${JSON.stringify(embedLayout)}`);
-      assert.ok(embedLayout.canvas.width >= embedLayout.viewport.width - 1, `embed canvas must fill viewport width: ${JSON.stringify(embedLayout)}`);
-      assert.ok(embedLayout.canvas.height >= embedLayout.viewport.height - 1, `embed canvas must fill viewport height: ${JSON.stringify(embedLayout)}`);
-
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await page.waitForFunction(() => window.__tubaViewer?.state?.activeTab === "3d");
-      assert.equal(await page.locator("[data-app-header]").isVisible(), false);
-      assert.equal(await page.locator("[data-workflow-tabs]").isVisible(), false);
-    }
-  },
   "clash-review": {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 7,
     async run(page) {
-      await page.getByRole("tab", { name: "3D", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "3D Engineering Review" }).waitFor();
+      await page.getByRole("button", { name: "Issues", exact: true }).click();
       await page.getByLabel(/Operating-only/).check();
       await page.waitForFunction(() => /ERROR - Hot - open/.test(document.querySelector("[data-issue-list]")?.textContent ?? ""));
       await page.getByRole("button", { name: /^ERROR - Operating pipe\/rack clash$/ }).click();
@@ -842,7 +729,10 @@ const scenarios = {
       });
 
       await page.getByRole("button", { name: /Restore view/ }).click();
-      await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.objectIds ?? []).includes("object:reaction_vector"));
+      await page.waitForFunction(() => {
+        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
+        return ids.includes("object:pipe:hot") && ids.includes("object:clash") && !ids.includes("object:reaction_vector");
+      });
 
       const state = await page.evaluate(() => window.__tubaViewer?.state);
       assert.equal(state.activeIssueId, "issue:operating_clash");
@@ -867,7 +757,7 @@ const scenarios = {
 
       runtime.send({ type: "scene_reloaded", run_id: "run:live-preview", bundle_url: "/test/fixtures/code_aster_results" });
       await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "scene:code_aster_results");
-      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.activeTab), "3d");
+      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.activeTab), "model");
       const navigationCount = await page.evaluate(() => performance.getEntriesByType("navigation").length);
       assert.equal(navigationCount, 1);
 
@@ -910,7 +800,7 @@ const scenarios = {
       assert.equal(navigationCount, 1);
 
       const layerText = await page.locator("[data-layer-list]").textContent();
-      assert.match(layerText, /Agent Proposal Added/);
+      assert.match(layerText, /Agent Proposal/);
       const objectText = await page.locator("[data-object-list]").textContent();
       assert.match(objectText, /Proposed pipe/);
 
@@ -943,6 +833,7 @@ const scenarios = {
     },
     async run(page, runtime) {
       await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "viewer_smoke_scene");
+      await page.locator("[data-model-tools-home] details").filter({ hasText: "Objects" }).locator("summary").click();
       await page.getByRole("button", { name: /Smoke pipe - pipe/ }).click();
       await page.waitForFunction(() => (window.__tubaViewer?.state?.selectedObjectIds ?? []).includes("object:element:pipe_smoke"));
       await runtime.waitForClient();

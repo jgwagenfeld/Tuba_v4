@@ -10,6 +10,13 @@ from typing import Any
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState, result_state_from_fea_results
 from tuba.analysis.study import AnalysisStudy
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
+    require_matching_solver_input_identities,
+    validate_solver_input_identity,
+)
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.base import FEAResults
 
@@ -32,10 +39,27 @@ def import_code_aster_artifacts(
     """Import an existing Code_Aster result directory without executing Code_Aster."""
     root = Path(work_dir)
     diagnostics: list[dict[str, Any]] = []
-    loaded_study, analysis_mesh = _load_study_and_mesh(
-        work_dir=root,
-        explicit_study=study,
-        diagnostics=diagnostics,
+    manifest_study, analysis_mesh = _load_manifest_records(root)
+    loaded_study = study or manifest_study
+    if loaded_study is None:
+        manifest_path = root / "study_manifest.json"
+        raise FileNotFoundError(
+            f"Code_Aster artifact import requires {manifest_path}; refusing to synthesize solver lineage."
+        )
+    compiler_id = (
+        MIXED_CODE_ASTER_COMPILER_ID
+        if loaded_study.metadata.get("mixed_analysis")
+        else CODE_ASTER_COMPILER_ID
+    )
+    sidecar, sidecar_identity = _load_sidecar(root)
+    _validate_import_identities(
+        model=model,
+        study=loaded_study,
+        manifest_study=manifest_study,
+        analysis_mesh=analysis_mesh,
+        sidecar=sidecar,
+        sidecar_identity=sidecar_identity,
+        compiler_id=compiler_id,
     )
     results = CodeAsterSolver().parse_result_artifacts(model, root, loaded_study.load_case)
     result_state = result_state_from_fea_results(
@@ -81,20 +105,10 @@ def import_code_aster_artifacts(
     )
 
 
-def _load_study_and_mesh(
-    *,
-    work_dir: Path,
-    explicit_study: AnalysisStudy | None,
-    diagnostics: list[dict[str, Any]],
-) -> tuple[AnalysisStudy, AnalysisMesh | None]:
-    if explicit_study is not None:
-        return explicit_study, _load_manifest_mesh(work_dir, diagnostics)
-
+def _load_manifest_records(work_dir: Path) -> tuple[AnalysisStudy | None, AnalysisMesh | None]:
     manifest_path = work_dir / "study_manifest.json"
     if not manifest_path.exists():
-        raise FileNotFoundError(
-            f"Code_Aster artifact import requires {manifest_path}; refusing to synthesize solver lineage."
-        )
+        return None, None
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         return AnalysisStudy.from_dict(manifest["study"]), AnalysisMesh.from_dict(manifest["analysis_mesh"])
@@ -102,16 +116,84 @@ def _load_study_and_mesh(
         raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: {exc}") from exc
 
 
-def _load_manifest_mesh(work_dir: Path, diagnostics: list[dict[str, Any]]) -> AnalysisMesh | None:
-    manifest_path = work_dir / "study_manifest.json"
-    if not manifest_path.exists():
-        return None
+def _load_sidecar(work_dir: Path) -> tuple[dict[str, Any] | None, SolverInputIdentity | None]:
+    sidecar_path = work_dir / "study_tuba_fem.json"
+    if not sidecar_path.exists():
+        return None, None
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        return AnalysisMesh.from_dict(manifest["analysis_mesh"])
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        identity_data = sidecar.get("solver_input_identity")
+        identity = SolverInputIdentity.from_dict(identity_data) if identity_data is not None else None
+        return sidecar, identity
     except Exception as exc:  # noqa: BLE001
-        diagnostics.append(_diagnostic("visualization.code_aster_artifacts.invalid_manifest", str(exc), str(manifest_path)))
-        return None
+        raise ValueError(f"Invalid Code_Aster sidecar {sidecar_path}: {exc}") from exc
+
+
+def _validate_import_identities(
+    *,
+    model: Any,
+    study: AnalysisStudy,
+    manifest_study: AnalysisStudy | None,
+    analysis_mesh: AnalysisMesh | None,
+    sidecar: dict[str, Any] | None,
+    sidecar_identity: SolverInputIdentity | None,
+    compiler_id: str,
+) -> None:
+    identities: list[tuple[str, SolverInputIdentity | None]] = [
+        (f"Code_Aster study {study.id!r}", study.solver_input_identity),
+    ]
+    if manifest_study is not None:
+        if manifest_study.load_case != study.load_case:
+            raise ValueError(
+                f"Code_Aster manifest study load case {manifest_study.load_case!r} does not "
+                f"match imported study load case {study.load_case!r}."
+            )
+        if manifest_study.mesh_id != study.mesh_id:
+            raise ValueError(
+                f"Code_Aster manifest study mesh {manifest_study.mesh_id!r} does not "
+                f"match imported study mesh {study.mesh_id!r}."
+            )
+        identities.append(("Code_Aster manifest study", manifest_study.solver_input_identity))
+    if analysis_mesh is not None:
+        if analysis_mesh.id != study.mesh_id:
+            raise ValueError(
+                f"Code_Aster manifest analysis mesh {analysis_mesh.id!r} does not "
+                f"match imported study mesh {study.mesh_id!r}."
+            )
+        identities.append(("Code_Aster manifest analysis mesh", analysis_mesh.solver_input_identity))
+    if sidecar is not None:
+        if sidecar.get("load_case") != study.load_case:
+            raise ValueError(
+                f"Code_Aster sidecar load case {sidecar.get('load_case')!r} does not "
+                f"match imported study load case {study.load_case!r}."
+            )
+        if sidecar.get("analysis_mesh_id") != study.mesh_id:
+            raise ValueError(
+                f"Code_Aster sidecar mesh {sidecar.get('analysis_mesh_id')!r} does not "
+                f"match imported study mesh {study.mesh_id!r}."
+            )
+        if sidecar_identity is None and any(identity is not None for _context, identity in identities):
+            raise ValueError(
+                "Code_Aster sidecar is missing a solver input identity alongside an "
+                "identity-bearing study or manifest; refusing to trust its name_map."
+            )
+        identities.append(("Code_Aster sidecar", sidecar_identity))
+
+    for context, identity in identities:
+        validate_solver_input_identity(
+            model,
+            identity,
+            context=context,
+            expected_load_case=study.load_case,
+            expected_compiler_id=compiler_id,
+        )
+    for index, (left_context, left_identity) in enumerate(identities):
+        for right_context, right_identity in identities[index + 1 :]:
+            require_matching_solver_input_identities(
+                left_identity,
+                right_identity,
+                context=f"{left_context} and {right_context}",
+            )
 
 
 def _artifact_files(work_dir: Path, study: AnalysisStudy) -> dict[str, str]:
@@ -146,6 +228,7 @@ def _with_artifact_files(result_state: ResultState, files: dict[str, str]) -> Re
         element_results=result_state.element_results,
         files={**result_state.files, **files},
         metadata={**result_state.metadata, "source": "code_aster_artifact_tables"},
+        solver_input_identity=result_state.solver_input_identity,
     )
 
 

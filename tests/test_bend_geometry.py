@@ -1,6 +1,7 @@
 import json
 import math
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -66,7 +67,10 @@ class TestBendGeometry(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
             manifest = json.loads((Path(study.work_dir) / "study_manifest.json").read_text(encoding="utf-8"))
-        mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
+        mesh = replace(
+            AnalysisMesh.from_dict(manifest["analysis_mesh"]),
+            solver_input_identity=None,
+        )
         generated = next(source for source in mesh.node_sources.values() if source.role == "generated_bend_node")
 
         self.assertEqual(generated.metadata["bend_geometry"]["generation_mode"], "bend_to")

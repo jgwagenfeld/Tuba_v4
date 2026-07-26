@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Iterable
 
+from tuba.analysis.provenance import SolverInputIdentity
+
 
 MAX_ASTER_NAME_LEN = 24
 
@@ -56,6 +58,7 @@ def dump_solver_sidecar(
     name_map: dict[str, str],
     lineage: dict[str, str],
     mixed_analysis: dict | None = None,
+    solver_input_identity: SolverInputIdentity | None = None,
 ) -> None:
     payload = {
         "schema_version": 1,
@@ -67,4 +70,6 @@ def dump_solver_sidecar(
     }
     if mixed_analysis is not None:
         payload["mixed_analysis"] = mixed_analysis
+    if solver_input_identity is not None:
+        payload["solver_input_identity"] = solver_input_identity.to_dict()
     Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")

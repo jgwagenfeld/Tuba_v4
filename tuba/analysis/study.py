@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from tuba.analysis.provenance import SolverInputIdentity
+
 
 @dataclass(frozen=True)
 class AnalysisStudy:
@@ -16,6 +18,7 @@ class AnalysisStudy:
     input_files: dict[str, str]
     mesh_id: str
     metadata: dict[str, Any] = field(default_factory=dict)
+    solver_input_identity: SolverInputIdentity | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "AnalysisStudy id")
@@ -40,6 +43,8 @@ class AnalysisStudy:
             data["work_dir"] = self.work_dir
         if self.metadata:
             data["metadata"] = dict(self.metadata)
+        if self.solver_input_identity is not None:
+            data["solver_input_identity"] = self.solver_input_identity.to_dict()
         return data
 
     @classmethod
@@ -53,6 +58,11 @@ class AnalysisStudy:
             input_files=dict(data.get("input_files", {})),
             mesh_id=data["mesh_id"],
             metadata=dict(data.get("metadata", {})),
+            solver_input_identity=(
+                SolverInputIdentity.from_dict(data["solver_input_identity"])
+                if data.get("solver_input_identity") is not None
+                else None
+            ),
         )
 
 

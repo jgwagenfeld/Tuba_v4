@@ -69,6 +69,7 @@ class TestNotebookBackendSelection(unittest.TestCase):
 
     def test_result_plot_passes_show_kwargs(self):
         from tuba.plotting.plots import plot_deformed_stress
+        from tuba.solver.base import FEAResults
 
         fake_plotter = Mock()
         fake_plotter.show.return_value = "shown"
@@ -78,7 +79,7 @@ class TestNotebookBackendSelection(unittest.TestCase):
             patch("tuba.plotting.scenes.build_model_scene", return_value=fake_plotter),
         ):
             returned = plot_deformed_stress(
-                Mock(),
+                FEAResults(solver_name="fixture", result_file=None),
                 model=Mock(),
                 jupyter_backend="html",
             )

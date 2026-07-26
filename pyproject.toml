@@ -29,6 +29,9 @@ dependencies = [
     "gmsh>=4.11",
 ]
 
+[project.scripts]
+tuba-viewer = "tuba.visualization.viewer:main"
+
 [project.optional-dependencies]
 # PyVista (pulls VTK, ~100 MB) backs the tuba.plotting quick-look/export path
 # only; the web-review path (tuba.visualization + viewer/) does not need it.
@@ -38,7 +41,7 @@ viz = [
 ]
 collision = [
     "trimesh>=4.0",
-    "python-fcl>=0.7.0",
+    "python-fcl>=0.7.0.11",
 ]
 mixed = [
     "meshio>=5.0",
@@ -51,6 +54,9 @@ ifc = [
 ]
 notebook-viz = [
     "jupyterlab>=3",
+    "nbclient>=0.10",
+    "nbformat>=5.10",
+    "ipykernel>=6",
     "ipywidgets",
     "pyvista[all]>=0.48",
     "trame>=3",
@@ -58,6 +64,22 @@ notebook-viz = [
     "trame-vuetify>=3",
     "jupyter-server-proxy",
     "meshio>=5.0",
+]
+course = [
+    "jupyterlab>=3",
+    "nbclient>=0.10",
+    "nbformat>=5.10",
+    "ipykernel>=6",
+    "ipywidgets",
+    "pyvista[all]>=0.48",
+    "trame>=3",
+    "trame-vtk>=2",
+    "trame-vuetify>=3",
+    "jupyter-server-proxy",
+    "meshio>=5.0",
+    "h5py>=3.10",
+    "ifcopenshell>=0.8",
+    "trimesh>=4.0",
 ]
 dev = [
     "pytest>=8",

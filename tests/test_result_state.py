@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 
 import numpy as np
 
@@ -134,6 +135,61 @@ class TestResultStateConversion(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             result_state_from_fea_results(model=model, study=study, results=results)
+
+    def test_fea_results_rejects_missing_native_displacement(self):
+        model, study, results = self._model_study_and_results()
+        state = result_state_from_fea_results(
+            model=model,
+            study=study,
+            results=results,
+            analysis_mesh=self._analysis_mesh(),
+        )
+
+        with self.assertRaisesRegex(ValueError, "missing displacement.*N1"):
+            fea_results_from_result_state(
+                model=model,
+                result_state=replace(
+                    state,
+                    node_displacements={key: value for key, value in state.node_displacements.items() if key != "N1"},
+                ),
+            )
+
+    def test_fea_results_rejects_missing_element_result(self):
+        model, study, results = self._model_study_and_results()
+        state = result_state_from_fea_results(
+            model=model,
+            study=study,
+            results=results,
+            analysis_mesh=self._analysis_mesh(),
+        )
+
+        with self.assertRaisesRegex(ValueError, "missing element result.*pipe_0"):
+            fea_results_from_result_state(
+                model=model,
+                result_state=replace(state, element_results={}),
+            )
+
+    def test_fea_results_rejects_missing_force_or_stress_fields(self):
+        model, study, results = self._model_study_and_results()
+        state = result_state_from_fea_results(
+            model=model,
+            study=study,
+            results=results,
+            analysis_mesh=self._analysis_mesh(),
+        )
+
+        for missing_field in ("forces_n1", "max_von_mises"):
+            element_result = dict(state.element_results["pipe_0"])
+            element_result.pop(missing_field)
+            with self.subTest(missing_field=missing_field):
+                with self.assertRaisesRegex(ValueError, f"missing result field.*{missing_field}"):
+                    fea_results_from_result_state(
+                        model=model,
+                        result_state=replace(
+                            state,
+                            element_results={"pipe_0": element_result},
+                        ),
+                    )
 
 
 if __name__ == "__main__":

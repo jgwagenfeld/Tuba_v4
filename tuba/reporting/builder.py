@@ -9,6 +9,12 @@ from typing import Any
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
+    require_matching_solver_input_identities,
+    validate_solver_input_identity,
+)
 from tuba.compliance.asme_b313 import ComplianceReport
 from tuba.model import TubaModel
 from tuba.reporting.model import (
@@ -91,7 +97,7 @@ def build_engineering_review(
         model_revision=int(getattr(model, "revision", 0)),
         analysis_status=status,
         tables=tuple(tables),
-        provenance=build_provenance(study_records, state_records),
+        provenance=build_provenance(study_records, mesh_records, state_records),
         diagnostics=diagnostics,
     )
 
@@ -109,6 +115,17 @@ def _validate_lineage(
         if study.id in studies_by_id:
             raise EngineeringReviewError(f"Duplicate supplied study {study.id!r}.")
         studies_by_id[study.id] = study
+        _validate_solver_identity(
+            model,
+            study.solver_input_identity,
+            f"Study {study.id!r}",
+            expected_load_case=study.load_case,
+            expected_compiler_id=(
+                MIXED_CODE_ASTER_COMPILER_ID
+                if study.metadata.get("mixed_analysis")
+                else CODE_ASTER_COMPILER_ID
+            ),
+        )
         if study.model_revision != model_revision:
             raise EngineeringReviewError(
                 f"Study {study.id!r} model revision {study.model_revision} does not "
@@ -120,10 +137,44 @@ def _validate_lineage(
     result_load_case_counts: dict[str, int] = {}
     model_node_ids = set(model.nodes)
     model_element_ids = {element.id for element in model.elements}
+    meshes_by_id = {mesh.id: mesh for mesh in analysis_meshes}
+    for mesh in analysis_meshes:
+        matching_studies = [study for study in studies if study.mesh_id == mesh.id]
+        if mesh.solver_input_identity is not None and not matching_studies:
+            raise EngineeringReviewError(
+                f"Analysis mesh {mesh.id!r} has solver-input provenance but no supplied owning study."
+            )
+        for study in matching_studies:
+            try:
+                require_matching_solver_input_identities(
+                    study.solver_input_identity,
+                    mesh.solver_input_identity,
+                    context=f"Study {study.id!r} and analysis mesh {mesh.id!r}",
+                )
+            except ValueError as exc:
+                raise EngineeringReviewError(str(exc)) from exc
+            _validate_solver_identity(
+                model,
+                mesh.solver_input_identity,
+                f"Analysis mesh {mesh.id!r}",
+                expected_load_case=study.load_case,
+                expected_compiler_id=(
+                    MIXED_CODE_ASTER_COMPILER_ID
+                    if study.metadata.get("mixed_analysis")
+                    else CODE_ASTER_COMPILER_ID
+                ),
+            )
     for state in result_states:
         if state.id in result_ids:
             raise EngineeringReviewError(f"Duplicate result state {state.id!r}.")
         result_ids.add(state.id)
+        _validate_solver_identity(
+            model,
+            state.solver_input_identity,
+            f"Result state {state.id!r}",
+            expected_load_case=state.load_case,
+            expected_compiler_id=CODE_ASTER_COMPILER_ID,
+        )
         if state.model_revision != model_revision:
             raise EngineeringReviewError(
                 f"Result state {state.id!r} model revision {state.model_revision} does "
@@ -154,6 +205,21 @@ def _validate_lineage(
                 f"Result state {state.id!r} mesh {state.mesh_id!r} does not match "
                 f"study mesh {study.mesh_id!r}."
             )
+        try:
+            require_matching_solver_input_identities(
+                study.solver_input_identity,
+                state.solver_input_identity,
+                context=f"Study {study.id!r} and result state {state.id!r}",
+            )
+            mesh = meshes_by_id.get(state.mesh_id or "")
+            if mesh is not None:
+                require_matching_solver_input_identities(
+                    state.solver_input_identity,
+                    mesh.solver_input_identity,
+                    context=f"Result state {state.id!r} and analysis mesh {mesh.id!r}",
+                )
+        except ValueError as exc:
+            raise EngineeringReviewError(str(exc)) from exc
 
         analysis_node_ids = _analysis_node_ids(state)
         if analysis_node_ids:
@@ -291,6 +357,7 @@ def _analysis_status(
 
 def build_provenance(
     studies: Iterable[AnalysisStudy],
+    analysis_meshes: Iterable[AnalysisMesh],
     result_states: Iterable[ResultState],
 ) -> tuple[ReviewProvenance, ...]:
     """Build stable provenance records without changing artifact paths."""
@@ -305,6 +372,8 @@ def build_provenance(
         )
         if study.work_dir is not None:
             metadata["work_dir"] = study.work_dir
+        if study.solver_input_identity is not None:
+            metadata["solver_input_identity"] = study.solver_input_identity.to_dict()
         records.append(
             ReviewProvenance(
                 kind="study",
@@ -312,6 +381,28 @@ def build_provenance(
                 solver_name=study.solver_name,
                 load_case=study.load_case,
                 files=dict(study.input_files),
+                metadata=metadata,
+            )
+        )
+    for mesh in sorted(analysis_meshes, key=lambda record: record.id):
+        metadata = {
+            "model_revision": mesh.model_revision,
+            "node_count": len(mesh.nodes),
+            "element_count": len(mesh.elements),
+        }
+        if mesh.solver_input_identity is not None:
+            metadata["solver_input_identity"] = mesh.solver_input_identity.to_dict()
+        records.append(
+            ReviewProvenance(
+                kind="analysis_mesh",
+                id=mesh.id,
+                solver_name=mesh.solver_name,
+                load_case=(
+                    mesh.solver_input_identity.load_case
+                    if mesh.solver_input_identity is not None
+                    else None
+                ),
+                files=dict(mesh.files),
                 metadata=metadata,
             )
         )
@@ -324,6 +415,8 @@ def build_provenance(
                 "study_id": state.study_id,
             }
         )
+        if state.solver_input_identity is not None:
+            metadata["solver_input_identity"] = state.solver_input_identity.to_dict()
         records.append(
             ReviewProvenance(
                 kind="result_state",
@@ -335,6 +428,26 @@ def build_provenance(
             )
         )
     return tuple(records)
+
+
+def _validate_solver_identity(
+    model: TubaModel,
+    identity: Any,
+    context: str,
+    *,
+    expected_load_case: str,
+    expected_compiler_id: str,
+) -> None:
+    try:
+        validate_solver_input_identity(
+            model,
+            identity,
+            context=context,
+            expected_load_case=expected_load_case,
+            expected_compiler_id=expected_compiler_id,
+        )
+    except ValueError as exc:
+        raise EngineeringReviewError(str(exc)) from exc
 
 
 def _compact_result_metadata(state: ResultState) -> dict[str, Any]:

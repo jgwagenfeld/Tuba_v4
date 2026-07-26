@@ -213,6 +213,46 @@ class TestModelAndBuilder(unittest.TestCase):
 
         self.assertEqual(loaded.load_cases["Hot"].ref_temperature, 45.0)
 
+    def test_operation_name_cannot_reuse_existing_load_case_name(self):
+        model = Model(project_name="SharedCaseNamespace")
+        load_case = model.define_load_case("Hot", temperature=20.0)
+
+        with self.assertRaisesRegex(ValueError, "load cases and operations share one namespace"):
+            model.define_operation("Hot", temperature=200.0)
+
+        self.assertIs(model.load_cases["Hot"], load_case)
+        self.assertNotIn("Hot", model.operations)
+
+    def test_load_case_name_cannot_reuse_existing_operation_name(self):
+        model = Model(project_name="SharedCaseNamespace")
+        operation = model.define_operation("Hot", temperature=200.0)
+
+        with self.assertRaisesRegex(ValueError, "load cases and operations share one namespace"):
+            model.define_load_case("Hot", temperature=20.0)
+
+        self.assertIs(model.operations["Hot"], operation)
+        self.assertNotIn("Hot", model.load_cases)
+
+    def test_deserialization_rejects_shared_load_case_and_operation_name(self):
+        payload = Model(project_name="SharedCaseNamespace").to_dict()
+        payload["load_cases"]["Hot"] = {
+            "gravity": True,
+            "internal_pressure": 0.0,
+            "temperature": 20.0,
+            "ref_temperature": 20.0,
+        }
+        payload["operations"]["Hot"] = {
+            "gravity": True,
+            "internal_pressure": 0.0,
+            "temperature": 200.0,
+            "ref_temperature": 20.0,
+            "metadata": {},
+            "fields": [],
+        }
+
+        with self.assertRaisesRegex(ValueError, "load cases and operations share one namespace"):
+            Model.from_dict(payload)
+
     def test_bend_visualization_polyline(self):
         model = Model()
         model.add_material("Steel", E=2.0e11, nu=0.3)

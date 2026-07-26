@@ -100,6 +100,41 @@ test("result review derives load cases scalar legend and filtered hotspots", () 
   assert.deepEqual(getHotspots(state).map((hotspot) => hotspot.objectId), ["object:pipe:hot"]);
 });
 
+test("TUYAU hotspots preserve repeated-row identity", () => {
+  const state = resultState();
+  state.overlays.push({
+    id: "overlay:tuyau:Hot",
+    kind: "solver_result",
+    data: {
+      result_type: "tuyau_subpoints",
+      result_state_id: "result_state:Hot",
+      load_case: "Hot",
+      values: { "object:tuyau": 84_000_000 },
+      hotspots: [
+        {
+          object_id: "object:tuyau",
+          element_id: "pipe_0",
+          row_index: 9,
+          subpoint_index: 4,
+          value: 84_000_000,
+          unit: "Pa"
+        }
+      ]
+    }
+  });
+
+  assert.deepEqual(getHotspots(state)[0], {
+    objectId: "object:tuyau",
+    objectName: "object:tuyau",
+    elementId: "pipe_0",
+    rowIndex: 9,
+    subpointIndex: 4,
+    unit: "Pa",
+    utilization: null,
+    value: 84_000_000
+  });
+});
+
 test("scalar color uses active solver result values", () => {
   const state = resultState();
 

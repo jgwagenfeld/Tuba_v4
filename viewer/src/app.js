@@ -86,6 +86,7 @@ const dom = {
   properties: document.querySelector("[data-properties]"),
   propertyActions: document.querySelector("[data-property-actions]"),
   bundlePicker: document.querySelector("[data-bundle-picker]"),
+  resetView: document.querySelector("[data-reset-view]"),
   canvas: document.querySelector("[data-canvas]")
 };
 
@@ -726,7 +727,10 @@ function renderResultControls() {
   for (const hotspot of hotspots) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = `${hotspot.objectName} ${formatEngineeringValue(hotspot.value)} ${hotspot.unit}${hotspot.utilization !== null ? ` u=${formatScale(hotspot.utilization)}` : ""}`;
+    const identity = hotspot.elementId
+      ? ` ${hotspot.elementId} row ${hotspot.rowIndex ?? "?"} subpoint ${hotspot.subpointIndex ?? "?"}`
+      : "";
+    button.textContent = `${hotspot.objectName}${identity} ${formatEngineeringValue(hotspot.value)} ${hotspot.unit}${hotspot.utilization !== null ? ` u=${formatScale(hotspot.utilization)}` : ""}`;
     button.addEventListener("click", () => {
       selectedObjectId = hotspot.objectId;
       currentState = selectObject(currentState, hotspot.objectId);
@@ -1185,6 +1189,8 @@ dom.canvas.addEventListener("click", (event) => {
     render();
   }
 });
+
+dom.resetView.addEventListener("click", () => viewportRenderer?.resetView());
 
 dom.canvas.addEventListener("pointerdown", (event) => {
   orbiting = true;

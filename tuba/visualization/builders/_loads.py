@@ -27,7 +27,8 @@ def build_load_scene(model: TubaModel) -> tuple[list[SceneObject], list[Geometry
     assets: list[GeometryAsset] = []
     overlays: list[Overlay] = []
 
-    for case_name, load_case in model.load_cases.items():
+    for requested_name in [*model.load_cases, *model.operations]:
+        case_name, load_case = model.resolve_load_case(requested_name)
         case_object_ids: list[str] = []
         for index, nodal_force in enumerate(load_case.nodal_forces):
             for glyph in _force_glyphs(model, case_name, index, nodal_force):

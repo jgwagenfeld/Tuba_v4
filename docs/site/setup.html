@@ -74,8 +74,9 @@ cd Tuba_v4</code></pre>
             <tr><th>Install</th><th>Adds</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>pip install -e .</code></td><td>Core: model authoring, validation, export, routing, PyVista quick-look (numpy, scipy, gmsh, trimesh, pyvista).</td></tr>
+            <tr><td><code>pip install -e .</code></td><td>Core: model authoring, validation, Code_Aster study export, and routing.</td></tr>
             <tr><td><code>.[notebook-viz]</code></td><td>JupyterLab, ipywidgets, and the full PyVista/Trame stack for interactive notebooks.</td></tr>
+            <tr><td><code>.[course]</code></td><td>All dependencies used by the 14 notebooks, including notebook execution, PyVista/Trame, IFC, and imported-mesh lessons.</td></tr>
             <tr><td><code>.[ifc]</code></td><td>IFC4 import/export through <code>ifcopenshell</code>.</td></tr>
             <tr><td><code>.[code-aster-rmed]</code></td><td><code>h5py</code> for reading RMED/MED result files.</td></tr>
           </tbody>
@@ -87,7 +88,7 @@ cd Tuba_v4</code></pre>
           <h2>1. Create or activate the Python environment</h2>
           <pre><code>python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[notebook-viz]"</code></pre>
+.\.venv\Scripts\python.exe -m pip install -e ".[course]"</code></pre>
         </article>
         <article>
           <h2>2. Check runtime discovery</h2>

@@ -242,13 +242,14 @@ There are exactly two result-display paths.
 `FEAResults` exposes notebook/interactive helpers:
 
 ```python
-plotter = results.plot_deformed_stress(scale=40.0, model=model)
-plotter.show(jupyter_backend="html")
+results.plot_deformed_stress(deform_scale=40.0, jupyter_backend="html")
 ```
 
 This path lives under `tuba.plotting`. Use it for quick notebook inspection and
 PLY/glTF/Blender export. It must still receive real Code_Aster-backed results
 when displaying stress, displacement, reactions, or compliance-relevant output.
+When `results.result_file` points to the solved `.rmed`, the quick-look reads
+that artifact directly instead of rebuilding display data from the model.
 
 #### Web Review Bundle
 
@@ -348,7 +349,9 @@ instead of local memory.
   records.
 - Cursor builder for pipe routes, stored 3D bends, beams, bars, and cables.
 - Route/station metadata on generated pipe elements.
-- JSON serialization and JSON-schema validation.
+- JSON serialization and JSON-schema validation. New model records use the
+  stable `tuba.model.v4` schema identifier independently of the Python package
+  version; the loader remains compatible with existing `4.0.0` records.
 - Model validation for references, sections, groups, placements, attributes,
   operation fields, route/station metadata, bend geometry, and mixed records.
 

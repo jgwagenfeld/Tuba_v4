@@ -680,8 +680,11 @@ def _allowable_stress_for_element(model: TubaModel, elem: Element, load_case: st
     material = model.materials.get(elem.material)
     if material is None:
         return None
-    load_case_data = model.load_cases.get(load_case)
-    temperature = float(getattr(load_case_data, "temperature", 20.0)) if load_case_data is not None else 20.0
+    try:
+        _, load_case_data = model.resolve_load_case(load_case)
+    except ValueError:
+        return None
+    temperature = float(load_case_data.temperature)
     try:
         return float(material.get_allowable(temperature))
     except ValueError:
@@ -781,8 +784,9 @@ def _solver_reaction_vectors(
         ),
     )
 def _solver_temperature_overlay(model: TubaModel, results: FEAResults, load_case: str) -> Overlay | None:
-    load_case_data = model.load_cases.get(load_case)
-    if load_case_data is None:
+    try:
+        _, load_case_data = model.resolve_load_case(load_case)
+    except ValueError:
         return None
     object_ids = [_object_id(EntityRef("element", elem.id)) for elem in model.elements]
     return Overlay(
