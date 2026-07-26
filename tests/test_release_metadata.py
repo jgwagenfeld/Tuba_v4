@@ -64,6 +64,7 @@ def test_release_tag_must_match_package_version():
 def test_ci_and_release_workflows_cover_local_release_gates():
     ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     release = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    ci_jobs = yaml.safe_load(ci)["jobs"]
 
     for workflow in (ci, release):
         assert "npm test" in workflow
@@ -74,6 +75,9 @@ def test_ci_and_release_workflows_cover_local_release_gates():
 
     assert 'python-version: ["3.10", "3.11", "3.12"]' in ci
     assert "uv sync --extra course --locked" in ci
+    python_steps = ci_jobs["python"]["steps"]
+    assert any(step.get("uses") == "actions/setup-node@v4" for step in python_steps)
+    assert any(step.get("run") == "npm ci" and step.get("working-directory") == "viewer" for step in python_steps)
     assert "uv run python -m pytest" in ci
     assert "uv run python -m pytest" in release
     for workflow in (ci, release):

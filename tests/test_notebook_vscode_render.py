@@ -78,6 +78,7 @@ def _isolated_notebook_env() -> dict[str, str]:
     allowed_keys = (
         "APPDATA",
         "COMSPEC",
+        "DISPLAY",
         "HOMEDRIVE",
         "HOMEPATH",
         "LOCALAPPDATA",
@@ -93,6 +94,7 @@ def _isolated_notebook_env() -> dict[str, str]:
         "TMP",
         "USERPROFILE",
         "WINDIR",
+        "XAUTHORITY",
     )
     env = {key: os.environ[key] for key in allowed_keys if key in os.environ}
     env["TERM_PROGRAM"] = "vscode"

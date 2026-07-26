@@ -97,7 +97,7 @@ def verify_wheel(wheel: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="tuba-wheel-smoke-") as tmpdir:
         root = Path(tmpdir)
         environment = root / "venv"
-        venv.EnvBuilder(with_pip=True).create(environment)
+        venv.EnvBuilder(with_pip=False).create(environment)
         python, launcher = _venv_paths(environment)
         clean_env = os.environ.copy()
         clean_env.pop("PYTHONPATH", None)

@@ -1,6 +1,6 @@
 import subprocess
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
@@ -116,14 +116,13 @@ class TestCodeAsterRuntime(unittest.TestCase):
         self.assertIsNone(cwd)
 
     def test_wsl_preflight_uses_real_workdir_contract_and_does_not_mask_runner_failure(self):
-        with TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            candidate = select_code_aster_runtime(CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}))
+        root = PureWindowsPath("C:/Tuba Work")
+        candidate = select_code_aster_runtime(CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}))
 
-            command, cwd = build_code_aster_preflight_command(candidate, CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}), root)
+        command, cwd = build_code_aster_preflight_command(candidate, CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}), root)
 
         self.assertEqual(command[:4], ["wsl", "-d", "Ubuntu", "--"])
-        self.assertIn(f"cd '/mnt/{root.drive[0].lower()}{root.as_posix()[2:]}'", command[-1])
+        self.assertIn("cd '/mnt/c/Tuba Work'", command[-1])
         self.assertIn(".tuba-preflight-probe", command[-1])
         self.assertNotIn("|| true", command[-1])
         self.assertIsNone(cwd)

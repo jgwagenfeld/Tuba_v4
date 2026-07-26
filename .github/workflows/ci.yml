@@ -17,9 +17,16 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
       - name: Install Linux graphics runtime
         run: sudo apt-get update && sudo apt-get install -y libglu1-mesa xvfb
       - run: uv sync --all-extras --locked
+      - run: npm ci
+        working-directory: viewer
       - run: xvfb-run -a uv run python -m pytest
 
   notebooks-and-docs:
