@@ -64,6 +64,12 @@ class TestCurrentApiDocs(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_artifact_import_examples_do_not_use_removed_load_case_argument(self):
+        pattern = re.compile(r"import_code_aster_artifacts\s*\([^)]*\bload_case\s*=", re.DOTALL)
+        offenders = [label for label, source in _current_user_facing_sources() if pattern.search(source)]
+
+        self.assertEqual([], offenders)
+
     def test_readme_does_not_promote_removed_roadmap_docs(self):
         root = Path(__file__).resolve().parents[1]
         text = (root / "README.md").read_text(encoding="utf-8")

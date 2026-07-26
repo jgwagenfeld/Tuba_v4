@@ -61,7 +61,7 @@ class TestCodeAsterTuyauSubpoints(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            results = CodeAsterSolver().parse_result_artifacts(model, root, "Hot")
+            results = CodeAsterSolver()._parse_results(model, root)
 
         self.assertEqual(len(results.tuyau_subpoints), 3)
         self.assertEqual(results.tuyau_subpoints[0]["subpoint_index"], 1)

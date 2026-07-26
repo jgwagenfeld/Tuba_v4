@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import errno
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +23,15 @@ def main() -> int:
     if build_dir.parent != ROOT.resolve():
         raise RuntimeError(f"Refusing to clean unexpected build directory: {build_dir}")
     if build_dir.exists():
-        shutil.rmtree(build_dir)
+        for attempt in range(3):
+            try:
+                shutil.rmtree(build_dir)
+                break
+            except OSError as exc:
+                transient = exc.errno == errno.ENOTEMPTY or getattr(exc, "winerror", None) == 145
+                if not transient or attempt == 2:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
     return 0
 
 

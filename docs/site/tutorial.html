@@ -153,7 +153,7 @@
         <pre><code>from pathlib import Path
 
 from tuba import Model
-from tuba.analysis.results import result_state_from_fea_results
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import build_visualization_scene, write_scene_bundle
 
@@ -189,10 +189,14 @@ operating.add_field("temperature", 160.0, route_id="P-100", station_start=0.0, s
 
 solver = CodeAsterSolver(work_dir=str(work_dir), exec_method="wsl", wsl_distro="Ubuntu")
 study = solver.export_analysis_study(model, "Operating", work_dir)
-results = solver.solve_exported_study(model, study)
+solver.solve_exported_study(model, study)
+artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, study=study)
 
-result_state = result_state_from_fea_results(model=model, study=study, results=results)
-scene = build_visualization_scene(model, result_states=[result_state])
+scene = build_visualization_scene(
+    model,
+    analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
+    result_states=[artifact.result_state],
+)
 write_scene_bundle(scene, work_dir / "review_scene")</code></pre>
       </section>
 
@@ -256,6 +260,11 @@ write_scene_bundle(scene, work_dir / "review_scene")</code></pre>
               <td><code>solve_exported_study(...)</code></td>
               <td>Runs Code_Aster and parses its output tables.</td>
               <td>This is where Tuba can begin returning solver-backed <code>FEAResults</code>.</td>
+            </tr>
+            <tr>
+              <td><code>import_code_aster_artifacts(...)</code></td>
+              <td>Reloads the solved tables with their authoritative study and analysis mesh.</td>
+              <td>The result state and web scene stay tied to the exact solver mesh and provenance.</td>
             </tr>
             <tr>
               <td><code>write_scene_bundle(...)</code></td>

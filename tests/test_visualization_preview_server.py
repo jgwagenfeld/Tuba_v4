@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import unittest
 from pathlib import Path
@@ -92,12 +93,14 @@ class TestVisualizationPreviewServer(unittest.TestCase):
             script = root / "preview_scene.py"
             out = root / "bundle"
             script.write_text(SCENE_SCRIPT.format(scene_id="scene:preview:1", name="Pipe 1"), encoding="utf-8")
-            server = PreviewServer(script, out, port=0, poll_interval_s=0.05, debounce_s=0.05, timeout_s=10.0).start()
+            script_mtime_ns = script.stat().st_mtime_ns
+            server = PreviewServer(script, out, port=0, poll_interval_s=0.5, debounce_s=0.05, timeout_s=10.0).start()
             try:
                 initial = json.loads(urlopen(server.base_url + "scene.json", timeout=2).read().decode("utf-8"))
                 self.assertEqual(initial["scene_id"], "scene:preview:1")
 
                 script.write_text(SCENE_SCRIPT.format(scene_id="scene:preview:2", name="Pipe 2"), encoding="utf-8")
+                os.utime(script, ns=(script_mtime_ns, script_mtime_ns))
                 deadline = time.time() + 15
                 while time.time() < deadline:
                     scene = json.loads((out / "scene.json").read_text(encoding="utf-8"))
@@ -105,7 +108,7 @@ class TestVisualizationPreviewServer(unittest.TestCase):
                         break
                     time.sleep(0.05)
                 else:
-                    self.fail("preview server did not refresh the scene bundle")
+                    self.fail(f"preview server did not refresh the scene bundle; events={server.broker.events!r}")
 
                 event_types = [event["type"] for event in server.broker.events]
                 self.assertIn("scene_reloaded", event_types)

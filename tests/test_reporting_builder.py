@@ -407,6 +407,34 @@ def test_result_rows_use_six_dofs_magnitudes_and_both_element_ends(solved_review
     assert all(row["entity_ref"] == "element:E-20" for row in force_rows)
 
 
+def test_unavailable_element_force_components_remain_null_in_reports(
+    review_model,
+    code_aster_study,
+    code_aster_result_state,
+):
+    element_result = dict(code_aster_result_state.element_results["E-20"])
+    element_result["forces_n1"] = [100.0, None, None, None, None, None]
+    state = replace(code_aster_result_state, element_results={"E-20": element_result})
+
+    review = build_engineering_review(
+        review_model,
+        studies=[code_aster_study],
+        result_states=[state],
+    )
+
+    n1 = next(row for row in review.table("element_forces").rows if row["element_end"] == "n1")
+    assert [n1[key] for key in ("fx", "fy", "fz", "mx", "my", "mz")] == [
+        100.0,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ]
+    assert n1["force_magnitude"] is None
+    assert n1["moment_magnitude"] is None
+
+
 def test_fe_stress_is_explicitly_not_code_stress(solved_review):
     row = solved_review.table("fe_stress").rows[0]
 

@@ -228,11 +228,15 @@ results = run.results</code></pre>
             </article>
             <article>
               <h3>Web review bundle</h3>
-              <pre><code>from tuba.analysis.results import result_state_from_fea_results
+              <pre><code>from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.visualization import build_visualization_scene, write_scene_bundle
 
-result_state = result_state_from_fea_results(model=model, study=study, results=results)
-scene = build_visualization_scene(model, result_states=[result_state])
+artifact = import_code_aster_artifacts(model=model, work_dir=study.work_dir, study=study)
+scene = build_visualization_scene(
+    model,
+    analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
+    result_states=[artifact.result_state],
+)
 bundle = write_scene_bundle(scene, "runs/demo_hot/review_scene")</code></pre>
             </article>
           </div>

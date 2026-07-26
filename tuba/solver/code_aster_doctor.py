@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None, *, return_output: bool = False) -> str |
     if return_output:
         return output
     print(output)
-    return 0
+    return int(args.check and not any(check.ok for check in checks))
 
 
 def _resolve_docker_image() -> str:

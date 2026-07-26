@@ -109,6 +109,88 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
         self.assertTrue(np.allclose(results.get_displacement(n1)[:3], [0.001, 0.002, 0.003]))
         self.assertTrue(np.isnan(results.get_displacement(n1)[3:]).all())
 
+    def test_effo_parser_preserves_axial_only_bar_and_cable_results(self):
+        model = Model(project_name="AxialOnlyInternalForces")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_bar_section("BarSec", OD=0.04, WT=0.005)
+        model.add_cable_section("CableSec", radius=0.01, pretension=500.0)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        n2 = model.add_node([2.0, 0.0, 0.0])
+        model.add_element(id="bar_0", type="bar", n1=n0, n2=n1, section="BarSec", material="Steel")
+        model.add_element(id="cable_0", type="cable", n1=n1, n2=n2, section="CableSec", material="Steel")
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                "N0,0.0,0.0,0.0,-,-,-\n"
+                "N1,0.001,0.0,0.0,-,-,-\n"
+                "N2,0.002,0.0,0.0,-,-,-\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                "bar_0,N0,100.0,-,-,-,-,-\n"
+                "bar_0,N1,101.0,-,-,-,-,-\n"
+                "cable_0,N1,200.0,-,-,-,-,-\n"
+                "cable_0,N2,201.0,-,-,-,-,-\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_reac.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8"
+            )
+            root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
+
+            results = CodeAsterSolver()._parse_results(model, root)
+
+        self.assertEqual(results.get_forces("bar_0")["n1"][0], 100.0)
+        self.assertTrue(np.isnan(results.get_forces("bar_0")["n1"][1:]).all())
+        self.assertEqual(results.get_forces("cable_0")["n2"][0], 201.0)
+        self.assertTrue(np.isnan(results.get_forces("cable_0")["n2"][1:]).all())
+
+    def test_effo_parser_rejects_unavailable_beam_components(self):
+        model = Model(project_name="InvalidBeamInternalForces")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_rectangular_section("BeamSec", height_y=0.1, height_z=0.1)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(
+            id="beam_0",
+            type="beam",
+            n1=n0,
+            n2=n1,
+            section="BeamSec",
+            material="Steel",
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                "N0,0.0,0.0,0.0,0.0,0.0,0.0\n"
+                "N1,0.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                "beam_0,N0,100.0,-,-,-,-,-\n"
+                "beam_0,N1,101.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_reac.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8"
+            )
+            root.joinpath("study_sieq.csv").write_text(
+                "MAILLE,NOEUD,VMIS\n", encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"invalid internal-force component VY='-'.*beam_0:N0.*finite",
+            ):
+                CodeAsterSolver()._parse_results(model, root)
+
     def test_effo_parser_rejects_missing_moment_component(self):
         with self.assertRaisesRegex(
             RuntimeError,
@@ -132,6 +214,61 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                         f"pipe_0,N0,100.0,0.0,0.0,0.0,{value},0.0\n"
                         "pipe_0,N1,100.0,0.0,0.0,0.0,0.0,0.0\n"
                     )
+
+    def test_effo_parser_rejects_non_generated_segment_ids(self):
+        for element_id in ("pipe_0_sbogus", "pipe_0_s0"):
+            with self.subTest(element_id=element_id):
+                with self.assertRaisesRegex(RuntimeError, "no element internal forces"):
+                    self._parse_single_pipe_forces(
+                        "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                        f"{element_id},N0,100.0,0.0,0.0,0.0,0.0,0.0\n"
+                        f"{element_id},N1,101.0,0.0,0.0,0.0,0.0,0.0\n"
+                    )
+
+    def test_result_parsers_fold_only_generated_bend_segments(self):
+        model = Model(project_name="GeneratedBendResultIds")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(
+            id="pipe_bend_0",
+            type="pipe_bend",
+            n1=n0,
+            n2=n1,
+            section="PipeSec",
+            material="Steel",
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                "N0,0.0,0.0,0.0,0.0,0.0,0.0\n"
+                "N1,0.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_effo.csv").write_text(
+                "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+                "pipe_bend_0_s0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n"
+                "pipe_bend_0_s15,N1,101.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            root.joinpath("study_reac.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8"
+            )
+            root.joinpath("study_sieq.csv").write_text(
+                "MAILLE,NOEUD,VMIS\n"
+                "pipe_bend_0_s0,N0,10.0\n"
+                "pipe_bend_0_sbogus,N0,999.0\n",
+                encoding="utf-8",
+            )
+
+            results = CodeAsterSolver()._parse_results(model, root)
+
+        self.assertEqual(results.get_forces("pipe_bend_0")["n1"][0], 100.0)
+        self.assertEqual(results.get_forces("pipe_bend_0")["n2"][0], 101.0)
+        self.assertEqual(results.get_max_von_mises("pipe_bend_0"), 10.0)
 
     def test_depl_parser_preserves_generated_mesh_node_displacements(self):
         model = Model(project_name="GeneratedMeshResults")

@@ -1,6 +1,7 @@
 from pathlib import Path
 from hashlib import sha256
 from email.parser import BytesParser
+import errno
 import os
 import re
 import shutil
@@ -171,6 +172,28 @@ def test_prepare_release_fails_when_stale_build_cannot_be_removed(tmp_path, monk
 
     with pytest.raises(PermissionError, match="stale build is locked"):
         prepare_release.main()
+
+
+def test_prepare_release_retries_transient_nonempty_build_directory(tmp_path, monkeypatch):
+    build = tmp_path / "build"
+    build.mkdir()
+    (tmp_path / "viewer").mkdir()
+    monkeypatch.setattr(prepare_release, "ROOT", tmp_path)
+    monkeypatch.setattr(prepare_release.shutil, "which", lambda _command: "npm")
+    monkeypatch.setattr(prepare_release.subprocess, "run", lambda *_args, **_kwargs: None)
+    attempts = 0
+
+    def transient_nonempty(path):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError(errno.ENOTEMPTY, "directory is not empty")
+        Path(path).rmdir()
+
+    monkeypatch.setattr(prepare_release.shutil, "rmtree", transient_nonempty)
+
+    assert prepare_release.main() == 0
+    assert attempts == 2
 
 
 def test_release_wheel_dependency_install_uses_uv_and_has_a_hard_timeout(monkeypatch, tmp_path):

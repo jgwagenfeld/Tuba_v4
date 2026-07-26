@@ -268,7 +268,7 @@ class PreviewServer:
         self._httpd: ThreadingHTTPServer | None = None
         self._server_thread: threading.Thread | None = None
         self._watch_thread: threading.Thread | None = None
-        self._last_mtime_ns: int | None = None
+        self._last_fingerprint: bytes | None = None
 
     @property
     def base_url(self) -> str:
@@ -285,7 +285,7 @@ class PreviewServer:
         self.port = int(self._httpd.server_address[1])
         self._server_thread = threading.Thread(target=self._httpd.serve_forever, name="tuba-preview-http", daemon=True)
         self._server_thread.start()
-        self._last_mtime_ns = _mtime_ns(self.script_path)
+        self._last_fingerprint = _file_fingerprint(self.script_path)
         if run_initial:
             self.run_once()
         self._watch_thread = threading.Thread(target=self._watch_loop, name="tuba-preview-watch", daemon=True)
@@ -315,12 +315,12 @@ class PreviewServer:
         )
 
     def _watch_loop(self) -> None:
-        last_mtime = self._last_mtime_ns
+        last_fingerprint = self._last_fingerprint
         while not self._stop.wait(self.poll_interval_s):
-            current = _mtime_ns(self.script_path)
-            if current is None or current == last_mtime:
+            current = _file_fingerprint(self.script_path)
+            if current is None or current == last_fingerprint:
                 continue
-            last_mtime = current
+            last_fingerprint = current
             time.sleep(self.debounce_s)
             if not self._stop.is_set():
                 self.run_once()
@@ -487,9 +487,9 @@ def _broadcast_all(broker: PreviewEventBroker | None, events: list[dict[str, Any
         broker.broadcast(event)
 
 
-def _mtime_ns(path: Path) -> int | None:
+def _file_fingerprint(path: Path) -> bytes | None:
     try:
-        return path.stat().st_mtime_ns
+        return hashlib.sha256(path.read_bytes()).digest()
     except FileNotFoundError:
         return None
 

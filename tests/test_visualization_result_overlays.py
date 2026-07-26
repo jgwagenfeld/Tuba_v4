@@ -35,6 +35,17 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(element_metadata["forces_n1"], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         self.assertEqual(element_metadata["forces_n2"], [6.0, 5.0, 4.0, 3.0, 2.0, 1.0])
 
+    def test_result_state_preserves_unavailable_force_components_as_null(self):
+        model, result_state = _model_and_result_state()
+        element_result = dict(result_state.element_results["pipe_0"])
+        element_result["forces_n1"] = [100.0, None, None, None, None, None]
+        result_state = replace(result_state, element_results={"pipe_0": element_result})
+
+        scene = build_visualization_scene(model, result_states=[result_state])
+        metadata = _result_overlay(scene, "stress").data["element_results"]["object:element:pipe_0"]
+
+        self.assertEqual(metadata["forces_n1"], [100.0, None, None, None, None, None])
+
     def test_result_state_adds_displacement_reaction_and_parser_diagnostic_overlays(self):
         model, result_state = _model_and_result_state()
 

@@ -549,14 +549,15 @@
         </div>
 
         <div class="api-entry">
-          <h3><code>parse_result_artifacts(self, model: TubaModel, work_dir: str | Path, load_case_name: Optional[str] = None) -&gt; FEAResults</code></h3>
-          <p>Parse an existing Code_Aster output directory into results without running the solver.</p>
+          <h3><code>parse_result_artifacts(self, model: TubaModel, work_dir: str | Path, load_case_name: Optional[str] = None, *, study: AnalysisStudy | None = None) -&gt; FEAResults</code></h3>
+          <p>Validate and parse an existing Code_Aster artifact chain without running the solver.</p>
           <table class="reference-table">
             <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Units</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>model</code></td><td><code>TubaModel</code></td><td>&mdash;</td><td>&mdash;</td><td>Model used to interpret the solver outputs.</td></tr>
-              <tr><td><code>work_dir</code></td><td><code>str | Path</code></td><td>&mdash;</td><td>&mdash;</td><td>Directory containing Code_Aster CSV tables (and optional <code>study.rmed</code>).</td></tr>
-              <tr><td><code>load_case_name</code></td><td><code>Optional[str]</code></td><td><code>None</code></td><td>&mdash;</td><td>Load case name stamped onto the returned results.</td></tr>
+              <tr><td><code>work_dir</code></td><td><code>str | Path</code></td><td>&mdash;</td><td>&mdash;</td><td>Directory containing solved Code_Aster tables plus <code>study_manifest.json</code> unless an explicit <code>study</code> is supplied; sidecar and RMED files are used when present.</td></tr>
+              <tr><td><code>load_case_name</code></td><td><code>Optional[str]</code></td><td><code>None</code></td><td>&mdash;</td><td>Requested load case identity. When supplied, it must match the validated artifact study; when omitted, the study load case is used.</td></tr>
+              <tr><td><code>study</code></td><td><code>AnalysisStudy | None</code></td><td><code>None</code></td><td>&mdash;</td><td>Keyword-only authoritative study record. Required when the manifest does not provide one and validated against any manifest or sidecar identity that is present.</td></tr>
             </tbody>
           </table>
           <p class="api-returns">Returns: <code>FEAResults</code></p>
@@ -596,9 +597,8 @@
             <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Units</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>model</code></td><td><code>TubaModel</code></td><td>&mdash;</td><td>&mdash;</td><td>Keyword-only. Model used to interpret the solver outputs.</td></tr>
-              <tr><td><code>work_dir</code></td><td><code>str | Path</code></td><td>&mdash;</td><td>&mdash;</td><td>Keyword-only. Directory holding the solved Code_Aster artifacts.</td></tr>
-              <tr><td><code>study</code></td><td><code>AnalysisStudy | None</code></td><td><code>None</code></td><td>&mdash;</td><td>Keyword-only. Study record the artifacts were exported from, when available.</td></tr>
-              <tr><td><code>load_case</code></td><td><code>str | None</code></td><td><code>None</code></td><td>&mdash;</td><td>Keyword-only. Load case name stamped onto the imported artifact.</td></tr>
+              <tr><td><code>work_dir</code></td><td><code>str | Path</code></td><td>&mdash;</td><td>&mdash;</td><td>Keyword-only. Directory holding solved Code_Aster tables and their manifest/sidecar provenance.</td></tr>
+              <tr><td><code>study</code></td><td><code>AnalysisStudy | None</code></td><td><code>None</code></td><td>&mdash;</td><td>Keyword-only authoritative study record. The importer reads it from the manifest when omitted and rejects conflicting identities.</td></tr>
             </tbody>
           </table>
           <p class="api-returns">Returns: <code>CodeAsterArtifactImport</code></p>

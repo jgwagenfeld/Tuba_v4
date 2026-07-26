@@ -580,7 +580,11 @@ def build_result_summary_table(
                     governing_location=governing["node_id"],
                 )
             )
-        force_rows = list(_element_force_rows(model, studies_by_id, (state,)))
+        force_rows = [
+            row
+            for row in _element_force_rows(model, studies_by_id, (state,))
+            if row["force_magnitude"] is not None
+        ]
         if force_rows:
             governing = max(
                 force_rows,
@@ -942,8 +946,8 @@ def _element_force_rows(
                     "mx": mx,
                     "my": my,
                     "mz": mz,
-                    "force_magnitude": math.sqrt(fx * fx + fy * fy + fz * fz),
-                    "moment_magnitude": math.sqrt(mx * mx + my * my + mz * mz),
+                    "force_magnitude": _optional_magnitude(fx, fy, fz),
+                    "moment_magnitude": _optional_magnitude(mx, my, mz),
                 }
 
 
@@ -1002,13 +1006,13 @@ def _required_vector(
     *,
     state_id: str,
     element_id: str,
-) -> tuple[float, float, float, float, float, float]:
+) -> tuple[float | None, float | None, float | None, float | None, float | None, float | None]:
     if key not in result:
         raise EngineeringReviewError(
             f"Result state {state_id!r} element {element_id!r} is missing solver value {key!r}."
         )
     try:
-        values = tuple(float(value) for value in result[key])
+        values = tuple(None if value is None else float(value) for value in result[key])
     except (TypeError, ValueError) as error:
         raise EngineeringReviewError(
             f"Result state {state_id!r} element {element_id!r} has invalid solver value {key!r}."
@@ -1019,6 +1023,12 @@ def _required_vector(
             "must contain six components."
         )
     return values  # type: ignore[return-value]
+
+
+def _optional_magnitude(*values: float | None) -> float | None:
+    if any(value is None for value in values):
+        return None
+    return math.sqrt(sum(value * value for value in values if value is not None))
 
 
 def _required_float(

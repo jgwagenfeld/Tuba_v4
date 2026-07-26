@@ -39,15 +39,16 @@ from tuba.solver.base import (
     FEAResults,
     NodeResult,
 )
-from tuba.solver.aster_sidecar import SolverNameMap, build_solver_name_map, dump_solver_sidecar
+from tuba.solver.aster_sidecar import (
+    SolverNameMap,
+    build_solver_name_map,
+    dump_solver_sidecar,
+    load_and_validate_artifact_chain,
+)
 from tuba.solver.code_aster_runtime import CodeAsterRuntimeConfig, run_code_aster_export
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
 from tuba.analysis.provenance import (
-    CODE_ASTER_COMPILER_ID,
-    SolverInputIdentity,
     build_solver_input_identity,
-    require_matching_solver_input_identities,
-    validate_solver_input_identity,
 )
 from tuba.refs import EntityRef
 from tuba.solver.aster_comm import _CommWriterMixin
@@ -312,92 +313,16 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         """Execute an already-exported Code_Aster analysis study and parse its artifacts."""
         self._require_solve_ready_study(study)
         work_dir = Path(study.work_dir)
-        self._validate_exported_study_identities(model, study, work_dir)
-        self._execute(work_dir)
-        return self.parse_result_artifacts(model, work_dir, study.load_case)
-
-    def _validate_exported_study_identities(
-        self,
-        model: TubaModel,
-        study: AnalysisStudy,
-        work_dir: Path,
-    ) -> None:
-        identities: list[tuple[str, SolverInputIdentity | None]] = [
-            (f"Study {study.id!r}", study.solver_input_identity)
-        ]
-
-        manifest_path = work_dir / "study_manifest.json"
-        if manifest_path.exists():
-            try:
-                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                manifest_study = AnalysisStudy.from_dict(manifest["study"])
-                manifest_mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
-            except Exception as exc:  # noqa: BLE001
-                raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: {exc}") from exc
+        _, manifest_study, _, _ = load_and_validate_artifact_chain(
+            model,
+            work_dir,
+            study=study,
+            requested_load_case=study.load_case,
+        )
+        if manifest_study is not None:
             self._require_solve_ready_study(manifest_study)
-            if manifest_study.load_case != study.load_case:
-                raise ValueError(
-                    f"Code_Aster manifest load case {manifest_study.load_case!r} does not "
-                    f"match study load case {study.load_case!r}."
-                )
-            if manifest_mesh.id != study.mesh_id:
-                raise ValueError(
-                    f"Code_Aster manifest mesh {manifest_mesh.id!r} does not match study mesh {study.mesh_id!r}."
-                )
-            identities.extend(
-                (
-                    ("Code_Aster manifest study", manifest_study.solver_input_identity),
-                    ("Code_Aster manifest analysis mesh", manifest_mesh.solver_input_identity),
-                )
-            )
-
-        sidecar_path = work_dir / "study_tuba_fem.json"
-        if sidecar_path.exists():
-            try:
-                sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
-                sidecar_identity = (
-                    SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
-                    if sidecar.get("solver_input_identity") is not None
-                    else None
-                )
-            except Exception as exc:  # noqa: BLE001
-                raise ValueError(f"Invalid Code_Aster sidecar {sidecar_path}: {exc}") from exc
-            if sidecar.get("load_case") != study.load_case:
-                raise ValueError(
-                    f"Code_Aster sidecar load case {sidecar.get('load_case')!r} does not "
-                    f"match study load case {study.load_case!r}."
-                )
-            if sidecar.get("analysis_mesh_id") != study.mesh_id:
-                raise ValueError(
-                    f"Code_Aster sidecar mesh {sidecar.get('analysis_mesh_id')!r} does not "
-                    f"match study mesh {study.mesh_id!r}."
-                )
-            if sidecar_identity is None and any(identity is not None for _context, identity in identities):
-                raise ValueError(
-                    "Code_Aster sidecar is missing a solver input identity alongside an "
-                    "identity-bearing study or manifest; refusing to trust its name_map."
-                )
-            identities.append(("Code_Aster sidecar", sidecar_identity))
-
-        known_identity: tuple[str, SolverInputIdentity] | None = None
-        for context, identity in identities:
-            validate_solver_input_identity(
-                model,
-                identity,
-                context=context,
-                expected_load_case=study.load_case,
-                expected_compiler_id=CODE_ASTER_COMPILER_ID,
-            )
-            if identity is None:
-                continue
-            if known_identity is not None:
-                require_matching_solver_input_identities(
-                    known_identity[1],
-                    identity,
-                    context=f"{known_identity[0]} and {context}",
-                )
-            else:
-                known_identity = (context, identity)
+        self._execute(work_dir)
+        return self.parse_result_artifacts(model, work_dir, study.load_case, study=study)
 
     def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
         metadata = study.metadata
@@ -483,11 +408,19 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         model: TubaModel,
         work_dir: str | Path,
         load_case_name: Optional[str] = None,
+        *,
+        study: AnalysisStudy | None = None,
     ) -> FEAResults:
         """Parse an existing Code_Aster output directory without running the solver."""
-        results = self._parse_results(model, Path(work_dir))
-        if load_case_name is not None:
-            results.load_case = load_case_name
+        root = Path(work_dir)
+        validated_study, _, _, _ = load_and_validate_artifact_chain(
+            model,
+            root,
+            study=study,
+            requested_load_case=load_case_name,
+        )
+        results = self._parse_results(model, root)
+        results.load_case = validated_study.load_case
         return results
 
     def _parse_results(
@@ -519,8 +452,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         for elem in model.elements:
             results.element_results[elem.id] = ElementResult(
                 element_id=elem.id,
-                forces_n1=np.zeros(6),
-                forces_n2=np.zeros(6),
+                forces_n1=np.full(6, np.nan),
+                forces_n2=np.full(6, np.nan),
             )
 
         # --- Parse CSV tables ----------------------------------------------
@@ -756,6 +689,15 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
                 )
         return covered_model_nodes
 
+    def _result_element_lookup(self, model: TubaModel) -> dict[str, Element]:
+        lookup = {element.id: element for element in model.elements}
+        for element in model.elements:
+            if element.type != "pipe_bend":
+                continue
+            for segment_id, _, _ in self._bend_segment_node_pairs(element, self._BEND_SEGMENTS):
+                lookup[segment_id] = element
+        return lookup
+
     def _parse_effo_table(
         self,
         model: TubaModel,
@@ -775,7 +717,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         """
         rows = self._parse_csv_table(work_dir / "study_effo.csv")
         # Build a quick lookup: element_id → Element
-        elem_map: Dict[str, Element] = {e.id: e for e in model.elements}
+        element_lookup = self._result_element_lookup(model)
         covered: set[tuple[str, str]] = set()
 
         for row in rows:
@@ -789,25 +731,24 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             # attach only at the elbow's own end nodes (n1/n2) below — exactly the input
             # the B31.3 end-node SIF check consumes; interior sub-node moments feed FE
             # displacement fidelity, not the code check, so dropping them here is intended.
-            orig_eid = eid
-            if "_s" in eid:
-                parts = eid.split("_s")
-                if len(parts) == 2 and parts[0] in results.element_results:
-                    orig_eid = parts[0]
-
-            if orig_eid not in results.element_results:
-                continue
-            elem = elem_map.get(orig_eid)
+            elem = element_lookup.get(eid)
             if elem is None or nid not in (elem.n1, elem.n2):
                 continue
+            orig_eid = elem.id
 
-            def finite_force_component(component: str, *aliases: str) -> float:
+            def finite_force_component(
+                component: str,
+                *aliases: str,
+                allow_unavailable: bool = False,
+            ) -> float:
                 raw_value = ""
                 for alias in aliases:
                     candidate = row.get(alias)
                     if candidate is not None and candidate.strip():
                         raw_value = candidate.strip()
                         break
+                if allow_unavailable and raw_value == "-":
+                    return np.nan
                 try:
                     value = float(raw_value)
                 except (ValueError, TypeError) as exc:
@@ -826,13 +767,14 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
                     )
                 return value
 
+            allow_unavailable = elem.type in ("bar", "cable")
             forces = np.array([
                 finite_force_component("N", "N", "NXX"),
-                finite_force_component("VY", "VY"),
-                finite_force_component("VZ", "VZ"),
-                finite_force_component("MT", "MT"),
-                finite_force_component("MFY", "MFY"),
-                finite_force_component("MFZ", "MFZ"),
+                finite_force_component("VY", "VY", allow_unavailable=allow_unavailable),
+                finite_force_component("VZ", "VZ", allow_unavailable=allow_unavailable),
+                finite_force_component("MT", "MT", allow_unavailable=allow_unavailable),
+                finite_force_component("MFY", "MFY", allow_unavailable=allow_unavailable),
+                finite_force_component("MFZ", "MFZ", allow_unavailable=allow_unavailable),
             ])
             er = results.element_results[orig_eid]
             if nid == elem.n1:
@@ -884,7 +826,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         if not any(elem.type in {"pipe_straight", "pipe_bend"} for elem in model.elements):
             return
         rows = self._parse_csv_table(work_dir / "study_sieq.csv")
-        elem_map: Dict[str, Element] = {e.id: e for e in model.elements}
+        element_lookup = self._result_element_lookup(model)
         analysis_tangents = self._read_analysis_element_tangents(work_dir)
 
         for row in rows:
@@ -893,22 +835,13 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             eid = element_label_map.get(raw_eid, raw_eid)
             nid = node_label_map.get(raw_nid, raw_nid)
 
-            # Map segmented elements back to the original bend element
-            orig_eid = eid
-            if "_s" in eid:
-                parts = eid.split("_s")
-                if len(parts) == 2 and parts[0] in results.element_results:
-                    orig_eid = parts[0]
-
-            if orig_eid not in results.element_results:
+            elem = element_lookup.get(eid)
+            if elem is None:
                 continue
+            orig_eid = elem.id
             try:
                 vmis = float(row.get("VMIS", 0))
             except (ValueError, TypeError):
-                continue
-
-            elem = elem_map.get(orig_eid)
-            if elem is None:
                 continue
 
             subpoint = row.get("SOUS_POINT", "").strip()

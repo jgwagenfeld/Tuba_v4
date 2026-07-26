@@ -668,7 +668,8 @@ def _result_state_element_result_metadata(data: dict[str, Any]) -> dict[str, Any
     metadata: dict[str, Any] = {}
     for key in ("forces_n1", "forces_n2"):
         if key in data:
-            metadata[key] = [float(value) for value in data[key]]
+            values = [_as_float(value) for value in data[key]]
+            metadata[key] = [value if value is not None and np.isfinite(value) else None for value in values]
     for key in ("von_mises_n1", "von_mises_n2", "max_von_mises"):
         if key in data:
             metadata[key] = float(data[key])

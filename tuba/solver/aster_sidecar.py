@@ -5,9 +5,17 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
-from tuba.analysis.provenance import SolverInputIdentity
+from tuba.analysis.mesh import AnalysisMesh
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
+    require_matching_solver_input_identities,
+    validate_solver_input_identity,
+)
+from tuba.analysis.study import AnalysisStudy
 
 
 MAX_ASTER_NAME_LEN = 24
@@ -73,3 +81,134 @@ def dump_solver_sidecar(
     if solver_input_identity is not None:
         payload["solver_input_identity"] = solver_input_identity.to_dict()
     Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def load_and_validate_artifact_chain(
+    model: Any,
+    work_dir: str | Path,
+    *,
+    study: AnalysisStudy | None = None,
+    requested_load_case: str | None = None,
+) -> tuple[AnalysisStudy, AnalysisStudy | None, AnalysisMesh | None, dict[str, Any] | None]:
+    """Load and validate Code_Aster lineage before any sidecar mapping is trusted."""
+    root = Path(work_dir)
+    manifest_study, analysis_mesh = _load_manifest_records(root)
+    loaded_study = study or manifest_study
+    if loaded_study is None:
+        raise FileNotFoundError(
+            f"Code_Aster artifact parsing requires {root / 'study_manifest.json'}; "
+            "refusing to synthesize solver lineage."
+        )
+    if requested_load_case is not None and requested_load_case != loaded_study.load_case:
+        raise ValueError(
+            f"Requested Code_Aster load case {requested_load_case!r} does not match "
+            f"artifact study load case {loaded_study.load_case!r}."
+        )
+
+    sidecar, sidecar_identity = _load_sidecar(root)
+    compiler_id = (
+        MIXED_CODE_ASTER_COMPILER_ID
+        if loaded_study.metadata.get("mixed_analysis")
+        else CODE_ASTER_COMPILER_ID
+    )
+    _validate_artifact_identities(
+        model=model,
+        study=loaded_study,
+        manifest_study=manifest_study,
+        analysis_mesh=analysis_mesh,
+        sidecar=sidecar,
+        sidecar_identity=sidecar_identity,
+        compiler_id=compiler_id,
+    )
+    return loaded_study, manifest_study, analysis_mesh, sidecar
+
+
+def _load_manifest_records(work_dir: Path) -> tuple[AnalysisStudy | None, AnalysisMesh | None]:
+    manifest_path = work_dir / "study_manifest.json"
+    if not manifest_path.exists():
+        return None, None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return AnalysisStudy.from_dict(manifest["study"]), AnalysisMesh.from_dict(manifest["analysis_mesh"])
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: {exc}") from exc
+
+
+def _load_sidecar(work_dir: Path) -> tuple[dict[str, Any] | None, SolverInputIdentity | None]:
+    sidecar_path = work_dir / "study_tuba_fem.json"
+    if not sidecar_path.exists():
+        return None, None
+    try:
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        identity_data = sidecar.get("solver_input_identity")
+        identity = SolverInputIdentity.from_dict(identity_data) if identity_data is not None else None
+        return sidecar, identity
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"Invalid Code_Aster sidecar {sidecar_path}: {exc}") from exc
+
+
+def _validate_artifact_identities(
+    *,
+    model: Any,
+    study: AnalysisStudy,
+    manifest_study: AnalysisStudy | None,
+    analysis_mesh: AnalysisMesh | None,
+    sidecar: dict[str, Any] | None,
+    sidecar_identity: SolverInputIdentity | None,
+    compiler_id: str,
+) -> None:
+    identities: list[tuple[str, SolverInputIdentity | None]] = [
+        (f"Code_Aster study {study.id!r}", study.solver_input_identity),
+    ]
+    if manifest_study is not None:
+        if manifest_study.load_case != study.load_case:
+            raise ValueError(
+                f"Code_Aster manifest study load case {manifest_study.load_case!r} does not "
+                f"match imported study load case {study.load_case!r}."
+            )
+        if manifest_study.mesh_id != study.mesh_id:
+            raise ValueError(
+                f"Code_Aster manifest study mesh {manifest_study.mesh_id!r} does not "
+                f"match imported study mesh {study.mesh_id!r}."
+            )
+        identities.append(("Code_Aster manifest study", manifest_study.solver_input_identity))
+    if analysis_mesh is not None:
+        if analysis_mesh.id != study.mesh_id:
+            raise ValueError(
+                f"Code_Aster manifest analysis mesh {analysis_mesh.id!r} does not "
+                f"match imported study mesh {study.mesh_id!r}."
+            )
+        identities.append(("Code_Aster manifest analysis mesh", analysis_mesh.solver_input_identity))
+    if sidecar is not None:
+        if sidecar.get("load_case") != study.load_case:
+            raise ValueError(
+                f"Code_Aster sidecar load case {sidecar.get('load_case')!r} does not "
+                f"match imported study load case {study.load_case!r}."
+            )
+        if sidecar.get("analysis_mesh_id") != study.mesh_id:
+            raise ValueError(
+                f"Code_Aster sidecar mesh {sidecar.get('analysis_mesh_id')!r} does not "
+                f"match imported study mesh {study.mesh_id!r}."
+            )
+        if sidecar_identity is None and any(identity is not None for _context, identity in identities):
+            raise ValueError(
+                "Code_Aster sidecar is missing a solver input identity alongside an "
+                "identity-bearing study or manifest; refusing to trust its name_map."
+            )
+        identities.append(("Code_Aster sidecar", sidecar_identity))
+
+    for context, identity in identities:
+        validate_solver_input_identity(
+            model,
+            identity,
+            context=context,
+            expected_load_case=study.load_case,
+            expected_compiler_id=compiler_id,
+        )
+    for index, (left_context, left_identity) in enumerate(identities):
+        for right_context, right_identity in identities[index + 1 :]:
+            require_matching_solver_input_identities(
+                left_identity,
+                right_identity,
+                context=f"{left_context} and {right_context}",
+            )

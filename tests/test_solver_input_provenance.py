@@ -311,6 +311,36 @@ def test_artifact_import_rejects_identity_free_sidecar_in_modern_chain_before_pa
         import_code_aster_artifacts(model=model, work_dir=tmp_path)
 
 
+def test_direct_parse_rejects_identity_free_sidecar_before_reading_tables(
+    tmp_path: Path,
+    monkeypatch,
+):
+    model, _, _ = _operation_model()
+    CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
+    sidecar_path = tmp_path / "study_tuba_fem.json"
+    sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    sidecar.pop("solver_input_identity")
+    sidecar["name_map"] = {"N0": "STALE_NODE"}
+    sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
+    monkeypatch.setattr(
+        CodeAsterSolver,
+        "_parse_results",
+        lambda *_args, **_kwargs: pytest.fail("identity-free sidecar reached table parsing"),
+    )
+
+    with pytest.raises(ValueError, match="sidecar.*solver input identity.*identity-bearing"):
+        CodeAsterSolver().parse_result_artifacts(model, tmp_path, "Hot")
+
+
+def test_direct_parse_rejects_requested_load_case_mismatch(tmp_path: Path, monkeypatch):
+    model, _, results = _operation_model()
+    CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
+    monkeypatch.setattr(CodeAsterSolver, "_parse_results", lambda *_args, **_kwargs: results)
+
+    with pytest.raises(ValueError, match="load case.*Cold.*Hot"):
+        CodeAsterSolver().parse_result_artifacts(model, tmp_path, "Cold")
+
+
 def test_artifact_import_preserves_fully_legacy_identity_chain(
     tmp_path: Path,
     monkeypatch,
@@ -333,6 +363,25 @@ def test_artifact_import_preserves_fully_legacy_identity_chain(
     assert imported.study.solver_input_identity is None
     assert imported.analysis_mesh is not None
     assert imported.analysis_mesh.solver_input_identity is None
+
+
+def test_direct_parse_preserves_fully_legacy_identity_chain(tmp_path: Path, monkeypatch):
+    model, _, results = _operation_model()
+    CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
+    manifest_path = tmp_path / "study_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["study"].pop("solver_input_identity")
+    manifest["analysis_mesh"].pop("solver_input_identity")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    sidecar_path = tmp_path / "study_tuba_fem.json"
+    sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    sidecar.pop("solver_input_identity")
+    sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
+    monkeypatch.setattr(CodeAsterSolver, "_parse_results", lambda *_args, **_kwargs: results)
+
+    parsed = CodeAsterSolver().parse_result_artifacts(model, tmp_path, "Hot")
+
+    assert parsed is results
 
 
 def test_scene_rejects_ownerless_analysis_mesh_with_known_identity(tmp_path: Path):

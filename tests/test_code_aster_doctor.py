@@ -84,6 +84,27 @@ class TestCodeAsterDoctor(unittest.TestCase):
 
         self.assertEqual(captured["config"].docker_image, "local/code-aster:env")
 
+    def test_check_exit_code_reflects_runtime_readiness(self):
+        from tuba.solver.code_aster_runtime import CodeAsterRuntimeCheck
+
+        runtime = CodeAsterRuntimeCandidate("command", ("run_aster",), True)
+        for ready, expected in ((False, 1), (True, 0)):
+            check = CodeAsterRuntimeCheck(
+                runtime=runtime,
+                command=("run_aster", "--help"),
+                returncode=0 if ready else 127,
+                stdout="run_aster" if ready else "",
+                stderr="" if ready else "Code_Aster runner not found",
+                ok=ready,
+                reason=None if ready else "Code_Aster runner not found",
+            )
+            with self.subTest(ready=ready):
+                with patch(
+                    "tuba.solver.code_aster_doctor.preflight_code_aster_runtimes",
+                    return_value=[check],
+                ), patch("builtins.print"):
+                    self.assertEqual(main(["--check", "--exec-method", "command"]), expected)
+
 
 if __name__ == "__main__":
     unittest.main()

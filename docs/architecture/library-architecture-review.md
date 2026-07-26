@@ -204,7 +204,6 @@ from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 artifact = import_code_aster_artifacts(
     model=model,
     work_dir="notebooks/code_aster_results/stress_analysis_operating",
-    load_case="Hot",
 )
 
 results = artifact.results
@@ -256,22 +255,23 @@ that artifact directly instead of rebuilding display data from the model.
 The reviewable web scene path is:
 
 ```python
-from tuba.analysis.results import result_state_from_fea_results
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.visualization import (
     build_visualization_scene,
     write_engineering_review_with_scene,
     write_scene_bundle,
 )
 
-result_state = result_state_from_fea_results(
+artifact = import_code_aster_artifacts(
     model=model,
+    work_dir=study.work_dir,
     study=study,
-    results=results,
 )
 
 scene = build_visualization_scene(
     model,
-    result_states=[result_state],
+    analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
+    result_states=[artifact.result_state],
 )
 
 bundle = write_scene_bundle(scene, "runs/demo_hot/review_scene")

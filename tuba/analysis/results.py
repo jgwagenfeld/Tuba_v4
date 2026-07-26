@@ -153,8 +153,8 @@ def result_state_from_fea_results(
     element_results: dict[str, dict[str, Any]] = {}
     for element_id, element_result in results.element_results.items():
         element_results[element_id] = {
-            "forces_n1": list(_result_vector(element_result.forces_n1, f"forces_n1 {element_id}")),
-            "forces_n2": list(_result_vector(element_result.forces_n2, f"forces_n2 {element_id}")),
+            "forces_n1": _persistent_result_vector(element_result.forces_n1, f"forces_n1 {element_id}"),
+            "forces_n2": _persistent_result_vector(element_result.forces_n2, f"forces_n2 {element_id}"),
             "von_mises_n1": float(element_result.von_mises_n1),
             "von_mises_n2": float(element_result.von_mises_n2),
             "max_von_mises": float(element_result.max_von_mises),
@@ -288,8 +288,8 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
                 )
         results.element_results[element.id] = ElementResult(
             element_id=element.id,
-            forces_n1=np.asarray(data["forces_n1"], dtype=float),
-            forces_n2=np.asarray(data["forces_n2"], dtype=float),
+            forces_n1=_element_result_array(data["forces_n1"], f"forces_n1 {element.id}"),
+            forces_n2=_element_result_array(data["forces_n2"], f"forces_n2 {element.id}"),
             von_mises_n1=float(data["von_mises_n1"]),
             von_mises_n2=float(data["von_mises_n2"]),
             max_von_mises=float(data["max_von_mises"]),
@@ -315,3 +315,14 @@ def _model_revision(model: Any) -> int:
 
 def _result_vector(values: Any, label: str) -> tuple[float, float, float, float, float, float]:
     return _float_tuple(values, 6, label)
+
+
+def _persistent_result_vector(values: Any, label: str) -> list[float | None]:
+    return [value if np.isfinite(value) else None for value in _result_vector(values, label)]
+
+
+def _element_result_array(values: Any, label: str) -> np.ndarray:
+    data = tuple(np.nan if value is None else float(value) for value in values)
+    if len(data) != 6:
+        raise ValueError(f"{label} must have 6 values.")
+    return np.asarray(data, dtype=float)

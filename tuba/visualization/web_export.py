@@ -8,6 +8,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from tuba.visualization.scene import VisualizationScene
 
@@ -120,7 +121,12 @@ def _write_json(path: Path, data: Any, compact: bool = False) -> None:
         text = json.dumps(data, indent=2, sort_keys=True)
     if path.exists() and path.read_text(encoding="utf-8") == text:
         return
-    path.write_text(text, encoding="utf-8")
+    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _content_hash(data: Any) -> str:
