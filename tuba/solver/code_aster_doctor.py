@@ -92,18 +92,23 @@ def _text_report(candidates: list[Any], *, checks: list[Any], include_checks: bo
             if item.reason:
                 lines.append(f"  reason: {item.reason}")
     lines.append("")
-    lines.append(
-        "Primary setup path: set TUBA_CODE_ASTER_PYTHON to the Python executable "
-        "inside a Code_Aster environment that can import run_aster."
-    )
+    if os.name == "nt":
+        lines.append(
+            "Primary Windows setup path: set TUBA_CODE_ASTER_EXEC_METHOD=wsl and "
+            "TUBA_CODE_ASTER_WSL_DISTRO=Ubuntu after installing Code_Aster inside WSL."
+        )
+        lines.append(
+            "Do not set TUBA_CODE_ASTER_PYTHON to a Linux/WSL path; Windows cannot execute it. "
+            "Use that variable only with a Python executable the host process can run directly."
+        )
+    else:
+        lines.append(
+            "Primary Linux setup path: set TUBA_CODE_ASTER_PYTHON to the Python executable "
+            "inside a Code_Aster environment that can import run_aster."
+        )
     lines.append(
         "Fallback setup path: set TUBA_CODE_ASTER_RUNNER to a command such as "
         "'run_aster' or 'conda run -n aster run_aster'."
-    )
-    lines.append(
-        "Windows/WSL setup path: set TUBA_CODE_ASTER_EXEC_METHOD=wsl and "
-        "TUBA_CODE_ASTER_WSL_DISTRO=Ubuntu when Code_Aster is installed in a "
-        "specific WSL distro."
     )
     return "\n".join(lines)
 

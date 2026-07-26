@@ -9,6 +9,30 @@ Tuba model -> Code_Aster solve -> imported result artifacts -> result display
 Code_Aster is not optional for production stress, displacement, reaction,
 compliance, operating-state clash, or result visualization workflows.
 
+## Tuba And Code_Aster Are Separate Installs
+
+`pip install tuba` installs Tuba only. It does not install Code_Aster.
+
+Likewise, this optional Tuba extra installs the RMED/MED reader, not the solver:
+
+```bash
+pip install "tuba[code-aster-rmed]"
+```
+
+Code_Aster includes Python modules such as `code_aster` and `run_aster`, but
+they are part of the compiled Linux solver distribution. There is no supported
+ordinary PyPI/pip installation for the Code_Aster solver. The tested setup for
+this repository installs it from conda-forge in Linux or WSL2 Ubuntu.
+
+This walkthrough assumes a Tuba checkout. From its root, create the Windows
+Python environment used by the commands below:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -e ".[course]"
+```
+
 ## Current Recommended Path
 
 Use WSL2 Ubuntu with conda-forge Code_Aster.
@@ -22,38 +46,31 @@ Why this path:
 
 References:
 
+- Microsoft WSL installation: <https://learn.microsoft.com/windows/wsl/install>
+- Miniforge installation: <https://github.com/conda-forge/miniforge>
 - conda-forge package: <https://anaconda.org/conda-forge/code-aster>
 - Code_Aster `run_aster` docs: <https://codeaster.readthedocs.io/en/latest/devguide/run_aster/run_aster.html>
 - Code_Aster Python package docs: <https://codeaster.readthedocs.io/en/latest/devguide/code_aster/code_aster.html>
 
-## Local State Check
+## Check For An Existing Runtime
 
 From PowerShell at the repo root:
 
 ```powershell
 wsl --list --verbose
-docker --version
 .\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor
 ```
 
 Equivalent module form: `python -m tuba.solver.code_aster_doctor`.
 
-As of the last local check, this workstation had WSL2 and Docker available, but
-Ubuntu did not expose `conda`, `micromamba`, or `run_aster`.
-
 Check the Ubuntu distro directly:
 
 ```powershell
-wsl -d Ubuntu bash -lc "uname -m; command -v conda || true; command -v run_aster || true"
+wsl -d Ubuntu -- bash -lc "uname -m; command -v conda || true; command -v run_aster || true"
 ```
 
-Expected before installation:
-
-```text
-x86_64
-```
-
-No `conda` or `run_aster` path means Code_Aster still needs to be installed.
+The architecture must print `x86_64`. If `run_aster` already resolves, skip to
+Step 6 and validate it with Tuba. Otherwise, continue with the installation.
 
 ## Step 1: Install Or Start Ubuntu WSL2
 
@@ -63,11 +80,12 @@ If Ubuntu is missing:
 wsl --install -d Ubuntu
 ```
 
-Restart PowerShell after installation. Confirm:
+Restart Windows if WSL requests it. Launch Ubuntu once and create its Linux
+username and password, then confirm from PowerShell:
 
 ```powershell
 wsl --list --verbose
-wsl -d Ubuntu bash -lc "uname -a"
+wsl -d Ubuntu -- bash -lc "uname -a"
 ```
 
 The architecture must be `x86_64`. The conda-forge Code_Aster package is a
@@ -85,7 +103,6 @@ cd /tmp
 curl -L -o Miniforge3-Linux-x86_64.sh \
   https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
-"$HOME/miniforge3/bin/conda" init bash
 '@ | wsl -d Ubuntu -- bash -s
 ```
 
@@ -100,23 +117,13 @@ Run from PowerShell:
 @'
 set -euo pipefail
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-conda create -n tuba-code-aster -c conda-forge code-aster
+conda create -y -n tuba-code-aster --override-channels -c conda-forge \
+  python=3.12 code-aster=18.0.12
 '@ | wsl -d Ubuntu -- bash -s
 ```
 
-If conda asks to proceed, answer `y`.
-
-For a non-interactive install:
-
-```powershell
-@'
-set -euo pipefail
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda create -y -n tuba-code-aster -c conda-forge code-aster
-'@ | wsl -d Ubuntu -- bash -s
-```
+Tuba v4 is validated with Code_Aster 18.0.12. Change the pin only after the
+real solver smoke test passes with the newer solver.
 
 ## Step 4: Validate Code_Aster Inside WSL
 
@@ -158,8 +165,8 @@ set -euo pipefail
 exec "$HOME/miniforge3/envs/tuba-code-aster/bin/run_aster" "$@"
 SH
 chmod +x "$HOME/bin/run_aster"
-grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc" || \
-  echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.profile" || \
+  echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.profile"
 PATH="$HOME/bin:$PATH" run_aster --version || PATH="$HOME/bin:$PATH" run_aster --help | head -40
 '@ | wsl -d Ubuntu -- bash -s
 ```
@@ -167,7 +174,7 @@ PATH="$HOME/bin:$PATH" run_aster --version || PATH="$HOME/bin:$PATH" run_aster -
 Validate from a fresh WSL shell:
 
 ```powershell
-wsl -d Ubuntu bash -lc "command -v run_aster; run_aster --version || run_aster --help | head -20"
+wsl -d Ubuntu -- bash -lc "command -v run_aster; run_aster --version || run_aster --help | head -20"
 ```
 
 Expected:
@@ -178,9 +185,11 @@ Expected:
 
 ## Step 6: Validate Tuba Runtime Discovery
 
-Run from the Windows repo root:
+Select WSL Ubuntu, then run the doctor from the Windows repo root:
 
 ```powershell
+$env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
+$env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"
 .\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor
 ```
 
@@ -200,13 +209,6 @@ Expected:
 Code_Aster runtime candidates:
 - wsl: available; command=wsl
 ...
-```
-
-For the current Windows-hosted Tuba process, prefer:
-
-```powershell
-$env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
-$env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"
 ```
 
 Do not set `TUBA_CODE_ASTER_PYTHON` to a Linux path when running Tuba from
@@ -266,6 +268,40 @@ CODE_ASTER_RUNTIME = configure_code_aster_notebook_runtime(
 Use `notebooks\03_stress_analysis_and_compliance.ipynb` for the detailed stress
 and ASME B31.3 lesson after the quick welcome workflow is running.
 
+## Native Linux
+
+On an `x86_64` Linux host, run this from the Tuba checkout. It keeps Tuba in a
+normal virtual environment and Code_Aster in its separate conda environment:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[course]"
+
+curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
+  https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash /tmp/Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda create -y -n tuba-code-aster --override-channels -c conda-forge \
+  python=3.12 code-aster=18.0.12
+
+mkdir -p "$HOME/bin"
+cat > "$HOME/bin/run_aster" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$HOME/miniforge3/envs/tuba-code-aster/bin/run_aster" "$@"
+SH
+chmod +x "$HOME/bin/run_aster"
+grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.profile" || \
+  echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.profile"
+export PATH="$HOME/bin:$PATH"
+run_aster --version
+python -m tuba.solver.code_aster_doctor --check --exec-method command
+```
+
+The check must report `command: ready` before a production solve.
+
 ## Docker Fallback
 
 Docker is useful only if a working Code_Aster image is available.
@@ -294,21 +330,17 @@ on it. Do not treat a placeholder image name as a production dependency.
 Inside WSL:
 
 ```powershell
-wsl -d Ubuntu bash -lc "command -v run_aster; echo $PATH"
+wsl -d Ubuntu -- bash -lc "command -v run_aster"
 ```
 
-Fix:
-
-```powershell
-wsl -d Ubuntu bash -lc "grep -qxF 'export PATH=\"\$HOME/bin:\$PATH\"' ~/.bashrc || echo 'export PATH=\"\$HOME/bin:\$PATH\"' >> ~/.bashrc"
-```
+Fix: repeat Step 5, then rerun the check above.
 
 ### `conda: command not found`
 
 Use the explicit profile path:
 
 ```powershell
-wsl -d Ubuntu bash -lc "source \$HOME/miniforge3/etc/profile.d/conda.sh; conda --version"
+wsl -d Ubuntu -- bash -lc "source ~/miniforge3/etc/profile.d/conda.sh; conda --version"
 ```
 
 If that file is missing, repeat Step 2.

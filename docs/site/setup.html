@@ -91,19 +91,68 @@ cd Tuba_v4</code></pre>
 .\.venv\Scripts\python.exe -m pip install -e ".[course]"</code></pre>
         </article>
         <article>
-          <h2>2. Check runtime discovery</h2>
-          <pre><code>.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor
-.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor --check</code></pre>
+          <h2>2. Install Code_Aster in WSL Ubuntu</h2>
+          <p>
+            <strong>pip installs Tuba, not Code_Aster.</strong> The
+            <code>code-aster-rmed</code> extra adds result-file reading only. The
+            tested Windows setup installs the Linux solver from conda-forge
+            inside WSL2 Ubuntu.
+          </p>
+          <pre><code>wsl --install -d Ubuntu
+wsl --list --verbose</code></pre>
+          <p>
+            Restart Windows if requested, then launch Ubuntu once and create
+            its Linux username and password before continuing. See Microsoft's
+            <a href="https://learn.microsoft.com/windows/wsl/install">WSL installation guide</a>
+            if the command is unavailable.
+          </p>
+          <p>Install Miniforge inside Ubuntu from PowerShell:</p>
+          <pre><code>@'
+set -euo pipefail
+cd /tmp
+curl -L -o Miniforge3-Linux-x86_64.sh \
+  https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
+'@ | wsl -d Ubuntu -- bash -s</code></pre>
+          <p>Install Code_Aster and expose <code>run_aster</code>:</p>
+          <pre><code>@'
+set -euo pipefail
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda create -y -n tuba-code-aster --override-channels -c conda-forge \
+  python=3.12 code-aster=18.0.12
+mkdir -p "$HOME/bin"
+cat &gt; "$HOME/bin/run_aster" &lt;&lt;'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$HOME/miniforge3/envs/tuba-code-aster/bin/run_aster" "$@"
+SH
+chmod +x "$HOME/bin/run_aster"
+grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.profile" || \
+  echo 'export PATH="$HOME/bin:$PATH"' &gt;&gt; "$HOME/.profile"
+PATH="$HOME/bin:$PATH" run_aster --version
+'@ | wsl -d Ubuntu -- bash -s</code></pre>
+          <p>
+            Tuba v4 is validated with Code_Aster 18.0.12. Keep this pin until
+            the real solver smoke test passes with a newer release.
+          </p>
+          <p>
+            Package details are available from
+            <a href="https://anaconda.org/conda-forge/code-aster">conda-forge</a>;
+            runner behavior is documented in the official
+            <a href="https://codeaster.readthedocs.io/en/latest/devguide/run_aster/run_aster.html"><code>run_aster</code> guide</a>.
+          </p>
         </article>
         <article>
-          <h2>3. Prefer WSL Ubuntu for Code_Aster on Windows</h2>
-          <pre><code>wsl --list --verbose
-wsl -d Ubuntu bash -lc "command -v run_aster; run_aster --version || run_aster --help | head -20"</code></pre>
-        </article>
-        <article>
-          <h2>4. Select the runtime for Tuba</h2>
+          <h2>3. Select the runtime for Tuba</h2>
           <pre><code>$env:TUBA_CODE_ASTER_EXEC_METHOD = "wsl"
 $env:TUBA_CODE_ASTER_WSL_DISTRO = "Ubuntu"</code></pre>
+        </article>
+        <article>
+          <h2>4. Check runtime discovery</h2>
+          <pre><code>wsl --list --verbose
+wsl -d Ubuntu -- bash -lc "command -v run_aster; run_aster --version"
+.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor
+.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor --check</code></pre>
         </article>
         <article>
           <h2>5. Run the real solver smoke test</h2>
@@ -123,6 +172,40 @@ jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
       </section>
 
       <section class="doc-section">
+        <h2>Native Linux x86_64</h2>
+        <p>
+          Run this from the Tuba checkout instead of the Windows/WSL steps.
+          Tuba stays in its normal virtual environment; Code_Aster stays in a
+          separate pinned conda environment and is exposed through
+          <code>run_aster</code>.
+        </p>
+        <pre><code>python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[course]"
+
+curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
+  https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash /tmp/Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda create -y -n tuba-code-aster --override-channels -c conda-forge \
+  python=3.12 code-aster=18.0.12
+
+mkdir -p "$HOME/bin"
+cat &gt; "$HOME/bin/run_aster" &lt;&lt;'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$HOME/miniforge3/envs/tuba-code-aster/bin/run_aster" "$@"
+SH
+chmod +x "$HOME/bin/run_aster"
+grep -qxF 'export PATH="$HOME/bin:$PATH"' "$HOME/.profile" || \
+  echo 'export PATH="$HOME/bin:$PATH"' &gt;&gt; "$HOME/.profile"
+export PATH="$HOME/bin:$PATH"
+run_aster --version
+python -m tuba.solver.code_aster_doctor --check --exec-method command</code></pre>
+      </section>
+
+      <section class="doc-section">
         <h2>Runtime requirement</h2>
         <p>
           Code_Aster is required for production stress, displacement, reaction,
@@ -130,28 +213,6 @@ jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
           visualization workflows. If <code>--check</code> is blocked, keep notebooks in
           artifact-loading mode and do not display new solver results.
         </p>
-      </section>
-
-      <section class="doc-section">
-        <h2>Getting Code_Aster (<code>run_aster</code>)</h2>
-        <p>
-          Tuba does not ship Code_Aster; it drives an existing install. On Windows
-          the tested path is a Code_Aster install inside WSL Ubuntu (from a
-          Salome-Meca or standalone Code_Aster distribution, code-aster.org), which
-          provides the <code>run_aster</code> runner. Tuba finds it by invoking your
-          selected runtime, so the one thing that must be true is that
-          <code>run_aster</code> resolves on the runtime's <code>PATH</code>.
-        </p>
-        <pre><code># inside WSL Ubuntu: expose a stable wrapper on PATH
-mkdir -p ~/bin
-ln -sf /opt/aster/bin/run_aster ~/bin/run_aster   # adjust to your install path
-echo 'export PATH="$HOME/bin:$PATH"' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc
-run_aster --version</code></pre>
-        <div class="note">
-          A passing <code>code_aster_doctor --check</code> prints the resolved
-          execution method and the discovered <code>run_aster</code> path, and exits
-          zero. That is the signal Tuba is allowed to run <code>run_solver=True</code>.
-        </div>
       </section>
 
       <section class="doc-section">
@@ -167,9 +228,9 @@ run_aster --version</code></pre>
           <tbody>
             <tr><td><code>TUBA_CODE_ASTER_EXEC_METHOD</code></td><td>How Tuba launches the runner.</td><td><code>auto</code> (default), <code>wsl</code>, <code>docker</code>, <code>command</code>, <code>python_bridge</code></td></tr>
             <tr><td><code>TUBA_CODE_ASTER_WSL_DISTRO</code></td><td>WSL distribution to run inside.</td><td><code>Ubuntu</code></td></tr>
-            <tr><td><code>TUBA_CODE_ASTER_DOCKER_IMAGE</code></td><td>Image for the <code>docker</code> method.</td><td><code>simvia/code_aster:stable</code> (default)</td></tr>
+            <tr><td><code>TUBA_CODE_ASTER_DOCKER_IMAGE</code></td><td>Advanced fallback image for the <code>docker</code> method.</td><td>The built-in default is mutable and not release-verified; pin a tested image digest before use.</td></tr>
             <tr><td><code>TUBA_CODE_ASTER_RUNNER_COMMAND</code> / <code>TUBA_CODE_ASTER_RUNNER</code></td><td>Explicit runner command for the <code>command</code> method.</td><td>path to <code>run_aster</code></td></tr>
-            <tr><td><code>TUBA_CODE_ASTER_PYTHON</code></td><td>Python that hosts the in-process bridge.</td><td>path to the Code_Aster Python</td></tr>
+            <tr><td><code>TUBA_CODE_ASTER_PYTHON</code></td><td>Python that hosts the in-process bridge.</td><td>Use on native Linux, or only with a Python executable the host can run directly; never pass a WSL path to Windows.</td></tr>
             <tr><td><code>TUBA_RUN_CODE_ASTER_INTEGRATION</code></td><td>Opt in to the real-solver smoke test (it skips otherwise).</td><td><code>1</code></td></tr>
           </tbody>
         </table>
@@ -188,7 +249,7 @@ run_aster --version</code></pre>
           <tbody>
             <tr>
               <td><code>run_aster</code> not found</td>
-              <td><code>wsl -d Ubuntu bash -lc "command -v run_aster; echo $PATH"</code></td>
+              <td><code>wsl -d Ubuntu -- bash -lc "command -v run_aster"</code></td>
               <td>Expose a stable <code>~/bin/run_aster</code> wrapper inside Ubuntu.</td>
             </tr>
             <tr>

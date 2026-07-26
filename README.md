@@ -102,6 +102,12 @@ $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
 pip install tuba
 ```
 
+This pip installs Tuba; it does not install Code_Aster. The solver is a
+separate Linux runtime. On Windows, install it in WSL2 Ubuntu by following
+[`docs/code_aster_installation.md`](docs/code_aster_installation.md). The
+`code-aster-rmed` extra adds result-file reading support only; it is not the
+solver.
+
 Tuba v4 requires Python 3.10 or newer.
 
 Install only the optional surfaces you use:

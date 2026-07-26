@@ -28,6 +28,19 @@ class TestCodeAsterDoctor(unittest.TestCase):
         self.assertIn("No runtime", output)
         self.assertIn("TUBA_CODE_ASTER_PYTHON", output)
 
+    def test_windows_guidance_prefers_wsl_and_rejects_linux_python_path(self):
+        candidates = [CodeAsterRuntimeCandidate("auto", (), False, "No runtime")]
+
+        with patch("tuba.solver.code_aster_doctor.os.name", "nt"), patch(
+            "tuba.solver.code_aster_doctor.discover_code_aster_runtimes",
+            return_value=candidates,
+        ):
+            output = main([], return_output=True)
+
+        self.assertIn("Primary Windows setup path", output)
+        self.assertIn("Do not set TUBA_CODE_ASTER_PYTHON to a Linux/WSL path", output)
+        self.assertLess(output.index("TUBA_CODE_ASTER_EXEC_METHOD=wsl"), output.index("TUBA_CODE_ASTER_PYTHON"))
+
     def test_environment_defaults_are_passed_to_runtime_discovery(self):
         captured = {}
 
