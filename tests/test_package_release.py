@@ -219,6 +219,16 @@ def test_release_wheel_dependency_install_uses_uv_and_has_a_hard_timeout(monkeyp
     assert observed["kwargs"]["timeout"] == 300
 
 
+def test_release_wheel_dependency_install_reports_uv_failure(monkeypatch, tmp_path):
+    def failed(command, **_kwargs):
+        raise subprocess.CalledProcessError(2, command, stderr="uv install failed")
+
+    monkeypatch.setattr(subprocess, "run", failed)
+
+    with pytest.raises(RuntimeError, match="uv install failed"):
+        _install_wheel(tmp_path / "python", tmp_path / "tuba.whl", tmp_path, {})
+
+
 def test_built_wheel_launcher_serves_exact_packaged_assets(tmp_path):
     subprocess.run([sys.executable, ROOT / "scripts" / "prepare_release.py"], check=True)
 

@@ -14,7 +14,6 @@ import sys
 import tempfile
 from threading import Thread
 from urllib.request import urlopen
-import venv
 import zipfile
 
 
@@ -87,6 +86,9 @@ def _install_wheel(python: Path, wheel: Path, root: Path, env: dict[str, str]) -
             f"wheel dependency installation exceeded {INSTALL_TIMEOUT_SECONDS} seconds; "
             "check package-index access and the uv cache"
         ) from exc
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip()
+        raise RuntimeError(f"wheel dependency installation failed: {detail}") from exc
 
 
 def verify_wheel(wheel: Path) -> None:
@@ -97,12 +99,17 @@ def verify_wheel(wheel: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="tuba-wheel-smoke-") as tmpdir:
         root = Path(tmpdir)
         environment = root / "venv"
-        venv.EnvBuilder(with_pip=False).create(environment)
-        python, launcher = _venv_paths(environment)
         clean_env = os.environ.copy()
         clean_env.pop("PYTHONPATH", None)
         clean_env["PYTHONNOUSERSITE"] = "1"
         clean_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+        subprocess.run(
+            [shutil.which("uv") or "uv", "venv", "--python", sys.executable, environment],
+            cwd=root,
+            env=clean_env,
+            check=True,
+        )
+        python, launcher = _venv_paths(environment)
         _install_wheel(python, wheel, root, clean_env)
 
         probe = subprocess.run(
