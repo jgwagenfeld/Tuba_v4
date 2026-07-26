@@ -11,12 +11,13 @@ compliance, operating-state clash, or result visualization workflows.
 
 ## Tuba And Code_Aster Are Separate Installs
 
-`pip install tuba` installs Tuba only. It does not install Code_Aster.
+Installing Tuba from its checkout with `python -m pip install .` installs Tuba
+only. It does not install Code_Aster.
 
 Likewise, this optional Tuba extra installs the RMED/MED reader, not the solver:
 
 ```bash
-pip install "tuba[code-aster-rmed]"
+python -m pip install ".[code-aster-rmed]"
 ```
 
 Code_Aster includes Python modules such as `code_aster` and `run_aster`, but
@@ -30,7 +31,7 @@ Python environment used by the commands below:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[course]"
+.\.venv\Scripts\python.exe -m pip install ".[course]"
 ```
 
 ## Current Recommended Path
@@ -250,8 +251,8 @@ stopping at missing result tables.
 Recommended notebook environment:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[course]"
-jupyter lab notebooks\00_welcome_and_setup.ipynb
+.\.venv\Scripts\python.exe -m pip install ".[course]"
+.\.venv\Scripts\jupyter.exe lab notebooks\00_welcome_and_setup.ipynb
 ```
 
 Notebook result cells configure the default runtime through
@@ -277,7 +278,7 @@ normal virtual environment and Code_Aster in its separate conda environment:
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[course]"
+python -m pip install ".[course]"
 
 curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
   https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh

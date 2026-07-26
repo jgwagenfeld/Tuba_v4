@@ -116,13 +116,14 @@ def test_collision_extra_uses_python_310_to_312_wheel_floor():
     assert "python-fcl>=0.7.0.11" in _project()["optional-dependencies"]["collision"]
 
 
-def test_course_extra_includes_direct_rmed_fallback_dependency():
+def test_course_extra_includes_dependencies_used_by_all_notebooks():
     course = _project()["optional-dependencies"]["course"]
 
     assert "h5py>=3.10" in course
+    assert "python-fcl>=0.7.0.11" in course
 
 
-def test_publish_workflows_exist():
+def test_validation_workflows_exist():
     assert (ROOT / ".github" / "workflows" / "ci.yml").is_file()
     assert (ROOT / ".github" / "workflows" / "release.yml").is_file()
 

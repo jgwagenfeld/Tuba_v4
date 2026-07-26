@@ -12,6 +12,22 @@ htmlcov/
 venv/
 env/
 
+# Local secrets and credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+*-credentials.json
+service-account*.json
+secrets.*
+*.secret
+.npmrc
+.pypirc
+
 build/
 dist/
 *.egg-info/

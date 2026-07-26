@@ -1,12 +1,16 @@
-name: Release
+name: Beta Candidate
 
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Source release tag matching the package version (for example v4.0.0)
+        required: true
+        type: string
 
 jobs:
   build:
+    needs: code-aster-integration
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,13 +23,13 @@ jobs:
           cache: npm
           cache-dependency-path: viewer/package-lock.json
       - run: uv sync --all-extras --locked
-      - run: uv run python scripts/check_release_tag.py "${GITHUB_REF_TYPE}" "${GITHUB_REF_NAME}"
+      - run: uv run python scripts/check_release_tag.py tag "${{ inputs.tag }}"
       - run: npm ci
         working-directory: viewer
       - run: npm test
         working-directory: viewer
       - run: uv run python scripts/prepare_release.py
-      - run: uv run pytest
+      - run: uv run python -m pytest
       - run: uv run python scripts/check_notebooks.py
       - run: uv build --no-sources
       - run: uvx twine check dist/*
@@ -46,17 +50,25 @@ jobs:
           python-version: "3.12"
       - run: uv sync --extra dev --locked
       - run: uv run python -m tuba.solver.code_aster_doctor --check
-      - run: uv run pytest tests/test_code_aster_real_smoke.py
+      - run: uv run python -m pytest tests/test_code_aster_real_smoke.py
 
-  publish:
-    needs: [build, code-aster-integration]
+  tag:
+    needs: build
     runs-on: ubuntu-latest
-    environment: pypi
     permissions:
-      id-token: write
+      contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: distributions
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          fetch-depth: 0
+      - name: Create immutable source tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          git fetch --tags
+          if git rev-parse --verify --quiet "refs/tags/$TAG"; then
+            echo "Tag already exists: $TAG" >&2
+            exit 1
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"

@@ -73,13 +73,16 @@ def test_ci_and_release_workflows_cover_local_release_gates():
         assert "scripts/verify_release_wheel.py dist" in workflow
 
     assert 'python-version: ["3.10", "3.11", "3.12"]' in ci
+    assert "uv sync --extra course --locked" in ci
+    assert "uv run python -m pytest" in ci
+    assert "uv run python -m pytest" in release
     assert "scripts/check_release_tag.py" in release
-    assert '"${GITHUB_REF_TYPE}" "${GITHUB_REF_NAME}"' in release
+    assert 'tag "${{ inputs.tag }}"' in release
     assert "TUBA_RUN_CODE_ASTER_INTEGRATION: \"1\"" in ci
     assert "tests/test_code_aster_real_smoke.py" in ci
 
 
-def test_release_publish_requires_build_and_real_code_aster_gate():
+def test_source_release_gates_tag_on_build_and_real_code_aster_without_pypi():
     release = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     )
@@ -91,11 +94,21 @@ def test_release_publish_requires_build_and_real_code_aster_gate():
     assert code_aster["runs-on"] == ["self-hosted", "code-aster"]
     assert code_aster["env"]["TUBA_RUN_CODE_ASTER_INTEGRATION"] == "1"
     assert "uv run python -m tuba.solver.code_aster_doctor --check" in commands
-    assert "uv run pytest tests/test_code_aster_real_smoke.py" in commands
-    assert set(jobs["publish"]["needs"]) == {"build", "code-aster-integration"}
+    assert "uv run python -m pytest tests/test_code_aster_real_smoke.py" in commands
+    assert jobs["build"]["needs"] == "code-aster-integration"
+    assert jobs["tag"]["needs"] == "build"
+    assert jobs["tag"]["permissions"]["contents"] == "write"
+    tag_commands = [step["run"] for step in jobs["tag"]["steps"] if "run" in step]
+    assert any('git push origin "$TAG"' in command for command in tag_commands)
+    assert "publish" not in jobs
+    release_text = (ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "pypa/gh-action-pypi-publish" not in release_text
+    assert "environment: pypi" not in release_text
 
 
-def test_release_smokes_the_built_wheel_before_uploading_it():
+def test_source_release_smokes_the_build_artifact():
     release = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     )

@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --all-extras --locked
-      - run: uv run pytest
+      - run: uv run python -m pytest
 
   notebooks-and-docs:
     runs-on: ubuntu-latest
@@ -27,7 +27,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
-      - run: uv sync --all-extras --locked
+      - run: uv sync --extra course --locked
       - run: uv run python scripts/check_notebooks.py
 
   viewer:
@@ -80,4 +80,4 @@ jobs:
           python-version: "3.12"
       - run: uv sync --extra dev --locked
       - run: uv run python -m tuba.solver.code_aster_doctor --check
-      - run: uv run pytest tests/test_code_aster_real_smoke.py
+      - run: uv run python -m pytest tests/test_code_aster_real_smoke.py

@@ -52,6 +52,18 @@ class TestStaticSiteDocs(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_setup_uses_the_tagged_github_checkout(self):
+        text = (SITE / "setup.html").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
+            text,
+        )
+        self.assertIn("python -m pip install .", text)
+        self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
+        self.assertNotIn("your-tuba-v4-repo-url", text)
+        self.assertNotIn("pip install -e", text)
+
     def test_every_page_uses_left_sidebar_navigation(self):
         pages = sorted(SITE.glob("*.html"))
 

@@ -62,19 +62,19 @@
       </section>
 
       <section class="doc-section">
-        <h2>Get the repository</h2>
-        <pre><code>git clone &lt;your-tuba-v4-repo-url&gt;
+        <h2>Clone the tagged beta</h2>
+        <pre><code>git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
 cd Tuba_v4</code></pre>
         <p>
-          Tuba installs as an editable package from this checkout. The install
-          extras below decide which optional features are available.
+          Tuba installs from this checkout. The install extras below decide
+          which optional features are available.
         </p>
         <table class="reference-table">
           <thead>
             <tr><th>Install</th><th>Adds</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>pip install -e .</code></td><td>Core: model authoring, validation, Code_Aster study export, and routing.</td></tr>
+            <tr><td><code>python -m pip install .</code></td><td>Core: model authoring, validation, Code_Aster study export, and routing.</td></tr>
             <tr><td><code>.[notebook-viz]</code></td><td>JupyterLab, ipywidgets, and the full PyVista/Trame stack for interactive notebooks.</td></tr>
             <tr><td><code>.[course]</code></td><td>All dependencies used by the 14 notebooks, including notebook execution, PyVista/Trame, IFC, and imported-mesh lessons.</td></tr>
             <tr><td><code>.[ifc]</code></td><td>IFC4 import/export through <code>ifcopenshell</code>.</td></tr>
@@ -88,7 +88,7 @@ cd Tuba_v4</code></pre>
           <h2>1. Create or activate the Python environment</h2>
           <pre><code>python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[course]"</code></pre>
+.\.venv\Scripts\python.exe -m pip install ".[course]"</code></pre>
         </article>
         <article>
           <h2>2. Install Code_Aster in WSL Ubuntu</h2>
@@ -166,8 +166,8 @@ wsl -d Ubuntu -- bash -lc "command -v run_aster; run_aster --version"
             only after the runtime check passes or when you are loading
             preserved Code_Aster artifacts.
           </p>
-          <pre><code>jupyter lab notebooks\00_welcome_and_setup.ipynb
-jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
+          <pre><code>.\.venv\Scripts\jupyter.exe lab notebooks\00_welcome_and_setup.ipynb
+.\.venv\Scripts\jupyter.exe lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
         </article>
       </section>
 
@@ -182,7 +182,7 @@ jupyter lab notebooks\10_interactive_postprocessor.ipynb</code></pre>
         <pre><code>python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[course]"
+python -m pip install ".[course]"
 
 curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
   https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh

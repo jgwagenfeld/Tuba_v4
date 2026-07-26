@@ -34,6 +34,39 @@ Read these first - they describe what the code actually does today:
 | `docs/architecture/*` | Focused design decisions and explicitly labeled roadmap docs |
 | `docs/code_aster_installation.md` | Canonical Code_Aster setup |
 
+## Installation
+
+Tuba v4 beta is installed from a tagged GitHub checkout. Tuba requires Python
+3.10 or newer.
+
+```bash
+git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
+cd Tuba_v4
+```
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install .
+```
+
+Native Linux:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install .
+```
+
+This installs Tuba from the checkout; it does not install Code_Aster. The
+solver is a separate Linux runtime. On Windows, install it in WSL2 Ubuntu by
+following [`docs/code_aster_installation.md`](docs/code_aster_installation.md).
+The `code-aster-rmed` extra adds result-file reading support only; it is not the
+solver.
+
 ## Code_Aster Runtime
 
 Code_Aster execution is required for production stress, displacement, reaction,
@@ -96,39 +129,27 @@ $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
 .\.venv\Scripts\python.exe -m unittest tests.test_code_aster_real_smoke -v
 ```
 
-## Installation
-
-```bash
-pip install tuba
-```
-
-This pip installs Tuba; it does not install Code_Aster. The solver is a
-separate Linux runtime. On Windows, install it in WSL2 Ubuntu by following
-[`docs/code_aster_installation.md`](docs/code_aster_installation.md). The
-`code-aster-rmed` extra adds result-file reading support only; it is not the
-solver.
-
-Tuba v4 requires Python 3.10 or newer.
+## Optional Features
 
 Install only the optional surfaces you use:
 
-```bash
-pip install "tuba[viz]"       # PyVista quick-look and RMED reading
-pip install "tuba[collision]" # exact Trimesh/FCL collision checks
-pip install "tuba[ifc]"       # IFC exchange
+```powershell
+.\.venv\Scripts\python.exe -m pip install ".[viz]"       # PyVista quick-look and RMED reading
+.\.venv\Scripts\python.exe -m pip install ".[collision]" # exact Trimesh/FCL collision checks
+.\.venv\Scripts\python.exe -m pip install ".[ifc]"       # IFC exchange
 ```
 
-The wheel includes the built Three.js review application. Its installed asset
+The installed package includes the built Three.js review application. Its asset
 directory is available through `tuba.visualization.viewer_assets_path()`.
 Start it against a generated scene bundle with:
 
-```bash
-python -m tuba.visualization.viewer path/to/bundle --open
+```powershell
+.\.venv\Scripts\python.exe -m tuba.visualization.viewer path/to/bundle --open
 ```
 
 The command validates `scene.json`, serves only the packaged viewer and selected
-bundle, and prints the exact local URL. `tuba-viewer` is the equivalent installed
-console command.
+bundle, and prints the exact local URL. `.\.venv\Scripts\tuba-viewer.exe` is the
+equivalent installed Windows console command.
 
 ## Quick Notebook Path
 
@@ -136,8 +157,8 @@ One install command provides every dependency used by all 14 course and
 supplemental notebooks:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[course]"
-jupyter lab notebooks\00_welcome_and_setup.ipynb
+.\.venv\Scripts\python.exe -m pip install ".[course]"
+.\.venv\Scripts\jupyter.exe lab notebooks\00_welcome_and_setup.ipynb
 ```
 
 The first workflow in that notebook builds a piping model, loads or runs
@@ -169,7 +190,7 @@ Supplemental notebooks: `autorouting_quick_iteration.ipynb`,
 For focused post-processing, open:
 
 ```powershell
-jupyter lab notebooks\10_interactive_postprocessor.ipynb
+.\.venv\Scripts\jupyter.exe lab notebooks\10_interactive_postprocessor.ipynb
 ```
 
 It loads preserved Code_Aster artifacts by default, renders interactive
@@ -217,9 +238,9 @@ envelope.
 For interactive autorouting review, open the quick-iteration notebook:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[course]"
-jupyter lab notebooks\autorouting_quick_iteration.ipynb
-jupyter lab notebooks\08_expansion_aware_autorouting.ipynb
+.\.venv\Scripts\python.exe -m pip install ".[course]"
+.\.venv\Scripts\jupyter.exe lab notebooks\autorouting_quick_iteration.ipynb
+.\.venv\Scripts\jupyter.exe lab notebooks\08_expansion_aware_autorouting.ipynb
 ```
 
 ```python

@@ -7,9 +7,9 @@ class TestCodeAsterDocs(unittest.TestCase):
     def test_installation_walkthrough_documents_wsl_conda_runtime(self):
         text = Path("docs/code_aster_installation.md").read_text(encoding="utf-8")
 
-        self.assertIn("`pip install tuba` installs Tuba only", text)
+        self.assertIn("`python -m pip install .` installs Tuba", text)
         self.assertIn("does not install Code_Aster", text)
-        self.assertIn('pip install "tuba[code-aster-rmed]"', text)
+        self.assertIn('python -m pip install ".[code-aster-rmed]"', text)
         self.assertIn("conda create -y -n tuba-code-aster", text)
         self.assertIn("code-aster=18.0.12", text)
         self.assertIn("run_aster --version", text)
@@ -30,8 +30,11 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("code-aster=18.0.12", text)
         self.assertIn("Native Linux", text)
         self.assertIn("python3 -m venv .venv", text)
+        self.assertIn("https://github.com/jgwagenfeld/Tuba_v4.git", text)
+        self.assertIn("python -m pip install .", text)
         self.assertNotIn("/opt/aster/bin/run_aster", text)
         self.assertNotIn("simvia/code_aster:stable", text)
+        self.assertNotIn("your-tuba-v4-repo-url", text)
 
     def test_welcome_notebook_points_to_solver_setup_before_execution(self):
         notebook = json.loads(Path("notebooks/00_welcome_and_setup.ipynb").read_text(encoding="utf-8"))
@@ -48,7 +51,29 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("TUBA_CODE_ASTER_EXEC_METHOD", text)
         self.assertIn("python -m tuba.solver.code_aster_doctor --check", text)
         self.assertIn("VS Code notebooks default to loading committed Code_Aster artifacts", text)
-        self.assertIn("pip installs Tuba; it does not install Code_Aster", text)
+        self.assertIn("This installs Tuba from the checkout; it does not install Code_Aster", text)
+        self.assertLess(text.index("## Installation"), text.index("## Code_Aster Runtime"))
+        self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
+        self.assertIn(". .venv/bin/activate", text)
+
+    def test_public_installation_uses_a_tagged_github_checkout(self):
+        paths = [
+            Path("README.md"),
+            Path("docs/code_aster_installation.md"),
+            Path("docs/site/setup.html"),
+            Path("docs/site/tutorial.html"),
+            Path("notebooks/00_welcome_and_setup.ipynb"),
+            Path("notebooks/autorouting_quick_iteration.ipynb"),
+        ]
+        texts = {path: path.read_text(encoding="utf-8") for path in paths}
+
+        self.assertIn(
+            "git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
+            texts[Path("README.md")],
+        )
+        for path, text in texts.items():
+            self.assertNotIn("pip install tuba", text, path)
+            self.assertNotIn("pip install -e", text, path)
 
     def test_agent_instructions_state_code_aster_is_not_optional(self):
         text = Path("AGENTS.md").read_text(encoding="utf-8")
