@@ -63,7 +63,7 @@
 
       <section class="doc-section">
         <h2>Clone the tagged beta</h2>
-        <pre><code>git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
+        <pre><code>git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
 cd Tuba_v4</code></pre>
         <p>
           Tuba installs from this checkout. The install extras below decide
@@ -172,14 +172,16 @@ wsl -d Ubuntu -- bash -lc "command -v run_aster; run_aster --version"
       </section>
 
       <section class="doc-section">
-        <h2>Native Linux x86_64</h2>
+        <h2>Native Linux x86_64 (Ubuntu/Debian)</h2>
         <p>
           Run this from the Tuba checkout instead of the Windows/WSL steps.
           Tuba stays in its normal virtual environment; Code_Aster stays in a
           separate pinned conda environment and is exposed through
           <code>run_aster</code>.
         </p>
-        <pre><code>python3 -m venv .venv
+        <pre><code>sudo apt-get update
+sudo apt-get install -y libglu1-mesa
+python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install ".[course]"

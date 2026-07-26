@@ -29,6 +29,7 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("conda create -y -n tuba-code-aster", text)
         self.assertIn("code-aster=18.0.12", text)
         self.assertIn("Native Linux", text)
+        self.assertIn("sudo apt-get install -y libglu1-mesa", text)
         self.assertIn("python3 -m venv .venv", text)
         self.assertIn("https://github.com/jgwagenfeld/Tuba_v4.git", text)
         self.assertIn("python -m pip install .", text)
@@ -52,6 +53,7 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("python -m tuba.solver.code_aster_doctor --check", text)
         self.assertIn("VS Code notebooks default to loading committed Code_Aster artifacts", text)
         self.assertIn("This installs Tuba from the checkout; it does not install Code_Aster", text)
+        self.assertIn("sudo apt-get install -y libglu1-mesa", text)
         self.assertLess(text.index("## Installation"), text.index("## Code_Aster Runtime"))
         self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
         self.assertIn(". .venv/bin/activate", text)
@@ -68,7 +70,7 @@ class TestCodeAsterDocs(unittest.TestCase):
         texts = {path: path.read_text(encoding="utf-8") for path in paths}
 
         self.assertIn(
-            "git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
+            "git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
             texts[Path("README.md")],
         )
         for path, text in texts.items():

@@ -271,10 +271,13 @@ and ASME B31.3 lesson after the quick welcome workflow is running.
 
 ## Native Linux
 
-On an `x86_64` Linux host, run this from the Tuba checkout. It keeps Tuba in a
-normal virtual environment and Code_Aster in its separate conda environment:
+On an `x86_64` Ubuntu/Debian Linux host, run this from the Tuba checkout. It
+keeps Tuba in a normal virtual environment and Code_Aster in its separate conda
+environment:
 
 ```bash
+sudo apt-get update
+sudo apt-get install -y libglu1-mesa
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip

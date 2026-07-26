@@ -1,8 +1,8 @@
 """Scene orchestrator: build_visualization_scene."""
 
 from __future__ import annotations
-from datetime import UTC
 from datetime import datetime
+from datetime import timezone
 from typing import Any
 from typing import Iterable
 from tuba.analysis.mesh import AnalysisMesh
@@ -272,7 +272,7 @@ def build_visualization_scene(
     scene = VisualizationScene(
         scene_id=resolved_scene_id,
         model_id=model_id or getattr(model, "project_name", "tuba_model"),
-        created_at=created_at or datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        created_at=created_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         units={"length": "m", "mass": "kg"},
         coordinate_system={"up_axis": "Z"},
         objects=objects,

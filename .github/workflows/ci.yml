@@ -17,8 +17,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install Linux graphics runtime
+        run: sudo apt-get update && sudo apt-get install -y libglu1-mesa xvfb
       - run: uv sync --all-extras --locked
-      - run: uv run python -m pytest
+      - run: xvfb-run -a uv run python -m pytest
 
   notebooks-and-docs:
     runs-on: ubuntu-latest
@@ -27,8 +29,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
+      - name: Install Linux graphics runtime
+        run: sudo apt-get update && sudo apt-get install -y libglu1-mesa xvfb
       - run: uv sync --extra course --locked
-      - run: uv run python scripts/check_notebooks.py
+      - run: xvfb-run -a uv run python scripts/check_notebooks.py
 
   viewer:
     runs-on: ubuntu-latest

@@ -76,6 +76,11 @@ def test_ci_and_release_workflows_cover_local_release_gates():
     assert "uv sync --extra course --locked" in ci
     assert "uv run python -m pytest" in ci
     assert "uv run python -m pytest" in release
+    for workflow in (ci, release):
+        assert "libglu1-mesa" in workflow
+        assert "xvfb" in workflow
+        assert "xvfb-run -a uv run python -m pytest" in workflow
+        assert "xvfb-run -a uv run python scripts/check_notebooks.py" in workflow
     assert "scripts/check_release_tag.py" in release
     assert 'tag "${{ inputs.tag }}"' in release
     assert "TUBA_RUN_CODE_ASTER_INTEGRATION: \"1\"" in ci

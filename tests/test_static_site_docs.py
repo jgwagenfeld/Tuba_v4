@@ -56,10 +56,11 @@ class TestStaticSiteDocs(unittest.TestCase):
         text = (SITE / "setup.html").read_text(encoding="utf-8")
 
         self.assertIn(
-            "git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
+            "git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
             text,
         )
         self.assertIn("python -m pip install .", text)
+        self.assertIn("sudo apt-get install -y libglu1-mesa", text)
         self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
         self.assertNotIn("your-tuba-v4-repo-url", text)
         self.assertNotIn("pip install -e", text)

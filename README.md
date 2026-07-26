@@ -40,7 +40,7 @@ Tuba v4 beta is installed from a tagged GitHub checkout. Tuba requires Python
 3.10 or newer.
 
 ```bash
-git clone --branch v4.0.0 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
+git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
 cd Tuba_v4
 ```
 
@@ -52,9 +52,11 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install .
 ```
 
-Native Linux:
+Native Linux (Ubuntu/Debian):
 
 ```bash
+sudo apt-get update
+sudo apt-get install -y libglu1-mesa
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip

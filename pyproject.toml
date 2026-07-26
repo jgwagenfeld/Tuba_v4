@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tuba"
-version = "4.0.0"
+version = "4.0.1"
 description = "Code_Aster-backed piping analysis and result-review library"
 readme = "README.md"
 requires-python = ">=3.10"

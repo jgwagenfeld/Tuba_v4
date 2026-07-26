@@ -8,10 +8,14 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import tomllib
 import zipfile
 
 import pytest
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 from scripts import prepare_release
 from scripts.release_candidate import changed_paths, create_candidate_tree
