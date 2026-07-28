@@ -69,6 +69,8 @@ notebooks/tuyau_subpoints_shell_detail_viewer.png
 notebooks/bim_demo.ifc
 notebooks/bim_demo_model.json
 notebooks/advanced_piping_rack.ifc
+/imported_component_mixed_demo/run/
+/imported_component_mixed_demo/browser_checks/
 
 # Root demo outputs (written by examples/demo.py and the BIM notebook)
 /piping_model.json
