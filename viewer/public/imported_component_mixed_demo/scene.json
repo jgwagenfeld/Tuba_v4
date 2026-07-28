@@ -3,7 +3,7 @@
   "coordinate_system": {
     "up_axis": "Z"
   },
-  "created_at": "2026-07-14T19:12:33.441362Z",
+  "created_at": "2026-07-28T10:40:32.802769Z",
   "diagnostics": [],
   "geometry_assets": [
     {
@@ -18,6 +18,7 @@
       "format": "tube",
       "generation_config": {
         "entity_ref": "element:pipe_str_0",
+        "inner_radius_m": 0.042,
         "points": [
           [
             0.0,
@@ -33,7 +34,7 @@
         "radius_m": 0.05,
         "source": "tuba.element"
       },
-      "hash": "sha256:5c002713f8a4dc8fd9e66ccdd4e374ffe2d9971a084232baac801c121ecc843b",
+      "hash": "sha256:44f178ec4575b25b4c41c888d19b7ce53f6c361982f21c5039044af38958d21b",
       "id": "geometry:element:pipe_str_0",
       "object_ids": [
         "object:element:pipe_str_0"
@@ -354,6 +355,50 @@
     }
   ],
   "issues": [],
+  "layers": [
+    {
+      "category": "design",
+      "default_visible": true,
+      "id": "pipe",
+      "label": "Pipe"
+    },
+    {
+      "category": "design",
+      "default_visible": true,
+      "id": "support",
+      "label": "Support"
+    },
+    {
+      "category": "design",
+      "default_visible": true,
+      "id": "imported_components",
+      "label": "Imported components"
+    },
+    {
+      "category": "design",
+      "default_visible": true,
+      "id": "local_coordinate_axes",
+      "label": "Local coordinate axes"
+    },
+    {
+      "category": "design",
+      "default_visible": true,
+      "id": "mixed_ports",
+      "label": "Mixed ports"
+    },
+    {
+      "category": "design",
+      "default_visible": true,
+      "id": "mixed_couplings",
+      "label": "Mixed couplings"
+    },
+    {
+      "category": "design",
+      "default_visible": true,
+      "id": "overlay:load_case",
+      "label": "Load case"
+    }
+  ],
   "materials": [],
   "model_id": "Imported_Component_Mixed_System",
   "objects": [
@@ -463,7 +508,7 @@
             ]
           },
           "source_format": "STEP",
-          "source_path": "D:\\Gitprojects\\Tuba_v4\\imported_component_mixed_demo\\local_equipment.step",
+          "source_path": "imported_component_mixed_demo\\local_equipment.step",
           "unit_scale_to_m": 1.0
         },
         "id": "component_custom_equipment",
@@ -599,7 +644,24 @@
       "name": "coupling_pipe_to_equipment_a"
     }
   ],
-  "overlays": [],
+  "overlays": [
+    {
+      "data": {
+        "field_count": 0,
+        "gravity": true,
+        "internal_pressure_pa": 1000000.0,
+        "load_case": "Hot",
+        "nodal_force_count": 0,
+        "ref_temperature_c": 20.0,
+        "temperature_c": 120.0
+      },
+      "id": "overlay:load_case:Hot",
+      "kind": "load_case",
+      "name": "Load case Hot",
+      "visible": true
+    }
+  ],
+  "result_fields": [],
   "route_reviews": [],
   "scene_diffs": [],
   "scene_id": "scene:imported_component_mixed_system",

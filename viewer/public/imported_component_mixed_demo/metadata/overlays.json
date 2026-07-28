@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "data": {
+      "field_count": 0,
+      "gravity": true,
+      "internal_pressure_pa": 1000000.0,
+      "load_case": "Hot",
+      "nodal_force_count": 0,
+      "ref_temperature_c": 20.0,
+      "temperature_c": 120.0
+    },
+    "id": "overlay:load_case:Hot",
+    "kind": "load_case",
+    "name": "Load case Hot",
+    "visible": true
+  }
+]

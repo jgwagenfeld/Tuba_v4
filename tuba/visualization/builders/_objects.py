@@ -97,18 +97,23 @@ def _build_element_object(
             )
 
     points = _element_points(model, elem)
-    radius = float(physical.get("effective_radius_m") or physical.get("bare_radius_m") or 0.0)
+    profile = metadata["profile"]
+    radius = float(physical.get("bare_radius_m") or profile.get("collision_radius_m") or 0.0)
+    generation_config: dict[str, Any] = {
+        "source": "tuba.element",
+        "entity_ref": str(entity_ref),
+        "points": points,
+        "radius_m": radius,
+    }
+    inner_diameter = profile.get("inner_diameter_m")
+    if elem.type.startswith("pipe") and inner_diameter is not None:
+        generation_config["inner_radius_m"] = float(inner_diameter) / 2.0
     asset = GeometryAsset(
         id=asset_id,
         format="tube" if elem.type.startswith("pipe") else "line",
         bounds=_bounds_for_points(points, radius),
         object_ids=[_object_id(entity_ref)],
-        generation_config={
-            "source": "tuba.element",
-            "entity_ref": str(entity_ref),
-            "points": points,
-            "radius_m": radius,
-        },
+        generation_config=generation_config,
     )
     scene_object = SceneObject(
         id=_object_id(entity_ref),

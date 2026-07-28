@@ -11,6 +11,7 @@
     "format": "tube",
     "generation_config": {
       "entity_ref": "element:pipe_str_0",
+      "inner_radius_m": 0.042,
       "points": [
         [
           0.0,
@@ -26,7 +27,7 @@
       "radius_m": 0.05,
       "source": "tuba.element"
     },
-    "hash": "sha256:5c002713f8a4dc8fd9e66ccdd4e374ffe2d9971a084232baac801c121ecc843b",
+    "hash": "sha256:44f178ec4575b25b4c41c888d19b7ce53f6c361982f21c5039044af38958d21b",
     "id": "geometry:element:pipe_str_0",
     "object_ids": [
       "object:element:pipe_str_0"

@@ -77,6 +77,15 @@ class TestVisualizationBuilders(unittest.TestCase):
         self.assertNotIn(EntityRef("support", "support_0"), entity_refs)
         self.assertNotIn(EntityRef("obstacle", "equipment_box"), entity_refs)
 
+    def test_pipe_geometry_carries_inner_radius_for_hollow_rendering(self):
+        model, elem, _support, _obstacle = self._model()
+
+        scene = build_visualization_scene(model)
+        asset = next(item for item in scene.geometry_assets if item.id == f"geometry:element:{elem.id}")
+
+        self.assertAlmostEqual(asset.generation_config["radius_m"], 0.05)
+        self.assertAlmostEqual(asset.generation_config["inner_radius_m"], 0.04)
+
     def test_scene_builder_does_not_require_pyvista(self):
         model, _elem, _support, _obstacle = self._model()
         original_import = __import__

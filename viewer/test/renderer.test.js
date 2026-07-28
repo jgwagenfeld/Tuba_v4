@@ -129,6 +129,39 @@ test("scene graph renders cold geometry as transparent gray reference for visual
   assert.equal(material.transparent, true);
 });
 
+test("pipe geometry remains visible end-on as a hollow section", () => {
+  const state = fixtureState();
+  state.geometryAssets[0].generation_config.inner_radius_m = 0.04;
+
+  const graph = createThreeSceneGraph(state);
+  const pipe = graph.objectsByObjectId.get("object:pipe");
+
+  assert.equal(pipe.isGroup, true);
+  assert.equal(pipe.children.filter((child) => child.geometry?.type === "RingGeometry").length, 2);
+  assert.equal(pipe.children.filter((child) => child.geometry?.type === "TubeGeometry").length, 2);
+});
+
+test("support points use a non-occluding engineering glyph", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [-0.1, -0.1, -0.1, 0.1, 0.1, 0.1],
+    geometryAssets: [
+      {
+        id: "geometry:support",
+        format: "point",
+        bounds: [0, 0, 0, 0, 0, 0],
+        object_ids: ["object:support"],
+        generation_config: { point: [0, 0, 0], source: "tuba.support" }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support"]
+  });
+
+  const support = graph.objectsByObjectId.get("object:support");
+  assert.equal(support.geometry.type, "OctahedronGeometry");
+  assert.equal(support.material.wireframe, true);
+});
+
 test("scene graph reports invalid assets without throwing", () => {
   const graph = createThreeSceneGraph({
     bounds: [0, 0, 0, 1, 1, 1],
@@ -200,6 +233,14 @@ test("fitCameraToBounds targets scene center and computes a usable distance", ()
   assert.deepEqual(fit.target, [5, 0, 0.75]);
   assert.ok(fit.distance > 10);
   assert.ok(camera.far > camera.near);
+});
+
+test("viewer defaults to an orthographic engineering camera", () => {
+  const renderable = buildRenderableScene(fixtureState(), { width: 976, height: 525 });
+
+  assert.equal(renderable.camera.isOrthographicCamera, true);
+  assert.ok(renderable.camera.right > renderable.camera.left);
+  assert.ok(renderable.camera.top > renderable.camera.bottom);
 });
 
 test("renderer sends requested selection bounds through the existing camera-fit pipeline", () => {

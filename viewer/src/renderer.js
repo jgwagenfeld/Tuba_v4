@@ -81,8 +81,7 @@ export function createThreeSceneGraph(state, options = {}) {
 
 export function buildRenderableScene(state, options = {}) {
   const graph = createThreeSceneGraph(state, options);
-  const camera = new THREE.PerspectiveCamera(45, (options.width ?? 1280) / Math.max(options.height ?? 800, 1), 0.01, 10000);
-  camera.up.set(0, 0, 1);
+  const camera = createEngineeringCamera((options.width ?? 1280) / Math.max(options.height ?? 800, 1));
   const fit = fitCameraToBounds(camera, state.camera?.fitRequest?.bounds ?? graph.bounds);
   return {
     ...graph,
@@ -161,8 +160,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   renderer.setClearColor(options.backgroundColor ?? 0xf8fafc, 1);
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio ?? 1, 2));
 
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
-  camera.up.set(0, 0, 1);
+  const camera = createEngineeringCamera(1);
 
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = false;
@@ -188,7 +186,17 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       return false;
     }
     renderer.setSize(width, height, false);
-    camera.aspect = width / height;
+    const aspect = width / height;
+    if (camera.isOrthographicCamera) {
+      const halfHeight = camera.userData.fitHalfHeight ?? 1;
+      camera.left = -halfHeight * aspect;
+      camera.right = halfHeight * aspect;
+      camera.top = halfHeight;
+      camera.bottom = -halfHeight;
+      camera.userData.viewportAspect = aspect;
+    } else {
+      camera.aspect = aspect;
+    }
     camera.updateProjectionMatrix();
     return true;
   };
@@ -468,8 +476,21 @@ export function fitCameraToBounds(camera, bounds, controls = null) {
   const center = centerOfBounds(normalized);
   const size = sizeOfBounds(normalized);
   const radius = Math.max(size.length() * 0.5, 0.5);
-  const fov = THREE.MathUtils.degToRad(camera.fov || 45);
-  const distance = Math.max(radius / Math.sin(fov / 2), radius * 2.5);
+  let distance;
+  if (camera.isOrthographicCamera) {
+    const aspect = positiveNumber(camera.userData.viewportAspect) ?? 1;
+    const halfHeight = (radius * 1.2) / Math.min(aspect, 1);
+    camera.left = -halfHeight * aspect;
+    camera.right = halfHeight * aspect;
+    camera.top = halfHeight;
+    camera.bottom = -halfHeight;
+    camera.zoom = 1;
+    camera.userData.fitHalfHeight = halfHeight;
+    distance = Math.max(radius * 3, 1);
+  } else {
+    const fov = THREE.MathUtils.degToRad(camera.fov || 45);
+    distance = Math.max(radius / Math.sin(fov / 2), radius * 2.5);
+  }
   const direction = new THREE.Vector3(1, -1, 0.65).normalize();
 
   camera.near = Math.max(distance / 1000, 0.001);
@@ -533,10 +554,33 @@ function createTube(asset, config, format) {
   }
   const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, 0.035);
   const curve = new THREE.CatmullRomCurve3(points);
-  const geometry = new THREE.TubeGeometry(curve, Math.max(8, points.length * 12), radius, 14, false);
-  const mesh = new THREE.Mesh(geometry, materialForAsset(asset, config, { transparent: format === "tube_envelope" }));
-  mesh.name = asset.id;
-  return { format, object: mesh };
+  const tubularSegments = Math.max(8, points.length * 12);
+  const outer = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false),
+    materialForAsset(asset, config, { transparent: format === "tube_envelope" })
+  );
+  const innerRadius = positiveNumber(config.inner_radius_m);
+  if (!innerRadius || innerRadius >= radius) {
+    outer.name = asset.id;
+    return { format, object: outer };
+  }
+
+  const pipe = new THREE.Group();
+  const innerMaterial = materialForAsset(asset, config);
+  innerMaterial.side = THREE.BackSide;
+  pipe.add(outer, new THREE.Mesh(new THREE.TubeGeometry(curve, tubularSegments, innerRadius, 14, false), innerMaterial));
+
+  const capMaterial = materialForAsset(asset, config);
+  capMaterial.side = THREE.DoubleSide;
+  const normal = new THREE.Vector3(0, 0, 1);
+  for (const position of [0, 1]) {
+    const cap = new THREE.Mesh(new THREE.RingGeometry(innerRadius, radius, 28), capMaterial);
+    cap.position.copy(curve.getPoint(position));
+    cap.quaternion.setFromUnitVectors(normal, curve.getTangent(position).normalize());
+    pipe.add(cap);
+  }
+  pipe.name = asset.id;
+  return { format, object: pipe };
 }
 
 function createPolyline(asset, config, format) {
@@ -566,9 +610,13 @@ function createPoint(asset, config, format) {
     return invalidAsset(asset, "Point assets require a point or valid bounds.");
   }
   const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, format === "marker" ? 0.06 : 0.035);
-  const geometry = new THREE.SphereGeometry(radius, 16, 12);
+  const isSupport = String(config.source ?? "").toLowerCase() === "tuba.support";
+  const geometry = isSupport ? new THREE.OctahedronGeometry(radius) : new THREE.SphereGeometry(radius, 16, 12);
   geometry.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geometry, materialForAsset(asset, config));
+  const material = isSupport
+    ? new THREE.MeshBasicMaterial({ color: colorForAsset(asset, config), wireframe: true })
+    : materialForAsset(asset, config);
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(point);
   mesh.name = asset.id;
   return { format, object: mesh };
@@ -792,6 +840,9 @@ function colorForAsset(asset, config) {
     return 0xdc2626;
   }
   const source = String(config.source ?? "");
+  if (source === "tuba.support") {
+    return 0xf59e0b;
+  }
   if (asset.format === "vector") {
     return 0xd97706;
   }
@@ -1028,6 +1079,14 @@ function radiusFromBounds(bounds, fallback) {
 function positiveNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function createEngineeringCamera(aspect) {
+  const safeAspect = positiveNumber(aspect) ?? 1;
+  const camera = new THREE.OrthographicCamera(-safeAspect, safeAspect, 1, -1, 0.01, 10000);
+  camera.up.set(0, 0, 1);
+  camera.userData.viewportAspect = safeAspect;
+  return camera;
 }
 
 function invalidAsset(asset, message) {

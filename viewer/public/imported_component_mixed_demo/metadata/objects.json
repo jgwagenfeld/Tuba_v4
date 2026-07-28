@@ -105,7 +105,7 @@
           ]
         },
         "source_format": "STEP",
-        "source_path": "D:\\Gitprojects\\Tuba_v4\\imported_component_mixed_demo\\local_equipment.step",
+        "source_path": "imported_component_mixed_demo\\local_equipment.step",
         "unit_scale_to_m": 1.0
       },
       "id": "component_custom_equipment",
