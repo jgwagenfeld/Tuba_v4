@@ -1,13 +1,44 @@
 import json
 import re
 import unittest
+from html import unescape
 from pathlib import Path
 
 from tuba.builder import PipingBuilder
 from tuba.model import TubaModel
 
+ROOT = Path(__file__).resolve().parents[1]
+CONTENT = ROOT / "docs" / "content"
+
 
 class TestCurrentApiDocs(unittest.TestCase):
+    def test_public_api_reference_uses_live_import_directives(self):
+        text = (CONTENT / "reference" / "public-api.md").read_text(encoding="utf-8")
+
+        self.assertIn("::: tuba.model.TubaModel", text)
+        self.assertIn("::: tuba.analysis.code_aster_artifacts.import_code_aster_artifacts", text)
+        self.assertIn("::: tuba.reporting.build_engineering_review", text)
+        self.assertIn("::: tuba.visualization.build_visualization_scene", text)
+        self.assertNotRegex(text, r"Model\.solve\(self,")
+
+    def test_generated_public_api_renders_the_live_model_solve_signature(self):
+        output = ROOT / ".build" / "zensical-site" / "reference" / "public-api.html"
+        if not output.is_file():
+            self.skipTest("run the strict Zensical build before checking generated HTML")
+        rendered = output.read_text(encoding="utf-8")
+        match = re.search(
+            r'id="tuba\.model\.TubaModel\.solve"(?P<section>.*?)(?=id="tuba\.model\.TubaModel\.|</article>)',
+            rendered,
+            re.DOTALL,
+        )
+
+        self.assertIsNotNone(match, "generated API reference is missing TubaModel.solve")
+        plain = " ".join(re.sub(r"<[^>]+>", " ", unescape(match.group("section"))).split())
+        self.assertRegex(plain, r"solve\s*\(")
+        self.assertIn("load_case", plain)
+        self.assertIn("operation", plain)
+        self.assertNotRegex(plain, r"\bsolver\s*=")
+
     def test_current_docs_do_not_call_unshipped_future_dsl_methods(self):
         future_methods = {
             PipingBuilder: {
@@ -83,9 +114,11 @@ class TestCurrentApiDocs(unittest.TestCase):
 
 
 def _current_user_facing_sources():
-    root = Path(__file__).resolve().parents[1]
+    root = ROOT
     yield "README.md", (root / "README.md").read_text(encoding="utf-8")
     yield "CONTRIBUTING.md", (root / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    for path in sorted(CONTENT.rglob("*.md")):
+        yield path.relative_to(root).as_posix(), path.read_text(encoding="utf-8")
     for path in _current_architecture_docs():
         yield f"docs/architecture/{path.name}", path.read_text(encoding="utf-8")
 

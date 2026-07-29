@@ -11,6 +11,43 @@ CONTENT = ROOT / "docs" / "content"
 
 
 class TestStaticSiteDocs(unittest.TestCase):
+    def test_reference_and_current_architecture_pages_are_canonical(self):
+        required = {
+            "reference/index.md": ["Generated public API", "`tuba.Model`", "`TubaModel`"],
+            "architecture/index.md": [
+                "Tuba model",
+                "Code_Aster",
+                "Artifact import",
+                "PyVista quick-look",
+                "Reviewable web scene",
+            ],
+            "architecture/visualization.md": [
+                "exactly two visualization paths",
+                "Review",
+                "Model",
+                "Results",
+                "Issues",
+                "Summary",
+                "Diagnostics",
+                "Compliance",
+                "Reports",
+                "physical deformation",
+                "visual deformation",
+                "true clipping",
+            ],
+        }
+
+        for relative_path, phrases in required.items():
+            text = (CONTENT / relative_path).read_text(encoding="utf-8")
+            for phrase in phrases:
+                self.assertIn(phrase.casefold(), text.casefold(), relative_path)
+
+        design = (ROOT / "docs" / "architecture" / "visualization-layer-structure-design.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("**Status:** Implemented; retained as a design record", design)
+        self.assertIn("../content/architecture/visualization.md", design)
+
     def test_canonical_manual_pages_own_the_public_topics(self):
         required = {
             "setup.md": ["pip installs Tuba, not Code_Aster", "code_aster_doctor", "Run the real solver smoke test"],

@@ -1,7 +1,10 @@
 # Visualization Layer Structure
 
 **Date:** 2026-07-23
-**Status:** Approved design, ready for implementation planning
+**Status:** Implemented; retained as a design record
+
+The maintained description of the shipped behavior is the
+[current visualization architecture](../content/architecture/visualization.md).
 
 ## Problem
 
