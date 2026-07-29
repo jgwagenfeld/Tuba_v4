@@ -1,6 +1,7 @@
 {
   "package_id": "review:code_aster_artifact",
   "reports": {
+    "diagnostics": "reports/diagnostics.csv",
     "displacements": "reports/displacements.csv",
     "element_forces": "reports/element_forces.csv",
     "fe_stress": "reports/fe_stress.csv",

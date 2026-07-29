@@ -1,5 +1,5 @@
 solver_name,study_id,result_state_id,load_case,entity_ref,location_kind,node_id,support_ids,fx,fy,fz,mx,my,mz,force_magnitude,moment_magnitude
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N0,model_node,N0,"[""support_0""]",663043.0,-3999.91,414.363,269.219,-413.435,-4030.02,663055.1944036814,4060.1069652887227
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N1,model_node,N1,"[""support_1""]",-660729.0,52493.1,72.7786,-3.33159e-10,3.38787e-11,1.35333e-09,662810.9400766818,1.3941466115494058e-09
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N3,model_node,N3,"[""support_2""]",-1.81611e-07,-46957.7,5.26186e-08,6.88715e-10,6.82121e-13,6.67796e-10,46957.7,9.593124173751004e-10
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N5,model_node,N5,"[""support_3""]",-2314.65,-547.484,-487.141,-559.092,4347.9,-15.4124,2427.88997004333,4383.72624790118
+Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N0,model_node,N0,"[""support_0""]",663043.0,-3999.91,414.382,269.193,-413.454,-4030.03,663055.1944155555,4060.1171020384377
+Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N1,model_node,N1,"[""support_1""]",-660729.0,52493.3,72.7485,-3.48223e-10,4.39286e-10,8.29459e-10,662810.9559129467,1.0011162171326564e-09
+Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N3,model_node,N3,"[""support_2""]",-1.50432e-07,-46957.8,5.8623e-08,2.08388e-10,-6.80416e-10,2.36696e-10,46957.8,7.499443232774017e-10
+Code_Aster,analysis_study:Operating,result_state:Operating,Operating,node:N5,model_node,N5,"[""support_3""]",-2314.66,-547.482,-487.131,-559.089,4347.89,-15.4197,2427.897046228484,4383.715972684486

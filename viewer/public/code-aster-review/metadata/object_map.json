@@ -1004,6 +1004,11 @@
     "geometry_asset_id": "geometry:element:pipe_str_2",
     "kind": "pipe"
   },
+  "object:field_note:review_scope": {
+    "entity_ref": null,
+    "geometry_asset_id": "geometry:field_note:review_scope",
+    "kind": "field_note"
+  },
   "object:geometry_state:geometry_state:Operating:physical": {
     "entity_ref": null,
     "geometry_asset_id": null,

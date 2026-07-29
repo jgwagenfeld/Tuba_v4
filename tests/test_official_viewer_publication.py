@@ -62,6 +62,18 @@ def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> 
     ]
 
 
+def test_tracked_official_bundles_match_current_producers(tmp_path: Path) -> None:
+    """Keep tracked bridge bundles synchronized until Pages staging replaces them."""
+    # Temporary migration bridge; delete with the tracked bundles after Pages staging is proven.
+    bundle_ids = build_examples(tmp_path, audience="dev")
+    write_bundle_catalog(tmp_path, bundle_ids)
+
+    for bundle_id in bundle_ids:
+        assert _normalized_bundle_inventory(tmp_path / bundle_id) == _normalized_bundle_inventory(
+            Path("viewer/public") / bundle_id
+        )
+
+
 def test_engineering_profile_rejects_missing_portable_provenance_file(tmp_path: Path) -> None:
     """Catches a publisher that leaves a review reference dangling after staging."""
     _write_engineering_bundle(tmp_path)
@@ -361,3 +373,33 @@ def _save_bundle(root: Path, scene: dict, review: dict) -> None:
 def _geometry_hash(payload: dict) -> str:
     value = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return f"sha256:{sha256(value).hexdigest()}"
+
+
+def _normalized_bundle_inventory(root: Path) -> dict[str, str]:
+    """Compare file inventory while ignoring JSON formatting and file metadata."""
+    inventory: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        relative_path = path.relative_to(root).as_posix()
+        if path.suffix == ".json":
+            inventory[relative_path] = json.dumps(
+                _without_generation_timestamps(json.loads(path.read_text(encoding="utf-8"))),
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        else:
+            inventory[relative_path] = sha256(path.read_bytes()).hexdigest()
+    return inventory
+
+
+def _without_generation_timestamps(value):
+    if isinstance(value, dict):
+        return {
+            key: _without_generation_timestamps(nested)
+            for key, nested in value.items()
+            if key not in {"created_at", "modified_at", "updated_at"}
+        }
+    if isinstance(value, list):
+        return [_without_generation_timestamps(nested) for nested in value]
+    return value

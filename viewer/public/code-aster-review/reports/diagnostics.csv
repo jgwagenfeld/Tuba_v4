@@ -1,0 +1,2 @@
+solver_name,study_id,result_state_id,load_case,severity,code,source,target,message
+Code_Aster,analysis_study:Operating,result_state:Operating,Operating,warning,visualization.code_aster_artifacts.rmed_read_failed,tuba.analysis.code_aster_artifacts,artifacts/study.rmed,"""Unable to synchronously open object (object 'NOE' doesn't exist)"""
