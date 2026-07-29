@@ -14,7 +14,7 @@ const serveStatic =
 export default defineConfig({
   testDir: "./e2e",
   outputDir: "../.build/playwright-results",
-  snapshotPathTemplate: "{testDir}/snapshots/{testFilePath}/{arg}{ext}",
+  snapshotPathTemplate: "{testDir}/snapshots/{testFilePath}/{platform}/{arg}{ext}",
   timeout: 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
