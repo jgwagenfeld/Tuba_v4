@@ -52,7 +52,7 @@ def run_example(
         _write_sample_result_tables(resolved_artifact_dir, n0=n0, n1=n1)
         artifact_provenance = "deterministic_non_engineering_test_fixture"
     else:
-        model = _build_model()
+        model = build_model()
         resolved_artifact_dir = (
             Path(artifact_dir)
             if artifact_dir is not None
@@ -73,6 +73,9 @@ def run_example(
         artifact.result_state.metadata["provenance_warning"] = (
             "Non-engineering test fixture; values are deterministic generated test data."
         )
+        solved_at = None
+    else:
+        solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
     operating_state = create_operating_geometry_state(model=model, result_state=artifact.result_state)
     visual_state = create_visual_deformed_geometry_state(model=model, result_state=artifact.result_state, visual_scale=40.0)
     scene = build_visualization_scene(
@@ -81,7 +84,7 @@ def run_example(
         result_states=[artifact.result_state],
         geometry_states=[operating_state, visual_state],
         scene_id="scene:code_aster_artifact_review",
-        created_at="2026-06-21T00:00:00Z",
+        created_at=solved_at,
     )
     review = build_engineering_review(
         model,
@@ -91,7 +94,7 @@ def run_example(
         ),
         result_states=[artifact.result_state],
         package_id="review:code_aster_artifact",
-        created_at="2026-06-21T00:00:00Z",
+        created_at=solved_at,
     )
     bundle = write_engineering_review_with_scene(
         review,
@@ -120,7 +123,7 @@ def run_example(
     return summary
 
 
-def _build_model() -> Model:
+def build_model() -> Model:
     """Rebuild the model that produced ``viz_gallery_operating`` artifacts."""
     model = Model("VizGalleryDemo", standard="ASME_B31.3")
     model.add_material(

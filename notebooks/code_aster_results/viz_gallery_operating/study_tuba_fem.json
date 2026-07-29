@@ -160,5 +160,11 @@
     "pipe_str_2_mid": "GCEDE7BE"
   },
   "schema_version": 1,
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v1",
+    "fingerprint": "ca587b002791fa32fed54ab12a0a970e649901a9aa059bf27bcb0fc7b35b5ed1",
+    "load_case": "Operating",
+    "schema_id": "tuba.model.v4"
+  },
   "solver_name": "Code_Aster"
 }
