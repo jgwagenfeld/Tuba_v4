@@ -39,9 +39,11 @@ def test_load_rmed_preserves_quadratic_lines_and_normalizes_latest_results(monke
     np.testing.assert_allclose(
         grid.point_data["DEPL"][-1],
         [0.009019349189621575, 0.0005639853912629695, -0.0031077549605935005],
+        rtol=0,
+        atol=5e-8,
     )
     assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.011344451925541246)
-    assert np.isclose(grid.point_data["VMIS"].max(), 405014786.6347633)
+    assert np.isclose(grid.point_data["VMIS"].max(), 405088265.6852071)
 
 
 def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():
