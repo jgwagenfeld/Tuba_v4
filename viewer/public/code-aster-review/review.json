@@ -90,8 +90,6 @@
         "rmed": "artifacts/study.rmed",
         "sidecar": "artifacts/study_tuba_fem.json",
         "sieq": "artifacts/study_sieq.csv",
-        "stderr": "artifacts/stderr.log",
-        "stdout": "artifacts/stdout.log",
         "tuyau_subpoints": "artifacts/study_sieq.csv"
       },
       "id": "result_state:Operating",
@@ -178,8 +176,6 @@
           "rmed": "fbb6d0d3c81a513ab240c07e318d781e288cbb3f2b5ca924de8f373820d17b8d",
           "sidecar": "e40a239d1e23a567c214d2603255d42dff117e0e70dc868c5999cd693ed98477",
           "sieq": "faa500bb139c22daec1993633ae28f386d39802088669b1c0868471452808339",
-          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "stdout": "3a8820e85f4390ffe4f74326d476d70ace590f80dfa4580cf87895afc866598d",
           "tuyau_subpoints": "faa500bb139c22daec1993633ae28f386d39802088669b1c0868471452808339"
         },
         "file_sizes": {
@@ -195,8 +191,6 @@
           "rmed": 4557480,
           "sidecar": 5946,
           "sieq": 3468717,
-          "stderr": 0,
-          "stdout": 61702,
           "tuyau_subpoints": 3468717
         },
         "mesh_id": "analysis_mesh:Operating",

@@ -45,6 +45,9 @@ def stage_code_aster_artifact_evidence(
         hashes: dict[str, str] = {}
         sizes: dict[str, int] = {}
         for role, value in files.items():
+            basename = PureWindowsPath(value).name
+            if attested and basename not in attested and basename != "study_execution.json":
+                continue
             source = _artifact_source(value, evidence_root=evidence_root)
             basename = source.name
             previous = basename_sources.setdefault(basename, source)

@@ -43,8 +43,15 @@ def test_pages_catalog_contains_the_two_validated_official_bundles(tmp_path: Pat
     assert "work_dir" not in study_provenance["metadata"]
     result_provenance = next(item for item in review["provenance"] if item["kind"] == "result_state")
     assert all(value.startswith("artifacts/") for value in result_provenance["files"].values())
+    assert {"stdout", "stderr"}.isdisjoint(result_provenance["files"])
+    assert result_provenance["files"]["execution"] == "artifacts/study_execution.json"
+    assert (tmp_path / "code-aster-review" / result_provenance["files"]["execution"]).is_file()
     assert result_provenance["metadata"]["file_sha256"]["rmed"]
     assert result_provenance["metadata"]["file_sizes"]["rmed"] > 0
+    assert all(
+        ".log" not in path.read_text(encoding="utf-8")
+        for path in (tmp_path / "code-aster-review").rglob("*.json")
+    )
 
 
 def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> None:
@@ -66,12 +73,10 @@ def test_tracked_official_bundles_match_current_producers(tmp_path: Path) -> Non
     """Keep tracked bridge bundles synchronized until Pages staging replaces them."""
     # Temporary migration bridge; delete with the tracked bundles after Pages staging is proven.
     bundle_ids = build_examples(tmp_path, audience="dev")
-    write_bundle_catalog(tmp_path, bundle_ids)
 
     for bundle_id in bundle_ids:
-        assert _normalized_bundle_inventory(tmp_path / bundle_id) == _normalized_bundle_inventory(
-            Path("viewer/public") / bundle_id
-        )
+        assert _normalized_bundle_inventory(tmp_path / bundle_id) == _tracked_bundle_inventory(bundle_id)
+    assert "artifacts/study_execution.json" in _tracked_bundle_inventory("code-aster-review")
 
 
 def test_engineering_profile_rejects_missing_portable_provenance_file(tmp_path: Path) -> None:
@@ -382,15 +387,28 @@ def _normalized_bundle_inventory(root: Path) -> dict[str, str]:
         if not path.is_file():
             continue
         relative_path = path.relative_to(root).as_posix()
-        if path.suffix == ".json":
-            inventory[relative_path] = json.dumps(
-                _without_generation_timestamps(json.loads(path.read_text(encoding="utf-8"))),
-                sort_keys=True,
-                separators=(",", ":"),
-            )
-        else:
-            inventory[relative_path] = sha256(path.read_bytes()).hexdigest()
+        inventory[relative_path] = _normalized_file_contents(path)
     return inventory
+
+
+def _tracked_bundle_inventory(bundle_id: str) -> dict[str, str]:
+    """Compare against Git's tracked inventory, not ignored working-tree leftovers."""
+    root = Path("viewer/public") / bundle_id
+    tracked_paths = subprocess.check_output(["git", "ls-files", "--", str(root)], text=True).splitlines()
+    return {
+        Path(path).relative_to(root).as_posix(): _normalized_file_contents(Path(path))
+        for path in tracked_paths
+    }
+
+
+def _normalized_file_contents(path: Path) -> str:
+    if path.suffix == ".json":
+        return json.dumps(
+            _without_generation_timestamps(json.loads(path.read_text(encoding="utf-8"))),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    return sha256(path.read_bytes()).hexdigest()
 
 
 def _without_generation_timestamps(value):
