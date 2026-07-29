@@ -420,6 +420,30 @@ test("scene graph cache rebuilds when visibility changes deformed-reference mate
   assert.deepEqual(disposed, [builds[0]]);
 });
 
+test("scene graph cache rebuilds rendered materials when the coloring field changes", () => {
+  const state = {
+    ...fixtureState(),
+    overlays: [
+      { id: "overlay:blue", kind: "solver_result", data: { values: { "object:pipe": 0 }, legend: { range: { min: 0, max: 10 } } } },
+      { id: "overlay:red", kind: "solver_result", data: { values: { "object:pipe": 10 }, legend: { range: { min: 0, max: 10 } } } }
+    ],
+    resultFields: [
+      { id: "field:blue", overlay_id: "overlay:blue", load_case: "Hot", components: ["magnitude"], range: [0, 10] },
+      { id: "field:red", overlay_id: "overlay:red", load_case: "Hot", components: ["magnitude"], range: [0, 10] }
+    ],
+    coloring: { loadCase: "Hot", fieldId: "field:blue", component: "magnitude" }
+  };
+  const cache = rendererModule.createSceneGraphCache(createThreeSceneGraph);
+  const blue = cache.get(state);
+  const red = cache.get({ ...state, coloring: { ...state.coloring, fieldId: "field:red" } });
+
+  assert.notStrictEqual(red, blue);
+  assert.notEqual(
+    blue.objectsByObjectId.get("object:pipe").material.color.getHex(),
+    red.objectsByObjectId.get("object:pipe").material.color.getHex()
+  );
+});
+
 test("scene graph visibility updates hide cached renderables without rebuilding", () => {
   const state = fixtureState();
   const graph = createThreeSceneGraph(state);
@@ -457,6 +481,18 @@ test("standard Z camera views use stable up vectors", () => {
   setCameraToStandardView(camera, [-1, -1, -1, 1, 1, 1], controls, "negativeZ");
   assert.deepEqual(camera.up.toArray(), [0, 1, 0]);
   assert.deepEqual(STANDARD_VIEW_DIRECTIONS.negativeZ, [0, 0, -1]);
+});
+
+test("camera reset restores the canonical Z-up engineering orientation after a Z view", () => {
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  camera.userData.viewportAspect = 1;
+  const controls = { target: new Vector3(), update() {} };
+
+  setCameraToStandardView(camera, [-1, -1, -1, 1, 1, 1], controls, "positiveZ");
+  fitCameraToBounds(camera, [-1, -1, -1, 1, 1, 1], controls);
+
+  assert.deepEqual(camera.up.toArray(), [0, 0, 1]);
+  assert.deepEqual(camera.getWorldDirection(new Vector3()).toArray().map((value) => Number(value.toFixed(3))), [-0.642, 0.642, -0.418]);
 });
 
 test("orthographic zoom clamps and updates the projection matrix", () => {

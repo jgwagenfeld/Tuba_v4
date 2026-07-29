@@ -133,6 +133,13 @@ export function preserveViewerStateForReload(previousState, nextState) {
   });
   const geometryStateIds = new Set((nextState.geometryStates ?? []).map((overlay) => overlay.data?.id ?? overlay.id));
   const resultContext = coherentResultContext(previousState, nextState);
+  const retainedGeometryStateId = geometryStateIds.has(previousState.activeGeometryStateId)
+    ? previousState.activeGeometryStateId
+    : nextState.activeGeometryStateId;
+  const coherentState = setActiveLoadCase(
+    { ...nextState, activeGeometryStateId: retainedGeometryStateId },
+    resultContext.activeLoadCase
+  );
   const preserved = {
     ...nextState,
     layers,
@@ -141,8 +148,9 @@ export function preserveViewerStateForReload(previousState, nextState) {
     selectedObjectIds: (previousState.selectedObjectIds ?? []).filter((id) => objectIds.has(id)),
     hiddenObjectIds: (previousState.hiddenObjectIds ?? []).filter((id) => objectIds.has(id)),
     isolatedObjectIds: (previousState.isolatedObjectIds ?? []).filter((id) => objectIds.has(id)),
-    ...resultContext,
-    activeGeometryStateId: geometryStateIds.has(previousState.activeGeometryStateId) ? previousState.activeGeometryStateId : nextState.activeGeometryStateId,
+    activeLoadCase: coherentState.activeLoadCase,
+    activeResultStateId: resultContext.activeResultStateId ?? coherentState.activeResultStateId,
+    activeGeometryStateId: coherentState.activeGeometryStateId,
     displacementVectorScale: previousState.displacementVectorScale ?? nextState.displacementVectorScale,
     reactionVectorScale: previousState.reactionVectorScale ?? nextState.reactionVectorScale,
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,

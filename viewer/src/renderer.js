@@ -108,6 +108,7 @@ const SCENE_GRAPH_STATE_KEYS = [
   "activeLoadCase",
   "activeResultStateId",
   "activeGeometryStateId",
+  "coloring",
   "resultVectorScales",
   "displacementVectorScale",
   "reactionVectorScale",
@@ -550,6 +551,7 @@ export function fitCameraToBounds(camera, bounds, controls = null) {
 
   camera.near = Math.max(distance / 1000, 0.001);
   camera.far = distance * 1000;
+  camera.up.set(0, 0, 1);
   camera.position.copy(center).addScaledVector(direction, distance);
   camera.lookAt(center);
   camera.updateProjectionMatrix();

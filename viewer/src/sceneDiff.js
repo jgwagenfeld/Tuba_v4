@@ -1,6 +1,6 @@
 import { createViewerState, getVisibleObjectIds } from "./sceneLoader.js";
 import { defaultWorkflowTab, getVisibleWorkflowTabs } from "./workflowState.js";
-import { coherentResultContext } from "./resultReview.js";
+import { coherentResultContext, setActiveLoadCase } from "./resultReview.js";
 
 export function applySceneDiffToState(state, diffPayload) {
   const diff = normalizeDiff(diffPayload);
@@ -120,6 +120,14 @@ function preserveInteractiveState(previousState, nextState) {
     return previous ? { ...overlay, visible: previous.visible } : overlay;
   });
   const resultContext = coherentResultContext(previousState, nextState);
+  const geometryStateIds = new Set((nextState.geometryStates ?? []).map((state) => state.data?.id ?? state.id));
+  const retainedGeometryStateId = geometryStateIds.has(previousState.activeGeometryStateId)
+    ? previousState.activeGeometryStateId
+    : nextState.activeGeometryStateId;
+  const coherentState = setActiveLoadCase(
+    { ...nextState, activeGeometryStateId: retainedGeometryStateId },
+    resultContext.activeLoadCase
+  );
   const preserved = {
     ...nextState,
     layers,
@@ -129,8 +137,9 @@ function preserveInteractiveState(previousState, nextState) {
     hiddenObjectIds: (previousState.hiddenObjectIds ?? []).filter((id) => objectIds.has(id)),
     isolatedObjectIds: (previousState.isolatedObjectIds ?? []).filter((id) => objectIds.has(id)),
     activeIssueId: issueIds.has(previousState.activeIssueId) ? previousState.activeIssueId : nextState.activeIssueId,
-    ...resultContext,
-    activeGeometryStateId: previousState.activeGeometryStateId ?? nextState.activeGeometryStateId,
+    activeLoadCase: coherentState.activeLoadCase,
+    activeResultStateId: resultContext.activeResultStateId ?? coherentState.activeResultStateId,
+    activeGeometryStateId: coherentState.activeGeometryStateId,
     displacementVectorScale: previousState.displacementVectorScale ?? nextState.displacementVectorScale,
     reactionVectorScale: previousState.reactionVectorScale ?? nextState.reactionVectorScale,
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,

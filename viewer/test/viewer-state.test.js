@@ -361,6 +361,21 @@ test("full scene reload adopts the new coherent result pair when the old load ca
   assert.equal(preserved.review, nextState.review);
 });
 
+test("full scene reload keeps geometry state on the replacement result load case", () => {
+  const hotResult = { id: "overlay:result:hot", kind: "result_state", data: { id: "result_state:Hot", load_case: "Hot" } };
+  const coldResult = { id: "overlay:result:cold", kind: "result_state", data: { id: "result_state:Cold", load_case: "Cold" } };
+  const hotVisual = { id: "overlay:geometry:hot", kind: "geometry_state", data: { id: "geometry_state:Hot:visual", load_case: "Hot", purpose: "visualization" } };
+  const coldVisual = { id: "overlay:geometry:cold", kind: "geometry_state", data: { id: "geometry_state:Cold:visual", load_case: "Cold", purpose: "visualization" } };
+  const previous = createViewerState(bundle({ overlays: [hotResult, hotVisual, coldVisual] }));
+  const nextState = createViewerState(bundle({ overlays: [coldResult, hotVisual, coldVisual] }));
+
+  const preserved = preserveViewerStateForReload(previous, nextState);
+
+  assert.equal(preserved.activeLoadCase, "Cold");
+  assert.equal(preserved.activeResultStateId, "result_state:Cold");
+  assert.equal(preserved.activeGeometryStateId, "geometry_state:Cold:visual");
+});
+
 test("full scene reload preserves an old result pair only when both fields remain compatible", () => {
   const base = bundle().scene;
   const hot = base.overlays.find((overlay) => overlay.kind === "result_state");
@@ -528,6 +543,23 @@ test("compatible scene diff adopts a new coherent result pair when the old load 
   assert.deepEqual(result.state.camera, state.camera);
   assert.deepEqual(result.state.issueReviewState, state.issueReviewState);
   assert.equal(result.state.review, state.review);
+});
+
+test("scene diff keeps geometry state on the replacement result load case", () => {
+  const hotResult = { id: "overlay:result:hot", kind: "result_state", data: { id: "result_state:Hot", load_case: "Hot" } };
+  const hotVisual = { id: "overlay:geometry:hot", kind: "geometry_state", data: { id: "geometry_state:Hot:visual", load_case: "Hot", purpose: "visualization" } };
+  const coldVisual = { id: "overlay:geometry:cold", kind: "geometry_state", data: { id: "geometry_state:Cold:visual", load_case: "Cold", purpose: "visualization" } };
+  const state = createViewerState(bundle({ overlays: [hotResult, hotVisual, coldVisual] }));
+
+  const result = applySceneDiffToState(state, {
+    diff_id: "diff:cold-replaces-hot-with-hot-geometry-retained",
+    base_scene_id: "scene:rv09",
+    updated_overlays: [{ ...hotResult, data: { id: "result_state:Cold", load_case: "Cold" } }]
+  });
+
+  assert.equal(result.state.activeLoadCase, "Cold");
+  assert.equal(result.state.activeResultStateId, "result_state:Cold");
+  assert.equal(result.state.activeGeometryStateId, "geometry_state:Cold:visual");
 });
 
 test("compatible scene diff keeps an absent result context absent", () => {

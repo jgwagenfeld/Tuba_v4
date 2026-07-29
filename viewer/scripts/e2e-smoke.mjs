@@ -82,9 +82,30 @@ const scenarios = {
     async run(page) {
       const canvas = page.locator("[data-canvas]");
       const baseline = await framebufferFingerprint(canvas);
+      const baselineSnapshot = await framebufferSnapshot(canvas);
       const positiveZ = page.getByRole("button", { name: "+Z", exact: true });
       await positiveZ.focus();
       await page.keyboard.press("Enter");
+      await page.waitForFunction(() => {
+        const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
+        return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
+      });
+      await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
+      await page.waitForFunction(() => {
+        const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
+        return x < -0.6 && y > 0.6 && z < -0.4 && z > -0.5;
+      });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const resetViewSnapshot = await framebufferSnapshot(canvas);
+      const resetViewMaxDifference = Math.max(
+        ...resetViewSnapshot.samples.map((value, index) => Math.abs(value - baselineSnapshot.samples[index]))
+      );
+      assert.ok(
+        resetViewMaxDifference <= 1,
+        `reset view after +Z should restore the canonical rendered orientation (max channel difference ${resetViewMaxDifference})`
+      );
+
+      await positiveZ.click();
       await page.waitForFunction(() => {
         const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
         return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
@@ -124,7 +145,7 @@ const scenarios = {
       const resetSnapshot = await framebufferSnapshot(canvas);
       const maxChannelDifference = Math.max(...resetSnapshot.samples.map((value, index) => Math.abs(value - zoomSnapshot.samples[index])));
       assert.ok(maxChannelDifference <= 1, `section reset framebuffer drifted by ${maxChannelDifference} channel value(s)`);
-      console.log(`section-camera fingerprints: zoom=${zoomSnapshot.hash} section=${sectionSnapshot.hash} reset=${resetSnapshot.hash}; max channel drift=${maxChannelDifference}`);
+      console.log(`section-camera fingerprints: reset-view-drift=${resetViewMaxDifference} zoom=${zoomSnapshot.hash} section=${sectionSnapshot.hash} reset=${resetSnapshot.hash}; max channel drift=${maxChannelDifference}`);
       assert.notEqual(baseline, 0);
     }
   },
