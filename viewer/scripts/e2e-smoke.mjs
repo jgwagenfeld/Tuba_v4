@@ -55,6 +55,22 @@ async function framebufferFingerprint(canvas) {
   });
 }
 
+async function framebufferSnapshot(canvas) {
+  return canvas.evaluate((target) => {
+    const gl = target.getContext("webgl2") || target.getContext("webgl");
+    const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+    gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    let hash = 2166136261;
+    const samples = [];
+    const step = Math.max(4, Math.floor(pixels.length / 4096 / 4) * 4);
+    for (let index = 0; index < pixels.length; index += step) {
+      hash = Math.imul(hash ^ pixels[index], 16777619);
+      samples.push(pixels[index], pixels[index + 1], pixels[index + 2], pixels[index + 3]);
+    }
+    return { hash: hash >>> 0, samples };
+  });
+}
+
 const scenarios = {
   smoke: {
     bundle: "/smoke-scene",
@@ -70,17 +86,28 @@ const scenarios = {
       await positiveZ.focus();
       await page.keyboard.press("Enter");
       await page.waitForFunction(() => {
-        const [, , z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
-        return z < -0.99;
+        const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
+        return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
       });
       const viewFingerprint = await framebufferFingerprint(canvas);
       await page.getByRole("button", { name: "Zoom in", exact: true }).click();
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const zoomFingerprint = await framebufferFingerprint(canvas);
-      assert.notEqual(zoomFingerprint, viewFingerprint, "zoom must redraw the framebuffer");
+      const zoomSnapshot = await framebufferSnapshot(canvas);
+      assert.notEqual(zoomSnapshot.hash, viewFingerprint, "zoom must redraw the framebuffer");
 
-      await page.getByLabel("Enable section").check();
+      const sectionEnabled = page.getByLabel("Enable section");
+      await sectionEnabled.focus();
+      await page.keyboard.press("Space");
+      await page.waitForFunction(() => Boolean(window.__tubaViewer?.state?.sectionBox));
+      assert.equal(await sectionEnabled.evaluate((node) => document.activeElement === node), true, "section toggle must retain focus");
+      await page.keyboard.press("Tab");
+      const sectionMin = page.getByLabel("Section X min");
+      assert.equal(await sectionMin.evaluate((node) => document.activeElement === node), true, "Tab must reach the first section input");
+      await sectionMin.fill("-0.05");
+      await page.keyboard.press("Tab");
+      await page.waitForFunction(() => window.__tubaViewer?.state?.sectionBox?.min?.[0] === -0.05);
       const sectionMax = page.getByLabel("Section X max");
+      assert.equal(await sectionMax.evaluate((node) => document.activeElement === node), true, "field editing must retain sequential Tab focus");
       await sectionMax.fill("1.5");
       await sectionMax.press("Enter");
       await page.waitForFunction(() => (window.__tubaViewer?.state?.sectionBox?.max?.[0] ?? 0) === 1.5);
@@ -88,15 +115,16 @@ const scenarios = {
         (await page.evaluate(() => window.__tubaViewer?.lastRender?.objectIds ?? [])).includes("object:element:pipe_smoke"),
         "a pipe crossing the section box remains renderable for fragment clipping"
       );
-      const sectionFingerprint = await framebufferFingerprint(canvas);
-      assert.notEqual(sectionFingerprint, zoomFingerprint, "sectioning must change the framebuffer");
+      const sectionSnapshot = await framebufferSnapshot(canvas);
+      assert.notEqual(sectionSnapshot.hash, zoomSnapshot.hash, "sectioning must change the framebuffer");
 
       await page.getByRole("button", { name: "Reset section", exact: true }).click();
       await page.waitForFunction(() => !window.__tubaViewer?.state?.sectionBox);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const resetFingerprint = await framebufferFingerprint(canvas);
-      assert.ok(Math.abs(resetFingerprint - zoomFingerprint) <= 2, `section reset fingerprint drifted: ${zoomFingerprint} -> ${resetFingerprint}`);
-      console.log(`section-camera fingerprints: zoom=${zoomFingerprint} section=${sectionFingerprint} reset=${resetFingerprint}`);
+      const resetSnapshot = await framebufferSnapshot(canvas);
+      const maxChannelDifference = Math.max(...resetSnapshot.samples.map((value, index) => Math.abs(value - zoomSnapshot.samples[index])));
+      assert.ok(maxChannelDifference <= 1, `section reset framebuffer drifted by ${maxChannelDifference} channel value(s)`);
+      console.log(`section-camera fingerprints: zoom=${zoomSnapshot.hash} section=${sectionSnapshot.hash} reset=${resetSnapshot.hash}; max channel drift=${maxChannelDifference}`);
       assert.notEqual(baseline, 0);
     }
   },

@@ -153,6 +153,20 @@ export function applySectionBox(state, sectionBox) {
   return withVisibility({ ...state, sectionBox });
 }
 
+export function sectionBoxDefaults(bounds) {
+  const scale = Math.max(1, ...bounds.map((value) => Math.abs(Number(value))));
+  const padding = scale * 0.000001;
+  const min = bounds.slice(0, 3).map(Number);
+  const max = bounds.slice(3, 6).map(Number);
+  for (let index = 0; index < 3; index += 1) {
+    if (min[index] === max[index]) {
+      min[index] -= padding;
+      max[index] += padding;
+    }
+  }
+  return { min, max };
+}
+
 export function saveViewState(state, name) {
   return {
     id: `view:${slug(name)}`,

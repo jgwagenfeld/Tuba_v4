@@ -96,3 +96,66 @@ Output:
 ## Concerns
 
 None.
+
+## Fix Round 1
+
+### RED
+
+Command (from `viewer/`):
+
+```text
+node --test test/controls.test.js --test-name-pattern "section box defaults"
+```
+
+Output:
+
+```text
+SyntaxError: The requested module '../src/controls.js' does not provide an export named 'sectionBoxDefaults'
+```
+
+### GREEN
+
+Focused command (from `viewer/`):
+
+```text
+node --test --test-name-pattern "section box defaults|applySectionBox" test/controls.test.js
+```
+
+Output:
+
+```text
+# tests 2
+# pass 2
+# fail 0
+```
+
+Browser command (from `viewer/`):
+
+```text
+& 'C:\Program Files\nodejs\npm.cmd' run e2e -- section-camera
+```
+
+Output:
+
+```text
+section-camera fingerprints: zoom=3196515871 section=3474741164 reset=3196515871; max channel drift=0
+section-camera ok: 4 objects, 120/2500 varied samples
+```
+
+Full viewer command (from `viewer/`):
+
+```text
+& 'C:\Program Files\nodejs\npm.cmd' test
+```
+
+Output:
+
+```text
+# tests 185
+# pass 185
+# fail 0
+```
+
+Self-review: `sectionBoxDefaults` pads only degenerate axes by a scale-relative `1e-6`; section interaction now redraws only the canvas and updates the existing controls in place; the browser proof retains keyboard focus and uses per-channel sampled-pixel reset tolerance (one channel value) rather than numeric hash distance. +Z now requires near-zero X/Y as well as negative Z.
+
+Concerns: none.

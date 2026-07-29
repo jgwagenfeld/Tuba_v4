@@ -7,6 +7,7 @@ import {
   groupIssues,
   restoreViewState,
   saveViewState,
+  sectionBoxDefaults,
   searchObjects
 } from "./controls.js";
 import { applyHoverHighlight, createThreeViewport, pickRenderedObject } from "./renderer.js";
@@ -810,7 +811,7 @@ function renderSectionBoxControls() {
   const enabledLabel = document.createElement("label");
   enabledLabel.htmlFor = enabled.id;
   enabledLabel.append(enabled, " Enable section");
-  const box = currentState.sectionBox ?? boundsSectionBox(currentState.bounds);
+  const box = currentState.sectionBox ?? sectionBoxDefaults(currentState.bounds);
   const fields = [];
   const grid = document.createElement("div");
   grid.className = "section-box-grid";
@@ -847,13 +848,16 @@ function renderSectionBoxControls() {
     }
     if (!valid) return;
     currentState = applySectionBox(currentState, next);
-    render();
+    updateSectionBoxControlValues(next, true);
+    renderCanvas();
   };
   enabled.addEventListener("change", () => {
-    if (enabled.checked) update();
-    else {
+    if (enabled.checked) {
+      update();
+    } else {
       currentState = applySectionBox(currentState, undefined);
-      render();
+      updateSectionBoxControlValues(sectionBoxDefaults(currentState.bounds), false);
+      renderCanvas();
     }
   });
   for (const { input } of fields) input.addEventListener("change", update);
@@ -862,14 +866,20 @@ function renderSectionBoxControls() {
   reset.textContent = "Reset section";
   reset.addEventListener("click", () => {
     currentState = applySectionBox(currentState, undefined);
-    render();
+    updateSectionBoxControlValues(sectionBoxDefaults(currentState.bounds), false);
+    renderCanvas();
   });
   section.append(heading, enabledLabel, grid, reset);
   dom.sectionBoxControls.append(section);
-}
 
-function boundsSectionBox(bounds) {
-  return { min: [bounds[0], bounds[1], bounds[2]], max: [bounds[3], bounds[4], bounds[5]] };
+  function updateSectionBoxControlValues(nextBox, active) {
+    enabled.checked = active;
+    for (const field of fields) {
+      field.input.value = String(nextBox[field.side][field.index]);
+      field.input.disabled = !active;
+      field.input.setCustomValidity("");
+    }
+  }
 }
 
 function renderCameraControls() {

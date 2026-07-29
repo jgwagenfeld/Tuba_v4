@@ -14,6 +14,7 @@ import {
   measureDistanceBetweenObjects,
   restoreViewState,
   saveViewState,
+  sectionBoxDefaults,
   setRuntimeState,
   setOverlayVisibility,
   searchObjects
@@ -323,6 +324,17 @@ test("applySectionBox hides objects outside the clipping bounds", () => {
     "object:issue:clash:element:pipe_0:obstacle:equipment_box"
   ]);
   assert.deepEqual(next.sectionBox.min, [-1, -1, -1]);
+});
+
+test("section box defaults pad degenerate linear and point bounds", () => {
+  const linear = sectionBoxDefaults([0, 0, 0, 2, 0, 0]);
+  const point = sectionBoxDefaults([0, 0, 0, 0, 0, 0]);
+
+  assert.deepEqual(linear.min, [0, -0.000002, -0.000002]);
+  assert.deepEqual(linear.max, [2, 0.000002, 0.000002]);
+  assert.ok(point.min.every((value, index) => value < point.max[index]));
+  assert.deepEqual(point.min, [-0.000001, -0.000001, -0.000001]);
+  assert.deepEqual(point.max, [0.000001, 0.000001, 0.000001]);
 });
 
 test("saveViewState and restoreViewState roundtrip selection and sectioning", () => {
