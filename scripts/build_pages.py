@@ -6,8 +6,10 @@ import argparse
 from collections.abc import Mapping
 import hashlib
 import json
+import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -19,6 +21,7 @@ if str(ROOT) not in sys.path:
 
 from examples.code_aster_artifact_review import run_example
 from examples.imported_component_mixed_system import run_demo
+from scripts import prepare_release
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 
 
@@ -50,6 +53,134 @@ OFFICIAL_EXAMPLES: tuple[tuple[str, Callable[[Path, Path | None], None], frozens
     ("code-aster-review", _build_code_aster_review, frozenset({"dev", "pages"}), "engineering-review"),
     ("imported_component_mixed_demo", _build_model_review, frozenset({"dev", "pages"}), "model-review"),
 )
+PAGES_BUNDLE_IDS = ("code-aster-review", "imported_component_mixed_demo")
+_PAGES_REQUIRED_FILES = frozenset(
+    {
+        "index.html",
+        "setup.html",
+        "tutorial.html",
+        "reference/public-api.html",
+        "architecture/visualization.html",
+        "commands.html",
+        "overview.html",
+        "viewer/index.html",
+        "viewer/bundles.json",
+        "viewer/code-aster-review/scene.json",
+        "viewer/imported_component_mixed_demo/scene.json",
+        "notebooks/10_interactive_postprocessor.ipynb",
+        ".nojekyll",
+    }
+)
+
+
+def assemble_pages(output: Path, *, code_aster_artifacts: Path | None = None) -> Path:
+    """Build and atomically replace one complete deployable Pages tree."""
+    output = Path(output).resolve()
+    _validate_pages_output(output)
+    if output.exists() and not output.is_dir():
+        raise ValueError(f"Pages output must be a directory: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    prepare_release.main()
+    uv = shutil.which("uv") or "uv"
+    subprocess.run(
+        [uv, "run", "--group", "docs", "zensical", "build", "--clean", "--strict"],
+        cwd=ROOT,
+        check=True,
+    )
+
+    with TemporaryDirectory(prefix=f".{output.name}.staging-", dir=output.parent) as temporary:
+        staged = Path(temporary)
+        shutil.copytree(ROOT / ".build" / "zensical-site", staged, dirs_exist_ok=True)
+        viewer_root = staged / "viewer"
+        shutil.copytree(ROOT / "tuba" / "visualization" / "_viewer", viewer_root)
+        bundle_ids = build_examples(
+            viewer_root,
+            audience="pages",
+            code_aster_artifacts=code_aster_artifacts,
+        )
+        write_bundle_catalog(viewer_root, bundle_ids)
+
+        notebooks = staged / "notebooks"
+        notebooks.mkdir()
+        shutil.copy2(
+            ROOT / "notebooks" / "10_interactive_postprocessor.ipynb",
+            notebooks / "10_interactive_postprocessor.ipynb",
+        )
+        (staged / ".nojekyll").touch()
+        _write_redirect(staged / "commands.html", "reference/index.html")
+        _write_redirect(staged / "overview.html", "architecture/index.html")
+        validate_pages_tree(staged)
+        _replace_pages_output(staged, output)
+    return output
+
+
+def validate_pages_tree(root: Path) -> None:
+    """Reject incomplete, over-cataloged, or package-contaminating Pages output."""
+    files = {
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+    missing = sorted(_PAGES_REQUIRED_FILES - files)
+    if missing:
+        raise ValueError(f"Pages tree is incomplete; missing: {', '.join(missing)}")
+
+    catalog = json.loads((root / "viewer" / "bundles.json").read_text(encoding="utf-8"))
+    if catalog != list(PAGES_BUNDLE_IDS):
+        raise ValueError(f"Pages catalog must contain exactly {list(PAGES_BUNDLE_IDS)!r}.")
+    bundle_directories = sorted(
+        path.name
+        for path in (root / "viewer").iterdir()
+        if path.is_dir() and path.name != "assets"
+    )
+    if bundle_directories != list(PAGES_BUNDLE_IDS):
+        raise ValueError("Pages viewer directories must match its official catalog exactly.")
+
+    package_catalog = json.loads(
+        (ROOT / "tuba" / "visualization" / "_viewer" / "bundles.json").read_text(encoding="utf-8")
+    )
+    if package_catalog != []:
+        raise ValueError("The packaged viewer shell catalog must remain empty.")
+
+
+def _validate_pages_output(output: Path) -> None:
+    protected = {
+        ROOT.resolve(),
+        Path.home().resolve(),
+        Path(output.anchor).resolve(),
+        (ROOT / "docs" / "content").resolve(),
+        (ROOT / "viewer" / "public").resolve(),
+    }
+    if output in protected:
+        raise ValueError(f"Refusing to replace protected Pages output: {output}")
+
+
+def _write_redirect(path: Path, target: str) -> None:
+    path.write_text(
+        "<!doctype html>\n"
+        '<html lang="en"><head>\n'
+        f'<meta http-equiv="refresh" content="0; url={target}">\n'
+        f'<link rel="canonical" href="{target}">\n'
+        f'<title>Redirecting</title></head><body><a href="{target}">Continue</a></body></html>\n',
+        encoding="utf-8",
+    )
+
+
+def _replace_pages_output(staged: Path, output: Path) -> None:
+    if not output.exists():
+        os.replace(staged, output)
+        return
+    with TemporaryDirectory(prefix=f".{output.name}.backup-", dir=output.parent) as reserved:
+        backup = Path(reserved)
+        backup.rmdir()
+        os.replace(output, backup)
+        try:
+            os.replace(staged, output)
+        except BaseException:
+            os.replace(backup, output)
+            raise
+        shutil.rmtree(backup)
 
 
 def build_examples(
@@ -347,7 +478,13 @@ def main() -> int:
     examples.add_argument("--output", type=Path, required=True)
     examples.add_argument("--audience", choices=("dev", "pages"), default="dev")
     examples.add_argument("--code-aster-artifacts", type=Path)
+    pages = subcommands.add_parser("pages")
+    pages.add_argument("--output", type=Path, required=True)
+    pages.add_argument("--code-aster-artifacts", type=Path)
     args = parser.parse_args()
+    if args.command == "pages":
+        assemble_pages(args.output, code_aster_artifacts=args.code_aster_artifacts)
+        return 0
     bundle_ids = build_examples(
         args.output,
         audience=args.audience,

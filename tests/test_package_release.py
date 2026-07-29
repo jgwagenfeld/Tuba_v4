@@ -2,6 +2,7 @@ from pathlib import Path
 from hashlib import sha256
 from email.parser import BytesParser
 import errno
+import json
 import os
 import re
 import shutil
@@ -156,6 +157,7 @@ def test_viewer_production_build_synchronizes_the_python_package():
         "favicon.svg",
         "index.html",
     }
+    assert json.loads((package_root / "bundles.json").read_text(encoding="utf-8")) == []
 
 
 def test_distribution_declares_viewer_console_script():
@@ -240,6 +242,7 @@ def test_built_wheel_launcher_serves_exact_packaged_assets(tmp_path):
             for name in archive.namelist()
             if name.startswith("tuba/visualization/_viewer/")
         }
+        assert json.loads(archive.read("tuba/visualization/_viewer/bundles.json")) == []
     expected = {
         path.relative_to(ROOT / "tuba" / "visualization" / "_viewer").as_posix()
         for path in (ROOT / "tuba" / "visualization" / "_viewer").rglob("*")
