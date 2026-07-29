@@ -121,13 +121,22 @@ round_tripped.validate()
 
 ```json
 {
-  "meta": {"project_name": "Demo", "version": "tuba.model.v4"},
+  "meta": {"project_name": "Demo", "standard": "ASME_B31.3", "version": "tuba.model.v4"},
   "materials": {"Steel": {"E": 210000000000.0, "nu": 0.3}},
   "sections": {"DN100": {"type": "pipe", "OD": 0.1143, "WT": 0.00602}},
   "nodes": {"N0": [0.0, 0.0, 0.0], "N1": [2.0, 0.0, 0.0]},
   "elements": [
     {"id": "pipe_0", "type": "pipe_straight", "n1": "N0", "n2": "N1", "section": "DN100", "material": "Steel"}
-  ]
+  ],
+  "supports": [{"id": "support_0", "node": "N0", "type": "anchor"}],
+  "load_cases": {
+    "Operating": {
+      "gravity": true,
+      "internal_pressure": 1200000.0,
+      "temperature": 180.0,
+      "ref_temperature": 20.0
+    }
+  }
 }
 ```
 

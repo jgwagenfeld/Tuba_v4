@@ -9,7 +9,7 @@ class TestCodeAsterDocs(unittest.TestCase):
 
         self.assertIn("`python -m pip install .` installs Tuba", text)
         self.assertIn("does not install Code_Aster", text)
-        self.assertIn('python -m pip install ".[code-aster-rmed]"', text)
+        self.assertIn('.\\.venv\\Scripts\\python.exe -m pip install ".[code-aster-rmed]"', text)
         self.assertIn("conda create -y -n tuba-code-aster", text)
         self.assertIn("code-aster=18.0.12", text)
         self.assertIn("run_aster --version", text)

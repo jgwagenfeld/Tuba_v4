@@ -25,6 +25,7 @@ Tuba model -> Code_Aster solve -> imported artifacts -> processed result review
 from pathlib import Path
 
 from tuba import Model
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 
 model = Model(project_name="Demo")
@@ -54,6 +55,11 @@ solver = CodeAsterSolver(
 )
 study = solver.export_analysis_study(model, "Hot", Path("runs/demo_hot"))
 results = solver.solve_exported_study(model, study)
+artifact = import_code_aster_artifacts(
+    model=model,
+    work_dir=study.work_dir,
+    study=study,
+)
 ```
 
 Export success is not solve success. If required result tables are missing or empty, read the runner logs and treat the evaluation as incomplete.
@@ -96,14 +102,8 @@ results.plot_deformed_stress(
 `tuba/visualization/` and `viewer/` are the shareable review path. Python writes the JSON scene and engineering-review contracts; Three.js renders them without performing engineering calculations.
 
 ```python
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.visualization import build_visualization_scene, write_scene_bundle
 
-artifact = import_code_aster_artifacts(
-    model=model,
-    work_dir=study.work_dir,
-    study=study,
-)
 scene = build_visualization_scene(
     model,
     analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],

@@ -30,7 +30,7 @@ python -m venv .venv
 `python -m pip install .` installs Tuba; it does not install Code_Aster. The `code-aster-rmed` extra installs the RMED/MED reader, not the solver:
 
 ```powershell
-python -m pip install ".[code-aster-rmed]"
+.\.venv\Scripts\python.exe -m pip install ".[code-aster-rmed]"
 ```
 
 There is no supported ordinary PyPI installation of the compiled Code_Aster solver. Tuba v4 is currently validated with `code-aster=18.0.12`; change that pin only after the real solver smoke test passes with the newer release.

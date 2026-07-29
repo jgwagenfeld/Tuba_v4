@@ -26,18 +26,18 @@ Run an example with:
 
 | Example | Evidence status | Purpose |
 | --- | --- | --- |
-| `demo.py` | **EXPORT ONLY** | Expansion-loop and end-to-end handoff workflow |
-| `autorouting_basic.py` | **EXPORT ONLY** | Basic single-pipe route and review files |
-| `autoroute_single_pipe.py` | **EXPORT ONLY** | Candidate route, study export, and report |
-| `autoroute_network.py` | **EXPORT ONLY** | Prioritized multi-pipe routing and conflicts |
-| `autoroute_expansion_loop.py` | **EXPORT ONLY** | Hot-line U-loop candidates and solver-loop export configuration |
-| `operating_state_clash.py` | **MODEL REVIEW** | Operating-state geometry and clash metadata; no solver result claim |
-| `future_ready_semantic_workflow.py` | **MODEL / REPORT** | Semantic model, quantities, BOM, rules, and benchmarks |
-| `imported_component_mixed_system.py` | **MODEL REVIEW** | Programmatic pipe connected to STEP/STL geometry |
-| `realtime_visualization_review.py` | **PRESERVED RESULT INPUT** | Browser scene generation from a preserved result state |
-| `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT** | Imports existing Code_Aster artifacts into result and review surfaces |
+| `demo.py` | **MODEL JSON + STUDY HANDOFF** | Writes `piping_model.json` and Code_Aster input files, then stops before results |
+| `autorouting_basic.py` | **ROUTE REPORT** | Applies a selected single-pipe candidate in memory and writes route report files; no study export |
+| `autoroute_single_pipe.py` | **ROUTE REPORT + STUDY HANDOFF** | Writes a route report and exports candidate Code_Aster studies without running them |
+| `autoroute_network.py` | **NETWORK ROUTE REPORT** | Writes prioritized multi-pipe routing and conflict reports; no study export |
+| `autoroute_expansion_loop.py` | **ROUTE REPORT + STUDY HANDOFF** | Writes a hot-line U-loop report and exports candidate studies without running them |
+| `operating_state_clash.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises until real result artifacts are available |
+| `future_ready_semantic_workflow.py` | **BOM + BENCHMARK; COMPUTED MODEL CHECKS** | Writes a BOM CSV and benchmark summary, then prints quantity, route-cost, load-path, and rule results; no solver study or results |
+| `imported_component_mixed_system.py` | **MODEL REVIEW SCENE; OPTIONAL STEP HANDOFF** | Writes a model JSON and geometry-only scene; STEP/STP input can also export an unsolved mixed study |
+| `realtime_visualization_review.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises before writing any result-review scene |
+| `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Imports existing Code_Aster artifacts and writes engineering review and web-scene files |
 
-The export-only examples do not launch Code_Aster. Their `.comm`, `.mail`, and `.export` files are incomplete for engineering evaluation until Code_Aster runs and Tuba imports the result artifacts.
+No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** write `.comm`, `.mail`, and `.export` inputs only; those files remain incomplete for engineering evaluation until Code_Aster runs and Tuba imports the result artifacts. Report-only and model-review rows do not claim to produce solver handoff or result evidence.
 
 ## Autorouting example outputs
 

@@ -1,3 +1,4 @@
+import json
 import re
 import tomllib
 import unittest
@@ -147,6 +148,14 @@ class TestStaticSiteDocs(unittest.TestCase):
 
         for phrase in required_phrases:
             self.assertIn(phrase, text)
+
+    def test_modeling_serialization_sample_matches_the_live_schema(self):
+        from tuba.schema import validate_model_dict
+
+        text = (CONTENT / "modeling.md").read_text(encoding="utf-8")
+        sample = re.search(r"## Schemas and serialized models.*?```json\n(.*?)\n```", text, re.S)
+        self.assertIsNotNone(sample)
+        validate_model_dict(json.loads(sample.group(1)))
 
 
 if __name__ == "__main__":
