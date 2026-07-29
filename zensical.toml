@@ -1,0 +1,44 @@
+[project]
+site_name = "Tuba v4"
+site_description = "Code_Aster-backed piping engineering and result review"
+site_url = "https://jgwagenfeld.github.io/Tuba_v4/"
+repo_url = "https://github.com/jgwagenfeld/Tuba_v4"
+docs_dir = "docs/content"
+site_dir = ".build/zensical-site"
+use_directory_urls = false
+extra_css = ["assets/site.css"]
+nav = [
+    { "Home" = "index.md" },
+    { "Setup" = "setup.md" },
+    { "Tutorial" = "tutorial.md" },
+    { "Modeling" = "modeling.md" },
+    { "Workflow" = "workflow.md" },
+    { "Autorouting" = "autorouting.md" },
+    { "Examples" = "examples.md" },
+    { "Developer" = "developer.md" },
+    { "Reference" = [
+        { "Overview" = "reference/index.md" },
+        { "Public API" = "reference/public-api.md" },
+    ] },
+    { "Architecture" = [
+        { "Overview" = "architecture/index.md" },
+        { "Visualization" = "architecture/visualization.md" },
+    ] },
+]
+
+[project.validation]
+invalid_links = true
+invalid_link_anchors = true
+
+[project.theme]
+variant = "modern"
+language = "en"
+features = ["content.code.copy", "navigation.footer", "navigation.indexes"]
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["."]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+members_order = "source"
+show_source = true
+show_signature_annotations = true

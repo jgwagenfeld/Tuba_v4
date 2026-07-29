@@ -1,0 +1,25 @@
+:root {
+  --md-primary-fg-color: #16324f;
+  --md-accent-fg-color: #e07a2d;
+}
+
+.md-grid {
+  max-width: 82rem;
+}
+
+.md-content img,
+.viewer-frame {
+  max-width: 100%;
+}
+
+.viewer-frame {
+  width: 100%;
+  min-height: 32rem;
+  border: 0;
+}
+
+@media (max-width: 44rem) {
+  .viewer-frame {
+    min-height: 24rem;
+  }
+}

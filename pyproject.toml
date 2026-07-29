@@ -88,6 +88,12 @@ dev = [
     "pytest>=8",
 ]
 
+[dependency-groups]
+docs = [
+    "mkdocstrings[python]>=1.0",
+    "zensical==0.0.51",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

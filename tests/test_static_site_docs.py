@@ -1,4 +1,5 @@
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -65,19 +66,31 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertNotIn("your-tuba-v4-repo-url", text)
         self.assertNotIn("pip install -e", text)
 
-    def test_every_page_uses_left_sidebar_navigation(self):
-        pages = sorted(SITE.glob("*.html"))
+    def test_zensical_build_uses_canonical_markdown_and_docs_only_dependencies(self):
+        config = tomllib.loads((ROOT / "zensical.toml").read_text(encoding="utf-8"))
+        project = config["project"]
+        self.assertEqual("docs/content", project["docs_dir"])
+        self.assertEqual(".build/zensical-site", project["site_dir"])
+        self.assertFalse(project["use_directory_urls"])
+        self.assertTrue(project["validation"]["invalid_links"])
+        self.assertTrue(project["validation"]["invalid_link_anchors"])
 
-        for path in pages:
-            text = path.read_text(encoding="utf-8")
-            self.assertIn('class="sidebar"', text, path.name)
-            self.assertIn('class="side-nav"', text, path.name)
-            self.assertIn('href="./tutorial.html"', text, path.name)
-            self.assertIn('href="./modeling.html"', text, path.name)
-            self.assertIn('href="./workflow.html"', text, path.name)
-            self.assertIn('href="./autorouting.html"', text, path.name)
-            self.assertIn('href="./commands.html"', text, path.name)
-            self.assertNotIn('class="topbar"', text, path.name)
+        package = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        docs_dependencies = package["dependency-groups"]["docs"]
+        self.assertIn("zensical==0.0.51", docs_dependencies)
+        self.assertIn("mkdocstrings[python]>=1.0", docs_dependencies)
+
+        runtime_dependencies = package["project"]["dependencies"]
+        optional_dependencies = [
+            dependency
+            for dependencies in package["project"]["optional-dependencies"].values()
+            for dependency in dependencies
+        ]
+        for dependency in runtime_dependencies + optional_dependencies:
+            self.assertNotIn("zensical", dependency.lower())
+            self.assertNotIn("mkdocstrings", dependency.lower())
+
+        self.assertTrue((ROOT / "docs" / "content" / "index.md").is_file())
 
     def test_docs_do_not_overclaim_autorouting_or_export_only_files(self):
         tutorial = (SITE / "tutorial.html").read_text(encoding="utf-8")

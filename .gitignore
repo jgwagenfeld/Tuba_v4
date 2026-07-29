@@ -29,6 +29,7 @@ secrets.*
 .pypirc
 
 build/
+.build/
 dist/
 *.egg-info/
 
