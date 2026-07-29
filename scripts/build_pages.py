@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 import hashlib
 import json
 import re
@@ -23,6 +24,7 @@ from examples.imported_component_mixed_system import run_demo
 _WINDOWS_ABSOLUTE = re.compile(r"^[A-Za-z]:[\\/]")
 _UNC = re.compile(r"^\\\\")
 _TRAVERSAL = re.compile(r"(?:^|[\\/])\.\.(?:[\\/]|$)")
+_IDENTITY_FIELDS = ("fingerprint", "load_case", "schema_id", "compiler_id")
 
 
 def _build_code_aster_review(destination: Path, artifacts: Path | None) -> None:
@@ -138,6 +140,8 @@ def _validate_geometry(root: Path, scene: dict[str, Any]) -> None:
             raise ValueError("Geometry asset is missing its URI.")
         payload_path = _bundle_path(root, asset["uri"])
         payload = _read_json(payload_path)
+        _reject_unsafe_references(payload)
+        _reject_error_diagnostics(payload)
         expected = _geometry_hash({key: value for key, value in payload.items() if key != "hash"})
         if payload.get("hash") != expected or asset.get("hash") != expected:
             raise ValueError(f"Geometry hash does not match payload for {asset.get('id', '<unknown>')!r}.")
@@ -145,32 +149,76 @@ def _validate_geometry(root: Path, scene: dict[str, Any]) -> None:
 
 def _validate_engineering_result_fields(scene: dict[str, Any]) -> None:
     fields = scene.get("result_fields", [])
-    if len(fields) != 4:
+    overlays = scene.get("overlays", [])
+    expected = {
+        "stress": "solver_result",
+        "displacement": "solver_result",
+        "reaction": "solver_result",
+        "tuyau_subpoints": "solver_result",
+    }
+    if not isinstance(fields, list) or len(fields) != len(expected):
         raise ValueError("Engineering-review bundles require four result fields.")
-    values = json.dumps(fields).lower()
-    for family in ("stress", "displacement", "reaction", "tuyau"):
-        if family not in values:
-            raise ValueError(f"Engineering-review bundle is missing {family} result family.")
+    overlays_by_id = {
+        overlay.get("id"): overlay
+        for overlay in overlays
+        if isinstance(overlay, dict) and isinstance(overlay.get("id"), str)
+    }
+    found: set[str] = set()
+    for field in fields:
+        if not isinstance(field, dict):
+            raise ValueError("Engineering-review result-field records must be objects.")
+        overlay_id = field.get("overlay_id")
+        overlay = overlays_by_id.get(overlay_id)
+        if not isinstance(overlay, dict) or field.get("id") != str(overlay_id).replace("overlay:", "field:", 1):
+            raise ValueError("Engineering-review result-field must match its overlay.")
+        data = overlay.get("data")
+        family = data.get("result_type") if isinstance(data, dict) else None
+        if family not in expected or overlay.get("kind") != expected[family]:
+            raise ValueError("Engineering-review result-field overlay family is invalid.")
+        if family in found or not isinstance(data.get("values"), Mapping) or not data["values"]:
+            raise ValueError("Engineering-review result-field overlay values are invalid.")
+        if (
+            field.get("result_state_id") != data.get("result_state_id")
+            or not field.get("result_state_id")
+            or field.get("load_case") != data.get("load_case")
+            or not field.get("load_case")
+            or not field.get("components")
+        ):
+            raise ValueError("Engineering-review result-field provenance is invalid.")
+        found.add(family)
+    if found != set(expected):
+        raise ValueError("Engineering-review result-field families are incomplete.")
 
 
 def _validate_engineering_provenance(scene: dict[str, Any], review: dict[str, Any]) -> None:
     provenance = review.get("provenance", [])
     if not isinstance(provenance, list) or any("fixture" in json.dumps(item).lower() for item in provenance):
         raise ValueError("Engineering-review provenance must be non-fixture Code_Aster evidence.")
-    identities: list[dict[str, Any]] = []
-    for record in provenance:
-        if isinstance(record, dict):
-            identity = record.get("metadata", {}).get("solver_input_identity")
-            if identity is not None:
-                identities.append(identity)
-    identities.extend(scene.get("solver_input_identities", []))
-    fingerprints = {
-        value.get("fingerprint")
-        for value in identities
-        if isinstance(value, dict) and value.get("fingerprint")
-    }
-    if not fingerprints or len(fingerprints) != 1 or len(identities) < 3:
+    identities: dict[str, dict[str, Any]] = {}
+    for kind in ("study", "analysis_mesh", "result_state"):
+        records = [record for record in provenance if isinstance(record, dict) and record.get("kind") == kind]
+        if len(records) != 1:
+            raise ValueError(f"Engineering-review provenance requires one {kind} identity.")
+        metadata = records[0].get("metadata")
+        identity = metadata.get("solver_input_identity") if isinstance(metadata, dict) else None
+        if not isinstance(identity, dict) or any(not identity.get(key) for key in _IDENTITY_FIELDS):
+            raise ValueError(f"Engineering-review provenance requires a non-null {kind} identity.")
+        identities[kind] = {key: identity[key] for key in _IDENTITY_FIELDS}
+    reference = identities["study"]
+    if any(identity != reference for identity in identities.values()):
         raise ValueError("Engineering-review provenance requires matching non-null solver identities.")
+    scene_identities = scene.get("solver_input_identities")
+    if (
+        not isinstance(scene_identities, list)
+        or not scene_identities
+        or any(
+            not isinstance(identity, dict)
+            or any(not identity.get(key) for key in _IDENTITY_FIELDS)
+            or {key: identity[key] for key in _IDENTITY_FIELDS} != reference
+            for identity in scene_identities
+        )
+    ):
+        raise ValueError("Engineering-review scene identity must match provenance.")
     if any(value.get("solver_name") != "Code_Aster" for value in provenance if isinstance(value, dict)):
         raise ValueError("Engineering-review provenance must identify Code_Aster.")
 

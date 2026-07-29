@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 import hashlib
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import shutil
 from typing import Any
 
@@ -38,13 +38,14 @@ def stage_code_aster_artifact_evidence(
     basename_sources: dict[str, Path] = {}
     portable_sources: dict[str, str] = {}
     attested = artifact.result_state.metadata.get("solve_attestation", {}).get("artifacts", {})
+    evidence_root = _evidence_root(artifact.study.work_dir)
 
     def stage_files(files: dict[str, str]) -> tuple[dict[str, str], dict[str, str], dict[str, int]]:
         portable: dict[str, str] = {}
         hashes: dict[str, str] = {}
         sizes: dict[str, int] = {}
         for role, value in files.items():
-            source = _artifact_source(value)
+            source = _artifact_source(value, evidence_root=evidence_root)
             basename = source.name
             previous = basename_sources.setdefault(basename, source)
             if previous != source:
@@ -101,16 +102,36 @@ def stage_code_aster_artifact_evidence(
     return replace(artifact, study=study, analysis_mesh=mesh, result_state=result_state)
 
 
-def _artifact_source(value: str) -> Path:
-    source = Path(value)
-    if ".." in source.parts:
+def _evidence_root(work_dir: str | None) -> Path | None:
+    if work_dir is None:
+        return None
+    return Path(work_dir.replace("\\", "/")).resolve()
+
+
+def _artifact_source(value: str, *, evidence_root: Path | None) -> Path:
+    source = Path(value.replace("\\", "/"))
+    if ".." in source.parts or ".." in PureWindowsPath(value).parts:
         raise ValueError(f"Artifact path must not traverse directories: {value!r}.")
-    resolved = source.resolve()
-    if not resolved.is_file():
-        raise ValueError(f"Artifact file is missing: {value!r}.")
-    if source.is_symlink() or resolved.is_symlink():
-        raise ValueError(f"Artifact symlinks are not publishable: {value!r}.")
-    return resolved
+    candidates = [source] if source.is_absolute() else [
+        *( [evidence_root / source] if evidence_root is not None else [] ),
+        source,
+    ]
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        if any(path.is_symlink() for path in _path_components(candidate)):
+            raise ValueError(f"Artifact symlinks are not publishable: {value!r}.")
+        return candidate.resolve()
+    raise ValueError(f"Artifact file is missing: {value!r}.")
+
+
+def _path_components(path: Path):
+    current = path
+    while True:
+        yield current
+        if current == current.parent:
+            return
+        current = current.parent
 
 
 def _sha256(path: Path) -> str:

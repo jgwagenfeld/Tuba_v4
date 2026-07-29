@@ -10,6 +10,7 @@ import sys
 
 import pytest
 
+from scripts import build_pages
 from scripts.build_pages import build_examples, validate_official_bundle, write_bundle_catalog
 from tuba.analysis.code_aster_artifacts import CodeAsterArtifactImport, stage_code_aster_artifact_evidence
 from tuba.analysis.results import ResultState
@@ -75,7 +76,7 @@ def test_engineering_profile_rejects_missing_portable_provenance_file(tmp_path: 
         (lambda scene, review: review["provenance"][0]["files"].update(result="C:\\escape.csv"), "non-portable"),
         (lambda scene, review: review["provenance"][0]["files"].update(result="../escape.csv"), "non-portable"),
         (lambda scene, review: scene.update(geometry_assets=[{"id": "mesh", "uri": "geometry/missing.json", "hash": "sha256:x"}]), "missing"),
-        (lambda scene, review: scene["result_fields"].__setitem__(-1, {"id": "other", "label": "other", "overlay_id": "overlay:test", "components": ["magnitude"]}), "missing tuyau"),
+        (lambda scene, review: scene["result_fields"].__setitem__(-1, {"id": "other", "label": "other", "overlay_id": "overlay:test", "components": ["magnitude"]}), "result-field"),
         (lambda scene, review: review["provenance"][0]["metadata"].update(source="fixture"), "non-fixture"),
         (lambda scene, review: scene.update(diagnostics=[{"severity": "error", "code": "bad"}]), "error diagnostic"),
     ],
@@ -137,6 +138,147 @@ def test_evidence_staging_rejects_unsafe_or_ambiguous_sources(tmp_path: Path, ki
         stage_code_aster_artifact_evidence(artifact, tmp_path / "bundle")
 
 
+def test_evidence_staging_resolves_committed_windows_relative_paths_from_the_evidence_root(tmp_path: Path) -> None:
+    """Catches POSIX publication treating a committed Windows path as one filename."""
+    evidence_root = tmp_path / "evidence"
+    evidence_root.mkdir()
+    (evidence_root / "study.comm").write_text("comm", encoding="utf-8")
+    artifact = _artifact_with_files({"comm": "inputs\\study.comm"}, work_dir=evidence_root)
+    (evidence_root / "inputs").mkdir()
+    (evidence_root / "inputs" / "study.comm").write_text("comm", encoding="utf-8")
+
+    staged = stage_code_aster_artifact_evidence(artifact, tmp_path / "bundle")
+
+    assert staged.study.input_files == {"comm": "artifacts/study.comm"}
+
+
+def test_evidence_staging_rejects_a_symlinked_parent_directory(tmp_path: Path) -> None:
+    """Catches a safe terminal file reached through a symlinked evidence directory."""
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "study.comm").write_text("comm", encoding="utf-8")
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(real, target_is_directory=True)
+    except OSError as error:
+        pytest.skip(f"symlink creation unavailable: {error.winerror}")
+    artifact = _artifact_with_files({"comm": str(linked / "study.comm")})
+
+    with pytest.raises(ValueError, match="symlinks"):
+        stage_code_aster_artifact_evidence(artifact, tmp_path / "bundle")
+
+
+@pytest.mark.parametrize("unsafe", ("\\\\server\\share\\file", "/tmp/file"))
+def test_engineering_profile_rejects_unc_and_posix_absolute_references(tmp_path: Path, unsafe: str) -> None:
+    """Catches portable profiles accepting absolute paths outside the bundle."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    review["provenance"][0]["files"]["result"] = unsafe
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="non-portable"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
+@pytest.mark.parametrize("unsafe", ("C:\\escaped", "../escaped"))
+def test_geometry_payload_rejects_rehashed_unsafe_references(tmp_path: Path, unsafe: str) -> None:
+    """Catches payload-only paths that would survive a valid geometry hash."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    payload = {
+        "asset_id": "mesh", "format": "point", "bounds": [], "object_ids": [],
+        "generation_config": {"source_path": unsafe},
+    }
+    payload["hash"] = _geometry_hash(payload)
+    (tmp_path / "geometry").mkdir()
+    (tmp_path / "geometry" / "mesh.json").write_text(json.dumps(payload), encoding="utf-8")
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    scene["geometry_assets"] = [{"id": "mesh", "uri": "geometry/mesh.json", "hash": payload["hash"]}]
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="non-portable"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
+def test_geometry_payload_rejects_an_error_diagnostic_after_rehash(tmp_path: Path) -> None:
+    """Catches payload diagnostics hidden behind a valid content hash."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    payload = {
+        "asset_id": "mesh", "format": "point", "bounds": [], "object_ids": [],
+        "generation_config": {}, "diagnostics": [{"severity": "error", "code": "payload.bad"}],
+    }
+    payload["hash"] = _geometry_hash(payload)
+    (tmp_path / "geometry").mkdir()
+    (tmp_path / "geometry" / "mesh.json").write_text(json.dumps(payload), encoding="utf-8")
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    scene["geometry_assets"] = [{"id": "mesh", "uri": "geometry/mesh.json", "hash": payload["hash"]}]
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="error diagnostic"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
+def test_engineering_profile_requires_all_three_record_identities(tmp_path: Path) -> None:
+    """Catches a result-state provenance record without a real solver identity."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    next(record for record in review["provenance"] if record["kind"] == "result_state")["metadata"].pop("solver_input_identity")
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="result_state identity"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
+def test_engineering_profile_requires_structurally_matching_identities(tmp_path: Path) -> None:
+    """Catches equal fingerprints with conflicting solver-input fields."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    next(record for record in review["provenance"] if record["kind"] == "analysis_mesh")["metadata"]["solver_input_identity"]["load_case"] = "Cold"
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="matching non-null"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
+def test_engineering_profile_requires_scene_identity_to_match_provenance(tmp_path: Path) -> None:
+    """Catches a scene identity that diverged from its reviewed solver records."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    scene["solver_input_identities"][0]["compiler_id"] = "other"
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="scene identity"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
+def test_engineering_profile_rejects_deceptive_result_labels_without_matching_overlays(tmp_path: Path) -> None:
+    """Catches family names present only in labels rather than solver overlays."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    scene["overlays"][-1]["data"]["result_type"] = "not_tuyau"
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="result-field"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
+def test_build_examples_does_not_write_catalog_when_validation_fails(tmp_path: Path, monkeypatch) -> None:
+    """Catches a CLI catalog claiming a bundle whose validation already failed."""
+    def produce_invalid(destination: Path, _artifacts: Path | None) -> None:
+        destination.mkdir(parents=True)
+        (destination / "scene.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(
+        build_pages,
+        "OFFICIAL_EXAMPLES",
+        (("invalid", produce_invalid, frozenset({"pages"}), "engineering-review"),),
+    )
+
+    with pytest.raises(ValueError):
+        build_examples(tmp_path, audience="pages")
+
+    assert not (tmp_path / "bundles.json").exists()
+
+
 def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
     identity = {
         "schema_id": "tuba.model.v4",
@@ -157,7 +299,25 @@ def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
     (root / "scene.json").write_text(json.dumps({
         "scene_id": "scene:test", "model_id": "model:test", "geometry_assets": [], "diagnostics": [],
         "layers": [{"id": category, "category": category, "label": category} for category in ("design", "analysis_mesh", "results", "annotations")],
-        "result_fields": [{"id": family, "label": family, "overlay_id": "overlay:test", "components": ["magnitude"]} for family in ("stress", "displacement", "reaction", "tuyau")],
+        "overlays": [
+            {
+                "id": f"overlay:solver_result:{family}:result_state:Operating",
+                "kind": "solver_result",
+                "data": {"result_type": family, "result_state_id": "result_state:Operating", "load_case": "Operating", "values": {"N0": 1.0}},
+            }
+            for family in ("stress", "displacement", "reaction", "tuyau_subpoints")
+        ],
+        "result_fields": [
+            {
+                "id": f"field:solver_result:{family}:result_state:Operating",
+                "label": family,
+                "overlay_id": f"overlay:solver_result:{family}:result_state:Operating",
+                "result_state_id": "result_state:Operating",
+                "load_case": "Operating",
+                "components": ["magnitude"],
+            }
+            for family in ("stress", "displacement", "reaction", "tuyau_subpoints")
+        ],
         "solver_input_identities": [identity],
     }), encoding="utf-8")
     (root / "review.json").write_text(json.dumps({
@@ -166,10 +326,10 @@ def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
     }), encoding="utf-8")
 
 
-def _artifact_with_files(files: dict[str, str]) -> CodeAsterArtifactImport:
+def _artifact_with_files(files: dict[str, str], *, work_dir: Path | str = "unsafe") -> CodeAsterArtifactImport:
     study = AnalysisStudy(
         id="study:test", model_revision=0, solver_name="Code_Aster", load_case="Operating",
-        work_dir="unsafe", input_files=files, mesh_id="mesh:test",
+        work_dir=str(work_dir), input_files=files, mesh_id="mesh:test",
     )
     state = ResultState(
         id="result:test", study_id=study.id, model_revision=0, solver_name="Code_Aster", load_case="Operating",
@@ -189,3 +349,8 @@ def _review(root: Path) -> dict:
 def _save_bundle(root: Path, scene: dict, review: dict) -> None:
     for name, value in (("scene.json", scene), ("review.json", review)):
         (root / name).write_text(json.dumps(value), encoding="utf-8")
+
+
+def _geometry_hash(payload: dict) -> str:
+    value = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{sha256(value).hexdigest()}"
