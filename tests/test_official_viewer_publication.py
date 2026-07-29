@@ -261,8 +261,8 @@ def test_engineering_profile_rejects_deceptive_result_labels_without_matching_ov
         validate_official_bundle(tmp_path, "engineering-review")
 
 
-def test_build_examples_does_not_write_catalog_when_validation_fails(tmp_path: Path, monkeypatch) -> None:
-    """Catches a CLI catalog claiming a bundle whose validation already failed."""
+def test_examples_main_does_not_create_or_overwrite_catalog_when_validation_fails(tmp_path: Path, monkeypatch) -> None:
+    """Catches the CLI writing a catalog after strict bundle validation fails."""
     def produce_invalid(destination: Path, _artifacts: Path | None) -> None:
         destination.mkdir(parents=True)
         (destination / "scene.json").write_text("{}", encoding="utf-8")
@@ -272,11 +272,18 @@ def test_build_examples_does_not_write_catalog_when_validation_fails(tmp_path: P
         "OFFICIAL_EXAMPLES",
         (("invalid", produce_invalid, frozenset({"pages"}), "engineering-review"),),
     )
+    catalog = tmp_path / "bundles.json"
+    catalog.write_text('["previous"]\n', encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["build_pages.py", "examples", "--output", str(tmp_path), "--audience", "pages"],
+    )
 
     with pytest.raises(ValueError):
-        build_examples(tmp_path, audience="pages")
+        build_pages.main()
 
-    assert not (tmp_path / "bundles.json").exists()
+    assert catalog.read_text(encoding="utf-8") == '["previous"]\n'
 
 
 def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
