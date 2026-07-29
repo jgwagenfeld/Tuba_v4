@@ -104,4 +104,4 @@ include = ["tuba*"]
 
 [tool.setuptools.package-data]
 "tuba.sections" = ["data/*.input", "data/*.output"]
-"tuba.visualization" = ["_viewer/*", "_viewer/assets/*"]
+"tuba.visualization" = ["_viewer/*", "_viewer/assets/*", "_viewer/licenses/*"]

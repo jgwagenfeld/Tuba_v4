@@ -19,6 +19,8 @@ REQUIRED = {
     "overview.html",
     "viewer/index.html",
     "viewer/bundles.json",
+    "viewer/licenses/font-notices.txt",
+    "viewer/licenses/OFL-1.1.txt",
     "viewer/code-aster-review/scene.json",
     "viewer/imported_component_mixed_demo/scene.json",
     "notebooks/10_interactive_postprocessor.ipynb",
@@ -31,6 +33,9 @@ def _project_tree(root: Path) -> None:
     viewer = root / "tuba" / "visualization" / "_viewer"
     (viewer / "assets").mkdir(parents=True)
     (viewer / "assets" / "app.js").write_text("// viewer", encoding="utf-8")
+    (viewer / "licenses").mkdir()
+    (viewer / "licenses" / "font-notices.txt").write_text("font notices", encoding="utf-8")
+    (viewer / "licenses" / "OFL-1.1.txt").write_text("OFL", encoding="utf-8")
     (viewer / "index.html").write_text("viewer", encoding="utf-8")
     (viewer / "bundles.json").write_text("[]\n", encoding="utf-8")
     notebook = root / "notebooks" / "10_interactive_postprocessor.ipynb"
@@ -116,7 +121,7 @@ def test_pages_build_assembles_exact_validated_tree_in_order(tmp_path, monkeypat
     assert sorted(
         path.name
         for path in (output / "viewer").iterdir()
-        if path.is_dir() and path.name != "assets"
+        if path.is_dir() and (path / "scene.json").is_file()
     ) == OFFICIAL_BUNDLES
     for redirect, target in {
         "commands.html": "reference/index.html",

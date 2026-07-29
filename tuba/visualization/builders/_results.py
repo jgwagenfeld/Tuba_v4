@@ -330,12 +330,12 @@ def _result_state_displacement_overlay(
     diagnostics: list[SceneDiagnostic],
 ) -> Overlay | None:
     vectors: list[dict[str, Any]] = []
-    values: dict[str, float] = {}
+    values: dict[str, list[float]] = {}
     object_ids: list[str] = []
     for node_id, displacement in result_state.node_displacements.items():
         vector = [float(value) for value in displacement[:3]]
         magnitude = float(np.linalg.norm(vector))
-        values[node_id] = magnitude
+        values[node_id] = vector
         node_object_ids = _object_ids_for_node(model, node_id)
         object_ids.extend(node_object_ids)
         entry: dict[str, Any] = {
@@ -371,7 +371,7 @@ def _result_state_displacement_overlay(
 
     if not vectors:
         return None
-    numeric_values = list(values.values())
+    numeric_values = [float(np.linalg.norm(vector)) for vector in values.values()]
     return Overlay(
         id=f"overlay:solver_result:displacement:{result_state.id}",
         kind="solver_result",
@@ -396,14 +396,14 @@ def _result_state_displacement_overlay(
     )
 def _result_state_reaction_overlay(model: TubaModel, result_state: ResultState) -> Overlay | None:
     vectors: list[dict[str, Any]] = []
-    values: dict[str, float] = {}
+    values: dict[str, list[float]] = {}
     object_ids: list[str] = []
     for node_id, reaction in result_state.node_reactions.items():
         vector = [float(value) for value in reaction[:3]]
         magnitude = float(np.linalg.norm(vector))
         if magnitude <= 0.0:
             continue
-        values[node_id] = magnitude
+        values[node_id] = vector
         node_object_ids = _object_ids_for_node(model, node_id)
         object_ids.extend(node_object_ids)
         entry: dict[str, Any] = {
@@ -420,7 +420,7 @@ def _result_state_reaction_overlay(model: TubaModel, result_state: ResultState) 
 
     if not vectors:
         return None
-    numeric_values = list(values.values())
+    numeric_values = [float(np.linalg.norm(vector)) for vector in values.values()]
     return Overlay(
         id=f"overlay:solver_result:reaction:{result_state.id}",
         kind="solver_result",

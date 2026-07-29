@@ -20,9 +20,11 @@
   --danger-surface: #fde9e7;
   --warning: #6c4c00;
   --warning-surface: #fff1c2;
+  --font-ui: "Roboto Condensed", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
   color: var(--text);
   background: var(--graphite);
-  font-family: Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
 }
 
@@ -148,7 +150,7 @@ textarea,
 .app-kicker,
 .review-overview-label {
   color: var(--muted);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.6875rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -192,7 +194,7 @@ textarea,
   grid-area: runtime;
   border: 1px solid var(--graphite-line);
   color: var(--chrome-text);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   padding: 0.3rem 0.55rem;
   white-space: nowrap;
@@ -366,7 +368,7 @@ textarea,
 
 .review-overview-card strong {
   overflow-wrap: anywhere;
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -416,7 +418,7 @@ textarea,
 }
 
 .review-summary-card dd {
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -472,7 +474,7 @@ textarea,
   display: inline-block;
   border: 1px solid currentColor;
   border-radius: 0.15rem;
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.065em;
@@ -543,7 +545,7 @@ textarea,
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.2rem 0.6rem;
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .diagnostic-item dt {
@@ -824,7 +826,7 @@ input[type="range"] {
   margin-top: 0.65rem;
   border-left: 3px solid var(--accent);
   color: #d9e0e2;
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   padding: 0.3rem 0 0.3rem 0.55rem;
 }
@@ -886,7 +888,7 @@ button.selected,
 pre {
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
@@ -936,7 +938,7 @@ pre {
 
 .property-table td {
   color: var(--chrome-text);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   overflow-wrap: anywhere;
 }
 

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { defineConfig } from "vite";
 
 const PUBLIC_DIR = "public";
+const LICENSE_FILES = ["font-notices.txt", "OFL-1.1.txt"];
 
 // A bundle is any public/ subdirectory that carries a scene.json. Listing them
 // here means the viewer's example dropdown reflects what is actually on disk -
@@ -34,6 +35,13 @@ function bundleManifest() {
         fileName: "favicon.svg",
         source: readFileSync(join(PUBLIC_DIR, "favicon.svg"))
       });
+      for (const fileName of LICENSE_FILES) {
+        this.emitFile({
+          type: "asset",
+          fileName: `licenses/${fileName}`,
+          source: readFileSync(join(PUBLIC_DIR, "licenses", fileName))
+        });
+      }
     }
   };
 }

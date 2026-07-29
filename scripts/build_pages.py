@@ -65,6 +65,8 @@ _PAGES_REQUIRED_FILES = frozenset(
         "overview.html",
         "viewer/index.html",
         "viewer/bundles.json",
+        "viewer/licenses/font-notices.txt",
+        "viewer/licenses/OFL-1.1.txt",
         "viewer/code-aster-review/scene.json",
         "viewer/imported_component_mixed_demo/scene.json",
         "notebooks/10_interactive_postprocessor.ipynb",
@@ -129,13 +131,21 @@ def validate_pages_tree(root: Path) -> None:
     catalog = json.loads((root / "viewer" / "bundles.json").read_text(encoding="utf-8"))
     if catalog != list(PAGES_BUNDLE_IDS):
         raise ValueError(f"Pages catalog must contain exactly {list(PAGES_BUNDLE_IDS)!r}.")
-    bundle_directories = sorted(
-        path.name
+    viewer_directories = {
+        path.name: path
         for path in (root / "viewer").iterdir()
-        if path.is_dir() and path.name != "assets"
+        if path.is_dir()
+    }
+    bundle_directories = sorted(
+        name
+        for name, path in viewer_directories.items()
+        if (path / "scene.json").is_file()
     )
     if bundle_directories != list(PAGES_BUNDLE_IDS):
         raise ValueError("Pages viewer directories must match its official catalog exactly.")
+    unexpected_directories = set(viewer_directories) - set(bundle_directories) - {"assets", "licenses"}
+    if unexpected_directories:
+        raise ValueError("Pages viewer contains an unexpected non-bundle directory.")
 
     package_catalog = json.loads(
         (ROOT / "tuba" / "visualization" / "_viewer" / "bundles.json").read_text(encoding="utf-8")

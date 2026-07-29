@@ -891,7 +891,8 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
     ...(asset.generation_config ?? {})
   };
   if (String(asset.format ?? "").toLowerCase() !== "tuyau_subpoint_glyphs") {
-    const scalarColor = getObjectScalarColor(state, asset.object_ids ?? []);
+    const scalarValueIds = config.node_id ? [String(config.node_id)] : [];
+    const scalarColor = getObjectScalarColor(state, asset.object_ids ?? [], scalarValueIds);
     if (scalarColor !== null) {
       config.color = scalarColor;
     }

@@ -606,8 +606,19 @@ const scenarios = {
       );
 
       const canvas = page.locator("[data-canvas]");
-      const stressFingerprint = await framebufferFingerprint(canvas);
       await field.selectOption("field:solver_result:displacement:result_state:Operating");
+      await page.waitForFunction(() => {
+        const viewer = window.__tubaViewer;
+        return (
+          viewer?.state?.coloring?.fieldId === "field:solver_result:displacement:result_state:Operating" &&
+          viewer.state.coloring.component === "magnitude" &&
+          viewer.resultReview?.legend?.field === "displacement_magnitude" &&
+          viewer.resultReview.legend.component === "magnitude"
+        );
+      });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const displacementMagnitudeFingerprint = await framebufferFingerprint(canvas);
+
       await page.getByRole("combobox", { name: "Component", exact: true }).selectOption("DZ");
       await page.waitForFunction(() => {
         const viewer = window.__tubaViewer;
@@ -620,7 +631,11 @@ const scenarios = {
       });
       assert.match(await page.locator("[data-result-legend]").textContent(), /displacement_magnitude DZ:.*m/);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      assert.notEqual(await framebufferFingerprint(canvas), stressFingerprint, "DZ coloring must redraw the engineering scene");
+      assert.notEqual(
+        await framebufferFingerprint(canvas),
+        displacementMagnitudeFingerprint,
+        "DZ coloring must render differently from displacement magnitude"
+      );
 
       const deformedState = page.getByRole("combobox", { name: "Deformed state", exact: true });
       await deformedState.selectOption("geometry_state:Operating:physical");

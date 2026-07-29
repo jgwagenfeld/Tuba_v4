@@ -444,6 +444,55 @@ test("scene graph cache rebuilds rendered materials when the coloring field chan
   );
 });
 
+test("scene graph recolors a node-result vector when the coloring component changes", () => {
+  const state = {
+    ...fixtureState(),
+    geometryAssets: [
+      {
+        id: "geometry:displacement:N1",
+        format: "vector",
+        bounds: [0, 0, 0, 1, 0, 0],
+        object_ids: ["object:displacement:N1"],
+        generation_config: {
+          source: "tuba.result_state",
+          result_type: "displacement",
+          node_id: "N1",
+          start: [0, 0, 0],
+          end: [1, 0, 0]
+        }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:displacement:N1"],
+    overlays: [
+      {
+        id: "overlay:displacement",
+        kind: "solver_result",
+        data: { values: { N1: [3, 4, 8], N2: [0, 10, 0] } }
+      }
+    ],
+    resultFields: [
+      {
+        id: "field:displacement",
+        overlay_id: "overlay:displacement",
+        load_case: "Hot",
+        components: ["DX", "DY", "DZ", "magnitude"]
+      }
+    ],
+    coloring: { loadCase: "Hot", fieldId: "field:displacement", component: "magnitude" }
+  };
+  const magnitude = createThreeSceneGraph(state);
+  const dz = createThreeSceneGraph({
+    ...state,
+    coloring: { ...state.coloring, component: "DZ" }
+  });
+
+  assert.notEqual(
+    magnitude.objectsByObjectId.get("object:displacement:N1").children[0].material.color.getHex(),
+    dz.objectsByObjectId.get("object:displacement:N1").children[0].material.color.getHex()
+  );
+});
+
 test("scene graph visibility updates hide cached renderables without rebuilding", () => {
   const state = fixtureState();
   const graph = createThreeSceneGraph(state);

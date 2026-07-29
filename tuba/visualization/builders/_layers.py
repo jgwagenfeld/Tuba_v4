@@ -238,8 +238,18 @@ def _range_for(data: dict, values: dict) -> tuple[float, float] | None:
     declared = data.get("legend", {}).get("range") or data.get("range")
     if isinstance(declared, dict) and "min" in declared and "max" in declared:
         return (float(declared["min"]), float(declared["max"]))
-    numeric = [float(value) for value in values.values() if isinstance(value, (int, float))]
+    numeric = [magnitude for value in values.values() if (magnitude := _field_magnitude(value)) is not None]
     return (min(numeric), max(numeric)) if numeric else None
+
+
+def _field_magnitude(value: object) -> float | None:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    if not all(isinstance(component, (int, float)) for component in value):
+        return None
+    return float(sum(float(component) ** 2 for component in value) ** 0.5)
 
 
 def _mesh_identity_layers(analysis_meshes: list[AnalysisMesh]) -> list[SceneLayer]:

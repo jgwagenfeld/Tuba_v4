@@ -28,6 +28,15 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
     );
   });
   await page.evaluate(() => document.fonts.ready);
+  const typography = await page.evaluate(() => ({
+    loadedFamilies: [...document.fonts].filter((font) => font.status === "loaded").map((font) => font.family),
+    ui: getComputedStyle(document.body).fontFamily,
+    mono: getComputedStyle(document.querySelector(".runtime-status")).fontFamily
+  }));
+  expect(typography.loadedFamilies).toContain("Roboto Condensed");
+  expect(typography.loadedFamilies).toContain("IBM Plex Mono");
+  expect(typography.ui).toBe('"Roboto Condensed", sans-serif');
+  expect(typography.mono).toBe('"IBM Plex Mono", monospace');
 
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);

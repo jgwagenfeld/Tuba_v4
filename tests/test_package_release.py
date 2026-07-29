@@ -147,15 +147,32 @@ def test_viewer_production_build_synchronizes_the_python_package():
     package_root = ROOT / "tuba" / "visualization" / "_viewer"
     html = (package_root / "index.html").read_text(encoding="utf-8")
     referenced_assets = set(re.findall(r"\./assets/([^\"']+\.(?:js|css))", html))
+    referenced_fonts = set()
+    for stylesheet in referenced_assets:
+        if stylesheet.endswith(".css"):
+            css = (package_root / "assets" / stylesheet).read_text(encoding="utf-8")
+            referenced_fonts.update(re.findall(r"url\(\./([^\"')]+\.woff2?)\)", css))
     built_assets = {path.name for path in (package_root / "assets").iterdir() if path.is_file()}
 
     assert referenced_assets
-    assert built_assets == referenced_assets
+    assert referenced_fonts
+    assert built_assets == referenced_assets | referenced_fonts
     assert {path.name for path in package_root.iterdir()} == {
         "assets",
         "bundles.json",
         "favicon.svg",
         "index.html",
+        "licenses",
+    }
+    source_licenses = ROOT / "viewer" / "public" / "licenses"
+    assert {
+        path.name: path.read_text(encoding="utf-8")
+        for path in (package_root / "licenses").iterdir()
+        if path.is_file()
+    } == {
+        path.name: path.read_text(encoding="utf-8")
+        for path in source_licenses.iterdir()
+        if path.is_file()
     }
     assert json.loads((package_root / "bundles.json").read_text(encoding="utf-8")) == []
 

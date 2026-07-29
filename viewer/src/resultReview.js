@@ -201,14 +201,18 @@ export function getHotspots(state) {
     .sort((left, right) => right.value - left.value);
 }
 
-export function getObjectScalarColor(state, objectIds) {
+export function getObjectScalarColor(state, objectIds, valueIds = []) {
   const overlay = getActiveScalarOverlay(state);
   if (!overlay) {
     return null;
   }
   const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
   const values = (state.resultFields ?? []).length > 0 ? getColoringValues(state) : overlay.data?.values ?? {};
-  const found = ids
+  const relatedValueIds = (overlay.data?.vectors ?? [])
+    .filter((vector) => (vector.object_ids ?? []).some((id) => ids.includes(id)))
+    .map((vector) => vector.node_id)
+    .filter(Boolean);
+  const found = [...ids, ...valueIds, ...relatedValueIds]
     .map((id) => Number(values[id]))
     .filter((value) => Number.isFinite(value));
   if (found.length === 0) {
