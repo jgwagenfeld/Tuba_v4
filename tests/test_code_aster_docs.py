@@ -5,7 +5,7 @@ from pathlib import Path
 
 class TestCodeAsterDocs(unittest.TestCase):
     def test_installation_walkthrough_documents_wsl_conda_runtime(self):
-        text = Path("docs/code_aster_installation.md").read_text(encoding="utf-8")
+        text = Path("docs/content/setup.md").read_text(encoding="utf-8")
 
         self.assertIn("`python -m pip install .` installs Tuba", text)
         self.assertIn("does not install Code_Aster", text)
@@ -22,7 +22,7 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertNotIn("As of the last local check", text)
 
     def test_public_setup_includes_the_tested_solver_install_path(self):
-        text = Path("docs/site/setup.html").read_text(encoding="utf-8")
+        text = Path("docs/content/setup.md").read_text(encoding="utf-8")
 
         self.assertIn("pip installs Tuba, not Code_Aster", text)
         self.assertIn("Miniforge3-Linux-x86_64.sh", text)
@@ -61,9 +61,8 @@ class TestCodeAsterDocs(unittest.TestCase):
     def test_public_installation_uses_a_tagged_github_checkout(self):
         paths = [
             Path("README.md"),
-            Path("docs/code_aster_installation.md"),
-            Path("docs/site/setup.html"),
-            Path("docs/site/tutorial.html"),
+            Path("docs/content/setup.md"),
+            Path("docs/content/tutorial.md"),
             Path("notebooks/00_welcome_and_setup.ipynb"),
             Path("notebooks/autorouting_quick_iteration.ipynb"),
         ]

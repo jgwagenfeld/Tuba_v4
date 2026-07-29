@@ -1,7 +1,7 @@
 """Render the documentation figures from the real Tuba pipeline.
 
-Run:  .\\.venv\\Scripts\\python.exe docs/site/assets/generate_figures.py
-Outputs committed PNGs under docs/site/assets/figures/. No solver required.
+Run:  .\\.venv\\Scripts\\python.exe scripts/docs/generate_figures.py
+Outputs committed PNGs under docs/content/assets/figures/. No solver required.
 """
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ from tuba.plotting.scenes import build_model_scene
 from tuba.plotting.plots import add_local_axes_to_plotter, _add_supports_to_plotter
 from tuba.plotting.export import export_screenshot
 
-FIG_DIR = Path(__file__).resolve().parent / "figures"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FIG_DIR = REPO_ROOT / "docs" / "content" / "assets" / "figures"
 RES = (1600, 1000)
 
 
@@ -230,29 +231,11 @@ def fig_bend_chord_arc(out_dir: Path) -> Path:
     return out_dir / "bend_chord_arc.png"
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]  # docs/site/assets -> repo root
-
-
 def _viz_gallery_model() -> Model:
     """The review model that matches the committed viz_gallery_operating study (from notebook 10)."""
-    m = Model("VizGalleryDemo", standard="ASME_B31.3")
-    m.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0, alpha=1.2e-5,
-                   allowable_stress={20.0: 137e6, 150.0: 127e6})
-    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602, corrosion_allowance=0.001)
-    m.define_load_case("Operating", gravity=True, pressure=1.5e6,
-                       temperature=150.0, ref_temperature=20.0)
-    with m.pipe(section="DN100", material="Steel") as b:
-        b.start([0, 0, 0], support="anchor")
-        b.run(3.0)
-        b.add_support(type="guide")
-        b.bend(radius=0.3, angle=90, plane="XY")
-        b.run(2.0)
-        b.add_support(type="rest")
-        b.bend(radius=0.3, angle=90, plane="XZ")
-        b.run(2.0)
-        b.end(support="anchor")
-    m.validate()
-    return m
+    from examples.code_aster_artifact_review import build_model
+
+    return build_model()
 
 
 def fig_tutorial_model(out_dir: Path) -> Path:
@@ -289,14 +272,14 @@ def _vmis_legend(plotter) -> None:
     )
 
 
-def fig_money_shot(out_dir: Path) -> Path:
+def fig_pyvista_deformed_stress(out_dir: Path) -> Path:
     """Deformed shape + Von Mises stress from the committed viz_gallery_operating study (no solver)."""
     from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
 
     model = _viz_gallery_model()
     work_dir = REPO_ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating"
     run = load_or_run_code_aster_results(model, "Operating", work_dir, run_solver=False)
-    return _render(model, out_dir / "money_shot.png", results=run.results,
+    return _render(model, out_dir / "pyvista_deformed_stress.png", results=run.results,
                    deform_scale=35.0, zoom=1.35, res=(1280, 1000), post=_vmis_legend)
 
 
@@ -360,7 +343,7 @@ FIGURES: dict[str, Callable[[Path], Path]] = {
     "supports": fig_supports,
     "bend_chord_arc": fig_bend_chord_arc,
     "tutorial_model": fig_tutorial_model,
-    "money_shot": fig_money_shot,
+    "pyvista_deformed_stress": fig_pyvista_deformed_stress,
     "route_preroute": fig_route_preroute,
     "route_candidates": fig_route_candidates,
 }

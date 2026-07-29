@@ -6,41 +6,23 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "docs" / "site"
+CONTENT = ROOT / "docs" / "content"
 
 
 class TestStaticSiteDocs(unittest.TestCase):
-    def test_site_contains_current_workflow_and_reference_pages(self):
+    def test_canonical_manual_pages_own_the_public_topics(self):
         required = {
-            "index.html": ["Define the piping model", "Code_Aster solve"],
-            "tutorial.html": ["Build and solve a first pipe", "What each part does", "Expected files", "Done when"],
-            "modeling.html": [
-                "How a Tuba model is put together",
-                "Cross-sections",
-                "Local coordinate systems",
-                "Schemas and serialized models",
-                "How errors work",
-            ],
-            "overview.html": ["Current product contract", "From TUBA v2 to v4"],
-            "workflow.html": ["model.pipe", "export_analysis_study", "write_scene_bundle"],
-            "autorouting.html": [
-                "Route candidates, not magic signoff",
-                "Implementation map",
-                "SolverAcceptanceCriteria",
-                "Current limitations",
-            ],
-            "commands.html": [
-                "Current v4 API surface",
-                "Pipe builder commands",
-                "Autorouting commands",
-                "Solver and artifact commands",
-            ],
-            "examples.html": ["Local examples", "Preserved Code_Aster review scene", "Autorouting example outputs"],
-            "setup.html": ["code_aster_doctor", "Run the real solver smoke test"],
-            "developer.html": ["Module map", "Solver file map", "How to extend autorouting", "How to contribute", "CONTRIBUTING.md"],
+            "setup.md": ["pip installs Tuba, not Code_Aster", "code_aster_doctor", "Run the real solver smoke test"],
+            "tutorial.md": ["Build and solve a first pipe", "Expected files", "Done when"],
+            "modeling.md": ["Cross-sections", "Local coordinate systems", "Schemas and serialized models", "How errors work"],
+            "workflow.md": ["model.pipe", "export_analysis_study", "write_scene_bundle"],
+            "autorouting.md": ["Route candidates, not magic signoff", "SolverAcceptanceCriteria", "Current limitations"],
+            "examples.md": ["Local examples", "Code_Aster review scene", "Autorouting example outputs"],
+            "developer.md": ["Module map", "Solver file map", "How to extend autorouting", "CONTRIBUTING.md"],
         }
 
         for name, phrases in required.items():
-            text = (SITE / name).read_text(encoding="utf-8")
+            text = (CONTENT / name).read_text(encoding="utf-8")
             for phrase in phrases:
                 self.assertIn(phrase, text, name)
 
@@ -54,7 +36,7 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertEqual([], offenders)
 
     def test_setup_uses_the_tagged_github_checkout(self):
-        text = (SITE / "setup.html").read_text(encoding="utf-8")
+        text = (CONTENT / "setup.md").read_text(encoding="utf-8")
 
         self.assertIn(
             "git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
@@ -93,11 +75,11 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertTrue((ROOT / "docs" / "content" / "index.md").is_file())
 
     def test_docs_do_not_overclaim_autorouting_or_export_only_files(self):
-        tutorial = (SITE / "tutorial.html").read_text(encoding="utf-8")
-        autorouting = (SITE / "autorouting.html").read_text(encoding="utf-8")
+        tutorial = (CONTENT / "tutorial.md").read_text(encoding="utf-8")
+        autorouting = (CONTENT / "autorouting.md").read_text(encoding="utf-8")
 
         self.assertIn("exported study files are a handoff", tutorial)
-        self.assertIn("exported <code>.comm</code>, <code>.mail</code>, and <code>.export</code> files are handoff artifacts", autorouting)
+        self.assertIn("exported `.comm`, `.mail`, and `.export` files are handoff artifacts", autorouting)
         self.assertIn("Network routing is sequential with repair attempts, not global multi-line optimization", autorouting)
         self.assertIn("The current generator emits U-loop candidates only", autorouting)
 
@@ -105,23 +87,21 @@ class TestStaticSiteDocs(unittest.TestCase):
         # Each concept page must reference the real rendered figures (committed
         # under assets/figures/) and must not fall back to Mermaid or CSS sketches.
         required_figures = {
-            "index.html": ["money_shot.png"],
-            "tutorial.html": ["tutorial_model.png", "money_shot.png"],
-            "modeling.html": [
+            "tutorial.md": ["tutorial_model.png", "pyvista_deformed_stress.png"],
+            "modeling.md": [
                 "element_triad.png", "placement_frame.png", "builder_route.png",
                 "bend_chord_arc.png", "sections.svg", "bend_detail.svg", "supports.png",
             ],
-            "overview.html": ["money_shot.png"],
-            "workflow.html": ["tutorial_model.png", "money_shot.png"],
-            "autorouting.html": ["route_preroute.png", "route_candidates.png"],
+            "workflow.md": ["tutorial_model.png", "pyvista_deformed_stress.png"],
+            "autorouting.md": ["route_preroute.png", "route_candidates.png"],
         }
         forbidden = [
             'class="mermaid"', "diagrams.js", "axis-sketch", "section-gallery",
             "routing-sketch", "artifact-lifecycle", "module-map", "process-map",
         ]
-        figures_dir = SITE / "assets" / "figures"
+        figures_dir = CONTENT / "assets" / "figures"
         for page, figs in required_figures.items():
-            text = (SITE / page).read_text(encoding="utf-8")
+            text = (CONTENT / page).read_text(encoding="utf-8")
             for token in forbidden:
                 self.assertNotIn(token, text, f"{page} still contains {token!r}")
             for fig in figs:
@@ -131,7 +111,7 @@ class TestStaticSiteDocs(unittest.TestCase):
         # the stylized 3D sections render is retired in favour of the drawing
         self.assertFalse((figures_dir / "sections.png").exists(),
                          "sections.png should be replaced by sections.svg")
-        self.assertNotIn("sections.png", (SITE / "modeling.html").read_text(encoding="utf-8"))
+        self.assertNotIn("sections.png", (CONTENT / "modeling.md").read_text(encoding="utf-8"))
 
     def test_no_page_uses_mermaid_or_the_diagram_loader(self):
         for path in sorted(SITE.glob("*.html")):
@@ -141,22 +121,22 @@ class TestStaticSiteDocs(unittest.TestCase):
 
     def test_frame_and_result_pages_embed_the_viewer(self):
         embeds = {
-            "modeling.html": "imported_component_mixed_demo",
-            "tutorial.html": "code-aster-review",
-            "examples.html": "code-aster-review",
+            "modeling.md": "imported_component_mixed_demo",
+            "tutorial.md": "code-aster-review",
+            "examples.md": "code-aster-review",
         }
         for page, bundle in embeds.items():
-            text = (SITE / page).read_text(encoding="utf-8")
+            text = (CONTENT / page).read_text(encoding="utf-8")
             self.assertIn(f"bundle={bundle}", text, f"{page} missing viewer embed")
 
     def test_modeling_docs_explain_core_beginner_concepts(self):
-        text = (SITE / "modeling.html").read_text(encoding="utf-8")
+        text = (CONTENT / "modeling.md").read_text(encoding="utf-8")
 
         required_phrases = [
-            "OD</code> is outside diameter",
-            "WT</code> is wall thickness",
-            "axis</code> is local Z",
-            "ref_direction</code> is projected to local X",
+            "`OD` is outside diameter",
+            "`WT` is wall thickness",
+            "`axis` is local Z",
+            "`ref_direction` is projected to local X",
             "MODEL_SCHEMA_V4",
             "SchemaValidationError",
             "ModelValidationError",

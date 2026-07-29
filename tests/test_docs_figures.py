@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-GEN = REPO / "docs" / "site" / "assets" / "generate_figures.py"
+GEN = REPO / "scripts" / "docs" / "generate_figures.py"
 
 
 def _load_generator():

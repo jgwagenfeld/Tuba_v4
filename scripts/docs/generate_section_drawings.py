@@ -1,7 +1,7 @@
 """Render dimensioned engineering cross-section drawings from real Tuba sections.
 
-Run:  .\\.venv\\Scripts\\python.exe docs/site/assets/generate_section_drawings.py
-Outputs committed SVGs under docs/site/assets/figures/. No solver, no OpenGL.
+Run:  .\\.venv\\Scripts\\python.exe scripts/docs/generate_section_drawings.py
+Outputs committed SVGs under docs/content/assets/figures/. No solver, no OpenGL.
 Every dimension is read from the live Tuba section objects, so the drawings
 cannot drift from the model.
 """
@@ -23,7 +23,7 @@ from tuba.sections import SectionCatalog
 plt.rcParams["svg.fonttype"] = "none"  # keep dimension text as <text>, searchable
 plt.rcParams["svg.hashsalt"] = "tuba-sections"  # deterministic clip-path ids across runs
 
-FIG_DIR = Path(__file__).resolve().parent / "figures"
+FIG_DIR = Path(__file__).resolve().parents[2] / "docs" / "content" / "assets" / "figures"
 
 INK, STEEL, MUTED, INNER = "#1b2026", "#2f6374", "#9aa3ad", "#5b636d"
 AMBER, SHEET = "#c07a1e", "#ffffff"
