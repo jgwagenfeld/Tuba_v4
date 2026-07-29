@@ -86,7 +86,18 @@ def assemble_pages(output: Path, *, code_aster_artifacts: Path | None = None) ->
     prepare_release.main()
     uv = shutil.which("uv") or "uv"
     subprocess.run(
-        [uv, "run", "--group", "docs", "zensical", "build", "--clean", "--strict"],
+        [
+            uv,
+            "run",
+            "--group",
+            "docs",
+            "--extra",
+            "code-aster-rmed",
+            "zensical",
+            "build",
+            "--clean",
+            "--strict",
+        ],
         cwd=ROOT,
         check=True,
     )

@@ -57,6 +57,8 @@ def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[st
             "run",
             "--group",
             "docs",
+            "--extra",
+            "code-aster-rmed",
             "zensical",
             "build",
             "--clean",

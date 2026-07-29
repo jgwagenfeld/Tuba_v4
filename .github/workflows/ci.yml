@@ -77,7 +77,7 @@ jobs:
           cache-dependency-path: viewer/package-lock.json
       - name: Install Linux graphics runtime
         run: sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libgomp1
-      - run: uv sync --group docs --extra dev --locked
+      - run: uv sync --group docs --extra dev --extra code-aster-rmed --locked
       - run: npm ci
         working-directory: viewer
       - run: uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q

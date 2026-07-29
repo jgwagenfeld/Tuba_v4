@@ -158,7 +158,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
 
     build = "uv run python scripts/build_pages.py pages --output _site"
     assert source.count(build) == 1
-    assert "uv sync --group docs --locked" in commands
+    assert "uv sync --group docs --extra code-aster-rmed --locked" in commands
     assert any(
         step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
         for step in steps
@@ -181,7 +181,9 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
         steps, lambda step: step.get("uses") == "actions/setup-node@v4"
     )
     sync = _only_step_index(
-        steps, lambda step: step.get("run") == "uv sync --group docs --locked"
+        steps,
+        lambda step: step.get("run")
+        == "uv sync --group docs --extra code-aster-rmed --locked",
     )
     npm = _only_step_index(
         steps,
@@ -249,7 +251,7 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
 
     assembled_steps = workflow["jobs"]["assembled-pages"]["steps"]
     assembled = [step["run"] for step in assembled_steps if "run" in step]
-    assert "uv sync --group docs --extra dev --locked" in assembled
+    assert "uv sync --group docs --extra dev --extra code-aster-rmed --locked" in assembled
     assert "uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q" in assembled
     build = "uv run python scripts/build_pages.py pages --output .build/pages-check"
     assert assembled.count(build) == 1
@@ -261,7 +263,8 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     )
     sync = _only_step_index(
         assembled_steps,
-        lambda step: step.get("run") == "uv sync --group docs --extra dev --locked",
+        lambda step: step.get("run")
+        == "uv sync --group docs --extra dev --extra code-aster-rmed --locked",
     )
     npm = _only_step_index(
         assembled_steps,
