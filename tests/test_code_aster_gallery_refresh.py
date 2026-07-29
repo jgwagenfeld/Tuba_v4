@@ -11,12 +11,14 @@ import pytest
 from scripts import refresh_code_aster_gallery
 
 
-_REQUIRED_FILES = (
+_SOLVER_OUTPUT_FILES = (
+    "study.mess",
     "study.rmed",
     "study_depl.csv",
     "study_effo.csv",
     "study_reac.csv",
     "study_sieq.csv",
+    "study_execution.json",
 )
 _DEFAULT_ATTESTATION = object()
 
@@ -59,9 +61,10 @@ def _mismatched_identity_artifact():
     return artifact
 
 
-def _write_required_artifacts(output: Path) -> None:
-    for filename in (*_REQUIRED_FILES, "study_execution.json"):
-        (output / filename).write_text(filename, encoding="utf-8")
+def _write_solver_outputs(output: Path, *, prefix: str, missing: str | None = None) -> None:
+    for filename in _SOLVER_OUTPUT_FILES:
+        if filename != missing:
+            (output / filename).write_text(f"{prefix} {filename}", encoding="utf-8")
 
 
 def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp_path, monkeypatch):
@@ -78,6 +81,8 @@ def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp
 
         def solve_exported_study(self, model, study):
             calls.append(("solve", model, study))
+            assert not any((tmp_path / filename).exists() for filename in _SOLVER_OUTPUT_FILES)
+            _write_solver_outputs(tmp_path, prefix="fresh")
 
     model = object()
     monkeypatch.setattr(refresh_code_aster_gallery, "build_model", lambda: model)
@@ -87,13 +92,14 @@ def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp
         "import_code_aster_artifacts",
         lambda **kwargs: calls.append(("import", kwargs)) or artifact,
     )
-    _write_required_artifacts(tmp_path)
+    _write_solver_outputs(tmp_path, prefix="stale")
 
     refreshed = refresh_code_aster_gallery.refresh_gallery(tmp_path)
 
     assert refreshed is artifact
     assert [call[0] for call in calls] == ["export", "solve", "import"]
     assert calls[0][2:] == ("Operating", tmp_path)
+    assert all((tmp_path / filename).read_text(encoding="utf-8").startswith("fresh") for filename in _SOLVER_OUTPUT_FILES)
 
 
 @pytest.mark.parametrize(
@@ -101,6 +107,10 @@ def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp
     [
         ("study.rmed", _artifact(), "study.rmed"),
         ("study_depl.csv", _artifact(), "study_depl.csv"),
+        ("study_effo.csv", _artifact(), "study_effo.csv"),
+        ("study_reac.csv", _artifact(), "study_reac.csv"),
+        ("study_sieq.csv", _artifact(), "study_sieq.csv"),
+        ("study_execution.json", _artifact(), "study_execution.json"),
         (None, _mismatched_identity_artifact(), "identity"),
         (None, _artifact(attestation=None), "attestation"),
         (None, _artifact(attestation={"solver_version": ""}), "solver_version"),
@@ -116,14 +126,13 @@ def test_refresh_rejects_incomplete_or_non_wsl_artifact_chain(tmp_path, monkeypa
             return artifact.study
 
         def solve_exported_study(self, model, study):
+            _write_solver_outputs(tmp_path, prefix="fresh", missing=missing)
             return None
 
     monkeypatch.setattr(refresh_code_aster_gallery, "build_model", object)
     monkeypatch.setattr(refresh_code_aster_gallery, "CodeAsterSolver", FakeSolver)
     monkeypatch.setattr(refresh_code_aster_gallery, "import_code_aster_artifacts", lambda **kwargs: artifact)
-    _write_required_artifacts(tmp_path)
-    if missing:
-        (tmp_path / missing).unlink()
+    _write_solver_outputs(tmp_path, prefix="stale")
 
     with pytest.raises(ValueError, match=message):
         refresh_code_aster_gallery.refresh_gallery(tmp_path)

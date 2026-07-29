@@ -14,7 +14,8 @@ from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 
 
-_REQUIRED_RESULT_FILES = (
+_SOLVER_OUTPUT_FILES = (
+    "study.mess",
     "study.rmed",
     "study_depl.csv",
     "study_effo.csv",
@@ -31,6 +32,8 @@ def refresh_gallery(output: str | Path) -> Any:
     model = build_model()
     solver = CodeAsterSolver(work_dir=output_path)
     study = solver.export_analysis_study(model, "Operating", output_path)
+    for filename in _SOLVER_OUTPUT_FILES:
+        (output_path / filename).unlink(missing_ok=True)
     solver.solve_exported_study(model, study)
     artifact = import_code_aster_artifacts(model=model, work_dir=output_path, study=study)
     _validate_gallery_artifact_chain(output_path, artifact)
@@ -38,7 +41,7 @@ def refresh_gallery(output: str | Path) -> Any:
 
 
 def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
-    for filename in _REQUIRED_RESULT_FILES:
+    for filename in _SOLVER_OUTPUT_FILES:
         if not (output / filename).is_file():
             raise ValueError(f"Canonical Code_Aster gallery is missing required artifact {filename}.")
 
