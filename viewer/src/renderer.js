@@ -27,6 +27,16 @@ const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
 const REFERENCE_GEOMETRY_OPACITY = 0.32;
 const INTERACTION_DETAIL_FORMATS = new Set(["line", "point", "polyline", "tuyau_subpoint_glyphs", "vector"]);
 
+export const STANDARD_VIEW_DIRECTIONS = {
+  iso: [1, -1, 0.65],
+  positiveX: [1, 0, 0],
+  negativeX: [-1, 0, 0],
+  positiveY: [0, 1, 0],
+  negativeY: [0, -1, 0],
+  positiveZ: [0, 0, 1],
+  negativeZ: [0, 0, -1]
+};
+
 export function createThreeSceneGraph(state, options = {}) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(options.backgroundColor ?? 0xf8fafc);
@@ -288,6 +298,15 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       fitCameraToBounds(camera, currentGraph.bounds, controls);
       drawFrame(currentGraph);
     },
+    setStandardView(viewId) {
+      if (!currentGraph) return;
+      setCameraToStandardView(camera, currentGraph.bounds, controls, viewId);
+      drawFrame(currentGraph);
+    },
+    zoomBy(factor) {
+      if (!zoomCameraBy(camera, factor)) return;
+      if (currentGraph) drawFrame(currentGraph);
+    },
     dispose() {
       graphCache.clear();
       if (redrawFrameId !== null) cancelAnimationFrame(redrawFrameId);
@@ -360,6 +379,12 @@ export function createThreeViewport(canvas, options = {}) {
     },
     resetView() {
       canvasRenderer.resetView();
+    },
+    setStandardView(viewId) {
+      canvasRenderer.setStandardView(viewId);
+    },
+    zoomBy(factor) {
+      canvasRenderer.zoomBy(factor);
     },
     dispose() {
       canvasRenderer.dispose();
@@ -538,6 +563,28 @@ export function fitCameraToBounds(camera, bounds, controls = null) {
     radius,
     target: center.toArray()
   };
+}
+
+export function setCameraToStandardView(camera, bounds, controls = null, viewId = "iso") {
+  const fit = fitCameraToBounds(camera, bounds, controls);
+  const target = new THREE.Vector3(...fit.target);
+  const direction = new THREE.Vector3(...(STANDARD_VIEW_DIRECTIONS[viewId] ?? STANDARD_VIEW_DIRECTIONS.iso)).normalize();
+  camera.up.set(0, 0, 1);
+  if (Math.abs(direction.z) === 1) camera.up.set(0, 1, 0);
+  camera.position.copy(target).addScaledVector(direction, fit.distance);
+  camera.lookAt(target);
+  camera.updateProjectionMatrix();
+  if (controls) {
+    controls.target.copy(target);
+    controls.update();
+  }
+}
+
+export function zoomCameraBy(camera, factor) {
+  if (!camera.isOrthographicCamera || !Number.isFinite(factor) || factor <= 0) return false;
+  camera.zoom = THREE.MathUtils.clamp(camera.zoom * factor, 0.05, 20);
+  camera.updateProjectionMatrix();
+  return true;
 }
 
 function createRenderableForAsset(asset, payload, state) {

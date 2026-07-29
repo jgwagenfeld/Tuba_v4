@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BoxGeometry, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from "three";
+import { BoxGeometry, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
 
 import * as rendererModule from "../src/renderer.js";
 
@@ -11,6 +11,9 @@ import {
   buildRenderableScene,
   createThreeSceneGraph,
   fitCameraToBounds,
+  setCameraToStandardView,
+  zoomCameraBy,
+  STANDARD_VIEW_DIRECTIONS,
   pickRenderedObject,
   prepareAssetRenderConfig,
   sectionBoxClippingPlanes,
@@ -378,6 +381,45 @@ test("scene graph visibility updates hide cached renderables without rebuilding"
   assert.equal(graph.objectsByObjectId.get("object:pipe").visible, true);
   assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, false);
   assert.equal(graph.renderedObjectCount, 1);
+});
+
+test("standard camera views preserve the fitted target and distance", () => {
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  camera.userData.viewportAspect = 1;
+  const controls = { target: new Vector3(), update() {} };
+
+  setCameraToStandardView(camera, [0, -2, -1, 8, 2, 3], controls, "positiveX");
+
+  assert.deepEqual(controls.target.toArray(), [4, 0, 1]);
+  assert.ok(Math.abs(camera.position.distanceTo(controls.target) - 14.696938456699069) < 1e-9);
+  assert.ok(camera.position.x > controls.target.x);
+  assert.ok(camera.far > camera.near);
+});
+
+test("standard Z camera views use stable up vectors", () => {
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  camera.userData.viewportAspect = 1;
+  const controls = { target: new Vector3(), update() {} };
+
+  setCameraToStandardView(camera, [-1, -1, -1, 1, 1, 1], controls, "positiveZ");
+  assert.deepEqual(camera.up.toArray(), [0, 1, 0]);
+  setCameraToStandardView(camera, [-1, -1, -1, 1, 1, 1], controls, "negativeZ");
+  assert.deepEqual(camera.up.toArray(), [0, 1, 0]);
+  assert.deepEqual(STANDARD_VIEW_DIRECTIONS.negativeZ, [0, 0, -1]);
+});
+
+test("orthographic zoom clamps and updates the projection matrix", () => {
+  const camera = new OrthographicCamera(-2, 2, 2, -2, 0.1, 1000);
+  camera.zoom = 19;
+  camera.updateProjectionMatrix();
+  const before = camera.projectionMatrix.elements.slice();
+
+  zoomCameraBy(camera, 2);
+
+  assert.equal(camera.zoom, 20);
+  assert.notDeepEqual(camera.projectionMatrix.elements, before);
+  zoomCameraBy(camera, 0.001);
+  assert.equal(camera.zoom, 0.05);
 });
 
 test("section box clipping planes retain interior fragments and reject exterior fragments", () => {

@@ -1,4 +1,5 @@
 import {
+  applySectionBox,
   buildObjectTree,
   filterIssues,
   focusIssue,
@@ -70,6 +71,7 @@ const dom = {
   modelToolsHome: document.querySelector("[data-model-tools-home]"),
   issueToolsHome: document.querySelector("[data-issue-tools-home]"),
   displayStrip: document.querySelector("[data-display-strip]"),
+  sectionBoxControls: document.querySelector("[data-section-box-controls]"),
   categorySwitches: document.querySelector("[data-category-switches]"),
   layerList: document.querySelector("[data-layer-list]"),
   resultTools: document.querySelector("[data-result-tools]"),
@@ -87,6 +89,7 @@ const dom = {
   propertyActions: document.querySelector("[data-property-actions]"),
   bundlePicker: document.querySelector("[data-bundle-picker]"),
   resetView: document.querySelector("[data-reset-view]"),
+  cameraControls: document.querySelector("[data-camera-controls]"),
   canvas: document.querySelector("[data-canvas]")
 };
 
@@ -790,7 +793,101 @@ function renderDisplayStrip() {
   }
   renderComplianceNotice(categories);
   renderLayerTree(categories);
+  renderSectionBoxControls();
   renderSavedViews();
+}
+
+function renderSectionBoxControls() {
+  dom.sectionBoxControls.replaceChildren();
+  const section = document.createElement("section");
+  section.className = "section-box-controls";
+  const heading = document.createElement("h3");
+  heading.textContent = "Section";
+  const enabled = document.createElement("input");
+  enabled.type = "checkbox";
+  enabled.checked = Boolean(currentState.sectionBox);
+  enabled.id = "section-enabled";
+  const enabledLabel = document.createElement("label");
+  enabledLabel.htmlFor = enabled.id;
+  enabledLabel.append(enabled, " Enable section");
+  const box = currentState.sectionBox ?? boundsSectionBox(currentState.bounds);
+  const fields = [];
+  const grid = document.createElement("div");
+  grid.className = "section-box-grid";
+  for (const [axis, index] of [["X", 0], ["Y", 1], ["Z", 2]]) {
+    for (const side of ["min", "max"]) {
+      const label = document.createElement("label");
+      label.textContent = `${axis} ${side}`;
+      const input = document.createElement("input");
+      input.type = "number";
+      input.step = "any";
+      input.value = String(box[side][index]);
+      input.disabled = !enabled.checked;
+      input.setAttribute("aria-label", `Section ${axis} ${side}`);
+      fields.push({ input, index, side });
+      label.append(input);
+      grid.append(label);
+    }
+  }
+  const update = () => {
+    const next = { min: [], max: [] };
+    let valid = true;
+    for (const field of fields) {
+      const value = Number(field.input.value);
+      const finite = field.input.value.trim() !== "" && Number.isFinite(value);
+      field.input.setCustomValidity(finite ? "" : "Enter a finite number.");
+      if (!finite) valid = false;
+      next[field.side][field.index] = value;
+    }
+    for (let index = 0; index < 3; index += 1) {
+      if (next.min[index] >= next.max[index]) {
+        fields.find((field) => field.index === index && field.side === "max").input.setCustomValidity("Maximum must be greater than minimum.");
+        valid = false;
+      }
+    }
+    if (!valid) return;
+    currentState = applySectionBox(currentState, next);
+    render();
+  };
+  enabled.addEventListener("change", () => {
+    if (enabled.checked) update();
+    else {
+      currentState = applySectionBox(currentState, undefined);
+      render();
+    }
+  });
+  for (const { input } of fields) input.addEventListener("change", update);
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.textContent = "Reset section";
+  reset.addEventListener("click", () => {
+    currentState = applySectionBox(currentState, undefined);
+    render();
+  });
+  section.append(heading, enabledLabel, grid, reset);
+  dom.sectionBoxControls.append(section);
+}
+
+function boundsSectionBox(bounds) {
+  return { min: [bounds[0], bounds[1], bounds[2]], max: [bounds[3], bounds[4], bounds[5]] };
+}
+
+function renderCameraControls() {
+  dom.cameraControls.replaceChildren();
+  for (const [viewId, label] of [["iso", "Isometric"], ["positiveX", "+X"], ["negativeX", "-X"], ["positiveY", "+Y"], ["negativeY", "-Y"], ["positiveZ", "+Z"], ["negativeZ", "-Z"]]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.addEventListener("click", () => viewportRenderer?.setStandardView(viewId));
+    dom.cameraControls.append(button);
+  }
+  for (const [label, factor] of [["Zoom in", 1.25], ["Zoom out", 0.8]]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.addEventListener("click", () => viewportRenderer?.zoomBy(factor));
+    dom.cameraControls.append(button);
+  }
 }
 
 // Lives in the pinned strip rather than beside the legend, because the result
@@ -1143,6 +1240,7 @@ function appendIssueReviewActions(issueSummary) {
 
 function renderCanvas() {
   viewportRenderer ??= createThreeViewport(dom.canvas);
+  renderCameraControls();
   const result = viewportRenderer.setState(currentState);
   lastRenderGraph = result;
   const objectIds = [...new Set(result.renderableObjects.flatMap((object) => object.userData.objectIds ?? []))];

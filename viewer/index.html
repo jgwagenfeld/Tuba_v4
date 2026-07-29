@@ -55,6 +55,7 @@
           <div class="display-strip" data-display-strip>
             <h2>Display</h2>
             <div class="category-switches" data-category-switches></div>
+            <div data-section-box-controls></div>
             <details class="layer-tree">
               <summary>All layers</summary>
               <div data-layer-list></div>
@@ -67,9 +68,10 @@
         </aside>
         <section class="viewport">
           <canvas data-canvas tabindex="0" aria-label="Interactive 3D engineering review viewport" width="1280" height="800"></canvas>
+          <div class="camera-controls" role="group" aria-label="Standard camera views" data-camera-controls></div>
           <button class="reset-view" type="button" data-reset-view aria-label="Reset 3D view">Reset view</button>
           <p class="viewport-guidance" data-viewport-guidance>
-            Orbit: drag. Zoom: scroll. Select: click. Axes: choose a standard view. Reset: fit the full scene.
+            Orbit: drag. Zoom: scroll or buttons. Select: click. Axes: use the labelled controls. Reset: fit the full scene.
           </p>
         </section>
         <aside class="inspector" data-inspector hidden>

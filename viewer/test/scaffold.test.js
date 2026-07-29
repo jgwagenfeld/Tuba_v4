@@ -95,6 +95,11 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     assert.match(html, new RegExp(`<details[^>]*>[\\s\\S]*?data-${inventory}(?:=|[\\s>])[\\s\\S]*?<\\/details>`));
   }
   assert.match(html, /<canvas[^>]*data-canvas[^>]*tabindex="0"[^>]*aria-label="Interactive 3D engineering review viewport"/);
+  assert.match(html, /<div[^>]*data-section-box-controls[^>]*><\/div>/);
+  assert.match(
+    html,
+    /<div[^>]*class="camera-controls"[^>]*role="group"[^>]*aria-label="Standard camera views"[^>]*data-camera-controls[^>]*><\/div>/
+  );
   assert.match(
     html,
     /<p[^>]*data-viewport-guidance[^>]*>[^<]*Orbit[^<]*Zoom[^<]*Select[^<]*axes[^<]*reset[^<]*<\/p>/i

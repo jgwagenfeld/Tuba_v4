@@ -43,10 +43,62 @@ async function assertSelectedEvidenceTab(page, label) {
   assert.equal(await focusable.textContent(), label);
 }
 
+async function framebufferFingerprint(canvas) {
+  return canvas.evaluate((target) => {
+    const gl = target.getContext("webgl2") || target.getContext("webgl");
+    const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+    gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    let hash = 2166136261;
+    const step = Math.max(4, Math.floor(pixels.length / 4096 / 4) * 4);
+    for (let index = 0; index < pixels.length; index += step) hash = Math.imul(hash ^ pixels[index], 16777619);
+    return hash >>> 0;
+  });
+}
+
 const scenarios = {
   smoke: {
     bundle: "/smoke-scene",
     minimumObjects: 3
+  },
+  "section-camera": {
+    bundle: "/smoke-scene",
+    minimumObjects: 3,
+    async run(page) {
+      const canvas = page.locator("[data-canvas]");
+      const baseline = await framebufferFingerprint(canvas);
+      const positiveZ = page.getByRole("button", { name: "+Z", exact: true });
+      await positiveZ.focus();
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => {
+        const [, , z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
+        return z < -0.99;
+      });
+      const viewFingerprint = await framebufferFingerprint(canvas);
+      await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const zoomFingerprint = await framebufferFingerprint(canvas);
+      assert.notEqual(zoomFingerprint, viewFingerprint, "zoom must redraw the framebuffer");
+
+      await page.getByLabel("Enable section").check();
+      const sectionMax = page.getByLabel("Section X max");
+      await sectionMax.fill("1.5");
+      await sectionMax.press("Enter");
+      await page.waitForFunction(() => (window.__tubaViewer?.state?.sectionBox?.max?.[0] ?? 0) === 1.5);
+      assert.ok(
+        (await page.evaluate(() => window.__tubaViewer?.lastRender?.objectIds ?? [])).includes("object:element:pipe_smoke"),
+        "a pipe crossing the section box remains renderable for fragment clipping"
+      );
+      const sectionFingerprint = await framebufferFingerprint(canvas);
+      assert.notEqual(sectionFingerprint, zoomFingerprint, "sectioning must change the framebuffer");
+
+      await page.getByRole("button", { name: "Reset section", exact: true }).click();
+      await page.waitForFunction(() => !window.__tubaViewer?.state?.sectionBox);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const resetFingerprint = await framebufferFingerprint(canvas);
+      assert.ok(Math.abs(resetFingerprint - zoomFingerprint) <= 2, `section reset fingerprint drifted: ${zoomFingerprint} -> ${resetFingerprint}`);
+      console.log(`section-camera fingerprints: zoom=${zoomFingerprint} section=${sectionFingerprint} reset=${resetFingerprint}`);
+      assert.notEqual(baseline, 0);
+    }
   },
   "view-gizmo": {
     bundle: "/smoke-scene",
@@ -520,17 +572,7 @@ const scenarios = {
       assert.equal(hoverBurst.scheduledAnimationFrames, 0, "dense-scene hover must skip picking frames");
 
       const canvas = page.locator("[data-canvas]");
-      const fingerprint = () => canvas.evaluate((target) => {
-        const gl = target.getContext("webgl2") || target.getContext("webgl");
-        const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
-        gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-        let hash = 2166136261;
-        const step = Math.max(4, Math.floor(pixels.length / 4096 / 4) * 4);
-        for (let index = 0; index < pixels.length; index += step) {
-          hash = Math.imul(hash ^ pixels[index], 16777619);
-        }
-        return hash >>> 0;
-      });
+      const fingerprint = () => framebufferFingerprint(canvas);
       await canvas.evaluate((target) => {
         window.__tubaBlockCanvasApp = (event) => event.stopImmediatePropagation();
         target.addEventListener("mousemove", window.__tubaBlockCanvasApp, true);
