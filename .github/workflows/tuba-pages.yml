@@ -20,30 +20,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: viewer/package-lock.json
-      - name: Build Tuba viewer
-        run: |
-          cd viewer
-          npm ci
-          cd ..
-          python scripts/prepare_release.py
-      - name: Assemble site artifact
-        run: |
-          mkdir -p _site/notebooks
-          cp -R docs/site/. _site/
-          # The docs iframes (?bundle=code-aster-review / imported_component_mixed_demo)
-          # are served from _site/viewer/<bundle>/.
-          # The package-owned viewer is synchronized from viewer/ source by
-          # scripts/prepare_release.py. Example bundles remain docs-only data.
-          cp -R tuba/visualization/_viewer _site/viewer
-          cp -R viewer/public/code-aster-review _site/viewer/code-aster-review
-          cp -R viewer/public/imported_component_mixed_demo _site/viewer/imported_component_mixed_demo
-          cp notebooks/10_interactive_postprocessor.ipynb _site/notebooks/
-          touch _site/.nojekyll
+      - run: uv sync --group docs --locked
+      - run: npm ci
+        working-directory: viewer
+      - run: uv run python scripts/build_pages.py pages --output _site
+      - run: npx playwright install --with-deps chromium
+        working-directory: viewer
+      - run: npm run e2e -- pages-catalog --site-root ../_site
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../_site
+      - run: npm run e2e:pages
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../_site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

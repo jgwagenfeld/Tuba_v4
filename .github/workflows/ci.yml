@@ -38,7 +38,9 @@ jobs:
           python-version: "3.12"
       - name: Install Linux graphics runtime
         run: sudo apt-get update && sudo apt-get install -y libglu1-mesa xvfb
-      - run: uv sync --extra course --locked
+      - run: uv sync --group docs --extra course --locked
+      - run: uv run zensical build --clean --strict
+      - run: uv run python -m pytest tests/test_code_aster_docs.py tests/test_current_api_docs.py tests/test_docs_figures.py tests/test_static_site_docs.py -q
       - run: xvfb-run -a uv run python scripts/check_notebooks.py
 
   viewer:
@@ -54,8 +56,40 @@ jobs:
           cache: npm
           cache-dependency-path: viewer/package-lock.json
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - run: npm test
+      - run: npm run e2e -- public-code-aster-review
+      - run: npm run e2e -- section-camera
+      - run: npm run e2e -- legacy-workflow
       - run: npm run build
+
+  assembled-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - run: uv sync --group docs --locked
+      - run: npm ci
+        working-directory: viewer
+      - run: npx playwright install --with-deps chromium
+        working-directory: viewer
+      - run: uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q
+      - run: uv run python scripts/build_pages.py pages --output .build/pages-check
+      - run: npm run e2e -- pages-catalog --site-root ../.build/pages-check
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../.build/pages-check
+      - run: npm run e2e:pages
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../.build/pages-check
 
   distribution:
     runs-on: ubuntu-latest

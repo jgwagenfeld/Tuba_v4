@@ -1,5 +1,7 @@
 from importlib.metadata import version
 from copy import deepcopy
+import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -74,7 +76,7 @@ def test_ci_and_release_workflows_cover_local_release_gates():
         assert "scripts/verify_release_wheel.py dist" in workflow
 
     assert 'python-version: ["3.10", "3.11", "3.12"]' in ci
-    assert "uv sync --extra course --locked" in ci
+    assert "uv sync --group docs --extra course --locked" in ci
     python_steps = ci_jobs["python"]["steps"]
     assert any(step.get("uses") == "actions/setup-node@v4" for step in python_steps)
     assert any(step.get("run") == "npm ci" and step.get("working-directory") == "viewer" for step in python_steps)
@@ -136,9 +138,126 @@ def test_only_stronger_real_solver_smoke_remains():
     assert not (ROOT / "tests" / "integration" / "test_code_aster_real_smoke.py").exists()
 
 
-def test_pages_deploys_the_synchronized_packaged_viewer():
-    pages = (ROOT / ".github" / "workflows" / "tuba-pages.yml").read_text(encoding="utf-8")
+def _run_steps(workflow, job):
+    return [step for step in workflow["jobs"][job]["steps"] if "run" in step]
 
-    assert "scripts/prepare_release.py" in pages
-    assert "tuba/visualization/_viewer" in pages
-    assert "viewer/dist" not in pages
+
+def test_pages_deploys_only_the_verified_single_owner_artifact():
+    source = (ROOT / ".github" / "workflows" / "tuba-pages.yml").read_text(
+        encoding="utf-8"
+    )
+    workflow = yaml.safe_load(source)
+    steps = workflow["jobs"]["build"]["steps"]
+    commands = [step["run"] for step in steps if "run" in step]
+
+    build = "uv run python scripts/build_pages.py pages --output _site"
+    assert source.count(build) == 1
+    assert "uv sync --group docs --locked" in commands
+    assert any(
+        step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
+        for step in steps
+    )
+    assert any(
+        step.get("uses") == "astral-sh/setup-uv@v6"
+        and step.get("with", {}).get("python-version") == "3.12"
+        for step in steps
+    )
+    assert any(
+        step.get("uses") == "actions/setup-node@v4"
+        and step.get("with", {}).get("node-version") == 22
+        for step in steps
+    )
+
+    semantic = next(i for i, step in enumerate(steps) if "pages-catalog" in step.get("run", ""))
+    visual = next(i for i, step in enumerate(steps) if step.get("run") == "npm run e2e:pages")
+    configure = next(
+        i
+        for i, step in enumerate(steps)
+        if step.get("uses") == "actions/configure-pages@v5"
+    )
+    upload = next(
+        i
+        for i, step in enumerate(steps)
+        if step.get("uses") == "actions/upload-pages-artifact@v3"
+    )
+    build_step = next(i for i, step in enumerate(steps) if step.get("run") == build)
+
+    assert steps[semantic]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
+    assert steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
+    assert build_step < semantic < configure < upload
+    assert build_step < visual < configure
+    assert steps[upload]["with"]["path"] == "_site"
+    assert not any(
+        command in source
+        for command in (
+            "cp -R docs/site",
+            "cp -R tuba/visualization/_viewer",
+            "cp -R viewer/public/code-aster-review",
+            "cp -R viewer/public/imported_component_mixed_demo",
+        )
+    )
+    assert "code_aster_doctor" not in source
+    assert "TUBA_RUN_CODE_ASTER_INTEGRATION" not in source
+
+
+def test_ci_gates_current_docs_viewer_and_assembled_pages():
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+
+    docs = [step["run"] for step in _run_steps(workflow, "notebooks-and-docs")]
+    assert "uv sync --group docs --extra course --locked" in docs
+    assert "uv run zensical build --clean --strict" in docs
+    assert any("tests/test_static_site_docs.py" in command for command in docs)
+
+    viewer_steps = workflow["jobs"]["viewer"]["steps"]
+    viewer = [step["run"] for step in viewer_steps if "run" in step]
+    assert "npx playwright install --with-deps chromium" in viewer
+    assert "npm test" in viewer
+    for scenario in ("public-code-aster-review", "section-camera", "legacy-workflow"):
+        assert f"npm run e2e -- {scenario}" in viewer
+
+    assembled_steps = workflow["jobs"]["assembled-pages"]["steps"]
+    assembled = [step["run"] for step in assembled_steps if "run" in step]
+    assert "uv sync --group docs --locked" in assembled
+    assert "uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q" in assembled
+    build = "uv run python scripts/build_pages.py pages --output .build/pages-check"
+    assert assembled.count(build) == 1
+    semantic = next(step for step in assembled_steps if "pages-catalog" in step.get("run", ""))
+    visual = next(step for step in assembled_steps if step.get("run") == "npm run e2e:pages")
+    assert semantic["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
+    assert visual["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
+
+
+def test_playwright_pages_gate_can_serve_the_prebuilt_workflow_artifact():
+    script = (
+        "import config from './viewer/playwright.config.js';"
+        "console.log(JSON.stringify(config.webServer));"
+    )
+    default_environment = os.environ.copy()
+    default_environment.pop("TUBA_PAGES_SITE_ROOT", None)
+    default_result = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        cwd=ROOT,
+        env=default_environment,
+        capture_output=True,
+        text=True,
+    )
+    environment = default_environment | {"TUBA_PAGES_SITE_ROOT": "../_site"}
+    result = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+
+    assert default_result.returncode == 0, default_result.stderr
+    default_server = json.loads(default_result.stdout)
+    assert "scripts/build_pages.py pages --output .build/pages-check" in default_server["command"]
+    assert "../.build/pages-check" in default_server["command"]
+    assert result.returncode == 0, result.stderr
+    web_server = json.loads(result.stdout)
+    assert "../_site" in web_server["command"]
+    assert "configFile: false" in web_server["command"]
+    assert "scripts/build_pages.py" not in web_server["command"]

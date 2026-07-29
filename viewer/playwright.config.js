@@ -1,5 +1,16 @@
 import { defineConfig } from "@playwright/test";
 
+const prebuiltSiteRoot = process.env.TUBA_PAGES_SITE_ROOT?.trim();
+const siteRoot = prebuiltSiteRoot || "../.build/pages-check";
+const buildPages = prebuiltSiteRoot
+  ? ""
+  : "cd .. && uv run python scripts/build_pages.py pages --output .build/pages-check && cd viewer && ";
+const serveStatic =
+  `node --input-type=module --eval "import { createServer } from 'vite'; ` +
+  `const server = await createServer({ root: process.argv[1], configFile: false, logLevel: 'error', ` +
+  `server: { host: '127.0.0.1', port: 4173, strictPort: true } }); await server.listen();" ` +
+  JSON.stringify(siteRoot);
+
 export default defineConfig({
   testDir: "./e2e",
   outputDir: "../.build/playwright-results",
@@ -23,8 +34,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 }
   },
   webServer: {
-    command:
-      "cd .. && uv run python scripts/build_pages.py pages --output .build/pages-check && vite .build/pages-check --host 127.0.0.1 --port 4173 --strictPort",
+    command: buildPages + serveStatic,
     url: "http://127.0.0.1:4173/viewer/",
     reuseExistingServer: false,
     timeout: 120_000
