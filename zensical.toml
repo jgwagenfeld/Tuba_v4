@@ -40,5 +40,8 @@ paths = ["."]
 
 [project.plugins.mkdocstrings.handlers.python.options]
 members_order = "source"
+merge_init_into_class = true
 show_source = true
+show_root_heading = true
+show_signature = true
 show_signature_annotations = true

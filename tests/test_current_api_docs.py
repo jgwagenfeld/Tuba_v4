@@ -39,6 +39,44 @@ class TestCurrentApiDocs(unittest.TestCase):
         self.assertIn("operation", plain)
         self.assertNotRegex(plain, r"\bsolver\s*=")
 
+    def test_generated_public_api_renders_top_level_function_heading_and_signature(self):
+        output = ROOT / ".build" / "zensical-site" / "reference" / "public-api.html"
+        if not output.is_file():
+            self.skipTest("run the strict Zensical build before checking generated HTML")
+        rendered = output.read_text(encoding="utf-8")
+        object_id = "tuba.analysis.code_aster_artifacts.import_code_aster_artifacts"
+        match = re.search(
+            rf'id="{re.escape(object_id)}"(?P<section>.*?)(?=id="tuba\.reporting\.build_engineering_review")',
+            rendered,
+            re.DOTALL,
+        )
+
+        self.assertIn(f'<h2 id="{object_id}" class="doc doc-heading">', rendered)
+        self.assertIsNotNone(match)
+        plain = " ".join(re.sub(r"<[^>]+>", " ", unescape(match.group("section"))).split())
+        self.assertRegex(plain, r"import_code_aster_artifacts\s*\(")
+        for parameter in ("model", "work_dir", "study"):
+            self.assertIn(parameter, plain)
+
+    def test_generated_public_api_renders_autorouting_dataclass_heading_and_fields(self):
+        output = ROOT / ".build" / "zensical-site" / "reference" / "public-api.html"
+        if not output.is_file():
+            self.skipTest("run the strict Zensical build before checking generated HTML")
+        rendered = output.read_text(encoding="utf-8")
+        object_id = "tuba.routing.PipeRouteRequest"
+        match = re.search(
+            rf'id="{re.escape(object_id)}"(?P<section>.*?)(?=id="tuba\.routing\.PipeRouteResult")',
+            rendered,
+            re.DOTALL,
+        )
+
+        self.assertIn(f'<h2 id="{object_id}" class="doc doc-heading">', rendered)
+        self.assertIsNotNone(match)
+        plain = " ".join(re.sub(r"<[^>]+>", " ", unescape(match.group("section"))).split())
+        self.assertRegex(plain, r"PipeRouteRequest\s*\(")
+        for field in ("id", "start", "goal", "section", "material"):
+            self.assertIn(field, plain)
+
     def test_current_docs_do_not_call_unshipped_future_dsl_methods(self):
         future_methods = {
             PipingBuilder: {
