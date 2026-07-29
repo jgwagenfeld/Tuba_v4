@@ -8,9 +8,11 @@
     "test": "node --test",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "e2e": "node scripts/e2e-smoke.mjs"
+    "e2e": "node scripts/e2e-smoke.mjs",
+    "e2e:pages": "playwright test --config playwright.config.js e2e/pages-artifact.spec.js"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.0",
     "vite": "^8.0.16"
   },

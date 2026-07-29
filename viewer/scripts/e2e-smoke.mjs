@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { createServer as createNetServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,21 @@ import { createServer } from "vite";
 
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scenario = process.argv[2] ?? "smoke";
+
+function captureUnexpectedBrowserEvents(page) {
+  page.__tubaUnexpectedBrowserEvents = [];
+  page.on("pageerror", (error) => page.__tubaUnexpectedBrowserEvents.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      page.__tubaUnexpectedBrowserEvents.push(`console: ${message.text()}`);
+    }
+  });
+  page.on("requestfailed", (request) => {
+    page.__tubaUnexpectedBrowserEvents.push(
+      `requestfailed: ${request.url()} ${request.failure()?.errorText ?? "unknown"}`
+    );
+  });
+}
 
 async function rememberCanvas(page) {
   await page.locator("[data-canvas]").evaluate((canvas) => {
@@ -531,23 +547,129 @@ const scenarios = {
       });
     }
   },
+  "pages-catalog": {
+    path: "/viewer/",
+    bundle: "code-aster-review",
+    minimumObjects: 1,
+    beforeNavigate: captureUnexpectedBrowserEvents,
+    async run(page) {
+      const picker = page.getByRole("combobox", { name: "Example scene", exact: true });
+      await picker.waitFor({ state: "visible" });
+      assert.deepEqual(
+        await picker.locator("option").evaluateAll((options) =>
+          options.map((option) => ({ label: option.textContent, value: option.value }))
+        ),
+        [
+          { label: "Code Aster Review", value: "code-aster-review" },
+          { label: "Imported Component Mixed Demo", value: "imported_component_mixed_demo" }
+        ]
+      );
+      assert.equal(await picker.inputValue(), "code-aster-review");
+      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.sceneId), "scene:code_aster_artifact_review");
+
+      await picker.selectOption("imported_component_mixed_demo");
+      await page.waitForFunction(
+        () => window.__tubaViewer?.state?.sceneId === "scene:imported_component_mixed_system"
+      );
+      assert.equal(new URL(page.url()).pathname, "/viewer/");
+      assert.equal(new URL(page.url()).searchParams.get("bundle"), "imported_component_mixed_demo");
+      await page.getByRole("tab", { name: "Warnings", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Warnings", exact: true }).waitFor();
+      assert.match(await page.locator("[data-diagnostic-list]").textContent(), /publication\.model_review\.no_solver_results/);
+      assert.match(await page.locator("[data-diagnostic-list]").textContent(), /Code_Aster has not been run/);
+
+      await picker.selectOption("code-aster-review");
+      await page.waitForFunction(
+        () => window.__tubaViewer?.state?.sceneId === "scene:code_aster_artifact_review"
+      );
+      assert.equal(new URL(page.url()).searchParams.get("bundle"), "code-aster-review");
+
+      await page.getByRole("button", { name: "Results", exact: true }).click();
+      assert.deepEqual(
+        (await page.locator("[data-category-switches] input").evaluateAll((inputs) =>
+          inputs.map((input) => input.getAttribute("aria-label"))
+        )),
+        ["Design", "Analysis mesh", "Results", "Annotations"]
+      );
+
+      const field = page.getByRole("combobox", { name: "Field", exact: true });
+      assert.deepEqual(
+        await field.locator("option").evaluateAll((options) =>
+          options.map((option) => ({ label: option.textContent, value: option.value }))
+        ),
+        [
+          { label: "max_von_mises (cell)", value: "field:solver_result:stress:result_state:Operating" },
+          { label: "displacement_magnitude", value: "field:solver_result:displacement:result_state:Operating" },
+          { label: "reaction_force_magnitude", value: "field:solver_result:reaction:result_state:Operating" },
+          { label: "FE VMIS (not code stress) (subpoint)", value: "field:solver_result:tuyau_subpoints:result_state:Operating" }
+        ]
+      );
+
+      const canvas = page.locator("[data-canvas]");
+      const stressFingerprint = await framebufferFingerprint(canvas);
+      await field.selectOption("field:solver_result:displacement:result_state:Operating");
+      await page.getByRole("combobox", { name: "Component", exact: true }).selectOption("DZ");
+      await page.waitForFunction(() => {
+        const viewer = window.__tubaViewer;
+        return (
+          viewer?.state?.coloring?.fieldId === "field:solver_result:displacement:result_state:Operating" &&
+          viewer.state.coloring.component === "DZ" &&
+          viewer.resultReview?.legend?.field === "displacement_magnitude" &&
+          viewer.resultReview.legend.component === "DZ"
+        );
+      });
+      assert.match(await page.locator("[data-result-legend]").textContent(), /displacement_magnitude DZ:.*m/);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.notEqual(await framebufferFingerprint(canvas), stressFingerprint, "DZ coloring must redraw the engineering scene");
+
+      const deformedState = page.getByRole("combobox", { name: "Deformed state", exact: true });
+      await deformedState.selectOption("geometry_state:Operating:physical");
+      await page.waitForFunction(() => window.__tubaViewer?.state?.activeGeometryStateId === "geometry_state:Operating:physical");
+      let objectIds = await page.evaluate(() => window.__tubaViewer?.lastRender?.objectIds ?? []);
+      assert.ok(objectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
+      assert.ok(!objectIds.includes("object:deformed_centerline:geometry_state:Operating:visual_x40:pipe_str_0"));
+      assert.ok(objectIds.includes("object:element:pipe_str_0"), "undeformed reference must remain visible");
+
+      await deformedState.selectOption("geometry_state:Operating:visual_x40");
+      await page.waitForFunction(() => window.__tubaViewer?.state?.activeGeometryStateId === "geometry_state:Operating:visual_x40");
+      objectIds = await page.evaluate(() => window.__tubaViewer?.lastRender?.objectIds ?? []);
+      assert.ok(objectIds.includes("object:deformed_centerline:geometry_state:Operating:visual_x40:pipe_str_0"));
+      assert.ok(!objectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
+      assert.ok(objectIds.includes("object:element:pipe_str_0"), "undeformed reference must remain visible");
+
+      await page.getByRole("tab", { name: "Warnings", exact: true }).click();
+      await page.getByRole("heading", { level: 1, name: "Warnings", exact: true }).waitFor();
+      const warnings = await page.locator("[data-diagnostic-list]").textContent();
+      assert.match(warnings, /visualization\.code_aster_artifacts\.rmed_read_failed/);
+      assert.match(warnings, /Unable to synchronously open object/);
+
+      const positiveZ = page.getByRole("button", { name: "+Z", exact: true });
+      await positiveZ.focus();
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => {
+        const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
+        return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
+      });
+      const sectionEnabled = page.getByLabel("Enable section", { exact: true });
+      await sectionEnabled.focus();
+      await page.keyboard.press("Space");
+      await page.waitForFunction(() => Boolean(window.__tubaViewer?.state?.sectionBox));
+      await page.keyboard.press("Tab");
+      const sectionMin = page.getByLabel("Section X min", { exact: true });
+      assert.equal(await sectionMin.evaluate((input) => document.activeElement === input), true);
+      await sectionMin.fill("0");
+      await sectionMin.press("Enter");
+      await page.waitForFunction(() => window.__tubaViewer?.state?.sectionBox?.min?.[0] === 0);
+
+      assert.equal(await page.locator("[data-canvas]").getAttribute("data-render-diagnostics"), "0");
+      assert.deepEqual(await page.evaluate(() => window.__tubaViewer?.lastRender?.diagnostics ?? []), []);
+      assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
+    }
+  },
   "public-code-aster-review": {
     bundle: "/code-aster-review",
     minimumObjects: 1,
-    async beforeNavigate(page) {
-      page.__tubaUnexpectedBrowserEvents = [];
-      page.on("pageerror", (error) => page.__tubaUnexpectedBrowserEvents.push(`pageerror: ${error.message}`));
-      page.on("console", (message) => {
-        if (message.type() === "error") {
-          page.__tubaUnexpectedBrowserEvents.push(`console: ${message.text()}`);
-        }
-      });
-      page.on("requestfailed", (request) => {
-        page.__tubaUnexpectedBrowserEvents.push(
-          `requestfailed: ${request.url()} ${request.failure()?.errorText ?? "unknown"}`
-        );
-      });
-    },
+    beforeNavigate: captureUnexpectedBrowserEvents,
     async run(page) {
       await page.waitForFunction(
         () => window.__tubaViewer?.state?.review?.schema_version === "engineering_review.v1"
@@ -1029,6 +1151,8 @@ if (!selected) {
   throw new Error(`Unknown e2e scenario '${scenario}'. Expected one of: ${Object.keys(scenarios).join(", ")}`);
 }
 
+const staticSiteRoot = scenario === "pages-catalog" ? parseSiteRoot(process.argv.slice(3)) : null;
+
 let browser;
 let server;
 let runtime;
@@ -1036,7 +1160,8 @@ let runtime;
 try {
   runtime = await selected.setup?.();
   server = await createServer({
-    root: viewerRoot,
+    root: staticSiteRoot ?? viewerRoot,
+    ...(staticSiteRoot ? { configFile: false } : {}),
     logLevel: "error",
     server: {
       host: "127.0.0.1",
@@ -1052,7 +1177,7 @@ try {
   page.setDefaultTimeout(15_000);
   await selected.beforeNavigate?.(page, runtime);
 
-  const url = new URL("/", baseUrl);
+  const url = new URL(selected.path ?? "/", baseUrl);
   if (selected.bundle) {
     url.searchParams.set("bundle", selected.bundle);
   }
@@ -1143,6 +1268,19 @@ async function boundedClose(label, close) {
   } catch (error) {
     console.warn(`Failed to close ${label}: ${error.message}`);
   }
+}
+
+function parseSiteRoot(args) {
+  const flagIndex = args.indexOf("--site-root");
+  const value = flagIndex >= 0 ? args[flagIndex + 1] : null;
+  if (!value || value.startsWith("--")) {
+    throw new Error("pages-catalog requires --site-root PATH");
+  }
+  const siteRoot = resolve(process.cwd(), value);
+  if (!existsSync(resolve(siteRoot, "viewer", "index.html"))) {
+    throw new Error(`Pages site root lacks viewer/index.html: ${siteRoot}`);
+  }
+  return siteRoot;
 }
 
 async function startTestWebSocketServer() {

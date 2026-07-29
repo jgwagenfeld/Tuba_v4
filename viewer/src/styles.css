@@ -759,7 +759,7 @@ h3 {
 }
 
 .meta,
-[data-status] {
+.status-badge {
   color: var(--muted);
   font-size: 0.75rem;
 }
