@@ -59,10 +59,10 @@ export function createThreeSceneGraph(state, options = {}) {
   let renderedObjectCount = 0;
 
   for (const asset of state.geometryAssets ?? []) {
-    if (!isAssetVisible(asset, visibleIds)) {
+    const payload = payloadsByAssetId.get(asset.id) ?? {};
+    if (!isAssetVisible(asset, visibleIds) || !assetMatchesActiveGeometryState(asset, payload, state.activeGeometryStateId)) {
       continue;
     }
-    const payload = payloadsByAssetId.get(asset.id) ?? {};
     const result = createRenderableForAsset(asset, payload, renderState);
     if (result.diagnostic) {
       diagnostics.push(result.diagnostic);
@@ -476,8 +476,10 @@ export function setSceneGraphInteractionMode(graph, active) {
 function hasAllVisibleAssets(graph, state) {
   const cachedAssetIds = new Set((graph.renderableObjects ?? []).map((object) => object.userData?.assetId));
   const visibleIds = new Set(state.visibleObjectIds ?? []);
+  const payloadsByAssetId = new Map((state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload]));
   return (state.geometryAssets ?? [])
     .filter((asset) => isAssetVisible(asset, visibleIds))
+    .filter((asset) => assetMatchesActiveGeometryState(asset, payloadsByAssetId.get(asset.id) ?? {}, state.activeGeometryStateId))
     .every((asset) => cachedAssetIds.has(asset.id));
 }
 
@@ -850,12 +852,23 @@ function isAssetVisible(asset, visibleIds) {
   return ids.length === 0 || ids.some((id) => visibleIds.has(id));
 }
 
+function assetMatchesActiveGeometryState(asset, payload, activeGeometryStateId) {
+  const geometryStateId = {
+    ...(payload?.generation_config ?? {}),
+    ...(asset?.generation_config ?? {})
+  }.geometry_state_id ?? null;
+  return geometryStateId === null || geometryStateId === activeGeometryStateId;
+}
+
 function hasVisibleVisualDeformedGeometry(state, payloadsByAssetId = new Map(), visibleIds = new Set(state.visibleObjectIds ?? [])) {
   return (state.geometryAssets ?? []).some((asset) => {
     if (!isAssetVisible(asset, visibleIds)) {
       return false;
     }
     const payload = payloadsByAssetId.get(asset.id) ?? {};
+    if (!assetMatchesActiveGeometryState(asset, payload, state.activeGeometryStateId)) {
+      return false;
+    }
     const config = {
       ...(payload.generation_config ?? {}),
       ...(asset.generation_config ?? {})

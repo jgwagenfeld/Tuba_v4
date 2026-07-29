@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getGeometryStateOptions,
   getHotspots,
   getLoadCaseOptions,
   getObjectScalarColor,
   getScalarLegend,
   getSolverResultOverlays,
+  setActiveGeometryState,
   setActiveLoadCase,
   setResultThreshold,
   setResultVectorScale,
@@ -181,4 +183,29 @@ test("visual deformation and vector display controls do not mutate clash issue m
   assert.equal(next.resultVectorScales.reaction, 0.25);
   assert.equal(next.visualDeformationScale, 80);
   assert.deepEqual(next.issues, originalIssues);
+});
+
+test("load case changes keep result and geometry states on the case while preserving deformation purpose", () => {
+  const state = resultState();
+  state.resultStates.push({
+    id: "overlay:result_state:Cold",
+    kind: "result_state",
+    data: { id: "result_state:Cold", load_case: "Cold", solver_name: "code_aster" }
+  });
+  state.geometryStates = [
+    { id: "overlay:geometry_state:Hot:physical", kind: "geometry_state", data: { id: "geometry_state:Hot:physical", load_case: "Hot", purpose: "engineering" } },
+    { id: "overlay:geometry_state:Hot:visual", kind: "geometry_state", data: { id: "geometry_state:Hot:visual", load_case: "Hot", purpose: "visualization", visual_scale: 40 } },
+    { id: "overlay:geometry_state:Cold:physical", kind: "geometry_state", data: { id: "geometry_state:Cold:physical", load_case: "Cold", purpose: "engineering" } },
+    { id: "overlay:geometry_state:Cold:visual", kind: "geometry_state", data: { id: "geometry_state:Cold:visual", load_case: "Cold", purpose: "visualization", visual_scale: 25 } }
+  ];
+
+  const next = setActiveLoadCase(setActiveGeometryState(state, "geometry_state:Hot:visual"), "Cold");
+
+  assert.equal(next.activeLoadCase, "Cold");
+  assert.equal(next.activeResultStateId, "result_state:Cold");
+  assert.equal(next.activeGeometryStateId, "geometry_state:Cold:visual");
+  assert.deepEqual(getGeometryStateOptions(next).map((option) => option.id), [
+    "geometry_state:Cold:physical",
+    "geometry_state:Cold:visual"
+  ]);
 });

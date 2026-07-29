@@ -547,6 +547,10 @@ const scenarios = {
           objects: state.objects.length,
           geometryPayloads: state.geometryPayloads.length,
           overlays: state.overlays.length,
+          layers: Object.keys(state.layers).length,
+          resultFields: state.resultFields.length,
+          hasParserDiagnostics: state.overlays.some((overlay) => overlay.data?.result_type === "parser_diagnostics"),
+          hasFieldContext: state.overlays.some((overlay) => overlay.kind === "field_context"),
           reviewLoadDiagnostics: state.reviewDiagnostics,
           missingNodeGeometry: state.diagnostics.filter(
             (diagnostic) => diagnostic.code === "result_state.missing_node_geometry"
@@ -560,13 +564,18 @@ const scenarios = {
           renderDiagnostics: viewer.lastRender.diagnostics
         };
       });
-      assert.equal(loaded.objects, 216);
-      assert.equal(loaded.geometryPayloads, 213);
-      assert.equal(loaded.overlays, 7);
+      assert.equal(loaded.objects, 217);
+      assert.equal(loaded.geometryPayloads, 214);
+      assert.equal(loaded.overlays, 10);
+      assert.equal(loaded.layers, 39);
+      assert.equal(loaded.resultFields, 4);
+      assert.equal(loaded.hasParserDiagnostics, true);
+      assert.equal(loaded.hasFieldContext, true);
       assert.deepEqual(loaded.reviewLoadDiagnostics, []);
       assert.deepEqual(loaded.missingNodeGeometry, []);
       assert.deepEqual(loaded.solverParserDiagnostics, []);
-      assert.deepEqual(loaded.parserDiagnosticOverlays, []);
+      assert.equal(loaded.parserDiagnosticOverlays.length, 1);
+      assert.equal(loaded.parserDiagnosticOverlays[0].data.result_state_id, "result_state:Operating");
       assert.deepEqual(loaded.renderDiagnostics, []);
 
       // The summary preset hides analysis mesh on load, dropping the scene to 37 renderable
@@ -641,9 +650,42 @@ const scenarios = {
       await assertSameCanvas(page);
       assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Operating");
       assert.equal(
-        await page.getByRole("combobox", { name: /^Result state/ }).inputValue(),
-        "result_state:Operating"
+        await page.getByRole("combobox", { name: "Field", exact: true }).inputValue(),
+        "field:solver_result:stress:result_state:Operating"
       );
+      assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).count(), 0);
+      assert.equal(await page.getByRole("combobox", { name: "Component", exact: true }).count(), 0);
+
+      await page.getByRole("combobox", { name: "Field", exact: true }).selectOption(
+        "field:solver_result:displacement:result_state:Operating"
+      );
+      await page.getByRole("combobox", { name: "Component", exact: true }).selectOption("DZ");
+      await page.waitForFunction(() => {
+        const review = window.__tubaViewer?.resultReview;
+        return review?.legend?.component === "DZ" && review.legend?.field === "displacement_magnitude";
+      });
+      assert.match(await page.locator("[data-result-legend]").textContent(), /displacement_magnitude DZ:/);
+
+      await page.getByRole("combobox", { name: "Field", exact: true }).selectOption(
+        "field:solver_result:tuyau_subpoints:result_state:Operating"
+      );
+      await page.waitForFunction(() => window.__tubaViewer?.resultReview?.legend?.field === "FE VMIS (not code stress) (subpoint)");
+      assert.match(await page.locator("[data-compliance-notice]").textContent(), /FE stress - not ASME code stress/);
+
+      const deformedState = page.getByRole("combobox", { name: "Deformed state", exact: true });
+      await deformedState.selectOption("geometry_state:Operating:physical");
+      await page.waitForFunction(() => window.__tubaViewer?.state?.activeGeometryStateId === "geometry_state:Operating:physical");
+      const physicalObjectIds = await page.evaluate(() => window.__tubaViewer?.lastRender?.objectIds ?? []);
+      assert.ok(physicalObjectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
+      assert.ok(!physicalObjectIds.includes("object:deformed_centerline:geometry_state:Operating:visual_x40:pipe_str_0"));
+
+      await deformedState.selectOption("geometry_state:Operating:visual_x40");
+      await page.waitForFunction(() => window.__tubaViewer?.state?.activeGeometryStateId === "geometry_state:Operating:visual_x40");
+      const visualObjectIds = await page.evaluate(() => window.__tubaViewer?.lastRender?.objectIds ?? []);
+      assert.ok(visualObjectIds.includes("object:deformed_centerline:geometry_state:Operating:visual_x40:pipe_str_0"));
+      assert.ok(!visualObjectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
+      assert.ok(visualObjectIds.includes("object:element:pipe_str_0"));
+
       await page.getByRole("button", { name: "Show element:pipe_str_0 in 3D", exact: true }).first().click();
       await page.waitForFunction(() => {
         const state = window.__tubaViewer?.state;

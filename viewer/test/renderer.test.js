@@ -134,6 +134,57 @@ test("scene graph renders cold geometry as transparent gray reference for visual
   assert.equal(material.transparent, true);
 });
 
+test("geometry state selection renders only matching deformation assets and keeps untagged reference geometry", () => {
+  const state = {
+    bounds: [0, -0.1, -0.1, 1, 0.4, 0.1],
+    geometryAssets: [
+      {
+        id: "geometry:reference",
+        format: "tube",
+        bounds: [0, -0.05, -0.05, 1, 0.05, 0.05],
+        object_ids: ["object:reference"],
+        generation_config: { points: [[0, 0, 0], [1, 0, 0]], radius_m: 0.05, source: "tuba.element" }
+      },
+      {
+        id: "geometry:physical",
+        format: "polyline",
+        bounds: [0, 0, 0, 1, 0.1, 0],
+        object_ids: ["object:physical"],
+        generation_config: {
+          geometry_state_id: "geometry_state:Operating:physical",
+          points: [[0, 0, 0], [1, 0.1, 0]],
+          source: "tuba.deformed_centerline.physical"
+        }
+      },
+      {
+        id: "geometry:visual",
+        format: "polyline",
+        bounds: [0, 0, 0, 1, 0.4, 0],
+        object_ids: ["object:visual"],
+        generation_config: {
+          points: [[0, 0, 0], [1, 0.4, 0]],
+          source: "tuba.deformed_centerline.visual",
+          visual_scale: 40
+        }
+      }
+    ],
+    geometryPayloads: [{
+      asset_id: "geometry:visual",
+      generation_config: { geometry_state_id: "geometry_state:Operating:visual" }
+    }],
+    visibleObjectIds: ["object:reference", "object:physical", "object:visual"]
+  };
+
+  const physical = createThreeSceneGraph({ ...state, activeGeometryStateId: "geometry_state:Operating:physical" });
+  assert.deepEqual([...physical.objectsByObjectId.keys()].sort(), ["object:physical", "object:reference"]);
+
+  const visual = createThreeSceneGraph({ ...state, activeGeometryStateId: "geometry_state:Operating:visual" });
+  assert.deepEqual([...visual.objectsByObjectId.keys()].sort(), ["object:reference", "object:visual"]);
+  const reference = visual.objectsByObjectId.get("object:reference").material;
+  assert.equal(reference.color.getHex(), 0x9ca3af);
+  assert.equal(reference.opacity, 0.32);
+});
+
 test("pipe geometry remains visible end-on as a hollow section", () => {
   const state = fixtureState();
   state.geometryAssets[0].generation_config.inner_radius_m = 0.04;

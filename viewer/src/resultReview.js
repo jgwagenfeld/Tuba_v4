@@ -59,8 +59,11 @@ export function coherentResultContext(previousState, nextState) {
   };
 }
 
-export function getGeometryStateOptions(state) {
-  return (state.geometryStates ?? []).map((overlay) => {
+export function getGeometryStateOptions(state, loadCase = state.activeLoadCase ?? null) {
+  return (state.geometryStates ?? []).filter((overlay) => {
+    const geometryLoadCase = overlay.data?.load_case ?? null;
+    return !loadCase || geometryLoadCase === loadCase;
+  }).map((overlay) => {
     const data = overlay.data ?? {};
     return {
       id: data.id ?? overlay.id,
@@ -247,11 +250,24 @@ export function getVisualDeformationDisplayScale(state) {
 }
 
 export function setActiveLoadCase(state, loadCase) {
-  const option = getResultStateOptions(state).find((candidate) => candidate.loadCase === loadCase);
+  const resultState = getResultStateOptions(state).find((candidate) => candidate.loadCase === loadCase);
+  const activeGeometryState = getGeometryStateOptions(state, null).find(
+    (candidate) => candidate.id === state.activeGeometryStateId
+  );
+  const geometryOptions = getGeometryStateOptions(state, loadCase);
+  const geometryState =
+    geometryOptions.find((candidate) => candidate.purpose === activeGeometryState?.purpose) ??
+    geometryOptions[0] ??
+    null;
   return {
     ...state,
     activeLoadCase: loadCase ?? null,
-    activeResultStateId: option?.id ?? state.activeResultStateId ?? null
+    activeResultStateId: resultState?.id ?? null,
+    activeGeometryStateId: geometryState?.id ?? null,
+    visualDeformationScale:
+      geometryState?.purpose === "visualization" && geometryState.visualScale != null
+        ? Number(geometryState.visualScale)
+        : state.visualDeformationScale
   };
 }
 
