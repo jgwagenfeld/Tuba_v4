@@ -75,7 +75,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: viewer/package-lock.json
-      - run: uv sync --group docs --locked
+      - name: Install Linux graphics runtime
+        run: sudo apt-get update && sudo apt-get install -y libglu1-mesa
+      - run: uv sync --group docs --extra dev --locked
       - run: npm ci
         working-directory: viewer
       - run: uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q

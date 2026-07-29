@@ -188,6 +188,11 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
         lambda step: step.get("run") == "npm ci"
         and step.get("working-directory") == "viewer",
     )
+    graphics = _only_step_index(
+        steps,
+        lambda step: step.get("run")
+        == "sudo apt-get update && sudo apt-get install -y libglu1-mesa",
+    )
     build_step = _only_step_index(steps, lambda step: step.get("run") == build)
     chromium = _only_step_index(
         steps,
@@ -210,7 +215,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
     assert steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
     assert setup_uv < sync
     assert setup_node < npm
-    assert max(sync, npm) < build_step < chromium < semantic < visual < configure < upload
+    assert max(sync, npm, graphics) < build_step < chromium < semantic < visual < configure < upload
     assert steps[upload]["with"]["path"] == "_site"
     assert not any(
         command in source
@@ -244,7 +249,7 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
 
     assembled_steps = workflow["jobs"]["assembled-pages"]["steps"]
     assembled = [step["run"] for step in assembled_steps if "run" in step]
-    assert "uv sync --group docs --locked" in assembled
+    assert "uv sync --group docs --extra dev --locked" in assembled
     assert "uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q" in assembled
     build = "uv run python scripts/build_pages.py pages --output .build/pages-check"
     assert assembled.count(build) == 1
@@ -256,12 +261,22 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     )
     sync = _only_step_index(
         assembled_steps,
-        lambda step: step.get("run") == "uv sync --group docs --locked",
+        lambda step: step.get("run") == "uv sync --group docs --extra dev --locked",
     )
     npm = _only_step_index(
         assembled_steps,
         lambda step: step.get("run") == "npm ci"
         and step.get("working-directory") == "viewer",
+    )
+    graphics = _only_step_index(
+        assembled_steps,
+        lambda step: step.get("run")
+        == "sudo apt-get update && sudo apt-get install -y libglu1-mesa",
+    )
+    python_tests = _only_step_index(
+        assembled_steps,
+        lambda step: step.get("run")
+        == "uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q",
     )
     build_step = _only_step_index(
         assembled_steps, lambda step: step.get("run") == build
@@ -281,7 +296,7 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     assert assembled_steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
     assert setup_uv < sync
     assert setup_node < npm
-    assert max(sync, npm) < build_step < chromium < semantic < visual
+    assert max(sync, npm, graphics) < python_tests < build_step < chromium < semantic < visual
 
 
 def test_playwright_pages_gate_can_serve_the_prebuilt_workflow_artifact():
