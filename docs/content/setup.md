@@ -120,7 +120,7 @@ Keep Tuba in its virtual environment and Code_Aster in a separate conda environm
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y libglu1-mesa
+sudo apt-get install -y libglu1-mesa libxft2 libgomp1
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip

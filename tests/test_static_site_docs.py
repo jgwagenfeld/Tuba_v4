@@ -112,7 +112,7 @@ class TestStaticSiteDocs(unittest.TestCase):
             text,
         )
         self.assertIn("python -m pip install .", text)
-        self.assertIn("sudo apt-get install -y libglu1-mesa", text)
+        self.assertIn("sudo apt-get install -y libglu1-mesa libxft2 libgomp1", text)
         self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
         self.assertNotIn("your-tuba-v4-repo-url", text)
         self.assertNotIn("pip install -e", text)
