@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-GEN = ROOT / "docs" / "site" / "assets" / "generate_section_drawings.py"
+GEN = ROOT / "scripts" / "docs" / "generate_section_drawings.py"
 
 
 def _load():

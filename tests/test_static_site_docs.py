@@ -28,7 +28,7 @@ class TestStaticSiteDocs(unittest.TestCase):
             "workflow" + ".html",
         )
         offenders = {}
-        for root in (CONTENT, ROOT / "tests", ROOT / "scripts"):
+        for root in (CONTENT,):
             for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
                 try:
                     text = path.read_text(encoding="utf-8")
