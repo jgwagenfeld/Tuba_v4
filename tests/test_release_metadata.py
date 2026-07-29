@@ -142,6 +142,12 @@ def _run_steps(workflow, job):
     return [step for step in workflow["jobs"][job]["steps"] if "run" in step]
 
 
+def _only_step_index(steps, predicate):
+    matches = [index for index, step in enumerate(steps) if predicate(step)]
+    assert len(matches) == 1, matches
+    return matches[0]
+
+
 def test_pages_deploys_only_the_verified_single_owner_artifact():
     source = (ROOT / ".github" / "workflows" / "tuba-pages.yml").read_text(
         encoding="utf-8"
@@ -168,24 +174,43 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
         for step in steps
     )
 
-    semantic = next(i for i, step in enumerate(steps) if "pages-catalog" in step.get("run", ""))
-    visual = next(i for i, step in enumerate(steps) if step.get("run") == "npm run e2e:pages")
-    configure = next(
-        i
-        for i, step in enumerate(steps)
-        if step.get("uses") == "actions/configure-pages@v5"
+    setup_uv = _only_step_index(
+        steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v6"
     )
-    upload = next(
-        i
-        for i, step in enumerate(steps)
-        if step.get("uses") == "actions/upload-pages-artifact@v3"
+    setup_node = _only_step_index(
+        steps, lambda step: step.get("uses") == "actions/setup-node@v4"
     )
-    build_step = next(i for i, step in enumerate(steps) if step.get("run") == build)
+    sync = _only_step_index(
+        steps, lambda step: step.get("run") == "uv sync --group docs --locked"
+    )
+    npm = _only_step_index(
+        steps,
+        lambda step: step.get("run") == "npm ci"
+        and step.get("working-directory") == "viewer",
+    )
+    build_step = _only_step_index(steps, lambda step: step.get("run") == build)
+    chromium = _only_step_index(
+        steps,
+        lambda step: step.get("run") == "npx playwright install --with-deps chromium",
+    )
+    semantic = _only_step_index(
+        steps, lambda step: "pages-catalog" in step.get("run", "")
+    )
+    visual = _only_step_index(
+        steps, lambda step: step.get("run") == "npm run e2e:pages"
+    )
+    configure = _only_step_index(
+        steps, lambda step: step.get("uses") == "actions/configure-pages@v5"
+    )
+    upload = _only_step_index(
+        steps, lambda step: step.get("uses") == "actions/upload-pages-artifact@v3"
+    )
 
     assert steps[semantic]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
     assert steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
-    assert build_step < semantic < configure < upload
-    assert build_step < visual < configure
+    assert setup_uv < sync
+    assert setup_node < npm
+    assert max(sync, npm) < build_step < chromium < semantic < visual < configure < upload
     assert steps[upload]["with"]["path"] == "_site"
     assert not any(
         command in source
@@ -223,10 +248,40 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     assert "uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q" in assembled
     build = "uv run python scripts/build_pages.py pages --output .build/pages-check"
     assert assembled.count(build) == 1
-    semantic = next(step for step in assembled_steps if "pages-catalog" in step.get("run", ""))
-    visual = next(step for step in assembled_steps if step.get("run") == "npm run e2e:pages")
-    assert semantic["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
-    assert visual["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
+    setup_uv = _only_step_index(
+        assembled_steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v6"
+    )
+    setup_node = _only_step_index(
+        assembled_steps, lambda step: step.get("uses") == "actions/setup-node@v4"
+    )
+    sync = _only_step_index(
+        assembled_steps,
+        lambda step: step.get("run") == "uv sync --group docs --locked",
+    )
+    npm = _only_step_index(
+        assembled_steps,
+        lambda step: step.get("run") == "npm ci"
+        and step.get("working-directory") == "viewer",
+    )
+    build_step = _only_step_index(
+        assembled_steps, lambda step: step.get("run") == build
+    )
+    chromium = _only_step_index(
+        assembled_steps,
+        lambda step: step.get("run") == "npx playwright install --with-deps chromium",
+    )
+    semantic = _only_step_index(
+        assembled_steps, lambda step: "pages-catalog" in step.get("run", "")
+    )
+    visual = _only_step_index(
+        assembled_steps, lambda step: step.get("run") == "npm run e2e:pages"
+    )
+
+    assert assembled_steps[semantic]["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
+    assert assembled_steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
+    assert setup_uv < sync
+    assert setup_node < npm
+    assert max(sync, npm) < build_step < chromium < semantic < visual
 
 
 def test_playwright_pages_gate_can_serve_the_prebuilt_workflow_artifact():
