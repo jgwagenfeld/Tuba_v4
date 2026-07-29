@@ -126,21 +126,24 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unknown.*command"):
                 import_code_aster_artifacts(model=model, work_dir=work_dir)
 
-    def test_public_parser_rejects_validation_bypass_keyword(self):
+    def test_public_parser_ignores_forged_validation_attribute(self):
         model, n0, n1 = self._model()
 
         with TemporaryDirectory() as tmpdir:
             work_dir = Path(tmpdir)
             study = CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
             _write_solver_tables(work_dir, n0=n0, n1=n1)
+            _write_execution_attestation(work_dir, study.solver_input_identity)
+            (work_dir / "study_depl.csv").write_text("tampered", encoding="utf-8")
+            solver = CodeAsterSolver()
+            solver._validated_attestation = {"forged": True}
 
-            with self.assertRaisesRegex(TypeError, "_validated_attestation"):
-                CodeAsterSolver().parse_result_artifacts(
+            with self.assertRaisesRegex(ValueError, "study_depl.csv.*(size|hash)"):
+                solver.parse_result_artifacts(
                     model,
                     work_dir,
                     study.load_case,
                     study=study,
-                    _validated_attestation={},
                 )
 
     def test_import_preserves_validated_attestation_on_result_state(self):
@@ -181,7 +184,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
     def test_import_deduplicates_existing_string_parser_diagnostics(self):
         model, n0, n1 = self._model()
         warning = "Legacy parser warning."
-        parse_result_artifacts = CodeAsterSolver.parse_result_artifacts
+        parse_result_artifacts = CodeAsterSolver._parse_result_artifacts_after_validation
 
         def parse_with_duplicate_diagnostics(solver, *args, **kwargs):
             results = parse_result_artifacts(solver, *args, **kwargs)
@@ -193,7 +196,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
             _write_solver_tables(work_dir, n0=n0, n1=n1)
 
-            with patch.object(CodeAsterSolver, "parse_result_artifacts", parse_with_duplicate_diagnostics):
+            with patch.object(CodeAsterSolver, "_parse_result_artifacts_after_validation", parse_with_duplicate_diagnostics):
                 artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
 
         self.assertEqual(artifact.result_state.metadata["parser_diagnostics"], [warning])

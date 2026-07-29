@@ -356,7 +356,7 @@ def test_artifact_import_preserves_fully_legacy_identity_chain(
     sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
     sidecar.pop("solver_input_identity")
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
-    monkeypatch.setattr(CodeAsterSolver, "parse_result_artifacts", lambda *_args, **_kwargs: results)
+    monkeypatch.setattr(CodeAsterSolver, "_parse_result_artifacts_after_validation", lambda *_args, **_kwargs: results)
 
     imported = import_code_aster_artifacts(model=model, work_dir=tmp_path)
 

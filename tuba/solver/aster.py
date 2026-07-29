@@ -435,15 +435,22 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             None if sidecar is None or sidecar.get("solver_input_identity") is None
             else SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
         )
-        if not getattr(self, "_validated_attestation", None):
-            validate_code_aster_execution_attestation(
-                root,
-                study_identity=validated_study.solver_input_identity,
-                mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
-                sidecar_identity=sidecar_identity,
-            )
-        results = self._parse_results(model, root)
-        results.load_case = validated_study.load_case
+        validate_code_aster_execution_attestation(
+            root,
+            study_identity=validated_study.solver_input_identity,
+            mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
+            sidecar_identity=sidecar_identity,
+        )
+        return self._parse_result_artifacts_after_validation(model, root, validated_study.load_case)
+
+    def _parse_result_artifacts_after_validation(
+        self,
+        model: TubaModel,
+        work_dir: Path,
+        load_case: str,
+    ) -> FEAResults:
+        results = self._parse_results(model, work_dir)
+        results.load_case = load_case
         return results
 
     def _parse_results(
