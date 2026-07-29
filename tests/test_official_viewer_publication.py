@@ -117,6 +117,18 @@ def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None
     assert sorted(path.name for path in tmp_path.iterdir() if path.is_dir()) == sorted(official)
 
 
+def test_committed_gallery_artifact_bytes_match_the_execution_attestation() -> None:
+    root = Path(__file__).resolve().parents[1]
+    artifact_root = Path("notebooks/code_aster_results/viz_gallery_operating")
+    attestation = json.loads((root / artifact_root / "study_execution.json").read_text(encoding="utf-8"))
+
+    for filename, expected in attestation["artifacts"].items():
+        path = (artifact_root / filename).as_posix()
+        content = subprocess.check_output(["git", "show", f":{path}"], cwd=root)
+        assert len(content) == expected["size_bytes"], filename
+        assert sha256(content).hexdigest() == expected["sha256"], filename
+
+
 def test_evidence_staging_requires_a_validated_solve_attestation(tmp_path: Path) -> None:
     """Catches official publication synthesizing hashes for unattested files."""
     source = tmp_path / "source"
