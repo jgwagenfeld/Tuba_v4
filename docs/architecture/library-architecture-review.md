@@ -44,7 +44,7 @@ Read these first before changing architecture:
 |---|---|
 | `README.md` | Product contract, setup, notebook entrypoint, autorouting summary. |
 | `AGENTS.md` | Non-negotiable workflow rules: model, Code_Aster solve, processed result display. |
-| `docs/code_aster_installation.md` | Windows/WSL Code_Aster setup and runtime doctor flow. |
+| `docs/content/setup.md` | Windows/WSL Code_Aster setup and runtime doctor flow. |
 | `docs/architecture/library-architecture-review.md` | This current-code architecture guide. |
 | `docs/architecture/user-facing-piping-dsl-and-agent-ops.md` | Roadmap for cleaner DSL and agent operations. Some basics are shipped; higher-level verbs remain roadmap. |
 | `docs/architecture/expansion-aware-autorouting.md` | Current expansion-aware routing decision and limits. |

@@ -6,11 +6,40 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SITE = ROOT / "docs" / "site"
 CONTENT = ROOT / "docs" / "content"
 
 
 class TestStaticSiteDocs(unittest.TestCase):
+    def test_canonical_markdown_is_the_only_public_docs_authority(self):
+        self.assertFalse((ROOT / "docs" / "site").exists())
+        self.assertFalse((ROOT / "docs" / "tuba-workflow.md").exists())
+        self.assertFalse((ROOT / "docs" / "code_aster_installation.md").exists())
+        self.assertFalse(
+            (CONTENT / "assets" / "figures" / ("viewer_frames" + "_poster.png")).exists()
+        )
+
+    def test_current_docs_sources_have_no_legacy_public_source_links(self):
+        forbidden = (
+            "docs" + "/site",
+            "docs" + "/tuba-workflow",
+            "docs" + "/code_aster_installation",
+            "viewer_frames" + "_poster",
+            "commands" + ".html",
+            "workflow" + ".html",
+        )
+        offenders = {}
+        for root in (CONTENT, ROOT / "tests", ROOT / "scripts"):
+            for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    continue
+                matches = [token for token in forbidden if token in text]
+                if matches:
+                    offenders[str(path.relative_to(ROOT))] = matches
+
+        self.assertEqual({}, offenders)
+
     def test_reference_and_current_architecture_pages_are_canonical(self):
         required = {
             "reference/index.md": ["Generated public API", "`tuba.Model`", "`TubaModel`"],
@@ -63,15 +92,6 @@ class TestStaticSiteDocs(unittest.TestCase):
             text = (CONTENT / name).read_text(encoding="utf-8")
             for phrase in phrases:
                 self.assertIn(phrase, text, name)
-
-    def test_site_html_has_no_markdown_backticks(self):
-        offenders = []
-        for path in sorted(SITE.glob("*.html")):
-            text = re.sub(r"<pre><code>.*?</code></pre>", "", path.read_text(encoding="utf-8"), flags=re.S)
-            if "`" in text:
-                offenders.append(path.name)
-
-        self.assertEqual([], offenders)
 
     def test_setup_uses_the_tagged_github_checkout(self):
         text = (CONTENT / "setup.md").read_text(encoding="utf-8")
@@ -150,12 +170,6 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertFalse((figures_dir / "sections.png").exists(),
                          "sections.png should be replaced by sections.svg")
         self.assertNotIn("sections.png", (CONTENT / "modeling.md").read_text(encoding="utf-8"))
-
-    def test_no_page_uses_mermaid_or_the_diagram_loader(self):
-        for path in sorted(SITE.glob("*.html")):
-            text = path.read_text(encoding="utf-8")
-            self.assertNotIn('class="mermaid"', text, path.name)
-            self.assertNotIn("diagrams.js", text, path.name)
 
     def test_frame_and_result_pages_embed_the_viewer(self):
         embeds = {
