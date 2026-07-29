@@ -149,12 +149,8 @@ test("rejects malformed nested table contracts and keeps review rendering usable
   }
 });
 
-test("accepts the generated public engineering review contract", async () => {
-  const publicReview = JSON.parse(
-    await readFile(new URL("../public/code-aster-review/review.json", import.meta.url), "utf8")
-  );
-
-  const normalized = normalizeReview(publicReview);
+test("accepts the tracked engineering review parser fixture", () => {
+  const normalized = normalizeReview(reviewFixture);
 
   assert.equal(normalized.tables.project_summary.id, "project_summary");
   assert.ok(normalized.tables.project_summary.columns.length > 0);
