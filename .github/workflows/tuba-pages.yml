@@ -29,7 +29,7 @@ jobs:
           cache: npm
           cache-dependency-path: viewer/package-lock.json
       - name: Install Linux graphics runtime
-        run: sudo apt-get update && sudo apt-get install -y libglu1-mesa
+        run: sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libgomp1
       - run: uv sync --group docs --locked
       - run: npm ci
         working-directory: viewer

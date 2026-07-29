@@ -191,7 +191,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
     graphics = _only_step_index(
         steps,
         lambda step: step.get("run")
-        == "sudo apt-get update && sudo apt-get install -y libglu1-mesa",
+        == "sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libgomp1",
     )
     build_step = _only_step_index(steps, lambda step: step.get("run") == build)
     chromium = _only_step_index(
@@ -271,7 +271,7 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     graphics = _only_step_index(
         assembled_steps,
         lambda step: step.get("run")
-        == "sudo apt-get update && sudo apt-get install -y libglu1-mesa",
+        == "sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libgomp1",
     )
     python_tests = _only_step_index(
         assembled_steps,
