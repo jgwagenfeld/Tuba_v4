@@ -55,14 +55,30 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
             manifest = json.loads((Path(study.work_dir) / "study_manifest.json").read_text(encoding="utf-8"))
+            executable_inputs = all(Path(value).is_file() for value in study.input_files.values())
 
         loaded_study = AnalysisStudy.from_dict(manifest["study"])
         mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
 
         self.assertEqual(loaded_study.id, study.id)
         self.assertEqual(loaded_study.mesh_id, mesh.id)
-        self.assertIn("study.mail", loaded_study.input_files["mail"])
-        self.assertIn("sidecar", loaded_study.input_files)
+        self.assertIsNone(loaded_study.work_dir)
+        self.assertEqual(
+            loaded_study.input_files,
+            {
+                "mail": "study.mail",
+                "comm": "study.comm",
+                "export": "study.export",
+                "manifest": "study_manifest.json",
+                "sidecar": "study_tuba_fem.json",
+            },
+        )
+        self.assertEqual(
+            set(mesh.files.values()),
+            {Path(value).name for value in mesh.files.values()},
+        )
+        self.assertEqual(Path(study.work_dir), Path(tmpdir))
+        self.assertTrue(executable_inputs)
         sidecar_path = Path(loaded_study.input_files["sidecar"])
         self.assertTrue(sidecar_path.name.endswith("study_tuba_fem.json"))
         self.assertIn(f"{bend.id}_n1", mesh.nodes)

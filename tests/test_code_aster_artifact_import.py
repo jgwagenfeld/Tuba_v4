@@ -1,5 +1,6 @@
 import hashlib
 import json
+import shutil
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -41,6 +42,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             work_dir = Path(tmpdir)
             exported = CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
             _write_solver_tables(work_dir, n0=n0, n1=n1)
+            (work_dir / "study.mess").write_text("Version 18.0.12", encoding="utf-8")
 
             artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
 
@@ -54,6 +56,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertEqual(result_state.element_results["pipe_0"]["forces_n1"][:3], [10.0, 20.0, 30.0])
         self.assertEqual(result_state.element_results["pipe_0"]["max_von_mises"], 120.0e6)
         self.assertIn("study_depl.csv", result_state.files["depl"])
+        self.assertIn("study.mess", result_state.files["mess"])
         self.assertEqual(artifact.diagnostics, [])
 
         operating_state = create_operating_geometry_state(model=model, result_state=result_state)
@@ -96,6 +99,27 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
 
         self.assertNotIn("solve_attestation", artifact.result_state.metadata)
+
+    def test_import_rebases_portable_manifest_records_to_the_actual_import_root(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            original = root / "original"
+            moved = root / "moved"
+            CodeAsterSolver(work_dir=original).export_analysis_study(model, "Hot", original)
+            _write_solver_tables(original, n0=n0, n1=n1)
+            shutil.move(str(original), moved)
+
+            artifact = import_code_aster_artifacts(model=model, work_dir=moved)
+
+            self.assertEqual(Path(artifact.study.work_dir), moved)
+            self.assertTrue(
+                all(Path(value).parent == moved for value in artifact.study.input_files.values())
+            )
+            self.assertTrue(
+                all(Path(value).parent == moved for value in artifact.analysis_mesh.files.values())
+            )
 
     def test_import_rejects_tampered_attested_result_before_exposing_values(self):
         model, n0, n1 = self._model()

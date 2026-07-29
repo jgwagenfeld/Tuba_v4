@@ -79,7 +79,8 @@ def run_example(
         solved_at = None
     else:
         solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
-    artifact = stage_code_aster_artifact_evidence(artifact, output_path / "review_scene")
+    if not test_fixture_mode:
+        artifact = stage_code_aster_artifact_evidence(artifact, output_path / "review_scene")
     operating_state = create_operating_geometry_state(model=model, result_state=artifact.result_state)
     visual_state = create_visual_deformed_geometry_state(model=model, result_state=artifact.result_state, visual_scale=40.0)
     scene = build_visualization_scene(

@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 
 from examples.code_aster_artifact_review import run_example
 from examples.imported_component_mixed_system import run_demo
+from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 
 
 _WINDOWS_ABSOLUTE = re.compile(r"^[A-Za-z]:[\\/]")
@@ -113,8 +114,10 @@ def validate_official_bundle(root: Path, profile: str) -> None:
     }:
         raise ValueError("Engineering-review bundles require all four layer categories.")
     _validate_engineering_result_fields(scene)
-    _validate_engineering_provenance(scene, review)
+    identity = _validate_engineering_provenance(scene, review)
+    _validate_execution_attestation(root, identity)
     _validate_portable_provenance_files(root, review)
+    _validate_embedded_portability(root)
 
 
 def _replace_tree(source: Path, destination: Path) -> None:
@@ -190,7 +193,9 @@ def _validate_engineering_result_fields(scene: dict[str, Any]) -> None:
         raise ValueError("Engineering-review result-field families are incomplete.")
 
 
-def _validate_engineering_provenance(scene: dict[str, Any], review: dict[str, Any]) -> None:
+def _validate_engineering_provenance(
+    scene: dict[str, Any], review: dict[str, Any]
+) -> dict[str, Any]:
     provenance = review.get("provenance", [])
     if not isinstance(provenance, list) or any("fixture" in json.dumps(item).lower() for item in provenance):
         raise ValueError("Engineering-review provenance must be non-fixture Code_Aster evidence.")
@@ -221,6 +226,30 @@ def _validate_engineering_provenance(scene: dict[str, Any], review: dict[str, An
         raise ValueError("Engineering-review scene identity must match provenance.")
     if any(value.get("solver_name") != "Code_Aster" for value in provenance if isinstance(value, dict)):
         raise ValueError("Engineering-review provenance must identify Code_Aster.")
+    return reference
+
+
+def _validate_execution_attestation(root: Path, identity: dict[str, Any]) -> None:
+    artifacts_root = root / "artifacts"
+    attestation = load_code_aster_execution_attestation(artifacts_root)
+    if attestation is None:
+        raise ValueError("Engineering-review bundles require a validated Code_Aster execution attestation.")
+    if attestation["solver_input_identity"] != identity:
+        raise ValueError("Engineering-review execution attestation identity must match provenance.")
+
+
+def _validate_embedded_portability(root: Path) -> None:
+    artifacts_root = root / "artifacts"
+    if not artifacts_root.is_dir():
+        raise ValueError("Engineering-review bundles require staged artifact evidence.")
+    for path in artifacts_root.rglob("*.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Invalid staged artifact JSON {path.name}: {exc}") from exc
+        _reject_unsafe_references(payload)
+    for path in root.rglob("*.html"):
+        _reject_unsafe_references(path.read_text(encoding="utf-8"))
 
 
 def _validate_portable_provenance_files(root: Path, review: dict[str, Any]) -> None:
@@ -257,7 +286,13 @@ def _reject_error_diagnostics(value: Any) -> None:
 
 def _reject_unsafe_references(value: Any) -> None:
     for text in _strings(value):
-        if _WINDOWS_ABSOLUTE.match(text) or _UNC.match(text) or text.startswith("/") or _TRAVERSAL.search(text):
+        if (
+            _WINDOWS_ABSOLUTE.match(text)
+            or _UNC.match(text)
+            or re.search(r"(?:^|[\"'=\s])(?:[A-Za-z]:[\\/]|\\\\)", text)
+            or text.startswith("/")
+            or _TRAVERSAL.search(text)
+        ):
             raise ValueError(f"Official bundle contains a non-portable path reference: {text!r}.")
 
 

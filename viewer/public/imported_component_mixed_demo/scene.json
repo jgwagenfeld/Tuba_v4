@@ -3,7 +3,7 @@
   "coordinate_system": {
     "up_axis": "Z"
   },
-  "created_at": "2026-07-29T09:23:21.656651Z",
+  "created_at": "2026-07-29T10:03:45.389898Z",
   "diagnostics": [
     {
       "code": "publication.model_review.no_solver_results",

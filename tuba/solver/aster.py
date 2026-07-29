@@ -19,7 +19,7 @@ import os
 import re
 import tempfile
 from dataclasses import replace
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
@@ -298,9 +298,18 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             metadata={"project_name": model.project_name},
             solver_input_identity=solver_input_identity,
         )
+        portable_study = replace(
+            study,
+            work_dir=None,
+            input_files={role: PureWindowsPath(value).name for role, value in study.input_files.items()},
+        )
+        portable_mesh = replace(
+            analysis_mesh,
+            files={role: PureWindowsPath(value).name for role, value in analysis_mesh.files.items()},
+        )
         manifest = {
-            "study": study.to_dict(),
-            "analysis_mesh": analysis_mesh.to_dict(),
+            "study": portable_study.to_dict(),
+            "analysis_mesh": portable_mesh.to_dict(),
         }
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
         return study

@@ -14,8 +14,12 @@ from tuba.analysis.results import ResultState, result_state_from_fea_results
 from tuba.analysis.study import AnalysisStudy
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_sidecar import load_and_validate_artifact_chain
-from tuba.solver.code_aster_runtime import validate_code_aster_execution_attestation
-from tuba.analysis.provenance import SolverInputIdentity
+from tuba.solver.code_aster_runtime import (
+    ATTESTED_CODE_ASTER_FILES,
+    load_code_aster_execution_attestation,
+    validate_code_aster_execution_attestation,
+)
+from tuba.analysis.provenance import SolverInputIdentity, require_matching_solver_input_identities
 from tuba.solver.base import FEAResults
 
 
@@ -37,8 +41,27 @@ def stage_code_aster_artifact_evidence(
     staged: dict[Path, str] = {}
     basename_sources: dict[str, Path] = {}
     portable_sources: dict[str, str] = {}
-    attested = artifact.result_state.metadata.get("solve_attestation", {}).get("artifacts", {})
     evidence_root = _evidence_root(artifact.study.work_dir)
+    if evidence_root is None:
+        raise ValueError("Official Code_Aster evidence staging requires a solve attestation directory.")
+    attestation = load_code_aster_execution_attestation(evidence_root)
+    recorded_attestation = artifact.result_state.metadata.get("solve_attestation")
+    if attestation is None or recorded_attestation != attestation:
+        raise ValueError("Official Code_Aster evidence staging requires the validated solve attestation.")
+    attestation_identity = SolverInputIdentity.from_dict(attestation["solver_input_identity"])
+    for context, identity in (
+        ("study", artifact.study.solver_input_identity),
+        ("analysis mesh", None if artifact.analysis_mesh is None else artifact.analysis_mesh.solver_input_identity),
+        ("result state", artifact.result_state.solver_input_identity),
+    ):
+        if identity is None:
+            raise ValueError(f"Official Code_Aster evidence staging requires a {context} identity.")
+        require_matching_solver_input_identities(
+            attestation_identity,
+            identity,
+            context=f"solve attestation and staged {context}",
+        )
+    attested = attestation["artifacts"]
 
     def stage_files(files: dict[str, str]) -> tuple[dict[str, str], dict[str, str], dict[str, int]]:
         portable: dict[str, str] = {}
@@ -46,7 +69,7 @@ def stage_code_aster_artifact_evidence(
         sizes: dict[str, int] = {}
         for role, value in files.items():
             basename = PureWindowsPath(value).name
-            if attested and basename not in attested and basename != "study_execution.json":
+            if basename not in attested and basename != "study_execution.json":
                 continue
             source = _artifact_source(value, evidence_root=evidence_root)
             basename = source.name
@@ -64,11 +87,13 @@ def stage_code_aster_artifact_evidence(
             portable_sources[str(value)] = relative
             portable_sources[str(source)] = relative
             portable_sources[source.as_posix()] = relative
-            observed = attested.get(basename, {})
-            file_hash = observed.get("sha256") if isinstance(observed, Mapping) else None
-            size = observed.get("size_bytes") if isinstance(observed, Mapping) else None
-            hashes[role] = str(file_hash) if file_hash else _sha256(source)
-            sizes[role] = int(size) if size is not None else source.stat().st_size
+            if basename == "study_execution.json":
+                hashes[role] = _sha256(source)
+                sizes[role] = source.stat().st_size
+            else:
+                observed = attested[basename]
+                hashes[role] = str(observed["sha256"])
+                sizes[role] = int(observed["size_bytes"])
         return portable, hashes, sizes
 
     study_files, study_hashes, study_sizes = stage_files(artifact.study.input_files)
@@ -76,6 +101,16 @@ def stage_code_aster_artifact_evidence(
         artifact.analysis_mesh.files if artifact.analysis_mesh is not None else {}
     )
     result_files, result_hashes, result_sizes = stage_files(artifact.result_state.files)
+    staged_names = {Path(relative).name for relative in staged.values()}
+    required_names = {*ATTESTED_CODE_ASTER_FILES, "study_execution.json"}
+    missing = sorted(required_names - staged_names)
+    if missing:
+        raise ValueError(
+            "Official Code_Aster evidence staging requires all attested payloads and the execution envelope; "
+            f"missing file mappings for: {', '.join(missing)}."
+        )
+    if load_code_aster_execution_attestation(destination) != attestation:
+        raise ValueError("Staged Code_Aster execution attestation does not match its source envelope.")
     study = replace(
         artifact.study,
         work_dir=None,
@@ -256,6 +291,7 @@ def _artifact_files(work_dir: Path, study: AnalysisStudy) -> dict[str, str]:
         ("sieq", "study_sieq.csv"),
         ("tuyau_subpoints", "study_sieq.csv"),
         ("rmed", "study.rmed"),
+        ("mess", "study.mess"),
         ("stdout", "stdout.log"),
         ("stderr", "stderr.log"),
     ):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -129,9 +130,34 @@ def _load_manifest_records(work_dir: Path) -> tuple[AnalysisStudy | None, Analys
         return None, None
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        return AnalysisStudy.from_dict(manifest["study"]), AnalysisMesh.from_dict(manifest["analysis_mesh"])
+        study = AnalysisStudy.from_dict(manifest["study"])
+        mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
+        return (
+            replace(
+                study,
+                work_dir=str(work_dir),
+                input_files=_rebase_portable_files(study.input_files, work_dir),
+            ),
+            replace(mesh, files=_rebase_portable_files(mesh.files, work_dir)),
+        )
     except Exception as exc:  # noqa: BLE001
         raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: {exc}") from exc
+
+
+def _rebase_portable_files(files: dict[str, str], root: Path) -> dict[str, str]:
+    """Resolve manifest-relative files at their current import root."""
+    rebased: dict[str, str] = {}
+    for role, value in files.items():
+        path = Path(value.replace("\\", "/"))
+        import_relative = root / path.name
+        root_relative = root / path if not path.is_absolute() else None
+        if root_relative is not None and root_relative.exists():
+            rebased[role] = str(root_relative)
+        elif import_relative.exists():
+            rebased[role] = str(import_relative)
+        else:
+            rebased[role] = str(path)
+    return rebased
 
 
 def _load_sidecar(work_dir: Path) -> tuple[dict[str, Any] | None, SolverInputIdentity | None]:

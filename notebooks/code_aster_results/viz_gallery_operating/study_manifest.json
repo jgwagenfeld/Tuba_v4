@@ -1321,7 +1321,7 @@
       ]
     },
     "files": {
-      "mail": "notebooks\\code_aster_results\\viz_gallery_operating\\study.mail"
+      "mail": "study.mail"
     },
     "groups": {
       "AllPipes": [
@@ -3392,11 +3392,11 @@
   "study": {
     "id": "analysis_study:Operating",
     "input_files": {
-      "comm": "notebooks\\code_aster_results\\viz_gallery_operating\\study.comm",
-      "export": "notebooks\\code_aster_results\\viz_gallery_operating\\study.export",
-      "mail": "notebooks\\code_aster_results\\viz_gallery_operating\\study.mail",
-      "manifest": "notebooks\\code_aster_results\\viz_gallery_operating\\study_manifest.json",
-      "sidecar": "notebooks\\code_aster_results\\viz_gallery_operating\\study_tuba_fem.json"
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
     },
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
@@ -3410,7 +3410,6 @@
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
-    "solver_name": "Code_Aster",
-    "work_dir": "notebooks\\code_aster_results\\viz_gallery_operating"
+    "solver_name": "Code_Aster"
   }
 }
