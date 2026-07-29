@@ -76,6 +76,24 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             with self.assertRaisesRegex(FileNotFoundError, "study_manifest.json"):
                 import_code_aster_artifacts(model=model, work_dir=work_dir)
 
+    def test_import_preserves_rmed_diagnostic_in_result_state_metadata(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+            (work_dir / "study.rmed").write_bytes(b"not-an-rmed-file")
+
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+
+        warning = next(
+            item
+            for item in artifact.diagnostics
+            if item["code"] == "visualization.code_aster_artifacts.rmed_read_failed"
+        )
+        self.assertIn(warning, artifact.result_state.metadata["parser_diagnostics"])
+
     def test_artifact_review_example_writes_engineering_review(self):
         from examples.code_aster_artifact_review import run_example
 

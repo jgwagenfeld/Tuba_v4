@@ -77,6 +77,22 @@ def import_code_aster_artifacts(
                     severity="warning",
                 )
             )
+    existing = list(result_state.metadata.get("parser_diagnostics", ()))
+    combined = [*existing]
+    seen = {
+        tuple(item.get(key) for key in ("severity", "code", "source", "message", "target"))
+        for item in existing
+    }
+    for item in diagnostics:
+        identity = tuple(item.get(key) for key in ("severity", "code", "source", "message", "target"))
+        if identity not in seen:
+            combined.append(item)
+            seen.add(identity)
+    if combined:
+        result_state = replace(
+            result_state,
+            metadata={**result_state.metadata, "parser_diagnostics": combined},
+        )
     return CodeAsterArtifactImport(
         study=loaded_study,
         analysis_mesh=analysis_mesh,
