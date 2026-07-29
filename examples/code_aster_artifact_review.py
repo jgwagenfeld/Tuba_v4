@@ -17,7 +17,10 @@ from tuba.analysis import (
     create_operating_geometry_state,
     create_visual_deformed_geometry_state,
 )
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.analysis.code_aster_artifacts import (
+    import_code_aster_artifacts,
+    stage_code_aster_artifact_evidence,
+)
 from tuba.reporting import build_engineering_review
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import (
@@ -76,6 +79,7 @@ def run_example(
         solved_at = None
     else:
         solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
+    artifact = stage_code_aster_artifact_evidence(artifact, output_path / "review_scene")
     operating_state = create_operating_geometry_state(model=model, result_state=artifact.result_state)
     visual_state = create_visual_deformed_geometry_state(model=model, result_state=artifact.result_state, visual_scale=40.0)
     scene = build_visualization_scene(
@@ -83,6 +87,14 @@ def run_example(
         analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
         result_states=[artifact.result_state],
         geometry_states=[operating_state, visual_state],
+        field_notes=[
+            {
+                "id": "review_scope",
+                "title": "Review scope",
+                "text": "Code_Aster result review; source artifacts are bundled below.",
+                "position": [0.0, 0.0, 0.0],
+            }
+        ],
         scene_id="scene:code_aster_artifact_review",
         created_at=solved_at,
     )

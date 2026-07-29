@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +17,7 @@ import tuba
 from tuba.geometry.step_analysis_importer import StepAnalysisImporter
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization.scene import SceneDiagnostic
 
 
 ANALYSIS_FORMATS = {"STEP", "STP"}
@@ -146,6 +146,17 @@ def run_demo(
     model_path = output / "mixed_imported_component_model.json"
     model.to_json(str(model_path))
     scene = build_visualization_scene(model, scene_id="scene:imported_component_mixed_system")
+    scene.diagnostics.append(
+        SceneDiagnostic(
+            code="publication.model_review.no_solver_results",
+            severity="info",
+            message=(
+                "Model-review bundle only. Code_Aster has not been run and no "
+                "engineering solver results are displayed."
+            ),
+        )
+    )
+    scene.extra["publication_status"] = "No solver results are included in this model-review bundle."
     scene_bundle = write_scene_bundle(scene, output / "review_scene")
 
     summary: dict[str, Any] = {
@@ -184,14 +195,6 @@ def run_demo(
         }
     )
     return summary
-
-
-def publish_viewer_bundle(scene_dir: str | Path, *, bundle_name: str = "imported_component_mixed_demo") -> Path:
-    destination = Path(__file__).resolve().parents[1] / "viewer" / "public" / bundle_name
-    if destination.exists():
-        shutil.rmtree(destination)
-    shutil.copytree(scene_dir, destination)
-    return destination
 
 
 def local_to_global_point(point: list[float] | tuple[float, float, float], placement: dict[str, Any]) -> list[float]:
@@ -248,12 +251,9 @@ def main() -> None:
     parser.add_argument("source", help="Custom .step, .stp, or .stl component")
     parser.add_argument("--output", default="mixed_imported_component_demo")
     parser.add_argument("--no-export", action="store_true")
-    parser.add_argument("--publish-viewer-bundle", action="store_true")
     args = parser.parse_args()
 
     summary = run_demo(args.source, output_root=args.output, export_study=False if args.no_export else None)
-    if args.publish_viewer_bundle:
-        summary["viewer_public_dir"] = str(publish_viewer_bundle(summary["scene_dir"]))
     print(
         json.dumps(
             summary,

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+import hashlib
 from pathlib import Path
+import shutil
 from typing import Any
 
 from tuba.analysis.mesh import AnalysisMesh
@@ -24,6 +26,109 @@ class CodeAsterArtifactImport:
     result_state: ResultState
     analysis_mesh: AnalysisMesh | None = None
     diagnostics: list[dict[str, Any]] = field(default_factory=list)
+
+
+def stage_code_aster_artifact_evidence(
+    artifact: CodeAsterArtifactImport,
+    bundle_root: str | Path,
+) -> CodeAsterArtifactImport:
+    """Copy attested Code_Aster evidence into a portable review bundle."""
+    destination = Path(bundle_root) / "artifacts"
+    staged: dict[Path, str] = {}
+    basename_sources: dict[str, Path] = {}
+    portable_sources: dict[str, str] = {}
+    attested = artifact.result_state.metadata.get("solve_attestation", {}).get("artifacts", {})
+
+    def stage_files(files: dict[str, str]) -> tuple[dict[str, str], dict[str, str], dict[str, int]]:
+        portable: dict[str, str] = {}
+        hashes: dict[str, str] = {}
+        sizes: dict[str, int] = {}
+        for role, value in files.items():
+            source = _artifact_source(value)
+            basename = source.name
+            previous = basename_sources.setdefault(basename, source)
+            if previous != source:
+                raise ValueError(f"Artifact basename collision for {basename!r}.")
+            relative = staged.get(source)
+            if relative is None:
+                destination.mkdir(parents=True, exist_ok=True)
+                target = destination / basename
+                shutil.copy2(source, target)
+                relative = target.relative_to(bundle_root).as_posix()
+                staged[source] = relative
+            portable[role] = relative
+            portable_sources[str(value)] = relative
+            portable_sources[str(source)] = relative
+            portable_sources[source.as_posix()] = relative
+            observed = attested.get(basename, {})
+            file_hash = observed.get("sha256") if isinstance(observed, Mapping) else None
+            size = observed.get("size_bytes") if isinstance(observed, Mapping) else None
+            hashes[role] = str(file_hash) if file_hash else _sha256(source)
+            sizes[role] = int(size) if size is not None else source.stat().st_size
+        return portable, hashes, sizes
+
+    study_files, study_hashes, study_sizes = stage_files(artifact.study.input_files)
+    mesh_files, _mesh_hashes, _mesh_sizes = stage_files(
+        artifact.analysis_mesh.files if artifact.analysis_mesh is not None else {}
+    )
+    result_files, result_hashes, result_sizes = stage_files(artifact.result_state.files)
+    study = replace(
+        artifact.study,
+        work_dir=None,
+        input_files=study_files,
+        metadata={
+            **artifact.study.metadata,
+            **_portable_metadata(artifact.study.metadata, portable_sources),
+            "file_sha256": study_hashes,
+            "file_sizes": study_sizes,
+        },
+    )
+    mesh = (
+        replace(artifact.analysis_mesh, files=mesh_files)
+        if artifact.analysis_mesh is not None
+        else None
+    )
+    result_state = replace(
+        artifact.result_state,
+        files=result_files,
+        metadata={
+            **artifact.result_state.metadata,
+            **_portable_metadata(artifact.result_state.metadata, portable_sources),
+            "file_sha256": result_hashes,
+            "file_sizes": result_sizes,
+        },
+    )
+    return replace(artifact, study=study, analysis_mesh=mesh, result_state=result_state)
+
+
+def _artifact_source(value: str) -> Path:
+    source = Path(value)
+    if ".." in source.parts:
+        raise ValueError(f"Artifact path must not traverse directories: {value!r}.")
+    resolved = source.resolve()
+    if not resolved.is_file():
+        raise ValueError(f"Artifact file is missing: {value!r}.")
+    if source.is_symlink() or resolved.is_symlink():
+        raise ValueError(f"Artifact symlinks are not publishable: {value!r}.")
+    return resolved
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _portable_metadata(value: Any, sources: Mapping[str, str]) -> Any:
+    if isinstance(value, dict):
+        return {key: _portable_metadata(item, sources) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_portable_metadata(item, sources) for item in value]
+    if isinstance(value, str):
+        return sources.get(value, value)
+    return value
 
 
 def import_code_aster_artifacts(
