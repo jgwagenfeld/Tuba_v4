@@ -45,9 +45,16 @@ from tuba.solver.aster_sidecar import (
     dump_solver_sidecar,
     load_and_validate_artifact_chain,
 )
-from tuba.solver.code_aster_runtime import CodeAsterRuntimeConfig, run_code_aster_export
+from tuba.solver.code_aster_runtime import (
+    CodeAsterExecution,
+    CodeAsterRuntimeConfig,
+    run_code_aster_export,
+    validate_code_aster_execution_attestation,
+    write_code_aster_execution_attestation,
+)
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
 from tuba.analysis.provenance import (
+    SolverInputIdentity,
     build_solver_input_identity,
 )
 from tuba.refs import EntityRef
@@ -321,7 +328,12 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         )
         if manifest_study is not None:
             self._require_solve_ready_study(manifest_study)
-        self._execute(work_dir)
+        execution = self._execute(work_dir)
+        write_code_aster_execution_attestation(
+            work_dir,
+            execution,
+            (manifest_study or study).solver_input_identity,
+        )
         return self.parse_result_artifacts(model, work_dir, study.load_case, study=study)
 
     def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
@@ -386,7 +398,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     # Execution
     # ==================================================================
 
-    def _execute(self, work_dir: Path) -> None:
+    def _execute(self, work_dir: Path) -> CodeAsterExecution:
         """Invoke Code_Aster on the generated study files."""
         export_file = work_dir / "study.export"
         config = CodeAsterRuntimeConfig(
@@ -397,7 +409,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             bridge_python=self.bridge_python,
             timeout_seconds=self.timeout_seconds,
         )
-        run_code_aster_export(export_file, work_dir, config)
+        return run_code_aster_export(export_file, work_dir, config)
 
     # ==================================================================
     # Result parsing
@@ -413,11 +425,21 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     ) -> FEAResults:
         """Parse an existing Code_Aster output directory without running the solver."""
         root = Path(work_dir)
-        validated_study, _, _, _ = load_and_validate_artifact_chain(
+        validated_study, _, analysis_mesh, sidecar = load_and_validate_artifact_chain(
             model,
             root,
             study=study,
             requested_load_case=load_case_name,
+        )
+        sidecar_identity = (
+            None if sidecar is None or sidecar.get("solver_input_identity") is None
+            else SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
+        )
+        validate_code_aster_execution_attestation(
+            root,
+            study_identity=validated_study.solver_input_identity,
+            mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
+            sidecar_identity=sidecar_identity,
         )
         results = self._parse_results(model, root)
         results.load_case = validated_study.load_case

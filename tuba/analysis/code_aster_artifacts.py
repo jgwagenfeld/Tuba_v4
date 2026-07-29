@@ -12,6 +12,8 @@ from tuba.analysis.results import ResultState, result_state_from_fea_results
 from tuba.analysis.study import AnalysisStudy
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_sidecar import load_and_validate_artifact_chain
+from tuba.solver.code_aster_runtime import validate_code_aster_execution_attestation
+from tuba.analysis.provenance import SolverInputIdentity
 from tuba.solver.base import FEAResults
 
 
@@ -33,10 +35,20 @@ def import_code_aster_artifacts(
     """Import an existing Code_Aster result directory without executing Code_Aster."""
     root = Path(work_dir)
     diagnostics: list[dict[str, Any]] = []
-    loaded_study, _, analysis_mesh, _ = load_and_validate_artifact_chain(
+    loaded_study, _, analysis_mesh, sidecar = load_and_validate_artifact_chain(
         model,
         root,
         study=study,
+    )
+    sidecar_identity = (
+        None if sidecar is None or sidecar.get("solver_input_identity") is None
+        else SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
+    )
+    attestation = validate_code_aster_execution_attestation(
+        root,
+        study_identity=loaded_study.solver_input_identity,
+        mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
+        sidecar_identity=sidecar_identity,
     )
     results = CodeAsterSolver().parse_result_artifacts(
         model,
@@ -51,6 +63,11 @@ def import_code_aster_artifacts(
         analysis_mesh=analysis_mesh,
     )
     result_state = _with_artifact_files(result_state, _artifact_files(root, loaded_study))
+    if attestation is not None:
+        result_state = replace(
+            result_state,
+            metadata={**result_state.metadata, "solve_attestation": attestation},
+        )
     rmed_path = root / "study.rmed"
     if rmed_path.exists():
         try:
@@ -107,6 +124,7 @@ def import_code_aster_artifacts(
 def _artifact_files(work_dir: Path, study: AnalysisStudy) -> dict[str, str]:
     files = dict(study.input_files)
     for key, filename in (
+        ("execution", "study_execution.json"),
         ("manifest", "study_manifest.json"),
         ("depl", "study_depl.csv"),
         ("effo", "study_effo.csv"),

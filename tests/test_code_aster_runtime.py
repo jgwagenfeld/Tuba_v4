@@ -1,3 +1,4 @@
+import json
 import subprocess
 import unittest
 from pathlib import Path, PureWindowsPath
@@ -5,6 +6,8 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from tuba.solver.code_aster_runtime import (
+    CodeAsterExecution,
+    CodeAsterRuntimeCandidate,
     CodeAsterRuntimeConfig,
     build_code_aster_command,
     build_code_aster_preflight_command,
@@ -12,9 +15,43 @@ from tuba.solver.code_aster_runtime import (
     run_code_aster_export,
     select_code_aster_runtime,
 )
+from tuba import Model
+from tuba.solver.aster import CodeAsterSolver
 
 
 class TestCodeAsterRuntime(unittest.TestCase):
+    def test_successful_solve_writes_observed_execution_attestation(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            model = Model(project_name="AttestedRun")
+            model.add_material("Steel", E=2.0e11, nu=0.3, allowable_stress={20.0: 137e6})
+            model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+            n0 = model.add_node([0.0, 0.0, 0.0])
+            n1 = model.add_node([1.0, 0.0, 0.0])
+            model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+            model.add_support(node=n0, type="anchor", id="support_anchor_0")
+            model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+            solver = CodeAsterSolver(work_dir=root)
+            identity = solver.export_analysis_study(model, "Hot", root).solver_input_identity
+            (root / "study.mess").write_text("Code_Aster\nVersion 18.0.12\n", encoding="utf-8")
+            for filename in ("study.rmed", "study_depl.csv", "study_effo.csv", "study_reac.csv", "study_sieq.csv"):
+                (root / filename).write_text(filename, encoding="utf-8")
+            execution = CodeAsterExecution(CodeAsterRuntimeCandidate("wsl", ("wsl",)), (), 0, "", "")
+
+            with patch("tuba.solver.aster.run_code_aster_export", return_value=execution):
+                with patch.object(solver, "parse_result_artifacts", return_value=object()):
+                    solver.solve_exported_study(model, solver.export_analysis_study(model, "Hot", root))
+
+            attestation = json.loads((root / "study_execution.json").read_text(encoding="utf-8"))
+        self.assertEqual(attestation["schema_version"], "tuba.code_aster_execution.v1")
+        self.assertEqual(attestation["solver_name"], "Code_Aster")
+        self.assertEqual(attestation["solver_version"], "18.0.12")
+        self.assertEqual(attestation["execution_method"], "wsl")
+        self.assertEqual(attestation["solver_input_identity"]["fingerprint"], identity.fingerprint)
+        self.assertGreater(attestation["artifacts"]["study_depl.csv"]["size_bytes"], 0)
+        self.assertEqual(len(attestation["artifacts"]["study_depl.csv"]["sha256"]), 64)
+        self.assertNotIn("command", attestation)
+
     def test_wsl_command_uses_configured_distro_and_run_aster(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

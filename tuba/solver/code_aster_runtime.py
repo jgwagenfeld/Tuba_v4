@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import re
 import shlex
 import subprocess
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
+
+from tuba.analysis.provenance import SolverInputIdentity, require_matching_solver_input_identities
 
 
 DEFAULT_DOCKER_IMAGE = "simvia/code_aster:stable"
 DEFAULT_TIMEOUT_SECONDS = 7200
 DEFAULT_WSL_DISTRO = "Ubuntu"
+ATTESTED_CODE_ASTER_FILES = (
+    "study.comm", "study.mail", "study.export", "study_manifest.json",
+    "study_tuba_fem.json", "study.mess", "study.rmed", "study_depl.csv",
+    "study_effo.csv", "study_reac.csv", "study_sieq.csv",
+)
+_EXECUTION_ATTESTATION_SCHEMA = "tuba.code_aster_execution.v1"
+_SOLVER_VERSION_PATTERN = re.compile(r"\bVersion\s+(\d+(?:\.\d+)+)\b")
 
 
 @dataclass(frozen=True)
@@ -196,6 +209,133 @@ def run_code_aster_export(export_file: Path, work_dir: Path, config: CodeAsterRu
     failed = attempted[-1]
     _write_compat_logs(work_dir, failed)
     raise RuntimeError(_failure_message(failed, attempted, work_dir))
+
+
+def write_code_aster_execution_attestation(
+    work_dir: str | Path,
+    execution: CodeAsterExecution,
+    solver_input_identity: SolverInputIdentity | None,
+) -> dict[str, Any]:
+    """Record observed, portable facts from a successful Code_Aster execution."""
+    root = Path(work_dir)
+    if execution.returncode != 0:
+        raise ValueError("Cannot attest an unsuccessful Code_Aster execution.")
+    if solver_input_identity is None:
+        raise ValueError("Cannot attest a Code_Aster solve without a solver input identity.")
+    mess_path = root / "study.mess"
+    if not mess_path.is_file():
+        raise ValueError(f"Cannot attest Code_Aster execution: missing required artifact {mess_path.name}.")
+    version_match = _SOLVER_VERSION_PATTERN.search(mess_path.read_text(encoding="utf-8", errors="replace"))
+    if version_match is None:
+        raise ValueError("Cannot attest Code_Aster execution: study.mess does not report a solver Version X.Y.Z.")
+    artifacts = {
+        filename: _file_integrity(root / filename)
+        for filename in ATTESTED_CODE_ASTER_FILES
+    }
+    payload = {
+        "schema_version": _EXECUTION_ATTESTATION_SCHEMA,
+        "solver_name": "Code_Aster",
+        "solver_version": version_match.group(1),
+        "execution_method": execution.runtime.kind,
+        "solved_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "solver_input_identity": solver_input_identity.to_dict(),
+        "artifacts": artifacts,
+    }
+    (root / "study_execution.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return payload
+
+
+def load_code_aster_execution_attestation(work_dir: str | Path) -> dict[str, Any] | None:
+    """Load and integrity-check a solve attestation, if this artifact directory has one."""
+    root = Path(work_dir)
+    path = root / "study_execution.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: expected an object.")
+    if payload.get("schema_version") != _EXECUTION_ATTESTATION_SCHEMA:
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: unsupported schema_version.")
+    if payload.get("solver_name") != "Code_Aster":
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_name must be Code_Aster.")
+    if not isinstance(payload.get("solver_version"), str) or not _SOLVER_VERSION_PATTERN.fullmatch(
+        f"Version {payload.get('solver_version', '')}"
+    ):
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_version is required.")
+    if not isinstance(payload.get("execution_method"), str) or not payload["execution_method"]:
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: execution_method is required.")
+    _validate_solved_at(payload.get("solved_at"), path)
+    _attestation_identity(payload.get("solver_input_identity"), path)
+    artifacts = payload.get("artifacts")
+    if not isinstance(artifacts, dict) or set(artifacts) != set(ATTESTED_CODE_ASTER_FILES):
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: required artifact inventory does not match.")
+    for filename in ATTESTED_CODE_ASTER_FILES:
+        expected = artifacts[filename]
+        if not isinstance(expected, dict):
+            raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} integrity record is invalid.")
+        actual = _file_integrity(root / filename)
+        if expected.get("size_bytes") != actual["size_bytes"]:
+            raise ValueError(f"Code_Aster execution attestation {path}: {filename} size does not match.")
+        if expected.get("sha256") != actual["sha256"]:
+            raise ValueError(f"Code_Aster execution attestation {path}: {filename} hash does not match.")
+    return payload
+
+
+def validate_code_aster_execution_attestation(
+    work_dir: str | Path,
+    *,
+    study_identity: SolverInputIdentity | None,
+    mesh_identity: SolverInputIdentity | None,
+    sidecar_identity: SolverInputIdentity | None,
+) -> dict[str, Any] | None:
+    """Require an attested solve, when present, to bind to every artifact identity."""
+    payload = load_code_aster_execution_attestation(work_dir)
+    if payload is None:
+        return None
+    attestation_identity = _attestation_identity(payload["solver_input_identity"], Path(work_dir) / "study_execution.json")
+    for context, identity in (
+        ("Code_Aster study", study_identity),
+        ("Code_Aster analysis mesh", mesh_identity),
+        ("Code_Aster sidecar", sidecar_identity),
+    ):
+        if identity is None:
+            raise ValueError(f"Attested Code_Aster execution requires a non-null solver input identity on the {context}.")
+        require_matching_solver_input_identities(
+            attestation_identity,
+            identity,
+            context=f"Code_Aster execution attestation and {context}",
+        )
+    return payload
+
+
+def _file_integrity(path: Path) -> dict[str, int | str]:
+    if not path.is_file():
+        raise ValueError(f"Cannot attest Code_Aster execution: missing required artifact {path.name}.")
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return {"size_bytes": path.stat().st_size, "sha256": digest.hexdigest()}
+
+
+def _attestation_identity(value: Any, path: Path) -> SolverInputIdentity:
+    if not isinstance(value, dict) or any(not isinstance(value.get(key), str) or not value[key] for key in (
+        "fingerprint", "load_case", "schema_id", "compiler_id",
+    )):
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_input_identity is required.")
+    return SolverInputIdentity.from_dict(value)
+
+
+def _validate_solved_at(value: Any, path: Path) -> None:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solved_at must be a UTC timestamp.")
+    try:
+        datetime.fromisoformat(f"{value[:-1]}+00:00")
+    except ValueError as exc:
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solved_at is invalid.") from exc
 
 
 def _requested_methods(exec_method: str) -> list[str]:

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import unittest
 from pathlib import Path
@@ -12,6 +13,13 @@ from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.external.ifc import IfcExporter
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import build_visualization_scene
+
+
+_ATTESTED_FILES = (
+    "study.comm", "study.mail", "study.export", "study_manifest.json",
+    "study_tuba_fem.json", "study.mess", "study.rmed", "study_depl.csv",
+    "study_effo.csv", "study_reac.csv", "study_sieq.csv",
+)
 
 
 class TestCodeAsterArtifactImport(unittest.TestCase):
@@ -76,6 +84,47 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
 
             with self.assertRaisesRegex(FileNotFoundError, "study_manifest.json"):
                 import_code_aster_artifacts(model=model, work_dir=work_dir)
+
+    def test_import_without_attestation_remains_compatible_with_historical_artifacts(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+
+        self.assertNotIn("solve_attestation", artifact.result_state.metadata)
+
+    def test_import_rejects_tampered_attested_result_before_exposing_values(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            study = CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+            _write_execution_attestation(work_dir, study.solver_input_identity)
+            (work_dir / "study_depl.csv").write_text("tampered", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "study_depl.csv.*(size|hash)"):
+                import_code_aster_artifacts(model=model, work_dir=work_dir)
+
+    def test_import_preserves_validated_attestation_on_result_state(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            study = CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+            _write_execution_attestation(work_dir, study.solver_input_identity)
+
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+
+        self.assertEqual(
+            artifact.result_state.metadata["solve_attestation"]["solver_input_identity"],
+            study.solver_input_identity.to_dict(),
+        )
 
     def test_import_preserves_rmed_diagnostic_in_result_state_metadata(self):
         model, n0, n1 = self._model()
@@ -244,6 +293,32 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
                 f"pipe_0,{n0},80000000.0",
                 f"pipe_0,{n1},120000000.0",
             ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_execution_attestation(work_dir: Path, identity) -> None:
+    (work_dir / "study.mess").write_text("Version 18.0.12", encoding="utf-8")
+    (work_dir / "study.rmed").write_bytes(b"RMED")
+    artifacts = {
+        filename: {
+            "size_bytes": (work_dir / filename).stat().st_size,
+            "sha256": hashlib.sha256((work_dir / filename).read_bytes()).hexdigest(),
+        }
+        for filename in _ATTESTED_FILES
+    }
+    (work_dir / "study_execution.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "tuba.code_aster_execution.v1",
+                "solver_name": "Code_Aster",
+                "solver_version": "18.0.12",
+                "execution_method": "wsl",
+                "solved_at": "2026-07-29T12:00:00Z",
+                "solver_input_identity": identity.to_dict(),
+                "artifacts": artifacts,
+            }
         ),
         encoding="utf-8",
     )
