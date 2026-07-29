@@ -410,12 +410,12 @@ export function sectionBoxClippingPlanes(sectionBox) {
   }
   const { min, max } = sectionBox;
   return [
-    new THREE.Plane(new THREE.Vector3(1, 0, 0), -max[0]),
-    new THREE.Plane(new THREE.Vector3(-1, 0, 0), min[0]),
-    new THREE.Plane(new THREE.Vector3(0, 1, 0), -max[1]),
-    new THREE.Plane(new THREE.Vector3(0, -1, 0), min[1]),
-    new THREE.Plane(new THREE.Vector3(0, 0, 1), -max[2]),
-    new THREE.Plane(new THREE.Vector3(0, 0, -1), min[2])
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), max[0]),
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -min[0]),
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), max[1]),
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), -min[1]),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), max[2]),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), -min[2])
   ];
 }
 

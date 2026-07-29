@@ -380,15 +380,24 @@ test("scene graph visibility updates hide cached renderables without rebuilding"
   assert.equal(graph.renderedObjectCount, 1);
 });
 
-test("section box clipping planes retain points inside and reject points outside", () => {
+test("section box clipping planes retain interior fragments and reject exterior fragments", () => {
   const planes = sectionBoxClippingPlanes({
     min: [-1, -2, -3],
     max: [4, 5, 6]
   });
 
   assert.equal(planes.length, 6);
-  assert.ok(planes.every((plane) => plane.distanceToPoint(new Vector3(0, 0, 0)) <= 0));
-  assert.ok(planes.some((plane) => plane.distanceToPoint(new Vector3(7, 0, 0)) > 0));
+  assert.ok(planes.every((plane) => plane.distanceToPoint(new Vector3(0, 0, 0)) >= 0));
+  for (const point of [
+    new Vector3(7, 0, 0),
+    new Vector3(-2, 0, 0),
+    new Vector3(0, 6, 0),
+    new Vector3(0, -3, 0),
+    new Vector3(0, 0, 7),
+    new Vector3(0, 0, -4)
+  ]) {
+    assert.ok(planes.some((plane) => plane.distanceToPoint(point) < 0));
+  }
 });
 
 test("section box clipping applies and removes planes on root mesh and line materials", () => {
@@ -419,7 +428,12 @@ test("section box clipping keeps a crossing pipe in the coarse scene graph", () 
 
   assert.ok(graph.objectsByObjectId.get("object:pipe"));
   applySectionBoxClipping(graph, state.sectionBox);
-  assert.equal(graph.objectsByObjectId.get("object:pipe").material.clippingPlanes.length, 6);
+  const planes = graph.objectsByObjectId.get("object:pipe").material.clippingPlanes;
+  assert.equal(planes.length, 6);
+  assert.ok(planes.every((plane) => plane.distanceToPoint(new Vector3(1, 0, 0)) >= 0));
+  for (const point of [new Vector3(0, 0, 0), new Vector3(2, 0, 0)]) {
+    assert.ok(planes.some((plane) => plane.distanceToPoint(point) < 0));
+  }
 });
 
 test("interaction mode temporarily hides detail geometry and restores visibility", () => {
