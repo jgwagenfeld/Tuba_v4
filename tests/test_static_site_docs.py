@@ -38,6 +38,17 @@ class TestStaticSiteDocs(unittest.TestCase):
                 if matches:
                     offenders[str(path.relative_to(ROOT))] = matches
 
+        for path in sorted((ROOT / "notebooks").glob("*.ipynb")):
+            notebook = json.loads(path.read_text(encoding="utf-8"))
+            source = "".join(
+                line
+                for cell in notebook.get("cells", [])
+                for line in cell.get("source", [])
+            )
+            matches = [token for token in forbidden if token in source]
+            if matches:
+                offenders[str(path.relative_to(ROOT))] = matches
+
         self.assertEqual({}, offenders)
 
     def test_reference_and_current_architecture_pages_are_canonical(self):
