@@ -110,6 +110,22 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "study_depl.csv.*(size|hash)"):
                 import_code_aster_artifacts(model=model, work_dir=work_dir)
 
+    def test_import_rejects_attestation_with_machine_path_field(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            study = CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+            _write_execution_attestation(work_dir, study.solver_input_identity)
+            attestation_path = work_dir / "study_execution.json"
+            attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
+            attestation["command"] = "C:\\Users\\Alice\\run_aster study.export"
+            attestation_path.write_text(json.dumps(attestation), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "unknown.*command"):
+                import_code_aster_artifacts(model=model, work_dir=work_dir)
+
     def test_import_preserves_validated_attestation_on_result_state(self):
         model, n0, n1 = self._model()
 
@@ -125,6 +141,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             artifact.result_state.metadata["solve_attestation"]["solver_input_identity"],
             study.solver_input_identity.to_dict(),
         )
+        self.assertEqual(artifact.result_state.files["execution"], str(work_dir / "study_execution.json"))
 
     def test_import_preserves_rmed_diagnostic_in_result_state_metadata(self):
         model, n0, n1 = self._model()

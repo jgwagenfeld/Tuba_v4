@@ -55,6 +55,7 @@ def import_code_aster_artifacts(
         root,
         loaded_study.load_case,
         study=loaded_study,
+        _validated_attestation=attestation,
     )
     result_state = result_state_from_fea_results(
         model=model,

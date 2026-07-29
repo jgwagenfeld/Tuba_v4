@@ -27,6 +27,14 @@ ATTESTED_CODE_ASTER_FILES = (
 )
 _EXECUTION_ATTESTATION_SCHEMA = "tuba.code_aster_execution.v1"
 _SOLVER_VERSION_PATTERN = re.compile(r"\bVersion\s+(\d+(?:\.\d+)+)\b")
+_EXECUTION_ATTESTATION_FIELDS = frozenset(
+    {
+        "schema_version", "solver_name", "solver_version", "execution_method",
+        "solved_at", "solver_input_identity", "artifacts",
+    }
+)
+_SOLVER_INPUT_IDENTITY_FIELDS = frozenset({"fingerprint", "load_case", "schema_id", "compiler_id"})
+_ARTIFACT_INTEGRITY_FIELDS = frozenset({"size_bytes", "sha256"})
 
 
 @dataclass(frozen=True)
@@ -257,6 +265,7 @@ def load_code_aster_execution_attestation(work_dir: str | Path) -> dict[str, Any
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: {exc}") from exc
     if not isinstance(payload, dict):
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: expected an object.")
+    _require_exact_fields(payload, _EXECUTION_ATTESTATION_FIELDS, "attestation", path)
     if payload.get("schema_version") != _EXECUTION_ATTESTATION_SCHEMA:
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: unsupported schema_version.")
     if payload.get("solver_name") != "Code_Aster":
@@ -276,6 +285,11 @@ def load_code_aster_execution_attestation(work_dir: str | Path) -> dict[str, Any
         expected = artifacts[filename]
         if not isinstance(expected, dict):
             raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} integrity record is invalid.")
+        _require_exact_fields(expected, _ARTIFACT_INTEGRITY_FIELDS, f"{filename} integrity record", path)
+        if not isinstance(expected["size_bytes"], int) or expected["size_bytes"] < 0:
+            raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} size_bytes is invalid.")
+        if not isinstance(expected["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", expected["sha256"]):
+            raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} sha256 is invalid.")
         actual = _file_integrity(root / filename)
         if expected.get("size_bytes") != actual["size_bytes"]:
             raise ValueError(f"Code_Aster execution attestation {path}: {filename} size does not match.")
@@ -322,9 +336,10 @@ def _file_integrity(path: Path) -> dict[str, int | str]:
 
 
 def _attestation_identity(value: Any, path: Path) -> SolverInputIdentity:
-    if not isinstance(value, dict) or any(not isinstance(value.get(key), str) or not value[key] for key in (
-        "fingerprint", "load_case", "schema_id", "compiler_id",
-    )):
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_input_identity is required.")
+    _require_exact_fields(value, _SOLVER_INPUT_IDENTITY_FIELDS, "solver_input_identity", path)
+    if any(not isinstance(value[key], str) or not value[key] for key in _SOLVER_INPUT_IDENTITY_FIELDS):
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_input_identity is required.")
     return SolverInputIdentity.from_dict(value)
 
@@ -336,6 +351,18 @@ def _validate_solved_at(value: Any, path: Path) -> None:
         datetime.fromisoformat(f"{value[:-1]}+00:00")
     except ValueError as exc:
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: solved_at is invalid.") from exc
+
+
+def _require_exact_fields(value: Mapping[str, Any], fields: frozenset[str], label: str, path: Path) -> None:
+    unknown = sorted(set(value) - fields)
+    missing = sorted(fields - set(value))
+    if unknown or missing:
+        details = []
+        if unknown:
+            details.append(f"unknown fields: {', '.join(unknown)}")
+        if missing:
+            details.append(f"missing fields: {', '.join(missing)}")
+        raise ValueError(f"Invalid Code_Aster execution attestation {path}: {label} has {'; '.join(details)}.")
 
 
 def _requested_methods(exec_method: str) -> list[str]:
