@@ -89,6 +89,7 @@ def assemble_pages(output: Path, *, code_aster_artifacts: Path | None = None) ->
         [
             uv,
             "run",
+            "--locked",
             "--group",
             "docs",
             "--extra",

@@ -55,6 +55,7 @@ def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[st
     def zensical(command, *, cwd, check):
         assert command[1:] == [
             "run",
+            "--locked",
             "--group",
             "docs",
             "--extra",
