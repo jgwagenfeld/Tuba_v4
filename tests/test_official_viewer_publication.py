@@ -92,6 +92,7 @@ def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None
         for bundle_id in official
         for path in tracked
     )
+    assert "viewer/public/bundles.json" not in tracked
     assert "viewer/public/smoke-scene/scene.json" in tracked
     for bundle_id in official:
         assert subprocess.run(
@@ -99,6 +100,11 @@ def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None
             cwd=root,
             capture_output=True,
         ).returncode == 0
+    assert subprocess.run(
+        ["git", "check-ignore", "--no-index", "viewer/public/bundles.json"],
+        cwd=root,
+        capture_output=True,
+    ).returncode == 0
     assert subprocess.run(
         ["git", "check-ignore", "--no-index", "viewer/public/smoke-scene/scene.json"],
         cwd=root,

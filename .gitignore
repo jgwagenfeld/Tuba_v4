@@ -43,6 +43,7 @@ generated/
 !tuba/visualization/_viewer/index.html
 viewer/dist/
 viewer/node_modules/
+/viewer/public/bundles.json
 /viewer/public/code-aster-review/
 /viewer/public/imported_component_mixed_demo/
 
