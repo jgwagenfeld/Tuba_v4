@@ -1,6 +1,0 @@
-element_id,element_type,start_node,end_node,section,material,length_m,route_id,station_start_m,station_end_m,bend_radius_m,bend_angle_deg,bend_geometry,twist_angle_deg
-pipe_bend_0,pipe_bend,N1,N2,DN100,Steel,0.47123889803846897,,3.0,3.471238898038469,0.3,90.0,"{""angle"":90.0,""center"":[3.0,0.3,0.0],""end_tangent"":[1.8503717077085953e-16,1.0,-0.0],""generation_mode"":""bend"",""normal"":[0.0,0.0,1.0],""radius"":0.3,""start_tangent"":[1.0,0.0,-0.0]}",0.0
-pipe_bend_1,pipe_bend,N3,N4,DN100,Steel,0.47123889803846897,,5.471238898038469,5.942477796076938,0.3,90.0,"{""angle"":90.0,""center"":[3.3,2.3,0.3],""end_tangent"":[1.1330258945390766e-32,1.8503717077085953e-16,1.0],""generation_mode"":""bend"",""normal"":[1.0,-6.123233995736766e-17,0.0],""radius"":0.3,""start_tangent"":[6.123233995736766e-17,1.0,0.0]}",0.0
-pipe_str_0,pipe_straight,N0,N1,DN100,Steel,3.0,,0.0,3.0,,,,0.0
-pipe_str_1,pipe_straight,N2,N3,DN100,Steel,2.0,,3.471238898038469,5.471238898038469,,,,0.0
-pipe_str_2,pipe_straight,N4,N5,DN100,Steel,2.0,,5.942477796076938,7.942477796076938,,,,0.0

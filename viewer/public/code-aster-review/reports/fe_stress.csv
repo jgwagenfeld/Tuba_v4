@@ -1,6 +1,0 @@
-solver_name,study_id,result_state_id,load_case,entity_ref,element_id,von_mises_n1_pa,von_mises_n2_pa,max_von_mises_pa,result_basis
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,element:pipe_bend_0,pipe_bend_0,369560000.0,92963700.0,409076000.0,FE Von Mises (not piping-code stress)
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,element:pipe_bend_1,pipe_bend_1,35334300.0,295599000.0,320081000.0,FE Von Mises (not piping-code stress)
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,element:pipe_str_0,pipe_str_0,378092000.0,234482000.0,480929000.0,FE Von Mises (not piping-code stress)
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,element:pipe_str_1,pipe_str_1,95908400.0,53451900.0,127418000.0,FE Von Mises (not piping-code stress)
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,element:pipe_str_2,pipe_str_2,28104400.0,60541400.0,82667800.0,FE Von Mises (not piping-code stress)

@@ -58,7 +58,6 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm test
-      - run: npm run e2e -- public-code-aster-review
       - run: npm run e2e -- section-camera
       - run: npm run e2e -- legacy-workflow
       - run: npm run build

@@ -42,7 +42,6 @@ def _project_tree(root: Path) -> None:
     notebook.parent.mkdir()
     notebook.write_text("{}", encoding="utf-8")
     (root / "docs" / "content").mkdir(parents=True)
-    (root / "viewer" / "public").mkdir(parents=True)
 
 
 def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[str]:
@@ -84,6 +83,7 @@ def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[st
     def examples(viewer_root, *, audience, code_aster_artifacts=None):
         assert audience == "pages"
         assert code_aster_artifacts is None
+        assert not (root / "viewer" / "public").exists()
         events.append("examples")
         bundle_ids = OFFICIAL_BUNDLES if complete else OFFICIAL_BUNDLES[:1]
         for bundle_id in bundle_ids:

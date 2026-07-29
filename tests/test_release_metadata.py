@@ -246,7 +246,8 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     viewer = [step["run"] for step in viewer_steps if "run" in step]
     assert "npx playwright install --with-deps chromium" in viewer
     assert "npm test" in viewer
-    for scenario in ("public-code-aster-review", "section-camera", "legacy-workflow"):
+    assert "npm run e2e -- public-code-aster-review" not in viewer
+    for scenario in ("section-camera", "legacy-workflow"):
         assert f"npm run e2e -- {scenario}" in viewer
 
     assembled_steps = workflow["jobs"]["assembled-pages"]["steps"]

@@ -1,2 +1,0 @@
-load_case,definition_type,gravity,internal_pressure_pa,temperature_c,reference_temperature_c,nodal_load_count,field_count,nodal_forces,fields,metadata
-Operating,load_case,true,1500000.0,150.0,20.0,0,0,[],[],{}

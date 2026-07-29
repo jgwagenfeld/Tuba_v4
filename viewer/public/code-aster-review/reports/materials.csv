@@ -1,2 +1,0 @@
-material,youngs_modulus_pa,poisson_ratio,density_kg_m3,thermal_expansion_1_k,allowable_stress
-Steel,210000000000.0,0.3,7850.0,1.2e-05,"[{""allowable_stress_pa"":137000000.0,""temperature_c"":20.0},{""allowable_stress_pa"":127000000.0,""temperature_c"":150.0}]"

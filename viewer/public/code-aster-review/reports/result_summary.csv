@@ -1,5 +1,0 @@
-solver_name,study_id,result_state_id,load_case,result_type,maximum_value,unit,result_basis,governing_entity_ref,governing_location
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,translation_magnitude,0.011344421939001563,m,Code_Aster nodal displacement,node:N3,N3
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,reaction_force_magnitude,663055.1944155555,N,Code_Aster nodal reaction,node:N0,N0
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,element_force_magnitude,663057.6899973957,N,Code_Aster element end force,element:pipe_str_0,n2
-Code_Aster,analysis_study:Operating,result_state:Operating,Operating,fe_von_mises,480929000.0,Pa,FE Von Mises (not piping-code stress),element:pipe_str_0,

@@ -1,5 +1,0 @@
-support_id,node,support_type,direction,stiffness_n_m,imposed_displacement_m,stiffness_matrix,blocked_dof,mass_kg,friction_coefficient
-support_0,N0,anchor,,,,,,0.0,0.0
-support_1,N1,guide,,,,,,0.0,0.0
-support_2,N3,rest,,,,,,0.0,0.0
-support_3,N5,anchor,,,,,,0.0,0.0

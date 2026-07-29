@@ -77,15 +77,38 @@ def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> 
     ]
 
 
-def test_tracked_official_bundles_match_current_producers(tmp_path: Path) -> None:
-    """Keep tracked bridge bundles synchronized until Pages staging replaces them."""
-    # Temporary migration bridge; delete with the tracked bundles after Pages staging is proven.
+def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None:
+    """Keep generated examples out of Git while retaining the smoke fixture."""
+    root = Path(__file__).resolve().parents[1]
+    official = ("code-aster-review", "imported_component_mixed_demo")
+    tracked = set(
+        subprocess.check_output(
+            ["git", "ls-files", "--", "viewer/public"], cwd=root, text=True
+        ).splitlines()
+    )
+
+    assert not any(
+        path.startswith(f"viewer/public/{bundle_id}/")
+        for bundle_id in official
+        for path in tracked
+    )
+    assert "viewer/public/smoke-scene/scene.json" in tracked
+    for bundle_id in official:
+        assert subprocess.run(
+            ["git", "check-ignore", "--no-index", f"viewer/public/{bundle_id}/scene.json"],
+            cwd=root,
+            capture_output=True,
+        ).returncode == 0
+    assert subprocess.run(
+        ["git", "check-ignore", "--no-index", "viewer/public/smoke-scene/scene.json"],
+        cwd=root,
+        capture_output=True,
+    ).returncode == 1
+
     bundle_ids = build_examples(tmp_path, audience="dev")
 
-    for bundle_id in bundle_ids:
-        assert _normalized_bundle_inventory(tmp_path / bundle_id) == _tracked_bundle_inventory(bundle_id)
-    assert "artifacts/study_execution.json" in _tracked_bundle_inventory("code-aster-review")
-    assert "artifacts/study.mess" in _tracked_bundle_inventory("code-aster-review")
+    assert bundle_ids == official
+    assert sorted(path.name for path in tmp_path.iterdir() if path.is_dir()) == sorted(official)
 
 
 def test_evidence_staging_requires_a_validated_solve_attestation(tmp_path: Path) -> None:
@@ -581,46 +604,3 @@ def _save_bundle(root: Path, scene: dict, review: dict) -> None:
 def _geometry_hash(payload: dict) -> str:
     value = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return f"sha256:{sha256(value).hexdigest()}"
-
-
-def _normalized_bundle_inventory(root: Path) -> dict[str, str]:
-    """Compare file inventory while ignoring JSON formatting and file metadata."""
-    inventory: dict[str, str] = {}
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
-            continue
-        relative_path = path.relative_to(root).as_posix()
-        inventory[relative_path] = _normalized_file_contents(path)
-    return inventory
-
-
-def _tracked_bundle_inventory(bundle_id: str) -> dict[str, str]:
-    """Compare against Git's tracked inventory, not ignored working-tree leftovers."""
-    root = Path("viewer/public") / bundle_id
-    tracked_paths = subprocess.check_output(["git", "ls-files", "--", str(root)], text=True).splitlines()
-    return {
-        Path(path).relative_to(root).as_posix(): _normalized_file_contents(Path(path))
-        for path in tracked_paths
-    }
-
-
-def _normalized_file_contents(path: Path) -> str:
-    if path.suffix == ".json":
-        return json.dumps(
-            _without_generation_timestamps(json.loads(path.read_text(encoding="utf-8"))),
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-    return sha256(path.read_bytes()).hexdigest()
-
-
-def _without_generation_timestamps(value):
-    if isinstance(value, dict):
-        return {
-            key: _without_generation_timestamps(nested)
-            for key, nested in value.items()
-            if key not in {"created_at", "modified_at", "updated_at"}
-        }
-    if isinstance(value, list):
-        return [_without_generation_timestamps(nested) for nested in value]
-    return value
