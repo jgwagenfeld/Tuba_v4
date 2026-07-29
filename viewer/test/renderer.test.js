@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PerspectiveCamera, Vector3 } from "three";
+import { BoxGeometry, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from "three";
 
 import * as rendererModule from "../src/renderer.js";
 
@@ -12,7 +12,9 @@ import {
   createThreeSceneGraph,
   fitCameraToBounds,
   pickRenderedObject,
-  prepareAssetRenderConfig
+  prepareAssetRenderConfig,
+  sectionBoxClippingPlanes,
+  applySectionBoxClipping
 } from "../src/renderer.js";
 
 function fixtureState() {
@@ -376,6 +378,48 @@ test("scene graph visibility updates hide cached renderables without rebuilding"
   assert.equal(graph.objectsByObjectId.get("object:pipe").visible, true);
   assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, false);
   assert.equal(graph.renderedObjectCount, 1);
+});
+
+test("section box clipping planes retain points inside and reject points outside", () => {
+  const planes = sectionBoxClippingPlanes({
+    min: [-1, -2, -3],
+    max: [4, 5, 6]
+  });
+
+  assert.equal(planes.length, 6);
+  assert.ok(planes.every((plane) => plane.distanceToPoint(new Vector3(0, 0, 0)) <= 0));
+  assert.ok(planes.some((plane) => plane.distanceToPoint(new Vector3(7, 0, 0)) > 0));
+});
+
+test("section box clipping applies and removes planes on root mesh and line materials", () => {
+  const root = new Group();
+  const mesh = new Mesh(new BoxGeometry(1, 1, 1), [new MeshBasicMaterial(), new MeshBasicMaterial()]);
+  const line = new Line();
+  line.material = [new LineBasicMaterial(), new LineBasicMaterial()];
+  root.add(mesh, line);
+  const graph = { root };
+
+  applySectionBoxClipping(graph, { min: [-1, -1, -1], max: [1, 1, 1] });
+
+  for (const material of [...mesh.material, ...line.material]) {
+    assert.equal(material.clippingPlanes.length, 6);
+  }
+
+  applySectionBoxClipping(graph, undefined);
+
+  for (const material of [...mesh.material, ...line.material]) {
+    assert.equal(material.clippingPlanes, null);
+  }
+});
+
+test("section box clipping keeps a crossing pipe in the coarse scene graph", () => {
+  const state = fixtureState();
+  state.sectionBox = { min: [0.5, -1, -1], max: [1.5, 1, 1] };
+  const graph = createThreeSceneGraph(state);
+
+  assert.ok(graph.objectsByObjectId.get("object:pipe"));
+  applySectionBoxClipping(graph, state.sectionBox);
+  assert.equal(graph.objectsByObjectId.get("object:pipe").material.clippingPlanes.length, 6);
 });
 
 test("interaction mode temporarily hides detail geometry and restores visibility", () => {

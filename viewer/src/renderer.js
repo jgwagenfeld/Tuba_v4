@@ -159,6 +159,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   });
   renderer.setClearColor(options.backgroundColor ?? 0xf8fafc, 1);
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio ?? 1, 2));
+  renderer.localClippingEnabled = true;
 
   const camera = createEngineeringCamera(1);
 
@@ -260,6 +261,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       }
       const graph = graphCache.get(state);
       updateSceneGraphVisibility(graph, state);
+      applySectionBoxClipping(graph, state.sectionBox);
       cameraFitController.apply(state, graph.bounds);
       controls.update();
       graph.camera = camera;
@@ -400,6 +402,32 @@ export function updateSceneGraphVisibility(graph, state) {
   }
   graph.renderedObjectCount = renderedObjectCount;
   return graph;
+}
+
+export function sectionBoxClippingPlanes(sectionBox) {
+  if (!sectionBox) {
+    return [];
+  }
+  const { min, max } = sectionBox;
+  return [
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -max[0]),
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), min[0]),
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), -max[1]),
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), min[1]),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), -max[2]),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), min[2])
+  ];
+}
+
+export function applySectionBoxClipping(graph, sectionBox) {
+  const clippingPlanes = sectionBox ? sectionBoxClippingPlanes(sectionBox) : null;
+  graph.root?.traverse((object) => {
+    const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : [];
+    for (const material of materials) {
+      material.clippingPlanes = clippingPlanes;
+      material.needsUpdate = true;
+    }
+  });
 }
 
 export function setSceneGraphInteractionMode(graph, active) {
