@@ -126,6 +126,23 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unknown.*command"):
                 import_code_aster_artifacts(model=model, work_dir=work_dir)
 
+    def test_public_parser_rejects_validation_bypass_keyword(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            study = CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+
+            with self.assertRaisesRegex(TypeError, "_validated_attestation"):
+                CodeAsterSolver().parse_result_artifacts(
+                    model,
+                    work_dir,
+                    study.load_case,
+                    study=study,
+                    _validated_attestation={},
+                )
+
     def test_import_preserves_validated_attestation_on_result_state(self):
         model, n0, n1 = self._model()
 

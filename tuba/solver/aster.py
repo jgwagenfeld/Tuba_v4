@@ -422,7 +422,6 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         load_case_name: Optional[str] = None,
         *,
         study: AnalysisStudy | None = None,
-        _validated_attestation: dict[str, Any] | None = None,
     ) -> FEAResults:
         """Parse an existing Code_Aster output directory without running the solver."""
         root = Path(work_dir)
@@ -436,7 +435,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             None if sidecar is None or sidecar.get("solver_input_identity") is None
             else SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
         )
-        if _validated_attestation is None:
+        if not getattr(self, "_validated_attestation", None):
             validate_code_aster_execution_attestation(
                 root,
                 study_identity=validated_study.solver_input_identity,

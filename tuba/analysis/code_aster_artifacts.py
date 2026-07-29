@@ -50,13 +50,14 @@ def import_code_aster_artifacts(
         mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
         sidecar_identity=sidecar_identity,
     )
-    results = CodeAsterSolver().parse_result_artifacts(
-        model,
-        root,
-        loaded_study.load_case,
-        study=loaded_study,
-        _validated_attestation=attestation,
-    )
+    solver = CodeAsterSolver()
+    if attestation is not None:
+        solver._validated_attestation = attestation
+    try:
+        results = solver.parse_result_artifacts(model, root, loaded_study.load_case, study=loaded_study)
+    finally:
+        if attestation is not None:
+            del solver._validated_attestation
     result_state = result_state_from_fea_results(
         model=model,
         study=loaded_study,
