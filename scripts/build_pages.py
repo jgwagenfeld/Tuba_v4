@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -171,16 +171,22 @@ def _replace_pages_output(staged: Path, output: Path) -> None:
     if not output.exists():
         os.replace(staged, output)
         return
-    with TemporaryDirectory(prefix=f".{output.name}.backup-", dir=output.parent) as reserved:
-        backup = Path(reserved)
-        backup.rmdir()
-        os.replace(output, backup)
+    backup = Path(mkdtemp(prefix=f".{output.name}.backup-", dir=output.parent))
+    backup.rmdir()
+    os.replace(output, backup)
+    try:
+        os.replace(staged, output)
+    except BaseException as install_error:
         try:
-            os.replace(staged, output)
-        except BaseException:
             os.replace(backup, output)
-            raise
-        shutil.rmtree(backup)
+        except BaseException as rollback_error:
+            raise RuntimeError(
+                "Pages output installation and rollback both failed; "
+                f"install error: {install_error!r}; rollback error: {rollback_error!r}; "
+                f"original retained at {backup}"
+            ) from rollback_error
+        raise
+    shutil.rmtree(backup)
 
 
 def build_examples(

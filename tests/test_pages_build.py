@@ -144,6 +144,22 @@ def test_pages_build_keeps_existing_output_when_complete_tree_validation_fails(t
     assert {path.name for path in output.iterdir()} == {"keep.txt"}
 
 
+def test_pages_output_replacement_removes_backup_after_success(tmp_path):
+    output = tmp_path / "site"
+    output.mkdir()
+    (output / "old.txt").write_text("original", encoding="utf-8")
+    staged = tmp_path / "staged"
+    staged.mkdir()
+    (staged / "new.txt").write_text("replacement", encoding="utf-8")
+
+    build_pages._replace_pages_output(staged, output)
+
+    assert (output / "new.txt").read_text(encoding="utf-8") == "replacement"
+    assert not (output / "old.txt").exists()
+    assert not staged.exists()
+    assert list(tmp_path.glob(".site.backup-*")) == []
+
+
 def test_pages_build_restores_existing_output_when_final_rename_fails(tmp_path, monkeypatch):
     root = tmp_path / "project"
     _project_tree(root)
@@ -169,6 +185,43 @@ def test_pages_build_restores_existing_output_when_final_rename_fails(tmp_path, 
 
     assert marker.read_text(encoding="utf-8") == "original"
     assert calls == 3
+    assert list(tmp_path.glob(".site.backup-*")) == []
+
+
+def test_pages_output_replacement_retains_original_when_install_and_rollback_fail(tmp_path, monkeypatch):
+    output = tmp_path / "site"
+    output.mkdir()
+    (output / "keep.txt").write_text("original", encoding="utf-8")
+    staged = tmp_path / "staged"
+    staged.mkdir()
+    (staged / "new.txt").write_text("replacement", encoding="utf-8")
+    real_replace = os.replace
+    calls = 0
+
+    def fail_install_and_rollback(source, destination):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("install blocked")
+        if calls == 3:
+            raise OSError("rollback blocked")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(build_pages.os, "replace", fail_install_and_rollback)
+
+    with pytest.raises(RuntimeError, match="original retained at") as raised:
+        build_pages._replace_pages_output(staged, output)
+
+    backups = list(tmp_path.glob(".site.backup-*"))
+    assert len(backups) == 1
+    backup = backups[0]
+    assert (backup / "keep.txt").read_text(encoding="utf-8") == "original"
+    assert str(backup) in str(raised.value)
+    assert "install blocked" in str(raised.value)
+    assert "rollback blocked" in str(raised.value)
+    assert isinstance(raised.value.__cause__, OSError)
+    assert "rollback blocked" in str(raised.value.__cause__)
+    assert "install blocked" in str(raised.value.__cause__.__context__)
 
 
 @pytest.mark.parametrize(
