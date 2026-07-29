@@ -1,7 +1,10 @@
 viewer/index.html text eol=lf
 viewer/public/favicon.svg text eol=lf
+viewer/public/licenses/*.txt text eol=lf
 tuba/visualization/_viewer/** text eol=lf
 tuba/visualization/_viewer/assets/*.js -whitespace
+*.woff -text -whitespace
+*.woff2 -text -whitespace
 
 # Solver attestation hashes bind exact bytes; never rewrite their line endings.
 notebooks/code_aster_results/viz_gallery_operating/* -text -whitespace

@@ -42,6 +42,17 @@ def _viewer_files(root: Path) -> dict[str, str]:
     }
 
 
+def _referenced_viewer_assets(package_root: Path) -> set[str]:
+    html = (package_root / "index.html").read_text(encoding="utf-8")
+    referenced = set(re.findall(r"\./assets/([^\"']+\.(?:js|css))", html))
+    for stylesheet in tuple(referenced):
+        if not stylesheet.endswith(".css"):
+            continue
+        css = (package_root / "assets" / stylesheet).read_text(encoding="utf-8")
+        referenced.update(re.findall(r"url\(\./([^\"')]+\.woff2?)\)", css))
+    return referenced
+
+
 def _build_wheel(root: Path, wheel_dir: Path) -> Path:
     subprocess.run(
         [
@@ -145,18 +156,12 @@ def test_viewer_production_build_synchronizes_the_python_package():
     subprocess.run([_npm(), "run", "build"], cwd=ROOT / "viewer", check=True)
 
     package_root = ROOT / "tuba" / "visualization" / "_viewer"
-    html = (package_root / "index.html").read_text(encoding="utf-8")
-    referenced_assets = set(re.findall(r"\./assets/([^\"']+\.(?:js|css))", html))
-    referenced_fonts = set()
-    for stylesheet in referenced_assets:
-        if stylesheet.endswith(".css"):
-            css = (package_root / "assets" / stylesheet).read_text(encoding="utf-8")
-            referenced_fonts.update(re.findall(r"url\(\./([^\"')]+\.woff2?)\)", css))
+    referenced_assets = _referenced_viewer_assets(package_root)
     built_assets = {path.name for path in (package_root / "assets").iterdir() if path.is_file()}
 
-    assert referenced_assets
-    assert referenced_fonts
-    assert built_assets == referenced_assets | referenced_fonts
+    assert any(path.endswith((".js", ".css")) for path in referenced_assets)
+    assert any(path.endswith((".woff", ".woff2")) for path in referenced_assets)
+    assert built_assets == referenced_assets
     assert {path.name for path in package_root.iterdir()} == {
         "assets",
         "bundles.json",
@@ -400,8 +405,7 @@ def test_clean_git_index_snapshot_rebuilds_identical_viewer_and_installed_launch
     rebuilt_viewer = _viewer_files(snapshot)
     assert rebuilt_viewer == tracked_viewer
     package_root = snapshot / "tuba" / "visualization" / "_viewer"
-    html = (package_root / "index.html").read_text(encoding="utf-8")
-    referenced_assets = set(re.findall(r"\./assets/([^\"']+\.(?:js|css))", html))
+    referenced_assets = _referenced_viewer_assets(package_root)
     assert referenced_assets == {
         path.name for path in (package_root / "assets").iterdir() if path.is_file()
     }
