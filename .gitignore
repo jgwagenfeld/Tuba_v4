@@ -47,6 +47,7 @@ viewer/node_modules/
 
 # Agent workflow scratch
 .superpowers/
+.worktrees/
 
 # Generated benchmark + smoke-test outputs
 .benchmarks/
