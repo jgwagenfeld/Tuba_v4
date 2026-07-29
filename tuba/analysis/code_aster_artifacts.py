@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -78,13 +79,14 @@ def import_code_aster_artifacts(
                 )
             )
     existing = list(result_state.metadata.get("parser_diagnostics", ()))
-    combined = [*existing]
-    seen = {
-        tuple(item.get(key) for key in ("severity", "code", "source", "message", "target"))
-        for item in existing
-    }
-    for item in diagnostics:
-        identity = tuple(item.get(key) for key in ("severity", "code", "source", "message", "target"))
+    combined: list[Any] = []
+    seen: set[Any] = set()
+    for item in [*existing, *diagnostics]:
+        identity = (
+            tuple(item.get(key) for key in ("severity", "code", "source", "message", "target"))
+            if isinstance(item, Mapping)
+            else item
+        )
         if identity not in seen:
             combined.append(item)
             seen.add(identity)

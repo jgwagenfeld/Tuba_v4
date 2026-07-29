@@ -2,6 +2,7 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import ifcopenshell
 
@@ -93,6 +94,26 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             if item["code"] == "visualization.code_aster_artifacts.rmed_read_failed"
         )
         self.assertIn(warning, artifact.result_state.metadata["parser_diagnostics"])
+
+    def test_import_deduplicates_existing_string_parser_diagnostics(self):
+        model, n0, n1 = self._model()
+        warning = "Legacy parser warning."
+        parse_result_artifacts = CodeAsterSolver.parse_result_artifacts
+
+        def parse_with_duplicate_diagnostics(solver, *args, **kwargs):
+            results = parse_result_artifacts(solver, *args, **kwargs)
+            results.parser_diagnostics.extend([warning, warning])
+            return results
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+
+            with patch.object(CodeAsterSolver, "parse_result_artifacts", parse_with_duplicate_diagnostics):
+                artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+
+        self.assertEqual(artifact.result_state.metadata["parser_diagnostics"], [warning])
 
     def test_artifact_review_example_writes_engineering_review(self):
         from examples.code_aster_artifact_review import run_example
