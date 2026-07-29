@@ -256,7 +256,9 @@ export function setActiveLoadCase(state, loadCase) {
   );
   const geometryOptions = getGeometryStateOptions(state, loadCase);
   const geometryState =
-    geometryOptions.find((candidate) => candidate.purpose === activeGeometryState?.purpose) ??
+    (activeGeometryState?.purpose
+      ? geometryOptions.find((candidate) => candidate.purpose === activeGeometryState.purpose)
+      : null) ??
     geometryOptions[0] ??
     null;
   return {
@@ -273,6 +275,12 @@ export function setActiveLoadCase(state, loadCase) {
 
 export function setActiveResultState(state, resultStateId) {
   const option = getResultStateOptions(state).find((candidate) => candidate.id === resultStateId);
+  if (option) {
+    return {
+      ...setActiveLoadCase(state, option.loadCase),
+      activeResultStateId: option.id
+    };
+  }
   return {
     ...state,
     activeResultStateId: resultStateId ?? null,

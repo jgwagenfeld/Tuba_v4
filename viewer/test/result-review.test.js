@@ -10,6 +10,7 @@ import {
   getSolverResultOverlays,
   setActiveGeometryState,
   setActiveLoadCase,
+  setActiveResultState,
   setResultThreshold,
   setResultVectorScale,
   setUtilizationThreshold,
@@ -208,4 +209,37 @@ test("load case changes keep result and geometry states on the case while preser
     "geometry_state:Cold:physical",
     "geometry_state:Cold:visual"
   ]);
+});
+
+test("legacy result-state selection keeps result and geometry states on its load case", () => {
+  const state = resultState();
+  state.resultStates.push({
+    id: "overlay:result_state:Cold",
+    kind: "result_state",
+    data: { id: "result_state:Cold", load_case: "Cold", solver_name: "code_aster" }
+  });
+  state.geometryStates = [
+    { id: "overlay:geometry_state:Hot:visual", kind: "geometry_state", data: { id: "geometry_state:Hot:visual", load_case: "Hot", purpose: "visualization", visual_scale: 40 } },
+    { id: "overlay:geometry_state:Cold:physical", kind: "geometry_state", data: { id: "geometry_state:Cold:physical", load_case: "Cold", purpose: "engineering" } },
+    { id: "overlay:geometry_state:Cold:visual", kind: "geometry_state", data: { id: "geometry_state:Cold:visual", load_case: "Cold", purpose: "visualization", visual_scale: 25 } }
+  ];
+
+  const next = setActiveResultState(setActiveGeometryState(state, "geometry_state:Hot:visual"), "result_state:Cold");
+
+  assert.equal(next.activeLoadCase, "Cold");
+  assert.equal(next.activeResultStateId, "result_state:Cold");
+  assert.equal(next.activeGeometryStateId, "geometry_state:Cold:visual");
+});
+
+test("load case selection uses the target case's first geometry state when the current purpose is missing", () => {
+  const state = resultState();
+  state.geometryStates = [
+    { id: "overlay:geometry_state:Hot", kind: "geometry_state", data: { id: "geometry_state:Hot", load_case: "Hot" } },
+    { id: "overlay:geometry_state:Cold:physical", kind: "geometry_state", data: { id: "geometry_state:Cold:physical", load_case: "Cold", purpose: "engineering" } },
+    { id: "overlay:geometry_state:Cold", kind: "geometry_state", data: { id: "geometry_state:Cold", load_case: "Cold" } }
+  ];
+
+  const next = setActiveLoadCase(setActiveGeometryState(state, "geometry_state:Hot"), "Cold");
+
+  assert.equal(next.activeGeometryStateId, "geometry_state:Cold:physical");
 });
