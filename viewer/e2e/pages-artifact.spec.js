@@ -7,6 +7,8 @@ const VIEWPORTS = {
   narrow: { width: 800, height: 900 }
 };
 
+const DOCUMENTATION_PAGES = ["/index.html", "/setup.html"];
+
 test("assembled Pages viewer is accessible and visually stable", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));
@@ -63,4 +65,40 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
   }
 
   expect(browserErrors).toEqual([]);
+});
+
+test("assembled Pages documentation is accessible", async ({ page }) => {
+  for (const path of DOCUMENTATION_PAGES) {
+    await page.goto(path, { waitUntil: "load" });
+    // The theme mounts its search dialog and clipboard buttons after load, and
+    // docs/content/assets/a11y.js repairs them as they appear.
+    await page.waitForFunction(
+      () =>
+        Boolean(document.querySelector('body > [role="search"]')) &&
+        !document.querySelector("nav.md-code__nav:not([role])")
+    );
+    const loaded = await new AxeBuilder({ page }).analyze();
+    expect(loaded.violations).toEqual([]);
+
+    const input = page.locator('input[aria-label="Search"]');
+    await page.locator("button.md-search__button").click();
+    await expect(input).toBeFocused();
+    const opened = await new AxeBuilder({ page }).analyze();
+    expect(opened.violations).toEqual([]);
+
+    await input.fill("code");
+    await page.waitForFunction(() => {
+      const dialog = document.querySelector('body > [role="search"]');
+      return Number(dialog?.shadowRoot?.querySelectorAll("ol li a").length) > 0;
+    });
+    await page.getByRole("button", { name: "Filters" }).click();
+    // Zensical 0.0.51 highlights matches in a colour that misses 4.5:1 against
+    // the inline code chips in result titles. That palette defect is upstream
+    // and unfixed here; every other check still gates this state.
+    const results = await new AxeBuilder({ page }).disableRules(["color-contrast"]).analyze();
+    expect(results.violations).toEqual([]);
+  }
+  // Console and network errors are deliberately not asserted here: the theme's
+  // release badge requests /releases/latest, which 404s until the repository
+  // publishes its first GitHub release.
 });

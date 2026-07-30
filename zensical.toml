@@ -7,6 +7,7 @@ docs_dir = "docs/content"
 site_dir = ".build/zensical-site"
 use_directory_urls = false
 extra_css = ["assets/site.css"]
+extra_javascript = ["assets/a11y.js"]
 nav = [
     { "Home" = "index.md" },
     { "Setup" = "setup.md" },
