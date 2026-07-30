@@ -75,8 +75,8 @@ def test_ci_and_release_workflows_cover_local_release_gates():
         assert "twine check" in workflow
         assert "scripts/verify_release_wheel.py dist" in workflow
 
-    assert 'python-version: ["3.10", "3.11", "3.12"]' in ci
-    assert "uv sync --group docs --extra course --locked" in ci
+    assert 'python-version: ["3.11", "3.12"]' in ci
+    assert "uv sync --group docs --extra course --extra dev --locked" in ci
     python_steps = ci_jobs["python"]["steps"]
     assert any(step.get("uses") == "actions/setup-node@v4" for step in python_steps)
     assert any(step.get("run") == "npm ci" and step.get("working-directory") == "viewer" for step in python_steps)
@@ -238,7 +238,7 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     )
 
     docs = [step["run"] for step in _run_steps(workflow, "notebooks-and-docs")]
-    assert "uv sync --group docs --extra course --locked" in docs
+    assert "uv sync --group docs --extra course --extra dev --locked" in docs
     assert "uv run zensical build --clean --strict" in docs
     assert any("tests/test_static_site_docs.py" in command for command in docs)
 

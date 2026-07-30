@@ -37,7 +37,7 @@ Read these first - they describe what the code actually does today:
 ## Installation
 
 Tuba v4 beta is installed from a tagged GitHub checkout. Tuba requires Python
-3.10 or newer.
+3.11 or newer.
 
 ```bash
 git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
