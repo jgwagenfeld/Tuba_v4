@@ -40,7 +40,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libglu1-mesa xvfb
       - run: uv sync --group docs --extra course --extra dev --locked
       - run: uv run zensical build --clean --strict
-      - run: uv run python -m pytest tests/test_code_aster_docs.py tests/test_current_api_docs.py tests/test_docs_figures.py tests/test_static_site_docs.py -q
+      # test_docs_figures renders PyVista screenshots, which need a display.
+      - run: xvfb-run -a uv run python -m pytest tests/test_code_aster_docs.py tests/test_current_api_docs.py tests/test_docs_figures.py tests/test_static_site_docs.py -q
       - run: xvfb-run -a uv run python scripts/check_notebooks.py
 
   viewer:
