@@ -44,7 +44,11 @@ jobs:
         working-directory: viewer
         env:
           TUBA_PAGES_SITE_ROOT: ../_site
+      # Create the Pages site on the first run so no manual repository setting
+      # is required; the workflow already holds the pages: write permission.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
