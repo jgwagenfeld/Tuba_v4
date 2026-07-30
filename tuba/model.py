@@ -1210,13 +1210,17 @@ class TubaModel:
                     "n2": e.n2,
                     "section": e.section,
                     "material": e.material,
-                    **({"bend_radius": e.bend_radius} if e.bend_radius is not None else {}),
-                    **({"bend_angle": e.bend_angle} if e.bend_angle is not None else {}),
+                    # These are declared float, so serialize them as float even when
+                    # the caller passed an int literal: JSON renders 90 and 90.0
+                    # differently, which would change the solver-input fingerprint
+                    # of an otherwise identical model.
+                    **({"bend_radius": float(e.bend_radius)} if e.bend_radius is not None else {}),
+                    **({"bend_angle": float(e.bend_angle)} if e.bend_angle is not None else {}),
                     **({"bend_geometry": e.bend_geometry.to_dict()} if e.bend_geometry is not None else {}),
-                    **({"twist_angle": e.twist_angle} if getattr(e, "twist_angle", 0.0) != 0.0 else {}),
+                    **({"twist_angle": float(e.twist_angle)} if getattr(e, "twist_angle", 0.0) != 0.0 else {}),
                     **({"route_id": e.route_id} if e.route_id is not None else {}),
-                    **({"station_start": e.station_start} if e.station_start is not None else {}),
-                    **({"station_end": e.station_end} if e.station_end is not None else {}),
+                    **({"station_start": float(e.station_start)} if e.station_start is not None else {}),
+                    **({"station_end": float(e.station_end)} if e.station_end is not None else {}),
                 }
                 for e in self.elements
             ],

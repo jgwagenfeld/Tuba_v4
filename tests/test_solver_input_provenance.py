@@ -10,7 +10,7 @@ import pytest
 import tuba.analysis as analysis
 from tuba import Model
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
-from tuba.analysis.provenance import MIXED_CODE_ASTER_COMPILER_ID
+from tuba.analysis.provenance import MIXED_CODE_ASTER_COMPILER_ID, build_solver_input_identity
 from tuba.analysis.results import result_state_from_fea_results
 from tuba.plotting.pipeline import build_3d_mesh_from_model
 from tuba.reporting import EngineeringReviewError, build_engineering_review
@@ -449,3 +449,29 @@ def test_pyvista_rejects_unknown_named_result_case():
 
     with pytest.raises(ValueError, match="temperature.*Missing"):
         build_3d_mesh_from_model(model, results)
+
+
+def test_solver_input_identity_ignores_int_versus_float_literals():
+    """The same bend authored with int literals must keep one identity.
+
+    JSON renders 90 and 90.0 differently, so an uncoerced int would give an
+    otherwise identical model a second fingerprint.
+    """
+
+    def bend_model(radius, angle):
+        model = Model(project_name="Literals")
+        model.add_material("Steel", E=2.0e11, nu=0.3, allowable_stress={20.0: 120.0e6})
+        model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+        model.define_load_case("Operating", gravity=True)
+        with model.pipe(section="Pipe", material="Steel") as builder:
+            builder.start([0.0, 0.0, 0.0], support="anchor")
+            builder.run(3.0)
+            builder.bend(radius=radius, angle=angle, plane="XY")
+            builder.run(2.0)
+            builder.end(support="anchor")
+        return model
+
+    integers = build_solver_input_identity(bend_model(1, 90), "Operating")
+    floats = build_solver_input_identity(bend_model(1.0, 90.0), "Operating")
+
+    assert integers == floats
