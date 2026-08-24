@@ -1,4 +1,4 @@
-"""Local HTTP/WebSocket preview server for trusted Tuba scripts."""
+﻿"""Local HTTP/WebSocket preview server for trusted Tuba scripts."""
 
 from __future__ import annotations
 
@@ -509,13 +509,38 @@ def _diagnostic_event(diagnostic: SceneDiagnostic) -> dict[str, Any]:
     return {"type": "diagnostic", "severity": diagnostic.severity, "message": diagnostic.message, "payload": diagnostic.to_dict()}
 
 
+#: A file this server watches is momentarily unparseable while an editor or
+#: another process rewrites it - a poll can land between the truncate and the
+#: flush and read an empty or half-written document. That is not invalid input,
+#: it is a write in progress, and treating it as invalid costs more than a
+#: retry: ``_patch_preview_failure`` replaces the good bundle with a diagnostic
+#: scene that carries no ``scene_diffs``, so a client polling the bundle sees
+#: the preview vanish and come back a moment later.
+_PARTIAL_WRITE_ATTEMPTS = 5
+_PARTIAL_WRITE_BACKOFF_S = 0.04
+
+
 def _read_json_file(path: Path, code: str) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise _PatchPreviewError(_diagnostic(code, f"JSON file does not exist: {path}", str(path))) from exc
-    except json.JSONDecodeError as exc:
-        raise _PatchPreviewError(_diagnostic(code, f"Invalid JSON in {path}: {exc}", str(path))) from exc
+    payload: Any = None
+    decode_error: json.JSONDecodeError | None = None
+    for attempt in range(_PARTIAL_WRITE_ATTEMPTS):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            decode_error = None
+            break
+        except FileNotFoundError as exc:
+            # A missing file is a real error, not a write in progress: the
+            # atomic writes this package uses never unlink the destination.
+            raise _PatchPreviewError(_diagnostic(code, f"JSON file does not exist: {path}", str(path))) from exc
+        except json.JSONDecodeError as exc:
+            decode_error = exc
+            if attempt + 1 < _PARTIAL_WRITE_ATTEMPTS:
+                time.sleep(_PARTIAL_WRITE_BACKOFF_S)
+    if decode_error is not None:
+        # Still unparseable after the write window: genuinely invalid.
+        raise _PatchPreviewError(
+            _diagnostic(code, f"Invalid JSON in {path}: {decode_error}", str(path))
+        ) from decode_error
     if not isinstance(payload, dict):
         raise _PatchPreviewError(_diagnostic(code, f"Expected a JSON object in {path}.", str(path)))
     return payload

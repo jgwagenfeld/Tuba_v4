@@ -87,7 +87,7 @@ textarea,
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   height: 100vh;
   min-height: 0;
   overflow: hidden;
@@ -106,12 +106,20 @@ textarea,
   grid-template-columns: minmax(12rem, 1fr) minmax(16rem, auto) auto auto;
   grid-template-areas: "identity meta report runtime";
   align-items: center;
-  gap: 1rem;
-  min-height: 3.5rem;
+  gap: 0.9rem;
+  /* One line. The identity, the tally, the report and the runtime light are
+     all it carries, and none of them needs a second row. */
+  min-height: 2.4rem;
   border-bottom: 1px solid var(--graphite-line);
   background: var(--graphite);
   color: var(--chrome-text);
-  padding: 0.55rem 1rem;
+  padding: 0.25rem 0.85rem;
+}
+
+/* "TUBA / ENGINEERING REVIEW" above the scene name is decoration: the scene
+   name already says what this is, and the kicker cost a whole line of header. */
+.app-identity .app-kicker {
+  display: none;
 }
 
 .app-identity {
@@ -121,9 +129,13 @@ textarea,
   gap: 0.1rem;
 }
 
-.app-identity strong {
+/* The document's one h1: what you are looking at. It used to be a <strong>,
+   which left the page's only h1 inside the evidence panel - invisible, and
+   absent entirely once collapsed evidence stopped rendering that panel. */
+.app-identity h1 {
+  margin: 0;
   overflow: hidden;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.015em;
   text-overflow: ellipsis;
@@ -253,11 +265,12 @@ textarea,
   font-weight: 650;
 }
 
-/* Capped so the pinned strip cannot squeeze the scrollable task panel above
-   it down to a few unusable pixels as categories and their hints grow. */
+/* The primary panel in the rail: it takes the height that is left and scrolls
+   inside it. It was previously capped at 55%, which showed a third of the
+   bodies list through a window and made the panel unreadable. */
 .display-strip {
-  flex-shrink: 0;
-  max-height: 45%;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   border-top: 1px solid var(--graphite-line);
   padding: 0.5rem 0.75rem;
@@ -269,26 +282,760 @@ textarea,
   display: none;
 }
 
-.category-switches {
+/* The rail head: task strip and the find field. Sticky, so the way out of the
+   finder and the way between tasks never scroll away. */
+.rail-head {
+  position: sticky;
+  z-index: 6;
+  top: 0;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--graphite-line);
+  background: var(--graphite);
+}
+
+/* A segmented row, not a stack of page headings. Four tasks used 225px of the
+   rail as 44px-tall left-aligned text; this is 34px whatever the count, and a
+   1fr grid cannot overflow. */
+.cockpit-rail [data-workflow-tabs] {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.cockpit-rail .task-button {
+  width: 100%;
+  min-height: 2.125rem;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 2px solid transparent;
+  font-size: 0.69rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The accent budget is spent on the scene, not on the least important control
+   in the rail. Active reads as a raised pill instead. */
+.cockpit-rail .task-button[aria-current="page"] {
+  border-bottom-color: #6b7a83;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-weight: 700;
+}
+
+.rail-find {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.rail-find input[type="search"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.25rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.find-dismiss {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  min-height: 1.6rem;
+  padding: 0;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.25rem;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.find-dismiss[hidden] {
+  display: none;
+}
+
+/* Exactly one pane occupies the scroll zone. A swap rather than an overlay, so
+   nothing focusable is ever left behind an opaque surface. */
+.rail-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.rail-pane[hidden] {
+  display: none;
+}
+
+.rail-spacer {
+  flex: 1 1 1.5rem;
+}
+
+.find-scope {
+  display: flex;
+  gap: 0.2rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scrollbar-width: thin;
+}
+
+.scope-chip {
+  flex: 0 0 auto;
+  width: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.9rem;
+  background: transparent;
+  color: #9aa7ad;
+  cursor: pointer;
+  font-size: 0.66rem;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+
+.scope-chip[aria-pressed="true"] {
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-weight: 650;
+}
+
+.object-list {
+  display: grid;
+  gap: 0.1rem;
+  min-height: 0;
+}
+
+.group-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--graphite);
+  color: #9aa7ad;
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-align: left;
+  text-transform: uppercase;
+  padding: 0.3rem 0.15rem 0.2rem;
+}
+
+.group-count {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: normal;
+}
+
+.object-row {
+  display: grid;
+  gap: 0.05rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--chrome-text);
+  cursor: pointer;
+  text-align: left;
+  padding: 0.25rem 0.35rem;
+}
+
+.object-row:hover {
+  background: var(--graphite-raised);
+}
+
+.object-row.selected {
+  background: var(--graphite-raised);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* A match you cannot currently see still appears, dimmed and labelled. */
+.object-row.not-drawn {
+  opacity: 0.55;
+}
+
+.object-name {
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.object-name mark {
+  background: rgb(94 216 229 / 26%);
+  color: inherit;
+  border-radius: 0.1rem;
+}
+
+.object-meta {
+  color: #8895a0;
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-chip {
+  justify-self: start;
+  border-radius: 0.2rem;
+  background: var(--graphite-raised);
+  color: #9aa7ad;
+  font-size: 0.6rem;
+  padding: 0 0.25rem;
+}
+
+.hidden-reveal {
+  width: 100%;
+  border: 1px dashed var(--graphite-line);
+  border-radius: 0.2rem;
+  background: transparent;
+  color: #9aa7ad;
+  cursor: pointer;
+  font-size: 0.66rem;
+  padding: 0.2rem 0.35rem;
+  text-align: left;
+}
+
+.hidden-reveal:hover {
+  color: var(--chrome-text);
+}
+
+/* Pinned: the discretisation verdict is sign-off evidence and must not be
+   something you can scroll past without noticing. */
+.rail-foot {
+  position: relative;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.5rem 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.rail-utility {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.utility-button {
+  width: auto;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: #9aa7ad;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.3rem;
+  text-transform: uppercase;
+}
+
+.utility-button:hover,
+.utility-button[aria-expanded="true"] {
+  border-color: var(--graphite-line);
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+}
+
+.find-tally {
+  color: #8895a0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+/* Opens inside the rail, above the utility row. The viewport is never covered. */
+.rail-popover {
+  position: absolute;
+  z-index: 7;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 100%;
+  max-height: 50vh;
+  overflow-y: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.35rem;
+  background: var(--graphite-raised);
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 35%);
+  padding: 0.5rem 0.6rem;
+}
+
+.rail-popover[hidden] {
+  display: none;
+}
+
+
+.strip-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.strip-heading h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #9aa7ad;
+}
+
+.strip-tag {
+  border-radius: 0.2rem;
+  background: var(--graphite-raised);
+  color: #9aa7ad;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.3rem;
+}
+
+.strip-subheading {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #9aa7ad;
+}
+
+.body-list {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.body-row {
+  display: grid;
+  gap: 0.25rem;
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.5rem 0.15rem;
+}
+
+/* The drawn bodies read as active; a hidden one recedes rather than vanishing,
+   so the reviewer can still see what they turned off. */
+.body-row[data-body-visible="true"] {
+  background: var(--graphite-raised);
+}
+
+.body-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.body-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.body-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #9aa7ad;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body-row[data-body-visible="true"] .body-name {
+  color: var(--chrome-text);
+}
+
+.body-badge {
+  flex: 0 0 auto;
+  border-radius: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  padding: 0.1rem 0.3rem;
+  white-space: nowrap;
+}
+
+.body-badge-neutral {
+  background: #2a353d;
+  color: #c5ced1;
+}
+
+.body-badge-accent {
+  background: rgb(94 216 229 / 16%);
+  color: var(--accent);
+}
+
+.body-opacity {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 2.6rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: #2a353d;
+  color: #dfe6e8;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.body-opacity:hover {
+  background: #36434c;
+}
+
+.body-description {
+  margin: 0;
+  padding-left: 1.35rem;
+  color: #9aa7ad;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.body-metric {
+  margin: 0;
+  padding-left: 1.35rem;
+  color: #8895a0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.projection-note {
+  margin: 0;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.3rem;
+  background: var(--graphite-raised);
+  color: #9aa7ad;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  padding: 0.5rem 0.55rem;
+}
+
+.projection-note[hidden],
+.section-profile[hidden],
+.mesh-check[hidden] {
+  display: none;
+}
+
+/* The rail is too narrow to set the rosette beside its facts without shredding
+   the mono lines into three words each, so the facts take their own full-width
+   row underneath. */
+.section-profile-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.6rem;
+}
+
+.section-rosette {
+  flex: 0 0 auto;
+  margin-inline: auto;
+}
+
+.section-profile-body .section-facts {
+  flex: 1 1 100%;
+}
+
+.rosette-wall {
+  fill: none;
+  stroke: var(--graphite-line);
+  stroke-width: 1;
+}
+
+/* Every station in the grid is drawn faintly; the ones the solver actually
+   reported are painted with the value that coloured them on screen. */
+.rosette-station {
+  fill: #3f4d57;
+}
+
+.rosette-point {
+  stroke: #f3f5f5;
+  stroke-width: 0.6;
+}
+
+.section-facts {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.section-facts .meta {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: #8895a0;
+}
+
+.section-facts .section-peak {
+  color: #f0b429;
+}
+
+.mesh-check {
   display: grid;
   gap: 0.25rem;
 }
 
-.category-switch {
+.check-row {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0 0.35rem;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-/* Own line, full width. Inline-right truncated the mesh badge to
-   "1D · TUYAU…", which loses exactly the part worth reading. */
-.category-hint {
+.check-label {
+  flex: 1 1 auto;
   color: #9aa7ad;
-  flex-basis: 100%;
+  font-size: 0.72rem;
+}
+
+.check-value {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--chrome-text);
+}
+
+.check-badge {
+  border-radius: 0.2rem;
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.3rem;
+  white-space: nowrap;
+}
+
+.check-ok {
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.check-warn {
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+/* The coloring channel: what tints the scene, kept out of the panel that says
+   what is drawn. */
+.coloring-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  border-bottom: 1px solid var(--graphite-line);
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  padding: 0.4rem 1rem;
+}
+
+.coloring-bar[hidden] {
+  display: none;
+}
+
+.bar-control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.bar-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #9aa7ad;
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bar-control select {
+  width: auto;
+  max-width: 16rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.35rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.bar-control select:disabled {
+  color: #7d8a93;
+  cursor: not-allowed;
+}
+
+.bar-tag {
+  border-radius: 0.2rem;
+  background: rgb(94 216 229 / 16%);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.bar-deform input[type="range"] {
+  width: 6rem;
+}
+
+.bar-readout {
+  min-width: 2.75rem;
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.bar-button {
+  width: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+  white-space: nowrap;
+}
+
+.bar-button:disabled {
+  color: #7d8a93;
+  cursor: not-allowed;
+}
+
+/* Pushed to the end of the bar: it governs every readout on screen rather than
+   belonging to any one selector beside it. */
+.bar-units {
+  margin-left: auto;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
-  line-height: 1.3;
-  padding: 0 0 0.2rem 1.35rem;
+}
+
+.viewport-legend,
+.body-legend {
+  position: absolute;
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 0.4rem;
+  background: rgb(12 16 22 / 94%);
+  color: #dbe4ec;
+  font-size: 0.7rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.viewport-legend {
+  left: 0.75rem;
+  bottom: 0.75rem;
+  min-width: 15rem;
+  max-width: min(22rem, 45%);
+}
+
+.viewport-legend[hidden],
+.body-legend[hidden] {
+  display: none;
+}
+
+.legend-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-weight: 600;
+}
+
+.legend-context {
+  color: #8b96a2;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.legend-ramp {
+  height: 0.55rem;
+  border-radius: 0.15rem;
+}
+
+.legend-ticks {
+  display: flex;
+  justify-content: space-between;
+  color: #8b96a2;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+/* Clear of the orientation gizmo, which the renderer parks in the same corner. */
+.body-legend {
+  right: 0.75rem;
+  bottom: 9rem;
+  gap: 0.25rem;
+}
+
+.body-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #c8d0da;
+  font-size: 0.68rem;
+}
+
+.body-legend-swatch {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  height: 0.5rem;
+  border-radius: 0.1rem;
+  background: #8f9aa6;
+}
+
+.body-legend-analysis_mesh {
+  height: 0.2rem;
+  background: #e2e8ef;
+}
+
+.body-legend-subpoints {
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: #e2542b;
+}
+
+.body-legend-deformed {
+  height: 0;
+  border-top: 2px dashed var(--accent);
+  background: none;
+}
+
+/* Secondary controls, folded away by default. The design's left column carries
+   the four bodies, the projection note, the section and the mesh check; these
+   are the app's extras and must not push those off the panel. */
+.strip-drawer > summary {
+  cursor: pointer;
+  color: #9aa7ad;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 0.35rem 0;
+}
+
+.strip-drawer[open] > summary {
+  color: var(--chrome-text);
 }
 
 .layer-tree > summary {
@@ -557,11 +1304,19 @@ textarea,
   overflow-wrap: anywhere;
 }
 
+/* The rail carries the bodies panel: a body row is a name, a badge, an opacity
+   chip and a mono metric line, and at 12rem those wrapped onto four lines each.
+   17rem fits them on one. */
 .viewer-workspace {
   position: relative;
   display: grid;
-  grid-template-columns: 12rem minmax(24rem, 1fr) minmax(16rem, 20rem);
-  grid-template-rows: minmax(0, 1fr) minmax(8rem, 28vh);
+  /* 18.5rem carries the bodies panel without wrapping "OD 114.3 · WT 6.02 · R
+     342.9 mm" or the section heading onto a second line. */
+  grid-template-columns: 18.5rem minmax(24rem, 1fr) minmax(16rem, 20rem);
+  /* Collapsed evidence is its own toggle bar and nothing more. Reserving a
+     minimum here cost the viewport 235px to show a strip of a panel nobody
+     had opened. */
+  grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
     "rail viewport inspector"
     "rail evidence inspector";
@@ -572,7 +1327,7 @@ textarea,
 }
 
 .viewer-workspace:has(.inspector[hidden]) {
-  grid-template-columns: 12rem minmax(24rem, 1fr);
+  grid-template-columns: 18.5rem minmax(24rem, 1fr);
   grid-template-areas:
     "rail viewport"
     "rail evidence";
@@ -580,6 +1335,12 @@ textarea,
 
 .viewer-workspace:has(.evidence-dock.expanded) {
   grid-template-rows: minmax(0, 1fr) minmax(16rem, 50vh);
+}
+
+/* Collapsed means collapsed: the tabs stay reachable, the panel behind them
+   does not occupy the viewport's height until someone asks for it. */
+.evidence-dock:not(.expanded) .workflow-panel {
+  display: none;
 }
 
 .viewer-workspace[hidden] {
@@ -616,9 +1377,14 @@ section {
   border-right: 1px solid var(--graphite-line);
 }
 
+/* Secondary to the bodies panel below it. Tree, search and the object list are
+   lookup tools; what is drawn is the thing the reviewer works in. */
 .cockpit-rail .task-panel {
-  flex: 1;
-  min-height: 10rem;
+  /* Natural height, capped. It must not shrink - the strip below wants far
+     more room than exists, and letting this shrink squeezed Tree/Search/Objects
+     into an unusable 61px sliver. */
+  flex: 0 0 auto;
+  max-height: 30%;
   overflow-y: auto;
 }
 
@@ -643,30 +1409,41 @@ section {
   background: #0e1418;
 }
 
+/* A quiet caption rather than a slab. It is a first-run hint, not a control,
+   so it should not out-weigh the legend it used to sit on top of. */
 .viewport-guidance {
   position: absolute;
-  left: 0.75rem;
-  bottom: 0.75rem;
+  left: 50%;
+  bottom: 0.4rem;
+  transform: translateX(-50%);
+  max-width: 60%;
   margin: 0;
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.25rem;
-  background: rgb(14 20 24 / 78%);
-  color: #f2f5f6;
-  font-size: 0.75rem;
+  padding: 0;
+  color: #7c8894;
+  font-size: 0.68rem;
+  text-align: center;
   pointer-events: none;
 }
 
+/* Top-right column of compact chips, out of the way of the model. */
 .camera-controls {
   position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  max-width: calc(100% - 10rem);
+  top: 0.6rem;
+  right: 0.6rem;
+  display: grid;
+  gap: 0.15rem;
+  justify-items: stretch;
 }
 
-.camera-controls button,
+.camera-controls button {
+  width: 2.3rem;
+  min-height: 1.8rem;
+  padding: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
 .section-box-controls button {
   width: auto;
 }
@@ -698,11 +1475,15 @@ section {
   min-width: 0;
 }
 
-.reset-view {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  width: auto;
+/* Lives inside .camera-controls now (moved there in renderCameraControls), so
+   it is a chip in that column rather than a floating button of its own. */
+.camera-controls .reset-view {
+  width: 2.3rem;
+  min-height: 1.8rem;
+  margin-top: 0.25rem;
+  padding: 0.1rem;
+  font-size: 0.85rem;
+  line-height: 1;
 }
 
 .evidence-dock {
@@ -710,6 +1491,23 @@ section {
   min-width: 0;
   overflow: auto;
   background: var(--paper);
+}
+
+/* Collapsed, the toggle and the tabs share one row instead of stacking into
+   two - it is a bar, and a bar is one row tall. */
+.evidence-dock:not(.expanded) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.evidence-dock:not(.expanded) > [data-evidence-expand] {
+  margin: 0;
+}
+
+.evidence-dock:not(.expanded) .evidence-tabs {
+  padding: 0;
 }
 
 .evidence-dock > [data-evidence-expand] {
@@ -1063,7 +1861,9 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     align-items: flex-start;
     gap: 0.5rem;
     height: auto;
-    max-height: 8rem;
+    /* Tall enough for a body row to be readable. At 8rem the narrow layout had
+       the same one-third-of-a-list window the wide one used to. */
+    max-height: min(13rem, 30vh);
     overflow-x: auto;
     overflow-y: hidden;
     border-right: 0;
@@ -1071,8 +1871,8 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   }
 
   .cockpit-rail .display-strip {
-    flex: 0 0 min(18rem, 70vw);
-    max-height: 8rem;
+    flex: 0 0 min(20rem, 80vw);
+    max-height: min(13rem, 30vh);
     overflow-y: auto;
   }
 

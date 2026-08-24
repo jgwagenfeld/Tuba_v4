@@ -1,0 +1,3684 @@
+[
+  {
+    "bounds": [
+      -0.05715,
+      -0.05715,
+      -0.05715,
+      2.45715,
+      0.05715,
+      0.05715
+    ],
+    "format": "tube",
+    "generation_config": {
+      "entity_ref": "element:pipe_str_0",
+      "inner_radius_m": 0.05113,
+      "points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.0
+        ]
+      ],
+      "radius_m": 0.05715,
+      "source": "tuba.element"
+    },
+    "hash": "sha256:c43e7339c44a87bb448d0f6d09b4ca9675ac84dcac0ea0cfbb4ebb540b466031",
+    "id": "geometry:element:pipe_str_0",
+    "object_ids": [
+      "object:element:pipe_str_0"
+    ],
+    "uri": "geometry/geometry_element_pipe_str_0.json"
+  },
+  {
+    "bounds": [
+      2.34285,
+      -0.05715,
+      -0.05715,
+      2.8000499999999997,
+      0.05715,
+      0.4000500000000004
+    ],
+    "format": "tube",
+    "generation_config": {
+      "entity_ref": "element:pipe_bend_0",
+      "inner_radius_m": 0.05113,
+      "points": [
+        [
+          2.4,
+          0.0,
+          0.0
+        ],
+        [
+          2.433610077419006,
+          0.0,
+          0.0016511572241037378
+        ],
+        [
+          2.4668964714193304,
+          0.0,
+          0.006588727349732346
+        ],
+        [
+          2.499538615830555,
+          0.0,
+          0.014765158877425705
+        ],
+        [
+          2.531222148957989,
+          0.0,
+          0.02610170830187997
+        ],
+        [
+          2.5616419410576343,
+          0.0,
+          0.040489198454949235
+        ],
+        [
+          2.5905050329024215,
+          0.0,
+          0.057789069941457466
+        ],
+        [
+          2.617533457139714,
+          0.0,
+          0.07783471554191773
+        ],
+        [
+          2.642466915268867,
+          0.0,
+          0.10043308473113315
+        ],
+        [
+          2.665065284458082,
+          0.0,
+          0.12536654286028628
+        ],
+        [
+          2.6851109300585425,
+          0.0,
+          0.15239496709757872
+        ],
+        [
+          2.7024108015450503,
+          0.0,
+          0.18125805894236574
+        ],
+        [
+          2.7167982916981197,
+          0.0,
+          0.2116778510420111
+        ],
+        [
+          2.728134841122574,
+          0.0,
+          0.24336138416944528
+        ],
+        [
+          2.7363112726502674,
+          0.0,
+          0.27600352858067
+        ],
+        [
+          2.741248842775896,
+          0.0,
+          0.309289922580994
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          0.3429000000000004
+        ]
+      ],
+      "radius_m": 0.05715,
+      "source": "tuba.element"
+    },
+    "hash": "sha256:fc6596f58ab9b570ee2cd41e6a640891257c50f9e660cc668ee2c2db0185043d",
+    "id": "geometry:element:pipe_bend_0",
+    "object_ids": [
+      "object:element:pipe_bend_0"
+    ],
+    "uri": "geometry/geometry_element_pipe_bend_0.json"
+  },
+  {
+    "bounds": [
+      2.6857499999999996,
+      -0.05715,
+      0.28574999999999995,
+      2.8000499999999997,
+      0.05715,
+      1.60005
+    ],
+    "format": "tube",
+    "generation_config": {
+      "entity_ref": "element:pipe_str_1",
+      "inner_radius_m": 0.05113,
+      "points": [
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.5429
+        ]
+      ],
+      "radius_m": 0.05715,
+      "source": "tuba.element"
+    },
+    "hash": "sha256:ffe0dee907a6fa20b48315575d2560183e79a2b411782cfe6294b056d6647108",
+    "id": "geometry:element:pipe_str_1",
+    "object_ids": [
+      "object:element:pipe_str_1"
+    ],
+    "uri": "geometry/geometry_element_pipe_str_1.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "format": "point",
+    "generation_config": {
+      "entity_ref": "support:support_0",
+      "point": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source": "tuba.support"
+    },
+    "hash": "sha256:429b533bbb4c1bff62350b44c91e74738498473b2bf59116da2f512a290506e9",
+    "id": "geometry:support:support_0",
+    "object_ids": [
+      "object:support:support_0"
+    ],
+    "uri": "geometry/geometry_support_support_0.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      1.5429,
+      2.7428999999999997,
+      0.0,
+      1.5429
+    ],
+    "format": "point",
+    "generation_config": {
+      "entity_ref": "support:support_1",
+      "point": [
+        2.7428999999999997,
+        0.0,
+        1.5429
+      ],
+      "source": "tuba.support"
+    },
+    "hash": "sha256:844009c834d90bbaad50e238243bbb20f7c24f42b056c66493f7579ba45f7a5e",
+    "id": "geometry:support:support_1",
+    "object_ids": [
+      "object:support:support_1"
+    ],
+    "uri": "geometry/geometry_support_support_1.json"
+  },
+  {
+    "bounds": [
+      2.4,
+      0.0,
+      0.0,
+      2.4,
+      0.0,
+      0.004733333333333333
+    ],
+    "format": "vector",
+    "generation_config": {
+      "color": "#7c3aed",
+      "displacement_m": [
+        0.0,
+        0.0,
+        0.004733333333333333
+      ],
+      "end": [
+        2.4,
+        0.0,
+        0.004733333333333333
+      ],
+      "load_case": "Hot",
+      "node_id": "N1",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "displacement",
+      "rotation_rad": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source": "tuba.result_state",
+      "start": [
+        2.4,
+        0.0,
+        0.0
+      ]
+    },
+    "hash": "sha256:ab952240539dc5767595bb9c954fa753d94ad00630fdd7f9e01fce37f8f89d2a",
+    "id": "geometry:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N1",
+    "object_ids": [
+      "object:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N1"
+    ],
+    "uri": "geometry/geometry_solver_result_displacement_result_state_Hot_gmd_fixture_not_a_solve_N1.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      0.3428999999999999,
+      2.7428999999999997,
+      0.0,
+      0.3618333333333333
+    ],
+    "format": "vector",
+    "generation_config": {
+      "color": "#7c3aed",
+      "displacement_m": [
+        0.0,
+        0.0,
+        0.018933333333333333
+      ],
+      "end": [
+        2.7428999999999997,
+        0.0,
+        0.3618333333333333
+      ],
+      "load_case": "Hot",
+      "node_id": "N2",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "displacement",
+      "rotation_rad": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source": "tuba.result_state",
+      "start": [
+        2.7428999999999997,
+        0.0,
+        0.3428999999999999
+      ]
+    },
+    "hash": "sha256:1199a4d71393190f9d5115139cd2126916be9dfebf268cc48ca51fd12f525370",
+    "id": "geometry:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N2",
+    "object_ids": [
+      "object:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N2"
+    ],
+    "uri": "geometry/geometry_solver_result_displacement_result_state_Hot_gmd_fixture_not_a_solve_N2.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      1.5429,
+      2.7428999999999997,
+      0.0,
+      1.5855
+    ],
+    "format": "vector",
+    "generation_config": {
+      "color": "#7c3aed",
+      "displacement_m": [
+        0.0,
+        0.0,
+        0.0426
+      ],
+      "end": [
+        2.7428999999999997,
+        0.0,
+        1.5855
+      ],
+      "load_case": "Hot",
+      "node_id": "N3",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "displacement",
+      "rotation_rad": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source": "tuba.result_state",
+      "start": [
+        2.7428999999999997,
+        0.0,
+        1.5429
+      ]
+    },
+    "hash": "sha256:08773e547346119d9661e8f2a9d782bb7dae1413c0c03b9c21fd630038277ca8",
+    "id": "geometry:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N3",
+    "object_ids": [
+      "object:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N3"
+    ],
+    "uri": "geometry/geometry_solver_result_displacement_result_state_Hot_gmd_fixture_not_a_solve_N3.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.0,
+      0.0,
+      0.3529411764705882,
+      0.0,
+      0.9999999999999999
+    ],
+    "format": "vector",
+    "generation_config": {
+      "color": "#dc2626",
+      "end": [
+        0.3529411764705882,
+        0.0,
+        0.9999999999999999
+      ],
+      "load_case": "Hot",
+      "node_id": "N0",
+      "reaction_force_n": [
+        1200.0,
+        0.0,
+        3400.0
+      ],
+      "reaction_moment_nm": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "reaction",
+      "source": "tuba.result_state",
+      "start": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "hash": "sha256:afbd98dae341ca0817ea127085f1e754fa8adfa17c2548429508af3e2c22642e",
+    "id": "geometry:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "object_ids": [
+      "object:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0"
+    ],
+    "uri": "geometry/geometry_solver_result_reaction_result_state_Hot_gmd_fixture_not_a_solve_N0.json"
+  },
+  {
+    "bounds": [
+      2.7369,
+      -0.0699125,
+      1.4654625,
+      2.7488999999999995,
+      0.073675,
+      1.5489
+    ],
+    "format": "tuyau_subpoint_glyphs",
+    "generation_config": {
+      "count": 7,
+      "payload_uri": "geometry/geometry_tuyau_subpoints_result_state_Hot_gmd_fixture_not_a_solve.json",
+      "position_source": "code_aster_tuyau_subpoint_formula",
+      "range": {
+        "max": 160750000.0,
+        "min": 120000000.0
+      },
+      "source": "tuba.tuyau_subpoint_field"
+    },
+    "hash": "sha256:c8d297f33d1aeb03904c009022709ceac6751a31847db04411e88da060608a35",
+    "id": "geometry:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve",
+    "object_ids": [
+      "object:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve"
+    ],
+    "uri": "geometry/geometry_tuyau_subpoints_result_state_Hot_gmd_fixture_not_a_solve.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [
+        "AllSupports",
+        "GN_N0",
+        "PipeOrientationNodes"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "N0",
+      "point": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "role": "native_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "node:N0"
+    },
+    "hash": "sha256:ae6fb02cf04ebeae4a46920f4ef0ba49ed29220348375dc8807900d3ae166c43",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N0",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:N0"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_N0.json"
+  },
+  {
+    "bounds": [
+      2.4,
+      0.0,
+      0.0,
+      2.4,
+      0.0,
+      0.0
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "N1",
+      "point": [
+        2.4,
+        0.0,
+        0.0
+      ],
+      "role": "native_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "node:N1"
+    },
+    "hash": "sha256:1551b227e9d1df25d2dc6fa9cd1ed4ce14b24b4bf8536eb0ff220a0f58866ef4",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N1",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:N1"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_N1.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      0.3428999999999999,
+      2.7428999999999997,
+      0.0,
+      0.3428999999999999
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "N2",
+      "point": [
+        2.7428999999999997,
+        0.0,
+        0.3428999999999999
+      ],
+      "role": "native_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "node:N2"
+    },
+    "hash": "sha256:83d07fdb235279622d579cca82c04d6fb4995860db9b4f57840b81fc5f63a9de",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N2",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:N2"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_N2.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      1.5429,
+      2.7428999999999997,
+      0.0,
+      1.5429
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [
+        "AllSupports",
+        "GN_N3"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "N3",
+      "point": [
+        2.7428999999999997,
+        0.0,
+        1.5429
+      ],
+      "role": "native_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "node:N3"
+    },
+    "hash": "sha256:a85da33f0fba0ca48d0325e5c16f2b455ca24b2f412c1b3f0a6740d7f4201f57",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N3",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:N3"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_N3.json"
+  },
+  {
+    "bounds": [
+      2.433610077419006,
+      0.0,
+      0.0016511572241036943,
+      2.433610077419006,
+      0.0,
+      0.0016511572241036943
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n1",
+      "point": [
+        2.433610077419006,
+        0.0,
+        0.0016511572241036943
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:7c9de01fd702c1f216cdeb0fffbb73b6ea36dfc0734b0e4f248493dec8119eb6",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n1",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n1"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n1.json"
+  },
+  {
+    "bounds": [
+      2.685110930058542,
+      0.0,
+      0.1523949670975779,
+      2.685110930058542,
+      0.0,
+      0.1523949670975779
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n10",
+      "point": [
+        2.685110930058542,
+        0.0,
+        0.1523949670975779
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:147ba43492df7e17dd50ed16b7b2a116d3f69418084361e8c557cc5ee5aa5d9a",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n10",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n10"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n10.json"
+  },
+  {
+    "bounds": [
+      2.7024108015450503,
+      0.0,
+      0.18125805894236505,
+      2.7024108015450503,
+      0.0,
+      0.18125805894236505
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n11",
+      "point": [
+        2.7024108015450503,
+        0.0,
+        0.18125805894236505
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:77d3c694ee5a808a1d2391450fdd77b38b7abfebec991938c2145c0aef9aa32d",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n11",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n11"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n11.json"
+  },
+  {
+    "bounds": [
+      2.7167982916981197,
+      0.0,
+      0.21167785104201023,
+      2.7167982916981197,
+      0.0,
+      0.21167785104201023
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n12",
+      "point": [
+        2.7167982916981197,
+        0.0,
+        0.21167785104201023
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:1c63d56326816927d89afad97f2900581ac7c1330e8b1c2c09d7dcabeb646430",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n12",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n12"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n12.json"
+  },
+  {
+    "bounds": [
+      2.7281348411225737,
+      0.0,
+      0.24336138416944453,
+      2.7281348411225737,
+      0.0,
+      0.24336138416944453
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n13",
+      "point": [
+        2.7281348411225737,
+        0.0,
+        0.24336138416944453
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:7823f0fc5c5b140b101a7069cfe78cbeb37eedeef17c3cfdf8ad07bf92f49587",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n13",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n13"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n13.json"
+  },
+  {
+    "bounds": [
+      2.736311272650267,
+      0.0,
+      0.27600352858066945,
+      2.736311272650267,
+      0.0,
+      0.27600352858066945
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n14",
+      "point": [
+        2.736311272650267,
+        0.0,
+        0.27600352858066945
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:0ebe5d34e27fc68bb47a1e5506ed39ca49c02ff68349bc5cb640a5b053df92f9",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n14",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n14"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n14.json"
+  },
+  {
+    "bounds": [
+      2.741248842775896,
+      0.0,
+      0.3092899225809934,
+      2.741248842775896,
+      0.0,
+      0.3092899225809934
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n15",
+      "point": [
+        2.741248842775896,
+        0.0,
+        0.3092899225809934
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:312d2940b92111b835aefb12f0c9f013f2177f2e0d554d694e3d89aafd755f98",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n15",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n15"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n15.json"
+  },
+  {
+    "bounds": [
+      2.46689647141933,
+      0.0,
+      0.006588727349732315,
+      2.46689647141933,
+      0.0,
+      0.006588727349732315
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n2",
+      "point": [
+        2.46689647141933,
+        0.0,
+        0.006588727349732315
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:d0ee7c91c66db4aed62f994a10b07edf1238b44c21221f401c26d8c0b12b6933",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n2",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n2"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n2.json"
+  },
+  {
+    "bounds": [
+      2.499538615830555,
+      0.0,
+      0.014765158877425577,
+      2.499538615830555,
+      0.0,
+      0.014765158877425577
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n3",
+      "point": [
+        2.499538615830555,
+        0.0,
+        0.014765158877425577
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:40741f64a02df570b83a03dc81c56daa229cfb770f5193070f294ef8c802ce96",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n3",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n3"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n3.json"
+  },
+  {
+    "bounds": [
+      2.5312221489579887,
+      0.0,
+      0.026101708301879745,
+      2.5312221489579887,
+      0.0,
+      0.026101708301879745
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n4",
+      "point": [
+        2.5312221489579887,
+        0.0,
+        0.026101708301879745
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:2c595396bfe673d795346a5314ad7616b5d6b710a58ef63a2df7f5e0200b93b7",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n4",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n4"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n4.json"
+  },
+  {
+    "bounds": [
+      2.561641941057634,
+      0.0,
+      0.04048919845494897,
+      2.561641941057634,
+      0.0,
+      0.04048919845494897
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n5",
+      "point": [
+        2.561641941057634,
+        0.0,
+        0.04048919845494897
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:32267b2b12df2c3185e3f3e5bce2f0249bfc37428e3c72903454e24a3d5c64a5",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n5",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n5"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n5.json"
+  },
+  {
+    "bounds": [
+      2.5905050329024206,
+      0.0,
+      0.057789069941456994,
+      2.5905050329024206,
+      0.0,
+      0.057789069941456994
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n6",
+      "point": [
+        2.5905050329024206,
+        0.0,
+        0.057789069941456994
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:81d20994bcae8d94ecda757fd26810e17aa11ed1652ad89e20ef65837f444211",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n6",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n6"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n6.json"
+  },
+  {
+    "bounds": [
+      2.617533457139713,
+      0.0,
+      0.07783471554191712,
+      2.617533457139713,
+      0.0,
+      0.07783471554191712
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n7",
+      "point": [
+        2.617533457139713,
+        0.0,
+        0.07783471554191712
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:48da1dbd0aa51930481fdbbbbf9b1e984b547749a54e4ce9311754d8c274861d",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n7",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n7"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n7.json"
+  },
+  {
+    "bounds": [
+      2.6424669152688662,
+      0.0,
+      0.10043308473113238,
+      2.6424669152688662,
+      0.0,
+      0.10043308473113238
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n8",
+      "point": [
+        2.6424669152688662,
+        0.0,
+        0.10043308473113238
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:1b84ae27ad0c276391db59f59269a1309aaafb08b3d80abb75a5ef68fc530dfd",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n8",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n8"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n8.json"
+  },
+  {
+    "bounds": [
+      2.6650652844580813,
+      0.0,
+      0.12536654286028534,
+      2.6650652844580813,
+      0.0,
+      0.12536654286028534
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_n9",
+      "point": [
+        2.6650652844580813,
+        0.0,
+        0.12536654286028534
+      ],
+      "role": "generated_bend_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:ac9007064e8ff1805249add4179390a6f2a0ae241d9adb4d83de401ebc861ca5",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n9",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n9"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_n9.json"
+  },
+  {
+    "bounds": [
+      2.4168050387095033,
+      0.0,
+      0.0008255786120518471,
+      2.4168050387095033,
+      0.0,
+      0.0008255786120518471
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s0_mid",
+      "point": [
+        2.4168050387095033,
+        0.0,
+        0.0008255786120518471
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:a1251686d8a06eae7a506f1da6b1519e1aa015baa91469b194f4efb6d01a60ab",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s0_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s0_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s0_mid.json"
+  },
+  {
+    "bounds": [
+      2.693760865801796,
+      0.0,
+      0.16682651301997148,
+      2.693760865801796,
+      0.0,
+      0.16682651301997148
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s10_mid",
+      "point": [
+        2.693760865801796,
+        0.0,
+        0.16682651301997148
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:56498643fd2c229e18badcb8ea17b81c1a28e911cecff179243b634a1af3e730",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s10_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s10_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s10_mid.json"
+  },
+  {
+    "bounds": [
+      2.709604546621585,
+      0.0,
+      0.19646795499218764,
+      2.709604546621585,
+      0.0,
+      0.19646795499218764
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s11_mid",
+      "point": [
+        2.709604546621585,
+        0.0,
+        0.19646795499218764
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:e1148d48763436800acd8cf7765f7ac8ae0e4196109235439f14152d46e8d4eb",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s11_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s11_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s11_mid.json"
+  },
+  {
+    "bounds": [
+      2.722466566410347,
+      0.0,
+      0.22751961760572736,
+      2.722466566410347,
+      0.0,
+      0.22751961760572736
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s12_mid",
+      "point": [
+        2.722466566410347,
+        0.0,
+        0.22751961760572736
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:2df122972d2666fd2a01c47bcf8f74f767220e762626198e51d22878129dd4c5",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s12_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s12_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s12_mid.json"
+  },
+  {
+    "bounds": [
+      2.7322230568864203,
+      0.0,
+      0.259682456375057,
+      2.7322230568864203,
+      0.0,
+      0.259682456375057
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s13_mid",
+      "point": [
+        2.7322230568864203,
+        0.0,
+        0.259682456375057
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:d0db72fa07250d98d7e8d75bc0017c108e8954fe8c6d1ea9f64d4781ac822af5",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s13_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s13_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s13_mid.json"
+  },
+  {
+    "bounds": [
+      2.7387800577130816,
+      0.0,
+      0.29264672558083143,
+      2.7387800577130816,
+      0.0,
+      0.29264672558083143
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s14_mid",
+      "point": [
+        2.7387800577130816,
+        0.0,
+        0.29264672558083143
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:6cb1e01e7ea123a839e5fb3aaecffba3d548220667bd3659e1967f59ca461958",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s14_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s14_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s14_mid.json"
+  },
+  {
+    "bounds": [
+      2.7420744213879478,
+      0.0,
+      0.32609496129049664,
+      2.7420744213879478,
+      0.0,
+      0.32609496129049664
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s15_mid",
+      "point": [
+        2.7420744213879478,
+        0.0,
+        0.32609496129049664
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:a33d2907b0d701c69cc11f1f01e2af19a48249bffee454568ca9f33ef4ff95b3",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s15_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s15_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s15_mid.json"
+  },
+  {
+    "bounds": [
+      2.4502532744191683,
+      0.0,
+      0.004119942286918005,
+      2.4502532744191683,
+      0.0,
+      0.004119942286918005
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s1_mid",
+      "point": [
+        2.4502532744191683,
+        0.0,
+        0.004119942286918005
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:69ea0ba80a859fa64533cf1b8b4f4fe46d9eb1b2e0f124d8e3632a95ec5002c8",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s1_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s1_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s1_mid.json"
+  },
+  {
+    "bounds": [
+      2.483217543624942,
+      0.0,
+      0.010676943113578946,
+      2.483217543624942,
+      0.0,
+      0.010676943113578946
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s2_mid",
+      "point": [
+        2.483217543624942,
+        0.0,
+        0.010676943113578946
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:6bebc32f89fb52166e0115df8ef1c0cc39399089ab42828307c5341db0c0c001",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s2_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s2_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s2_mid.json"
+  },
+  {
+    "bounds": [
+      2.5153803823942718,
+      0.0,
+      0.02043343358965266,
+      2.5153803823942718,
+      0.0,
+      0.02043343358965266
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s3_mid",
+      "point": [
+        2.5153803823942718,
+        0.0,
+        0.02043343358965266
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:975f4f24943ae05242fdbd0ff7188fa3cedcc3cd40378e661307630442db59c5",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s3_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s3_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s3_mid.json"
+  },
+  {
+    "bounds": [
+      2.546432045007811,
+      0.0,
+      0.03329545337841436,
+      2.546432045007811,
+      0.0,
+      0.03329545337841436
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s4_mid",
+      "point": [
+        2.546432045007811,
+        0.0,
+        0.03329545337841436
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:c24fb76387d29fcd026043eeb52361036512b507c94495769014bf953c9dddb2",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s4_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s4_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s4_mid.json"
+  },
+  {
+    "bounds": [
+      2.576073486980027,
+      0.0,
+      0.04913913419820298,
+      2.576073486980027,
+      0.0,
+      0.04913913419820298
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s5_mid",
+      "point": [
+        2.576073486980027,
+        0.0,
+        0.04913913419820298
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:a846c7e74df078480d3a008ff28b36f1b24da0e6d1f174d674cab8d3121ad578",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s5_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s5_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s5_mid.json"
+  },
+  {
+    "bounds": [
+      2.6040192450210666,
+      0.0,
+      0.06781189274168706,
+      2.6040192450210666,
+      0.0,
+      0.06781189274168706
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s6_mid",
+      "point": [
+        2.6040192450210666,
+        0.0,
+        0.06781189274168706
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:087cec63665224f9c3a197152fa1fa55088b3ea614e19c3c8b6249912ad5ebfe",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s6_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s6_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s6_mid.json"
+  },
+  {
+    "bounds": [
+      2.6300001862042897,
+      0.0,
+      0.08913390013652475,
+      2.6300001862042897,
+      0.0,
+      0.08913390013652475
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s7_mid",
+      "point": [
+        2.6300001862042897,
+        0.0,
+        0.08913390013652475
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:4cbe684e40292a05e2f2bed2f972a0c20b7d7eec057c62acaeb7202848e3c29f",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s7_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s7_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s7_mid.json"
+  },
+  {
+    "bounds": [
+      2.653766099863474,
+      0.0,
+      0.11289981379570886,
+      2.653766099863474,
+      0.0,
+      0.11289981379570886
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s8_mid",
+      "point": [
+        2.653766099863474,
+        0.0,
+        0.11289981379570886
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:8d5a1a5c1aa1b2ca36ea845c23bee5038156222b52c433962bd69f6010095cfc",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s8_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s8_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s8_mid.json"
+  },
+  {
+    "bounds": [
+      2.6750881072583117,
+      0.0,
+      0.13888075497893163,
+      2.6750881072583117,
+      0.0,
+      0.13888075497893163
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_bend_0_s9_mid",
+      "point": [
+        2.6750881072583117,
+        0.0,
+        0.13888075497893163
+      ],
+      "role": "generated_bend_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:4207cec39d1f6bbf32919bbb06b519a11b59f872a610d68652419d45e2686587",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s9_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s9_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_bend_0_s9_mid.json"
+  },
+  {
+    "bounds": [
+      1.2,
+      0.0,
+      0.0,
+      1.2,
+      0.0,
+      0.0
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_str_0_mid",
+      "point": [
+        1.2,
+        0.0,
+        0.0
+      ],
+      "role": "generated_pipe_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_str_0"
+    },
+    "hash": "sha256:746bb207f5b8715c125c3ab789bdb4c19b8bd96d0481d58bb03b0468bf2a9d5d",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_str_0_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_str_0_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_str_0_mid.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      0.9429,
+      2.7428999999999997,
+      0.0,
+      0.9429
+    ],
+    "format": "point",
+    "generation_config": {
+      "groups": [],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_id": "pipe_str_1_mid",
+      "point": [
+        2.7428999999999997,
+        0.0,
+        0.9429
+      ],
+      "role": "generated_pipe_mid_node",
+      "source": "tuba.analysis_mesh.node",
+      "source_ref": "element:pipe_str_1"
+    },
+    "hash": "sha256:ccbdaebbb3b3927b3e807342550d4e4c2a8a8b72dab991614665f89e0be1a802",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_str_1_mid",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:node:pipe_str_1_mid"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_node_pipe_str_1_mid.json"
+  },
+  {
+    "bounds": [
+      2.4,
+      0.0,
+      0.0,
+      2.433610077419006,
+      0.0,
+      0.0016511572241036943
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s0",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N1",
+        "pipe_bend_0_n1"
+      ],
+      "points": [
+        [
+          2.4,
+          0.0,
+          0.0
+        ],
+        [
+          2.433610077419006,
+          0.0,
+          0.0016511572241036943
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:b807660aff167ac922cbcffa47368e8240e12504a8c6b49e48d777c9d59cd4c0",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s0",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s0"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s0.json"
+  },
+  {
+    "bounds": [
+      2.433610077419006,
+      0.0,
+      0.0016511572241036943,
+      2.46689647141933,
+      0.0,
+      0.006588727349732315
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s1",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n1",
+        "pipe_bend_0_n2"
+      ],
+      "points": [
+        [
+          2.433610077419006,
+          0.0,
+          0.0016511572241036943
+        ],
+        [
+          2.46689647141933,
+          0.0,
+          0.006588727349732315
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:fccb2edb522fc6afa6a7ef630dbb615394102cb353019b7bec5d828125cef5a6",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s1",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s1"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s1.json"
+  },
+  {
+    "bounds": [
+      2.685110930058542,
+      0.0,
+      0.1523949670975779,
+      2.7024108015450503,
+      0.0,
+      0.18125805894236505
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s10",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n10",
+        "pipe_bend_0_n11"
+      ],
+      "points": [
+        [
+          2.685110930058542,
+          0.0,
+          0.1523949670975779
+        ],
+        [
+          2.7024108015450503,
+          0.0,
+          0.18125805894236505
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:376a8df0d5fbb9441772c334bca134e7d7cb0eb6589427b9b2b578cdad48efcd",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s10",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s10"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s10.json"
+  },
+  {
+    "bounds": [
+      2.7024108015450503,
+      0.0,
+      0.18125805894236505,
+      2.7167982916981197,
+      0.0,
+      0.21167785104201023
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s11",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n11",
+        "pipe_bend_0_n12"
+      ],
+      "points": [
+        [
+          2.7024108015450503,
+          0.0,
+          0.18125805894236505
+        ],
+        [
+          2.7167982916981197,
+          0.0,
+          0.21167785104201023
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:17236485e4085a308046b79b0d5e73ff208f1c53e476c34107014339bdceb7a1",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s11",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s11"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s11.json"
+  },
+  {
+    "bounds": [
+      2.7167982916981197,
+      0.0,
+      0.21167785104201023,
+      2.7281348411225737,
+      0.0,
+      0.24336138416944453
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s12",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n12",
+        "pipe_bend_0_n13"
+      ],
+      "points": [
+        [
+          2.7167982916981197,
+          0.0,
+          0.21167785104201023
+        ],
+        [
+          2.7281348411225737,
+          0.0,
+          0.24336138416944453
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:d947111f86166bb7a98f5e04655d3dacff8dc5c9490cdf4de5ce5fc4d6819888",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s12",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s12"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s12.json"
+  },
+  {
+    "bounds": [
+      2.7281348411225737,
+      0.0,
+      0.24336138416944453,
+      2.736311272650267,
+      0.0,
+      0.27600352858066945
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s13",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n13",
+        "pipe_bend_0_n14"
+      ],
+      "points": [
+        [
+          2.7281348411225737,
+          0.0,
+          0.24336138416944453
+        ],
+        [
+          2.736311272650267,
+          0.0,
+          0.27600352858066945
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:4989b0ecc69bdfaea35359db280d0c8f30e32bc92070ae9c77bfbe41b0079337",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s13",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s13"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s13.json"
+  },
+  {
+    "bounds": [
+      2.736311272650267,
+      0.0,
+      0.27600352858066945,
+      2.741248842775896,
+      0.0,
+      0.3092899225809934
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s14",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n14",
+        "pipe_bend_0_n15"
+      ],
+      "points": [
+        [
+          2.736311272650267,
+          0.0,
+          0.27600352858066945
+        ],
+        [
+          2.741248842775896,
+          0.0,
+          0.3092899225809934
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:16cb2fadb189881db5288ed4057d346723f4f1f10017201f09940b66d8e3c319",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s14",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s14"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s14.json"
+  },
+  {
+    "bounds": [
+      2.741248842775896,
+      0.0,
+      0.3092899225809934,
+      2.7428999999999997,
+      0.0,
+      0.3428999999999999
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s15",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n15",
+        "N2"
+      ],
+      "points": [
+        [
+          2.741248842775896,
+          0.0,
+          0.3092899225809934
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:a4743fdb697abe23f7c403ec5813b37696a6b067b85255a0fd4e172a9bf513b4",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s15",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s15"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s15.json"
+  },
+  {
+    "bounds": [
+      2.46689647141933,
+      0.0,
+      0.006588727349732315,
+      2.499538615830555,
+      0.0,
+      0.014765158877425577
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s2",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n2",
+        "pipe_bend_0_n3"
+      ],
+      "points": [
+        [
+          2.46689647141933,
+          0.0,
+          0.006588727349732315
+        ],
+        [
+          2.499538615830555,
+          0.0,
+          0.014765158877425577
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:872e8d16bac9b6c0f04a654a90188b3446c1e0588294800b4376a7cf4c359f43",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s2",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s2"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s2.json"
+  },
+  {
+    "bounds": [
+      2.499538615830555,
+      0.0,
+      0.014765158877425577,
+      2.5312221489579887,
+      0.0,
+      0.026101708301879745
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s3",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n3",
+        "pipe_bend_0_n4"
+      ],
+      "points": [
+        [
+          2.499538615830555,
+          0.0,
+          0.014765158877425577
+        ],
+        [
+          2.5312221489579887,
+          0.0,
+          0.026101708301879745
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:9ad65f324f54d434ea38fe58190887ccc8d00d0e4bbbcb639efdda64a7d392af",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s3",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s3"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s3.json"
+  },
+  {
+    "bounds": [
+      2.5312221489579887,
+      0.0,
+      0.026101708301879745,
+      2.561641941057634,
+      0.0,
+      0.04048919845494897
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s4",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n4",
+        "pipe_bend_0_n5"
+      ],
+      "points": [
+        [
+          2.5312221489579887,
+          0.0,
+          0.026101708301879745
+        ],
+        [
+          2.561641941057634,
+          0.0,
+          0.04048919845494897
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:56a6b301bbce48cb9945a52b611de320f7623207c8af436b6fef5cf92fb92b83",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s4",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s4"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s4.json"
+  },
+  {
+    "bounds": [
+      2.561641941057634,
+      0.0,
+      0.04048919845494897,
+      2.5905050329024206,
+      0.0,
+      0.057789069941456994
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s5",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n5",
+        "pipe_bend_0_n6"
+      ],
+      "points": [
+        [
+          2.561641941057634,
+          0.0,
+          0.04048919845494897
+        ],
+        [
+          2.5905050329024206,
+          0.0,
+          0.057789069941456994
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:76876bc0b911fb77b7729ce5b2af678ef1133b1122d11dbe64f6115844a26c78",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s5",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s5"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s5.json"
+  },
+  {
+    "bounds": [
+      2.5905050329024206,
+      0.0,
+      0.057789069941456994,
+      2.617533457139713,
+      0.0,
+      0.07783471554191712
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s6",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n6",
+        "pipe_bend_0_n7"
+      ],
+      "points": [
+        [
+          2.5905050329024206,
+          0.0,
+          0.057789069941456994
+        ],
+        [
+          2.617533457139713,
+          0.0,
+          0.07783471554191712
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:f3380ed38f478a4931406772c980cdd4d1b467f5987e1481119cbbe8dfeed88c",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s6",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s6"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s6.json"
+  },
+  {
+    "bounds": [
+      2.617533457139713,
+      0.0,
+      0.07783471554191712,
+      2.6424669152688662,
+      0.0,
+      0.10043308473113238
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s7",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n7",
+        "pipe_bend_0_n8"
+      ],
+      "points": [
+        [
+          2.617533457139713,
+          0.0,
+          0.07783471554191712
+        ],
+        [
+          2.6424669152688662,
+          0.0,
+          0.10043308473113238
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:458b6ae0391c992e3595b6134247fb299ad0237830c3e8fc07355e87c9807c35",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s7",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s7"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s7.json"
+  },
+  {
+    "bounds": [
+      2.6424669152688662,
+      0.0,
+      0.10043308473113238,
+      2.6650652844580813,
+      0.0,
+      0.12536654286028534
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s8",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n8",
+        "pipe_bend_0_n9"
+      ],
+      "points": [
+        [
+          2.6424669152688662,
+          0.0,
+          0.10043308473113238
+        ],
+        [
+          2.6650652844580813,
+          0.0,
+          0.12536654286028534
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:5818044d88fe871f7645397ec0e0a48e830715bfb648551d4327eb8afc48d49b",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s8",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s8"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s8.json"
+  },
+  {
+    "bounds": [
+      2.6650652844580813,
+      0.0,
+      0.12536654286028534,
+      2.685110930058542,
+      0.0,
+      0.1523949670975779
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_bend_0_s9",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n9",
+        "pipe_bend_0_n10"
+      ],
+      "points": [
+        [
+          2.6650652844580813,
+          0.0,
+          0.12536654286028534
+        ],
+        [
+          2.685110930058542,
+          0.0,
+          0.1523949670975779
+        ]
+      ],
+      "role": "bend_segment",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "hash": "sha256:ba1caf032c9fda176c09b7c7a98ccee0aceba14c35e66a7a3865771bd0b6200b",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s9",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s9"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_bend_0_s9.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.0,
+      0.0,
+      2.4,
+      0.0,
+      0.0
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_str_0",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeStraights",
+        "SEC_DN100",
+        "pipe_str_0"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N0",
+        "N1"
+      ],
+      "points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.0
+        ]
+      ],
+      "role": "native_element",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_str_0"
+    },
+    "hash": "sha256:7e8ae8b14e61529ffc13b03293df52abf6acf886b11ee27e4f3924ea2d9b56f7",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_str_0",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_str_0"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_str_0.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      0.3428999999999999,
+      2.7428999999999997,
+      0.0,
+      1.5429
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "element_id": "pipe_str_1",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeStraights",
+        "SEC_DN100",
+        "pipe_str_1"
+      ],
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N2",
+        "N3"
+      ],
+      "points": [
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.5429
+        ]
+      ],
+      "role": "native_element",
+      "source": "tuba.analysis_mesh.element",
+      "source_ref": "element:pipe_str_1"
+    },
+    "hash": "sha256:3d2b48df56fb9a852872f465fa8bf0ac54f5deeffd0d4a9a0df9e7921d85c31b",
+    "id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_str_1",
+    "object_ids": [
+      "object:analysis_mesh:analysis_mesh:Hot:element:pipe_str_1"
+    ],
+    "uri": "geometry/geometry_analysis_mesh_analysis_mesh_Hot_element_pipe_str_1.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.0,
+      0.0,
+      2.4,
+      0.0,
+      0.23666666666666666
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.0
+        ]
+      ],
+      "entity_ref": "element:pipe_str_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.23666666666666666
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_centerline",
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:9e30cd4e0936c7621f3dea900988413381f5a5e773ab7552d86a9a8c87f28e62",
+    "id": "geometry:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_0",
+    "object_ids": [
+      "object:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_0"
+    ],
+    "uri": "geometry/geometry_deformed_centerline_geometry_state_Hot_visual_x50_pipe_str_0.json"
+  },
+  {
+    "bounds": [
+      2.4,
+      0.0,
+      0.23666666666666666,
+      2.7428999999999997,
+      0.0,
+      1.2895666666666665
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.4,
+          0.0,
+          0.0
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ]
+      ],
+      "entity_ref": "element:pipe_bend_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "points": [
+        [
+          2.4,
+          0.0,
+          0.23666666666666666
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.2895666666666665
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_centerline",
+      "source_mesh_nodes": [
+        "N1",
+        "N2"
+      ],
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:24eeca31996f0e5b870a3798fad4335a3ac4e8d23a86b4c7831d1a31fa32e9bd",
+    "id": "geometry:deformed_centerline:geometry_state:Hot:visual_x50:pipe_bend_0",
+    "object_ids": [
+      "object:deformed_centerline:geometry_state:Hot:visual_x50:pipe_bend_0"
+    ],
+    "uri": "geometry/geometry_deformed_centerline_geometry_state_Hot_visual_x50_pipe_bend_0.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      1.2895666666666665,
+      2.7428999999999997,
+      0.0,
+      3.6729
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.5429
+        ]
+      ],
+      "entity_ref": "element:pipe_str_1",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "points": [
+        [
+          2.7428999999999997,
+          0.0,
+          1.2895666666666665
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          3.6729
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_centerline",
+      "source_mesh_nodes": [
+        "N2",
+        "N3"
+      ],
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:c2135acdececc8df746b4575ac0b7b93c055230f54f4a9145ce9138e67203563",
+    "id": "geometry:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_1",
+    "object_ids": [
+      "object:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_1"
+    ],
+    "uri": "geometry/geometry_deformed_centerline_geometry_state_Hot_visual_x50_pipe_str_1.json"
+  },
+  {
+    "bounds": [
+      -0.05715,
+      -0.05715,
+      -0.05715,
+      2.45715,
+      0.05715,
+      0.29381666666666667
+    ],
+    "format": "tube",
+    "generation_config": {
+      "base_points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.0
+        ]
+      ],
+      "entity_ref": "element:pipe_str_0",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.23666666666666666
+        ]
+      ],
+      "radius_m": 0.05715,
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_envelope",
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:2361c7595762baf0e976422673574c6621667c40b4d9b1217cf074b7a862bf54",
+    "id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation",
+    "object_ids": [
+      "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation"
+    ],
+    "uri": "geometry/geometry_deformed_envelope_geometry_state_Hot_visual_x50_element_pipe_str_0_insulation.json"
+  },
+  {
+    "bounds": [
+      2.34285,
+      -0.05715,
+      0.17951666666666666,
+      2.8000499999999997,
+      0.05715,
+      1.3467166666666666
+    ],
+    "format": "tube",
+    "generation_config": {
+      "base_points": [
+        [
+          2.4,
+          0.0,
+          0.0
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ]
+      ],
+      "entity_ref": "element:pipe_bend_0",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "points": [
+        [
+          2.4,
+          0.0,
+          0.23666666666666666
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.2895666666666665
+        ]
+      ],
+      "radius_m": 0.05715,
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_envelope",
+      "source_mesh_nodes": [
+        "N1",
+        "N2"
+      ],
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:e7c85cf3767a992a270d5bf9a7cde0a77ac4764708e5deb2b9911b106146a3ee",
+    "id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation",
+    "object_ids": [
+      "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation"
+    ],
+    "uri": "geometry/geometry_deformed_envelope_geometry_state_Hot_visual_x50_element_pipe_bend_0_insulation.json"
+  },
+  {
+    "bounds": [
+      2.6857499999999996,
+      -0.05715,
+      1.2324166666666665,
+      2.8000499999999997,
+      0.05715,
+      3.73005
+    ],
+    "format": "tube",
+    "generation_config": {
+      "base_points": [
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.5429
+        ]
+      ],
+      "entity_ref": "element:pipe_str_1",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "points": [
+        [
+          2.7428999999999997,
+          0.0,
+          1.2895666666666665
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          3.6729
+        ]
+      ],
+      "radius_m": 0.05715,
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_envelope",
+      "source_mesh_nodes": [
+        "N2",
+        "N3"
+      ],
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:ba7e5c466b181e83b59c204595b62c7dfd13e5de438fe139c9be7417ea2944bb",
+    "id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation",
+    "object_ids": [
+      "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation"
+    ],
+    "uri": "geometry/geometry_deformed_envelope_geometry_state_Hot_visual_x50_element_pipe_str_1_insulation.json"
+  },
+  {
+    "bounds": [
+      2.4,
+      0.0,
+      0.0016511572241036943,
+      2.433610077419006,
+      0.0,
+      0.23666666666666666
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.4,
+          0.0,
+          0.0
+        ],
+        [
+          2.433610077419006,
+          0.0,
+          0.0016511572241036943
+        ]
+      ],
+      "element_id": "pipe_bend_0_s0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N1",
+        "pipe_bend_0_n1"
+      ],
+      "points": [
+        [
+          2.4,
+          0.0,
+          0.23666666666666666
+        ],
+        [
+          2.433610077419006,
+          0.0,
+          0.0016511572241036943
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:2fb86ced9d6a353f5917ee196cda673dd6e83bf5c3988b4aec3136e5e7c2bfe3",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s0",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s0"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s0.json"
+  },
+  {
+    "bounds": [
+      2.433610077419006,
+      0.0,
+      0.0016511572241036943,
+      2.46689647141933,
+      0.0,
+      0.006588727349732315
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.433610077419006,
+          0.0,
+          0.0016511572241036943
+        ],
+        [
+          2.46689647141933,
+          0.0,
+          0.006588727349732315
+        ]
+      ],
+      "element_id": "pipe_bend_0_s1",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n1",
+        "pipe_bend_0_n2"
+      ],
+      "points": [
+        [
+          2.433610077419006,
+          0.0,
+          0.0016511572241036943
+        ],
+        [
+          2.46689647141933,
+          0.0,
+          0.006588727349732315
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:9de6ffb5e22a2827b529a36f8360e394a8e623b5b9bc91a4cbf9b5597a36e47b",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s1",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s1"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s1.json"
+  },
+  {
+    "bounds": [
+      2.685110930058542,
+      0.0,
+      0.1523949670975779,
+      2.7024108015450503,
+      0.0,
+      0.18125805894236505
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.685110930058542,
+          0.0,
+          0.1523949670975779
+        ],
+        [
+          2.7024108015450503,
+          0.0,
+          0.18125805894236505
+        ]
+      ],
+      "element_id": "pipe_bend_0_s10",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n10",
+        "pipe_bend_0_n11"
+      ],
+      "points": [
+        [
+          2.685110930058542,
+          0.0,
+          0.1523949670975779
+        ],
+        [
+          2.7024108015450503,
+          0.0,
+          0.18125805894236505
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:d05b452e2a23baa20c4f76a6ab64f4f7555694d0cbb40e3c99b7ffedb911ef4c",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s10",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s10"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s10.json"
+  },
+  {
+    "bounds": [
+      2.7024108015450503,
+      0.0,
+      0.18125805894236505,
+      2.7167982916981197,
+      0.0,
+      0.21167785104201023
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.7024108015450503,
+          0.0,
+          0.18125805894236505
+        ],
+        [
+          2.7167982916981197,
+          0.0,
+          0.21167785104201023
+        ]
+      ],
+      "element_id": "pipe_bend_0_s11",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n11",
+        "pipe_bend_0_n12"
+      ],
+      "points": [
+        [
+          2.7024108015450503,
+          0.0,
+          0.18125805894236505
+        ],
+        [
+          2.7167982916981197,
+          0.0,
+          0.21167785104201023
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:dc185a74132e51415d442a5854ea7f38486c691e2facdd513b2cfb5d3fd7c691",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s11",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s11"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s11.json"
+  },
+  {
+    "bounds": [
+      2.7167982916981197,
+      0.0,
+      0.21167785104201023,
+      2.7281348411225737,
+      0.0,
+      0.24336138416944453
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.7167982916981197,
+          0.0,
+          0.21167785104201023
+        ],
+        [
+          2.7281348411225737,
+          0.0,
+          0.24336138416944453
+        ]
+      ],
+      "element_id": "pipe_bend_0_s12",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n12",
+        "pipe_bend_0_n13"
+      ],
+      "points": [
+        [
+          2.7167982916981197,
+          0.0,
+          0.21167785104201023
+        ],
+        [
+          2.7281348411225737,
+          0.0,
+          0.24336138416944453
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:fcdf41621bed05116db8a1f9b648c1f87934da2f750c81ee78dad0219b4df6b9",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s12",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s12"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s12.json"
+  },
+  {
+    "bounds": [
+      2.7281348411225737,
+      0.0,
+      0.24336138416944453,
+      2.736311272650267,
+      0.0,
+      0.27600352858066945
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.7281348411225737,
+          0.0,
+          0.24336138416944453
+        ],
+        [
+          2.736311272650267,
+          0.0,
+          0.27600352858066945
+        ]
+      ],
+      "element_id": "pipe_bend_0_s13",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n13",
+        "pipe_bend_0_n14"
+      ],
+      "points": [
+        [
+          2.7281348411225737,
+          0.0,
+          0.24336138416944453
+        ],
+        [
+          2.736311272650267,
+          0.0,
+          0.27600352858066945
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:8f92d9088c955be95642f870c9887ad85b732ccfeba301f4b5c99ca8e9de2690",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s13",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s13"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s13.json"
+  },
+  {
+    "bounds": [
+      2.736311272650267,
+      0.0,
+      0.27600352858066945,
+      2.741248842775896,
+      0.0,
+      0.3092899225809934
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.736311272650267,
+          0.0,
+          0.27600352858066945
+        ],
+        [
+          2.741248842775896,
+          0.0,
+          0.3092899225809934
+        ]
+      ],
+      "element_id": "pipe_bend_0_s14",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n14",
+        "pipe_bend_0_n15"
+      ],
+      "points": [
+        [
+          2.736311272650267,
+          0.0,
+          0.27600352858066945
+        ],
+        [
+          2.741248842775896,
+          0.0,
+          0.3092899225809934
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:5e485b2753436fdc8f1754dc4a1c71c01c4f90e137d3de2f79dfd48bb1967293",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s14",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s14"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s14.json"
+  },
+  {
+    "bounds": [
+      2.741248842775896,
+      0.0,
+      0.3092899225809934,
+      2.7428999999999997,
+      0.0,
+      1.2895666666666665
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.741248842775896,
+          0.0,
+          0.3092899225809934
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ]
+      ],
+      "element_id": "pipe_bend_0_s15",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n15",
+        "N2"
+      ],
+      "points": [
+        [
+          2.741248842775896,
+          0.0,
+          0.3092899225809934
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.2895666666666665
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:4c576ae9912377344980fa3dd0ab869702bfbbf01296b3b035d454465cb7d32a",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s15",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s15"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s15.json"
+  },
+  {
+    "bounds": [
+      2.46689647141933,
+      0.0,
+      0.006588727349732315,
+      2.499538615830555,
+      0.0,
+      0.014765158877425577
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.46689647141933,
+          0.0,
+          0.006588727349732315
+        ],
+        [
+          2.499538615830555,
+          0.0,
+          0.014765158877425577
+        ]
+      ],
+      "element_id": "pipe_bend_0_s2",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n2",
+        "pipe_bend_0_n3"
+      ],
+      "points": [
+        [
+          2.46689647141933,
+          0.0,
+          0.006588727349732315
+        ],
+        [
+          2.499538615830555,
+          0.0,
+          0.014765158877425577
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:8259f9cbea268ee44a28cf865382655f6d8709bc7bad169e2f64eed0a3623df8",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s2",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s2"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s2.json"
+  },
+  {
+    "bounds": [
+      2.499538615830555,
+      0.0,
+      0.014765158877425577,
+      2.5312221489579887,
+      0.0,
+      0.026101708301879745
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.499538615830555,
+          0.0,
+          0.014765158877425577
+        ],
+        [
+          2.5312221489579887,
+          0.0,
+          0.026101708301879745
+        ]
+      ],
+      "element_id": "pipe_bend_0_s3",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n3",
+        "pipe_bend_0_n4"
+      ],
+      "points": [
+        [
+          2.499538615830555,
+          0.0,
+          0.014765158877425577
+        ],
+        [
+          2.5312221489579887,
+          0.0,
+          0.026101708301879745
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:14e0bde2938a5a887a08ba55366ce03477cc3dae7dfd1fb3a5783716acf40b30",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s3",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s3"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s3.json"
+  },
+  {
+    "bounds": [
+      2.5312221489579887,
+      0.0,
+      0.026101708301879745,
+      2.561641941057634,
+      0.0,
+      0.04048919845494897
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.5312221489579887,
+          0.0,
+          0.026101708301879745
+        ],
+        [
+          2.561641941057634,
+          0.0,
+          0.04048919845494897
+        ]
+      ],
+      "element_id": "pipe_bend_0_s4",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n4",
+        "pipe_bend_0_n5"
+      ],
+      "points": [
+        [
+          2.5312221489579887,
+          0.0,
+          0.026101708301879745
+        ],
+        [
+          2.561641941057634,
+          0.0,
+          0.04048919845494897
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:3bd54f608fafe9b079fccd7e15c86191121d647eed40141397c04fbe6bbdb14f",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s4",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s4"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s4.json"
+  },
+  {
+    "bounds": [
+      2.561641941057634,
+      0.0,
+      0.04048919845494897,
+      2.5905050329024206,
+      0.0,
+      0.057789069941456994
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.561641941057634,
+          0.0,
+          0.04048919845494897
+        ],
+        [
+          2.5905050329024206,
+          0.0,
+          0.057789069941456994
+        ]
+      ],
+      "element_id": "pipe_bend_0_s5",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n5",
+        "pipe_bend_0_n6"
+      ],
+      "points": [
+        [
+          2.561641941057634,
+          0.0,
+          0.04048919845494897
+        ],
+        [
+          2.5905050329024206,
+          0.0,
+          0.057789069941456994
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:021540548f28a0821be06ab2af34345259f31c23a22e2a61113a1e298a167def",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s5",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s5"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s5.json"
+  },
+  {
+    "bounds": [
+      2.5905050329024206,
+      0.0,
+      0.057789069941456994,
+      2.617533457139713,
+      0.0,
+      0.07783471554191712
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.5905050329024206,
+          0.0,
+          0.057789069941456994
+        ],
+        [
+          2.617533457139713,
+          0.0,
+          0.07783471554191712
+        ]
+      ],
+      "element_id": "pipe_bend_0_s6",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n6",
+        "pipe_bend_0_n7"
+      ],
+      "points": [
+        [
+          2.5905050329024206,
+          0.0,
+          0.057789069941456994
+        ],
+        [
+          2.617533457139713,
+          0.0,
+          0.07783471554191712
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:f8cd4f8f5e977e8d4af3d5fc97b23ca09501495903ea42bf23a39938ce2fc32e",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s6",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s6"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s6.json"
+  },
+  {
+    "bounds": [
+      2.617533457139713,
+      0.0,
+      0.07783471554191712,
+      2.6424669152688662,
+      0.0,
+      0.10043308473113238
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.617533457139713,
+          0.0,
+          0.07783471554191712
+        ],
+        [
+          2.6424669152688662,
+          0.0,
+          0.10043308473113238
+        ]
+      ],
+      "element_id": "pipe_bend_0_s7",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n7",
+        "pipe_bend_0_n8"
+      ],
+      "points": [
+        [
+          2.617533457139713,
+          0.0,
+          0.07783471554191712
+        ],
+        [
+          2.6424669152688662,
+          0.0,
+          0.10043308473113238
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:6cc23fec012c4e7aedf65cc7b667c874ba96d7ddcd40c4ccd92688064af5b8cf",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s7",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s7"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s7.json"
+  },
+  {
+    "bounds": [
+      2.6424669152688662,
+      0.0,
+      0.10043308473113238,
+      2.6650652844580813,
+      0.0,
+      0.12536654286028534
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.6424669152688662,
+          0.0,
+          0.10043308473113238
+        ],
+        [
+          2.6650652844580813,
+          0.0,
+          0.12536654286028534
+        ]
+      ],
+      "element_id": "pipe_bend_0_s8",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n8",
+        "pipe_bend_0_n9"
+      ],
+      "points": [
+        [
+          2.6424669152688662,
+          0.0,
+          0.10043308473113238
+        ],
+        [
+          2.6650652844580813,
+          0.0,
+          0.12536654286028534
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:d0c0fae8e6ea5407056815458cd9038518ff91a01d957ea58d4f971b996863d5",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s8",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s8"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s8.json"
+  },
+  {
+    "bounds": [
+      2.6650652844580813,
+      0.0,
+      0.12536654286028534,
+      2.685110930058542,
+      0.0,
+      0.1523949670975779
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.6650652844580813,
+          0.0,
+          0.12536654286028534
+        ],
+        [
+          2.685110930058542,
+          0.0,
+          0.1523949670975779
+        ]
+      ],
+      "element_id": "pipe_bend_0_s9",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n9",
+        "pipe_bend_0_n10"
+      ],
+      "points": [
+        [
+          2.6650652844580813,
+          0.0,
+          0.12536654286028534
+        ],
+        [
+          2.685110930058542,
+          0.0,
+          0.1523949670975779
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:b6993d50055538ac7204a7403ab22943f68669f386cf8d30a963d8d04a58e35e",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s9",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s9"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_bend_0_s9.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.0,
+      0.0,
+      2.4,
+      0.0,
+      0.23666666666666666
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.0
+        ]
+      ],
+      "element_id": "pipe_str_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N0",
+        "N1"
+      ],
+      "points": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          2.4,
+          0.0,
+          0.23666666666666666
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:321446821de533ebc66cb8c8e35ba4a08383840d44e0d55d957e32bdaf174583",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_0",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_0"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_str_0.json"
+  },
+  {
+    "bounds": [
+      2.7428999999999997,
+      0.0,
+      1.2895666666666665,
+      2.7428999999999997,
+      0.0,
+      3.6729
+    ],
+    "format": "polyline",
+    "generation_config": {
+      "base_points": [
+        [
+          2.7428999999999997,
+          0.0,
+          0.3428999999999999
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          1.5429
+        ]
+      ],
+      "element_id": "pipe_str_1",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N2",
+        "N3"
+      ],
+      "points": [
+        [
+          2.7428999999999997,
+          0.0,
+          1.2895666666666665
+        ],
+        [
+          2.7428999999999997,
+          0.0,
+          3.6729
+        ]
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source": "tuba.deformed_analysis_mesh.element",
+      "visual_scale": 50.0
+    },
+    "hash": "sha256:214f26f4203898ae4009345b1d2b95010a4aefc8e75bb21e7b0d810e4e830f49",
+    "id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_1",
+    "object_ids": [
+      "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_1"
+    ],
+    "uri": "geometry/geometry_deformed_mesh_geometry_state_Hot_visual_x50_analysis_mesh_Hot_pipe_str_1.json"
+  }
+]

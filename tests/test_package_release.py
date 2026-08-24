@@ -53,6 +53,10 @@ def _referenced_viewer_assets(package_root: Path) -> set[str]:
     return referenced
 
 
+# Every subprocess below decodes as UTF-8 explicitly. Left to the platform
+# default, Windows uses cp1252 and a single non-ASCII byte in pip output makes
+# the decode fail, so captured stderr arrives as None and the assertion that
+# reads it dies with a TypeError instead of reporting the real result.
 def _build_wheel(root: Path, wheel_dir: Path) -> Path:
     subprocess.run(
         [
@@ -67,6 +71,8 @@ def _build_wheel(root: Path, wheel_dir: Path) -> Path:
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     return next(wheel_dir.glob("*.whl"))
 
@@ -277,6 +283,8 @@ def test_built_wheel_launcher_serves_exact_packaged_assets(tmp_path):
         cwd=tmp_path,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     assert smoke.returncode == 0, smoke.stderr
@@ -291,6 +299,8 @@ def test_release_wheel_verifier_rejects_unavailable_declared_dependency(tmp_path
         cwd=tmp_path,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     assert missing_dependency.returncode != 0
@@ -344,6 +354,8 @@ def test_candidate_overlay_handles_deleted_paths_before_and_after_commit(tmp_pat
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     ).stdout.strip()
 
 
@@ -400,6 +412,8 @@ def test_clean_git_index_snapshot_rebuilds_identical_viewer_and_installed_launch
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     subprocess.run([sys.executable, snapshot / "scripts" / "prepare_release.py"], check=True)
     rebuilt_viewer = _viewer_files(snapshot)
@@ -417,6 +431,8 @@ def test_clean_git_index_snapshot_rebuilds_identical_viewer_and_installed_launch
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     artifacts = [*dist.glob("*.whl"), *dist.glob("*.tar.gz")]
     assert len(artifacts) == 2

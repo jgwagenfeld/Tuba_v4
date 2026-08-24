@@ -216,13 +216,17 @@ function buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers = [])
     const spec = declared.get(id);
     return spec ? { category: spec.category, label: spec.label || labelForLayer(id), meshIdentity: spec.mesh_identity } : {};
   };
+  // The scene says what it wants shown on arrival. This used to be read only for
+  // layers that draw nothing, so every layer that actually draws something came
+  // up visible whatever the bundle declared.
+  const declaredVisible = (id) => declared.get(id)?.default_visible !== false;
 
   for (const obj of objects) {
     for (const id of objectLayerIds[obj.id] ?? [obj.kind || "object"]) {
       layers[id] ??= {
         id,
         label: labelForLayer(id),
-        visible: true,
+        visible: declaredVisible(id),
         count: 0,
         source: "object",
         objectIds: [],
@@ -237,7 +241,7 @@ function buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers = [])
     layers[id] ??= {
       id,
       label: labelForLayer(id),
-      visible: overlay.visible !== false,
+      visible: overlay.visible !== false && declaredVisible(id),
       count: 0,
       source: "overlay",
       overlayKind: overlay.kind || "overlay",

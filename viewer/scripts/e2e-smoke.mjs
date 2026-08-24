@@ -10,6 +10,18 @@ import { createServer } from "vite";
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scenario = process.argv[2] ?? "smoke";
 
+// A clash marker is gated twice - by its own object layer and by the overlay
+// layer that owns markers of its kind - so both leaves have to move together.
+// Each click re-renders the tree, so the locator is re-resolved every time.
+async function setLayerLeaves(page, label, visible) {
+  const leaves = page.getByLabel(label);
+  const count = await leaves.count();
+  assert.ok(count > 0, `expected at least one layer leaf matching ${label}`);
+  for (let index = 0; index < count; index += 1) {
+    await (visible ? leaves.nth(index).check() : leaves.nth(index).uncheck());
+  }
+}
+
 function captureUnexpectedBrowserEvents(page) {
   page.__tubaUnexpectedBrowserEvents = [];
   page.on("pageerror", (error) => page.__tubaUnexpectedBrowserEvents.push(`pageerror: ${error.message}`));
@@ -97,6 +109,11 @@ const scenarios = {
     minimumObjects: 3,
     async run(page) {
       const canvas = page.locator("[data-canvas]");
+      // The section box is a secondary control, folded into a drawer so the
+      // bodies panel owns the rail. Open it before the first framebuffer
+      // sample: every snapshot below is compared against another, so the
+      // layout has to be identical across all of them.
+      await page.locator('[data-rail-tool="section"]').click();
       const baseline = await framebufferFingerprint(canvas);
       const baselineSnapshot = await framebufferSnapshot(canvas);
       const positiveZ = page.getByRole("button", { name: "+Z", exact: true });
@@ -218,22 +235,110 @@ const scenarios = {
       assert.equal(await picker.inputValue(), "code-aster-review");
     }
   },
+  units: {
+    bundle: "/test/fixtures/geometry_mesh_deformed",
+    minimumObjects: 3,
+    async run(page) {
+      const field = page.getByRole("combobox", { name: /^Field/ });
+      const subpoint = (await field.evaluate((select) => [...select.options].map((option) => option.value))).find(
+        (value) => value.includes("tuyau")
+      );
+      await field.selectOption(subpoint);
+
+      const chip = page.locator("[data-unit-system]");
+      const legend = page.locator("[data-viewport-legend]");
+      const section = page.locator("[data-section-profile]");
+
+      // Engineering by default: stored pascals read as MPa, stored metres as mm.
+      assert.equal(await chip.getAttribute("data-unit-system"), "engineering");
+      assert.match(await legend.textContent(), /MPa/);
+      assert.match(await section.textContent(), /peak 160\.8 MPa/);
+      assert.match(
+        await page.locator('.body-row[data-body="geometry"]').textContent(),
+        /OD 114\.3 · WT 6\.02 · R 342\.9 mm/
+      );
+      assert.match(await page.locator("[data-discretisation-check]").textContent(), /0\.413 mm/);
+
+      // Switching systems restates the same stored numbers; it never moves them.
+      await chip.click();
+      assert.equal(await chip.getAttribute("data-unit-system"), "si");
+      assert.match(await legend.textContent(), /Pa/);
+      assert.doesNotMatch(await legend.textContent(), /MPa/);
+      assert.match(await section.textContent(), /peak 1\.61e\+8 Pa/);
+      assert.match(
+        await page.locator('.body-row[data-body="geometry"]').textContent(),
+        /OD 0\.1143 · WT 0\.00602 · R 0\.3429 m/
+      );
+      assert.match(await page.locator("[data-discretisation-check]").textContent(), /0\.000413 m/);
+
+      await chip.click();
+      assert.equal(await chip.getAttribute("data-unit-system"), "engineering");
+    }
+  },
+  "units-threshold": {
+    // A review-backed bundle, because the threshold lives in the Results task.
+    bundle: "/test/fixtures/code_aster_results",
+    minimumObjects: 3,
+    async run(page) {
+      await page.getByRole("button", { name: "Results", exact: true }).click();
+      const threshold = page.getByLabel(/Stress threshold/i);
+      const storedThreshold = () => page.evaluate(() => window.__tubaViewer?.state?.resultThreshold);
+
+      // The field is stress in pascals, so the control is denominated in MPa.
+      assert.match(await page.locator("[data-result-controls]").textContent(), /Stress threshold \(MPa\)/);
+      assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe 57 MPa/);
+
+      // Typed in the displayed unit, stored in pascals. Getting this wrong
+      // filters against the wrong magnitude and silently empties the list.
+      await threshold.evaluate((input) => {
+        input.value = "50";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      assert.equal(await storedThreshold(), 50000000);
+      const filtered = await page.locator("[data-hotspot-list]").textContent();
+      assert.match(filtered, /Hot pipe/);
+      assert.doesNotMatch(filtered, /Warm pipe/);
+
+      // Switching systems restates the cut-off without moving it.
+      await page.locator("[data-unit-system]").click();
+      assert.equal(await storedThreshold(), 50000000);
+      assert.equal(await threshold.inputValue(), "50000000");
+      assert.match(await page.locator("[data-result-controls]").textContent(), /Stress threshold \(Pa\)/);
+      assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe 5\.70e\+7 Pa/);
+
+      // A value typed in SI base is stored as typed - 1 MPa admits both pipes,
+      // where the same digits read as MPa would have excluded everything.
+      await threshold.evaluate((input) => {
+        input.value = "1000000";
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      assert.equal(await storedThreshold(), 1000000);
+      const bothPipes = await page.locator("[data-hotspot-list]").textContent();
+      assert.match(bothPipes, /Hot pipe/);
+      assert.match(bothPipes, /Warm pipe 6\.00e\+6 Pa/);
+    }
+  },
   "layer-state": {
     bundle: "/test/fixtures/layer_state_scene",
     // The default "model" task preset hides the results + overlays categories, so only
     // object:cold renders on load; the scenario turns them on before exercising toggles.
     minimumObjects: 1,
     async run(page) {
+      // Secondary tools moved into the rail popover so the bodies panel owns the
+      // rail. Open it the way a reviewer would, then expand the tree inside it.
+      await page.locator('[data-rail-tool="layers"]').click();
       const layers = page.locator(".layer-tree");
       await layers.evaluate((details) => {
         details.open = true;
       });
       assert.equal(await layers.evaluate((details) => details.open), true);
-      // Reveal the preset-hidden categories via the display-strip category switches.
-      // object:cold -> design, object:deformed -> results, object:clash -> annotations
-      // (this fixture carries no scene.layers, so it exercises the legacy fallback).
-      await page.getByLabel(/^\s*Results\s*$/).check();
-      await page.getByLabel(/^\s*Annotations\s*$/).check();
+      // Reveal what the "model" task preset hid. object:deformed is one of the
+      // four composited bodies so it has a row in the bodies panel; object:clash
+      // is an annotation, which no body claims, so it is reached through the
+      // full layer tree. (This fixture carries no scene.layers, so it also
+      // exercises the legacy category fallback.)
+      await page.getByLabel(/^\s*Deformed mesh\s*$/).check();
+      await setLayerLeaves(page, /Clash \(\d+\)/, true);
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 3 && ids.includes("object:cold") && ids.includes("object:deformed") && ids.includes("object:clash");
@@ -245,7 +350,7 @@ const scenarios = {
         return ids.length === 2 && ids.includes("object:cold") && ids.includes("object:clash") && !ids.includes("object:deformed");
       });
 
-      await page.getByLabel(/^\s*Annotations\s*$/).uncheck(); // category switch hides the clash marker
+      await setLayerLeaves(page, /Clash \(\d+\)/, false); // layer-tree leaves hide the clash marker
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 1 && ids[0] === "object:cold";
@@ -256,10 +361,17 @@ const scenarios = {
     bundle: "/test/fixtures/inspection_scene",
     minimumObjects: 1,
     async run(page) {
-      await page.getByLabel(/^\s*Annotations\s*$/).check();
+      // Analysis mesh is a body; the clash marker is an annotation and lives in
+      // the layer tree.
+      await page.locator(".layer-tree").evaluate((details) => {
+        details.open = true;
+      });
+      await setLayerLeaves(page, /Clash \(\d+\)/, true);
       await page.getByLabel(/^\s*Analysis mesh\s*$/).check();
       await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.objectIds ?? []).length === 3);
-      await page.locator("[data-model-tools-home] details").filter({ hasText: "Objects" }).locator("summary").click();
+      // The object list is no longer a collapsed disclosure. Clicking the always
+      // visible search field opens the finder that owns it.
+      await page.locator("[data-search]").click();
 
       await page.getByRole("button", { name: /Insulated pipe/ }).click();
       let properties = await page.locator("[data-properties]").textContent();
@@ -284,7 +396,11 @@ const scenarios = {
   },
   "review-workflow": {
     bundle: "/test/fixtures/code_aster_results",
-    minimumObjects: 7,
+    // Six, not seven: the fixture declares two deformed geometry states and
+    // assetMatchesActiveGeometryState draws only the active one, so
+    // object:deformed_visual is correctly filtered while the physical one
+    // renders. The gate had been asserting a count this bundle cannot reach.
+    minimumObjects: 6,
     async run(page) {
       const reviewTask = page.getByRole("button", { name: "Review", exact: true });
       await reviewTask.waitFor();
@@ -302,7 +418,10 @@ const scenarios = {
         "true"
       );
       await assertSelectedEvidenceTab(page, "Governing Results");
-      await page.getByRole("heading", { level: 1, name: "Governing Results", exact: true }).waitFor();
+      // Collapsed evidence is a bar, not a strip of a panel nobody opened, so
+      // the table behind the tabs appears once it is expanded.
+      await page.locator("[data-evidence-expand]").click();
+      await page.getByRole("heading", { level: 2, name: "Governing Results", exact: true }).waitFor();
       assert.equal(await page.locator("[data-report-link]").isVisible(), true);
       const headerLayout = await page.locator("[data-app-header]").evaluate((header) => ({
         columns: getComputedStyle(header).gridTemplateColumns.split(" ").length,
@@ -319,27 +438,37 @@ const scenarios = {
 
       await page.getByRole("tab", { name: "Reports", exact: true }).click();
       await assertSelectedEvidenceTab(page, "Reports");
-      await page.getByRole("heading", { level: 1, name: "Reports", exact: true }).waitFor();
+      await page.getByRole("heading", { level: 2, name: "Reports", exact: true }).waitFor();
       assert.match(await page.locator("[data-evidence-report-link]").getAttribute("href"), /code_aster_results\/index\.html$/);
       await page.getByRole("tab", { name: "Governing Results", exact: true }).click();
       await rememberCanvas(page);
 
       await page.getByRole("button", { name: "Model", exact: true }).click();
       await assertSelectedEvidenceTab(page, "Governing Results");
-      await page.getByRole("heading", { level: 1, name: "Governing Results", exact: true }).waitFor();
+      await page.getByRole("heading", { level: 2, name: "Governing Results", exact: true }).waitFor();
       await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
       await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
 
-      assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Hot");
+      // The coloring channel lives in the bar now, not duplicated in this panel:
+      // the case selector is "Case" up there, and the field selector replaces
+      // the panel's result-state picker whenever the scene carries a field
+      // catalogue.
+      assert.equal(await page.getByRole("combobox", { name: /^Case/ }).inputValue(), "Hot");
+      // This bundle declares no result_fields, so the panel still offers the
+      // result-state picker; the bar's field selector takes over when a scene
+      // does carry a catalogue.
       assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).inputValue(), "result_state:Hot");
-      assert.match(await page.locator("[data-result-legend]").textContent(), /max_von_mises.*Pa/);
-      assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe/);
+      // Stored pascals, read as MPa: 6.00e+6 / 5.70e+7 Pa show as 6 / 57 MPa.
+      assert.match(await page.locator("[data-result-legend]").textContent(), /max_von_mises: 6 - 57 MPa/);
+      assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe 57 MPa/);
+      // Typed in the displayed unit; the state still holds pascals.
       await page.getByLabel(/Stress threshold/i).evaluate((input) => {
-        input.value = "50000000";
+        input.value = "50";
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
+      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.resultThreshold), 50000000);
       const thresholdHotspots = await page.locator("[data-hotspot-list]").textContent();
       assert.match(thresholdHotspots, /Hot pipe/);
       assert.doesNotMatch(thresholdHotspots, /Warm pipe/);
@@ -348,25 +477,41 @@ const scenarios = {
         input.dispatchEvent(new Event("input", { bubbles: true }));
       });
       await page.waitForFunction(() => window.__tubaViewer?.state?.resultVectorScales?.displacement === 10);
-      await page.locator("[data-display-strip] details.layer-tree summary").click();
+      // The layer tree is a secondary tool in the rail popover now, so the
+      // bodies panel owns the rail itself.
+      await page.locator('[data-rail-tool="layers"]').click();
+      await page.locator("[data-rail-popover] details.layer-tree summary").click();
       const visualCenterline = page.getByLabel(/^\s*Visual Centerline/);
       const physicalCenterline = page.getByLabel(/^\s*Physical Centerline/);
-      await visualCenterline.uncheck();
+      // Only one geometry state is drawn at a time - assetMatchesActiveGeometryState
+      // filters every asset that names a different one - so the physical and the
+      // x50 visual deformed shapes can never be on screen together. Which one you
+      // see follows the Deformed state selector; the layer toggles then control
+      // visibility within that state.
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.includes("object:deformed_physical") && !ids.includes("object:deformed_visual");
       });
       assert.equal(await physicalCenterline.isChecked(), true);
+
+      const deformedState = page.getByRole("combobox", { name: /^Deformed state/ });
+      const visualValue = (await deformedState.evaluate((select) => [...select.options].map((option) => option.value)))
+        .find((value) => /visual/i.test(value));
+      assert.ok(visualValue, "the bundle must offer a visual deformed state");
+      await deformedState.selectOption(visualValue);
+      await page.waitForFunction(() => {
+        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
+        return ids.includes("object:deformed_visual") && !ids.includes("object:deformed_physical");
+      });
+
+      await visualCenterline.uncheck();
+      await page.waitForFunction(
+        () => !(window.__tubaViewer?.lastRender?.objectIds ?? []).includes("object:deformed_visual")
+      );
       await visualCenterline.check();
-      await page.waitForFunction(() => {
-        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return ids.includes("object:deformed_physical") && ids.includes("object:deformed_visual");
-      });
-      await physicalCenterline.uncheck();
-      await page.waitForFunction(() => {
-        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return !ids.includes("object:deformed_physical") && ids.includes("object:deformed_visual");
-      });
+      await page.waitForFunction(() =>
+        (window.__tubaViewer?.lastRender?.objectIds ?? []).includes("object:deformed_visual")
+      );
       assert.equal(await visualCenterline.isChecked(), true);
       await page.setViewportSize({ width: 800, height: 900 });
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -397,11 +542,16 @@ const scenarios = {
       assert.match(compactStatus, /Analysis\s*solved/i);
       assert.match(compactStatus, /Governing case\s*Not available/i);
       const compactExpand = page.locator("[data-evidence-expand]");
+      // This block exercises the toggle itself, so start from collapsed: the
+      // dock was expanded earlier to read Governing Results.
+      if ((await compactExpand.getAttribute("aria-expanded")) === "true") {
+        await compactExpand.click();
+      }
       assert.equal(await compactExpand.getAttribute("aria-expanded"), "false");
       await compactExpand.click();
       assert.equal(await compactExpand.getAttribute("aria-expanded"), "true");
       await page.getByRole("tab", { name: "Warnings", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Warnings", exact: true }).waitFor();
+      await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
       await assertSelectedEvidenceTab(page, "Warnings");
       await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
@@ -573,8 +723,14 @@ const scenarios = {
       );
       assert.equal(new URL(page.url()).pathname, "/viewer/");
       assert.equal(new URL(page.url()).searchParams.get("bundle"), "imported_component_mixed_demo");
+      // Collapsed evidence is a bar, not a strip of an unopened panel, so the
+      // diagnostics behind the tabs appear once it is expanded.
+      const pagesEvidenceExpand = page.locator("[data-evidence-expand]");
+      if ((await pagesEvidenceExpand.getAttribute("aria-expanded")) === "false") {
+        await pagesEvidenceExpand.click();
+      }
       await page.getByRole("tab", { name: "Warnings", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Warnings", exact: true }).waitFor();
+      await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
       assert.match(await page.locator("[data-diagnostic-list]").textContent(), /publication\.model_review\.no_solver_results/);
       assert.match(await page.locator("[data-diagnostic-list]").textContent(), /Code_Aster has not been run/);
 
@@ -585,12 +741,23 @@ const scenarios = {
       assert.equal(new URL(page.url()).searchParams.get("bundle"), "code-aster-review");
 
       await page.getByRole("button", { name: "Results", exact: true }).click();
+      // The rail's primary control is the composited bodies, not the four layer
+      // categories: "what is drawn" is the question this screen answers.
       assert.deepEqual(
-        (await page.locator("[data-category-switches] input").evaluateAll((inputs) =>
+        await page.locator("[data-body-list] input").evaluateAll((inputs) =>
           inputs.map((input) => input.getAttribute("aria-label"))
-        )),
+        ),
+        ["Geometry", "Analysis mesh", "Sub-points", "Deformed mesh"]
+      );
+      // The categories survive intact, one level down in the layers popover.
+      await page.locator('[data-rail-tool="layers"]').click();
+      assert.deepEqual(
+        await page.locator("[data-layer-list] h3").evaluateAll((headings) =>
+          headings.map((heading) => heading.textContent)
+        ),
         ["Design", "Analysis mesh", "Results", "Annotations"]
       );
+      await page.locator('[data-rail-tool="layers"]').click();
 
       const field = page.getByRole("combobox", { name: "Field", exact: true });
       assert.deepEqual(
@@ -653,7 +820,7 @@ const scenarios = {
       assert.ok(objectIds.includes("object:element:pipe_str_0"), "undeformed reference must remain visible");
 
       await page.getByRole("tab", { name: "Warnings", exact: true }).click();
-      await page.getByRole("heading", { level: 1, name: "Warnings", exact: true }).waitFor();
+      await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
       const warnings = await page.locator("[data-diagnostic-list]").textContent();
       assert.match(warnings, /visualization\.code_aster_artifacts\.rmed_read_failed/);
       assert.match(warnings, /Unable to synchronously open object/);
@@ -665,6 +832,8 @@ const scenarios = {
         const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
         return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
       });
+      // The section box is a secondary tool in the rail popover now.
+      await page.locator('[data-rail-tool="section"]').click();
       const sectionEnabled = page.getByLabel("Enable section", { exact: true });
       await sectionEnabled.focus();
       await page.keyboard.press("Space");
@@ -775,6 +944,21 @@ const scenarios = {
       });
       const beforeOrbit = await fingerprint();
       const canvasBox = await canvas.boundingBox();
+      // Count painted frames, which is what "coalesced" actually means. Wall
+      // clock over a 12-step drag is dominated by CDP round trips: the same
+      // gesture on a five-object scene costs ~1.35s on a loaded machine while
+      // painting the same ~14 frames, so timing it conflates a busy runner with
+      // a rendering regression.
+      await page.evaluate(() => {
+        window.__tubaOrbitFrames = 0;
+        const raf = window.requestAnimationFrame.bind(window);
+        window.__tubaRafOriginal = raf;
+        window.requestAnimationFrame = (callback) =>
+          raf((timestamp) => {
+            window.__tubaOrbitFrames += 1;
+            return callback(timestamp);
+          });
+      });
       const orbitStarted = Date.now();
       await page.mouse.move(canvasBox.x + canvasBox.width * 0.5, canvasBox.y + canvasBox.height * 0.5);
       await page.mouse.down();
@@ -782,6 +966,13 @@ const scenarios = {
       await page.mouse.up();
       const orbitElapsedMs = Date.now() - orbitStarted;
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const orbitFrames = await page.evaluate(() => {
+        const frames = window.__tubaOrbitFrames;
+        window.requestAnimationFrame = window.__tubaRafOriginal;
+        delete window.__tubaRafOriginal;
+        delete window.__tubaOrbitFrames;
+        return frames;
+      });
       const afterOrbit = await fingerprint();
       await canvas.evaluate((target) => {
         target.removeEventListener("mousemove", window.__tubaBlockCanvasApp, true);
@@ -789,7 +980,14 @@ const scenarios = {
         delete window.__tubaBlockCanvasApp;
       });
       assert.notEqual(afterOrbit, beforeOrbit, "OrbitControls must redraw without the hover handler");
-      assert.ok(orbitElapsedMs < 1500, `OrbitControls redraws must be frame-coalesced, took ${orbitElapsedMs}ms`);
+      // 12 drag steps: one frame each plus the two settling frames is coalesced.
+      // Un-coalesced redraws scale with mousemove events, not with frames.
+      assert.ok(
+        orbitFrames <= 30,
+        `OrbitControls redraws must be frame-coalesced, painted ${orbitFrames} frames for 12 drag steps`
+      );
+      // A loose ceiling that still catches a catastrophic per-frame regression.
+      assert.ok(orbitElapsedMs < 8000, `orbit drag took ${orbitElapsedMs}ms`);
 
       const selectionBeforeRealOrbit = await page.evaluate(() => window.__tubaViewer?.state?.selectedObjectIds ?? []);
       const realOrbitStarted = Date.now();
@@ -799,20 +997,30 @@ const scenarios = {
       await page.mouse.up();
       const realOrbitElapsedMs = Date.now() - realOrbitStarted;
       const selectionAfterRealOrbit = await page.evaluate(() => window.__tubaViewer?.state?.selectedObjectIds ?? []);
-      assert.ok(realOrbitElapsedMs < 1500, `a real orbit gesture must not trigger click picking, took ${realOrbitElapsedMs}ms`);
+      // The assertion below is the real check. This one is a loose ceiling only:
+      // a 12-step drag costs ~1.35s in CDP round trips on a loaded machine even
+      // with five objects on screen, so a tight bound here measures the runner
+      // rather than whether picking ran.
+      assert.ok(realOrbitElapsedMs < 8000, `a real orbit gesture took ${realOrbitElapsedMs}ms`);
       assert.deepEqual(selectionAfterRealOrbit, selectionBeforeRealOrbit, "an orbit gesture must not change selection");
 
       await page.getByRole("button", { name: "Results", exact: true }).click();
       assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
       await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
-      assert.equal(await page.getByRole("combobox", { name: /^Load case/ }).inputValue(), "Operating");
+      // The coloring channel lives in the bar; its case selector is "Case".
+      assert.equal(await page.getByRole("combobox", { name: /^Case/ }).inputValue(), "Operating");
       assert.equal(
         await page.getByRole("combobox", { name: "Field", exact: true }).inputValue(),
         "field:solver_result:stress:result_state:Operating"
       );
       assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).count(), 0);
-      assert.equal(await page.getByRole("combobox", { name: "Component", exact: true }).count(), 0);
+      // Present but disabled for a scalar field, and saying why in its own text,
+      // so an absent control is never read as a missing choice.
+      const scalarComponent = page.getByRole("combobox", { name: "Component", exact: true });
+      assert.equal(await scalarComponent.count(), 1);
+      assert.equal(await scalarComponent.isDisabled(), true);
+      assert.match(await scalarComponent.textContent(), /scalar field/);
 
       await page.getByRole("combobox", { name: "Field", exact: true }).selectOption(
         "field:solver_result:displacement:result_state:Operating"
@@ -844,6 +1052,12 @@ const scenarios = {
       assert.ok(!visualObjectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
       assert.ok(visualObjectIds.includes("object:element:pipe_str_0"));
 
+      // The review tables live behind the evidence tabs, and collapsed evidence
+      // is now a bar rather than a strip of an unopened panel.
+      const evidenceExpand = page.locator("[data-evidence-expand]");
+      if ((await evidenceExpand.getAttribute("aria-expanded")) === "false") {
+        await evidenceExpand.click();
+      }
       await page.getByRole("button", { name: "Show element:pipe_str_0 in 3D", exact: true }).first().click();
       await page.waitForFunction(() => {
         const state = window.__tubaViewer?.state;
@@ -916,7 +1130,10 @@ const scenarios = {
   },
   "partial-compliance-neutrality": {
     bundle: "/test/fixtures/code_aster_results",
-    minimumObjects: 7,
+    // Six: this bundle declares two deformed geometry states and only the
+    // active one is drawn (assetMatchesActiveGeometryState), so the seventh
+    // object can never render.
+    minimumObjects: 6,
     async beforeNavigate(page) {
       await page.route("**/test/fixtures/code_aster_results/review.json", async (route) => {
         const response = await route.fetch();
@@ -954,7 +1171,7 @@ const scenarios = {
   },
   "embedded-review": {
     bundle: "/test/fixtures/code_aster_results",
-    minimumObjects: 7,
+    minimumObjects: 6,
     query() {
       return { embed: "1" };
     },
@@ -971,7 +1188,7 @@ const scenarios = {
   },
   "clash-review": {
     bundle: "/test/fixtures/code_aster_results",
-    minimumObjects: 7,
+    minimumObjects: 6,
     async run(page) {
       await page.getByRole("button", { name: "Issues", exact: true }).click();
       await page.getByLabel(/Operating-only/).check();
@@ -1103,7 +1320,9 @@ const scenarios = {
     },
     async run(page, runtime) {
       await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "viewer_smoke_scene");
-      await page.locator("[data-model-tools-home] details").filter({ hasText: "Objects" }).locator("summary").click();
+      // The object list is no longer a collapsed disclosure. Clicking the always
+      // visible search field opens the finder that owns it.
+      await page.locator("[data-search]").click();
       await page.getByRole("button", { name: /Smoke pipe - pipe/ }).click();
       await page.waitForFunction(() => (window.__tubaViewer?.state?.selectedObjectIds ?? []).includes("object:element:pipe_smoke"));
       await runtime.waitForClient();

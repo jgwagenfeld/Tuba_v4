@@ -66,15 +66,26 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "evidence-tabs",
     "layer-list",
     "display-strip",
-    "category-switches",
+    "body-list",
+    "projection-note",
+    "section-profile",
+    "discretisation-check",
+    "coloring-bar",
+    "viewport-legend",
+    "body-legend",
     "saved-views",
     "result-controls",
     "result-legend",
     "hotspot-list",
-    "tree",
     "issue-list",
     "search",
     "object-list",
+    "bodies-pane",
+    "find-pane",
+    "find-scope",
+    "find-dismiss",
+    "rail-utility",
+    "rail-popover",
     "property-actions",
     "properties",
     "canvas",
@@ -91,9 +102,13 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<section[^>]*class="evidence-dock"[^>]*aria-label="Engineering evidence"[^>]*data-evidence-dock/);
   assert.match(html, /<button[^>]*type="button"[^>]*aria-expanded="false"[^>]*data-evidence-expand/);
   assert.doesNotMatch(html, /class="[^"]*\bworkflow-tabs\b/);
-  for (const inventory of ["layer-list", "tree", "object-list"]) {
-    assert.match(html, new RegExp(`<details[^>]*>[\\s\\S]*?data-${inventory}(?:=|[\\s>])[\\s\\S]*?<\\/details>`));
-  }
+  // All layers stays a disclosure; it is a secondary tool inside the rail popover.
+  assert.match(html, /<details[^>]*>[\s\S]*?data-layer-list(?:=|[\s>])[\s\S]*?<\/details>/);
+  // The object list is no longer buried in a collapsed disclosure that the search
+  // field could not open. It lives in the find pane, which is present in the DOM
+  // at all times so its content stays readable and testable.
+  assert.match(html, /data-find-pane[\s\S]*?data-object-list/);
+  assert.doesNotMatch(html, /data-tree(?:=|[\s>])/);
   assert.match(html, /<canvas[^>]*data-canvas[^>]*tabindex="0"[^>]*aria-label="Interactive 3D engineering review viewport"/);
   assert.match(html, /<div[^>]*data-section-box-controls[^>]*><\/div>/);
   assert.match(

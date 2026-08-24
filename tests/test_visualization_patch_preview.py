@@ -106,5 +106,48 @@ class TestVisualizationPatchPreview(unittest.TestCase):
             self.assertGreaterEqual(server.revision, 2)
 
 
+    def test_half_written_patch_does_not_clobber_the_served_bundle(self):
+        # An editor saving the watched patch truncates before it flushes, so a
+        # poll can land on a file that parses as nothing. Treating that as
+        # invalid input replaced the good bundle with a diagnostic scene that
+        # carries no scene_diffs - the preview vanished and came back a moment
+        # later, and anything reading scene_diffs[0] raised IndexError.
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            model_path, patch_path, _original_model = self._write_inputs(root, self._patch(length=1.0))
+            out = root / "bundle"
+            server = PatchPreviewServer(
+                model_path, patch_path, out, port=0, poll_interval_s=0.05, debounce_s=0.05
+            ).start()
+            self.addCleanup(server.stop)
+
+            text = json.dumps(self._patch(length=3.0).to_dict(), indent=2, sort_keys=True)
+            with open(patch_path, "w", encoding="utf-8") as handle:
+                handle.write(text[: len(text) // 2])
+                handle.flush()
+                # Hold the file half-written for longer than the poll interval.
+                time.sleep(0.12)
+                handle.write(text[len(text) // 2 :])
+
+            deadline = time.time() + 5
+            while time.time() < deadline:
+                try:
+                    scene = json.loads((out / "scene.json").read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, FileNotFoundError, PermissionError):
+                    # Windows can refuse a read mid-rename even though the write
+                    # itself is atomic.
+                    continue
+                self.assertTrue(
+                    scene.get("scene_diffs"),
+                    "a half-written patch must never leave the bundle without its diff",
+                )
+                points = scene["scene_diffs"][0]["added_geometry_assets"][0]["generation_config"]["points"]
+                if points[1] == [3.0, 0.0, 0.0]:
+                    break
+                time.sleep(0.02)
+            else:
+                self.fail("patch preview server did not refresh the scene bundle")
+
+
 if __name__ == "__main__":
     unittest.main()

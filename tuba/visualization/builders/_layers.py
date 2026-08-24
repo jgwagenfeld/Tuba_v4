@@ -23,6 +23,7 @@ exists to remove.
 from __future__ import annotations
 
 from tuba.analysis.mesh import AnalysisMesh, modelisation_info
+from tuba.analysis.mesh_quality import discretisation_summary
 from tuba.visualization.scene import (
     Overlay,
     ResultField,
@@ -166,7 +167,9 @@ def mesh_identity(analysis_mesh: AnalysisMesh) -> dict[str, object]:
     """Describe what kind of mesh this actually is, for the viewer badge.
 
     Modelisations are ordered by descending element count so a mixed model leads
-    with its dominant one.
+    with its dominant one. The discretisation entry is the bend-chord check; it
+    is omitted entirely when the mesh has no bends, so the viewer shows nothing
+    rather than a check that passed vacuously.
     """
     counts: dict[str, int] = {}
     for group_name, modelisation in analysis_mesh.modelisations.items():
@@ -182,14 +185,39 @@ def mesh_identity(analysis_mesh: AnalysisMesh) -> dict[str, object]:
         for modelisation, count in ordered
     ]
     dims = [entry["topological_dim"] for entry in entries if entry["topological_dim"] >= 0]
-    return {
+    identity: dict[str, object] = {
         "mesh_id": analysis_mesh.id,
         "solver": analysis_mesh.solver_name,
         "modelisations": entries,
         "topological_dim": max(dims) if dims else -1,
         "node_count": len(analysis_mesh.nodes),
         "element_count": len(analysis_mesh.elements),
+        "element_families": _element_families(analysis_mesh),
     }
+    discretisation = discretisation_summary(analysis_mesh)
+    if discretisation is not None:
+        identity["discretisation"] = discretisation
+    return identity
+
+
+#: Node count -> Code_Aster element family, for the 1D meshes Tuba emits.
+_SEG_FAMILIES: dict[int, str] = {1: "POI1", 2: "SEG2", 3: "SEG3", 4: "SEG4"}
+
+
+def _element_families(analysis_mesh: AnalysisMesh) -> list[dict[str, object]]:
+    """Element topology by node count, e.g. SEG2 / SEG3, descending by count.
+
+    The viewer names the mesh in the reviewer's vocabulary ("11 SEG3"), which it
+    cannot do from ``MODELISATION`` alone: Tuba emits TUYAU_3M on SEG3, but the
+    family is a property of the connectivity rather than of the modelisation.
+    """
+    counts: dict[int, int] = {}
+    for node_ids in analysis_mesh.elements.values():
+        counts[len(node_ids)] = counts.get(len(node_ids), 0) + 1
+    return [
+        {"family": _SEG_FAMILIES.get(node_count, f"NODE{node_count}"), "element_count": count}
+        for node_count, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
 
 
 def build_result_fields(overlays: list[Overlay]) -> list[ResultField]:

@@ -53,6 +53,12 @@ from tuba.solver.code_aster_runtime import (
     write_code_aster_execution_attestation,
 )
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
+from tuba.analysis.tuyau import (
+    CODE_ASTER_TUYAU_NCOU,
+    CODE_ASTER_TUYAU_NSEC,
+    DISPLAY_GENERATRICE,
+    subpoint_station,
+)
 from tuba.analysis.provenance import (
     SolverInputIdentity,
     build_solver_input_identity,
@@ -63,9 +69,10 @@ from tuba.solver.aster_mesh import _MeshWriterMixin
 
 logger = logging.getLogger(__name__)
 
-_CODE_ASTER_TUYAU_NCOU = 3
-_CODE_ASTER_TUYAU_NSEC = 16
-_TUBA_GENE_TUYAU = np.array([0.0, 0.0, 1.0], dtype=float)
+# The TUYAU sub-point convention has one home; see tuba/analysis/tuyau.py.
+_CODE_ASTER_TUYAU_NCOU = CODE_ASTER_TUYAU_NCOU
+_CODE_ASTER_TUYAU_NSEC = CODE_ASTER_TUYAU_NSEC
+_TUBA_GENE_TUYAU = np.array(DISPLAY_GENERATRICE, dtype=float)
 
 # ---------------------------------------------------------------------------
 # Solver
@@ -1011,12 +1018,13 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         ncou: int = _CODE_ASTER_TUYAU_NCOU,
         nsec: int = _CODE_ASTER_TUYAU_NSEC,
     ) -> tuple[float, float]:
+        station = subpoint_station(subpoint_index, nsec=nsec, ncou=ncou)
+        if station is None:
+            return 0.0, 0.0
         r_int = r_ext - thickness
-        num_ang = ((subpoint_index - 1) % (2 * nsec + 1)) / (2.0 * nsec)
-        num_cou = ((subpoint_index - 1) // (2 * nsec + 1)) / (2.0 * ncou)
-        radius = r_int + thickness * num_cou
-        y_offset = radius * math.cos(2.0 * math.pi * num_ang)
-        z_offset = -radius * math.sin(2.0 * math.pi * num_ang)
+        radius = r_int + thickness * station.radius_fraction
+        y_offset = radius * math.cos(station.angle_rad)
+        z_offset = -radius * math.sin(station.angle_rad)
         return y_offset, z_offset
 
     @staticmethod

@@ -45,14 +45,17 @@ test("workflow rendering styles real task buttons, horizontal tables, and visibl
 test("workflow rendering uses the responsive cockpit grid and preserves embed mode", async () => {
   const css = await readViewerFile("src/styles.css");
 
-  assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)/s);
+  // header / cockpit status / coloring bar / workspace
+  assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto auto auto minmax\(0, 1fr\)/s);
   assert.match(css, /\.app-header\s*\{[^}]*grid-template-columns:\s*minmax\(12rem, 1fr\) minmax\(16rem, auto\) auto auto/s);
   assert.match(css, /\.cockpit-status\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/s);
   assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"rail viewport inspector"[^;]*"rail evidence inspector"/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.inspector[\s\S]*position:\s*absolute/);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.evidence-dock:not\(\.expanded\)[^}]*max-height:\s*3\.25rem/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.evidence-dock\.expanded\s*\{[^}]*position:\s*absolute[^}]*height:\s*min\(60vh, 32rem\)/s);
-  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*height:\s*auto[^}]*max-height:\s*8rem[^}]*overflow-x:\s*auto[^}]*overflow-y:\s*hidden/s);
+  // Narrow: the rail becomes a horizontal scrolling strip above the viewport,
+  // tall enough that a body row is readable rather than a sliver.
+  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*height:\s*auto[^}]*max-height:\s*min\(13rem, 30vh\)[^}]*overflow-x:\s*auto[^}]*overflow-y:\s*hidden/s);
   assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-status\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(8rem, 1fr\)\)[^}]*overflow-x:\s*auto/s);
   assert.match(css, /\[data-embed="true"\][\s\S]*grid-template-areas:\s*"viewport"/);
   assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace,\s*body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)[^}]*grid-template-areas:\s*"viewport"/s);
@@ -133,22 +136,86 @@ test("workflow rendering parses embed once and pins reloads to the display workf
   assert.match(css, /\[data-embed="true"\]\s+\.cockpit-rail[\s\S]*display:\s*none/);
 });
 
-test("app renders a pinned display strip with category switches and applies presets", async () => {
+test("app renders a pinned display strip of bodies and applies presets", async () => {
   const app = await readViewerFile("src/app.js");
-  assert.match(app, /data-display-strip|data-category-switches/);
+  assert.match(app, /data-display-strip|data-body-list/);
   assert.match(app, /renderDisplayStrip/);
+  assert.match(app, /renderBodyList/);
   assert.match(app, /applyTaskVisibilityPreset/);
   // Rail no longer groups tasks under Review/Explore/Display headings:
   assert.doesNotMatch(app, /\["Explore", \[/);
 });
 
-test("display strip is pinned at the bottom of a scrolling cockpit rail", async () => {
+test("the coloring channel lives in the bar, not also in the results panel", async () => {
+  const app = await readViewerFile("src/app.js");
+  const resultControls = app.slice(
+    app.indexOf("function renderResultControls()"),
+    app.indexOf("function renderHeader()")
+  );
+  assert.ok(resultControls.length > 0);
+  // Two controls for one selection is how they drift out of sync.
+  for (const owned of ["setColoringField", "setColoringComponent", "setColoringLoadCase", "setVisualDeformationScale"]) {
+    assert.doesNotMatch(resultControls, new RegExp(owned));
+  }
+  const bar = app.slice(app.indexOf("function renderColoringBar()"), app.indexOf("function deformationControl()"));
+  assert.match(bar, /setColoringField/);
+  assert.match(bar, /setColoringComponent/);
+});
+
+test("the compliance caveat renders in the viewport, where the colour map is", async () => {
+  const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");
-  // Rail is a flex column so the strip can pin below a scrolling task panel.
+  const legend = app.slice(app.indexOf("function renderViewportLegend()"), app.indexOf("const BODY_LEGEND_NOTE"));
+  assert.match(legend, /renderComplianceNotice\(\)/);
+  // The panel that used to carry it detaches under Review/Model/Issues while
+  // the scene stays colour-mapped, so the badge follows the colours.
+  assert.match(css, /\.viewport-legend\s*\{[^}]*position:\s*absolute|\.viewport-legend,\s*\.body-legend\s*\{[^}]*position:\s*absolute/s);
+});
+
+test("display units convert at the boundary and never in stored state", async () => {
+  const units = await readViewerFile("src/units.js");
+  const app = await readViewerFile("src/app.js");
+
+  // A threshold read in one unit and compared in another silently filters out
+  // everything, so the input has to round-trip through toStored.
+  const threshold = app.slice(app.indexOf("function thresholdControl()"), app.indexOf("function renderHeader()"));
+  assert.match(threshold, /toDisplay\(/);
+  assert.match(threshold, /toStored\(/);
+  assert.match(threshold, /setResultThreshold\(/);
+
+  // Nothing may reach into the reducers with a converted value.
+  assert.doesNotMatch(units, /setResultThreshold|getColoringValues|overlays/);
+  // Unrecognised units pass through rather than being rescaled on a guess.
+  assert.match(units, /const UNIT_QUANTITY = Object\.freeze\(\{/);
+});
+
+test("the legend ramp is sampled from the function that tints the scene", async () => {
+  const app = await readViewerFile("src/app.js");
+  // A hand-written gradient is a second source of truth for the colour map and
+  // will drift from the pixels it claims to explain.
+  assert.match(app, /function scalarRampGradient\(legend\)[\s\S]*colorForScalarValue\(/);
+});
+
+test("the bodies panel is the rail's primary content, not a window onto it", async () => {
+  const css = await readViewerFile("src/styles.css");
+  // Rail is a flex column: lookup tools on top, what-is-drawn below.
   assert.match(css, /\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
-  assert.match(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*overflow-y:\s*auto/s);
-  // Strip does not shrink away, so it stays visible even when the panel is tall.
-  assert.match(css, /\.display-strip\s*\{[^}]*flex-shrink:\s*0/s);
+  // The task panel keeps its natural height and does not shrink; letting it
+  // shrink squeezed Tree/Search/Objects into an unusable sliver.
+  assert.match(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*flex:\s*0 0 auto[^}]*overflow-y:\s*auto/s);
+  // The strip takes the remaining height. A fixed cap here showed a third of
+  // the bodies list through a 395px window.
+  assert.match(css, /^\.display-strip\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0/ms);
+  // The wide layout must not cap it. The narrow layout still does, deliberately,
+  // because there the rail is a horizontal strip above the viewport.
+  assert.doesNotMatch(css, /^\.display-strip\s*\{[^}]*max-height/ms);
+});
+
+test("collapsed evidence is a bar, and the viewport keeps the height", async () => {
+  const css = await readViewerFile("src/styles.css");
+  // Reserving a minimum for a panel nobody opened cost the viewport 235px.
+  assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto/s);
+  assert.match(css, /\.evidence-dock:not\(\.expanded\)\s+\.workflow-panel\s*\{[^}]*display:\s*none/s);
 });
 
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {
@@ -188,3 +255,34 @@ function relativeLuminance(hex) {
   );
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
+
+test("controls rebuilt on every render carry a stable focus key", async () => {
+  const app = await readViewerFile("src/app.js");
+  // render() replaceChildren()s almost every panel, which destroys the focused
+  // element; these keys are how it is put back.
+  assert.match(app, /function captureFocus\(\)/);
+  assert.match(app, /function restoreFocus\(focus\)/);
+  for (const key of ["body:", "opacity:", "scope:", "object:", "task:", "evidence:", "bar:", "camera:"]) {
+    assert.ok(app.includes(`focusKey = \`${key}`), `no focus key for ${key}`);
+  }
+});
+
+test("the status live region is only written when it changes", async () => {
+  const app = await readViewerFile("src/app.js");
+  // role="status" announces on every write, and renderCanvas calls setStatus
+  // ("Ready") on every render, so the write has to be conditional.
+  assert.match(app, /function setStatus\(message, error = false\)[\s\S]{0,600}?if \(dom\.status\.textContent === message/);
+});
+
+test("the viewport canvas has a keyboard path to the camera", async () => {
+  const app = await readViewerFile("src/app.js");
+  const html = await readViewerFile("index.html");
+  // The canvas is focusable and announced as interactive, so it must do
+  // something when a key is pressed.
+  assert.match(html, /<canvas[^>]*tabindex="0"/);
+  assert.match(app, /dom\.canvas\.addEventListener\("keydown"/);
+  assert.match(app, /CANVAS_KEY_ACTIONS/);
+  for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home"]) {
+    assert.ok(app.includes(`${key}:`), `no canvas binding for ${key}`);
+  }
+});

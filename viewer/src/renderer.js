@@ -8,6 +8,7 @@ import {
   getScalarLegend,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
+import { bodyOpacityForObjectIds } from "./bodies.js";
 
 export const SUPPORTED_RENDER_FORMATS = new Set([
   "aabb",
@@ -45,8 +46,7 @@ export function createThreeSceneGraph(state, options = {}) {
   root.name = "TubaSceneRoot";
   scene.add(root);
 
-  const bounds = normalizeBounds(state.bounds) ?? mergeAssetBounds(state.geometryAssets ?? []);
-  addReferenceHelpers(scene, bounds);
+  const declaredBounds = normalizeBounds(state.bounds) ?? mergeAssetBounds(state.geometryAssets ?? []);
 
   const payloadsByAssetId = new Map((state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload]));
   const visibleIds = new Set(state.visibleObjectIds ?? []);
@@ -78,6 +78,13 @@ export function createThreeSceneGraph(state, options = {}) {
     }
   }
 
+  // Fit to what was actually drawn, not to what the assets declare. Deformed
+  // geometry is baked at its authored visual scale (x50) and rescaled here at
+  // draw time, so the declared bounds describe an envelope fifty times larger
+  // than the shape on screen - and the camera framed that envelope instead.
+  const bounds = renderedBounds(root) ?? declaredBounds;
+  addReferenceHelpers(scene, bounds);
+
   return {
     bounds,
     diagnostics,
@@ -87,6 +94,17 @@ export function createThreeSceneGraph(state, options = {}) {
     root,
     scene
   };
+}
+
+function renderedBounds(root) {
+  if (root.children.length === 0) {
+    return null;
+  }
+  const box = new THREE.Box3().setFromObject(root);
+  if (box.isEmpty() || !Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) {
+    return null;
+  }
+  return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
 }
 
 export function buildRenderableScene(state, options = {}) {
@@ -112,7 +130,8 @@ const SCENE_GRAPH_STATE_KEYS = [
   "resultVectorScales",
   "displacementVectorScale",
   "reactionVectorScale",
-  "visualDeformationScale"
+  "visualDeformationScale",
+  "bodyOpacity"
 ];
 
 export function createSceneGraphCache(buildGraph, disposeGraph = () => {}) {
@@ -308,6 +327,11 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       if (!zoomCameraBy(camera, factor)) return;
       if (currentGraph) drawFrame(currentGraph);
     },
+    orbitBy(deltaAzimuth, deltaPolar) {
+      if (!orbitCameraBy(camera, controls.target, deltaAzimuth, deltaPolar)) return;
+      controls.update();
+      if (currentGraph) drawFrame(currentGraph);
+    },
     dispose() {
       graphCache.clear();
       if (redrawFrameId !== null) cancelAnimationFrame(redrawFrameId);
@@ -386,6 +410,9 @@ export function createThreeViewport(canvas, options = {}) {
     },
     zoomBy(factor) {
       canvasRenderer.zoomBy(factor);
+    },
+    orbitBy(deltaAzimuth, deltaPolar) {
+      canvasRenderer.orbitBy(deltaAzimuth, deltaPolar);
     },
     dispose() {
       canvasRenderer.dispose();
@@ -527,31 +554,97 @@ export function applySelectionHighlight(graph, objectIds = []) {
   return graph;
 }
 
-export function fitCameraToBounds(camera, bounds, controls = null) {
+// Half-extents of the bounds as they actually project onto the screen for one
+// view direction, plus the depth along it.
+//
+// The fit used to size the frustum from half the AABB diagonal - the bounding
+// sphere. For an elongated pipe run that diagonal is far longer than anything
+// visible from any single angle, so the model sat at a fraction of the frame
+// with the rest of the viewport empty.
+function projectedHalfExtents(bounds, direction, up) {
+  const center = centerOfBounds(bounds);
+  const forward = direction.clone().normalize();
+  let screenUp = up.clone().normalize();
+  if (Math.abs(forward.dot(screenUp)) > 0.999) {
+    screenUp = new THREE.Vector3(0, 1, 0);
+  }
+  const right = new THREE.Vector3().crossVectors(screenUp, forward).normalize();
+  screenUp = new THREE.Vector3().crossVectors(forward, right).normalize();
+
+  const corner = new THREE.Vector3();
+  let halfWidth = 0;
+  let halfHeight = 0;
+  let halfDepth = 0;
+  for (let index = 0; index < 8; index += 1) {
+    corner
+      .set(
+        index & 1 ? bounds[3] : bounds[0],
+        index & 2 ? bounds[4] : bounds[1],
+        index & 4 ? bounds[5] : bounds[2]
+      )
+      .sub(center);
+    halfWidth = Math.max(halfWidth, Math.abs(corner.dot(right)));
+    halfHeight = Math.max(halfHeight, Math.abs(corner.dot(screenUp)));
+    halfDepth = Math.max(halfDepth, Math.abs(corner.dot(forward)));
+  }
+  return { halfWidth, halfHeight, halfDepth };
+}
+
+// Breathing room around the fitted extents, so the outermost surface is not
+// flush against the frame edge.
+const FIT_MARGIN = 1.1;
+
+export function upVectorForView(viewId = "iso") {
+  // Looking straight down or up the Z axis, world Z cannot also be screen up.
+  return Math.abs(STANDARD_VIEW_DIRECTIONS[viewId]?.[2] ?? 0) === 1
+    ? new THREE.Vector3(0, 1, 0)
+    : new THREE.Vector3(0, 0, 1);
+}
+
+export function fitCameraToBounds(camera, bounds, controls = null, viewId = "iso") {
   const normalized = normalizeBounds(bounds) ?? [-1, -1, -1, 1, 1, 1];
   const center = centerOfBounds(normalized);
   const size = sizeOfBounds(normalized);
   const radius = Math.max(size.length() * 0.5, 0.5);
+  // Fitted per view: setCameraToStandardView reuses this frustum when it swings
+  // the camera to an axis, so sizing it for the isometric view alone would clip
+  // the others.
+  const direction = new THREE.Vector3(
+    ...(STANDARD_VIEW_DIRECTIONS[viewId] ?? STANDARD_VIEW_DIRECTIONS.iso)
+  ).normalize();
+  const up = upVectorForView(viewId);
+  const extents = projectedHalfExtents(normalized, direction, up);
   let distance;
+
   if (camera.isOrthographicCamera) {
     const aspect = positiveNumber(camera.userData.viewportAspect) ?? 1;
-    const halfHeight = (radius * 1.2) / Math.min(aspect, 1);
+    // Whichever axis binds first: a wide viewport is limited by height, a tall
+    // one by width.
+    const halfHeight = Math.max(
+      Math.max(extents.halfHeight, extents.halfWidth / aspect) * FIT_MARGIN,
+      1e-4
+    );
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
     camera.top = halfHeight;
     camera.bottom = -halfHeight;
     camera.zoom = 1;
     camera.userData.fitHalfHeight = halfHeight;
-    distance = Math.max(radius * 3, 1);
+    // Orthographic projection does not change with distance, so this only has to
+    // clear the geometry and leave near/far room around it.
+    distance = Math.max(extents.halfDepth * 2 + radius, 1);
   } else {
     const fov = THREE.MathUtils.degToRad(camera.fov || 45);
-    distance = Math.max(radius / Math.sin(fov / 2), radius * 2.5);
+    const aspect = positiveNumber(camera.aspect) ?? 1;
+    const forHeight = (extents.halfHeight * FIT_MARGIN) / Math.tan(fov / 2);
+    const forWidth = (extents.halfWidth * FIT_MARGIN) / (Math.tan(fov / 2) * aspect);
+    distance = Math.max(forHeight, forWidth) + extents.halfDepth;
+    distance = Math.max(distance, 1e-3);
   }
-  const direction = new THREE.Vector3(1, -1, 0.65).normalize();
 
   camera.near = Math.max(distance / 1000, 0.001);
   camera.far = distance * 1000;
-  camera.up.set(0, 0, 1);
+  camera.up.copy(up);
   camera.position.copy(center).addScaledVector(direction, distance);
   camera.lookAt(center);
   camera.updateProjectionMatrix();
@@ -570,11 +663,13 @@ export function fitCameraToBounds(camera, bounds, controls = null) {
 }
 
 export function setCameraToStandardView(camera, bounds, controls = null, viewId = "iso") {
-  const fit = fitCameraToBounds(camera, bounds, controls);
+  // Fit for the view being switched to, not for the isometric one: each axis
+  // sees a different silhouette, and reusing one frustum for all of them either
+  // clips the widest or wastes the frame on the narrowest.
+  const fit = fitCameraToBounds(camera, bounds, controls, viewId);
   const target = new THREE.Vector3(...fit.target);
   const direction = new THREE.Vector3(...(STANDARD_VIEW_DIRECTIONS[viewId] ?? STANDARD_VIEW_DIRECTIONS.iso)).normalize();
-  camera.up.set(0, 0, 1);
-  if (Math.abs(direction.z) === 1) camera.up.set(0, 1, 0);
+  camera.up.copy(upVectorForView(viewId));
   camera.position.copy(target).addScaledVector(direction, fit.distance);
   camera.lookAt(target);
   camera.updateProjectionMatrix();
@@ -582,6 +677,30 @@ export function setCameraToStandardView(camera, bounds, controls = null, viewId 
     controls.target.copy(target);
     controls.update();
   }
+}
+
+/**
+ * Swing the camera around its target by two angles, in radians.
+ *
+ * Written against spherical coordinates rather than OrbitControls internals so
+ * the keyboard path and the mouse path cannot drift apart. The polar angle is
+ * clamped short of the poles: at exactly 0 or PI the up vector and the view
+ * direction are parallel and the view flips.
+ */
+export function orbitCameraBy(camera, target, deltaAzimuth, deltaPolar) {
+  if (!Number.isFinite(deltaAzimuth) || !Number.isFinite(deltaPolar)) return false;
+  const offset = camera.position.clone().sub(target);
+  const spherical = new THREE.Spherical().setFromVector3(
+    new THREE.Vector3(offset.x, offset.z, -offset.y)
+  );
+  spherical.theta += deltaAzimuth;
+  spherical.phi = THREE.MathUtils.clamp(spherical.phi + deltaPolar, 0.02, Math.PI - 0.02);
+  const rotated = new THREE.Vector3().setFromSpherical(spherical);
+  camera.position.copy(target).add(new THREE.Vector3(rotated.x, -rotated.z, rotated.y));
+  camera.up.set(0, 0, 1);
+  camera.lookAt(target);
+  camera.updateProjectionMatrix();
+  return true;
 }
 
 export function zoomCameraBy(camera, factor) {
@@ -713,7 +832,7 @@ function createTuyauSubpointGlyphs(asset, config, format, state) {
   const geometry = new THREE.CylinderGeometry(radius, radius, 1, radialSegments, 1, false);
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
-    opacity: 0.94,
+    opacity: opacityForConfig(config, 0.94),
     transparent: true
   });
   const mesh = new THREE.InstancedMesh(geometry, material, count);
@@ -824,14 +943,18 @@ function addReferenceHelpers(scene, bounds) {
   directional.position.set(center.x + span, center.y - span, center.z + span);
   scene.add(directional);
 
-  const grid = new THREE.GridHelper(span * 1.5, 12, 0xb8c2d0, 0xe1e7ef);
+  // Sized to the model, not half again as large. At 1.5x the grid filled the
+  // frame that the camera had fitted to the geometry, so the subject read as
+  // small even when it was framed correctly.
+  const grid = new THREE.GridHelper(span * 1.05, 10, 0xb8c2d0, 0xe1e7ef);
   grid.rotation.x = Math.PI / 2;
   grid.position.set(center.x, center.y, bounds[2] - span * 0.03);
   scene.add(grid);
 
-  const axes = new THREE.AxesHelper(span * 0.35);
-  axes.position.copy(center);
-  scene.add(axes);
+  // No axes helper. It drew a second orientation indicator floating at the
+  // centre of the bounds - in mid-air, since the bounds centre is rarely on the
+  // geometry - and the interactive view gizmo in the corner already says which
+  // way X, Y and Z point.
 }
 
 function setRenderMetadata(object, asset, format) {
@@ -900,6 +1023,15 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
   if (isUndeformedReferenceConfig(asset, config, state)) {
     config.color = REFERENCE_GEOMETRY_COLOR;
     config.opacity = REFERENCE_GEOMETRY_OPACITY;
+    config.transparent = true;
+  }
+  // Per-body opacity is a ceiling, not a multiplier: dimming Geometry must not
+  // compound with the ghosting an undeformed reference already carries and
+  // drive it to invisible.
+  const bodyLimit = bodyOpacityForObjectIds(state, asset.object_ids ?? []);
+  if (bodyLimit !== null && bodyLimit < 1) {
+    const declared = Number(config.opacity);
+    config.opacity = Number.isFinite(declared) ? Math.min(declared, bodyLimit) : bodyLimit;
     config.transparent = true;
   }
   if (String(asset.format ?? "").toLowerCase() === "vector") {

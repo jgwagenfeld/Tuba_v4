@@ -1,4 +1,6 @@
 import { getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
+import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, withDefaultBodyOpacity } from "./bodies.js";
+import { setUnitSystem } from "./units.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
 import {
@@ -31,6 +33,14 @@ export function reduceViewerState(state, action) {
       });
     case "setLayerVisibility":
       return setLayerVisibility(state, action.layerId, action.visible);
+    case "setBodyVisibility":
+      return setBodyVisibility(state, action.bodyId, action.visible);
+    case "setBodyOpacity":
+      return setBodyOpacity(state, action.bodyId, action.opacity);
+    case "cycleBodyOpacity":
+      return cycleBodyOpacity(state, action.bodyId);
+    case "setUnitSystem":
+      return setUnitSystem(state, action.unitSystem);
     case "applySceneDiff": {
       const result = applySceneDiffToState(state, action.diff ?? action.sceneDiff);
       if (result.applied) {
@@ -158,6 +168,8 @@ export function preserveViewerStateForReload(previousState, nextState) {
     utilizationThreshold: previousState.utilizationThreshold ?? nextState.utilizationThreshold,
     issueReviewState: previousState.issueReviewState ?? nextState.issueReviewState,
     visualDeformationScale: previousState.visualDeformationScale ?? nextState.visualDeformationScale,
+    bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
+    unitSystem: previousState.unitSystem ?? nextState.unitSystem,
     activeTab: getVisibleWorkflowTabs(nextState).includes(previousState.activeTab)
       ? previousState.activeTab
       : nextState.activeTab,
@@ -166,7 +178,7 @@ export function preserveViewerStateForReload(previousState, nextState) {
     coloring: previousState.coloring ?? nextState.coloring,
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id)
   };
-  return withVisibility(withCoherentColoring(preserved));
+  return withDefaultBodyOpacity(withVisibility(withCoherentColoring(preserved)));
 }
 
 export function createViewerStore(initialState) {

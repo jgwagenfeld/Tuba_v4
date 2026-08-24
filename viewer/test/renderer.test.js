@@ -507,17 +507,78 @@ test("scene graph visibility updates hide cached renderables without rebuilding"
   assert.equal(graph.renderedObjectCount, 1);
 });
 
-test("standard camera views preserve the fitted target and distance", () => {
+test("standard camera views preserve the fitted target and clear the geometry", () => {
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
   camera.userData.viewportAspect = 1;
   const controls = { target: new Vector3(), update() {} };
 
+  // An 8 x 4 x 4 box: long in X, so its diagonal is much larger than anything
+  // visible when looking down X.
   setCameraToStandardView(camera, [0, -2, -1, 8, 2, 3], controls, "positiveX");
 
   assert.deepEqual(controls.target.toArray(), [4, 0, 1]);
-  assert.ok(Math.abs(camera.position.distanceTo(controls.target) - 14.696938456699069) < 1e-9);
   assert.ok(camera.position.x > controls.target.x);
   assert.ok(camera.far > camera.near);
+  // Far enough that no geometry sits behind the camera plane.
+  assert.ok(camera.position.distanceTo(controls.target) > 4);
+});
+
+test("the graph is bounded by what it drew, not by what the assets declare", () => {
+  // Deformed geometry is baked at its authored visual scale and rescaled at draw
+  // time, so the declared bounds describe an envelope far larger than the shape
+  // on screen. Framing that envelope left the model at a fraction of the frame.
+  const graph = createThreeSceneGraph({
+    bounds: [-50, -50, -50, 50, 50, 50],
+    geometryAssets: [
+      {
+        id: "asset:pipe",
+        format: "tube",
+        object_ids: ["object:pipe"],
+        bounds: [-50, -50, -50, 50, 50, 50],
+        generation_config: { points: [[0, 0, 0], [1, 0, 0]], radius_m: 0.05 }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:pipe"],
+    objects: [{ id: "object:pipe", kind: "pipe" }]
+  });
+
+  assert.equal(graph.renderedObjectCount, 1);
+  const span = graph.bounds[3] - graph.bounds[0];
+  assert.ok(span > 0.9 && span < 1.5, `drawn span was ${span}, not the declared 100`);
+});
+
+test("the frustum fits what the view can see, not the bounding sphere", () => {
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  camera.userData.viewportAspect = 1;
+  const controls = { target: new Vector3(), update() {} };
+
+  // Looking down +X, the silhouette is the 4 x 4 YZ face: half-extents of 2.
+  // Sizing from half the AABB diagonal (4.899) instead put the box at a third
+  // of the frame with the rest of the viewport empty.
+  setCameraToStandardView(camera, [0, -2, -1, 8, 2, 3], controls, "positiveX");
+  assert.ok(camera.top > 2 && camera.top < 2.5, `top was ${camera.top}`);
+  assert.ok(camera.right > 2 && camera.right < 2.5, `right was ${camera.right}`);
+
+  // Looking down +Z the silhouette is the 8 x 4 XY face, so the same bounds
+  // must produce a wider frustum. One fit for every axis cannot do this.
+  setCameraToStandardView(camera, [0, -2, -1, 8, 2, 3], controls, "positiveZ");
+  assert.ok(camera.top > 4, `+Z top was ${camera.top}`);
+});
+
+test("a wide viewport is fitted on its binding axis", () => {
+  const wide = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  wide.userData.viewportAspect = 3;
+  const tall = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  tall.userData.viewportAspect = 0.5;
+  const controls = () => ({ target: new Vector3(), update() {} });
+
+  // Silhouette down +X is 4 wide by 4 high. A 3:1 viewport is limited by
+  // height; a 1:2 viewport is limited by width and must grow taller to hold it.
+  setCameraToStandardView(wide, [0, -2, -1, 8, 2, 3], controls(), "positiveX");
+  setCameraToStandardView(tall, [0, -2, -1, 8, 2, 3], controls(), "positiveX");
+  assert.ok(tall.top > wide.top, `tall ${tall.top} should exceed wide ${wide.top}`);
+  assert.ok(Math.abs(wide.right / wide.top - 3) < 1e-9);
 });
 
 test("standard Z camera views use stable up vectors", () => {

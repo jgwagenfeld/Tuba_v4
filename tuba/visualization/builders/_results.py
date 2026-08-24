@@ -4,6 +4,12 @@ from __future__ import annotations
 from typing import Any
 import numpy as np
 from tuba.analysis.mesh import AnalysisMesh
+from tuba.analysis.tuyau import (
+    CODE_ASTER_TUYAU_NCOU,
+    CODE_ASTER_TUYAU_NSEC,
+    section_profile,
+    subpoint_station,
+)
 from tuba.model import Element
 from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
@@ -502,6 +508,9 @@ def _result_state_tuyau_subpoint_scene(
     row_indices: list[int] = []
     element_ids: list[str] = []
     subpoint_indices: list[int | None] = []
+    sector_indices: list[int | None] = []
+    layer_indices: list[int | None] = []
+    section_shapes: set[tuple[int, int]] = set()
     position_sources: set[str] = set()
     for row_index, row, value, point in candidates:
         glyph_points = _tuyau_subpoint_glyph_points(row, point)
@@ -523,7 +532,14 @@ def _result_state_tuyau_subpoint_scene(
         values.append(value)
         row_indices.append(row_index)
         element_ids.append(element_id)
-        subpoint_indices.append(_as_int(row.get("subpoint_index")))
+        subpoint_index = _as_int(row.get("subpoint_index"))
+        nsec = _as_int(row.get("tuyau_nsec")) or CODE_ASTER_TUYAU_NSEC
+        ncou = _as_int(row.get("tuyau_ncou")) or CODE_ASTER_TUYAU_NCOU
+        section_shapes.add((nsec, ncou))
+        station = None if subpoint_index is None else subpoint_station(subpoint_index, nsec=nsec, ncou=ncou)
+        subpoint_indices.append(subpoint_index)
+        sector_indices.append(None if station is None else station.sector_index)
+        layer_indices.append(None if station is None else station.layer_index)
         position_sources.add(str(row.get("position_source", "centerline_from_sieq_elno")))
 
     if not starts:
@@ -531,6 +547,12 @@ def _result_state_tuyau_subpoint_scene(
 
     value_range = {"min": min(values), "max": max(values)}
     position_source = position_sources.pop() if len(position_sources) == 1 else "mixed"
+    # Describe the sub-point grid only when every row agrees on it. A run that
+    # mixed two TUYAU discretisations has no single rosette to draw, so the
+    # viewer must omit the panel rather than pick one shape and imply it covers
+    # the rest.
+    profile = section_profile(*section_shapes.pop()) if len(section_shapes) == 1 else None
+    peak = _tuyau_subpoint_peak(values, element_ids, subpoint_indices, sector_indices, layer_indices, profile)
     asset_bounds = _bounds_for_points([*starts, *ends], 0.006)
     object_metadata = {
         "result_state_id": result_state.id,
@@ -561,6 +583,8 @@ def _result_state_tuyau_subpoint_scene(
                 "row_indices": row_indices,
                 "element_ids": element_ids,
                 "subpoint_indices": subpoint_indices,
+                "sector_indices": sector_indices,
+                "layer_indices": layer_indices,
                 "result_state_id": result_state.id,
                 "position_source": position_source,
                 "range": value_range,
@@ -610,7 +634,9 @@ def _result_state_tuyau_subpoint_scene(
             "rendered_count": len(starts),
             "values": {object_id: max(values)},
             "range": value_range,
-            "hotspots": _tuyau_subpoint_hotspots(object_id, row_indices, values, element_ids, subpoint_indices),
+            "hotspots": _tuyau_subpoint_hotspots(
+                object_id, row_indices, values, element_ids, subpoint_indices, sector_indices, layer_indices
+            ),
             "legend": {
                 "field": tuyau_legend_field,
                 "unit": "Pa",
@@ -620,6 +646,11 @@ def _result_state_tuyau_subpoint_scene(
             },
         },
     )
+    if profile is not None:
+        assets[0].generation_config["section_profile"] = profile
+        overlay.data["section_profile"] = profile
+    if peak is not None:
+        overlay.data["peak"] = peak
     return objects, assets, overlay, diagnostics
 def _tuyau_subpoint_hotspots(
     object_id: str,
@@ -627,6 +658,8 @@ def _tuyau_subpoint_hotspots(
     values: list[float],
     element_ids: list[str],
     subpoint_indices: list[int | None],
+    sector_indices: list[int | None],
+    layer_indices: list[int | None],
 ) -> list[dict[str, Any]]:
     ranked = sorted(range(len(values)), key=lambda index: values[index], reverse=True)[:20]
     return [
@@ -635,11 +668,53 @@ def _tuyau_subpoint_hotspots(
             "row_index": row_indices[index],
             "element_id": element_ids[index],
             "subpoint_index": subpoint_indices[index],
+            "sector_index": sector_indices[index],
+            "layer_index": layer_indices[index],
             "value": values[index],
             "unit": "Pa",
         }
         for index in ranked
     ]
+def _tuyau_subpoint_peak(
+    values: list[float],
+    element_ids: list[str],
+    subpoint_indices: list[int | None],
+    sector_indices: list[int | None],
+    layer_indices: list[int | None],
+    profile: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Where the largest sub-point value sits, decoded into a wall position.
+
+    Only the two radial extremes get a name: the bore and the outer surface are
+    identifiable without knowing how the pipe is bent, whereas calling a sector
+    "intrados" would require an orientation the scene does not carry.
+    """
+    if not values:
+        return None
+    index = max(range(len(values)), key=lambda candidate: values[candidate])
+    sector_index = sector_indices[index]
+    layer_index = layer_indices[index]
+    peak: dict[str, Any] = {
+        "value": values[index],
+        "unit": "Pa",
+        "element_id": element_ids[index],
+        "subpoint_index": subpoint_indices[index],
+        "sector_index": sector_index,
+        "layer_index": layer_index,
+    }
+    if profile is None:
+        return peak
+    if sector_index is not None:
+        peak["angle_deg"] = 360.0 * sector_index / (2.0 * int(profile["nsec"]))
+    if layer_index is not None:
+        peak["wall_position"] = _tuyau_wall_position(layer_index, int(profile["layers"]))
+    return peak
+def _tuyau_wall_position(layer_index: int, layers: int) -> str:
+    if layer_index <= 0:
+        return "bore"
+    if layer_index >= layers - 1:
+        return "outer"
+    return "mid_wall"
 def _tuyau_subpoint_point(model: TubaModel, row: dict[str, Any]) -> list[float] | None:
     point = _coerce_point(row.get("display_position"))
     if point is not None:

@@ -1,3 +1,5 @@
+import { tableIdsForWorkflow } from "./reviewTables.js";
+
 export const WORKFLOW_TABS = Object.freeze([
   { id: "summary", label: "Review", requiresReview: true },
   { id: "model", label: "Model", requiresReview: true },
@@ -8,7 +10,28 @@ export const WORKFLOW_TABS = Object.freeze([
   { id: "compliance", label: "Compliance", requiresReview: true }
 ]);
 
-const EVIDENCE_TAB_IDS = Object.freeze(["summary", "diagnostics", "compliance", "reports"]);
+// Always offered: the first three are the review's own framing, and Compliance
+// carries a caveat worth stating even when it has no table behind it.
+const ALWAYS_EVIDENCE_TAB_IDS = Object.freeze(["summary", "compliance", "diagnostics", "reports"]);
+
+// Offered only when the review actually carries their tables. WORKFLOW_TABLES
+// routes line_list, load_cases, studies and fe_stress to these three ids, and
+// the dock used to expose none of them - so four of the six tables in a real
+// review were parsed, view-modelled and then had nowhere to go.
+const TABLE_EVIDENCE_TAB_IDS = Object.freeze(["model", "load-cases", "results"]);
+
+// The table-driven tabs slot in after Governing Results; the four that were
+// always there keep their existing relative order, so a review carrying none of
+// the new tables sees exactly the dock it saw before.
+const EVIDENCE_TAB_ORDER = Object.freeze([
+  "summary",
+  "model",
+  "load-cases",
+  "results",
+  "diagnostics",
+  "compliance",
+  "reports"
+]);
 
 export function getVisibleWorkflowTabs({ review } = {}) {
   return review ? WORKFLOW_TABS.map((tab) => tab.id) : ["model", "diagnostics"];
@@ -19,7 +42,24 @@ export function getVisibleCockpitTaskIds({ review } = {}) {
 }
 
 export function getVisibleEvidenceTabIds({ review } = {}) {
-  return review ? [...EVIDENCE_TAB_IDS] : ["diagnostics"];
+  if (!review) {
+    return ["diagnostics"];
+  }
+  return EVIDENCE_TAB_ORDER.filter(
+    (id) =>
+      ALWAYS_EVIDENCE_TAB_IDS.includes(id) ||
+      // Only when it carries something the always-present tabs do not already
+      // show. result_summary routes to both summary and results, so testing for
+      // "any table" alone sprouted a Results tab that duplicated Governing
+      // Results and nothing else.
+      tableIdsForWorkflow(id).some(
+        (tableId) => Boolean(review.tables?.[tableId]) && !alwaysShownTableIds().has(tableId)
+      )
+  );
+}
+
+function alwaysShownTableIds() {
+  return new Set(ALWAYS_EVIDENCE_TAB_IDS.flatMap((id) => tableIdsForWorkflow(id)));
 }
 
 export function defaultWorkflowTab({ review, embed } = {}) {

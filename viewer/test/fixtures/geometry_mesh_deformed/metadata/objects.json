@@ -1,0 +1,4440 @@
+[
+  {
+    "entity_ref": "element:pipe_str_0",
+    "geometry_asset_id": "geometry:element:pipe_str_0",
+    "id": "object:element:pipe_str_0",
+    "kind": "pipe",
+    "metadata": {
+      "element_type": "pipe_straight",
+      "groups": [],
+      "material": "Steel",
+      "nodes": [
+        "N0",
+        "N1"
+      ],
+      "profile": {
+        "area_m2": 0.0020478333482348296,
+        "collision_radius_m": 0.05715,
+        "inner_diameter_m": 0.10226,
+        "kind": "pipe",
+        "outer_diameter_m": 0.1143,
+        "section": "DN100",
+        "wall_thickness_m": 0.00602
+      },
+      "section": "DN100"
+    },
+    "name": "pipe_str_0",
+    "physical": {
+      "bare_od_m": 0.1143,
+      "bare_radius_m": 0.05715,
+      "effective_od_m": 0.1143,
+      "effective_radius_m": 0.05715,
+      "element_id": "pipe_str_0",
+      "insulation_cost_per_m": 0.0,
+      "insulation_mass_kg_per_m": 0.0,
+      "insulation_spec_id": null,
+      "insulation_thickness_m": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "mass_kg_per_m": 16.07549178364341,
+      "material": "Steel",
+      "metal_area_m2": 0.0020478333482348296,
+      "pipe_mass_kg_per_m": 16.07549178364341,
+      "section": "DN100",
+      "surface_area_m2_per_m": 0.3590840403053133,
+      "wind_diameter_m": 0.1143
+    },
+    "quantities": {
+      "element_id": "pipe_str_0",
+      "insulation_cost": 0.0,
+      "insulation_mass_kg": 0.0,
+      "insulation_volume_m3": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "length_m": 2.4,
+      "mass_kg_per_m": 16.07549178364341,
+      "pipe_mass_kg": 38.581180280744185,
+      "surface_area_m2": 0.861801696732752,
+      "total_mass_kg": 38.581180280744185,
+      "wind_projected_area_m2": 0.27432
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:element:pipe_bend_0",
+    "id": "object:element:pipe_bend_0",
+    "kind": "pipe",
+    "metadata": {
+      "bend_geometry": {
+        "angle": 90.0,
+        "center": [
+          2.3999999999999995,
+          0.0,
+          0.3429
+        ],
+        "end_tangent": [
+          1.6188728851343772e-16,
+          0.0,
+          1.0
+        ],
+        "generation_mode": "bend",
+        "normal": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "radius": 0.3429,
+        "start_tangent": [
+          1.0,
+          0.0,
+          1.2950983081075026e-15
+        ]
+      },
+      "element_type": "pipe_bend",
+      "groups": [],
+      "material": "Steel",
+      "nodes": [
+        "N1",
+        "N2"
+      ],
+      "profile": {
+        "area_m2": 0.0020478333482348296,
+        "collision_radius_m": 0.05715,
+        "inner_diameter_m": 0.10226,
+        "kind": "pipe",
+        "outer_diameter_m": 0.1143,
+        "section": "DN100",
+        "wall_thickness_m": 0.00602
+      },
+      "section": "DN100"
+    },
+    "name": "pipe_bend_0",
+    "physical": {
+      "bare_od_m": 0.1143,
+      "bare_radius_m": 0.05715,
+      "effective_od_m": 0.1143,
+      "effective_radius_m": 0.05715,
+      "element_id": "pipe_bend_0",
+      "insulation_cost_per_m": 0.0,
+      "insulation_mass_kg_per_m": 0.0,
+      "insulation_spec_id": null,
+      "insulation_thickness_m": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "mass_kg_per_m": 16.07549178364341,
+      "material": "Steel",
+      "metal_area_m2": 0.0020478333482348296,
+      "pipe_mass_kg_per_m": 16.07549178364341,
+      "section": "DN100",
+      "surface_area_m2_per_m": 0.3590840403053133,
+      "wind_diameter_m": 0.1143
+    },
+    "quantities": {
+      "element_id": "pipe_bend_0",
+      "insulation_cost": 0.0,
+      "insulation_mass_kg": 0.0,
+      "insulation_volume_m3": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "length_m": 0.53862606045797,
+      "mass_kg_per_m": 16.07549178364341,
+      "pipe_mass_kg": 8.658678809348316,
+      "surface_area_m2": 0.19341202200298183,
+      "total_mass_kg": 8.658678809348316,
+      "wind_projected_area_m2": 0.06156495871034597
+    }
+  },
+  {
+    "entity_ref": "element:pipe_str_1",
+    "geometry_asset_id": "geometry:element:pipe_str_1",
+    "id": "object:element:pipe_str_1",
+    "kind": "pipe",
+    "metadata": {
+      "element_type": "pipe_straight",
+      "groups": [],
+      "material": "Steel",
+      "nodes": [
+        "N2",
+        "N3"
+      ],
+      "profile": {
+        "area_m2": 0.0020478333482348296,
+        "collision_radius_m": 0.05715,
+        "inner_diameter_m": 0.10226,
+        "kind": "pipe",
+        "outer_diameter_m": 0.1143,
+        "section": "DN100",
+        "wall_thickness_m": 0.00602
+      },
+      "section": "DN100"
+    },
+    "name": "pipe_str_1",
+    "physical": {
+      "bare_od_m": 0.1143,
+      "bare_radius_m": 0.05715,
+      "effective_od_m": 0.1143,
+      "effective_radius_m": 0.05715,
+      "element_id": "pipe_str_1",
+      "insulation_cost_per_m": 0.0,
+      "insulation_mass_kg_per_m": 0.0,
+      "insulation_spec_id": null,
+      "insulation_thickness_m": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "mass_kg_per_m": 16.07549178364341,
+      "material": "Steel",
+      "metal_area_m2": 0.0020478333482348296,
+      "pipe_mass_kg_per_m": 16.07549178364341,
+      "section": "DN100",
+      "surface_area_m2_per_m": 0.3590840403053133,
+      "wind_diameter_m": 0.1143
+    },
+    "quantities": {
+      "element_id": "pipe_str_1",
+      "insulation_cost": 0.0,
+      "insulation_mass_kg": 0.0,
+      "insulation_volume_m3": 0.0,
+      "insulation_volume_m3_per_m": 0.0,
+      "length_m": 1.2,
+      "mass_kg_per_m": 16.07549178364341,
+      "pipe_mass_kg": 19.290590140372093,
+      "surface_area_m2": 0.430900848366376,
+      "total_mass_kg": 19.290590140372093,
+      "wind_projected_area_m2": 0.13716
+    }
+  },
+  {
+    "entity_ref": "support:support_0",
+    "geometry_asset_id": "geometry:support:support_0",
+    "id": "object:support:support_0",
+    "kind": "support",
+    "metadata": {
+      "node": "N0",
+      "support_type": "anchor"
+    },
+    "name": "support_0"
+  },
+  {
+    "entity_ref": "support:support_1",
+    "geometry_asset_id": "geometry:support:support_1",
+    "id": "object:support:support_1",
+    "kind": "support",
+    "metadata": {
+      "node": "N3",
+      "support_type": "anchor"
+    },
+    "name": "support_1"
+  },
+  {
+    "id": "object:result_state:result_state:Hot:gmd_fixture_not_a_solve",
+    "kind": "result_state",
+    "metadata": {
+      "element_result_count": 3,
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_count": 4,
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "solver_name": "Code_Aster",
+      "study_id": "analysis_study:Hot"
+    },
+    "name": "Result state Hot",
+    "source": {
+      "tuba_result_state": {
+        "element_results": {
+          "pipe_bend_0": {
+            "forces_n1": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "forces_n2": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_von_mises": 135000000.0,
+            "von_mises_n1": 110700000.0,
+            "von_mises_n2": 135000000.0
+          },
+          "pipe_str_0": {
+            "forces_n1": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "forces_n2": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_von_mises": 70000000.0,
+            "von_mises_n1": 57400000.0,
+            "von_mises_n2": 70000000.0
+          },
+          "pipe_str_1": {
+            "forces_n1": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "forces_n2": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_von_mises": 200000000.0,
+            "von_mises_n1": 164000000.0,
+            "von_mises_n2": 200000000.0
+          }
+        },
+        "files": {
+          "manifest": "C:\\Users\\jange\\AppData\\Local\\Temp\\tmpvj3_yrdt\\code_aster\\study_manifest.json"
+        },
+        "id": "result_state:Hot:gmd_fixture_not_a_solve",
+        "load_case": "Hot",
+        "mesh_id": "analysis_mesh:Hot",
+        "metadata": {
+          "source": "gmd_fixture_not_a_solve",
+          "tuyau_subpoint_count": 7
+        },
+        "model_revision": 0,
+        "node_displacements": {
+          "N0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "N1": [
+            0.0,
+            0.0,
+            0.004733333333333333,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "N2": [
+            0.0,
+            0.0,
+            0.018933333333333333,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "N3": [
+            0.0,
+            0.0,
+            0.0426,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "node_reactions": {
+          "N0": [
+            1200.0,
+            0.0,
+            3400.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "solver_name": "Code_Aster",
+        "study_id": "analysis_study:Hot"
+      }
+    }
+  },
+  {
+    "geometry_asset_id": "geometry:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N1",
+    "id": "object:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N1",
+    "kind": "displacement_vector",
+    "layer_ids": [
+      "result:displacement"
+    ],
+    "metadata": {
+      "load_case": "Hot",
+      "magnitude": 0.004733333333333333,
+      "node_id": "N1",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "displacement"
+    },
+    "name": "N1 displacement Hot"
+  },
+  {
+    "geometry_asset_id": "geometry:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N2",
+    "id": "object:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N2",
+    "kind": "displacement_vector",
+    "layer_ids": [
+      "result:displacement"
+    ],
+    "metadata": {
+      "load_case": "Hot",
+      "magnitude": 0.018933333333333333,
+      "node_id": "N2",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "displacement"
+    },
+    "name": "N2 displacement Hot"
+  },
+  {
+    "geometry_asset_id": "geometry:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N3",
+    "id": "object:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N3",
+    "kind": "displacement_vector",
+    "layer_ids": [
+      "result:displacement"
+    ],
+    "metadata": {
+      "load_case": "Hot",
+      "magnitude": 0.0426,
+      "node_id": "N3",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "displacement"
+    },
+    "name": "N3 displacement Hot"
+  },
+  {
+    "geometry_asset_id": "geometry:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "id": "object:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "kind": "reaction_vector",
+    "layer_ids": [
+      "result:reaction"
+    ],
+    "metadata": {
+      "load_case": "Hot",
+      "magnitude": 3605.5512754639894,
+      "node_id": "N0",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "reaction"
+    },
+    "name": "N0 reaction Hot"
+  },
+  {
+    "geometry_asset_id": "geometry:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve",
+    "id": "object:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve",
+    "kind": "tuyau_subpoint_field",
+    "layer_ids": [
+      "solver_result:tuyau_subpoints"
+    ],
+    "metadata": {
+      "compliance_role": "visualization_only_not_asme_code_stress",
+      "component": "VMIS",
+      "count": 7,
+      "field": "SIEQ_ELNO",
+      "load_case": "Hot",
+      "position_source": "code_aster_tuyau_subpoint_formula",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "source_file": null,
+      "stress_basis": "Code_Aster SIEQ_ELNO VMIS TUYAU sub-point",
+      "unit": "Pa"
+    },
+    "name": "TUYAU FE VMIS (not code stress) Hot",
+    "source": {
+      "code_aster_tuyau_subpoints": {
+        "count": 7
+      }
+    }
+  },
+  {
+    "id": "object:geometry_state:geometry_state:cold",
+    "kind": "geometry_state",
+    "metadata": {
+      "displacement_scale": 1.0,
+      "geometry_state_id": "geometry_state:cold",
+      "load_case": null,
+      "purpose": "engineering",
+      "result_state_id": null,
+      "safety_factor": 1.0,
+      "state_type": "cold"
+    },
+    "name": "Geometry state geometry_state:cold",
+    "source": {
+      "tuba_geometry_state": {
+        "displacement_scale": 1.0,
+        "id": "geometry_state:cold",
+        "model_revision": 0,
+        "purpose": "engineering",
+        "safety_factor": 1.0,
+        "state_type": "cold"
+      }
+    }
+  },
+  {
+    "id": "object:geometry_state:geometry_state:Hot:visual_x50",
+    "kind": "geometry_state",
+    "metadata": {
+      "displacement_scale": 50.0,
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "safety_factor": 1.0,
+      "state_type": "deformed"
+    },
+    "name": "Geometry state geometry_state:Hot:visual_x50",
+    "source": {
+      "tuba_geometry_state": {
+        "displacement_scale": 50.0,
+        "id": "geometry_state:Hot:visual_x50",
+        "load_case": "Hot",
+        "model_revision": 0,
+        "purpose": "visualization",
+        "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+        "safety_factor": 1.0,
+        "state_type": "deformed"
+      }
+    }
+  },
+  {
+    "entity_ref": "node:N0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N0",
+    "group_ids": [
+      "AllSupports",
+      "GN_N0",
+      "PipeOrientationNodes"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:N0",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllSupports",
+      "analysis_mesh:group:GN_N0",
+      "analysis_mesh:group:PipeOrientationNodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "groups": [
+        "AllSupports",
+        "GN_N0",
+        "PipeOrientationNodes"
+      ],
+      "member_id": "N0",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "role": "native_node",
+      "solver_name": "Code_Aster",
+      "source_ref": "node:N0"
+    },
+    "name": "N0 (native_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "N0",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "node:N1",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N1",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:N1",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.4,
+        0.0,
+        0.0
+      ],
+      "groups": [],
+      "member_id": "N1",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "role": "native_node",
+      "solver_name": "Code_Aster",
+      "source_ref": "node:N1"
+    },
+    "name": "N1 (native_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "N1",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "node:N2",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N2",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:N2",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7428999999999997,
+        0.0,
+        0.3428999999999999
+      ],
+      "groups": [],
+      "member_id": "N2",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "role": "native_node",
+      "solver_name": "Code_Aster",
+      "source_ref": "node:N2"
+    },
+    "name": "N2 (native_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "N2",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "node:N3",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:N3",
+    "group_ids": [
+      "AllSupports",
+      "GN_N3"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:N3",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllSupports",
+      "analysis_mesh:group:GN_N3"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7428999999999997,
+        0.0,
+        1.5429
+      ],
+      "groups": [
+        "AllSupports",
+        "GN_N3"
+      ],
+      "member_id": "N3",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "role": "native_node",
+      "solver_name": "Code_Aster",
+      "source_ref": "node:N3"
+    },
+    "name": "N3 (native_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "N3",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n1",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n1",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.433610077419006,
+        0.0,
+        0.0016511572241036943
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n1",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.0625,
+      "role": "generated_bend_node",
+      "segment_index": 1,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n1 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n1",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n10",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n10",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.685110930058542,
+        0.0,
+        0.1523949670975779
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n10",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.625,
+      "role": "generated_bend_node",
+      "segment_index": 10,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n10 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n10",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n11",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n11",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7024108015450503,
+        0.0,
+        0.18125805894236505
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n11",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.6875,
+      "role": "generated_bend_node",
+      "segment_index": 11,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n11 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n11",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n12",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n12",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7167982916981197,
+        0.0,
+        0.21167785104201023
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n12",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.75,
+      "role": "generated_bend_node",
+      "segment_index": 12,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n12 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n12",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n13",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n13",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7281348411225737,
+        0.0,
+        0.24336138416944453
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n13",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.8125,
+      "role": "generated_bend_node",
+      "segment_index": 13,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n13 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n13",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n14",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n14",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.736311272650267,
+        0.0,
+        0.27600352858066945
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n14",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.875,
+      "role": "generated_bend_node",
+      "segment_index": 14,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n14 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n14",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n15",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n15",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.741248842775896,
+        0.0,
+        0.3092899225809934
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n15",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.9375,
+      "role": "generated_bend_node",
+      "segment_index": 15,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n15 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n15",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n2",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n2",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.46689647141933,
+        0.0,
+        0.006588727349732315
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n2",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.125,
+      "role": "generated_bend_node",
+      "segment_index": 2,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n2 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n2",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n3",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n3",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.499538615830555,
+        0.0,
+        0.014765158877425577
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n3",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.1875,
+      "role": "generated_bend_node",
+      "segment_index": 3,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n3 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n3",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n4",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n4",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.5312221489579887,
+        0.0,
+        0.026101708301879745
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n4",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.25,
+      "role": "generated_bend_node",
+      "segment_index": 4,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n4 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n4",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n5",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n5",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.561641941057634,
+        0.0,
+        0.04048919845494897
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n5",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.3125,
+      "role": "generated_bend_node",
+      "segment_index": 5,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n5 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n5",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n6",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n6",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.5905050329024206,
+        0.0,
+        0.057789069941456994
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n6",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.375,
+      "role": "generated_bend_node",
+      "segment_index": 6,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n6 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n6",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n7",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n7",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.617533457139713,
+        0.0,
+        0.07783471554191712
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n7",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.4375,
+      "role": "generated_bend_node",
+      "segment_index": 7,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n7 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n7",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n8",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n8",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.6424669152688662,
+        0.0,
+        0.10043308473113238
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n8",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.5,
+      "role": "generated_bend_node",
+      "segment_index": 8,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n8 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n8",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n9",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_n9",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes",
+      "analysis_mesh:generated_bend_nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.6650652844580813,
+        0.0,
+        0.12536654286028534
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_n9",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.5625,
+      "role": "generated_bend_node",
+      "segment_index": 9,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_n9 (generated_bend_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_n9",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s0_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s0_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.4168050387095033,
+        0.0,
+        0.0008255786120518471
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s0_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.03125,
+      "role": "generated_bend_mid_node",
+      "segment_index": 0,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s0_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s0_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s10_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s10_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.693760865801796,
+        0.0,
+        0.16682651301997148
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s10_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.65625,
+      "role": "generated_bend_mid_node",
+      "segment_index": 10,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s10_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s10_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s11_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s11_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.709604546621585,
+        0.0,
+        0.19646795499218764
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s11_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.71875,
+      "role": "generated_bend_mid_node",
+      "segment_index": 11,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s11_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s11_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s12_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s12_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.722466566410347,
+        0.0,
+        0.22751961760572736
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s12_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.78125,
+      "role": "generated_bend_mid_node",
+      "segment_index": 12,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s12_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s12_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s13_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s13_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7322230568864203,
+        0.0,
+        0.259682456375057
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s13_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.84375,
+      "role": "generated_bend_mid_node",
+      "segment_index": 13,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s13_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s13_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s14_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s14_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7387800577130816,
+        0.0,
+        0.29264672558083143
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s14_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.90625,
+      "role": "generated_bend_mid_node",
+      "segment_index": 14,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s14_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s14_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s15_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s15_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7420744213879478,
+        0.0,
+        0.32609496129049664
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s15_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.96875,
+      "role": "generated_bend_mid_node",
+      "segment_index": 15,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s15_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s15_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s1_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s1_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.4502532744191683,
+        0.0,
+        0.004119942286918005
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s1_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.09375,
+      "role": "generated_bend_mid_node",
+      "segment_index": 1,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s1_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s1_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s2_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s2_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.483217543624942,
+        0.0,
+        0.010676943113578946
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s2_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.15625,
+      "role": "generated_bend_mid_node",
+      "segment_index": 2,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s2_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s2_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s3_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s3_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.5153803823942718,
+        0.0,
+        0.02043343358965266
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s3_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.21875,
+      "role": "generated_bend_mid_node",
+      "segment_index": 3,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s3_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s3_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s4_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s4_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.546432045007811,
+        0.0,
+        0.03329545337841436
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s4_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.28125,
+      "role": "generated_bend_mid_node",
+      "segment_index": 4,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s4_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s4_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s5_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s5_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.576073486980027,
+        0.0,
+        0.04913913419820298
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s5_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.34375,
+      "role": "generated_bend_mid_node",
+      "segment_index": 5,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s5_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s5_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s6_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s6_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.6040192450210666,
+        0.0,
+        0.06781189274168706
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s6_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.40625,
+      "role": "generated_bend_mid_node",
+      "segment_index": 6,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s6_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s6_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s7_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s7_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.6300001862042897,
+        0.0,
+        0.08913390013652475
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s7_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.46875,
+      "role": "generated_bend_mid_node",
+      "segment_index": 7,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s7_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s7_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s8_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s8_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.653766099863474,
+        0.0,
+        0.11289981379570886
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s8_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.53125,
+      "role": "generated_bend_mid_node",
+      "segment_index": 8,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s8_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s8_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s9_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_bend_0_s9_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.6750881072583117,
+        0.0,
+        0.13888075497893163
+      ],
+      "groups": [],
+      "member_id": "pipe_bend_0_s9_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.59375,
+      "role": "generated_bend_mid_node",
+      "segment_index": 9,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s9_mid (generated_bend_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s9_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_str_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_str_0_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_str_0_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        1.2,
+        0.0,
+        0.0
+      ],
+      "groups": [],
+      "member_id": "pipe_str_0_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.5,
+      "role": "generated_pipe_mid_node",
+      "segment_index": 0,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_str_0"
+    },
+    "name": "pipe_str_0_mid (generated_pipe_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_str_0_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_str_1",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:node:pipe_str_1_mid",
+    "id": "object:analysis_mesh:analysis_mesh:Hot:node:pipe_str_1_mid",
+    "kind": "analysis_mesh_node",
+    "layer_ids": [
+      "analysis_mesh:nodes"
+    ],
+    "metadata": {
+      "coordinates": [
+        2.7428999999999997,
+        0.0,
+        0.9429
+      ],
+      "groups": [],
+      "member_id": "pipe_str_1_mid",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "parametric_t": 0.5,
+      "role": "generated_pipe_mid_node",
+      "segment_index": 0,
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_str_1"
+    },
+    "name": "pipe_str_1_mid (generated_pipe_mid_node)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_str_1_mid",
+        "member_type": "node"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s0",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s0",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s0",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "N1",
+        "pipe_bend_0_n1"
+      ],
+      "role": "bend_segment",
+      "segment_index": 0,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s0 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s0",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s1",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s1",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s1",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n1",
+        "pipe_bend_0_n2"
+      ],
+      "role": "bend_segment",
+      "segment_index": 1,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s1 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s1",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s10",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s10",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s10",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n10",
+        "pipe_bend_0_n11"
+      ],
+      "role": "bend_segment",
+      "segment_index": 10,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s10 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s10",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s11",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s11",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s11",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n11",
+        "pipe_bend_0_n12"
+      ],
+      "role": "bend_segment",
+      "segment_index": 11,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s11 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s11",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s12",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s12",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s12",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n12",
+        "pipe_bend_0_n13"
+      ],
+      "role": "bend_segment",
+      "segment_index": 12,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s12 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s12",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s13",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s13",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s13",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n13",
+        "pipe_bend_0_n14"
+      ],
+      "role": "bend_segment",
+      "segment_index": 13,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s13 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s13",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s14",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s14",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s14",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n14",
+        "pipe_bend_0_n15"
+      ],
+      "role": "bend_segment",
+      "segment_index": 14,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s14 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s14",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s15",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s15",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s15",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n15",
+        "N2"
+      ],
+      "role": "bend_segment",
+      "segment_index": 15,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s15 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s15",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s2",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s2",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s2",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n2",
+        "pipe_bend_0_n3"
+      ],
+      "role": "bend_segment",
+      "segment_index": 2,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s2 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s2",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s3",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s3",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s3",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n3",
+        "pipe_bend_0_n4"
+      ],
+      "role": "bend_segment",
+      "segment_index": 3,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s3 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s3",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s4",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s4",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s4",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n4",
+        "pipe_bend_0_n5"
+      ],
+      "role": "bend_segment",
+      "segment_index": 4,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s4 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s4",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s5",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s5",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s5",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n5",
+        "pipe_bend_0_n6"
+      ],
+      "role": "bend_segment",
+      "segment_index": 5,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s5 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s5",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s6",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s6",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s6",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n6",
+        "pipe_bend_0_n7"
+      ],
+      "role": "bend_segment",
+      "segment_index": 6,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s6 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s6",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s7",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s7",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s7",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n7",
+        "pipe_bend_0_n8"
+      ],
+      "role": "bend_segment",
+      "segment_index": 7,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s7 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s7",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s8",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s8",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s8",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n8",
+        "pipe_bend_0_n9"
+      ],
+      "role": "bend_segment",
+      "segment_index": 8,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s8 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s8",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s9",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_bend_0_s9",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "member_id": "pipe_bend_0_s9",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "pipe_bend_0_n9",
+        "pipe_bend_0_n10"
+      ],
+      "role": "bend_segment",
+      "segment_index": 9,
+      "solver_name": "Code_Aster",
+      "source_metadata": {
+        "bend_geometry": {
+          "angle": 90.0,
+          "center": [
+            2.3999999999999995,
+            0.0,
+            0.3429
+          ],
+          "end_tangent": [
+            1.6188728851343772e-16,
+            0.0,
+            1.0
+          ],
+          "generation_mode": "bend",
+          "normal": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "radius": 0.3429,
+          "start_tangent": [
+            1.0,
+            0.0,
+            1.2950983081075026e-15
+          ]
+        }
+      },
+      "source_ref": "element:pipe_bend_0"
+    },
+    "name": "pipe_bend_0_s9 (bend_segment)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_bend_0_s9",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_str_0",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_str_0",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeStraights",
+      "SEC_DN100",
+      "pipe_str_0"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_str_0",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeStraights",
+      "analysis_mesh:group:SEC_DN100",
+      "analysis_mesh:group:pipe_str_0"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeStraights",
+        "SEC_DN100",
+        "pipe_str_0"
+      ],
+      "member_id": "pipe_str_0",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "N0",
+        "N1"
+      ],
+      "role": "native_element",
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_str_0"
+    },
+    "name": "pipe_str_0 (native_element)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_str_0",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_str_1",
+    "geometry_asset_id": "geometry:analysis_mesh:analysis_mesh:Hot:element:pipe_str_1",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeStraights",
+      "SEC_DN100",
+      "pipe_str_1"
+    ],
+    "id": "object:analysis_mesh:analysis_mesh:Hot:element:pipe_str_1",
+    "kind": "analysis_mesh_element",
+    "layer_ids": [
+      "analysis_mesh:elements",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeStraights",
+      "analysis_mesh:group:SEC_DN100",
+      "analysis_mesh:group:pipe_str_1"
+    ],
+    "metadata": {
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeStraights",
+        "SEC_DN100",
+        "pipe_str_1"
+      ],
+      "member_id": "pipe_str_1",
+      "mesh_id": "analysis_mesh:Hot",
+      "model_revision": 0,
+      "node_ids": [
+        "N2",
+        "N3"
+      ],
+      "role": "native_element",
+      "solver_name": "Code_Aster",
+      "source_ref": "element:pipe_str_1"
+    },
+    "name": "pipe_str_1 (native_element)",
+    "source": {
+      "analysis_mesh": {
+        "id": "analysis_mesh:Hot",
+        "member_id": "pipe_str_1",
+        "member_type": "element"
+      }
+    }
+  },
+  {
+    "entity_ref": "element:pipe_str_0",
+    "geometry_asset_id": "geometry:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_0",
+    "id": "object:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_0",
+    "kind": "deformed_centerline",
+    "layer_ids": [
+      "deformed:visual_centerline"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 50.0,
+      "entity_ref": "element:pipe_str_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_str_0 geometry_state:Hot:visual_x50 centerline"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_centerline:geometry_state:Hot:visual_x50:pipe_bend_0",
+    "id": "object:deformed_centerline:geometry_state:Hot:visual_x50:pipe_bend_0",
+    "kind": "deformed_centerline",
+    "layer_ids": [
+      "deformed:visual_centerline"
+    ],
+    "metadata": {
+      "diagnostics": [
+        "bend_displacement_interpolated"
+      ],
+      "displacement_scale": 50.0,
+      "entity_ref": "element:pipe_bend_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N1",
+        "N2"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0 geometry_state:Hot:visual_x50 centerline"
+  },
+  {
+    "entity_ref": "element:pipe_str_1",
+    "geometry_asset_id": "geometry:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_1",
+    "id": "object:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_1",
+    "kind": "deformed_centerline",
+    "layer_ids": [
+      "deformed:visual_centerline"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 50.0,
+      "entity_ref": "element:pipe_str_1",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N2",
+        "N3"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_str_1 geometry_state:Hot:visual_x50 centerline"
+  },
+  {
+    "entity_ref": "element:pipe_str_0",
+    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation",
+    "id": "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation",
+    "kind": "deformed_envelope",
+    "layer_ids": [
+      "deformed:visual_envelope"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 50.0,
+      "entity_ref": "element:pipe_str_0",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "radius_m": 0.05715,
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N0",
+        "N1"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "element:pipe_str_0 geometry_state:Hot:visual_x50 insulation"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation",
+    "id": "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation",
+    "kind": "deformed_envelope",
+    "layer_ids": [
+      "deformed:visual_envelope"
+    ],
+    "metadata": {
+      "diagnostics": [
+        "bend_displacement_interpolated"
+      ],
+      "displacement_scale": 50.0,
+      "entity_ref": "element:pipe_bend_0",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "radius_m": 0.05715,
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N1",
+        "N2"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "element:pipe_bend_0 geometry_state:Hot:visual_x50 insulation"
+  },
+  {
+    "entity_ref": "element:pipe_str_1",
+    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation",
+    "id": "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation",
+    "kind": "deformed_envelope",
+    "layer_ids": [
+      "deformed:visual_envelope"
+    ],
+    "metadata": {
+      "diagnostics": [],
+      "displacement_scale": 50.0,
+      "entity_ref": "element:pipe_str_1",
+      "envelope_type": "insulation",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "load_case": "Hot",
+      "purpose": "visualization",
+      "radius_m": 0.05715,
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "safety_factor": 1.0,
+      "source_mesh_nodes": [
+        "N2",
+        "N3"
+      ],
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "element:pipe_str_1 geometry_state:Hot:visual_x50 insulation"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s0",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s0",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N1",
+        "pipe_bend_0_n1"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 0,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s0 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s1",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s1",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s1",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n1",
+        "pipe_bend_0_n2"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 1,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s1 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s10",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s10",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s10",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n10",
+        "pipe_bend_0_n11"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 10,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s10 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s11",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s11",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s11",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n11",
+        "pipe_bend_0_n12"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 11,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s11 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s12",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s12",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s12",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n12",
+        "pipe_bend_0_n13"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 12,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s12 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s13",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s13",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s13",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n13",
+        "pipe_bend_0_n14"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 13,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s13 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s14",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s14",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s14",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n14",
+        "pipe_bend_0_n15"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 14,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s14 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s15",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s15",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s15",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n15",
+        "N2"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 15,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s15 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s2",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s2",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s2",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n2",
+        "pipe_bend_0_n3"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 2,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s2 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s3",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s3",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s3",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n3",
+        "pipe_bend_0_n4"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 3,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s3 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s4",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s4",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s4",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n4",
+        "pipe_bend_0_n5"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 4,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s4 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s5",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s5",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s5",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n5",
+        "pipe_bend_0_n6"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 5,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s5 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s6",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s6",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s6",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n6",
+        "pipe_bend_0_n7"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 6,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s6 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s7",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s7",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s7",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n7",
+        "pipe_bend_0_n8"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 7,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s7 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s8",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s8",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s8",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n8",
+        "pipe_bend_0_n9"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 8,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s8 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_bend_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s9",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeElbows",
+      "pipe_bend_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s9",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeElbows",
+      "analysis_mesh:group:pipe_bend_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_bend_0_s9",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeElbows",
+        "pipe_bend_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "pipe_bend_0_n9",
+        "pipe_bend_0_n10"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "bend_segment",
+      "safety_factor": 1.0,
+      "segment_index": 9,
+      "source_ref": "element:pipe_bend_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_bend_0_s9 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_str_0",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_0",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeStraights",
+      "SEC_DN100",
+      "pipe_str_0"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_0",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeStraights",
+      "analysis_mesh:group:SEC_DN100",
+      "analysis_mesh:group:pipe_str_0"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_str_0",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeStraights",
+        "SEC_DN100",
+        "pipe_str_0"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N0",
+        "N1"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "native_element",
+      "safety_factor": 1.0,
+      "source_ref": "element:pipe_str_0",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_str_0 geometry_state:Hot:visual_x50 warped mesh"
+  },
+  {
+    "entity_ref": "element:pipe_str_1",
+    "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_1",
+    "group_ids": [
+      "AllPipes",
+      "MAT_Steel",
+      "PipeStraights",
+      "SEC_DN100",
+      "pipe_str_1"
+    ],
+    "id": "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_str_1",
+    "kind": "deformed_analysis_mesh_element",
+    "layer_ids": [
+      "deformed:mesh",
+      "analysis_mesh:groups",
+      "analysis_mesh:group:AllPipes",
+      "analysis_mesh:group:MAT_Steel",
+      "analysis_mesh:group:PipeStraights",
+      "analysis_mesh:group:SEC_DN100",
+      "analysis_mesh:group:pipe_str_1"
+    ],
+    "metadata": {
+      "displacement_scale": 50.0,
+      "element_id": "pipe_str_1",
+      "geometry_state_id": "geometry_state:Hot:visual_x50",
+      "groups": [
+        "AllPipes",
+        "MAT_Steel",
+        "PipeStraights",
+        "SEC_DN100",
+        "pipe_str_1"
+      ],
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "node_ids": [
+        "N2",
+        "N3"
+      ],
+      "purpose": "visualization",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "role": "native_element",
+      "safety_factor": 1.0,
+      "source_ref": "element:pipe_str_1",
+      "state_type": "deformed",
+      "visual_scale": 50.0
+    },
+    "name": "pipe_str_1 geometry_state:Hot:visual_x50 warped mesh"
+  }
+]

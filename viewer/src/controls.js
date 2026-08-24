@@ -1,10 +1,11 @@
 import { getVisibleObjectIds } from "./sceneLoader.js";
+import { bodyIdForLayerId } from "./bodies.js";
 
 export function buildObjectTree(state, options = {}) {
   const groupBy = options.groupBy ?? "kind";
   const groups = new Map();
   for (const obj of state.objects) {
-    const value = valueForGroup(obj, groupBy);
+    const value = valueForGroup(obj, groupBy, state);
     const id = `${groupBy}:${value}`;
     if (!groups.has(id)) {
       groups.set(id, { id, label: value, objectIds: [], children: [] });
@@ -14,12 +15,65 @@ export function buildObjectTree(state, options = {}) {
   return { id: "root", label: "Scene", objectIds: [], children: [...groups.values()] };
 }
 
-export function searchObjects(state, query) {
+// The fields a reader can actually see on a result row, in the order a match in
+// them is worth reporting. Search used to run over JSON.stringify(obj), which
+// matched coordinates, hashes and asset ids: "1" matched almost every object and
+// the row gave no clue why. A match you cannot see is not a search result.
+const SEARCH_FIELDS = Object.freeze([
+  { key: "name", read: (obj) => obj.name },
+  { key: "entity_ref", read: (obj) => refText(obj.entity_ref) },
+  { key: "id", read: (obj) => obj.id },
+  { key: "kind", read: (obj) => obj.kind },
+  { key: "material", read: (obj) => obj.metadata?.material },
+  { key: "route", read: (obj) => obj.metadata?.route ?? obj.metadata?.attributes?.route },
+  { key: "group", read: (obj) => obj.group_ids?.[0] ?? obj.metadata?.groups?.[0] ?? obj.metadata?.group },
+  { key: "insulation", read: (obj) => obj.metadata?.insulation?.material ?? obj.metadata?.insulation?.id },
+  // Attributes are authored labels, so their string values are nameable things a
+  // reviewer looks for. Numbers are excluded: they are the coordinates and
+  // thicknesses that made the old whole-object match useless.
+  { key: "attribute", read: (obj) => namedAttributeText(obj.metadata?.attributes) }
+]);
+
+function namedAttributeText(attributes) {
+  if (!attributes || typeof attributes !== "object") return "";
+  return Object.values(attributes)
+    .filter((value) => typeof value === "string")
+    .join(" ");
+}
+
+function refText(ref) {
+  if (typeof ref === "string") return ref;
+  return ref?.kind && ref?.id ? `${ref.kind}:${ref.id}` : "";
+}
+
+/**
+ * Matches ranked by which field they landed in, so a name hit outranks a
+ * material hit. Each match reports the field and the offsets, so the row can
+ * both highlight the substring and say what it matched when the hit landed on
+ * something the row does not otherwise display.
+ */
+export function rankObjectMatches(state, query) {
   const needle = String(query ?? "").trim().toLowerCase();
   if (!needle) {
-    return state.objects;
+    return (state.objects ?? []).map((object) => ({ object, field: null, start: -1, end: -1, rank: 0 }));
   }
-  return state.objects.filter((obj) => JSON.stringify(obj).toLowerCase().includes(needle));
+  const matches = [];
+  for (const object of state.objects ?? []) {
+    for (let rank = 0; rank < SEARCH_FIELDS.length; rank += 1) {
+      const field = SEARCH_FIELDS[rank];
+      const text = field.read(object);
+      if (typeof text !== "string" && typeof text !== "number") continue;
+      const start = String(text).toLowerCase().indexOf(needle);
+      if (start < 0) continue;
+      matches.push({ object, field: field.key, start, end: start + needle.length, rank });
+      break;
+    }
+  }
+  return matches.sort((left, right) => left.rank - right.rank);
+}
+
+export function searchObjects(state, query) {
+  return rankObjectMatches(state, query).map((match) => match.object);
 }
 
 export function filterObjects(state, criteria = {}) {
@@ -202,7 +256,17 @@ function withVisibility(state) {
   return { ...state, visibleObjectIds: getVisibleObjectIds(state) };
 }
 
-function valueForGroup(obj, groupBy) {
+function valueForGroup(obj, groupBy, state) {
+  if (groupBy === "body") {
+    // The finder's default axis. Vectors, clash markers and proposals belong to
+    // no composited body, so they get a named bucket rather than vanishing -
+    // three e2e scenarios reach for exactly those objects.
+    for (const layerId of state?.objectLayerIds?.[obj.id] ?? []) {
+      const bodyId = bodyIdForLayerId(layerId, state?.layers?.[layerId]?.category);
+      if (bodyId) return bodyId;
+    }
+    return "other";
+  }
   if (groupBy === "kind") {
     return obj.kind || "object";
   }

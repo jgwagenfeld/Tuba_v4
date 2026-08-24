@@ -12,7 +12,7 @@
       <header class="app-header" data-app-header>
         <div class="app-identity">
           <span class="app-kicker">TUBA / ENGINEERING REVIEW</span>
-          <strong data-scene-title>Scene</strong>
+          <h1 data-scene-title>Scene</h1>
           <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
         </div>
         <div class="meta" data-scene-meta></div>
@@ -20,58 +20,68 @@
         <div class="runtime-status" data-status role="status" aria-live="polite">Starting</div>
       </header>
       <section class="cockpit-status" aria-label="Engineering review status" data-cockpit-status></section>
+      <section class="coloring-bar" aria-label="Result coloring channel" data-coloring-bar></section>
       <section class="viewer-workspace" data-viewer-workspace>
         <aside class="cockpit-rail" data-task-rail>
-          <nav aria-label="Engineering review tasks" data-workflow-tabs></nav>
-          <div class="task-panel" data-task-panel>
-            <div data-model-tools-home>
-              <details>
-                <summary>Tree</summary>
-                <div data-tree></div>
-              </details>
-              <section>
-                <h2>Search</h2>
-                <input type="search" data-search aria-label="Search objects" placeholder="Find object, material, route" />
-              </section>
-              <details>
-                <summary>Objects</summary>
-                <div data-object-list></div>
-              </details>
+          <div class="rail-head">
+            <nav aria-label="Engineering review tasks" data-workflow-tabs></nav>
+            <div class="rail-find">
+              <input type="search" data-search aria-label="Search objects" placeholder="Find object, material, route" />
+              <button type="button" class="find-dismiss" data-find-dismiss hidden aria-label="Close finder">✕</button>
             </div>
-            <div data-result-tools-home>
-              <section data-result-tools>
-                <h2>Results</h2>
-                <div class="result-controls" data-result-controls></div>
-                <div class="result-legend" data-result-legend></div>
-                <h2>Hotspots</h2>
-                <div data-hotspot-list></div>
-              </section>
-            </div>
-            <section data-issue-tools-home>
-              <h2>Issues</h2>
-              <div data-issue-list></div>
-            </section>
           </div>
           <div class="display-strip" data-display-strip>
-            <h2>Display</h2>
-            <div class="category-switches" data-category-switches></div>
-            <div data-section-box-controls></div>
-            <details class="layer-tree">
-              <summary>All layers</summary>
-              <div data-layer-list></div>
-            </details>
-            <section class="saved-views-block">
-              <h2>Saved Views</h2>
-              <div data-saved-views></div>
-            </section>
+            <div class="rail-pane" data-bodies-pane>
+              <div class="task-panel" data-task-panel>
+                <div data-result-tools-home>
+                  <section data-result-tools>
+                    <h2>Results</h2>
+                    <div class="result-controls" data-result-controls></div>
+                    <div class="result-legend" data-result-legend></div>
+                    <h2>Hotspots</h2>
+                    <div data-hotspot-list></div>
+                  </section>
+                </div>
+                <section data-issue-tools-home>
+                  <h2>Issues</h2>
+                  <div data-issue-list></div>
+                </section>
+              </div>
+              <div class="strip-heading">
+                <h2>Bodies — what is drawn</h2>
+                <span class="strip-tag">overlaid</span>
+              </div>
+              <div class="body-list" data-body-list></div>
+              <p class="projection-note" data-projection-note></p>
+              <section class="section-profile" aria-label="TUYAU section sub-point grid" data-section-profile></section>
+              <div class="rail-spacer"></div>
+            </div>
+            <div class="rail-pane" data-find-pane hidden>
+              <div class="find-scope" role="group" aria-label="Group results by" data-find-scope></div>
+              <div class="object-list" data-object-list></div>
+            </div>
+          </div>
+          <div class="rail-foot">
+            <div class="rail-popover" data-rail-popover hidden>
+              <div data-section-box-controls></div>
+              <details class="strip-drawer layer-tree">
+                <summary>All layers</summary>
+                <div data-layer-list></div>
+              </details>
+              <div class="saved-views-block" data-saved-views></div>
+            </div>
+            <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
+            <div class="rail-utility" data-rail-utility></div>
           </div>
         </aside>
         <section class="viewport">
           <canvas data-canvas tabindex="0" aria-label="Interactive 3D engineering review viewport" width="1280" height="800"></canvas>
           <div class="camera-controls" role="group" aria-label="Standard camera views" data-camera-controls></div>
           <button class="reset-view" type="button" data-reset-view aria-label="Reset 3D view">Reset view</button>
+          <div class="viewport-legend" data-viewport-legend></div>
+          <div class="body-legend" aria-label="What each mark in the viewport means" data-body-legend></div>
           <p class="viewport-guidance" data-viewport-guidance>
-            Orbit: drag. Zoom: scroll or buttons. Select: click. Axes: use the labelled controls. Reset: fit the full scene.
+            Orbit: drag or arrow keys. Zoom: scroll, or + and -. Select: click. Axes: X, Y, Z keys or the labelled controls. Reset: Home fits the full scene.
           </p>
         </section>
         <aside class="inspector" data-inspector hidden>

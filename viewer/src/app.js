@@ -8,9 +8,19 @@ import {
   restoreViewState,
   saveViewState,
   sectionBoxDefaults,
-  searchObjects
+  rankObjectMatches
 } from "./controls.js";
 import { applyHoverHighlight, createThreeViewport, pickRenderedObject } from "./renderer.js";
+import {
+  OPACITY_STEPS,
+  getBodies,
+  getDiscretisationCheck,
+  getSectionProfile,
+  getSubpointLegend,
+  getSubpointPeak,
+  getSubpointStations,
+  withDefaultBodyOpacity
+} from "./bodies.js";
 import {
   componentIsSelectable,
   getActiveComponent,
@@ -23,11 +33,13 @@ import {
   shouldShowComplianceNotice
 } from "./coloring.js";
 import {
+  colorForScalarValue,
   getGeometryStateOptions,
   getHotspots,
   getLoadCaseOptions,
   getResultStateOptions,
   getScalarLegend,
+  getVisualDeformationDisplayScale,
   setActiveGeometryState,
   setActiveLoadCase,
   setActiveResultState,
@@ -36,6 +48,17 @@ import {
   setUtilizationThreshold,
   setVisualDeformationScale
 } from "./resultReview.js";
+import {
+  UNIT_SYSTEMS,
+  displayUnit,
+  formatQuantity,
+  formatValue,
+  getUnitSystem,
+  isConvertible,
+  nextUnitSystem,
+  toDisplay,
+  toStored
+} from "./units.js";
 import { cockpitStatusViewModel, workflowViewModel } from "./reviewTables.js";
 import { getReviewEntityAction, showReviewEntityIn3d } from "./reviewSelection.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
@@ -69,11 +92,22 @@ const dom = {
   evidenceExpand: document.querySelector("[data-evidence-expand]"),
   evidenceTabs: document.querySelector("[data-evidence-tabs]"),
   inspector: document.querySelector("[data-inspector]"),
-  modelToolsHome: document.querySelector("[data-model-tools-home]"),
   issueToolsHome: document.querySelector("[data-issue-tools-home]"),
+  bodiesPane: document.querySelector("[data-bodies-pane]"),
+  findPane: document.querySelector("[data-find-pane]"),
+  findScope: document.querySelector("[data-find-scope]"),
+  findDismiss: document.querySelector("[data-find-dismiss]"),
+  railUtility: document.querySelector("[data-rail-utility]"),
+  railPopover: document.querySelector("[data-rail-popover]"),
   displayStrip: document.querySelector("[data-display-strip]"),
   sectionBoxControls: document.querySelector("[data-section-box-controls]"),
-  categorySwitches: document.querySelector("[data-category-switches]"),
+  coloringBar: document.querySelector("[data-coloring-bar]"),
+  bodyList: document.querySelector("[data-body-list]"),
+  projectionNote: document.querySelector("[data-projection-note]"),
+  sectionProfile: document.querySelector("[data-section-profile]"),
+  discretisationCheck: document.querySelector("[data-discretisation-check]"),
+  viewportLegend: document.querySelector("[data-viewport-legend]"),
+  bodyLegend: document.querySelector("[data-body-legend]"),
   layerList: document.querySelector("[data-layer-list]"),
   resultTools: document.querySelector("[data-result-tools]"),
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
@@ -82,7 +116,7 @@ const dom = {
   hotspotList: document.querySelector("[data-hotspot-list]"),
   diagnosticList: document.querySelector("[data-diagnostic-list]"),
   searchInput: document.querySelector("[data-search]"),
-  tree: document.querySelector("[data-tree]"),
+
   issueList: document.querySelector("[data-issue-list]"),
   objectList: document.querySelector("[data-object-list]"),
   savedViews: document.querySelector("[data-saved-views]"),
@@ -199,7 +233,7 @@ function labelForBundle(bundleId) {
 
 async function loadBundle(bundleUrl, options = {}) {
   currentBundle = await loadSceneBundleFromUrl(bundleUrl);
-  const viewerState = createViewerState(currentBundle);
+  const viewerState = withDefaultBodyOpacity(createViewerState(currentBundle));
   const workflowState = createWorkflowState({
     review: viewerState.review,
     embed: startupConfig.embed
@@ -209,27 +243,75 @@ async function loadBundle(bundleUrl, options = {}) {
   currentState = startupConfig.embed
     ? { ...loadedState, embed: true, activeTab: "3d" }
     : loadedState;
-  if (!options.preserve) {
-    currentState = applyTaskVisibilityPreset(currentState, currentState.activeTab);
-  }
+  // Deliberately NOT applying the task preset on arrival. A preset scopes the
+  // view when the reviewer switches task - an explicit act. Applying it at load
+  // overrode whatever the bundle declared, and because a review-less bundle
+  // lands on "model" (which hides analysis_mesh and results), the composited
+  // geometry/mesh/sub-point/deformed view opened with three of its four bodies
+  // switched off on the very screen built to show them overlaid.
   activeEvidenceTab = evidenceTabForReload(currentState, activeEvidenceTab);
 }
 
 function render() {
+  // Almost every panel is rebuilt with replaceChildren(), which destroys the
+  // focused element. Without this, keyboard-toggling a body checkbox or a scope
+  // chip dropped focus to <body> and the next Tab restarted from the top of the
+  // document.
+  const focus = captureFocus();
   renderHeader();
   renderCockpitStatus();
+  renderColoringBar();
   renderTaskRail();
   renderEvidenceTabs();
   renderDisplayStrip();
+  renderViewportLegend();
   renderResultControls();
   renderDiagnostics();
-  renderTree();
   renderIssues();
-  renderObjects();
   renderTaskPanel();
   renderProperties();
   renderWorkflow();
   renderCanvas();
+  restoreFocus(focus);
+}
+
+// Controls rebuilt on every render carry a stable data-focus-key so the element
+// that replaces them can be found again.
+function captureFocus() {
+  const active = document.activeElement;
+  const key = active?.dataset?.focusKey;
+  if (!key) {
+    return null;
+  }
+  return {
+    key,
+    start: typeof active.selectionStart === "number" ? active.selectionStart : null,
+    end: typeof active.selectionEnd === "number" ? active.selectionEnd : null
+  };
+}
+
+function restoreFocus(focus) {
+  if (!focus) {
+    return;
+  }
+  // Something else claimed focus during the render - leave it alone.
+  if (document.activeElement && document.activeElement !== document.body) {
+    return;
+  }
+  // Focus keys are plain ASCII, so the fallback needs no escaping of its own.
+  const escape = globalThis.CSS?.escape ?? ((value) => value);
+  const next = document.querySelector(`[data-focus-key="${escape(focus.key)}"]`);
+  if (!next) {
+    return;
+  }
+  next.focus({ preventScroll: true });
+  if (focus.start !== null && typeof next.setSelectionRange === "function") {
+    try {
+      next.setSelectionRange(focus.start, focus.end);
+    } catch {
+      // Some input types reject selection ranges; focus alone is the point.
+    }
+  }
 }
 
 function renderTaskRail() {
@@ -242,6 +324,7 @@ function renderTaskRail() {
     button.type = "button";
     button.className = "task-button";
     button.dataset.task = id;
+    button.dataset.focusKey = `task:${id}`;
     button.setAttribute("aria-current", id === currentState.activeTab ? "page" : "false");
     button.textContent = task.label;
     button.addEventListener("click", () => activateTask(id));
@@ -268,6 +351,9 @@ function renderEvidenceTabs() {
   dom.evidenceDock.hidden = currentState.embed;
   const labels = new Map([
     ["summary", "Governing Results"],
+    ["model", "Model"],
+    ["load-cases", "Load Cases"],
+    ["results", "Results"],
     ["diagnostics", "Warnings"],
     ["compliance", "Compliance"],
     ["reports", "Reports"]
@@ -284,6 +370,7 @@ function renderEvidenceTabs() {
     button.textContent = label;
     button.addEventListener("click", () => activateEvidence(id));
     button.dataset.evidenceTab = id;
+    button.dataset.focusKey = `evidence:${id}`;
     button.addEventListener("keydown", (event) => {
       const nextId = evidenceTabForKey(currentState, id, event.key);
       if (!nextId || !dom.evidenceTabs.querySelector(`[data-evidence-tab="${nextId}"]`)) return;
@@ -306,8 +393,9 @@ function activateEvidence(id) {
 
 function renderTaskPanel() {
   dom.taskPanel.replaceChildren();
+  // No model home any more: Tree, Search and Objects used to live there, and the
+  // bodies panel below is what the Model task actually shows.
   const home = {
-    model: dom.modelToolsHome,
     results: dom.resultToolsHome,
     diagnostics: dom.issueToolsHome
   }[currentState.activeTab];
@@ -344,11 +432,16 @@ function renderWorkflow() {
   dom.workflowPanel.setAttribute("aria-labelledby", `evidence-tab-${activeTab}`);
   const headingLabels = {
     summary: "Governing Results",
+    model: "Model",
+    "load-cases": "Load Cases",
+    results: "Results",
     diagnostics: "Warnings",
     compliance: "Compliance",
     reports: "Reports"
   };
-  const heading = document.createElement("h1");
+  // h2: the scene title in the header is the page's h1, and this names a panel
+  // within it.
+  const heading = document.createElement("h2");
   heading.textContent = headingLabels[activeTab] ?? "Engineering review";
   dom.workflowPanel.append(heading);
 
@@ -596,6 +689,9 @@ function appendTableSource(parent, source) {
   parent.append(provenance);
 }
 
+// Load case, field and component are not repeated here: the coloring bar owns
+// the channel and this panel owns thresholds, vector scales and hotspots. Two
+// controls for one selection is how they drift out of sync.
 function renderResultControls() {
   dom.resultControls.replaceChildren();
   dom.resultLegend.replaceChildren();
@@ -605,42 +701,13 @@ function renderResultControls() {
   const resultStates = getResultStateOptions(currentState);
   const geometryStates = getGeometryStateOptions(currentState);
   if (loadCases.length === 0 && resultStates.length === 0 && geometryStates.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "meta";
-    empty.textContent = "No Code_Aster result overlays.";
-    dom.resultControls.append(empty);
+    dom.resultControls.append(metaLine("No Code_Aster result overlays."));
     return;
   }
 
-  if (loadCases.length > 0) {
-    dom.resultControls.append(
-      selectControl("Load case", currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
-        currentState = setColoringLoadCase(setActiveLoadCase(currentState, value), value);
-        render();
-      })
-    );
-  }
-
-  // Field and component are the coloring channel: what tints the scene, kept
-  // apart from what is drawn. Only shown when the scene carries a catalogue.
-  const fieldOptions = getFieldOptions(currentState);
-  if (fieldOptions.length > 0) {
-    dom.resultControls.append(
-      selectControl("Field", getActiveField(currentState)?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
-        currentState = setColoringField(currentState, value);
-        render();
-      })
-    );
-    if (componentIsSelectable(currentState)) {
-      const components = (getActiveField(currentState)?.components ?? []).map((id) => ({ id, label: id }));
-      dom.resultControls.append(
-        selectControl("Component", getActiveComponent(currentState), components, (value) => {
-          currentState = setColoringComponent(currentState, value);
-          render();
-        })
-      );
-    }
-  } else if (resultStates.length > 0) {
+  // Only offered when the scene carries no field catalogue; with one, the bar's
+  // field selector already picks the result state through its load case.
+  if (getFieldOptions(currentState).length === 0 && resultStates.length > 0) {
     dom.resultControls.append(
       selectControl("Result state", currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
         currentState = setActiveResultState(currentState, value);
@@ -652,18 +719,14 @@ function renderResultControls() {
   if (geometryStates.length > 0) {
     dom.resultControls.append(
       selectControl("Deformed state", currentState.activeGeometryStateId ?? geometryStates[0].id, geometryStates, (value) => {
+        stopDeformationAnimation();
         currentState = setActiveGeometryState(currentState, value);
         render();
       })
     );
   }
 
-  dom.resultControls.append(
-    numericControl("Stress threshold", currentState.resultThreshold ?? "", "1000000", (value) => {
-      currentState = setResultThreshold(currentState, value);
-      render();
-    })
-  );
+  dom.resultControls.append(thresholdControl());
   dom.resultControls.append(
     numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
       currentState = setUtilizationThreshold(currentState, value);
@@ -696,28 +759,16 @@ function renderResultControls() {
       }
     )
   );
-  dom.resultControls.append(
-    rangeControl(
-      `Visual deformation scale (display-only) ${formatScale(currentState.visualDeformationScale ?? 1)}x`,
-      currentState.visualDeformationScale ?? 1,
-      1,
-      100,
-      1,
-      (value) => {
-        currentState = setVisualDeformationScale(currentState, value);
-        render();
-      }
-    )
-  );
 
   const legend = getScalarLegend(currentState);
   if (legend) {
     const scale = document.createElement("div");
     const component = legend.component && legend.component !== "magnitude" ? ` ${legend.component}` : "";
-    scale.textContent =
-      `${legend.field}${component}: ${formatEngineeringValue(legend.range.min)} - ${formatEngineeringValue(legend.range.max)} ${legend.unit}`.trim();
+    const system = getUnitSystem(currentState);
+    const low = formatValue(legend.range.min, legend.unit, system);
+    const high = formatQuantity(legend.range.max, legend.unit, system);
+    scale.textContent = `${legend.field}${component}: ${low} - ${high}`.trim();
     dom.resultLegend.append(scale);
-
   }
 
   const hotspots = getHotspots(currentState);
@@ -734,7 +785,8 @@ function renderResultControls() {
     const identity = hotspot.elementId
       ? ` ${hotspot.elementId} row ${hotspot.rowIndex ?? "?"} subpoint ${hotspot.subpointIndex ?? "?"}`
       : "";
-    button.textContent = `${hotspot.objectName}${identity} ${formatEngineeringValue(hotspot.value)} ${hotspot.unit}${hotspot.utilization !== null ? ` u=${formatScale(hotspot.utilization)}` : ""}`;
+    const magnitude = formatQuantity(hotspot.value, hotspot.unit, getUnitSystem(currentState));
+    button.textContent = `${hotspot.objectName}${identity} ${magnitude}${hotspot.utilization !== null ? ` u=${formatScale(hotspot.utilization)}` : ""}`;
     button.addEventListener("click", () => {
       selectedObjectId = hotspot.objectId;
       currentState = selectObject(currentState, hotspot.objectId);
@@ -744,10 +796,35 @@ function renderResultControls() {
   }
 }
 
+// The threshold filters the field that is currently colouring the scene, so it
+// is denominated in that field's unit - and typed in whatever the unit chip is
+// showing. The value reaching state is always the stored one: a threshold read
+// in MPa but compared against pascals would silently filter out everything.
+function thresholdControl() {
+  const unit = getScalarLegend(currentState)?.unit ?? "";
+  const system = getUnitSystem(currentState);
+  const suffix = isConvertible(unit) ? ` (${displayUnit(unit, system)})` : unit ? ` (${unit})` : "";
+  const stored = currentState.resultThreshold;
+  const shown = Number.isFinite(Number(stored)) && stored !== null ? toDisplay(stored, unit, system) : "";
+  const step = toDisplay(STORED_THRESHOLD_STEP_PA, unit === "Pa" ? unit : "", system) || 1;
+  return numericControl(`Stress threshold${suffix}`, shown, String(step), (value) => {
+    const typed = String(value).trim();
+    currentState = setResultThreshold(currentState, typed === "" ? 0 : toStored(typed, unit, system));
+    render();
+  });
+}
+
+// One megapascal, the granularity an engineer nudges a stress cut-off by.
+const STORED_THRESHOLD_STEP_PA = 1e6;
+
 function renderHeader() {
   dom.sceneTitle.textContent = currentState.review?.project_name ?? currentState.sceneId;
+  // Deliberately no units here. This printed the bundle's storage units
+  // (m / N / Pa) while every readout on screen follows the unit chip, which
+  // defaults to mm / MPa - so the header asserted Pa in the same eyeful as the
+  // legend's MPa. The chip is the one place display units are stated.
   dom.sceneMeta.textContent = currentState.review
-    ? `${currentState.review.model_standard} · Revision ${currentState.review.model_revision} · ${currentState.review.units.length} / ${currentState.review.units.force} / ${currentState.review.units.stress}`
+    ? `${currentState.review.model_standard} · Revision ${currentState.review.model_revision}`
     : `${currentState.objects.length} objects | ${currentState.issues.length} issues`;
   dom.reportLink.hidden = !currentState.review;
   if (currentState.review) {
@@ -759,43 +836,498 @@ function renderHeader() {
 
 function renderDisplayStrip() {
   dom.displayStrip.hidden = currentState.embed;
-  dom.categorySwitches.replaceChildren();
-  const categories = categorizeLayers(currentState.layers);
-  for (const category of categories) {
-    const label = document.createElement("label");
-    label.className = "category-switch";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    // Pin the accessible name to the category so the decorative caption below
-    // does not fold into it (e.g. "Results Displacement · Reaction").
-    input.setAttribute("aria-label", category.label);
-    const visibles = category.layerIds.map((id) => currentState.layers[id]?.visible !== false);
-    input.checked = visibles.every(Boolean);
-    input.indeterminate = !input.checked && visibles.some(Boolean);
-    input.addEventListener("change", () => {
-      let next = currentState;
-      for (const layerId of category.layerIds) {
-        next = setLayerVisibility(next, layerId, input.checked);
-      }
-      currentState = next;
-      render();
-    });
-    label.append(input, ` ${category.label}`);
-    const summary = categorySummary(category);
-    if (summary) {
-      const hint = document.createElement("span");
-      hint.className = "category-hint";
-      hint.dataset.categoryHint = category.id;
-      hint.setAttribute("aria-hidden", "true");
-      hint.textContent = summary;
-      label.append(hint);
-    }
-    dom.categorySwitches.append(label);
-  }
-  renderComplianceNotice(categories);
-  renderLayerTree(categories);
+  renderBodyList();
+  renderProjectionNote();
+  renderSectionProfile();
+  renderDiscretisationCheck();
+  renderFindPane();
+  renderLayerTree(categorizeLayers(currentState.layers));
   renderSectionBoxControls();
   renderSavedViews();
+  renderRailPopover();
+}
+
+// The bodies panel answers "what is drawn"; the coloring bar above the viewport
+// answers "what does it mean". Keeping them apart is the ParaView split the
+// layer-structure design record adopted, and it is why nothing here selects a
+// field and nothing up there toggles a body.
+function renderBodyList() {
+  dom.bodyList.replaceChildren();
+  const bodies = getBodies(currentState);
+  if (bodies.length === 0) {
+    dom.bodyList.append(metaLine("This scene draws no result bodies."));
+    return;
+  }
+  for (const body of bodies) {
+    dom.bodyList.append(bodyRow(body));
+  }
+}
+
+function bodyRow(body) {
+  const row = document.createElement("div");
+  row.className = "body-row";
+  row.dataset.body = body.id;
+  row.dataset.bodyVisible = String(body.visible);
+
+  const head = document.createElement("div");
+  head.className = "body-head";
+
+  const toggle = document.createElement("label");
+  toggle.className = "body-toggle";
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = body.visible;
+  input.indeterminate = body.partiallyVisible;
+  input.setAttribute("aria-label", body.label);
+  input.dataset.focusKey = `body:${body.id}`;
+  input.addEventListener("change", () => {
+    currentState = reduceViewerState(currentState, {
+      type: "setBodyVisibility",
+      bodyId: body.id,
+      visible: input.checked
+    });
+    render();
+  });
+  const name = document.createElement("span");
+  name.className = "body-name";
+  name.textContent = body.label;
+  toggle.append(input, name);
+
+  const badge = document.createElement("span");
+  badge.className = `body-badge body-badge-${body.badge.tone}`;
+  badge.textContent = body.badge.text;
+
+  head.append(toggle, badge);
+  if (body.supportsOpacity) {
+    head.append(opacityChip(body));
+  }
+
+  row.append(head);
+
+  const description = document.createElement("p");
+  description.className = "body-description";
+  description.textContent = body.description;
+  row.append(description);
+
+  for (const metric of body.metrics) {
+    const line = document.createElement("p");
+    line.className = "body-metric";
+    line.textContent = metric;
+    row.append(line);
+  }
+  return row;
+}
+
+function opacityChip(body) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "body-opacity";
+  button.dataset.bodyOpacity = body.id;
+  button.dataset.focusKey = `opacity:${body.id}`;
+  const percent = Math.round(body.opacity * 100);
+  button.textContent = `${percent}%`;
+  button.setAttribute(
+    "aria-label",
+    `${body.label} opacity ${percent}%, cycles through ${OPACITY_STEPS.map((step) => `${Math.round(step * 100)}%`).join(", ")}`
+  );
+  button.addEventListener("click", () => {
+    currentState = reduceViewerState(currentState, { type: "cycleBodyOpacity", bodyId: body.id });
+    render();
+  });
+  return button;
+}
+
+// Why the sub-points land where they do. Shown only when the scene actually
+// carries projected sub-points, because otherwise it explains nothing on screen.
+function renderProjectionNote() {
+  const overlay = getSectionProfile(currentState);
+  dom.projectionNote.hidden = !overlay;
+  if (!overlay) {
+    dom.projectionNote.textContent = "";
+    return;
+  }
+  dom.projectionNote.textContent =
+    "Sub-points carry a shell display position from the Code_Aster fibre formula, so they land on the real wall. " +
+    "The surface between them is interpolated: measured points, interpolated surface, mesh underneath.";
+}
+
+// The sub-point grid on one element node, drawn to scale from NSEC/NCOU rather
+// than sketched. Sectors run from the display generatrice; layers run from the
+// bore outward.
+function renderSectionProfile() {
+  dom.sectionProfile.replaceChildren();
+  const profile = getSectionProfile(currentState);
+  dom.sectionProfile.hidden = !profile;
+  if (!profile) return;
+
+  // Named with its own field: the rosette explains the sub-point grid whatever
+  // is tinting the scene, so it must not read as the active legend.
+  // "Wall section", not "Section": the strip already has a Section box, and that
+  // one clips the scene rather than describing the pipe wall.
+  dom.sectionProfile.append(stripHeading(`Wall section · ${getSubpointLegend(currentState)?.field ?? "sub-points"}`));
+  const body = document.createElement("div");
+  body.className = "section-profile-body";
+  body.append(sectionRosette(profile));
+
+  const facts = document.createElement("div");
+  facts.className = "section-facts";
+  facts.append(
+    metaLine(`NSEC ${profile.nsec} × NCOU ${profile.ncou}`),
+    metaLine(`${profile.sectors} sectors × ${profile.layers} layers = ${profile.subpoints_per_node} per node`)
+  );
+  const peak = getSubpointPeak(currentState);
+  if (peak) {
+    const unit = getSubpointLegend(currentState)?.unit ?? peak.unit ?? "";
+    const magnitude = formatQuantity(peak.value, unit, getUnitSystem(currentState));
+    const line = metaLine(`peak ${magnitude}${peak.location ? ` · ${peak.location}` : ""}`.trim());
+    line.classList.add("section-peak");
+    facts.append(line);
+  }
+  const generatrice = profile.display_generatrice;
+  if (Array.isArray(generatrice)) {
+    facts.append(metaLine(`sector 0 on (${generatrice.join(", ")})`));
+  }
+  body.append(facts);
+  dom.sectionProfile.append(body);
+}
+
+// Large enough that all 2·NSEC circumferential stations across 2·NCOU+1 wall
+// layers stay individually visible rather than smearing into a ring.
+const ROSETTE_SIZE = 118;
+const ROSETTE_STATION_RADIUS = 1.1;
+const ROSETTE_MEASURED_RADIUS = 2.4;
+
+function sectionRosette(profile) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${ROSETTE_SIZE} ${ROSETTE_SIZE}`);
+  svg.setAttribute("width", String(ROSETTE_SIZE));
+  svg.setAttribute("height", String(ROSETTE_SIZE));
+  svg.setAttribute("class", "section-rosette");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    `Pipe section: ${profile.sectors} circumferential sub-point stations across ${profile.layers} wall layers`
+  );
+
+  const centre = ROSETTE_SIZE / 2;
+  const outer = centre - 6;
+  const inner = outer * 0.62;
+  for (const radius of [inner, outer]) {
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", String(centre));
+    circle.setAttribute("cy", String(centre));
+    circle.setAttribute("r", String(radius));
+    circle.setAttribute("class", "rosette-wall");
+    svg.append(circle);
+  }
+
+  const legend = getSubpointLegend(currentState);
+  const byStation = new Map();
+  for (const station of getSubpointStations(currentState)) {
+    const key = `${station.sectorIndex}:${station.layerIndex}`;
+    const previous = byStation.get(key);
+    if (!previous || station.value > previous.value) byStation.set(key, station);
+  }
+
+  const lastSector = Math.max(profile.sectors - 1, 1);
+  const lastLayer = Math.max(profile.layers - 1, 1);
+  for (let layer = 0; layer < profile.layers; layer += 1) {
+    const radius = inner + ((outer - inner) * layer) / lastLayer;
+    for (let sector = 0; sector < profile.sectors; sector += 1) {
+      // The last sector repeats the first (the grid closes on itself), so it is
+      // not drawn twice.
+      if (sector === profile.sectors - 1) continue;
+      const angle = (2 * Math.PI * sector) / lastSector;
+      const measured = byStation.get(`${sector}:${layer}`);
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", (centre + radius * Math.sin(angle)).toFixed(2));
+      dot.setAttribute("cy", (centre - radius * Math.cos(angle)).toFixed(2));
+      // A reported station has to be findable among the couple of hundred empty
+      // ones, so it is drawn larger as well as coloured.
+      dot.setAttribute("r", String(measured ? ROSETTE_MEASURED_RADIUS : ROSETTE_STATION_RADIUS));
+      dot.setAttribute("class", measured ? "rosette-point" : "rosette-station");
+      const colour = measured ? colorForScalarValue(measured.value, legend) : null;
+      if (colour !== null) {
+        dot.setAttribute("fill", hexColor(colour));
+      }
+      svg.append(dot);
+    }
+  }
+  return svg;
+}
+
+// A geometric fidelity check on the mesh, not a code check: how far the straight
+// chord falls inside the true bend arc, against a stated fraction of the radius.
+function renderDiscretisationCheck() {
+  dom.discretisationCheck.replaceChildren();
+  const check = getDiscretisationCheck(currentState);
+  dom.discretisationCheck.hidden = !check;
+  if (!check) return;
+
+  dom.discretisationCheck.append(stripHeading("Discretisation check"));
+  dom.discretisationCheck.append(
+    checkRow("Elements per bend", `${check.min_elements_per_bend}`),
+    // The scene states the check in metres (check.unit); the chip decides how
+    // it reads, and the tolerance is a ratio, so it never converts.
+    checkRow("Chord deviation", formatQuantity(check.max_chord_deviation, check.unit, getUnitSystem(currentState)), {
+      ok: check.within_tolerance,
+      criterion: `≤ ${formatPercent(check.tolerance_ratio)} R`
+    })
+  );
+  const worst = check.worst_bend;
+  if (worst && check.bend_count > 1) {
+    dom.discretisationCheck.append(metaLine(`worst of ${check.bend_count} bends: ${worst.source_element_id}`));
+  }
+}
+
+function checkRow(labelText, valueText, verdict = null) {
+  const row = document.createElement("div");
+  row.className = "check-row";
+  const label = document.createElement("span");
+  label.className = "check-label";
+  label.textContent = labelText;
+  const value = document.createElement("span");
+  value.className = "check-value";
+  value.textContent = valueText;
+  row.append(label, value);
+  if (verdict) {
+    const badge = document.createElement("span");
+    badge.className = `check-badge ${verdict.ok ? "check-ok" : "check-warn"}`;
+    // The criterion travels with the verdict: a bare "OK" invites the reader to
+    // assume a code check happened.
+    badge.textContent = `${verdict.ok ? "OK" : "COARSE"} ${verdict.criterion}`;
+    row.append(badge);
+  }
+  return row;
+}
+
+// The coloring channel: one field, one component, one scale, plus the display
+// deformation the deformed body is drawn at.
+function renderColoringBar() {
+  dom.coloringBar.replaceChildren();
+  dom.coloringBar.hidden = currentState.embed;
+  const fieldOptions = getFieldOptions(currentState);
+  const loadCases = getLoadCaseOptions(currentState);
+  if (fieldOptions.length === 0 && loadCases.length === 0) {
+    dom.coloringBar.hidden = true;
+    return;
+  }
+
+  if (loadCases.length > 0) {
+    dom.coloringBar.append(
+      barControl("Case", currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
+        currentState = setColoringLoadCase(setActiveLoadCase(currentState, value), value);
+        render();
+      })
+    );
+  }
+
+  if (fieldOptions.length > 0) {
+    const field = getActiveField(currentState);
+    dom.coloringBar.append(
+      barControl("Field", field?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
+        currentState = setColoringField(currentState, value);
+        render();
+      })
+    );
+    if (field?.support) {
+      const support = document.createElement("span");
+      support.className = "bar-tag";
+      support.dataset.fieldSupport = field.support;
+      support.textContent = field.support;
+      dom.coloringBar.append(support);
+    }
+    // A scalar field has one component by definition. Say so in the visible
+    // option text rather than a title attribute, which is unreachable on touch,
+    // unreliable to assistive tech and invisible in a screenshot.
+    const selectable = componentIsSelectable(currentState);
+    const components = (field?.components ?? ["magnitude"]).map((id) => ({
+      id,
+      label: selectable ? id : `${id} — scalar field`
+    }));
+    const componentControl = barControl(
+      "Component",
+      getActiveComponent(currentState),
+      components,
+      (value) => {
+        currentState = setColoringComponent(currentState, value);
+        render();
+      }
+    );
+    if (!selectable) {
+      // The control stays on screen, disabled, so its absence is never read as
+      // a missing choice.
+      componentControl.querySelector("select").disabled = true;
+    }
+    dom.coloringBar.append(componentControl);
+  }
+
+  dom.coloringBar.append(deformationControl(), unitSystemChip());
+}
+
+// One chip for the whole readout. Stored values never move; this only changes
+// how they are stated, and every quantity on screen follows it together so the
+// legend, the hotspots and the threshold can never disagree.
+function unitSystemChip() {
+  const active = UNIT_SYSTEMS.find((system) => system.id === getUnitSystem(currentState));
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "bar-button bar-units";
+  button.dataset.unitSystem = active.id;
+  button.dataset.focusKey = "unit-system";
+  button.textContent = active.label;
+  button.title = `${active.title} — click to switch`;
+  button.setAttribute("aria-label", `Display units: ${active.title}`);
+  button.addEventListener("click", () => {
+    currentState = reduceViewerState(currentState, {
+      type: "setUnitSystem",
+      unitSystem: nextUnitSystem(currentState)
+    });
+    render();
+  });
+  return button;
+}
+
+function deformationControl() {
+  const group = document.createElement("div");
+  group.className = "bar-control bar-deform";
+  const scale = getVisualDeformationDisplayScale(currentState);
+  const label = document.createElement("label");
+  label.className = "bar-label";
+  label.textContent = "Deform";
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = "1";
+  input.max = "100";
+  input.step = "1";
+  input.value = String(scale);
+  input.setAttribute("aria-label", "Visual deformation scale (display only)");
+  input.dataset.focusKey = "deform-scale";
+  input.addEventListener("input", () => {
+    stopDeformationAnimation();
+    currentState = setVisualDeformationScale(currentState, input.value);
+    render();
+  });
+  const readout = document.createElement("span");
+  readout.className = "bar-readout";
+  readout.dataset.deformScale = "";
+  readout.textContent = `×${formatScale(scale)}`;
+  group.append(label, input, readout, animateButton());
+  return group;
+}
+
+function animateButton() {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "bar-button";
+  button.dataset.animateDeformation = "";
+  const animating = deformationAnimation !== null;
+  button.textContent = animating ? "❚❚ Pause" : "▶ Animate";
+  button.setAttribute("aria-pressed", String(animating));
+  // Nothing to animate when the scene carries no exaggerated shape: sweeping a
+  // ×1 scale would just redraw the same picture at full cost.
+  button.disabled = !animating && !hasExaggeratedDeformedState();
+  button.addEventListener("click", toggleDeformationAnimation);
+  return button;
+}
+
+function hasExaggeratedDeformedState() {
+  return getGeometryStateOptions(currentState).some((option) => Number(option.visualScale) > 1);
+}
+
+// Legend and body key, pinned in the viewport rather than the results panel:
+// the panel detaches under the Review/Model/Issues tasks while the scene stays
+// colour-mapped, and a colour-mapped FE stress view whose "not code stress"
+// caveat has scrolled away is the exact screenshot this prevents.
+function renderViewportLegend() {
+  dom.viewportLegend.replaceChildren();
+  dom.bodyLegend.replaceChildren();
+  const legend = getScalarLegend(currentState);
+  dom.viewportLegend.hidden = !legend;
+  if (legend) {
+    const heading = document.createElement("div");
+    heading.className = "legend-heading";
+    const field = document.createElement("span");
+    const component = legend.component && legend.component !== "magnitude" ? ` ${legend.component}` : "";
+    field.textContent = `${legend.field}${component}`;
+    const context = document.createElement("span");
+    context.className = "legend-context";
+    const system = getUnitSystem(currentState);
+    context.textContent = [displayUnit(legend.unit, system), legend.loadCase].filter(Boolean).join(" · ");
+    heading.append(field, context);
+
+    const ramp = document.createElement("div");
+    ramp.className = "legend-ramp";
+    ramp.dataset.legendRamp = "";
+    ramp.style.background = scalarRampGradient(legend);
+
+    const ticks = document.createElement("div");
+    ticks.className = "legend-ticks";
+    const min = Number(legend.range?.min ?? 0);
+    const max = Number(legend.range?.max ?? 0);
+    // Ticks carry the number only; the heading states the unit once.
+    for (const value of [min, (min + max) / 2, max]) {
+      const tick = document.createElement("span");
+      tick.textContent = formatValue(value, legend.unit, system);
+      ticks.append(tick);
+    }
+    dom.viewportLegend.append(heading, ramp, ticks);
+    renderComplianceNotice();
+  }
+
+  const bodies = getBodies(currentState).filter((body) => body.visible);
+  dom.bodyLegend.hidden = bodies.length === 0;
+  for (const body of bodies) {
+    const row = document.createElement("div");
+    row.className = "body-legend-row";
+    const swatch = document.createElement("span");
+    swatch.className = `body-legend-swatch body-legend-${body.id}`;
+    const text = document.createElement("span");
+    text.textContent = `${body.label} — ${BODY_LEGEND_NOTE[body.id] ?? body.badge.text}`;
+    row.append(swatch, text);
+    dom.bodyLegend.append(row);
+  }
+}
+
+// What the mark in the viewport is actually reporting, which is not the same
+// question as what the body is.
+const BODY_LEGEND_NOTE = Object.freeze({
+  geometry: "surface, interpolated",
+  analysis_mesh: "cell values",
+  subpoints: "measured",
+  deformed: "display scale only"
+});
+
+// Sampled from the function that actually tints the scene, so the bar cannot
+// drift from the colours on screen.
+function scalarRampGradient(legend) {
+  const min = Number(legend.range?.min ?? 0);
+  const max = Number(legend.range?.max ?? 1);
+  const stops = [];
+  const steps = 12;
+  for (let index = 0; index <= steps; index += 1) {
+    const ratio = index / steps;
+    const colour = colorForScalarValue(min + (max - min) * ratio, legend);
+    if (colour === null) continue;
+    stops.push(`${hexColor(colour)} ${(ratio * 100).toFixed(0)}%`);
+  }
+  return stops.length > 1 ? `linear-gradient(90deg, ${stops.join(", ")})` : "none";
+}
+
+// Called only from renderViewportLegend, and unconditional there on purpose:
+// the caveat qualifies the legend it sits in, so the two must never appear
+// apart. The older gate on results-layer visibility was for the days when the
+// badge lived in the display strip and the legend did not.
+function renderComplianceNotice() {
+  const notice = getComplianceNotice(currentState);
+  if (!notice) {
+    return;
+  }
+  const badge = document.createElement("div");
+  badge.className = "compliance-notice";
+  badge.dataset.complianceNotice = "";
+  badge.textContent = `⚠ ${notice}`;
+  dom.viewportLegend.append(badge);
 }
 
 function renderSectionBoxControls() {
@@ -882,51 +1414,41 @@ function renderSectionBoxControls() {
   }
 }
 
+// A short column, not a row of nine. The view gizmo in the corner already
+// orbits to any axis - including the four this omits - so spelling every one
+// out as a button spent the top of the viewport on a duplicate control.
+const CAMERA_BUTTONS = [
+  { glyph: "ISO", label: "Isometric", view: "iso" },
+  { glyph: "+X", label: "+X", view: "positiveX" },
+  { glyph: "+Z", label: "+Z", view: "positiveZ" },
+  { glyph: "+", label: "Zoom in", zoom: 1.25 },
+  { glyph: "−", label: "Zoom out", zoom: 0.8 }
+];
+
 function renderCameraControls() {
   dom.cameraControls.replaceChildren();
-  for (const [viewId, label] of [["iso", "Isometric"], ["positiveX", "+X"], ["negativeX", "-X"], ["positiveY", "+Y"], ["negativeY", "-Y"], ["positiveZ", "+Z"], ["negativeZ", "-Z"]]) {
+  for (const spec of CAMERA_BUTTONS) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = label;
-    button.addEventListener("click", () => viewportRenderer?.setStandardView(viewId));
+    button.textContent = spec.glyph;
+    // The glyph is short enough to be ambiguous, so the accessible name spells
+    // the action out rather than reading as "plus".
+    button.setAttribute("aria-label", spec.label);
+    button.dataset.focusKey = `camera:${spec.view ?? spec.label}`;
+    button.title = spec.label;
+    button.addEventListener("click", () =>
+      spec.view ? viewportRenderer?.setStandardView(spec.view) : viewportRenderer?.zoomBy(spec.zoom)
+    );
     dom.cameraControls.append(button);
   }
-  for (const [label, factor] of [["Zoom in", 1.25], ["Zoom out", 0.8]]) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = label;
-    button.addEventListener("click", () => viewportRenderer?.zoomBy(factor));
-    dom.cameraControls.append(button);
-  }
+  // Moved in beside them: one column of view controls reads as one control,
+  // where a separate floating button read as a second, unrelated one. The
+  // accessible name stays "Reset 3D view" - only the visible label shortens.
+  dom.resetView.textContent = "⤢";
+  dom.resetView.title = "Reset view — fit the full scene";
+  dom.cameraControls.append(dom.resetView);
 }
 
-// Lives in the pinned strip rather than beside the legend, because the result
-// panel is detached under the Review/Model/Issues tasks while the scene stays
-// colour-mapped. A colour-mapped FE stress view with the "not code stress"
-// caveat missing is the exact screenshot this is here to prevent.
-function renderComplianceNotice(categories) {
-  if (!shouldShowComplianceNotice(currentState, categories)) {
-    return;
-  }
-  const notice = getComplianceNotice(currentState);
-  const badge = document.createElement("div");
-  badge.className = "compliance-notice";
-  badge.dataset.complianceNotice = "";
-  badge.textContent = `⚠ ${notice}`;
-  dom.categorySwitches.append(badge);
-}
-
-// One line per category saying what is actually in it. For the analysis mesh
-// that line is the answer to "1D, 2D, or TUYAU?" - the mesh identity the scene
-// now carries rather than leaving the reader to guess from element names.
-function categorySummary(category) {
-  const lead = category.meshIdentity?.modelisations?.[0];
-  if (lead) {
-    return `${lead.topological_dim}D · ${lead.modelisation} · ${lead.result_support} recovery`;
-  }
-  const names = category.leaves.map((leaf) => leaf.label).slice(0, 3);
-  return names.length > 0 ? names.join(" · ") : null;
-}
 
 function renderLayerTree(categories) {
   dom.layerList.replaceChildren();
@@ -1044,23 +1566,241 @@ function appendTraceField(parent, labelText, valueText) {
   parent.append(term, value);
 }
 
-function renderObjects() {
-  dom.objectList.replaceChildren();
-  const sourceObjects = currentSearch ? searchObjects(currentState, currentSearch) : currentState.objects;
-  for (const obj of sourceObjects) {
-    if (!currentState.visibleObjectIds.includes(obj.id)) {
-      continue;
-    }
+// The finder. One pane, swapped into the rail beside the bodies rather than
+// overlaid on it, so nothing focusable is ever hidden behind an opaque surface.
+//
+// It replaces three things that used to be separate: a read-only Tree grouped
+// only by kind, a flat Objects list, and a search field rendered outside the
+// list it filtered. The grouping the Tree could not offer is here as scope
+// chips, and the search field now actually drives what is on screen.
+const FIND_SCOPES = [
+  { id: "body", label: "Body" },
+  { id: "kind", label: "Kind" },
+  { id: "material", label: "Material" },
+  { id: "route", label: "Route" },
+  { id: "group", label: "Group" },
+  { id: "source", label: "Source" }
+];
+
+const BODY_GROUP_LABELS = {
+  geometry: "Geometry",
+  analysis_mesh: "Analysis mesh",
+  subpoints: "Sub-points",
+  deformed: "Deformed mesh",
+  other: "Other (not a body)"
+};
+
+let findOpen = false;
+let findGroupBy = "body";
+
+// Always renders. An early return when already open froze the result list at
+// whatever the focus event had drawn, so every keystroke after the first
+// changed nothing on screen.
+function openFind() {
+  findOpen = true;
+  render();
+}
+
+function closeFind() {
+  if (!findOpen) return;
+  findOpen = false;
+  render();
+}
+
+function renderFindPane() {
+  const open = findOpen || currentSearch.trim() !== "";
+  dom.findPane.hidden = !open;
+  dom.bodiesPane.hidden = open;
+  dom.findDismiss.hidden = !open;
+
+  dom.findScope.replaceChildren();
+  for (const scope of FIND_SCOPES) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = obj.id === selectedObjectId ? "selected" : "";
-    button.textContent = `${obj.name || obj.id} - ${obj.kind}`;
-    button.addEventListener("click", (event) => {
-      selectedObjectId = obj.id;
-      currentState = selectObject(currentState, obj.id, { additive: event.shiftKey });
+    button.className = "scope-chip";
+    button.dataset.findScopeId = scope.id;
+    button.dataset.focusKey = `scope:${scope.id}`;
+    button.setAttribute("aria-pressed", String(scope.id === findGroupBy));
+    button.textContent = scope.label;
+    button.addEventListener("click", () => {
+      findGroupBy = scope.id;
       render();
     });
-    dom.objectList.append(button);
+    dom.findScope.append(button);
+  }
+  renderObjects();
+}
+
+function renderObjects() {
+  dom.objectList.replaceChildren();
+  const matches = rankObjectMatches(currentState, currentSearch);
+  const byId = new Map(matches.map((match) => [match.object.id, match]));
+  const visible = new Set(currentState.visibleObjectIds ?? []);
+  const tree = buildObjectTree(currentState, { groupBy: findGroupBy });
+
+  let shown = 0;
+  let hidden = 0;
+  for (const group of tree.children) {
+    const members = group.objectIds.filter((id) => byId.has(id));
+    if (members.length === 0) continue;
+    const drawn = members.filter((id) => visible.has(id));
+    const notDrawn = members.filter((id) => !visible.has(id));
+    shown += drawn.length;
+    hidden += notDrawn.length;
+
+    dom.objectList.append(groupHeader(group, members.length));
+    for (const id of drawn) {
+      dom.objectList.append(objectRow(byId.get(id), true));
+    }
+    // Never silently dropped. The old list skipped anything not currently drawn,
+    // so searching for something in a body you had switched off returned an
+    // empty pane with no explanation.
+    if (notDrawn.length > 0) {
+      dom.objectList.append(hiddenReveal(notDrawn, byId));
+    }
+  }
+
+  if (shown === 0 && hidden === 0) {
+    dom.objectList.append(metaLine(currentSearch.trim() ? "No object matches that." : "This scene has no objects."));
+  }
+  renderRailUtility(shown, hidden);
+}
+
+function groupHeader(group, count) {
+  const header = document.createElement("button");
+  header.type = "button";
+  header.className = "group-header";
+  header.dataset.groupId = group.id;
+  header.dataset.focusKey = `group:${group.id}`;
+  const label = document.createElement("span");
+  label.textContent = findGroupBy === "body" ? BODY_GROUP_LABELS[group.label] ?? group.label : group.label;
+  const tally = document.createElement("span");
+  tally.className = "group-count";
+  tally.textContent = String(count);
+  header.append(label, tally);
+  header.title = "Select every object in this group";
+  header.addEventListener("click", () => {
+    currentState = reduceViewerState(currentState, { type: "selectObjects", objectIds: group.objectIds });
+    selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
+    render();
+  });
+  return header;
+}
+
+function objectRow(match, drawn) {
+  const object = match.object;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "object-row";
+  button.dataset.objectId = object.id;
+  button.dataset.focusKey = `object:${object.id}`;
+  // Two spans concatenate into "Smoke pipepipe - element:..." with no separator
+  // in the accessible name, so state it explicitly.
+  button.setAttribute("aria-label", `${object.name || object.id} - ${object.kind}`);
+  if (object.id === selectedObjectId) button.classList.add("selected");
+  if (!drawn) button.classList.add("not-drawn");
+
+  const name = document.createElement("span");
+  name.className = "object-name";
+  appendHighlighted(name, object.name || object.id, match);
+  const meta = document.createElement("span");
+  meta.className = "object-meta";
+  meta.textContent = [object.kind, refLabel(object.entity_ref)].filter(Boolean).join(" · ");
+  button.append(name, meta);
+
+  // Say which field the hit landed in whenever it was not one the row shows,
+  // so a result never looks arbitrary.
+  if (match.field && !["name", "id"].includes(match.field)) {
+    const chip = document.createElement("span");
+    chip.className = "match-chip";
+    chip.textContent = `matched ${match.field}`;
+    button.append(chip);
+  }
+  button.addEventListener("click", (event) => {
+    selectedObjectId = object.id;
+    currentState = selectObject(currentState, object.id, { additive: event.shiftKey });
+    render();
+  });
+  return button;
+}
+
+function hiddenReveal(objectIds, byId) {
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = "hidden-reveal";
+  row.dataset.hiddenReveal = String(objectIds.length);
+  row.textContent = `${objectIds.length} more hidden — show`;
+  row.title = "These match but belong to a body that is switched off";
+  row.addEventListener("click", () => {
+    const layerIds = new Set();
+    for (const id of objectIds) {
+      for (const layerId of currentState.objectLayerIds?.[id] ?? []) layerIds.add(layerId);
+    }
+    let next = currentState;
+    for (const layerId of layerIds) next = setLayerVisibility(next, layerId, true);
+    currentState = next;
+    render();
+  });
+  return row;
+}
+
+function appendHighlighted(element, text, match) {
+  const usable = match?.field === "name" && match.start >= 0 && match.end <= text.length;
+  if (!usable) {
+    element.textContent = text;
+    return;
+  }
+  element.append(
+    document.createTextNode(text.slice(0, match.start)),
+    Object.assign(document.createElement("mark"), { textContent: text.slice(match.start, match.end) }),
+    document.createTextNode(text.slice(match.end))
+  );
+}
+
+function refLabel(ref) {
+  if (typeof ref === "string") return ref;
+  return ref?.kind && ref?.id ? `${ref.kind}:${ref.id}` : "";
+}
+
+// The 28px slot under the mesh check. Its contents follow the pane, so the two
+// states never differ in height.
+function renderRailUtility(shown = 0, hidden = 0) {
+  dom.railUtility.replaceChildren();
+  if (dom.findPane.hidden) {
+    for (const [id, label] of [["section", "Section box"], ["layers", "All layers"], ["views", "Saved views"]]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "utility-button";
+      button.dataset.railTool = id;
+      button.dataset.focusKey = `tool:${id}`;
+      button.setAttribute("aria-expanded", String(openPopoverId === id));
+      button.textContent = label;
+      button.addEventListener("click", () => {
+        openPopoverId = openPopoverId === id ? null : id;
+        render();
+      });
+      dom.railUtility.append(button);
+    }
+    return;
+  }
+  const tally = document.createElement("span");
+  tally.className = "find-tally";
+  tally.dataset.findTally = "";
+  tally.textContent = hidden > 0 ? `${shown} drawn · ${hidden} hidden` : `${shown} of ${currentState.objects.length}`;
+  dom.railUtility.append(tally);
+}
+
+let openPopoverId = null;
+
+function renderRailPopover() {
+  dom.railPopover.hidden = openPopoverId === null || !dom.findPane.hidden;
+  if (dom.railPopover.hidden) return;
+  for (const [id, node] of [
+    ["section", dom.sectionBoxControls],
+    ["layers", dom.railPopover.querySelector(".layer-tree")],
+    ["views", dom.savedViews]
+  ]) {
+    if (node) node.hidden = id !== openPopoverId;
   }
 }
 
@@ -1108,16 +1848,6 @@ function renderIssues() {
   }
 }
 
-function renderTree() {
-  dom.tree.replaceChildren();
-  const tree = buildObjectTree(currentState, { groupBy: "kind" });
-  for (const group of tree.children) {
-    const row = document.createElement("div");
-    row.className = "tree-row";
-    row.textContent = `${group.label} (${group.objectIds.length})`;
-    dom.tree.append(row);
-  }
-}
 
 function renderProperties() {
   const sections = getPropertySections(currentState, selectedObjectId);
@@ -1275,6 +2005,41 @@ function renderCanvas() {
   }
 }
 
+// The canvas carries tabindex="0" and an aria-label announcing an "Interactive
+// 3D engineering review viewport", but had no keyboard path to the camera at
+// all: OrbitControls.listenToKeyEvents was never called and nothing bound a
+// keydown. Focusing it and pressing a key did nothing.
+const ORBIT_KEY_STEP_RAD = Math.PI / 24;
+const CANVAS_KEY_ACTIONS = {
+  ArrowLeft: () => viewportRenderer?.orbitBy(-ORBIT_KEY_STEP_RAD, 0),
+  ArrowRight: () => viewportRenderer?.orbitBy(ORBIT_KEY_STEP_RAD, 0),
+  ArrowUp: () => viewportRenderer?.orbitBy(0, -ORBIT_KEY_STEP_RAD),
+  ArrowDown: () => viewportRenderer?.orbitBy(0, ORBIT_KEY_STEP_RAD),
+  "+": () => viewportRenderer?.zoomBy(1.25),
+  "=": () => viewportRenderer?.zoomBy(1.25),
+  "-": () => viewportRenderer?.zoomBy(0.8),
+  _: () => viewportRenderer?.zoomBy(0.8),
+  Home: () => viewportRenderer?.resetView(),
+  "0": () => viewportRenderer?.resetView(),
+  x: () => viewportRenderer?.setStandardView("positiveX"),
+  X: () => viewportRenderer?.setStandardView("negativeX"),
+  y: () => viewportRenderer?.setStandardView("positiveY"),
+  Y: () => viewportRenderer?.setStandardView("negativeY"),
+  z: () => viewportRenderer?.setStandardView("positiveZ"),
+  Z: () => viewportRenderer?.setStandardView("negativeZ"),
+  i: () => viewportRenderer?.setStandardView("iso"),
+  I: () => viewportRenderer?.setStandardView("iso")
+};
+
+dom.canvas.addEventListener("keydown", (event) => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  const action = CANVAS_KEY_ACTIONS[event.key];
+  if (!action) return;
+  // Arrow keys would otherwise scroll the workspace out from under the canvas.
+  event.preventDefault();
+  action();
+});
+
 dom.canvas.addEventListener("click", (event) => {
   if (suppressNextCanvasClick) {
     suppressNextCanvasClick = false;
@@ -1356,8 +2121,16 @@ dom.canvas.addEventListener("mousemove", (event) => {
 });
 
 function setStatus(message, error = false) {
+  const flag = error ? "true" : "false";
+  // [data-status] is role="status" aria-live="polite": rewriting it announces.
+  // renderCanvas ends with setStatus("Ready") on every render, so without this
+  // guard a screen reader said "Ready" after every checkbox, tab, slider nudge
+  // and opacity click.
+  if (dom.status.textContent === message && dom.status.dataset.error === flag) {
+    return;
+  }
   dom.status.textContent = message;
-  dom.status.dataset.error = error ? "true" : "false";
+  dom.status.dataset.error = flag;
 }
 
 function connectLivePreview(wsUrl) {
@@ -1467,6 +2240,98 @@ async function handleLivePreviewEvent(raw) {
   }
 }
 
+function metaLine(text) {
+  const line = document.createElement("div");
+  line.className = "meta";
+  line.textContent = text;
+  return line;
+}
+
+function stripHeading(text) {
+  const heading = document.createElement("h3");
+  heading.className = "strip-subheading";
+  heading.textContent = text;
+  return heading;
+}
+
+function barControl(labelText, value, options, onChange) {
+  const group = document.createElement("div");
+  group.className = "bar-control";
+  const label = document.createElement("label");
+  label.className = "bar-label";
+  label.textContent = labelText;
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", labelText);
+  select.dataset.focusKey = `bar:${labelText}`;
+  for (const option of options) {
+    const element = document.createElement("option");
+    element.value = option.id;
+    element.textContent = option.label;
+    element.selected = option.id === value;
+    select.append(element);
+  }
+  select.addEventListener("change", () => onChange(select.value));
+  label.append(select);
+  group.append(label);
+  return group;
+}
+
+function hexColor(value) {
+  return `#${Number(value).toString(16).padStart(6, "0")}`;
+}
+
+
+function formatPercent(ratio) {
+  const value = Number(ratio) * 100;
+  if (!Number.isFinite(value)) return "";
+  return `${value >= 1 ? value.toFixed(0) : value.toFixed(2)}%`;
+}
+
+// Sweeping the display deformation rebuilds the scene graph each step, so the
+// loop is throttled well below the display refresh rate. It exists to make the
+// mode shape legible, not to be smooth.
+const DEFORMATION_FRAME_MS = 70;
+const DEFORMATION_PHASE_STEP = 0.2;
+let deformationAnimation = null;
+
+function toggleDeformationAnimation() {
+  if (deformationAnimation) {
+    stopDeformationAnimation();
+    render();
+    return;
+  }
+  const base = getVisualDeformationDisplayScale(currentState);
+  if (!(base > 1)) return;
+  deformationAnimation = { base, phase: 0, frameId: null, lastFrame: 0 };
+  deformationAnimation.frameId = requestAnimationFrame(stepDeformationAnimation);
+  render();
+}
+
+function stopDeformationAnimation() {
+  if (!deformationAnimation) return;
+  const { base, frameId } = deformationAnimation;
+  if (frameId !== null) cancelAnimationFrame(frameId);
+  deformationAnimation = null;
+  // Put the scale back where the reviewer left it, so pausing never silently
+  // changes the exaggeration a screenshot was taken at.
+  currentState = setVisualDeformationScale(currentState, base);
+}
+
+function stepDeformationAnimation(timestamp = 0) {
+  if (!deformationAnimation) return;
+  deformationAnimation.frameId = requestAnimationFrame(stepDeformationAnimation);
+  if (timestamp - deformationAnimation.lastFrame < DEFORMATION_FRAME_MS) return;
+  deformationAnimation.lastFrame = timestamp;
+  deformationAnimation.phase += DEFORMATION_PHASE_STEP;
+  // Swings between the true displacement and the chosen exaggeration rather
+  // than through zero: x1 is the honest shape, and that is the useful anchor.
+  const sweep = (1 - Math.cos(deformationAnimation.phase)) / 2;
+  currentState = setVisualDeformationScale(currentState, 1 + (deformationAnimation.base - 1) * sweep);
+  renderCanvas();
+}
+
+globalThis.addEventListener("beforeunload", stopDeformationAnimation);
+
 function selectControl(labelText, value, options, onChange) {
   const label = document.createElement("label");
   const select = document.createElement("select");
@@ -1508,25 +2373,38 @@ function rangeControl(labelText, value, min, max, step, onChange) {
   return label;
 }
 
-function formatEngineeringValue(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) {
-    return "";
-  }
-  if (Math.abs(number) >= 1_000_000) {
-    return number.toExponential(2);
-  }
-  return String(Math.round(number * 1000) / 1000);
-}
 
 function formatScale(value) {
   const number = Number(value);
   return Number.isFinite(number) ? String(Math.round(number * 1000) / 1000) : "1";
 }
 
+// Typing opens the finder. The field used to filter a list inside a collapsed
+// disclosure, so typing in it changed nothing you could see.
 dom.searchInput.addEventListener("input", () => {
   currentSearch = dom.searchInput.value;
-  renderObjects();
+  openFind();
+});
+
+dom.searchInput.addEventListener("focus", openFind);
+
+dom.findDismiss.addEventListener("click", () => {
+  currentSearch = "";
+  dom.searchInput.value = "";
+  closeFind();
+});
+
+dom.searchInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  // First Escape clears a query, second leaves the finder - so a mistyped
+  // query never costs you the pane.
+  if (currentSearch.trim()) {
+    currentSearch = "";
+    dom.searchInput.value = "";
+    render();
+    return;
+  }
+  closeFind();
 });
 
 dom.evidenceExpand.addEventListener("click", () => {
