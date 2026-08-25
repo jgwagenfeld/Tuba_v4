@@ -60,7 +60,8 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
     await expect(page).toHaveScreenshot(`pages-${name}.png`, {
       animations: "disabled",
       caret: "hide",
-      maxDiffPixelRatio: 0.002
+      // Narrow software-rendered WebGL varies slightly between Ubuntu runners.
+      maxDiffPixelRatio: name === "narrow" ? 0.015 : 0.002
     });
   }
 
