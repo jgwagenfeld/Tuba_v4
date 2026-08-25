@@ -138,9 +138,18 @@ def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None
     assert sorted(path.name for path in tmp_path.iterdir() if path.is_dir()) == sorted(official)
 
 
-def test_committed_gallery_artifact_bytes_match_the_execution_attestation() -> None:
+@pytest.mark.parametrize(
+    "artifact_root",
+    [
+        Path("notebooks/code_aster_results/autorouted_expansion_hot"),
+        Path("notebooks/code_aster_results/support_rack_operating"),
+        Path("notebooks/code_aster_results/viz_gallery_operating"),
+    ],
+)
+def test_committed_gallery_artifact_bytes_match_the_execution_attestation(
+    artifact_root: Path,
+) -> None:
     root = Path(__file__).resolve().parents[1]
-    artifact_root = Path("notebooks/code_aster_results/viz_gallery_operating")
     attestation = json.loads((root / artifact_root / "study_execution.json").read_text(encoding="utf-8"))
 
     for filename, expected in attestation["artifacts"].items():
