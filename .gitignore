@@ -44,8 +44,10 @@ generated/
 viewer/dist/
 viewer/node_modules/
 /viewer/public/bundles.json
+/viewer/public/autorouted-expansion-loop/
 /viewer/public/code-aster-review/
 /viewer/public/imported_component_mixed_demo/
+/viewer/public/support-rack-review/
 
 # Vite dependency cache
 .vite/

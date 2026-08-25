@@ -1,0 +1,478 @@
+{
+  "analysis_mesh": {
+    "element_sources": {
+      "pipe_inlet": {
+        "element_id": "pipe_inlet",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_inlet",
+          "kind": "element"
+        }
+      },
+      "pipe_outlet": {
+        "element_id": "pipe_outlet",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_outlet",
+          "kind": "element"
+        }
+      },
+      "pipe_rack_span": {
+        "element_id": "pipe_rack_span",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_rack_span",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0": {
+        "element_id": "rack_A_beam_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1": {
+        "element_id": "rack_A_beam_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2": {
+        "element_id": "rack_A_beam_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3": {
+        "element_id": "rack_A_beam_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4": {
+        "element_id": "rack_A_beam_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5": {
+        "element_id": "rack_A_beam_5",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6": {
+        "element_id": "rack_A_beam_6",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7": {
+        "element_id": "rack_A_beam_7",
+        "role": "native_element",
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      }
+    },
+    "elements": {
+      "pipe_inlet": [
+        "N8",
+        "N4"
+      ],
+      "pipe_outlet": [
+        "N6",
+        "N9"
+      ],
+      "pipe_rack_span": [
+        "N4",
+        "N6"
+      ],
+      "rack_A_beam_0": [
+        "N0",
+        "N4"
+      ],
+      "rack_A_beam_1": [
+        "N1",
+        "N5"
+      ],
+      "rack_A_beam_2": [
+        "N2",
+        "N6"
+      ],
+      "rack_A_beam_3": [
+        "N3",
+        "N7"
+      ],
+      "rack_A_beam_4": [
+        "N4",
+        "N6"
+      ],
+      "rack_A_beam_5": [
+        "N5",
+        "N7"
+      ],
+      "rack_A_beam_6": [
+        "N4",
+        "N5"
+      ],
+      "rack_A_beam_7": [
+        "N6",
+        "N7"
+      ]
+    },
+    "files": {
+      "mail": "study.mail"
+    },
+    "groups": {
+      "AllPipes": [
+        "pipe_inlet",
+        "pipe_rack_span",
+        "pipe_outlet"
+      ],
+      "AllSupports": [
+        "N0",
+        "N1",
+        "N2",
+        "N3",
+        "N8",
+        "N9",
+        "N4",
+        "N6"
+      ],
+      "GN_N0": [
+        "N0"
+      ],
+      "GN_N1": [
+        "N1"
+      ],
+      "GN_N2": [
+        "N2"
+      ],
+      "GN_N3": [
+        "N3"
+      ],
+      "GN_N4": [
+        "N4"
+      ],
+      "GN_N6": [
+        "N6"
+      ],
+      "GN_N8": [
+        "N8"
+      ],
+      "GN_N9": [
+        "N9"
+      ],
+      "G_TUBE": [
+        "rack_A_beam_0",
+        "rack_A_beam_1",
+        "rack_A_beam_2",
+        "rack_A_beam_3",
+        "rack_A_beam_4",
+        "rack_A_beam_5",
+        "rack_A_beam_6",
+        "rack_A_beam_7"
+      ],
+      "MAT_Steel": [
+        "pipe_inlet",
+        "pipe_rack_span",
+        "pipe_outlet",
+        "rack_A_beam_0",
+        "rack_A_beam_1",
+        "rack_A_beam_2",
+        "rack_A_beam_3",
+        "rack_A_beam_4",
+        "rack_A_beam_5",
+        "rack_A_beam_6",
+        "rack_A_beam_7"
+      ],
+      "PipeOrientationNodes": [
+        "N8"
+      ],
+      "PipeStraights": [
+        "pipe_inlet",
+        "pipe_rack_span",
+        "pipe_outlet"
+      ],
+      "SEC_DN100": [
+        "pipe_inlet",
+        "pipe_rack_span",
+        "pipe_outlet"
+      ],
+      "SEC_RackSec": [
+        "rack_A_beam_0",
+        "rack_A_beam_1",
+        "rack_A_beam_2",
+        "rack_A_beam_3",
+        "rack_A_beam_4",
+        "rack_A_beam_5",
+        "rack_A_beam_6",
+        "rack_A_beam_7"
+      ],
+      "pipe_inlet": [
+        "pipe_inlet"
+      ],
+      "pipe_outlet": [
+        "pipe_outlet"
+      ],
+      "pipe_rack_span": [
+        "pipe_rack_span"
+      ],
+      "rack_A_beam_0": [
+        "rack_A_beam_0"
+      ],
+      "rack_A_beam_1": [
+        "rack_A_beam_1"
+      ],
+      "rack_A_beam_2": [
+        "rack_A_beam_2"
+      ],
+      "rack_A_beam_3": [
+        "rack_A_beam_3"
+      ],
+      "rack_A_beam_4": [
+        "rack_A_beam_4"
+      ],
+      "rack_A_beam_5": [
+        "rack_A_beam_5"
+      ],
+      "rack_A_beam_6": [
+        "rack_A_beam_6"
+      ],
+      "rack_A_beam_7": [
+        "rack_A_beam_7"
+      ]
+    },
+    "id": "analysis_mesh:Operating",
+    "model_revision": 0,
+    "modelisations": {
+      "AllPipes": "TUYAU_3M",
+      "G_TUBE": "POU_D_T"
+    },
+    "node_sources": {
+      "N0": {
+        "node_id": "N0",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N0",
+          "kind": "node"
+        }
+      },
+      "N1": {
+        "node_id": "N1",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N2": {
+        "node_id": "N2",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N2",
+          "kind": "node"
+        }
+      },
+      "N3": {
+        "node_id": "N3",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N3",
+          "kind": "node"
+        }
+      },
+      "N4": {
+        "node_id": "N4",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N4",
+          "kind": "node"
+        }
+      },
+      "N5": {
+        "node_id": "N5",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N5",
+          "kind": "node"
+        }
+      },
+      "N6": {
+        "node_id": "N6",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N6",
+          "kind": "node"
+        }
+      },
+      "N7": {
+        "node_id": "N7",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N7",
+          "kind": "node"
+        }
+      },
+      "N8": {
+        "node_id": "N8",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N8",
+          "kind": "node"
+        }
+      },
+      "N9": {
+        "node_id": "N9",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N9",
+          "kind": "node"
+        }
+      },
+      "pipe_inlet_mid": {
+        "node_id": "pipe_inlet_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_inlet",
+          "kind": "element"
+        }
+      },
+      "pipe_outlet_mid": {
+        "node_id": "pipe_outlet_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_outlet",
+          "kind": "element"
+        }
+      },
+      "pipe_rack_span_mid": {
+        "node_id": "pipe_rack_span_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_rack_span",
+          "kind": "element"
+        }
+      }
+    },
+    "nodes": {
+      "N0": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "N1": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "N2": [
+        4.0,
+        -1.0,
+        0.0
+      ],
+      "N3": [
+        4.0,
+        1.0,
+        0.0
+      ],
+      "N4": [
+        0.0,
+        -1.0,
+        3.0
+      ],
+      "N5": [
+        0.0,
+        1.0,
+        3.0
+      ],
+      "N6": [
+        4.0,
+        -1.0,
+        3.0
+      ],
+      "N7": [
+        4.0,
+        1.0,
+        3.0
+      ],
+      "N8": [
+        -2.0,
+        -1.0,
+        3.0
+      ],
+      "N9": [
+        6.0,
+        -1.0,
+        3.0
+      ],
+      "pipe_inlet_mid": [
+        -1.0,
+        -1.0,
+        3.0
+      ],
+      "pipe_outlet_mid": [
+        5.0,
+        -1.0,
+        3.0
+      ],
+      "pipe_rack_span_mid": [
+        2.0,
+        -1.0,
+        3.0
+      ]
+    },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "0bb9e6120eee4fbe82b80bdf4957e8bf7f9a1c77aa7fdccdc7315ba63459f488",
+      "load_case": "Operating",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  },
+  "study": {
+    "id": "analysis_study:Operating",
+    "input_files": {
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
+    },
+    "load_case": "Operating",
+    "mesh_id": "analysis_mesh:Operating",
+    "metadata": {
+      "project_name": "SupportRackReview"
+    },
+    "model_revision": 0,
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "0bb9e6120eee4fbe82b80bdf4957e8bf7f9a1c77aa7fdccdc7315ba63459f488",
+      "load_case": "Operating",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  }
+}

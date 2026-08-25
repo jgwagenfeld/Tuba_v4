@@ -3,6 +3,13 @@
 Open-source Python project for piping models, Code_Aster workflows, and result
 review.
 
+[**Open the documentation and live viewer →**](https://jgwagenfeld.github.io/Tuba_v4/)
+
+[![Code_Aster-backed Tuba review showing the pipe geometry, 1D analysis mesh, TUYAU wall sub-points, deformation, and stress results.](docs/content/assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
+
+*Code_Aster-backed engineering review: authored geometry, solver mesh, TUYAU
+wall sub-points, deformation, reactions, and stress remain inspectable together.*
+
 ## Core Workflow
 
 Tuba v4 is organized around this workflow:
@@ -25,14 +32,14 @@ stress, displacement, reaction, compliance, and result visualization workflows.
 
 Read these first - they describe what the code actually does today:
 
-| Source | Role |
-|---|---|
-| `README.md`, `CONTRIBUTING.md` | Project workflow and contributor guidance |
-| `notebooks/00`-`10` | The end-to-end notebook course, in order |
-| `docs/site/` | GitHub Pages source: tutorial, modeling basics, overview, workflow, autorouting, commands, examples, setup, developer |
-| `docs/architecture/library-architecture-review.md` | Current architecture map |
-| `docs/architecture/*` | Focused design decisions and explicitly labeled roadmap docs |
-| `docs/code_aster_installation.md` | Canonical Code_Aster setup |
+| Source                                               | Role                                                                                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `README.md`, `CONTRIBUTING.md`                   | Project workflow and contributor guidance                                                                             |
+| `notebooks/00`-`10`                              | The end-to-end notebook course, in order                                                                              |
+| `docs/content/`                                    | Canonical Zensical source: setup, tutorial, modeling, workflow, autorouting, examples, API, architecture, developer   |
+| `docs/architecture/library-architecture-review.md` | Current architecture map                                                                                              |
+| `docs/architecture/*`                              | Focused design decisions and explicitly labeled roadmap docs                                                          |
+| `docs/content/setup.md`                            | Canonical Code_Aster and developer setup                                                                              |
 
 ## Installation
 
@@ -56,7 +63,7 @@ Native Linux (Ubuntu/Debian):
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y libglu1-mesa
+sudo apt-get install -y libglu1-mesa libxft2 libgomp1
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
@@ -65,7 +72,7 @@ python -m pip install .
 
 This installs Tuba from the checkout; it does not install Code_Aster. The
 solver is a separate Linux runtime. On Windows, install it in WSL2 Ubuntu by
-following [`docs/code_aster_installation.md`](docs/code_aster_installation.md).
+following [`docs/content/setup.md`](docs/content/setup.md).
 The `code-aster-rmed` extra adds result-file reading support only; it is not the
 solver.
 
@@ -99,7 +106,7 @@ reports a ready runtime; the notebook loader preserves existing result tables
 when runtime preflight fails.
 
 Full Windows/WSL installation walkthrough:
-[`docs/code_aster_installation.md`](docs/code_aster_installation.md).
+[`docs/content/setup.md`](docs/content/setup.md).
 
 Preferred Windows/WSL setup:
 
@@ -171,19 +178,19 @@ artifacts, and opens an interactive deformed-stress view. Continue with
 
 Course sequence:
 
-| Notebook | Purpose |
-|---|---|
-| `00_welcome_and_setup.ipynb` | Fast complete workflow: model, Code_Aster, interactive result |
-| `01_building_piping_systems.ipynb` | Geometry authoring with the piping DSL |
-| `02_supports_and_loading.ipynb` | Supports, boundary conditions, and load cases |
-| `03_stress_analysis_and_compliance.ipynb` | Code_Aster-backed stress and ASME B31.3 checks |
-| `04_visualization_gallery.ipynb` | Result visualization and export formats |
-| `05_autorouting.ipynb` | Deterministic routing and Code_Aster study handoff |
-| `06_structural_frames_and_optimization.ipynb` | Pipe racks and Code_Aster-backed design evaluation |
-| `07_bim_data_exchange.ipynb` | JSON and IFC/BIM exchange with solver properties |
-| `08_expansion_aware_autorouting.ipynb` | Hot-line routing with reserved expansion envelopes |
-| `09_imported_component_mixed_system.ipynb` | Imported CAD component placement and pipe coupling |
-| `10_interactive_postprocessor.ipynb` | Focused Code_Aster artifact post-processing |
+| Notebook                                        | Purpose                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| `00_welcome_and_setup.ipynb`                  | Fast complete workflow: model, Code_Aster, interactive result |
+| `01_building_piping_systems.ipynb`            | Geometry authoring with the piping DSL                        |
+| `02_supports_and_loading.ipynb`               | Supports, boundary conditions, and load cases                 |
+| `03_stress_analysis_and_compliance.ipynb`     | Code_Aster-backed stress and ASME B31.3 checks                |
+| `04_visualization_gallery.ipynb`              | Result visualization and export formats                       |
+| `05_autorouting.ipynb`                        | Deterministic routing and Code_Aster study handoff            |
+| `06_structural_frames_and_optimization.ipynb` | Pipe racks and Code_Aster-backed design evaluation            |
+| `07_bim_data_exchange.ipynb`                  | JSON and IFC/BIM exchange with solver properties              |
+| `08_expansion_aware_autorouting.ipynb`        | Hot-line routing with reserved expansion envelopes            |
+| `09_imported_component_mixed_system.ipynb`    | Imported CAD component placement and pipe coupling            |
+| `10_interactive_postprocessor.ipynb`          | Focused Code_Aster artifact post-processing                   |
 
 Supplemental notebooks: `autorouting_quick_iteration.ipynb`,
 `visualize_elements_and_supports.ipynb`, and
@@ -200,9 +207,9 @@ PyVista result views, and writes a `viewer/` scene bundle for review.
 
 ## Project Page
 
-The GitHub Pages source lives at `docs/site/`. It includes the first-analysis
+The GitHub Pages source lives at `docs/content/`. It includes the first-analysis
 tutorial, modeling basics for sections, coordinates, schemas, and validation,
-current overview, workflow, autorouting manual, command reference, examples,
+current overview, workflow, autorouting manual, public API reference, examples,
 setup, developer guide, the post-processor notebook download, and a preserved
 Code_Aster-backed viewer bundle.
 
@@ -335,7 +342,7 @@ rules, and BOM export.
 .\.venv\Scripts\python.exe examples\future_ready_semantic_workflow.py
 ```
 
-See `docs/site/examples.html`, `docs/site/commands.html`, and
+See `docs/content/examples.md`, `docs/content/reference/public-api.md`, and
 `docs/architecture/library-architecture-review.md` for the current documented
 surface.
 

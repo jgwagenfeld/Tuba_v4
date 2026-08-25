@@ -10,6 +10,22 @@ Examples are labelled by evidence status so geometry, handoff files, and solved 
 
 The browser performs no engineering calculation. It displays the preserved Python-produced review and scene contracts.
 
+## Support-rack scene — solved engineering review
+
+**Status: SOLVED / IMPORTED.** This Code_Aster-backed bundle shows the pipe,
+beam rack, anchors and rests, 1D analysis mesh, reactions, deformation, stress,
+and support-to-rack load paths.
+
+[Open the solved support-rack review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review).
+
+## Autorouted expansion loop — solved engineering review
+
+**Status: SOLVED / IMPORTED.** This bundle retains the selected U-loop and its
+route-review metadata, then overlays the attested Code_Aster operating results,
+analysis mesh, TUYAU wall sub-points, deformation, forces, and reactions.
+
+[Open the solved autorouted expansion-loop review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop).
+
 ## Imported-component scene — model review
 
 **Status: MODEL REVIEW / NO SOLVER RESULTS.** This bundle demonstrates imported-component geometry, local frames, object selection, and model provenance.

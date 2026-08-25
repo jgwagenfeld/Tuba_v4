@@ -21,13 +21,21 @@ from tuba.solver.base import FEAResults
 from tuba.solver.code_aster_runtime import ATTESTED_CODE_ASTER_FILES
 
 
-def test_pages_catalog_contains_the_two_validated_official_bundles(tmp_path: Path) -> None:
-    """Catches a publisher that omits either official example or its catalog."""
+OFFICIAL_BUNDLES = (
+    "autorouted-expansion-loop",
+    "code-aster-review",
+    "imported_component_mixed_demo",
+    "support-rack-review",
+)
+
+
+def test_pages_catalog_contains_the_four_validated_official_bundles(tmp_path: Path) -> None:
+    """Catches a publisher that omits an official example or its catalog."""
     bundle_ids = build_examples(tmp_path, audience="pages")
 
     write_bundle_catalog(tmp_path, bundle_ids)
 
-    assert bundle_ids == ("code-aster-review", "imported_component_mixed_demo")
+    assert bundle_ids == OFFICIAL_BUNDLES
     assert json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8")) == list(bundle_ids)
 
     engineering = json.loads((tmp_path / "code-aster-review" / "scene.json").read_text(encoding="utf-8"))
@@ -35,6 +43,19 @@ def test_pages_catalog_contains_the_two_validated_official_bundles(tmp_path: Pat
     assert {layer["category"] for layer in engineering["layers"]} == {
         "design", "analysis_mesh", "results", "annotations"
     }
+    for bundle_id in ("autorouted-expansion-loop", "support-rack-review"):
+        scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
+        review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
+        assert len(scene["result_fields"]) == 4
+        assert review["analysis_status"] == "solved"
+
+    autorouted = json.loads(
+        (tmp_path / "autorouted-expansion-loop" / "scene.json").read_text(encoding="utf-8")
+    )
+    assert autorouted["route_reviews"]
+    rack = json.loads((tmp_path / "support-rack-review" / "scene.json").read_text(encoding="utf-8"))
+    assert any(overlay["kind"] == "rack_assembly" for overlay in rack["overlays"])
+    assert any(overlay["kind"] == "load_path" for overlay in rack["overlays"])
 
     model_review = json.loads(
         (tmp_path / "imported_component_mixed_demo" / "scene.json").read_text(encoding="utf-8")
@@ -73,14 +94,14 @@ def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> 
 
     assert completed.returncode == 0, completed.stderr
     assert json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8")) == [
-        "code-aster-review", "imported_component_mixed_demo"
+        *OFFICIAL_BUNDLES
     ]
 
 
 def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None:
     """Keep generated examples out of Git while retaining the smoke fixture."""
     root = Path(__file__).resolve().parents[1]
-    official = ("code-aster-review", "imported_component_mixed_demo")
+    official = OFFICIAL_BUNDLES
     tracked = set(
         subprocess.check_output(
             ["git", "ls-files", "--", "viewer/public"], cwd=root, text=True

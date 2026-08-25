@@ -68,10 +68,8 @@ def build_request() -> PipeRouteRequest:
     )
 
 
-def run_example(output_root: str | Path = "routing_reports") -> AutoroutingRun:
-    model = build_model()
-    request = build_request()
-    router = ExpansionAwareRouter(
+def build_router() -> ExpansionAwareRouter:
+    return ExpansionAwareRouter(
         base_router=GridRouter(
             RoutingGridSpec(cell_size=0.5, margin=1.5),
             candidate_count=1,
@@ -90,8 +88,13 @@ def run_example(output_root: str | Path = "routing_reports") -> AutoroutingRun:
             ),
         ),
     )
+
+
+def run_example(output_root: str | Path = "routing_reports") -> AutoroutingRun:
+    model = build_model()
+    request = build_request()
     return AutoroutingAgent(
-        router=router,
+        router=build_router(),
         solver_config=SolverLoopConfig(
             run_solver=False,
             export_study=True,

@@ -182,6 +182,28 @@ class TestStaticSiteDocs(unittest.TestCase):
                          "sections.png should be replaced by sections.svg")
         self.assertNotIn("sections.png", (CONTENT / "modeling.md").read_text(encoding="utf-8"))
 
+    def test_readme_and_home_lead_with_the_code_aster_review_hero(self):
+        figure = CONTENT / "assets" / "figures" / "code_aster_review.png"
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        home = (CONTENT / "index.md").read_text(encoding="utf-8")
+
+        self.assertTrue(figure.is_file())
+        self.assertIn("docs/content/assets/figures/code_aster_review.png", readme)
+        self.assertIn("assets/figures/code_aster_review.png", home)
+        self.assertIn("viewer/?bundle=code-aster-review", readme)
+        self.assertIn("viewer/?bundle=code-aster-review", home)
+
+    def test_examples_page_lists_the_four_clickable_review_bundles(self):
+        text = (CONTENT / "examples.md").read_text(encoding="utf-8")
+
+        for bundle_id in (
+            "autorouted-expansion-loop",
+            "code-aster-review",
+            "imported_component_mixed_demo",
+            "support-rack-review",
+        ):
+            self.assertIn(f"bundle={bundle_id}", text)
+
     def test_frame_and_result_pages_embed_the_viewer(self):
         embeds = {
             "modeling.md": "imported_component_mixed_demo",

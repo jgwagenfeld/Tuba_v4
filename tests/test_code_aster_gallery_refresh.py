@@ -31,6 +31,22 @@ def test_refresh_cli_starts_from_the_scripts_directory():
     assert completed.returncode == 0, completed.stderr
 
 
+def test_refresh_selects_each_official_engineering_gallery(tmp_path, monkeypatch):
+    selector = getattr(refresh_code_aster_gallery, "build_gallery_model", None)
+    assert callable(selector)
+    monkeypatch.setattr(refresh_code_aster_gallery, "build_model", lambda: "pipe")
+    monkeypatch.setattr(refresh_code_aster_gallery, "build_support_rack_model", lambda: "rack")
+    monkeypatch.setattr(
+        refresh_code_aster_gallery,
+        "build_autorouted_expansion_model",
+        lambda output: ("autorouted", object()),
+    )
+
+    assert selector("code-aster-review", tmp_path) == ("pipe", "Operating")
+    assert selector("support-rack-review", tmp_path) == ("rack", "Operating")
+    assert selector("autorouted-expansion-loop", tmp_path) == ("autorouted", "Hot")
+
+
 def _artifact(identity="gallery-input", *, attestation=_DEFAULT_ATTESTATION):
     identity = SimpleNamespace(fingerprint=identity)
     return SimpleNamespace(
@@ -69,6 +85,7 @@ def _write_solver_outputs(output: Path, *, prefix: str, missing: str | None = No
 
 def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp_path, monkeypatch):
     calls = []
+    scratch_paths = []
     artifact = _artifact()
 
     class FakeSolver:
@@ -85,7 +102,11 @@ def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp
             _write_solver_outputs(tmp_path, prefix="fresh")
 
     model = object()
-    monkeypatch.setattr(refresh_code_aster_gallery, "build_model", lambda: model)
+    monkeypatch.setattr(
+        refresh_code_aster_gallery,
+        "build_gallery_model",
+        lambda gallery, scratch: scratch_paths.append(Path(scratch)) or (model, "Operating"),
+    )
     monkeypatch.setattr(refresh_code_aster_gallery, "CodeAsterSolver", FakeSolver)
     monkeypatch.setattr(
         refresh_code_aster_gallery,
@@ -100,6 +121,8 @@ def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp
     assert [call[0] for call in calls] == ["export", "solve", "import"]
     assert calls[0][2:] == ("Operating", tmp_path)
     assert all((tmp_path / filename).read_text(encoding="utf-8").startswith("fresh") for filename in _SOLVER_OUTPUT_FILES)
+    assert len(scratch_paths) == 1
+    assert not scratch_paths[0].exists()
 
 
 @pytest.mark.parametrize(

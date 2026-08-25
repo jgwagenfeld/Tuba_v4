@@ -5,11 +5,16 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from examples.code_aster_artifact_review import build_model
+from examples.code_aster_artifact_review import (
+    build_autorouted_expansion_model,
+    build_model,
+    build_support_rack_model,
+)
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 
@@ -25,13 +30,25 @@ _SOLVER_OUTPUT_FILES = (
 )
 
 
-def refresh_gallery(output: str | Path) -> Any:
+def build_gallery_model(gallery: str, scratch_root: str | Path) -> tuple[Any, str]:
+    if gallery == "code-aster-review":
+        return build_model(), "Operating"
+    if gallery == "support-rack-review":
+        return build_support_rack_model(), "Operating"
+    if gallery == "autorouted-expansion-loop":
+        model, _route_result = build_autorouted_expansion_model(Path(scratch_root) / "routing")
+        return model, "Hot"
+    raise ValueError(f"Unknown official engineering gallery {gallery!r}.")
+
+
+def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -> Any:
     """Export, solve, import, and verify one canonical operating gallery."""
     output_path = Path(output)
     output_path.mkdir(parents=True, exist_ok=True)
-    model = build_model()
+    with TemporaryDirectory(prefix="tuba-gallery-routing-") as scratch:
+        model, load_case = build_gallery_model(gallery, scratch)
     solver = CodeAsterSolver(work_dir=output_path)
-    study = solver.export_analysis_study(model, "Operating", output_path)
+    study = solver.export_analysis_study(model, load_case, output_path)
     for filename in _SOLVER_OUTPUT_FILES:
         (output_path / filename).unlink(missing_ok=True)
     solver.solve_exported_study(model, study)
@@ -83,8 +100,13 @@ def _fingerprint_from_attestation(attestation: dict[str, Any]) -> str | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True, help="Canonical Code_Aster gallery directory")
+    parser.add_argument(
+        "--gallery",
+        choices=("autorouted-expansion-loop", "code-aster-review", "support-rack-review"),
+        default="code-aster-review",
+    )
     args = parser.parse_args()
-    artifact = refresh_gallery(args.output)
+    artifact = refresh_gallery(args.output, gallery=args.gallery)
     attestation = artifact.result_state.metadata["solve_attestation"]
     print(
         f"Refreshed Code_Aster gallery at {args.output} "

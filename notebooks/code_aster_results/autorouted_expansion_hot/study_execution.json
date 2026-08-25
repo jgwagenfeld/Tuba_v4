@@ -1,0 +1,59 @@
+{
+  "artifacts": {
+    "study.comm": {
+      "sha256": "005969b0c757948597a0151025969ea45a38b7b6a13768469c699e0bf695087f",
+      "size_bytes": 6653
+    },
+    "study.export": {
+      "sha256": "66b82ed835f314cb13ef7f1ff83320c1e1542f88ffdcd4bb0492ed8963e24d6c",
+      "size_bytes": 363
+    },
+    "study.mail": {
+      "sha256": "8a4a4a877f7f5f9f073fa22c1a9fa7ab5027b9d009eb10c93afd5bffe2382f14",
+      "size_bytes": 16945
+    },
+    "study.mess": {
+      "sha256": "2d8dca730ab3680ba0ecab620e5fa93263d3830a14cc13cb1babda2891dbc59f",
+      "size_bytes": 50641
+    },
+    "study.rmed": {
+      "sha256": "97d6e4fbe775cad9d45b298614cb17298055a8c5daadf419c2721288d70b6382",
+      "size_bytes": 9182015
+    },
+    "study_depl.csv": {
+      "sha256": "3977951d1d60398badba33acc90b6110e1a96c6c21a2fddb1612b8165b6a1a84",
+      "size_bytes": 26848
+    },
+    "study_effo.csv": {
+      "sha256": "19309433a386d8946495f9a77418bcd880fc5a1ad96e03609ea87ae837b61842",
+      "size_bytes": 44570
+    },
+    "study_manifest.json": {
+      "sha256": "3fca8952d1a4fee37ad7b9712e14d768c2fddcdfe33b42a0683495f207555b3f",
+      "size_bytes": 161657
+    },
+    "study_reac.csv": {
+      "sha256": "c2965c4ecb38fa5ef1bb68280e3866a00630705a6823a1fd2d8a144fc3c038cd",
+      "size_bytes": 26848
+    },
+    "study_sieq.csv": {
+      "sha256": "facc4fda31b7058a0bf87d59bb1b488be03010f05a6d701f92769b46db85fb0a",
+      "size_bytes": 7036281
+    },
+    "study_tuba_fem.json": {
+      "sha256": "7dcc0489a251aa772854fb5dec83f47b2c2fd0346f9d2c747b31708169a07a18",
+      "size_bytes": 11255
+    }
+  },
+  "execution_method": "wsl",
+  "schema_version": "tuba.code_aster_execution.v1",
+  "solved_at": "2026-08-25T17:17:28.917801Z",
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v1",
+    "fingerprint": "17fc235222e8042842354abffddc33432854720b549971fdb3affe05cd7d3b31",
+    "load_case": "Hot",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster",
+  "solver_version": "18.0.12"
+}

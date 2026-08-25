@@ -2,6 +2,10 @@
 
 Tuba v4 defines piping structures, evaluates them with Code_Aster, and displays the processed results for engineering review.
 
+[![Code_Aster-backed Tuba review showing geometry, 1D mesh, TUYAU wall sub-points, deformation, and stress.](assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
+
+The live review keeps authored geometry, solver mesh, wall sub-points, deformation, reactions, forces, and stress connected to the same attested Code_Aster run.
+
 Code_Aster is required for production stress, displacement, reaction, thermal-expansion, operating-state clash, compliance, and result-visualization workflows. Exported study files are only a handoff until Code_Aster has solved the model and Tuba has imported the result artifacts.
 
 Start with [Setup](https://jgwagenfeld.github.io/Tuba_v4/setup.html), then [build and solve the tutorial model](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html). You can also open the [live Code_Aster review viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).

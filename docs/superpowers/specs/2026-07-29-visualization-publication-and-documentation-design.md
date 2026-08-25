@@ -2,8 +2,18 @@
 
 **Date:** 2026-07-29
 
-**Status:** Written specification awaiting user review
+**Status:** Implemented; public gallery expanded 2026-08-25
 **Scope:** Official web-review examples, GitHub Pages assembly, viewer production verification, and public documentation ownership
+
+## Implementation Update
+
+The single Pages builder, strict publication profiles, portable Code_Aster
+evidence, Zensical documentation, production picker, section controls, and
+browser gates described below are implemented. The public catalog now contains
+four deliberately reviewed examples: the original solved pipe and imported
+component bundles, a solved pipe-on-rack review, and a solved autorouted
+expansion loop. README and documentation entry points use the current solved
+pipe review as their clickable hero image.
 
 ## Objective
 
@@ -137,10 +147,14 @@ Pages build module. Each record contains only:
 - audience (`dev` and/or `pages`);
 - validation profile (`engineering-review` or `model-review`).
 
-The two initial records are:
+The four published records are:
 
 - `code-aster-review`, produced from the canonical solved Code_Aster artifact
   set;
+- `support-rack-review`, a solved pipe-on-rack model with support reactions and
+  load-path overlays;
+- `autorouted-expansion-loop`, a solved U-loop selected by the autorouter with
+  the route alternatives retained for review;
 - `imported_component_mixed_demo`, explicitly labelled as a model-review bundle
   without solver results.
 
@@ -363,7 +377,7 @@ is a hard blocker and must not fall back to fabricated or export-only results.
 
 Serve the assembled `_site`, not the Vite development server, and verify:
 
-- the picker is visible with exactly the two official Pages examples;
+- the picker is visible with exactly the four official Pages examples;
 - switching the picker updates the URL and loaded scene;
 - the engineering example exposes Load case, Field, and Component controls;
 - displacement component selection changes the legend and rendered state;

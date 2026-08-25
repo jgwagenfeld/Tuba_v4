@@ -710,8 +710,10 @@ const scenarios = {
           options.map((option) => ({ label: option.textContent, value: option.value }))
         ),
         [
+          { label: "Autorouted Expansion Loop", value: "autorouted-expansion-loop" },
           { label: "Code Aster Review", value: "code-aster-review" },
-          { label: "Imported Component Mixed Demo", value: "imported_component_mixed_demo" }
+          { label: "Imported Component Mixed Demo", value: "imported_component_mixed_demo" },
+          { label: "Support Rack Review", value: "support-rack-review" }
         ]
       );
       assert.equal(await picker.inputValue(), "code-aster-review");
@@ -739,6 +741,23 @@ const scenarios = {
         () => window.__tubaViewer?.state?.sceneId === "scene:code_aster_artifact_review"
       );
       assert.equal(new URL(page.url()).searchParams.get("bundle"), "code-aster-review");
+
+      for (const [bundle, sceneId] of [
+        ["autorouted-expansion-loop", "scene:autorouted_expansion_loop"],
+        ["support-rack-review", "scene:support_rack_review"]
+      ]) {
+        await picker.selectOption(bundle);
+        await page.waitForFunction(
+          (expected) => window.__tubaViewer?.state?.sceneId === expected,
+          sceneId
+        );
+        assert.equal(new URL(page.url()).searchParams.get("bundle"), bundle);
+      }
+
+      await picker.selectOption("code-aster-review");
+      await page.waitForFunction(
+        () => window.__tubaViewer?.state?.sceneId === "scene:code_aster_artifact_review"
+      );
 
       await page.getByRole("button", { name: "Results", exact: true }).click();
       // The rail's primary control is the composited bodies, not the four layer

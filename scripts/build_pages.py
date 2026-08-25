@@ -1,4 +1,4 @@
-"""Build the two portable, validated official viewer example bundles."""
+"""Build the portable, validated official viewer example bundles."""
 
 from __future__ import annotations
 
@@ -19,7 +19,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from examples.code_aster_artifact_review import run_example
+from examples.code_aster_artifact_review import (
+    build_autorouted_expansion_model,
+    build_support_rack_model,
+    run_example,
+)
 from examples.imported_component_mixed_system import run_demo
 from scripts import prepare_release
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
@@ -49,11 +53,48 @@ def _build_model_review(destination: Path, _artifacts: Path | None) -> None:
         _replace_tree(produced / "review_scene", destination)
 
 
+def _build_autorouted_review(destination: Path, _artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-autorouted-") as temporary:
+        root = Path(temporary)
+        model, route_result = build_autorouted_expansion_model(root / "routing")
+        produced = root / "review"
+        run_example(
+            produced,
+            artifact_dir=ROOT / "notebooks" / "code_aster_results" / "autorouted_expansion_hot",
+            model=model,
+            scene_id="scene:autorouted_expansion_loop",
+            title="Solved autorouted expansion-loop review",
+            route_results=[route_result],
+        )
+        _replace_tree(produced / "review_scene", destination)
+
+
+def _build_support_rack_review(destination: Path, _artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-support-rack-") as temporary:
+        produced = Path(temporary) / "review"
+        run_example(
+            produced,
+            artifact_dir=ROOT / "notebooks" / "code_aster_results" / "support_rack_operating",
+            model=build_support_rack_model(),
+            scene_id="scene:support_rack_review",
+            title="Solved support-rack load-path review",
+            include_load_paths=True,
+        )
+        _replace_tree(produced / "review_scene", destination)
+
+
 OFFICIAL_EXAMPLES: tuple[tuple[str, Callable[[Path, Path | None], None], frozenset[str], str], ...] = (
+    ("autorouted-expansion-loop", _build_autorouted_review, frozenset({"dev", "pages"}), "engineering-review"),
     ("code-aster-review", _build_code_aster_review, frozenset({"dev", "pages"}), "engineering-review"),
     ("imported_component_mixed_demo", _build_model_review, frozenset({"dev", "pages"}), "model-review"),
+    ("support-rack-review", _build_support_rack_review, frozenset({"dev", "pages"}), "engineering-review"),
 )
-PAGES_BUNDLE_IDS = ("code-aster-review", "imported_component_mixed_demo")
+PAGES_BUNDLE_IDS = (
+    "autorouted-expansion-loop",
+    "code-aster-review",
+    "imported_component_mixed_demo",
+    "support-rack-review",
+)
 _PAGES_REQUIRED_FILES = frozenset(
     {
         "index.html",
@@ -67,8 +108,10 @@ _PAGES_REQUIRED_FILES = frozenset(
         "viewer/bundles.json",
         "viewer/licenses/font-notices.txt",
         "viewer/licenses/OFL-1.1.txt",
+        "viewer/autorouted-expansion-loop/scene.json",
         "viewer/code-aster-review/scene.json",
         "viewer/imported_component_mixed_demo/scene.json",
+        "viewer/support-rack-review/scene.json",
         "notebooks/10_interactive_postprocessor.ipynb",
         ".nojekyll",
     }

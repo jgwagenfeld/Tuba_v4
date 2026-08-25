@@ -1,0 +1,366 @@
+DEBUT(PAR_LOT='NON');
+
+# ----- Read mesh -----
+MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
+                      UNITE=20);
+
+MAIL = MAIL0;
+
+# ----- Model definition -----
+MODELE = AFFE_MODELE(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='AllPipes',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='TUYAU_3M',
+        ),
+        _F(
+            GROUP_MA='G_TUBE',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='POU_D_T',
+        ),
+    ),
+);
+
+# ----- Material definitions -----
+MAT_STEEL = DEFI_MATERIAU(
+    ELAS=_F(
+        E=2.100000E+11,
+        NU=3.000000E-01,
+        RHO=7.850000E+03,
+        ALPHA=1.200000E-05,
+    ),
+);
+
+# ----- Material assignment -----
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            MATER=MAT_STEEL,
+        ),
+    ),
+);
+
+# ----- Cross-section properties -----
+CARA = AFFE_CARA_ELEM(
+    MODELE=MODELE,
+    POUTRE=(
+        _F(
+            GROUP_MA='GF0AB739',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.02000000E-03),
+        ),
+        _F(
+            GROUP_MA='GD1C03C3',
+            SECTION='RECTANGLE',
+            CARA=('HY', 'HZ', 'EPY', 'EPZ'),
+            VALE=(1.60000000E-01, 1.60000000E-01, 1.00000000E-02, 1.00000000E-02),
+        ),
+    ),
+    ORIENTATION=(
+        _F(
+            GROUP_NO='G06D7539',
+            CARA='GENE_TUYAU',
+            VALE=(0.00000000E+00, 0.00000000E+00, 1.00000000E+00),
+        ),
+        _F(
+            GROUP_MA='GA32F018',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G8EF347B',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GED6E2B5',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GB37CD11',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G0406E88',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G6FBF954',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G68CA6B3',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G3064D5F',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+    ),
+);
+
+# ----- Boundary conditions -----
+BC_0 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N0',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_1 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N1',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_2 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N2',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_3 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N3',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_4 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N8',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
+    ),
+);
+
+BC_5 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N9',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
+    ),
+);
+
+# ----- Gravity -----
+GRAVITY = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    PESANTEUR=_F(
+        GRAVITE=9.81,
+        DIRECTION=(0.0, -1.0, 0.0),
+    ),
+);
+
+# ----- Internal pressure -----
+PRESSURE = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    FORCE_TUYAU=_F(
+        GROUP_MA='AllPipes',
+        PRES=1.500000E+06,
+    ),
+);
+
+# ----- Thermal expansion -----
+TEMP_REF_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MAILLAGE=MAIL,
+    AFFE=_F(
+        TOUT='OUI',
+        NOM_CMP='TEMP',
+        VALE=2.000000E+01,
+    ),
+);
+
+TEMP_HOT_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MAILLAGE=MAIL,
+    AFFE=_F(
+        TOUT='OUI',
+        NOM_CMP='TEMP',
+        VALE=1.800000E+02,
+    ),
+);
+
+TEMP_EVOL = CREA_RESU(
+    OPERATION='AFFE',
+    TYPE_RESU='EVOL_THER',
+    NOM_CHAM='TEMP',
+    AFFE=(
+        _F(CHAM_GD=TEMP_REF_FIELD, INST=0.0),
+        _F(CHAM_GD=TEMP_HOT_FIELD, INST=1.0),
+    ),
+);
+
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            MATER=MAT_STEEL,
+        ),
+    ),
+    AFFE_VARC=_F(
+        TOUT='OUI',
+        NOM_VARC='TEMP',
+        EVOL=TEMP_EVOL,
+        NOM_CHAM='TEMP',
+        VALE_REF=2.000000E+01,
+    ),
+);
+
+# ----- Unilateral contacts -----
+UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);
+UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);
+
+contact = DEFI_CONTACT(
+    MODELE=MODELE,
+    FORMULATION='LIAISON_UNIL',
+    ZONE=(
+        _F(GROUP_NO='GN_N4', NOM_CMP='DY', COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),
+        _F(GROUP_NO='GN_N6', NOM_CMP='DY', COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),
+    ),
+);
+
+# ----- Solve -----
+lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));
+times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));
+
+RESU = STAT_NON_LINE(
+    MODELE=MODELE,
+    CHAM_MATER=CHMAT,
+    CARA_ELEM=CARA,
+    EXCIT=(
+        _F(CHARGE=BC_0),
+        _F(CHARGE=BC_1),
+        _F(CHARGE=BC_2),
+        _F(CHARGE=BC_3),
+        _F(CHARGE=BC_4),
+        _F(CHARGE=BC_5),
+        _F(CHARGE=GRAVITY),
+        _F(CHARGE=PRESSURE),
+    ),
+    COMPORTEMENT=_F(
+        TOUT='OUI',
+        RELATION='ELAS',
+    ),
+    INCREMENT=_F(
+        LIST_INST=times,
+    ),
+    CONTACT=contact,
+    METHODE='NEWTON',
+);
+
+# ----- Derived fields -----
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
+    FORCE='FORC_NODA',
+);
+
+# ----- Write MED results file -----
+IMPR_RESU(
+    FORMAT='MED',
+    UNITE=80,
+    RESU=_F(
+        RESULTAT=RESU,
+        CARA_ELEM=CARA,
+        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),
+    ),
+);
+
+# ----- Text table for EFGE_ELNO -----
+TAB_EFFO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='EFGE_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_EFFO,
+    UNITE=38,
+    FORMAT='TABLEAU',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for DEPL -----
+TAB_DEPL = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='DEPL',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_DEPL,
+    UNITE=39,
+    FORMAT='TABLEAU',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for FORC_NODA -----
+TAB_REAC = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='FORC_NODA',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_REAC,
+    UNITE=40,
+    FORMAT='TABLEAU',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for SIEQ_ELNO -----
+TAB_SIEQ = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='SIEQ_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('VMIS',),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_SIEQ,
+    UNITE=41,
+    FORMAT='TABLEAU',
+    SEPARATEUR=',',
+);
+
+FIN();
