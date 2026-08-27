@@ -83,6 +83,19 @@ def test_refresh_all_galleries_uses_record_owned_artifact_directories(monkeypatc
     assert tuple(refreshed) == tuple(gallery.id for gallery in engineering)
 
 
+def test_refresh_all_rejects_refreshable_gallery_without_canonical_directory(monkeypatch):
+    galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+    broken = replace(galleries[0], artifact_dir=None)
+    monkeypatch.setattr(
+        refresh_code_aster_gallery,
+        "OFFICIAL_GALLERIES",
+        (broken, *galleries[1:]),
+    )
+
+    with pytest.raises(ValueError, match="canonical artifact directory"):
+        refresh_code_aster_gallery.refresh_all_galleries()
+
+
 def test_refresh_rejects_the_model_only_gallery(tmp_path):
     with pytest.raises(ValueError, match="not refreshable"):
         refresh_code_aster_gallery.refresh_gallery(
@@ -92,20 +105,25 @@ def test_refresh_rejects_the_model_only_gallery(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "arguments",
+    ("arguments", "message"),
     [
-        ["--all", "--gallery", "code-aster-review"],
-        ["--all", "--output", "artifacts"],
-        ["--gallery", "code-aster-review"],
+        (["--all", "--gallery", "code-aster-review"], "--all cannot be combined"),
+        (["--all", "--output", "artifacts"], "--all cannot be combined"),
+        (["--gallery", "code-aster-review"], "single-gallery mode requires --output"),
+        (
+            ["--gallery", "imported_component_mixed_demo", "--output", "artifacts"],
+            "Official gallery 'imported_component_mixed_demo' is not refreshable.",
+        ),
     ],
 )
-def test_refresh_cli_rejects_invalid_mode_combinations(arguments, monkeypatch):
+def test_refresh_cli_rejects_invalid_mode_combinations(arguments, message, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["refresh_code_aster_gallery.py", *arguments])
 
     with pytest.raises(SystemExit) as raised:
         refresh_code_aster_gallery.main()
 
     assert raised.value.code == 2
+    assert message in capsys.readouterr().err
 
 
 def test_refresh_cli_all_uses_the_registry_loop(monkeypatch):
@@ -365,3 +383,23 @@ def test_artifact_review_uses_the_observed_solve_timestamp(tmp_path):
         artifact.result_state.solver_input_identity.fingerprint,
     } == {identity["fingerprint"]}
     assert "2026-06-" not in json.dumps({"scene": scene, "review": review})
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows process-search regression")
+def test_bend_export_preserves_windows_executable_search(tmp_path):
+    executable = shutil.which("git")
+    if executable is None:
+        pytest.skip("git is unavailable")
+
+    from examples.code_aster_artifact_review import build_model
+    from tuba.solver.aster import CodeAsterSolver
+
+    CodeAsterSolver(work_dir=tmp_path).export_analysis_study(
+        build_model(),
+        "Operating",
+        tmp_path,
+    )
+
+    completed = subprocess.run(["git", "--version"], capture_output=True, text=True)
+
+    assert completed.returncode == 0, completed.stderr

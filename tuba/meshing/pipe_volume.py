@@ -75,7 +75,7 @@ def build_pipe_volume_mesh(
 
     try:
         if owned_session:
-            gmsh.initialize()
+            gmsh.initialize(["-noenv"])
         gmsh.model.add(created_model)
         gmsh.option.setNumber("General.Terminal", 0)
         if selection.tee_node is None:

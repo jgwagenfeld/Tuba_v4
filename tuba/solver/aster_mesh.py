@@ -571,7 +571,7 @@ class _MeshWriterMixin:
 
         we_initialised = False
         if not gmsh.isInitialized():
-            gmsh.initialize()
+            gmsh.initialize(["-noenv"])
             we_initialised = True
         gmsh.option.setNumber("General.Terminal", 0)
         gmsh.model.add("tuba_bend_mesh")

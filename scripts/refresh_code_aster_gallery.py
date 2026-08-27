@@ -77,11 +77,16 @@ def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -
 
 def refresh_all_galleries() -> dict[str, Any]:
     """Refresh every solver-backed official gallery in registry order."""
-    return {
-        gallery.id: refresh_gallery(gallery.artifact_dir, gallery=gallery.id)
-        for gallery in OFFICIAL_GALLERIES
-        if gallery.refresh_producer is not None and gallery.artifact_dir is not None
-    }
+    refreshed = {}
+    for gallery in OFFICIAL_GALLERIES:
+        if gallery.refresh_producer is None:
+            continue
+        if gallery.artifact_dir is None:
+            raise ValueError(
+                f"Official gallery {gallery.id!r} requires a canonical artifact directory."
+            )
+        refreshed[gallery.id] = refresh_gallery(gallery.artifact_dir, gallery=gallery.id)
+    return refreshed
 
 
 def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
