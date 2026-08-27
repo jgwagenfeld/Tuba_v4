@@ -14,6 +14,7 @@ import {
 } from "./coloring.js";
 import {
   coherentResultContext,
+  setActiveGeometryState,
   setActiveLoadCase,
   setActiveResultState,
   setResultThreshold,
@@ -92,12 +93,8 @@ export function reduceViewerState(state, action) {
       return setColoringField(state, action.fieldId);
     case "setColoringComponent":
       return setColoringComponent(state, action.component);
-    case "setActiveGeometryState": {
-      return {
-        ...state,
-        activeGeometryStateId: action.geometryStateId ?? null
-      };
-    }
+    case "setActiveGeometryState":
+      return setActiveGeometryState(state, action.geometryStateId);
     case "setResultThreshold":
       return setResultThreshold(state, action.threshold);
     case "setUtilizationThreshold":
