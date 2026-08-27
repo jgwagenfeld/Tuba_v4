@@ -16,6 +16,8 @@
 - Keep exactly the two existing result-display paths: `tuba/plotting/` for PyVista quick-look/export and `tuba/visualization/` plus `viewer/` for reviewable web scenes.
 - Never publish raw, fabricated, proxy, or export-only values as solved results.
 - Reuse existing modules and dependencies. Add no framework, package, factory layer, or third visualization path.
+- Treat this as a cleanup, not a compatibility exercise: trace every live caller, migrate it in the same task, and delete the superseded code instead of keeping aliases, wrappers, parallel lists, or deprecated entry points.
+- Prefer a net reduction in executable LOC across each affected ownership area. Any unavoidable added line must replace caller knowledge or duplicated policy; reviewers must call out avoidable additions.
 - Write each behavioral test first, run it, and record the expected RED before the minimum GREEN implementation.
 - Preserve the untracked `logs_82787023332.zip`; do not stage, modify, or delete it.
 - Work in the user's current `main` checkout as explicitly requested. Keep commits local and do not push.
@@ -42,6 +44,7 @@
 - Each record owns the existing facts needed by both consumers: bundle ID, audiences, publication profile, bundle producer, canonical Code_Aster artifact directory when engineering results are required, model/load-case producer when refreshable, and whether the existing volume export is required.
 - Keep the five current bundle IDs and their current order. The imported-component model review remains non-refreshable.
 - `scripts/build_pages.py` imports the record set and derives its Pages bundle IDs, required `viewer/<id>/scene.json` paths, and build iteration from it. Do not retain parallel hand-maintained gallery lists.
+- Delete `OFFICIAL_EXAMPLES` and every separately maintained Pages/gallery ID or required-scene list after their consumers use the record set; do not re-export compatibility aliases for tests.
 - `scripts/refresh_code_aster_gallery.py` selects the same records. Preserve `refresh_gallery(output, gallery=...)` for a single gallery and add `refresh_all_galleries()` plus CLI `--all` to use each record's canonical artifact directory.
 - `--all` must reject `--gallery` or `--output`; single-gallery mode must retain explicit `--output` and reject a non-refreshable gallery.
 - The attestation validator must continue to require matching non-null solver identities, `solver_name == "Code_Aster"`, non-empty solver version, and non-empty solve timestamp. Remove only the WSL-specific execution-method restriction so the existing native/runtime adapters remain valid.
@@ -115,6 +118,7 @@ git commit -m "refactor: centralize official gallery ownership"
 - In the review builder, derive studies, non-null analysis meshes, and result states from the supplied runs, then use the existing lineage validation and table pipeline.
 - Reject mixing a non-empty `analysis_runs` input with the corresponding lower-level record inputs. Keep lower-level inputs for focused validation tests and historical/malformed record review.
 - Remove `solver_results` and `result_deformation_scale` from the web scene public signature, delete `_build_solver_result_scene` and raw-`FEAResults`-only helpers/imports, and keep `FEAResults` in `tuba/plotting/` and `AnalysisRun.results`.
+- Delete every helper that becomes unreachable with the raw web-result adapter; do not leave a dormant legacy path or a forwarding shim.
 - Update the two solved official examples to pass `analysis_runs=[artifact]`; continue passing geometry states, notes, route/load-path context, timestamps, and package IDs exactly as before.
 
 - [ ] **Step 1: Write failing AnalysisRun publication tests**
@@ -168,6 +172,7 @@ git commit -m "refactor: publish verified analysis runs"
 - Route selection, hide/isolate/restore, section box, layer/task visibility, result controls, coloring, active geometry/load/result state, unit/body controls, issue review, and live-preview scene diff/diagnostic changes through reducer actions.
 - Camera renderer methods, transient DOM-only controls, WebSocket lifecycle, hover state, validation messages, and render calls are not viewer-state mutations and stay in `app.js`.
 - Delete the unused `createViewerStore`; add no Redux-style store or dependency.
+- Delete direct app imports that are superseded by reducer actions and collapse repeated dispatch boilerplate into the one local `dispatch` function only when it reduces LOC.
 - Preserve existing action names when available. Add direct action names such as `selectObject`, `hideSelected`, `isolateSelection`, `setSectionBox`, `applyTaskVisibilityPreset`, and `appendDiagnostic` only where `app.js` currently invokes the corresponding existing pure helper.
 
 - [ ] **Step 1: Write failing reducer behavior tests**
@@ -234,3 +239,5 @@ npm.cmd test
 ```
 
 Also run `git diff --check`, inspect `git status --short`, and confirm `logs_82787023332.zip` remains untouched. A final independent reviewer must inspect the complete implementation diff against this plan before completion is claimed.
+
+The final review must also run `rg` for deleted legacy symbols (`OFFICIAL_EXAMPLES`, `_build_solver_result_scene`, `solver_results=`, `result_deformation_scale`, and `createViewerStore`) in live source/tests, explain any intentional historical-document match, and compare executable-line additions/deletions for avoidable growth.
