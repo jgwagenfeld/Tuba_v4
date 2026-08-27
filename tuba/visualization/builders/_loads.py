@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from tuba.model import LoadCase, NodalForce, TubaModel
 from tuba.refs import EntityRef
+from tuba.solver.aster_loads import resolve_operation_field_groups
 from tuba.visualization.builders._helpers import (
     _bounds_for_points,
     _node_coords,
@@ -36,7 +37,7 @@ def build_load_scene(model: TubaModel) -> tuple[list[SceneObject], list[Geometry
                 objects.append(glyph_objects)
                 assets.append(glyph_assets)
                 case_object_ids.append(glyph_objects.id)
-        overlays.append(_load_case_overlay(case_name, load_case, case_object_ids))
+        overlays.append(_load_case_overlay(model, case_name, load_case, case_object_ids))
 
     return objects, assets, overlays
 
@@ -102,7 +103,13 @@ def _force_glyphs(
     return glyphs
 
 
-def _load_case_overlay(case_name: str, load_case: LoadCase, object_ids: list[str]) -> Overlay:
+def _load_case_overlay(
+    model: TubaModel,
+    case_name: str,
+    load_case: LoadCase,
+    object_ids: list[str],
+) -> Overlay:
+    pressure_fields = resolve_operation_field_groups(model, load_case, "pressure")
     return Overlay(
         id=f"overlay:load_case:{case_name}",
         kind="load_case",
@@ -116,5 +123,10 @@ def _load_case_overlay(case_name: str, load_case: LoadCase, object_ids: list[str
             "ref_temperature_c": float(load_case.ref_temperature),
             "nodal_force_count": len(load_case.nodal_forces),
             "field_count": len(load_case.fields),
+            "pressure_fields": [
+                {"element_ids": list(element_ids), "pressure_pa": value}
+                for element_ids, value in pressure_fields
+            ],
+            "pressure_source": "authored_input",
         },
     )

@@ -148,6 +148,30 @@ class TestAppliedLoads(unittest.TestCase):
         for key in ("gravity", "internal_pressure_pa", "temperature_c", "ref_temperature_c"):
             self.assertIn(key, data)
 
+    def test_load_case_overlay_carries_resolved_pressure_inputs(self):
+        model = build_review_model()
+        operation = model.define_operation("LinearPressure", gravity=False, pressure=1.0e6)
+        operation.add_field(
+            "pressure",
+            3.0e6,
+            route_id="R-100",
+            station_start=0.0,
+            station_end=5.0,
+            profile="linear",
+        )
+
+        scene = build_visualization_scene(model)
+        overlay = next(item for item in scene.overlays if item.id == "overlay:load_case:LinearPressure")
+
+        self.assertEqual(
+            overlay.data["pressure_fields"],
+            [
+                {"element_ids": ["E-20"], "pressure_pa": 2.0e6},
+                {"element_ids": ["E-10"], "pressure_pa": 1.0e6},
+            ],
+        )
+        self.assertEqual(overlay.data["pressure_source"], "authored_input")
+
     def test_loads_can_be_excluded(self):
         from tuba.visualization import SceneBuildOptions
 
