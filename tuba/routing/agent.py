@@ -29,7 +29,7 @@ class AutoroutingAgent:
         router: GridRouter | None = None,
         scorer: SolverLoopScorer | None = None,
         solver_config: SolverLoopConfig | None = None,
-        output_root: str | Path = "routing_reports",
+        output_root: str | Path = ".build/routing_reports",
     ) -> None:
         self.router = router or GridRouter(candidate_count=3)
         self.scorer = scorer or SolverLoopScorer()

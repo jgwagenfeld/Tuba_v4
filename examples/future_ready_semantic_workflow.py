@@ -33,7 +33,7 @@ from tuba.routing.types import (
 from tuba.rules import ClashFreeRule, RuleEngine, SupportSpacingRule
 
 
-def run_demo(output_dir: str | Path = "generated/future_ready_semantic_workflow") -> dict[str, Any]:
+def run_demo(output_dir: str | Path = ".build/generated/future_ready_semantic_workflow") -> dict[str, Any]:
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
 

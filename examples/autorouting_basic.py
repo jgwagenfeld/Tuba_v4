@@ -51,7 +51,7 @@ def main() -> None:
     created = apply_candidate_to_model(model, result.selected, request)
     report_path = write_route_report(
         result,
-        Path("generated") / "autorouting_basic",
+        Path(".build") / "generated" / "autorouting_basic",
         model=model,
     )
     print(f"Selected route has {len(result.selected.points)} points.")

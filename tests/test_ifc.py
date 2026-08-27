@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-ifcopenshell = pytest.importorskip("ifcopenshell")
+ifcopenshell = pytest.importorskip("ifcopenshell", exc_type=ImportError)
 
 from tuba import Model
 from tests.operating_state_fixtures import straight_pipe_hot_clash_fixture

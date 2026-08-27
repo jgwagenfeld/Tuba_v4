@@ -64,7 +64,8 @@ def main():
     )
 
     # Save the canonical model to JSON
-    json_path = "piping_model.json"
+    json_path = Path(".build") / "piping_model.json"
+    json_path.parent.mkdir(parents=True, exist_ok=True)
     model.to_json(json_path)
     print(f"  -> Model saved to: {json_path}")
     print(f"  -> Total Nodes: {len(model.nodes)}")
@@ -84,7 +85,7 @@ def main():
 
     # 4. Export Code_Aster solver study files
     print("\n[4/6] Exporting Code_Aster study files (.comm, .mail, .export)...")
-    study_dir = Path("./code_aster_study")
+    study_dir = Path(".build") / "code_aster_study"
     solver = CodeAsterSolver()
     solver.export_study(model, "hot_operation", study_dir)
     print(f"  -> Code_Aster study files written to directory: {study_dir.resolve()}")

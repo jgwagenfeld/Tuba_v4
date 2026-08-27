@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("ifcopenshell")
+pytest.importorskip("ifcopenshell", exc_type=ImportError)
 
 from tuba.placements import PlacementFrame
 

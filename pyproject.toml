@@ -87,7 +87,7 @@ course = [
     "scipy>=1.10",
 ]
 dev = [
-    "pytest>=8",
+    "pytest>=8.2",
     "pyyaml>=6",
 ]
 

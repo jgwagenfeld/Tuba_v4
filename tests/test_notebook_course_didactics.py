@@ -4,8 +4,6 @@ from pathlib import Path
 
 import pytest
 
-nbformat = pytest.importorskip("nbformat")
-
 
 NOTEBOOK_DIR = Path(__file__).resolve().parents[1] / "notebooks"
 
@@ -17,6 +15,7 @@ def _notebook_text(name: str) -> str:
 
 class TestNotebookCourseDidactics(unittest.TestCase):
     def test_notebooks_are_current_clean_and_portable(self):
+        nbformat = pytest.importorskip("nbformat", exc_type=ImportError)
         for path in sorted(NOTEBOOK_DIR.glob("*.ipynb")):
             with self.subTest(path=path.name):
                 notebook = nbformat.read(path, as_version=nbformat.NO_CONVERT)

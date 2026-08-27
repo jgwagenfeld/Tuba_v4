@@ -83,7 +83,7 @@ No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** wri
 .\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py
 ```
 
-Outputs under `routing_reports/` can include `route_report.md`, `route_result.json`, and candidate `study.*` files. Reports explain candidate geometry and scoring. Study handoff files alone are not solver evidence.
+Default outputs under `.build/routing_reports/` can include `route_report.md`, `route_result.json`, and candidate `study.*` files. Reports explain candidate geometry and scoring. Study handoff files alone are not solver evidence.
 
 See [Autorouting](autorouting.md) for the request fields, grid behavior, solver-loop options, U-loop limit, and acceptance boundary.
 

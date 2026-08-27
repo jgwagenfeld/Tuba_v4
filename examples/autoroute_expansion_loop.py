@@ -90,7 +90,7 @@ def build_router() -> ExpansionAwareRouter:
     )
 
 
-def run_example(output_root: str | Path = "routing_reports") -> AutoroutingRun:
+def run_example(output_root: str | Path = ".build/routing_reports") -> AutoroutingRun:
     model = build_model()
     request = build_request()
     return AutoroutingAgent(

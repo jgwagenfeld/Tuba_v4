@@ -144,6 +144,7 @@ def test_supported_python_and_ifc_versions_are_explicit():
     assert project["requires-python"] == ">=3.11,<3.13"
     for extra in ("ifc", "course"):
         assert "ifcopenshell==0.8.4.post1" in project["optional-dependencies"][extra]
+    assert "pytest>=8.2" in project["optional-dependencies"]["dev"]
     assert "pyyaml>=6" in project["optional-dependencies"]["dev"]
 
 

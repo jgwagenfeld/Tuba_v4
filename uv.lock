@@ -2826,7 +2826,7 @@ requires-dist = [
     { name = "nbformat", marker = "extra == 'course'", specifier = ">=5.10" },
     { name = "nbformat", marker = "extra == 'notebook-viz'", specifier = ">=5.10" },
     { name = "numpy", specifier = ">=2.2" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
     { name = "python-fcl", marker = "extra == 'collision'", specifier = ">=0.7.0.11" },
     { name = "python-fcl", marker = "extra == 'course'", specifier = ">=0.7.0.11" },
     { name = "pyvista", marker = "extra == 'viz'", specifier = ">=0.38" },

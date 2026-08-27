@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-ifcopenshell = pytest.importorskip("ifcopenshell")
+ifcopenshell = pytest.importorskip("ifcopenshell", exc_type=ImportError)
 
 from tuba import Model
 from tuba.external.ifc import IfcExporter

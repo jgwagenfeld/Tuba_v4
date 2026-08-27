@@ -8,8 +8,6 @@ from unittest.mock import patch
 
 import pytest
 
-ifcopenshell = pytest.importorskip("ifcopenshell")
-
 from tuba import Model
 from tuba.analysis import AnalysisRun, create_operating_geometry_state, create_visual_deformed_geometry_state
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
@@ -199,7 +197,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertEqual(artifact.result_state.files["execution"], str(work_dir / "study_execution.json"))
 
     def test_import_preserves_rmed_diagnostic_in_result_state_metadata(self):
-        pytest.importorskip("h5py")
+        pytest.importorskip("h5py", exc_type=ImportError)
         model, n0, n1 = self._model()
 
         with TemporaryDirectory() as tmpdir:
@@ -278,6 +276,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertEqual(analysis_row["location_kind"], "analysis_node")
 
     def test_artifact_review_chain_exports_ifc_result_provenance(self):
+        ifcopenshell = pytest.importorskip("ifcopenshell", exc_type=ImportError)
         model, n0, n1 = self._model()
 
         with TemporaryDirectory() as tmpdir:
