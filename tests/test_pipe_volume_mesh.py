@@ -4,6 +4,7 @@ import pytest
 
 from tuba import Model
 from tuba.meshing import build_pipe_volume_mesh
+from tuba.model import make_bend_geometry
 
 
 def _straight_pipe_model(*, length=0.2):
@@ -52,6 +53,36 @@ def _tee_model(*, branch_od=0.1):
         )
     model.define_tee(junction)
     return model, junction, ends
+
+
+def _bend_pipe_model():
+    model = Model("BendPipeVolume")
+    model.add_material("Steel", E=2.1e11, nu=0.3)
+    model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+    n0 = model.add_node([0.0, 0.0, 0.0])
+    n1 = model.add_node([0.1, 0.1, 0.0])
+    geometry = make_bend_geometry(
+        start=model.nodes[n0].coords,
+        end=model.nodes[n1].coords,
+        radius=0.1,
+        angle=90.0,
+        normal=[0.0, 0.0, 1.0],
+        start_tangent=[1.0, 0.0, 0.0],
+        end_tangent=[0.0, 1.0, 0.0],
+        generation_mode="bend",
+    )
+    model.add_element(
+        id="bend_0",
+        type="pipe_bend",
+        n1=n0,
+        n2=n1,
+        section="Pipe",
+        material="Steel",
+        bend_radius=geometry.radius,
+        bend_angle=geometry.angle,
+        bend_geometry=geometry,
+    )
+    return model, n0, n1
 
 
 def _tetra_component_count(elements):
@@ -130,18 +161,37 @@ def test_rejects_invalid_mesh_settings_before_writing(tmp_path, kwargs, message)
     assert not output.exists()
 
 
-def test_rejects_unsupported_bend_before_writing(tmp_path):
+def test_builds_grouped_quadratic_bend_pipe_med(tmp_path):
+    model, n0, n1 = _bend_pipe_model()
+
+    generated = build_pipe_volume_mesh(
+        model,
+        tmp_path / "bend.med",
+        element_ids=["bend_0"],
+        max_element_size=0.005,
+    )
+
+    for name in (
+        "G_SOLID_region_0",
+        "G_INNER_region_0",
+        "G_OUTER_region_0",
+        f"G_END_{n0}",
+        f"G_END_{n1}",
+    ):
+        assert generated.groups[name]
+    assert _tetra_component_count(generated.analysis_mesh.elements) == 1
+    assert np.isfinite(np.asarray(generated.surface_vertices)).all()
+    assert generated.surface_faces
+    assert generated.analysis_mesh.surface_mesh
+
+
+def test_rejects_bend_without_explicit_geometry_before_writing(tmp_path):
     model, _n0, _n1 = _straight_pipe_model()
     model.get_element("pipe_0").type = "pipe_bend"
     output = tmp_path / "bend.med"
 
-    with pytest.raises(ValueError, match="pipe_straight"):
-        build_pipe_volume_mesh(
-            model,
-            output,
-            element_ids=["pipe_0"],
-            max_element_size=0.005,
-        )
+    with pytest.raises(ValueError, match="explicit bend_geometry"):
+        build_pipe_volume_mesh(model, output, element_ids=["pipe_0"], max_element_size=0.005)
 
     assert not output.exists()
 

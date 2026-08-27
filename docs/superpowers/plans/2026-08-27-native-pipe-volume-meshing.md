@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - Gmsh is the primary and only implemented backend; do not require SALOME-Meca and do not add a one-implementation mesher interface.
-- Accept only selected `pipe_straight` elements and explicit equal/reducing tees with circular `PipeSection` records.
-- Reject bends, generic reducers, valves, flanges, shells, contacts, and pad solids before writing MED.
+- Accept selected `pipe_straight` elements, one isolated `pipe_bend` with explicit `BendGeometry`, and explicit equal/reducing tees with circular `PipeSection` records.
+- Reject connected bend selections, generic reducers, valves, flanges, shells, contacts, and pad solids before writing MED.
 - Require `element_order=2` and an engineer-supplied positive `max_element_size` no larger than half the thinnest selected wall.
 - Create non-empty stable groups `G_SOLID_<region>`, `G_INNER_<region>`, `G_OUTER_<region>`, `G_END_<node>`, and `G_TEE_<node>` through the existing Code_Aster name mapper.
 - A mesh is analysis input only. Do not display stress/displacement/reaction until real Code_Aster artifacts were solved, attested, and imported.
@@ -163,7 +163,7 @@ Use terminal planes for `G_END_*`, bore-distance samples for `G_INNER_*`, remain
 
 Run: `uv run pytest tests/test_pipe_volume_mesh.py -q`
 
-Expected: PASS for both tees and explicit preflight failures for bends, absent tee records, non-pipe sections, and mixed materials.
+Expected: PASS for both tees and explicit preflight failures for connected bends, absent tee records, non-pipe sections, and mixed materials.
 
 - [ ] **Step 6: Commit the tee mesher**
 
