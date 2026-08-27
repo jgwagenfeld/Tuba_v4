@@ -39,43 +39,58 @@ def resolve_operation_field_groups(
                 )
             rows.append(([elem.id for elem in elements], float(field_record.value)))
             continue
-        if quantity == "temperature" and field_record.profile == "linear":
-            rows.extend(_linear_temperature_field_groups(model, load_case, field_record, index))
+        if quantity in {"temperature", "pressure"} and field_record.profile == "linear":
+            rows.extend(_linear_route_field_groups(model, load_case, field_record, index, quantity))
             continue
         if field_record.profile != "uniform":
             raise ValueError(
                 f"Operation field {index} for {quantity!r} uses profile "
                 f"{field_record.profile!r}; only uniform fields can be exported."
             )
-    return rows
+    if quantity != "pressure" or not rows:
+        return rows
+
+    values_by_element = {
+        element.id: float(load_case.internal_pressure)
+        for element in model.elements
+        if element.type in {"pipe_straight", "pipe_bend"}
+    }
+    for element_ids, value in rows:
+        for element_id in element_ids:
+            values_by_element[element_id] = value
+    groups_by_value: dict[float, list[str]] = {}
+    for element_id, value in values_by_element.items():
+        groups_by_value.setdefault(value, []).append(element_id)
+    return [(element_ids, value) for value, element_ids in groups_by_value.items()]
 
 
-def _linear_temperature_field_groups(
+def _linear_route_field_groups(
     model: TubaModel,
     load_case: LoadCase,
     field_record,
     index: int,
+    quantity: str,
 ) -> FieldGroups:
     start = field_record.station_start
     end = field_record.station_end
     if start is None or end is None or float(end) <= float(start):
         raise ValueError(
-            f"Operation field {index} for 'temperature' uses linear profile without a valid station range."
+            f"Operation field {index} for {quantity!r} uses linear profile without a valid station range."
         )
 
     rows: FieldGroups = []
     selected = model.resolve_operation_field_elements(field_record)
     if not selected:
-        raise ValueError(f"Operation field {index} for 'temperature' selects no pipe elements.")
+        raise ValueError(f"Operation field {index} for {quantity!r} selects no pipe elements.")
 
     start = float(start)
     end = float(end)
-    base = float(load_case.temperature)
+    base = float(load_case.temperature if quantity == "temperature" else load_case.internal_pressure)
     target = float(field_record.value)
     for elem in selected:
         if elem.station_start is None or elem.station_end is None:
             raise ValueError(
-                f"Operation field {index} for 'temperature' selected element {elem.id!r} "
+                f"Operation field {index} for {quantity!r} selected element {elem.id!r} "
                 "without station metadata."
             )
         overlap_start = max(float(elem.station_start), start)
@@ -176,11 +191,6 @@ def write_pressure_load(
     w("    MODELE=MODELE,")
     if pressure_fields:
         w("    FORCE_TUYAU=(")
-        if load_case.internal_pressure > 0.0:
-            w("        _F(")
-            w(f"            GROUP_MA='{map_name('AllPipes')}',")
-            w(f"            PRES={load_case.internal_pressure:.6E},")
-            w("        ),")
         for group_names, value in pressure_fields:
             w("        _F(")
             w(f"            GROUP_MA={group_ma_value(group_names, map_name)},")

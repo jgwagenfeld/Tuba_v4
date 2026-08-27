@@ -161,6 +161,51 @@ class TestOperationFields(unittest.TestCase):
         self.assertIn("VALE=4.500000E+01", comm)
         self.assertIn("VALE=9.500000E+01", comm)
 
+    def test_linear_pressure_field_exports_element_midpoint_values_without_overlapping_base_load(self):
+        model = _two_element_route()
+        operating = model.define_operation(
+            "Operating",
+            gravity=False,
+            pressure=1.0e6,
+            temperature=20.0,
+            ref_temperature=20.0,
+        )
+        operating.add_field(
+            "pressure",
+            3.0e6,
+            route_id="P-100",
+            station_start=0.0,
+            station_end=2.0,
+            profile="linear",
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        pressure = comm[comm.index("# ----- Internal pressure -----") : comm.index("# ----- Solve -----")]
+        self.assertNotIn("GROUP_MA='AllPipes'", pressure)
+        self.assertIn("GROUP_MA='pipe_str_0'", pressure)
+        self.assertIn("PRES=1.500000E+06", pressure)
+        self.assertIn("GROUP_MA='pipe_str_1'", pressure)
+        self.assertIn("PRES=2.500000E+06", pressure)
+
+    def test_local_pressure_override_partitions_default_elements_instead_of_stacking_loads(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False, pressure=1.0e6)
+        operating.add_field("pressure", 2.0e6, element_ids=["pipe_str_1"])
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        pressure = comm[comm.index("# ----- Internal pressure -----") : comm.index("# ----- Solve -----")]
+        self.assertNotIn("GROUP_MA='AllPipes'", pressure)
+        self.assertIn("GROUP_MA='pipe_str_0'", pressure)
+        self.assertIn("PRES=1.000000E+06", pressure)
+        self.assertIn("GROUP_MA='pipe_str_1'", pressure)
+        self.assertIn("PRES=2.000000E+06", pressure)
+
     def test_wind_field_exports_for_beam_modelized_pipe_sections_only(self):
         model = _model("BeamPipeWind")
         with model.pipe("PipeSec", "Steel", route="P-100") as pipe:
@@ -222,14 +267,13 @@ class TestOperationFields(unittest.TestCase):
         with self.assertRaisesRegex(ModelValidationError, "FORCE_POUTRE.*TUYAU_3M.*FORCE_NODALE"):
             model.validate()
 
-    def test_unsupported_profile_fails_before_export(self):
+    def test_piecewise_profile_fails_before_export(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", temperature=20.0, ref_temperature=20.0)
-        operating.add_field("pressure", 1.0e6, route_id="P-100", profile="linear")
-        operating.add_field("temperature", 120.0, route_id="P-100", profile="piecewise")
+        operating.add_field("pressure", 1.0e6, route_id="P-100", profile="piecewise")
 
         with TemporaryDirectory() as tmpdir:
-            with self.assertRaisesRegex(ModelValidationError, "only uniform"):
+            with self.assertRaisesRegex(ModelValidationError, "piecewise"):
                 CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
             self.assertFalse((Path(tmpdir) / "study.comm").exists())
 

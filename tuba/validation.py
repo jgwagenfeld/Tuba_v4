@@ -150,18 +150,23 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
                 errors.append(f"{label} has a non-finite value.")
                 continue
             if field_record.profile != "uniform":
-                if not (field_record.quantity == "temperature" and field_record.profile == "linear"):
+                if not (
+                    field_record.quantity in {"temperature", "pressure"}
+                    and field_record.profile == "linear"
+                ):
                     errors.append(
                         f"{label} uses profile {field_record.profile!r}; "
                         "the Code_Aster writer currently supports only uniform operation fields, "
-                        "plus linear temperature fields by route/station."
+                        "plus linear pressure and temperature fields by route/station."
                     )
                     continue
                 if field_record.scope != "route" or not field_record.route_id:
-                    errors.append(f"{label} linear temperature field requires route scope.")
+                    errors.append(f"{label} linear {field_record.quantity} field requires route scope.")
                     continue
                 if field_record.station_start is None or field_record.station_end is None:
-                    errors.append(f"{label} linear temperature field requires station_start and station_end.")
+                    errors.append(
+                        f"{label} linear {field_record.quantity} field requires station_start and station_end."
+                    )
                     continue
             if field_record.direction is not None and field_record.quantity != "wind":
                 errors.append(f"{label} uses direction but only wind fields accept direction.")
