@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-27
 
-**Status:** Draft for review
+**Status:** Approved for implementation
 
 **Scope:** Supported Python and IFC runtimes, capability-owned test gates,
 generated-output ownership, and prevention of speculative public APIs
