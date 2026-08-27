@@ -28,6 +28,22 @@ jobs:
       - run: npm ci
         working-directory: viewer
       - run: xvfb-run -a uv run python -m pytest
+      - run: git diff --exit-code
+
+  ifc-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --extra ifc --locked
+      - run: uv run python -c "import ifcopenshell"
+      - run: >-
+          uv run python -m pytest tests/test_ifc.py tests/test_ifc_mapping.py
+          tests/test_ifc_pipe_systems.py tests/test_ifc_placements.py
+          tests/test_code_aster_artifact_import.py -q
+      - run: git diff --exit-code
 
   notebooks-and-docs:
     runs-on: ubuntu-latest
@@ -43,6 +59,7 @@ jobs:
       # test_docs_figures renders PyVista screenshots, which need a display.
       - run: xvfb-run -a uv run python -m pytest tests/test_code_aster_docs.py tests/test_current_api_docs.py tests/test_docs_figures.py tests/test_static_site_docs.py -q
       - run: xvfb-run -a uv run python scripts/check_notebooks.py
+      - run: git diff --exit-code
 
   viewer:
     runs-on: ubuntu-latest
@@ -62,6 +79,7 @@ jobs:
       - run: npm run e2e -- section-camera
       - run: npm run e2e -- legacy-workflow
       - run: npm run build
+      - run: git diff --exit-code
 
   assembled-pages:
     runs-on: ubuntu-latest
@@ -92,6 +110,7 @@ jobs:
         working-directory: viewer
         env:
           TUBA_PAGES_SITE_ROOT: ../.build/pages-check
+      - run: git diff --exit-code
 
   distribution:
     runs-on: ubuntu-latest

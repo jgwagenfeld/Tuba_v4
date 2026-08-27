@@ -1,5 +1,7 @@
 import json
+import os
 import unittest
+from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -72,6 +74,20 @@ class TestVisualizationPerformance(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertTrue((Path(tmpdir) / "viewer_smoke_latest.json").exists())
+
+    def test_visualization_benchmark_defaults_use_build_root(self):
+        self.assertEqual(
+            signature(benchmark_viewer_smoke).parameters["output_dir"].default,
+            ".build/benchmarks",
+        )
+        with TemporaryDirectory() as tmpdir:
+            original_directory = Path.cwd()
+            os.chdir(tmpdir)
+            try:
+                self.assertEqual(benchmarks_main(["viewer-smoke"]), 0)
+                self.assertTrue(Path(".build/benchmarks/viewer_smoke_latest.json").is_file())
+            finally:
+                os.chdir(original_directory)
 
 
 if __name__ == "__main__":

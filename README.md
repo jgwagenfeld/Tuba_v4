@@ -45,7 +45,7 @@ Read these first - they describe what the code actually does today:
 ## Installation
 
 Tuba v4 beta is installed from a tagged GitHub checkout. Tuba requires Python
-3.11 or newer.
+3.11 or 3.12.
 
 ```bash
 git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
@@ -230,7 +230,7 @@ applies the selected route to the model, and writes Markdown/JSON reports.
 .\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py
 ```
 
-Expected outputs are written below `routing_reports/`, including
+Expected default outputs are written below `.build/routing_reports/`, including
 `route_report.md`, `route_result.json`, and `studies/<pipe>/candidate_*/study.*`
 files when study export is enabled.
 
@@ -286,7 +286,7 @@ request = PipeRouteRequest(
 run = AutoroutingAgent(
     router=GridRouter(RoutingGridSpec(cell_size=0.25, margin=1.0), candidate_count=3),
     solver_config=SolverLoopConfig(run_solver=False, export_study=True),
-    output_root="routing_reports",
+    output_root=".build/routing_reports",
 ).route_pipe(model, request, apply=True)
 ```
 

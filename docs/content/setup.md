@@ -12,7 +12,7 @@ Tuba model -> Code_Aster solve -> imported result artifacts -> result display
 
 | Requirement | Detail |
 | --- | --- |
-| Python | 3.11 or 3.12 (`requires-python >= 3.11`) |
+| Python | 3.11 or 3.12 (`requires-python = ">=3.11,<3.13"`) |
 | Git | Required to install the tagged checkout |
 | Operating system | Tuba is OS-independent; the tested solver path is native Linux or Windows with WSL2 Ubuntu |
 | Code_Aster | Required for solving; authoring, export inspection, and preserved-artifact review can run without it |

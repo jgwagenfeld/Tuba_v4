@@ -6,6 +6,17 @@ from tuba import Model
 from tuba.benchmarks import write_model_benchmark_summary
 
 
+def test_benchmark_summary_defaults_to_build_root(tmp_path, monkeypatch):
+    model = Model(project_name="DefaultBenchmarkRoot")
+    model.add_node((0.0, 0.0, 0.0))
+    monkeypatch.chdir(tmp_path)
+
+    path = Path(write_model_benchmark_summary(model))
+
+    assert path.parent == Path(".build/benchmarks")
+    assert path.is_file()
+
+
 class TestModelIndexes(unittest.TestCase):
     def test_find_node_by_point_reuses_existing_node(self):
         model = Model(project_name="Indexes")

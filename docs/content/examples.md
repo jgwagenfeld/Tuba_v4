@@ -49,6 +49,16 @@ Run an example with:
 .\.venv\Scripts\python.exe examples\<name>.py
 ```
 
+Tuba-owned benchmark and review outputs default to `.build/`. When no Tuba
+command is running, remove all ignored Tuba build output with:
+
+```powershell
+git clean -fdX -- .build
+```
+
+Canonical Code_Aster artifacts under `notebooks/code_aster_results/` are
+committed engineering evidence and are not cleanup targets.
+
 | Example | Evidence status | Purpose |
 | --- | --- | --- |
 | `demo.py` | **MODEL JSON + STUDY HANDOFF** | Writes `piping_model.json` and Code_Aster input files, then stops before results |
@@ -73,7 +83,7 @@ No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** wri
 .\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py
 ```
 
-Outputs under `routing_reports/` can include `route_report.md`, `route_result.json`, and candidate `study.*` files. Reports explain candidate geometry and scoring. Study handoff files alone are not solver evidence.
+Default outputs under `.build/routing_reports/` can include `route_report.md`, `route_result.json`, and candidate `study.*` files. Reports explain candidate geometry and scoring. Study handoff files alone are not solver evidence.
 
 See [Autorouting](autorouting.md) for the request fields, grid behavior, solver-loop options, U-loop limit, and acceptance boundary.
 

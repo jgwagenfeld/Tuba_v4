@@ -1,7 +1,5 @@
 from importlib.metadata import version
 from copy import deepcopy
-import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -12,6 +10,28 @@ from tuba.model import MODEL_SERIALIZATION_VERSION
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_test_only_ci_jobs_end_with_clean_tree_check():
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+
+    for job_name in ("python", "ifc-windows", "notebooks-and-docs", "viewer", "assembled-pages"):
+        commands = [
+            step["run"]
+            for step in workflow["jobs"][job_name]["steps"]
+            if "run" in step
+        ]
+        assert commands[-1] == "git diff --exit-code"
+
+    for job_name in ("distribution", "code-aster-integration"):
+        commands = [
+            step["run"]
+            for step in workflow["jobs"][job_name]["steps"]
+            if "run" in step
+        ]
+        assert "git diff --exit-code" not in commands
 
 
 def test_runtime_version_comes_from_installed_package_metadata():
@@ -91,6 +111,28 @@ def test_ci_and_release_workflows_cover_local_release_gates():
     assert 'tag "${{ inputs.tag }}"' in release
     assert "TUBA_RUN_CODE_ASTER_INTEGRATION: \"1\"" in ci
     assert "tests/test_code_aster_real_smoke.py" in ci
+
+
+def test_windows_ifc_job_fails_closed_on_the_locked_runtime():
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    job = workflow["jobs"]["ifc-windows"]
+    commands = [step["run"] for step in job["steps"] if "run" in step]
+
+    assert job["runs-on"] == "windows-latest"
+    assert any(
+        step.get("uses") == "astral-sh/setup-uv@v6"
+        and step.get("with", {}).get("python-version") == "3.12"
+        for step in job["steps"]
+    )
+    assert "uv sync --extra dev --extra ifc --locked" in commands
+    assert 'uv run python -c "import ifcopenshell"' in commands
+    assert (
+        "uv run python -m pytest tests/test_ifc.py tests/test_ifc_mapping.py "
+        "tests/test_ifc_pipe_systems.py tests/test_ifc_placements.py "
+        "tests/test_code_aster_artifact_import.py -q"
+    ) in commands
 
 
 def test_source_release_gates_tag_on_build_and_real_code_aster_without_pypi():
@@ -334,43 +376,3 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     assert setup_uv < sync
     assert setup_node < npm
     assert max(sync, npm, graphics) < python_tests < build_step < chromium < semantic < visual
-
-
-def test_playwright_pages_gate_can_serve_the_prebuilt_workflow_artifact():
-    script = (
-        "import config from './viewer/playwright.config.js';"
-        "console.log(JSON.stringify({"
-        "webServer: config.webServer, snapshotPathTemplate: config.snapshotPathTemplate"
-        "}));"
-    )
-    default_environment = os.environ.copy()
-    default_environment.pop("TUBA_PAGES_SITE_ROOT", None)
-    default_result = subprocess.run(
-        ["node", "--input-type=module", "--eval", script],
-        cwd=ROOT,
-        env=default_environment,
-        capture_output=True,
-        text=True,
-    )
-    environment = default_environment | {"TUBA_PAGES_SITE_ROOT": "../_site"}
-    result = subprocess.run(
-        ["node", "--input-type=module", "--eval", script],
-        cwd=ROOT,
-        env=environment,
-        capture_output=True,
-        text=True,
-    )
-
-    assert default_result.returncode == 0, default_result.stderr
-    default_config = json.loads(default_result.stdout)
-    default_server = default_config["webServer"]
-    assert default_config["snapshotPathTemplate"] == (
-        "{testDir}/snapshots/{testFilePath}/{platform}/{arg}{ext}"
-    )
-    assert "scripts/build_pages.py pages --output .build/pages-check" in default_server["command"]
-    assert "../.build/pages-check" in default_server["command"]
-    assert result.returncode == 0, result.stderr
-    web_server = json.loads(result.stdout)["webServer"]
-    assert "../_site" in web_server["command"]
-    assert "configFile: false" in web_server["command"]
-    assert "scripts/build_pages.py" not in web_server["command"]

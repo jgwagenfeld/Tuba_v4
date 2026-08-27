@@ -1,6 +1,8 @@
 import unittest
 
-import ifcopenshell
+import pytest
+
+ifcopenshell = pytest.importorskip("ifcopenshell", exc_type=ImportError)
 
 from tuba.external.ifc import IfcExporter
 from tuba.external.ifc_mapping import IfcGuidRegistry, add_property_set, ifc_property

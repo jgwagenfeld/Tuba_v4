@@ -14,7 +14,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     viewer_smoke = subparsers.add_parser("viewer-smoke", help="Run the local viewer-contract smoke benchmark.")
-    viewer_smoke.add_argument("--output-dir", default=".benchmarks")
+    viewer_smoke.add_argument("--output-dir", default=".build/benchmarks")
 
     args = parser.parse_args(argv)
     if args.command == "viewer-smoke":
