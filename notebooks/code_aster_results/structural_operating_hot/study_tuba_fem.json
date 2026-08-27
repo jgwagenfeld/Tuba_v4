@@ -39,5 +39,11 @@
     "pipe_str_1_mid": "G226102C"
   },
   "schema_version": 1,
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v1",
+    "fingerprint": "a2594fa2cdcd53e8d27cc04ad9dc319373feb6cb41e2dad325f2d554bd9ef1e4",
+    "load_case": "Operating_Hot",
+    "schema_id": "tuba.model.v4"
+  },
   "solver_name": "Code_Aster"
 }

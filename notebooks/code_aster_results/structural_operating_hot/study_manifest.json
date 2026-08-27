@@ -65,7 +65,7 @@
       ]
     },
     "files": {
-      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\structural_operating_hot\\study.mail"
+      "mail": "study.mail"
     },
     "groups": {
       "AllPipes": [
@@ -142,6 +142,10 @@
     },
     "id": "analysis_mesh:Operating_Hot",
     "model_revision": 0,
+    "modelisations": {
+      "AllPipes": "TUYAU_3M",
+      "G_TUBE": "POU_D_T"
+    },
     "node_sources": {
       "N0": {
         "node_id": "N0",
@@ -267,16 +271,22 @@
         0.0
       ]
     },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "a2594fa2cdcd53e8d27cc04ad9dc319373feb6cb41e2dad325f2d554bd9ef1e4",
+      "load_case": "Operating_Hot",
+      "schema_id": "tuba.model.v4"
+    },
     "solver_name": "Code_Aster"
   },
   "study": {
     "id": "analysis_study:Operating_Hot",
     "input_files": {
-      "comm": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\structural_operating_hot\\study.comm",
-      "export": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\structural_operating_hot\\study.export",
-      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\structural_operating_hot\\study.mail",
-      "manifest": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\structural_operating_hot\\study_manifest.json",
-      "sidecar": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\structural_operating_hot\\study_tuba_fem.json"
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
     },
     "load_case": "Operating_Hot",
     "mesh_id": "analysis_mesh:Operating_Hot",
@@ -284,7 +294,12 @@
       "project_name": "StructuralDemo"
     },
     "model_revision": 0,
-    "solver_name": "Code_Aster",
-    "work_dir": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\structural_operating_hot"
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "a2594fa2cdcd53e8d27cc04ad9dc319373feb6cb41e2dad325f2d554bd9ef1e4",
+      "load_case": "Operating_Hot",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
   }
 }

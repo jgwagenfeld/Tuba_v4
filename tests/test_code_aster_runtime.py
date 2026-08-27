@@ -9,6 +9,7 @@ from tuba.solver.code_aster_runtime import (
     CodeAsterExecution,
     CodeAsterRuntimeCandidate,
     CodeAsterRuntimeConfig,
+    attested_code_aster_files,
     build_code_aster_command,
     build_code_aster_preflight_command,
     discover_code_aster_runtimes,
@@ -20,6 +21,18 @@ from tuba.solver.aster import CodeAsterSolver
 
 
 class TestCodeAsterRuntime(unittest.TestCase):
+    def test_beam_only_attestation_does_not_require_pipe_stress_table(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study_manifest.json").write_text(
+                '{"study": {"metadata": {"pipe_stress_exported": false}}}',
+                encoding="utf-8",
+            )
+
+            files = attested_code_aster_files(root)
+
+        self.assertNotIn("study_sieq.csv", files)
+
     def test_successful_solve_writes_observed_execution_attestation(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

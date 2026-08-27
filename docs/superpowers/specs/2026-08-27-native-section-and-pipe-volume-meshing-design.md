@@ -4,7 +4,7 @@
 
 **Status:** Approved for implementation
 
-**Scope:** Profile-aware structural examples, native straight-pipe and tee solid meshing, Code_Aster volume-study preparation, and review geometry
+**Scope:** Profile-aware structural examples, native straight-pipe, isolated-bend, and tee solid meshing, Code_Aster volume-study preparation, and review geometry
 
 ## Decision Summary
 
@@ -90,15 +90,16 @@ The native volume mesher will accept a connected selection of
 supported slice is:
 
 - straight hollow pipes;
+- one isolated circular bend with an explicit `BendGeometry` record;
 - equal and reducing three-way tees whose header and branch sections are
   circular `PipeSection` records;
 - one material per connected solid region; and
 - open terminal faces at the selected run boundaries.
 
-Selected bends, reducers other than a tee branch, flanges, valves, shells,
-contacts, and reinforcement-pad geometry fail before geometry generation until
-their own validated slices exist. `pad_thickness` remains compliance metadata;
-it does not fabricate a reinforcing-pad solid.
+Connected straight-bend-tee selections, reducers other than a tee branch,
+flanges, valves, shells, contacts, and reinforcement-pad geometry fail before
+geometry generation until their own validated slices exist. `pad_thickness`
+remains compliance metadata; it does not fabricate a reinforcing-pad solid.
 
 ### Solver and result semantics
 
@@ -287,6 +288,16 @@ For an explicit tee node:
 This reproduces the physical intent of v2's `MakePipeTShape` without depending
 on SALOME's specialized constructor.
 
+### Isolated bend
+
+For one selected `pipe_bend`, create an annular cross-section at the recorded
+start point and revolve it around `BendGeometry.center` and
+`BendGeometry.normal` through the recorded angle. The start tangent orients the
+cross-section. The generated torus segment must end at the element's second
+node; its bore, outer wall, and two terminal annuli use the same stable groups
+as a straight pipe. Connected mixed selections remain a later conformal-boolean
+slice.
+
 ### Surface classification
 
 Surface groups are derived from geometry, not face order:
@@ -379,8 +390,11 @@ does not contain knot values. It will not be invented as part of meshing.
 2. **Tee:** run a real pressurized or mechanically loaded equal tee, require
    stable reactions and stress-location convergence under refinement, and keep
    the result explicitly FE stress rather than code compliance.
+3. **Isolated bend:** run a real pressurized 90-degree bend, require the anchor
+   reaction to balance the independently derived pressure resultant, and build
+   the existing result and analysis-skin scene.
 
-Both cases must create a verified `AnalysisRun`, matching solver-input
+All cases must create a verified `AnalysisRun`, matching solver-input
 identities, `.rmed`, imported displacement/stress/reaction data, and a review
 bundle. Export-only success is insufficient.
 
@@ -411,6 +425,8 @@ bundle. Export-only success is insufficient.
 8. Add the real tee solve, import, and review bundle.
 9. Refresh the affected official solver-backed gallery and run assembled Pages
    browser verification.
+10. Add the isolated `BendGeometry` torus-segment mesh and real pressure-result
+    reference without enabling connected mixed selections.
 
 Each step leaves one independently runnable check. Unsupported geometry remains
 an explicit error until its own step is verified.
@@ -421,8 +437,8 @@ The design is complete when:
 
 - SALOME-Meca is not required for the supported native meshes;
 - structural examples visibly distinguish their authored sections;
-- straight pipes and explicit tees produce valid, grouped, second-order Gmsh
-  MED meshes;
+- straight pipes, isolated circular bends, and explicit tees produce valid,
+  grouped, second-order Gmsh MED meshes;
 - the same geometry can be inspected in the existing web-review path;
 - a real Code_Aster straight-pipe reference solve agrees with the Lamé basis;
 - a real tee solve imports and displays traceable FE results;

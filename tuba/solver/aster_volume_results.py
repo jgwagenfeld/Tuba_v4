@@ -95,9 +95,18 @@ def _anchored_volume_nodes(
             if anchor_id not in anchor_ids:
                 continue
             origin = np.asarray(model.nodes[anchor_id].coords, dtype=float)
-            inward = np.asarray(model.nodes[other_id].coords, dtype=float) - origin
-            length = float(np.linalg.norm(inward))
-            planes.append((origin, inward / length, max(length * 1.0e-7, 1.0e-9)))
+            if element.type == "pipe_bend" and element.bend_geometry is not None:
+                tangent = (
+                    element.bend_geometry.start_tangent
+                    if anchor_id == element.n1
+                    else element.bend_geometry.end_tangent
+                )
+                inward = np.asarray(tangent, dtype=float) * (1.0 if anchor_id == element.n1 else -1.0)
+                length = element.bend_geometry.radius * math.radians(element.bend_geometry.angle)
+            else:
+                inward = np.asarray(model.nodes[other_id].coords, dtype=float) - origin
+                length = float(np.linalg.norm(inward))
+            planes.append((origin, inward / np.linalg.norm(inward), max(length * 1.0e-7, 1.0e-9)))
     return {
         node_id
         for node_id, coords in analysis_mesh.nodes.items()

@@ -13,7 +13,7 @@ import numpy as np
 
 from tuba.analysis.mesh import AnalysisMesh, MeshElementSource, MeshNodeSource
 from tuba.geometry.junctions import classify_tee_junction
-from tuba.model import PipeSection, TubaModel
+from tuba.model import BendGeometry, PipeSection, TubaModel, sample_bend_geometry
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map
 
@@ -37,6 +37,7 @@ class _StraightSelection:
     start: np.ndarray
     direction: np.ndarray
     section: PipeSection
+    bend_geometry: BendGeometry | None = None
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ def build_pipe_volume_mesh(
     max_element_size: float,
     element_order: int = 2,
 ) -> GeneratedPipeVolumeMesh:
-    """Mesh one straight pipe or one explicit three-run tee."""
+    """Mesh one straight pipe, one bend, or one explicit three-run tee."""
     selection = _preflight(model, element_ids, max_element_size, element_order)
     output = Path(output_path)
     temporary = output.with_name(f".{output.stem}-{uuid4().hex}.tmp.med")
@@ -79,7 +80,12 @@ def build_pipe_volume_mesh(
         gmsh.model.add(created_model)
         gmsh.option.setNumber("General.Terminal", 0)
         if selection.tee_node is None:
-            volume_tags, surface_groups = _build_straight_geometry(selection.pipes[0])
+            selected_pipe = selection.pipes[0]
+            volume_tags, surface_groups = (
+                _build_bend_geometry(selected_pipe)
+                if selected_pipe.bend_geometry is not None
+                else _build_straight_geometry(selected_pipe)
+            )
         else:
             volume_tags, surface_groups = _build_tee_geometry(model, selection)
         raw_entities: dict[str, tuple[int, tuple[int, ...]]] = {
@@ -157,8 +163,11 @@ def _preflight(
         element = model.get_element(element_id)
         if element is None:
             raise ValueError(f"Unknown selected element {element_id!r}.")
-        if element.type != "pipe_straight":
-            raise ValueError(f"Selected element {element.id!r} must be pipe_straight, got {element.type!r}.")
+        if element.type not in {"pipe_straight", "pipe_bend"} or (len(ids) == 3 and element.type != "pipe_straight"):
+            raise ValueError(
+                f"Selected element {element.id!r} must be an isolated pipe_bend or pipe_straight, "
+                f"got {element.type!r}."
+            )
         section = model.sections.get(element.section)
         if not isinstance(section, PipeSection):
             raise ValueError(f"Selected element {element.id!r} must use a circular PipeSection.")
@@ -173,8 +182,19 @@ def _preflight(
         direction = end - start
         if not np.isfinite(direction).all() or float(np.linalg.norm(direction)) <= 0.0:
             raise ValueError(f"Selected element {element.id!r} must have non-zero finite length.")
+        bend_geometry = element.bend_geometry if element.type == "pipe_bend" else None
+        if element.type == "pipe_bend":
+            if not isinstance(bend_geometry, BendGeometry):
+                raise ValueError(f"Selected bend {element.id!r} requires explicit bend_geometry.")
+            if not math.isfinite(bend_geometry.radius) or bend_geometry.radius <= section.OD / 2.0:
+                raise ValueError(f"Selected bend {element.id!r} radius must exceed the pipe outer radius.")
+            if not math.isfinite(bend_geometry.angle) or not 0.0 < bend_geometry.angle < 360.0:
+                raise ValueError(f"Selected bend {element.id!r} angle must be between 0 and 360 degrees.")
+            sampled_end = sample_bend_geometry(start, bend_geometry, n_segments=1)[-1]
+            if not np.allclose(sampled_end, end, rtol=0.0, atol=max(bend_geometry.radius * 1e-7, 1e-9)):
+                raise ValueError(f"Selected bend {element.id!r} geometry does not end at node {element.n2!r}.")
         materials.add(element.material)
-        pipes.append(_StraightSelection(element.id, element.n1, element.n2, start, direction, section))
+        pipes.append(_StraightSelection(element.id, element.n1, element.n2, start, direction, section, bend_geometry))
     if len(materials) != 1:
         raise ValueError("A native pipe volume region must use one material.")
     if len(pipes) == 1:
@@ -227,6 +247,68 @@ def _build_straight_geometry(
             curved.append(tag)
     if any(len(tags) != 1 for tags in ends.values()) or len(curved) != 2:
         raise RuntimeError("Could not classify the pipe end, inner, and outer surfaces.")
+    inner_tag, outer_tag = sorted(curved, key=lambda tag: gmsh.model.occ.getMass(2, tag))
+    return volumes, {
+        "G_INNER_region_0": (inner_tag,),
+        "G_OUTER_region_0": (outer_tag,),
+        f"G_END_{selection.n1}": tuple(ends[selection.n1]),
+        f"G_END_{selection.n2}": tuple(ends[selection.n2]),
+    }
+
+
+def _build_bend_geometry(
+    selection: _StraightSelection,
+) -> tuple[tuple[int, ...], dict[str, tuple[int, ...]]]:
+    geometry = selection.bend_geometry
+    assert geometry is not None
+    center = np.asarray(geometry.center, dtype=float)
+    normal = np.asarray(geometry.normal, dtype=float)
+    normal /= np.linalg.norm(normal)
+    tangent = np.asarray(geometry.start_tangent, dtype=float)
+    tangent /= np.linalg.norm(tangent)
+    radial = selection.start - center
+    radial /= np.linalg.norm(radial)
+    outer = gmsh.model.occ.addDisk(
+        *selection.start.tolist(),
+        selection.section.OD / 2.0,
+        selection.section.OD / 2.0,
+        zAxis=tangent.tolist(),
+        xAxis=radial.tolist(),
+    )
+    inner = gmsh.model.occ.addDisk(
+        *selection.start.tolist(),
+        selection.section.ID / 2.0,
+        selection.section.ID / 2.0,
+        zAxis=tangent.tolist(),
+        xAxis=radial.tolist(),
+    )
+    annulus, _lineage = gmsh.model.occ.cut([(2, outer)], [(2, inner)], removeObject=True, removeTool=True)
+    swept = gmsh.model.occ.revolve(
+        annulus,
+        *center.tolist(),
+        *normal.tolist(),
+        math.radians(geometry.angle),
+    )
+    gmsh.model.occ.synchronize()
+    volumes = tuple(tag for dimension, tag in swept if dimension == 3)
+    if len(volumes) != 1:
+        raise RuntimeError(f"Expected one pipe-bend wall volume, got {len(volumes)}.")
+
+    boundary = gmsh.model.getBoundary([(3, tag) for tag in volumes], oriented=False, recursive=False)
+    surface_tags = tuple(sorted({tag for dimension, tag in boundary if dimension == 2}))
+    end_tolerance = max(geometry.radius * math.radians(geometry.angle) * 1e-7, 1e-9)
+    ends: dict[str, list[int]] = {selection.n1: [], selection.n2: []}
+    curved: list[int] = []
+    for tag in surface_tags:
+        surface_center = np.asarray(gmsh.model.occ.getCenterOfMass(2, tag), dtype=float)
+        if np.linalg.norm(surface_center - selection.start) <= end_tolerance:
+            ends[selection.n1].append(tag)
+        elif np.linalg.norm(surface_center - (selection.start + selection.direction)) <= end_tolerance:
+            ends[selection.n2].append(tag)
+        else:
+            curved.append(tag)
+    if any(len(tags) != 1 for tags in ends.values()) or len(curved) != 2:
+        raise RuntimeError("Could not classify the pipe-bend end, inner, and outer surfaces.")
     inner_tag, outer_tag = sorted(curved, key=lambda tag: gmsh.model.occ.getMass(2, tag))
     return volumes, {
         "G_INNER_region_0": (inner_tag,),

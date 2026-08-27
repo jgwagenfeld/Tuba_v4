@@ -64,7 +64,7 @@ CARA = AFFE_CARA_ELEM(
         _F(
             GROUP_NO='G06D7539',
             CARA='GENE_TUYAU',
-            VALE=(0.0, 0.0, 1.0),
+            VALE=(0.00000000E+00, 0.00000000E+00, 1.00000000E+00),
         ),
     ),
 );
@@ -152,7 +152,7 @@ RESU = CALC_CHAMP(
     reuse=RESU,
     RESULTAT=RESU,
     CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
-    CRITERES=('SIEQ_ELNO',),
+    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
     FORCE='FORC_NODA',
 );
 
@@ -162,7 +162,8 @@ IMPR_RESU(
     UNITE=80,
     RESU=_F(
         RESULTAT=RESU,
-        NOM_CHAM=('DEPL', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),
+        CARA_ELEM=CARA,
+        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),
     ),
 );
 

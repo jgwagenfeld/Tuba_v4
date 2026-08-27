@@ -167,5 +167,11 @@
     "beam_9": "beam_9"
   },
   "schema_version": 1,
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v1",
+    "fingerprint": "d192e80abf03546c003001f1360afdfc45b0c30b47ada64880793c14c61a8041",
+    "load_case": "EndForce",
+    "schema_id": "tuba.model.v4"
+  },
   "solver_name": "Code_Aster"
 }

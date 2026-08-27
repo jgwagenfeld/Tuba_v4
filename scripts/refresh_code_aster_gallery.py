@@ -113,8 +113,9 @@ def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
         raise ValueError("Canonical Code_Aster gallery requires a validated solve attestation.")
     if not isinstance(attestation.get("solver_version"), str) or not attestation["solver_version"]:
         raise ValueError("Canonical Code_Aster gallery attestation requires solver_version.")
-    if not isinstance(attestation.get("execution_method"), str) or not attestation["execution_method"]:
-        raise ValueError("Canonical Code_Aster gallery attestation requires execution_method.")
+    execution_method = attestation.get("execution_method")
+    if not isinstance(execution_method, str) or not execution_method or execution_method == "docker":
+        raise ValueError("Canonical Code_Aster gallery attestation requires a native execution_method.")
     if attestation.get("solver_name") != "Code_Aster":
         raise ValueError("Canonical Code_Aster gallery attestation must name Code_Aster.")
     if not isinstance(attestation.get("solved_at"), str) or not attestation["solved_at"]:

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import unittest
 from pathlib import Path
@@ -132,19 +133,29 @@ class TestNotebookResultProvenance(unittest.TestCase):
         notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
         artifact_backed = {
             "00_welcome_and_setup.ipynb": "stress_analysis_operating",
+            "01_building_piping_systems.ipynb": "building_profile_end_force",
             "03_stress_analysis_and_compliance.ipynb": "stress_analysis_operating",
             "04_visualization_gallery.ipynb": "viz_gallery_operating",
             "06_structural_frames_and_optimization.ipynb": "structural_operating_hot",
             "07_bim_data_exchange.ipynb": "bim_operating",
             "advanced_piping_design_and_bim.ipynb": "advanced_operating_hot",
+            "visualize_elements_and_supports.ipynb": "elements_supports_loadcase1",
         }
         offenders: list[str] = []
 
         for notebook_name, artifact_dir in artifact_backed.items():
             artifact_root = notebooks_dir / "code_aster_results" / artifact_dir
             self.assertTrue((artifact_root / "study_depl.csv").exists(), artifact_root)
+            attestation = json.loads((artifact_root / "study_execution.json").read_text(encoding="utf-8"))
+            for artifact_name, expected in attestation["artifacts"].items():
+                content = (artifact_root / artifact_name).read_bytes()
+                self.assertEqual(expected["size_bytes"], len(content), artifact_name)
+                self.assertEqual(expected["sha256"], hashlib.sha256(content).hexdigest(), artifact_name)
             text = (notebooks_dir / notebook_name).read_text(encoding="utf-8")
-            if "RUN_CODE_ASTER = False" not in text:
+            if (
+                "RUN_CODE_ASTER = False" not in text
+                and "TUBA_NOTEBOOK_RUN_CODE_ASTER" not in text
+            ):
                 offenders.append(notebook_name)
 
         self.assertEqual([], offenders)

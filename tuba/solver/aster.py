@@ -302,7 +302,12 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
                 "sidecar": str(sidecar_path),
             },
             mesh_id=analysis_mesh.id,
-            metadata={"project_name": model.project_name},
+            metadata={
+                "project_name": model.project_name,
+                "pipe_stress_exported": any(
+                    element.type in {"pipe_straight", "pipe_bend"} for element in model.elements
+                ),
+            },
             solver_input_identity=solver_input_identity,
         )
         portable_study = replace(

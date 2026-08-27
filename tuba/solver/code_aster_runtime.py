@@ -314,6 +314,8 @@ def attested_code_aster_files(work_dir: str | Path) -> tuple[str, ...]:
         return ATTESTED_CODE_ASTER_FILES
     metadata = manifest.get("study", {}).get("metadata", {})
     if not metadata.get("volume_analysis"):
+        if metadata.get("pipe_stress_exported") is False:
+            return tuple(name for name in ATTESTED_CODE_ASTER_FILES if name != "study_sieq.csv")
         return ATTESTED_CODE_ASTER_FILES
     return VOLUME_ATTESTED_CODE_ASTER_FILES + (
         ("study_sigm.csv",) if metadata.get("tensor_stress_exported", True) else ()

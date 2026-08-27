@@ -728,6 +728,7 @@ const scenarios = {
           { label: "Autorouted Expansion Loop", value: "autorouted-expansion-loop" },
           { label: "Code Aster Review", value: "code-aster-review" },
           { label: "Imported Component Mixed Demo", value: "imported_component_mixed_demo" },
+          { label: "Pipe Tee Volume Review", value: "pipe-tee-volume-review" },
           { label: "Support Rack Review", value: "support-rack-review" }
         ]
       );
