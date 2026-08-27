@@ -176,8 +176,6 @@ course = [
     "h5py>=3.10",
     "ifcopenshell==0.8.4.post1",
     "trimesh>=4.0",
-    "python-fcl>=0.7.0.11",
-    "scipy>=1.10",
 ]
 
 dev = [

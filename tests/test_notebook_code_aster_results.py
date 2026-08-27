@@ -5,6 +5,21 @@ from pathlib import Path
 
 
 class TestNotebookResultProvenance(unittest.TestCase):
+    def test_advanced_notebook_uses_current_model_and_results(self):
+        notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "advanced_piping_design_and_bim.ipynb"
+        notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+        code = "\n".join(
+            "".join(cell.get("source", []))
+            for cell in notebook.get("cells", [])
+            if cell.get("cell_type") == "code"
+        )
+
+        self.assertNotIn("opt_model", code)
+        self.assertNotIn("opt_results", code)
+        self.assertIn("export_html(init_results, html_file, model=model)", code)
+        self.assertIn("exporter.export_model(model, ifc_path, results=init_results)", code)
+        self.assertNotIn("Visualization export warning", code)
+
     def test_notebooks_do_not_display_hand_built_or_mock_solver_results(self):
         notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
         forbidden_snippets = (
