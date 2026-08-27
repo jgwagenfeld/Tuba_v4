@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from tuba import Model
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 from tuba.analysis import (
     AnalysisMesh,
     GeometryState,
@@ -54,7 +54,7 @@ def operating_state_review_fixture(output_dir: Path) -> RealtimeVisualizationFix
     cold_state = create_cold_geometry_state(model)
     operating_state = create_operating_geometry_state(model=model, result_state=result_state)
     visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=50.0)
-    operating_clashes = TrimeshClashEngine().check_operating_state(
+    operating_clashes = ClashEngine().check_operating_state(
         model,
         cold_state=cold_state,
         operating_state=operating_state,

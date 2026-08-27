@@ -550,14 +550,6 @@ def write_model_benchmark_summary(
 ) -> str:
 ```
 
-Use the same constant as the default for `run_deformed_clash_benchmark()` and the CLI argument:
-
-```python
-deformed_clash.add_argument("--directory", default=_DEFAULT_BENCHMARK_DIRECTORY)
-```
-
-Do not change explicit `directory=` behavior or benchmark calculations.
-
 - [ ] **Step 5: Move the four example defaults under the same root**
 
 Use these exact defaults and change no other example behavior:

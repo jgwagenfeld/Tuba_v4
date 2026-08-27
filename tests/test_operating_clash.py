@@ -3,7 +3,7 @@ import unittest
 from tuba import Model
 from tuba.analysis import ResultState
 from tuba.analysis.states import create_cold_geometry_state, create_operating_geometry_state
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 
 
 class TestOperatingClash(unittest.TestCase):
@@ -37,8 +37,8 @@ class TestOperatingClash(unittest.TestCase):
         cold_state = create_cold_geometry_state(model)
         operating_state = create_operating_geometry_state(model=model, result_state=result_state)
 
-        cold_clashes = TrimeshClashEngine().check_model(model)
-        operating_clashes = TrimeshClashEngine().check_operating_state(
+        cold_clashes = ClashEngine().check_model(model)
+        operating_clashes = ClashEngine().check_operating_state(
             model,
             cold_state=cold_state,
             operating_state=operating_state,

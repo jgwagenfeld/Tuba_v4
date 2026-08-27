@@ -11,7 +11,7 @@ from tuba.analysis.states import (
     create_operating_geometry_state,
     create_visual_deformed_geometry_state,
 )
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
 from tuba.solver.code_aster_runtime import expected_code_aster_artifact_files
 from tuba.visualization import build_visualization_scene
@@ -192,7 +192,7 @@ class TestVisualizationResults(unittest.TestCase):
         result_state = result_state_from_fea_results(model=fixture.model, study=study, results=fixture.results)
         operating_state = create_operating_geometry_state(model=fixture.model, result_state=result_state)
         visual_state = create_visual_deformed_geometry_state(model=fixture.model, result_state=result_state, visual_scale=50.0)
-        operating_clashes = TrimeshClashEngine().check_operating_state(
+        operating_clashes = ClashEngine().check_operating_state(
             fixture.model,
             cold_state=create_cold_geometry_state(fixture.model),
             operating_state=operating_state,

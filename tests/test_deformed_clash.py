@@ -8,7 +8,7 @@ from tuba.analysis.states import (
     create_operating_geometry_state,
     create_visual_deformed_geometry_state,
 )
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 
 
 class TestDeformedClash(unittest.TestCase):
@@ -30,8 +30,8 @@ class TestDeformedClash(unittest.TestCase):
         cold_state = create_cold_geometry_state(fixture.model)
         operating_state = create_operating_geometry_state(model=fixture.model, result_state=result_state)
 
-        cold_clashes = TrimeshClashEngine().check_model(fixture.model)
-        operating_clashes = TrimeshClashEngine().check_operating_state(
+        cold_clashes = ClashEngine().check_model(fixture.model)
+        operating_clashes = ClashEngine().check_operating_state(
             fixture.model,
             cold_state=cold_state,
             operating_state=operating_state,
@@ -54,7 +54,7 @@ class TestDeformedClash(unittest.TestCase):
         )
 
         with self.assertRaises(ValueError):
-            TrimeshClashEngine().check_operating_state(
+            ClashEngine().check_operating_state(
                 fixture.model,
                 cold_state=cold_state,
                 operating_state=visual_state,

@@ -4,7 +4,7 @@ from tests.operating_state_fixtures import straight_pipe_hot_clash_fixture
 from tuba.analysis import AnalysisStudy
 from tuba.analysis.results import result_state_from_fea_results
 from tuba.analysis.states import create_cold_geometry_state, create_operating_geometry_state
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 from tuba.visualization import build_visualization_scene
 
 
@@ -22,7 +22,7 @@ class TestVisualizationClashReview(unittest.TestCase):
         )
         result_state = result_state_from_fea_results(model=fixture.model, study=study, results=fixture.results)
         operating_state = create_operating_geometry_state(model=fixture.model, result_state=result_state)
-        clashes = TrimeshClashEngine().check_operating_state(
+        clashes = ClashEngine().check_operating_state(
             fixture.model,
             cold_state=create_cold_geometry_state(fixture.model),
             operating_state=operating_state,

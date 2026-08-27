@@ -2,7 +2,7 @@ import unittest
 
 from tuba import Model
 from tuba.analysis import GeometryState, ResultState
-from tuba.clash.engine import TrimeshClashEngine
+from tuba.clash.engine import ClashEngine
 from tuba.clash.operating import candidate_obstacle_pairs_for_envelopes
 from tuba.geometry.deformed import build_deformed_envelope_index, build_deformed_envelopes
 
@@ -65,7 +65,7 @@ class TestDeformedPerformance(unittest.TestCase):
         model, result_state, geometry_state, cold_state = self._sparse_model_state_and_geometry(count=4)
         first = build_deformed_envelopes(model=model, result_state=result_state, geometry_state=geometry_state)
 
-        TrimeshClashEngine().check_operating_state(
+        ClashEngine().check_operating_state(
             model,
             cold_state=cold_state,
             operating_state=geometry_state,

@@ -1,7 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 from tuba.visualization import build_visualization_scene
 
 
@@ -28,7 +28,7 @@ class TestVisualizationIssues(unittest.TestCase):
         )
         model.add_insulation_spec("mw_80", material="mineral_wool", thickness_m=0.08)
         model.assign_insulation(f"element:{elem.id}", "mw_80")
-        clash = TrimeshClashEngine().check_model(model)[0]
+        clash = ClashEngine().check_model(model)[0]
         return model, clash
 
     def test_build_scene_adds_clash_issue_marker_overlay_and_view(self):

@@ -9,7 +9,7 @@ from tests.operating_state_fixtures import straight_pipe_hot_clash_fixture
 from tuba.analysis import AnalysisStudy
 from tuba.analysis.results import result_state_from_fea_results
 from tuba.analysis.states import create_cold_geometry_state, create_operating_geometry_state
-from tuba.clash import TrimeshClashEngine
+from tuba.clash import ClashEngine
 from tuba.visualization import build_visualization_scene
 from tuba.visualization.bcf import export_bcf_topics, import_bcf_topics
 
@@ -23,7 +23,7 @@ class TestVisualizationBcf(unittest.TestCase):
         n1 = model.add_node([2.0, 0.0, 0.0])
         model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
         model.add_obstacle("box", "cuboid", min_point=[1.0, -0.1, -0.1], max_point=[2.0, 0.1, 0.1])
-        clashes = TrimeshClashEngine().check_model(model)
+        clashes = ClashEngine().check_model(model)
         return build_visualization_scene(model, clash_results=clashes, scene_id="scene_bcf")
 
     def test_export_bcf_topics_writes_markup_and_viewpoint_payloads(self):
@@ -70,7 +70,7 @@ class TestVisualizationBcf(unittest.TestCase):
         )
         result_state = result_state_from_fea_results(model=fixture.model, study=study, results=fixture.results)
         operating_state = create_operating_geometry_state(model=fixture.model, result_state=result_state)
-        clashes = TrimeshClashEngine().check_operating_state(
+        clashes = ClashEngine().check_operating_state(
             fixture.model,
             cold_state=create_cold_geometry_state(fixture.model),
             operating_state=operating_state,

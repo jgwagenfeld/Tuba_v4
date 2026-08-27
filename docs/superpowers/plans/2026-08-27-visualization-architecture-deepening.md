@@ -8,7 +8,7 @@
 
 **Tech stack:** Python 3.10+, pytest, JavaScript ES modules, Node's built-in test runner, existing Code_Aster/runtime contracts
 
-**Design source:** `docs/superpowers/specs/2026-07-29-visualization-publication-and-documentation-design.md`
+**Design source:** `docs/adr/0002-verified-results-and-visualization.md`
 
 ## Global constraints
 
