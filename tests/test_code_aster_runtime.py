@@ -138,14 +138,78 @@ class TestCodeAsterRuntime(unittest.TestCase):
     def test_beam_only_attestation_does_not_require_pipe_stress_table(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            identity = SolverInputIdentity(
+                "f" * 64,
+                "Hot",
+                "tuba.model.v4",
+                CODE_ASTER_COMPILER_ID,
+            )
             (root / "study_manifest.json").write_text(
-                '{"study": {"metadata": {"pipe_stress_exported": false}}}',
+                json.dumps(
+                    {
+                        "study": {
+                            "metadata": {"pipe_stress_exported": False},
+                            "solver_input_identity": identity.to_dict(),
+                        }
+                    }
+                ),
                 encoding="utf-8",
             )
 
             files = attested_code_aster_files(root)
 
         self.assertNotIn("study_sieq.csv", files)
+
+    def test_attested_files_reject_absent_manifest_identity(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study_manifest.json").write_text(
+                json.dumps({"study": {"metadata": {}}}),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "solver_input_identity"):
+                attested_code_aster_files(root)
+
+    def test_attested_files_reject_partial_manifest_identity(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "study": {
+                            "metadata": {},
+                            "solver_input_identity": {
+                                "compiler_id": CODE_ASTER_COMPILER_ID,
+                            },
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "solver_input_identity"):
+                attested_code_aster_files(root)
+
+    def test_attested_files_reject_missing_manifest_structure(self):
+        invalid_manifests = (
+            (None, "study_manifest"),
+            ({}, "study"),
+            ({"study": {}}, "metadata"),
+        )
+
+        for manifest, error in invalid_manifests:
+            with self.subTest(manifest=manifest):
+                with TemporaryDirectory() as tmpdir:
+                    root = Path(tmpdir)
+                    if manifest is not None:
+                        (root / "study_manifest.json").write_text(
+                            json.dumps(manifest),
+                            encoding="utf-8",
+                        )
+
+                    with self.assertRaisesRegex(ValueError, error):
+                        attested_code_aster_files(root)
 
     def test_manifest_attestation_artifacts_bind_metadata_to_identity_compiler(self):
         with TemporaryDirectory() as tmpdir:

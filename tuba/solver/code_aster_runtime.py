@@ -297,17 +297,18 @@ def attested_code_aster_files(work_dir: str | Path) -> tuple[str, ...]:
     manifest_path = Path(work_dir) / "study_manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return _legacy_expected_code_aster_artifact_files({})
-    study = manifest.get("study", {})
-    metadata = study.get("metadata", {})
-    metadata = metadata if isinstance(metadata, Mapping) else {}
-    identity = study.get("solver_input_identity")
-    if identity is None:
-        return _legacy_expected_code_aster_artifact_files(metadata)
-    if not isinstance(identity, Mapping) or not isinstance(identity.get("compiler_id"), str):
-        raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: compiler identity is invalid.")
-    return expected_code_aster_artifact_files(metadata, compiler_id=identity["compiler_id"])
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: {exc}") from exc
+    if not isinstance(manifest, Mapping):
+        raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: expected an object.")
+    study = manifest.get("study")
+    if not isinstance(study, Mapping):
+        raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: study is required.")
+    metadata = study.get("metadata")
+    if not isinstance(metadata, Mapping):
+        raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: metadata is required.")
+    identity = _attestation_identity(study.get("solver_input_identity"), manifest_path)
+    return expected_code_aster_artifact_files(metadata, compiler_id=identity.compiler_id)
 
 
 def expected_code_aster_artifact_files(
@@ -338,16 +339,6 @@ def expected_code_aster_artifact_files(
     return VOLUME_ATTESTED_CODE_ASTER_FILES + (
         ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
     )
-
-
-def _legacy_expected_code_aster_artifact_files(study_metadata: Mapping[str, Any]) -> tuple[str, ...]:
-    if study_metadata.get("mixed_analysis"):
-        compiler_id = MIXED_CODE_ASTER_COMPILER_ID
-    elif study_metadata.get("volume_analysis"):
-        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID
-    else:
-        compiler_id = CODE_ASTER_COMPILER_ID
-    return expected_code_aster_artifact_files(study_metadata, compiler_id=compiler_id)
 
 
 def validate_code_aster_execution_attestation_payload(
