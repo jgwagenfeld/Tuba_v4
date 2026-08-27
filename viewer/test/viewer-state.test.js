@@ -142,9 +142,9 @@ test("viewer reducer updates active result and geometry state controls", () => {
   const fixture = bundle();
   Object.assign(fixture.scene.overlays.find((overlay) => overlay.kind === "geometry_state").data, { load_case: "Hot", purpose: "visualization" });
   const state = createViewerState(fixture);
-  const next = reduceViewerState(state, { type: "setVisualDeformationScale", scale: 12.5 });
-  const result = reduceViewerState(next, { type: "setActiveResultState", resultStateId: "result_state:Hot" });
-  const geometry = reduceViewerState(result, { type: "setActiveGeometryState", geometryStateId: "geometry_state:Hot:visual_x50" });
+  const result = reduceViewerState(state, { type: "setActiveResultState", resultStateId: "result_state:Hot" });
+  const scaled = reduceViewerState(result, { type: "setVisualDeformationScale", scale: 12.5 });
+  const geometry = reduceViewerState(scaled, { type: "setActiveGeometryState", geometryStateId: "geometry_state:Hot:visual_x50" });
 
   assert.equal(geometry.visualDeformationScale, 50);
   assert.equal(geometry.activeResultStateId, "result_state:Hot");
