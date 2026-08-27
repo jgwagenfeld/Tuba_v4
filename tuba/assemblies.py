@@ -19,6 +19,9 @@ class RackBay:
     section: str
     material: str
     zone: str | None = None
+    column_section: str | None = None
+    longitudinal_section: str | None = None
+    transverse_section: str | None = None
 
     def to_patch(self) -> ModelPatch:
         if self.length <= 0.0 or self.width <= 0.0 or self.height <= 0.0:
@@ -49,7 +52,7 @@ class RackBay:
                     node_ids.append(local)
                     operations.append(AddNode(local_id=local, coords=point(ix, iy, z), reuse_existing=False))
 
-        def add_beam(local_id: str, n1: str, n2: str) -> None:
+        def add_beam(local_id: str, n1: str, n2: str, section: str | None) -> None:
             element_ids.append(local_id)
             operations.append(
                 AddElement(
@@ -57,7 +60,7 @@ class RackBay:
                     type="beam",
                     n1=n1,
                     n2=n2,
-                    section=self.section,
+                    section=section or self.section,
                     material=self.material,
                     id_prefix=f"{self.name}_beam",
                 )
@@ -71,15 +74,26 @@ class RackBay:
                         f"{self.name}_col_{beam_index}",
                         node_name(ix, iy, iz),
                         node_name(ix, iy, iz + 1),
+                        self.column_section,
                     )
                     beam_index += 1
 
         for level_number, z in enumerate(self.levels, start=1):
             iz = z_values.index(z)
             for iy in (0, 1):
-                add_beam(f"{self.name}_long_{level_number}_{iy}", node_name(0, iy, iz), node_name(1, iy, iz))
+                add_beam(
+                    f"{self.name}_long_{level_number}_{iy}",
+                    node_name(0, iy, iz),
+                    node_name(1, iy, iz),
+                    self.longitudinal_section,
+                )
             for ix in (0, 1):
-                add_beam(f"{self.name}_cross_{level_number}_{ix}", node_name(ix, 0, iz), node_name(ix, 1, iz))
+                add_beam(
+                    f"{self.name}_cross_{level_number}_{ix}",
+                    node_name(ix, 0, iz),
+                    node_name(ix, 1, iz),
+                    self.transverse_section,
+                )
 
         attachment_points = {}
         for level_number, z in enumerate(self.levels, start=1):

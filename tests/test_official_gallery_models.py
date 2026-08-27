@@ -14,6 +14,16 @@ def test_support_rack_gallery_model_has_a_semantic_rack_and_supported_pipe():
     assert {support.type for support in model.supports} >= {"anchor", "rest"}
 
 
+def test_support_rack_gallery_uses_distinct_member_sections():
+    model = gallery.build_support_rack_model()
+
+    beam_sections = {element.section for element in model.elements if element.type == "beam"}
+    pipe_sections = {element.section for element in model.elements if element.type.startswith("pipe")}
+
+    assert beam_sections == {"RackColumnIPE", "RackLongRHS", "RackCrossRHS"}
+    assert pipe_sections == {"DN100"}
+
+
 def test_autorouted_gallery_model_preserves_the_selected_route_for_review(tmp_path):
     builder = getattr(gallery, "build_autorouted_expansion_model", None)
     assert callable(builder)

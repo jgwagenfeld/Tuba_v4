@@ -215,15 +215,19 @@
         "pipe_rack_span",
         "pipe_outlet"
       ],
-      "SEC_RackSec": [
+      "SEC_RackColumnIPE": [
         "rack_A_beam_0",
         "rack_A_beam_1",
         "rack_A_beam_2",
-        "rack_A_beam_3",
-        "rack_A_beam_4",
-        "rack_A_beam_5",
+        "rack_A_beam_3"
+      ],
+      "SEC_RackCrossRHS": [
         "rack_A_beam_6",
         "rack_A_beam_7"
+      ],
+      "SEC_RackLongRHS": [
+        "rack_A_beam_4",
+        "rack_A_beam_5"
       ],
       "pipe_inlet": [
         "pipe_inlet"
@@ -446,7 +450,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v1",
-      "fingerprint": "0bb9e6120eee4fbe82b80bdf4957e8bf7f9a1c77aa7fdccdc7315ba63459f488",
+      "fingerprint": "5ba96420f29cfec1aec59fb1ab18872810b2d5e21926085b9f8eeedc442ad8ce",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -469,7 +473,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v1",
-      "fingerprint": "0bb9e6120eee4fbe82b80bdf4957e8bf7f9a1c77aa7fdccdc7315ba63459f488",
+      "fingerprint": "5ba96420f29cfec1aec59fb1ab18872810b2d5e21926085b9f8eeedc442ad8ce",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

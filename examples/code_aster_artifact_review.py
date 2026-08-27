@@ -178,12 +178,20 @@ def build_support_rack_model() -> Model:
         alpha=1.2e-5,
         allowable_stress={20.0: 137e6, 180.0: 120e6},
     )
+    model.add_ibeam_section("RackColumnIPE", "IPE160")
     model.add_rectangular_section(
-        "RackSec",
-        height_y=0.16,
-        height_z=0.16,
-        thickness_y=0.01,
-        thickness_z=0.01,
+        "RackLongRHS",
+        height_y=0.14,
+        height_z=0.08,
+        thickness_y=0.008,
+        thickness_z=0.008,
+    )
+    model.add_rectangular_section(
+        "RackCrossRHS",
+        height_y=0.10,
+        height_z=0.06,
+        thickness_y=0.006,
+        thickness_z=0.006,
     )
     model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
     ModelTransaction(model).apply(
@@ -194,9 +202,12 @@ def build_support_rack_model() -> Model:
             width=2.0,
             height=3.0,
             levels=(3.0,),
-            section="RackSec",
+            section="RackLongRHS",
             material="Steel",
             zone="north",
+            column_section="RackColumnIPE",
+            longitudinal_section="RackLongRHS",
+            transverse_section="RackCrossRHS",
         ).to_patch()
     )
 
