@@ -6,7 +6,12 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import tuba.solver.code_aster_runtime as runtime
-from tuba.analysis.provenance import SolverInputIdentity
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
+    VOLUME_CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
+)
 from tuba.solver.code_aster_runtime import (
     CodeAsterExecution,
     CodeAsterRuntimeCandidate,
@@ -50,23 +55,62 @@ class TestCodeAsterRuntime(unittest.TestCase):
             "study_sieq.csv",
         }
 
-        self.assertEqual(set(runtime.expected_code_aster_artifact_files({})), standard)
         self.assertEqual(
-            set(runtime.expected_code_aster_artifact_files({"pipe_stress_exported": False})),
+            set(runtime.expected_code_aster_artifact_files({}, compiler_id=CODE_ASTER_COMPILER_ID)),
+            standard,
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"pipe_stress_exported": False},
+                    compiler_id=CODE_ASTER_COMPILER_ID,
+                )
+            ),
             standard - {"study_sieq.csv"},
         )
         self.assertEqual(
-            set(runtime.expected_code_aster_artifact_files({"volume_analysis": True})),
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"mixed_analysis": True},
+                    compiler_id=MIXED_CODE_ASTER_COMPILER_ID,
+                )
+            ),
+            standard,
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"volume_analysis": True},
+                    compiler_id=VOLUME_CODE_ASTER_COMPILER_ID,
+                )
+            ),
             volume | {"study_sigm.csv"},
         )
         self.assertEqual(
             set(
                 runtime.expected_code_aster_artifact_files(
-                    {"volume_analysis": True, "tensor_stress_exported": False}
+                    {"volume_analysis": True, "tensor_stress_exported": False},
+                    compiler_id=VOLUME_CODE_ASTER_COMPILER_ID,
                 )
             ),
             volume,
         )
+
+    def test_expected_attestation_artifacts_reject_compiler_metadata_contradictions(self):
+        contradictions = (
+            ({"volume_analysis": True}, CODE_ASTER_COMPILER_ID),
+            ({"mixed_analysis": True}, CODE_ASTER_COMPILER_ID),
+            ({}, MIXED_CODE_ASTER_COMPILER_ID),
+            ({"volume_analysis": True}, MIXED_CODE_ASTER_COMPILER_ID),
+            ({}, VOLUME_CODE_ASTER_COMPILER_ID),
+            ({"mixed_analysis": True}, VOLUME_CODE_ASTER_COMPILER_ID),
+            ({}, "tuba.code_aster.unknown.v1"),
+        )
+
+        for metadata, compiler_id in contradictions:
+            with self.subTest(metadata=metadata, compiler_id=compiler_id):
+                with self.assertRaisesRegex(ValueError, "compiler"):
+                    runtime.expected_code_aster_artifact_files(metadata, compiler_id=compiler_id)
 
     def test_pure_attestation_validator_returns_the_bound_identity(self):
         identity = SolverInputIdentity("f" * 64, "Hot", "tuba.model.v4", "tuba.code_aster.v1")
@@ -102,6 +146,30 @@ class TestCodeAsterRuntime(unittest.TestCase):
             files = attested_code_aster_files(root)
 
         self.assertNotIn("study_sieq.csv", files)
+
+    def test_manifest_attestation_artifacts_bind_metadata_to_identity_compiler(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            identity = SolverInputIdentity(
+                "f" * 64,
+                "Hot",
+                "tuba.model.v4",
+                CODE_ASTER_COMPILER_ID,
+            )
+            (root / "study_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "study": {
+                            "metadata": {"volume_analysis": True},
+                            "solver_input_identity": identity.to_dict(),
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "compiler"):
+                attested_code_aster_files(root)
 
     def test_successful_solve_writes_observed_execution_attestation(self):
         with TemporaryDirectory() as tmpdir:

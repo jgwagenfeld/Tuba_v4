@@ -76,7 +76,10 @@ class TestVisualizationResults(unittest.TestCase):
                     "solver_input_identity": identity.to_dict(),
                     "artifacts": {
                         filename: {"size_bytes": 1, "sha256": "0" * 64}
-                        for filename in expected_code_aster_artifact_files(study.metadata)
+                        for filename in expected_code_aster_artifact_files(
+                            study.metadata,
+                            compiler_id=identity.compiler_id,
+                        )
                     },
                 },
             },

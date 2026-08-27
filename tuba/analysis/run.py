@@ -81,7 +81,10 @@ class AnalysisRun:
             raise ValueError("AnalysisRun result state requires result_trust == 'verified'.")
         attestation_identity = validate_code_aster_execution_attestation_payload(
             self.result_state.metadata.get("solve_attestation"),
-            expected_artifacts=expected_code_aster_artifact_files(self.study.metadata),
+            expected_artifacts=expected_code_aster_artifact_files(
+                self.study.metadata,
+                compiler_id=identity.compiler_id,
+            ),
         )
         if attestation_identity != identity:
             raise ValueError("AnalysisRun solve attestation solver input identity does not match.")

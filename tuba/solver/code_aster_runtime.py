@@ -14,7 +14,13 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Mapping, Sequence
 
-from tuba.analysis.provenance import SolverInputIdentity, require_matching_solver_input_identities
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
+    VOLUME_CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
+    require_matching_solver_input_identities,
+)
 
 
 DEFAULT_DOCKER_IMAGE = "simvia/code_aster:stable"
@@ -292,20 +298,56 @@ def attested_code_aster_files(work_dir: str | Path) -> tuple[str, ...]:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return expected_code_aster_artifact_files({})
-    metadata = manifest.get("study", {}).get("metadata", {})
-    return expected_code_aster_artifact_files(metadata if isinstance(metadata, Mapping) else {})
+        return _legacy_expected_code_aster_artifact_files({})
+    study = manifest.get("study", {})
+    metadata = study.get("metadata", {})
+    metadata = metadata if isinstance(metadata, Mapping) else {}
+    identity = study.get("solver_input_identity")
+    if identity is None:
+        return _legacy_expected_code_aster_artifact_files(metadata)
+    if not isinstance(identity, Mapping) or not isinstance(identity.get("compiler_id"), str):
+        raise ValueError(f"Invalid Code_Aster study manifest {manifest_path}: compiler identity is invalid.")
+    return expected_code_aster_artifact_files(metadata, compiler_id=identity["compiler_id"])
 
 
-def expected_code_aster_artifact_files(study_metadata: Mapping[str, Any]) -> tuple[str, ...]:
-    """Return the exact attested artifact inventory selected by study metadata."""
-    if not study_metadata.get("volume_analysis"):
+def expected_code_aster_artifact_files(
+    study_metadata: Mapping[str, Any],
+    *,
+    compiler_id: str,
+) -> tuple[str, ...]:
+    """Return the exact inventory selected by a consistent compiler/metadata pair."""
+    mixed_analysis = bool(study_metadata.get("mixed_analysis"))
+    volume_analysis = bool(study_metadata.get("volume_analysis"))
+    compiler_contracts = {
+        CODE_ASTER_COMPILER_ID: (False, False, False),
+        MIXED_CODE_ASTER_COMPILER_ID: (True, False, False),
+        VOLUME_CODE_ASTER_COMPILER_ID: (False, True, True),
+    }
+    try:
+        expected_mixed, expected_volume, volume_compiler = compiler_contracts[compiler_id]
+    except KeyError:
+        raise ValueError(f"Unknown Code_Aster compiler identity {compiler_id!r}.")
+    if (mixed_analysis, volume_analysis) != (expected_mixed, expected_volume):
+        raise ValueError(
+            f"Code_Aster compiler identity {compiler_id!r} contradicts study analysis metadata."
+        ) from None
+    if not volume_compiler:
         if study_metadata.get("pipe_stress_exported") is False:
             return tuple(name for name in ATTESTED_CODE_ASTER_FILES if name != "study_sieq.csv")
         return ATTESTED_CODE_ASTER_FILES
     return VOLUME_ATTESTED_CODE_ASTER_FILES + (
         ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
     )
+
+
+def _legacy_expected_code_aster_artifact_files(study_metadata: Mapping[str, Any]) -> tuple[str, ...]:
+    if study_metadata.get("mixed_analysis"):
+        compiler_id = MIXED_CODE_ASTER_COMPILER_ID
+    elif study_metadata.get("volume_analysis"):
+        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID
+    else:
+        compiler_id = CODE_ASTER_COMPILER_ID
+    return expected_code_aster_artifact_files(study_metadata, compiler_id=compiler_id)
 
 
 def validate_code_aster_execution_attestation_payload(

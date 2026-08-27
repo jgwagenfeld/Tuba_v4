@@ -7,6 +7,7 @@ import pytest
 from tests.reporting_fixtures import build_review_model
 from tuba.analysis import AnalysisRun, build_solver_input_identity
 from tuba.analysis.mesh import AnalysisMesh
+from tuba.analysis.provenance import VOLUME_CODE_ASTER_COMPILER_ID
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.reporting import EngineeringReviewError, build_engineering_review
@@ -111,7 +112,10 @@ def code_aster_run(
                 "solver_input_identity": identity.to_dict(),
                 "artifacts": {
                     filename: {"size_bytes": 1, "sha256": "0" * 64}
-                    for filename in expected_code_aster_artifact_files(study.metadata)
+                    for filename in expected_code_aster_artifact_files(
+                        study.metadata,
+                        compiler_id=identity.compiler_id,
+                    )
                 },
             },
         },
@@ -197,6 +201,7 @@ def test_analysis_run_cannot_mix_with_lower_level_review_records(
         ("missing_artifact", "artifact inventory"),
         ("extra_artifact", "artifact inventory"),
         ("invented_artifact", "artifact inventory"),
+        ("compiler_metadata", "compiler"),
         ("mesh_revision", "model revision"),
         ("raw_load_case", "load case"),
     ),
@@ -278,6 +283,17 @@ def _invalid_analysis_run(run: AnalysisRun, defect: str) -> AnalysisRun:
             run,
             artifacts={"invented.rmed": {"size_bytes": 1, "sha256": "0" * 64}},
         )
+    if defect == "compiler_metadata":
+        metadata = {**run.study.metadata, "volume_analysis": True}
+        artifacts = {
+            filename: {"size_bytes": 1, "sha256": "0" * 64}
+            for filename in expected_code_aster_artifact_files(
+                metadata,
+                compiler_id=VOLUME_CODE_ASTER_COMPILER_ID,
+            )
+        }
+        changed = _replace_attestation(run, artifacts=artifacts)
+        return replace(changed, study=replace(run.study, metadata=metadata))
     if defect == "mesh_revision":
         return replace(run, analysis_mesh=replace(run.analysis_mesh, model_revision=5))
     if defect == "raw_load_case":
