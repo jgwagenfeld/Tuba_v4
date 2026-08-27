@@ -47,6 +47,8 @@ def _candidate_geometry(
         out_dir = out_vec / out_len
         angle = _turn_angle_degrees(in_dir, out_dir)
         if angle <= 1e-6:
+            geometry.append(_CandidateGeometry("straight", _as_point(current), _as_point(corner)))
+            current = corner
             continue
 
         radius = _bend_radius(model, request, _bend_segment_for_corner(candidate.segments, candidate.points[idx]))

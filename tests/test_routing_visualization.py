@@ -96,6 +96,30 @@ class TestRoutingVisualization(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "explicit bend radius"):
             _candidate_render_points(model, request, candidate)
 
+    def test_candidate_render_points_rejects_infeasible_bend_after_collinear_point(self):
+        model = Model(project_name="RoutingVisualizationCollinearBend")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        request = PipeRouteRequest(
+            id="P-100",
+            start=RouteEndpoint("A", (0.0, 0.0, 0.0)),
+            goal=RouteEndpoint("B", (11.0, 10.0, 0.0)),
+            section="PipeSec",
+            material="Steel",
+            constraints=RoutingConstraints(min_bend_radius=2.0),
+        )
+        points = [(0.0, 0.0, 0.0), (10.0, 0.0, 0.0), (11.0, 0.0, 0.0), (11.0, 10.0, 0.0)]
+        candidate = PipeRouteCandidate(
+            request_id="P-100",
+            points=points,
+            segments=build_segments(points, request.constraints),
+            cost=21.0,
+            cost_breakdown={"length": 21.0, "bends": 1.0},
+        )
+
+        with self.assertRaisesRegex(ValueError, "needs tangent length"):
+            _candidate_render_points(model, request, candidate)
+
     def test_model_pipe_bend_render_points_use_bend_geometry(self):
         model = Model(project_name="RoutingVisualizationAppliedBends")
         model.add_material("Steel", E=2.0e11, nu=0.3)
