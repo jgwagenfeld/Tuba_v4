@@ -332,6 +332,28 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
         return MixedCodeAsterStudyExporter().export_analysis_study(model, load_case_name, output_dir)
 
+    def export_volume_study(
+        self,
+        model: TubaModel,
+        load_case_name: str | None,
+        output_dir: str | Path,
+        *,
+        element_ids,
+        max_element_size: float,
+        element_order: int = 2,
+    ) -> AnalysisStudy:
+        """Export a native Gmsh pipe-volume study without claiming solver results."""
+        from tuba.solver.aster_volume import PipeVolumeStudyExporter
+
+        return PipeVolumeStudyExporter().export_analysis_study(
+            model,
+            load_case_name,
+            output_dir,
+            element_ids=element_ids,
+            max_element_size=max_element_size,
+            element_order=element_order,
+        )
+
     def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> AnalysisRun:
         """Execute an exported study and return its verified analysis run."""
         self._require_solve_ready_study(study)
@@ -356,7 +378,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
     def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
         metadata = study.metadata
-        if metadata.get("mixed_analysis") and not metadata.get("code_aster_solve_ready"):
+        if metadata.get("result_status") == "export_only" and not metadata.get("code_aster_solve_ready"):
             reason = metadata.get("runtime_blocker") or (
                 "Mixed Code_Aster studies are currently export-only until the "
                 "mixed STEP solve/import path has real solver proof."

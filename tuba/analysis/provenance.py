@@ -11,6 +11,7 @@ from typing import Any
 MODEL_SCHEMA_ID = "tuba.model.v4"
 CODE_ASTER_COMPILER_ID = "tuba.code_aster.v1"
 MIXED_CODE_ASTER_COMPILER_ID = "tuba.code_aster.mixed.v1"
+VOLUME_CODE_ASTER_COMPILER_ID = "tuba.code_aster.volume.v1"
 
 _SOLVER_MODEL_KEYS = (
     "materials",
@@ -57,14 +58,16 @@ def build_solver_input_identity(
     load_case: str | None,
     *,
     compiler_id: str = CODE_ASTER_COMPILER_ID,
+    compiler_inputs: dict[str, Any] | None = None,
 ) -> SolverInputIdentity:
     """Fingerprint the exact model inputs interpreted by a Code_Aster compiler."""
     resolved_name, resolved_case = model.resolve_load_case(load_case)
     model_data = model.to_dict()
+    model_keys = _SOLVER_MODEL_KEYS + (("tees",) if compiler_id == VOLUME_CODE_ASTER_COMPILER_ID else ())
     payload = {
         "schema_id": MODEL_SCHEMA_ID,
         "compiler_id": compiler_id,
-        "model": {key: model_data.get(key) for key in _SOLVER_MODEL_KEYS},
+        "model": {key: model_data.get(key) for key in model_keys},
         "resolved_case": {
             "name": resolved_name,
             "gravity": bool(resolved_case.gravity),
@@ -75,6 +78,8 @@ def build_solver_input_identity(
             "nodal_forces": [force.to_dict() for force in resolved_case.nodal_forces],
         },
     }
+    if compiler_inputs is not None:
+        payload["compiler_inputs"] = dict(compiler_inputs)
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return SolverInputIdentity(
         fingerprint=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
@@ -91,6 +96,7 @@ def validate_solver_input_identity(
     context: str,
     expected_load_case: str,
     expected_compiler_id: str,
+    compiler_inputs: dict[str, Any] | None = None,
 ) -> None:
     """Validate a known identity against its owning record and current model."""
     if identity is None:
@@ -109,6 +115,7 @@ def validate_solver_input_identity(
         model,
         expected_load_case,
         compiler_id=expected_compiler_id,
+        compiler_inputs=compiler_inputs,
     )
     if current != identity:
         raise ValueError(

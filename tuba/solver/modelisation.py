@@ -11,10 +11,18 @@ model, which is exactly the sort of duplication that drifts. This module owns it
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, avoids a solver->model import cycle
     from tuba.model import Support, TubaModel
+
+
+class PipeModelization(str, Enum):
+    """Engineer-selectable pipe idealization."""
+
+    TUYAU_3M = "TUYAU_3M"
+    SOLID_3D = "3D"
 
 
 def discrete_support_group(node: str) -> str:

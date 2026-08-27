@@ -12,6 +12,7 @@ from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
     MIXED_CODE_ASTER_COMPILER_ID,
+    VOLUME_CODE_ASTER_COMPILER_ID,
     SolverInputIdentity,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
@@ -107,11 +108,12 @@ def load_and_validate_artifact_chain(
         )
 
     sidecar, sidecar_identity = _load_sidecar(root)
-    compiler_id = (
-        MIXED_CODE_ASTER_COMPILER_ID
-        if loaded_study.metadata.get("mixed_analysis")
-        else CODE_ASTER_COMPILER_ID
-    )
+    if loaded_study.metadata.get("mixed_analysis"):
+        compiler_id = MIXED_CODE_ASTER_COMPILER_ID
+    elif loaded_study.metadata.get("volume_analysis"):
+        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID
+    else:
+        compiler_id = CODE_ASTER_COMPILER_ID
     _validate_artifact_identities(
         model=model,
         study=loaded_study,
@@ -120,6 +122,7 @@ def load_and_validate_artifact_chain(
         sidecar=sidecar,
         sidecar_identity=sidecar_identity,
         compiler_id=compiler_id,
+        compiler_inputs=loaded_study.metadata.get("compiler_inputs"),
     )
     return loaded_study, manifest_study, analysis_mesh, sidecar
 
@@ -182,6 +185,7 @@ def _validate_artifact_identities(
     sidecar: dict[str, Any] | None,
     sidecar_identity: SolverInputIdentity | None,
     compiler_id: str,
+    compiler_inputs: dict[str, Any] | None,
 ) -> None:
     identities: list[tuple[str, SolverInputIdentity | None]] = [
         (f"Code_Aster study {study.id!r}", study.solver_input_identity),
@@ -230,6 +234,7 @@ def _validate_artifact_identities(
             context=context,
             expected_load_case=study.load_case,
             expected_compiler_id=compiler_id,
+            compiler_inputs=compiler_inputs,
         )
     for index, (left_context, left_identity) in enumerate(identities):
         for right_context, right_identity in identities[index + 1 :]:

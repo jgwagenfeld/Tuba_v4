@@ -61,6 +61,7 @@ def build_pipe_volume_mesh(
     previous_model = gmsh.model.getCurrent() if not owned_session else ""
     created_model = f"tuba_pipe_volume_{uuid4().hex}"
     option_names = (
+        "General.Terminal",
         "Mesh.MeshSizeMin",
         "Mesh.MeshSizeMax",
         "Mesh.MeshSizeFromCurvature",
@@ -76,6 +77,7 @@ def build_pipe_volume_mesh(
         if owned_session:
             gmsh.initialize()
         gmsh.model.add(created_model)
+        gmsh.option.setNumber("General.Terminal", 0)
         if selection.tee_node is None:
             volume_tags, surface_groups = _build_straight_geometry(selection.pipes[0])
         else:
