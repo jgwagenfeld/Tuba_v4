@@ -7,7 +7,8 @@ from typing import Iterable
 
 import numpy as np
 
-from tuba.model import TubaModel, make_bend_geometry, sample_bend_geometry
+from tuba.model import TubaModel, sample_bend_geometry
+from tuba.routing.adapter import candidate_render_points as _candidate_render_points
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, PipeRouteResult, Point3D
 
 try:
@@ -212,67 +213,6 @@ def _add_tube_path(
     plotter.add_mesh(line.tube(radius=radius, n_sides=24, capping=True), color=color, opacity=opacity, label=label)
 
 
-def _candidate_render_points(
-    model: TubaModel,
-    request: PipeRouteRequest | None,
-    candidate: PipeRouteCandidate,
-) -> list[Point3D]:
-    if len(candidate.points) < 3:
-        return list(candidate.points)
-    rendered: list[Point3D] = [candidate.points[0]]
-    current = np.asarray(candidate.points[0], dtype=float)
-    for idx in range(1, len(candidate.points) - 1):
-        corner = np.asarray(candidate.points[idx], dtype=float)
-        nxt = np.asarray(candidate.points[idx + 1], dtype=float)
-        in_vec = corner - current
-        out_vec = nxt - corner
-        in_len = float(np.linalg.norm(in_vec))
-        out_len = float(np.linalg.norm(out_vec))
-        if in_len <= 1e-9 or out_len <= 1e-9:
-            continue
-        in_dir = in_vec / in_len
-        out_dir = out_vec / out_len
-        angle = _turn_angle_degrees(in_dir, out_dir)
-        if angle <= 1e-6:
-            rendered.append(_as_point(corner))
-            current = corner
-            continue
-        bend_segment = _bend_segment_for_corner(candidate, candidate.points[idx])
-        bend_radius = _bend_radius(model, request, bend_segment)
-        if bend_radius is None:
-            raise ValueError(
-                "Route visualization requires an explicit bend radius. "
-                "Set request.constraints.min_bend_radius or provide bend_radius on the bend segment."
-            )
-        tangent = bend_radius * np.tan(np.radians(angle) / 2.0)
-        if tangent >= in_len - 1e-9 or tangent >= out_len - 1e-9:
-            raise ValueError(
-                f"Route bend at {candidate.points[idx]!r} needs tangent length "
-                f"{tangent:.6g}, but adjacent straight lengths are {in_len:.6g} and {out_len:.6g}."
-            )
-        entry = corner - in_dir * tangent
-        exit = corner + out_dir * tangent
-        normal = np.cross(in_dir, out_dir)
-        geometry = make_bend_geometry(
-            start=entry,
-            end=exit,
-            radius=bend_radius,
-            angle=angle,
-            normal=normal,
-            start_tangent=in_dir,
-            end_tangent=out_dir,
-            generation_mode="autoroute",
-        )
-        arc_points = sample_bend_geometry(entry, geometry, n_segments=max(6, int(np.ceil(angle / 10.0))))
-        if np.linalg.norm(np.asarray(rendered[-1]) - entry) > 1e-9:
-            rendered.append(_as_point(entry))
-        rendered.extend(_as_point(point) for point in arc_points[1:])
-        current = exit
-    if np.linalg.norm(np.asarray(rendered[-1]) - np.asarray(candidate.points[-1], dtype=float)) > 1e-9:
-        rendered.append(candidate.points[-1])
-    return rendered
-
-
 def _add_endpoint(plotter: "pv.Plotter", point: Point3D, color: str, label: str) -> None:
     clean_point = (float(point[0]), float(point[1]), float(point[2]))
     plotter.add_mesh(pv.Sphere(radius=0.09, center=clean_point), color=color, label=label)
@@ -329,27 +269,6 @@ def _reserved_envelope_bounds(candidate: PipeRouteCandidate) -> tuple[np.ndarray
     if np.any(hi <= lo):
         return None
     return lo, hi
-
-
-def _bend_segment_for_corner(candidate: PipeRouteCandidate, point: Point3D):
-    target = np.asarray(point, dtype=float)
-    for segment in candidate.segments:
-        if segment.kind == "bend" and np.allclose(np.asarray(segment.start), target, atol=1e-6):
-            return segment
-    return None
-
-
-def _bend_radius(model: TubaModel, request: PipeRouteRequest | None, bend_segment) -> float | None:
-    if bend_segment is not None and bend_segment.bend_radius is not None:
-        return float(bend_segment.bend_radius)
-    if request is not None and request.constraints.min_bend_radius is not None:
-        return float(request.constraints.min_bend_radius)
-    return None
-
-
-def _turn_angle_degrees(in_dir: np.ndarray, out_dir: np.ndarray) -> float:
-    cosang = float(np.clip(np.dot(in_dir, out_dir), -1.0, 1.0))
-    return round(float(np.degrees(np.arccos(cosang))), 6)
 
 
 def _as_point(point) -> Point3D:

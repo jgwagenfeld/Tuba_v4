@@ -3,12 +3,116 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
-from tuba.model import TubaModel, make_bend_geometry
+from tuba.model import BendGeometry, TubaModel, make_bend_geometry, sample_bend_geometry
 from tuba.patches import AddElement, AddNode, AddSupport, ModelPatch, ModelTransaction
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, Point3D, RouteSegment
+
+
+@dataclass(frozen=True)
+class _CandidateGeometry:
+    kind: Literal["straight", "bend"]
+    start: Point3D
+    end: Point3D
+    bend_radius: float | None = None
+    bend_angle: float | None = None
+    bend_geometry: BendGeometry | None = None
+
+
+def _candidate_geometry(
+    model: TubaModel,
+    candidate: PipeRouteCandidate,
+    request: PipeRouteRequest,
+) -> list[_CandidateGeometry]:
+    if len(candidate.points) < 2:
+        return []
+
+    geometry: list[_CandidateGeometry] = []
+    current = np.asarray(candidate.points[0], dtype=float)
+    for idx in range(1, len(candidate.points) - 1):
+        corner = np.asarray(candidate.points[idx], dtype=float)
+        nxt = np.asarray(candidate.points[idx + 1], dtype=float)
+        in_vec = corner - current
+        out_vec = nxt - corner
+        in_len = float(np.linalg.norm(in_vec))
+        out_len = float(np.linalg.norm(out_vec))
+        if in_len <= 1e-9 or out_len <= 1e-9:
+            continue
+
+        in_dir = in_vec / in_len
+        out_dir = out_vec / out_len
+        angle = _turn_angle_degrees(in_dir, out_dir)
+        if angle <= 1e-6:
+            continue
+
+        radius = _bend_radius(model, request, _bend_segment_for_corner(candidate.segments, candidate.points[idx]))
+        tangent = radius * math.tan(math.radians(angle) / 2.0)
+        if tangent >= in_len - 1e-9 or tangent >= out_len - 1e-9:
+            raise ValueError(
+                f"Route bend at {candidate.points[idx]!r} needs tangent length "
+                f"{tangent:.6g}, but adjacent straight lengths are {in_len:.6g} and {out_len:.6g}."
+            )
+
+        entry = corner - in_dir * tangent
+        exit = corner + out_dir * tangent
+        geometry.append(_CandidateGeometry("straight", _as_point(current), _as_point(entry)))
+        geometry.append(
+            _CandidateGeometry(
+                "bend",
+                _as_point(entry),
+                _as_point(exit),
+                bend_radius=radius,
+                bend_angle=angle,
+                bend_geometry=make_bend_geometry(
+                    start=entry,
+                    end=exit,
+                    radius=radius,
+                    angle=angle,
+                    normal=np.cross(in_dir, out_dir),
+                    start_tangent=in_dir,
+                    end_tangent=out_dir,
+                    generation_mode="autoroute",
+                ),
+            )
+        )
+        current = exit
+
+    geometry.append(_CandidateGeometry("straight", _as_point(current), candidate.points[-1]))
+    return geometry
+
+
+def candidate_render_points(
+    model: TubaModel,
+    request: PipeRouteRequest | None,
+    candidate: PipeRouteCandidate,
+) -> list[Point3D]:
+    """Expand a candidate into explicit bend geometry for route rendering."""
+    if len(candidate.points) < 3:
+        return list(candidate.points)
+    if request is None:
+        raise ValueError("Route visualization requires a PipeRouteRequest for bend geometry.")
+
+    rendered: list[Point3D] = []
+    for segment in _candidate_geometry(model, candidate, request):
+        if not rendered:
+            rendered.append(segment.start)
+        if segment.kind == "straight":
+            if np.linalg.norm(np.asarray(rendered[-1]) - np.asarray(segment.end)) > 1e-9:
+                rendered.append(segment.end)
+            continue
+        if segment.bend_geometry is None:
+            raise ValueError("Route visualization requires explicit bend geometry.")
+        arc_points = sample_bend_geometry(
+            segment.start,
+            segment.bend_geometry,
+            n_segments=max(6, int(np.ceil(segment.bend_angle / 10.0))),
+        )
+        rendered.extend(_as_point(point) for point in arc_points[1:])
+    return rendered
 
 
 def build_candidate_patch(
@@ -110,75 +214,38 @@ def build_candidate_patch(
         current_point = target
         current_name = target_name
 
-    for idx in range(1, len(candidate.points) - 1):
-        corner = np.asarray(candidate.points[idx], dtype=float)
-        nxt = np.asarray(candidate.points[idx + 1], dtype=float)
-        in_vec = corner - current_point
-        out_vec = nxt - corner
-        in_len = float(np.linalg.norm(in_vec))
-        out_len = float(np.linalg.norm(out_vec))
-        if in_len <= 1e-9 or out_len <= 1e-9:
+    for segment in _candidate_geometry(model, candidate, request):
+        if segment.kind == "straight":
+            add_straight_span(segment.end, next_node_name())
             continue
 
-        in_dir = in_vec / in_len
-        out_dir = out_vec / out_len
-        angle = _turn_angle_degrees(in_dir, out_dir)
-        if angle <= 1e-6:
-            continue
-
-        bend_segment = _bend_segment_for_corner(candidate.segments, candidate.points[idx])
-        radius = _bend_radius(model, request, bend_segment)
-        tangent = radius * math.tan(math.radians(angle) / 2.0)
-        if tangent >= in_len - 1e-9 or tangent >= out_len - 1e-9:
-            raise ValueError(
-                f"Route bend at {candidate.points[idx]!r} needs tangent length "
-                f"{tangent:.6g}, but adjacent straight lengths are {in_len:.6g} and {out_len:.6g}."
-            )
-
-        bend_entry = _as_point(corner - in_dir * tangent)
-        bend_exit = _as_point(corner + out_dir * tangent)
-        bend_normal = np.cross(in_dir, out_dir)
-
-        entry_name = next_node_name()
-        add_straight_span(bend_entry, entry_name)
-
+        if segment.bend_radius is None or segment.bend_angle is None or segment.bend_geometry is None:
+            raise ValueError("Route bends require explicit bend radius and geometry.")
         exit_name = next_node_name()
-        operations.append(AddNode(local_id=exit_name, coords=bend_exit))
+        operations.append(AddNode(local_id=exit_name, coords=segment.end))
         operations.append(
             AddElement(
                 local_id=f"route_element_{element_index}",
                 type="pipe_bend",
-                n1=entry_name,
+                n1=current_name,
                 n2=exit_name,
                 section=request.section,
                 material=request.material,
-                bend_radius=radius,
-                bend_angle=angle,
-                bend_geometry=make_bend_geometry(
-                    start=bend_entry,
-                    end=bend_exit,
-                    radius=radius,
-                    angle=angle,
-                    normal=bend_normal,
-                    start_tangent=in_dir,
-                    end_tangent=out_dir,
-                    generation_mode="autoroute",
-                ),
+                bend_radius=segment.bend_radius,
+                bend_angle=segment.bend_angle,
+                bend_geometry=segment.bend_geometry,
                 route_id=request.id,
                 station_start=station,
-                station_end=station + radius * math.radians(abs(angle)),
+                station_end=station + segment.bend_radius * math.radians(abs(segment.bend_angle)),
                 id_prefix="pipe_bend",
             )
         )
         element_index += 1
-        station += radius * math.radians(abs(angle))
-        current_point = np.asarray(bend_exit, dtype=float)
+        station += segment.bend_radius * math.radians(abs(segment.bend_angle))
+        current_point = np.asarray(segment.end, dtype=float)
         current_name = exit_name
         if spacing is not None:
             distance_since_support = 0.0
-
-    end_name = next_node_name()
-    add_straight_span(candidate.points[-1], end_name)
 
     return ModelPatch(
         operations=operations,

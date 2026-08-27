@@ -6,7 +6,6 @@ from tuba.routing.expansion import ExpansionLoopGenerator
 from tuba.routing.hybrid import ExpansionAwareRouter
 from tuba.routing.network import NetworkRouter
 from tuba.routing.plan import RoutePlan
-from tuba.routing.planner import AStarPipePlanner, PipePlanner, SearchState
 from tuba.routing.cost_model import CostTerm, RouteCostBreakdown, RouteCostModel
 from tuba.routing.spaces import RoutingSpace, RoutingZone
 from tuba.routing.thermal import (
@@ -36,9 +35,6 @@ __all__ = [
     "ExpansionLoopGenerator",
     "NetworkRouter",
     "RoutePlan",
-    "AStarPipePlanner",
-    "PipePlanner",
-    "SearchState",
     "CostTerm",
     "RouteCostBreakdown",
     "RouteCostModel",

@@ -2,7 +2,6 @@ import unittest
 
 from tuba import Model
 from tuba.routing import GridRouter
-from tuba.routing.planner import AStarPipePlanner, PipePlanner, SearchState
 from tuba.routing.types import (
     PipeRouteRequest,
     RouteEndpoint,
@@ -35,23 +34,6 @@ def _req(start=(0.0, 0.0, 0.0), goal=(4.0, 0.0, 0.0), **constraint_kwargs):
 
 
 class TestGridRouter(unittest.TestCase):
-    def test_astar_pipe_planner_uses_grid_router_interface(self):
-        planner = AStarPipePlanner(RoutingGridSpec(cell_size=1.0, margin=1.0))
-
-        self.assertIsInstance(planner, PipePlanner)
-        result = planner.plan_pipe(_base_model(), _req(goal=(3.0, 0.0, 0.0)))
-
-        self.assertIsNotNone(result.selected)
-        self.assertEqual(result.selected.points, [(0.0, 0.0, 0.0), (3.0, 0.0, 0.0)])
-
-    def test_search_state_tracks_direction_and_straight_run(self):
-        state = SearchState(cell=(1, 0, 0), incoming=(1, 0, 0), straight_run_m=2.0)
-
-        self.assertEqual(state.cell, (1, 0, 0))
-        self.assertEqual(state.incoming, (1, 0, 0))
-        self.assertEqual(state.straight_run_m, 2.0)
-        self.assertEqual(len({state}), 1)
-
     def test_direct_route_empty_space(self):
         router = GridRouter(RoutingGridSpec(cell_size=1.0, margin=1.0))
         result = router.route(_base_model(), _req(goal=(3.0, 0.0, 0.0)))

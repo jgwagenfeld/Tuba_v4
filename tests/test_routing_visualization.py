@@ -12,11 +12,39 @@ from tuba.routing.types import (
     RoutingConstraints,
 )
 from tuba.routing.postprocess import build_segments
-from tuba.routing.adapter import apply_candidate_to_model
+from tuba.routing.adapter import apply_candidate_to_model, candidate_render_points
 from tuba.routing.visualization import _candidate_render_points, _element_render_points, build_route_plotter
 
 
 class TestRoutingVisualization(unittest.TestCase):
+    def test_visualization_uses_adapter_owned_candidate_render_geometry(self):
+        self.assertIs(_candidate_render_points, candidate_render_points)
+
+        model = Model(project_name="RoutingVisualizationAdapterGeometry")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        request = PipeRouteRequest(
+            id="P-100",
+            start=RouteEndpoint("A", (0.0, 0.0, 0.0)),
+            goal=RouteEndpoint("B", (2.0, 2.0, 0.0)),
+            section="PipeSec",
+            material="Steel",
+            constraints=RoutingConstraints(min_bend_radius=0.5),
+        )
+        points = [(0.0, 0.0, 0.0), (2.0, 0.0, 0.0), (2.0, 2.0, 0.0)]
+        candidate = PipeRouteCandidate(
+            request_id="P-100",
+            points=points,
+            segments=build_segments(points, request.constraints),
+            cost=4.0,
+            cost_breakdown={"length": 4.0, "bends": 1.0},
+        )
+
+        render_points = _candidate_render_points(model, request, candidate)
+
+        self.assertNotIn((2.0, 0.0, 0.0), render_points)
+        self.assertTrue(any(np.allclose(point, (1.5, 0.0, 0.0)) for point in render_points))
+
     def test_candidate_render_points_replace_corner_with_bend_arc(self):
         model = Model(project_name="RoutingVisualizationBends")
         model.add_material("Steel", E=2.0e11, nu=0.3)
