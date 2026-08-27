@@ -15,6 +15,43 @@ from tuba.visualization import build_visualization_scene
 
 
 class TestVisualizationAnalysisMesh(unittest.TestCase):
+    def test_build_scene_adds_native_volume_skin_as_analysis_input(self):
+        mesh = AnalysisMesh(
+            id="volume_region_0",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={
+                "N0": (0.0, 0.0, 0.0),
+                "N1": (1.0, 0.0, 0.0),
+                "N2": (0.0, 1.0, 0.0),
+                "N3": (0.0, 0.0, 1.0),
+            },
+            elements={"M0": ("N0", "N1", "N2", "N3")},
+            groups={"G_SOLID_region_0": ("M0",)},
+            node_sources={},
+            element_sources={},
+            modelisations={"G_SOLID_region_0": "3D"},
+            surface_mesh={
+                "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                "faces": [[0, 1, 2]],
+            },
+        )
+
+        scene = build_visualization_scene(Model("VolumeSkin"), analysis_meshes=[mesh])
+
+        asset = next(
+            asset
+            for asset in scene.geometry_assets
+            if asset.generation_config.get("source") == "tuba.analysis_mesh.volume_skin"
+        )
+        surface = next(obj for obj in scene.objects if obj.geometry_asset_id == asset.id)
+        self.assertEqual(asset.format, "mesh")
+        self.assertEqual(asset.generation_config["faces"], [[0, 1, 2]])
+        self.assertEqual(surface.kind, "analysis_mesh_surface")
+        self.assertIn("analysis_mesh:volume_skin", surface.layer_ids)
+        self.assertFalse(any("solver_result" in layer for layer in surface.layer_ids))
+        self.assertEqual(AnalysisMesh.from_dict(mesh.to_dict()).surface_mesh, mesh.surface_mesh)
+
     def test_build_scene_adds_selectable_analysis_mesh_nodes_and_elements(self):
         model = _model_with_exportable_bend()
         bend = next(element for element in model.elements if element.type == "pipe_bend")

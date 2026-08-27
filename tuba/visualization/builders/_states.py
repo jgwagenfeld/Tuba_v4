@@ -600,6 +600,43 @@ def _build_analysis_mesh_scene(
     diagnostics: list[SceneDiagnostic] = []
     groups_by_member = _analysis_mesh_groups_by_member(analysis_mesh)
 
+    if analysis_mesh.surface_mesh is not None:
+        vertices = analysis_mesh.surface_mesh["vertices"]
+        faces = analysis_mesh.surface_mesh["faces"]
+        object_id = f"object:analysis_mesh:{analysis_mesh.id}:volume_skin"
+        asset_id = f"geometry:analysis_mesh:{analysis_mesh.id}:volume_skin"
+        assets.append(
+            GeometryAsset(
+                id=asset_id,
+                format="mesh",
+                bounds=_safe_bounds_for_points(vertices, 0.0),
+                object_ids=[object_id],
+                generation_config={
+                    "source": "tuba.analysis_mesh.volume_skin",
+                    "mesh_id": analysis_mesh.id,
+                    "vertices": vertices,
+                    "faces": faces,
+                },
+            )
+        )
+        objects.append(
+            SceneObject(
+                id=object_id,
+                entity_ref=None,
+                kind="analysis_mesh_surface",
+                name=f"{analysis_mesh.id} volume skin",
+                geometry_asset_id=asset_id,
+                layer_ids=["analysis_mesh:volume_skin"],
+                metadata={
+                    "mesh_id": analysis_mesh.id,
+                    "solver_name": analysis_mesh.solver_name,
+                    "model_revision": analysis_mesh.model_revision,
+                    "role": "analysis_input",
+                },
+                source={"analysis_mesh": {"id": analysis_mesh.id, "member_type": "surface_mesh"}},
+            )
+        )
+
     for node_id, coords in analysis_mesh.nodes.items():
         source = analysis_mesh.node_sources.get(node_id)
         groups = groups_by_member.get(node_id, [])

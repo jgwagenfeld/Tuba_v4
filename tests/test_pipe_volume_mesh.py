@@ -93,6 +93,7 @@ def test_builds_grouped_quadratic_straight_pipe_med(tmp_path):
     assert generated.med_path == output
     assert output.is_file() and output.stat().st_size > 0
     assert generated.analysis_mesh.modelisations == {"G_SOLID_region_0": "3D"}
+    assert generated.analysis_mesh.surface_mesh
     for name in (
         "G_SOLID_region_0",
         "G_INNER_region_0",

@@ -141,6 +141,7 @@ class AnalysisMesh:
     #: ``GROUP_MA`` name -> Code_Aster ``MODELISATION``, mirroring ``AFFE_MODELE``.
     modelisations: dict[str, str] = field(default_factory=dict)
     solver_input_identity: SolverInputIdentity | None = None
+    surface_mesh: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "AnalysisMesh id")
@@ -188,6 +189,17 @@ class AnalysisMesh:
         # springs/masses (``DIS_<node>``) are created by CREA_MAILLAGE inside the
         # .comm, so they are named in AFFE_MODELE without existing in `groups`.
         object.__setattr__(self, "modelisations", modelisations)
+        if self.surface_mesh is not None:
+            vertices = [
+                list(_float_tuple(vertex, 3, "AnalysisMesh surface vertex"))
+                for vertex in self.surface_mesh.get("vertices", [])
+            ]
+            faces = [list(int(index) for index in face) for face in self.surface_mesh.get("faces", [])]
+            if not vertices or not faces or any(len(face) != 3 for face in faces):
+                raise ValueError("AnalysisMesh surface_mesh requires non-empty triangular vertices and faces.")
+            if any(index < 0 or index >= len(vertices) for face in faces for index in face):
+                raise ValueError("AnalysisMesh surface_mesh face index is outside its vertex array.")
+            object.__setattr__(self, "surface_mesh", {"vertices": vertices, "faces": faces})
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -204,6 +216,11 @@ class AnalysisMesh:
         }
         if self.solver_input_identity is not None:
             data["solver_input_identity"] = self.solver_input_identity.to_dict()
+        if self.surface_mesh is not None:
+            data["surface_mesh"] = {
+                "vertices": [list(vertex) for vertex in self.surface_mesh["vertices"]],
+                "faces": [list(face) for face in self.surface_mesh["faces"]],
+            }
         return data
 
     @classmethod
@@ -226,6 +243,7 @@ class AnalysisMesh:
                 if data.get("solver_input_identity") is not None
                 else None
             ),
+            surface_mesh=(dict(data["surface_mesh"]) if data.get("surface_mesh") is not None else None),
         )
 
 

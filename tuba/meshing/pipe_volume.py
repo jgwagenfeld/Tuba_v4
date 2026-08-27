@@ -444,5 +444,6 @@ def _readback(
         element_sources=element_sources,
         files={"med": str(output)},
         modelisations={"G_SOLID_region_0": "3D"},
+        surface_mesh={"vertices": vertices, "faces": faces},
     )
     return analysis_mesh, groups, vertices, faces
