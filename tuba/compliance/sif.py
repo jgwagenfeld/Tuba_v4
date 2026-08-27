@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-import numpy as np
 from typing import TYPE_CHECKING, Tuple, Optional
+
+from tuba.geometry.junctions import classify_tee_junction
 
 if TYPE_CHECKING:
     from tuba.model import Element, TubaModel
@@ -157,33 +158,16 @@ def flexibility_factor(h: float) -> float:
 
 
 def _get_tee_sifs(node_id: str, element: "Element", model: "TubaModel") -> Optional[Tuple[float, float, float, float]]:
-    connecting = [e for e in model.elements if e.n1 == node_id or e.n2 == node_id]
+    connecting = [
+        e for e in model.elements
+        if (e.n1 == node_id or e.n2 == node_id) and e.type.startswith("pipe")
+    ]
     if len(connecting) != 3:
         return None
 
-    # Calculate unit vectors from junction node to other node of each element
-    u_vectors = []
-    j_coords = model.nodes[node_id].coords
-    for e in connecting:
-        other_nid = e.n2 if e.n1 == node_id else e.n1
-        other_coords = model.nodes[other_nid].coords
-        v = other_coords - j_coords
-        norm = np.linalg.norm(v)
-        u = v / norm if norm > 1e-9 else np.array([1.0, 0.0, 0.0])
-        u_vectors.append(u)
-
-    # Find the header pair (dot product closest to -1)
-    d01 = np.dot(u_vectors[0], u_vectors[1])
-    d12 = np.dot(u_vectors[1], u_vectors[2])
-    d20 = np.dot(u_vectors[2], u_vectors[0])
-
-    min_dot = min(d01, d12, d20)
-    if min_dot == d01:
-        header_el = connecting[0]
-    elif min_dot == d12:
-        header_el = connecting[1]
-    else:
-        header_el = connecting[2]
+    junction = classify_tee_junction(model, node_id)
+    header_el = model.get_element(junction.header_element_ids[0])
+    assert header_el is not None
 
     # Use header section geometry for SIF calculation
     header_section = model.sections[header_el.section]
