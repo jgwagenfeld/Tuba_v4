@@ -13,20 +13,14 @@ import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
-from typing import Any, Callable
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from examples.code_aster_artifact_review import (
-    build_autorouted_expansion_model,
-    build_support_rack_model,
-    run_example,
-)
-from examples.code_aster_tee_volume_review import run_example as run_tee_volume_example
-from examples.imported_component_mixed_system import run_demo
 from scripts import prepare_release
+from scripts.official_gallery import OFFICIAL_GALLERIES
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 
 
@@ -36,78 +30,8 @@ _TRAVERSAL = re.compile(r"(?:^|[\\/])\.\.(?:[\\/]|$)")
 _IDENTITY_FIELDS = ("fingerprint", "load_case", "schema_id", "compiler_id")
 
 
-def _build_code_aster_review(destination: Path, artifacts: Path | None) -> None:
-    with TemporaryDirectory(prefix="tuba-official-code-aster-") as temporary:
-        produced = Path(temporary) / "code-aster-review"
-        run_example(produced, artifact_dir=artifacts)
-        _replace_tree(produced / "review_scene", destination)
-
-
-def _build_model_review(destination: Path, _artifacts: Path | None) -> None:
-    with TemporaryDirectory(prefix="tuba-official-model-review-") as temporary:
-        produced = Path(temporary) / "imported-component"
-        run_demo(
-            Path("examples/assets/imported_component_demo.stl"),
-            output_root=produced,
-            export_study=False,
-        )
-        _replace_tree(produced / "review_scene", destination)
-
-
-def _build_autorouted_review(destination: Path, _artifacts: Path | None) -> None:
-    with TemporaryDirectory(prefix="tuba-official-autorouted-") as temporary:
-        root = Path(temporary)
-        model, route_result = build_autorouted_expansion_model(root / "routing")
-        produced = root / "review"
-        run_example(
-            produced,
-            artifact_dir=ROOT / "notebooks" / "code_aster_results" / "autorouted_expansion_hot",
-            model=model,
-            scene_id="scene:autorouted_expansion_loop",
-            title="Solved autorouted expansion-loop review",
-            route_results=[route_result],
-        )
-        _replace_tree(produced / "review_scene", destination)
-
-
-def _build_support_rack_review(destination: Path, _artifacts: Path | None) -> None:
-    with TemporaryDirectory(prefix="tuba-official-support-rack-") as temporary:
-        produced = Path(temporary) / "review"
-        run_example(
-            produced,
-            artifact_dir=ROOT / "notebooks" / "code_aster_results" / "support_rack_operating",
-            model=build_support_rack_model(),
-            scene_id="scene:support_rack_review",
-            title="Solved support-rack load-path review",
-            include_load_paths=True,
-        )
-        _replace_tree(produced / "review_scene", destination)
-
-
-def _build_tee_volume_review(destination: Path, _artifacts: Path | None) -> None:
-    with TemporaryDirectory(prefix="tuba-official-tee-volume-") as temporary:
-        produced = Path(temporary) / "review"
-        run_tee_volume_example(
-            produced,
-            artifact_dir=ROOT / "notebooks" / "code_aster_results" / "tee_volume_operating",
-        )
-        _replace_tree(produced / "review_scene", destination)
-
-
-OFFICIAL_EXAMPLES: tuple[tuple[str, Callable[[Path, Path | None], None], frozenset[str], str], ...] = (
-    ("autorouted-expansion-loop", _build_autorouted_review, frozenset({"dev", "pages"}), "engineering-review"),
-    ("code-aster-review", _build_code_aster_review, frozenset({"dev", "pages"}), "engineering-review"),
-    ("imported_component_mixed_demo", _build_model_review, frozenset({"dev", "pages"}), "model-review"),
-    ("pipe-tee-volume-review", _build_tee_volume_review, frozenset({"dev", "pages"}), "volume-engineering-review"),
-    ("support-rack-review", _build_support_rack_review, frozenset({"dev", "pages"}), "engineering-review"),
-)
-PAGES_BUNDLE_IDS = (
-    "autorouted-expansion-loop",
-    "code-aster-review",
-    "imported_component_mixed_demo",
-    "pipe-tee-volume-review",
-    "support-rack-review",
-)
+PAGES_GALLERIES = tuple(gallery for gallery in OFFICIAL_GALLERIES if "pages" in gallery.audiences)
+PAGES_BUNDLE_IDS = tuple(gallery.id for gallery in PAGES_GALLERIES)
 _PAGES_REQUIRED_FILES = frozenset(
     {
         "index.html",
@@ -121,18 +45,13 @@ _PAGES_REQUIRED_FILES = frozenset(
         "viewer/bundles.json",
         "viewer/licenses/font-notices.txt",
         "viewer/licenses/OFL-1.1.txt",
-        "viewer/autorouted-expansion-loop/scene.json",
-        "viewer/code-aster-review/scene.json",
-        "viewer/imported_component_mixed_demo/scene.json",
-        "viewer/pipe-tee-volume-review/scene.json",
-        "viewer/support-rack-review/scene.json",
         "notebooks/10_interactive_postprocessor.ipynb",
         ".nojekyll",
     }
-)
+) | frozenset(f"viewer/{gallery.id}/scene.json" for gallery in PAGES_GALLERIES)
 
 
-def assemble_pages(output: Path, *, code_aster_artifacts: Path | None = None) -> Path:
+def assemble_pages(output: Path) -> Path:
     """Build and atomically replace one complete deployable Pages tree."""
     output = Path(output).resolve()
     _validate_pages_output(output)
@@ -165,11 +84,7 @@ def assemble_pages(output: Path, *, code_aster_artifacts: Path | None = None) ->
         shutil.copytree(ROOT / ".build" / "zensical-site", staged, dirs_exist_ok=True)
         viewer_root = staged / "viewer"
         shutil.copytree(ROOT / "tuba" / "visualization" / "_viewer", viewer_root)
-        bundle_ids = build_examples(
-            viewer_root,
-            audience="pages",
-            code_aster_artifacts=code_aster_artifacts,
-        )
+        bundle_ids = build_examples(viewer_root, audience="pages")
         write_bundle_catalog(viewer_root, bundle_ids)
 
         notebooks = staged / "notebooks"
@@ -272,22 +187,20 @@ def build_examples(
     output: Path,
     *,
     audience: str,
-    code_aster_artifacts: Path | None = None,
 ) -> tuple[str, ...]:
     """Materialize only catalog entries allowed for ``audience`` and validate them."""
     if audience not in {"dev", "pages"}:
         raise ValueError("audience must be 'dev' or 'pages'.")
     output.mkdir(parents=True, exist_ok=True)
-    artifact_dir = code_aster_artifacts or ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating"
     bundle_ids: list[str] = []
-    for bundle_id, producer, audiences, profile in OFFICIAL_EXAMPLES:
-        if audience not in audiences:
+    for gallery in OFFICIAL_GALLERIES:
+        if audience not in gallery.audiences:
             continue
-        destination = output / bundle_id
-        producer(destination, artifact_dir)
-        validate_official_bundle(destination, profile)
-        bundle_ids.append(bundle_id)
-    return tuple(sorted(bundle_ids))
+        destination = output / gallery.id
+        gallery.bundle_producer(destination, gallery.artifact_dir)
+        validate_official_bundle(destination, gallery.profile)
+        bundle_ids.append(gallery.id)
+    return tuple(bundle_ids)
 
 
 def write_bundle_catalog(viewer_root: Path, bundle_ids: tuple[str, ...]) -> Path:
@@ -334,14 +247,6 @@ def validate_official_bundle(root: Path, profile: str) -> None:
     _validate_execution_attestation(root, identity)
     _validate_portable_provenance_files(root, review)
     _validate_embedded_portability(root)
-
-
-def _replace_tree(source: Path, destination: Path) -> None:
-    if not source.is_dir():
-        raise ValueError(f"Producer did not create a review scene: {source}")
-    if destination.exists():
-        shutil.rmtree(destination)
-    shutil.copytree(source, destination)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -564,19 +469,13 @@ def main() -> int:
     examples = subcommands.add_parser("examples")
     examples.add_argument("--output", type=Path, required=True)
     examples.add_argument("--audience", choices=("dev", "pages"), default="dev")
-    examples.add_argument("--code-aster-artifacts", type=Path)
     pages = subcommands.add_parser("pages")
     pages.add_argument("--output", type=Path, required=True)
-    pages.add_argument("--code-aster-artifacts", type=Path)
     args = parser.parse_args()
     if args.command == "pages":
-        assemble_pages(args.output, code_aster_artifacts=args.code_aster_artifacts)
+        assemble_pages(args.output)
         return 0
-    bundle_ids = build_examples(
-        args.output,
-        audience=args.audience,
-        code_aster_artifacts=args.code_aster_artifacts,
-    )
+    bundle_ids = build_examples(args.output, audience=args.audience)
     write_bundle_catalog(args.output, bundle_ids)
     return 0
 

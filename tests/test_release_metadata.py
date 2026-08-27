@@ -124,16 +124,7 @@ def test_self_hosted_solver_jobs_refresh_every_engineering_gallery_before_pages_
         yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
         for name in ("ci.yml", "release.yml")
     ]
-    refresh_commands = [
-        "uv run python scripts/refresh_code_aster_gallery.py --gallery code-aster-review "
-        "--output notebooks/code_aster_results/viz_gallery_operating",
-        "uv run python scripts/refresh_code_aster_gallery.py --gallery support-rack-review "
-        "--output notebooks/code_aster_results/support_rack_operating",
-        "uv run python scripts/refresh_code_aster_gallery.py --gallery autorouted-expansion-loop "
-        "--output notebooks/code_aster_results/autorouted_expansion_hot",
-        "uv run python scripts/refresh_code_aster_gallery.py --gallery pipe-tee-volume-review "
-        "--output notebooks/code_aster_results/tee_volume_operating",
-    ]
+    refresh_command = "uv run python scripts/refresh_code_aster_gallery.py --all"
     pages_command = "uv run python scripts/build_pages.py pages --output .build/code-aster-pages"
 
     for workflow in workflows:
@@ -147,9 +138,14 @@ def test_self_hosted_solver_jobs_refresh_every_engineering_gallery_before_pages_
             step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
             for step in steps
         )
-        assert all(command in commands for command in refresh_commands)
+        assert commands.count(refresh_command) == 1
+        assert not any(
+            command.startswith("uv run python scripts/refresh_code_aster_gallery.py ")
+            and command != refresh_command
+            for command in commands
+        )
         assert pages_command in commands
-        assert max(commands.index(command) for command in refresh_commands) < commands.index(pages_command)
+        assert commands.index(refresh_command) < commands.index(pages_command)
 
     ci_job = workflows[0]["jobs"]["code-aster-integration"]
     assert "pull_request" not in ci_job["if"]

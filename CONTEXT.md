@@ -44,6 +44,10 @@ _Avoid_: Verified result
 The shareable semantic view used by a review consumer to inspect geometry, solver evidence, diagnostics, and results together.
 _Avoid_: Quick-look view
 
+**Official gallery**:
+A centrally registered, validated publication record that owns its bundle producer, audience, profile, and solver-backed refresh metadata when applicable.
+_Avoid_: Parallel gallery lists, unregistered publication bundle
+
 **Quick-look view**:
 A local interactive inspection or export used by an authoring engineer while working with results.
 _Avoid_: Review surface

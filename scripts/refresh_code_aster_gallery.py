@@ -10,16 +10,11 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from examples.code_aster_artifact_review import (
-    build_autorouted_expansion_model,
-    build_model,
-    build_support_rack_model,
-)
 from examples.code_aster_tee_volume_review import (
     TEE_VOLUME_ELEMENT_IDS,
     TEE_VOLUME_MAX_ELEMENT_SIZE,
-    build_tee_volume_model,
 )
+from scripts.official_gallery import OFFICIAL_GALLERIES
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 
@@ -43,25 +38,22 @@ _VOLUME_SOLVER_OUTPUT_FILES = (
 )
 
 
-def build_gallery_model(gallery: str, scratch_root: str | Path) -> tuple[Any, str]:
-    if gallery == "code-aster-review":
-        return build_model(), "Operating"
-    if gallery == "support-rack-review":
-        return build_support_rack_model(), "Operating"
-    if gallery == "autorouted-expansion-loop":
-        model, _route_result = build_autorouted_expansion_model(Path(scratch_root) / "routing")
-        return model, "Hot"
-    if gallery == "pipe-tee-volume-review":
-        return build_tee_volume_model(), "Operating"
-    raise ValueError(f"Unknown official engineering gallery {gallery!r}.")
+def _gallery_record(gallery_id: str):
+    gallery = next((gallery for gallery in OFFICIAL_GALLERIES if gallery.id == gallery_id), None)
+    if gallery is None:
+        raise ValueError(f"Unknown official gallery {gallery_id!r}.")
+    return gallery
 
 
 def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -> Any:
     """Export, solve, import, and verify one canonical operating gallery."""
+    gallery_record = _gallery_record(gallery)
+    if gallery_record.refresh_producer is None:
+        raise ValueError(f"Official gallery {gallery!r} is not refreshable.")
     output_path = Path(output)
     output_path.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="tuba-gallery-routing-") as scratch:
-        model, load_case = build_gallery_model(gallery, scratch)
+        model, load_case = gallery_record.refresh_producer(Path(scratch))
     solver = CodeAsterSolver(work_dir=output_path)
     study = (
         solver.export_volume_study(
@@ -72,7 +64,7 @@ def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -
             max_element_size=TEE_VOLUME_MAX_ELEMENT_SIZE,
             export_tensor_stress=False,
         )
-        if gallery == "pipe-tee-volume-review"
+        if gallery_record.volume_export
         else solver.export_analysis_study(model, load_case, output_path)
     )
     for filename in {*_SOLVER_OUTPUT_FILES, *_VOLUME_SOLVER_OUTPUT_FILES, "study_sigm.csv"}:
@@ -81,6 +73,15 @@ def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -
     artifact = import_code_aster_artifacts(model=model, work_dir=output_path, study=study)
     _validate_gallery_artifact_chain(output_path, artifact)
     return artifact
+
+
+def refresh_all_galleries() -> dict[str, Any]:
+    """Refresh every solver-backed official gallery in registry order."""
+    return {
+        gallery.id: refresh_gallery(gallery.artifact_dir, gallery=gallery.id)
+        for gallery in OFFICIAL_GALLERIES
+        if gallery.refresh_producer is not None and gallery.artifact_dir is not None
+    }
 
 
 def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
@@ -107,8 +108,8 @@ def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
         raise ValueError("Canonical Code_Aster gallery requires a validated solve attestation.")
     if not isinstance(attestation.get("solver_version"), str) or not attestation["solver_version"]:
         raise ValueError("Canonical Code_Aster gallery attestation requires solver_version.")
-    if attestation.get("execution_method") != "wsl":
-        raise ValueError("Canonical Code_Aster gallery attestation execution_method must be wsl.")
+    if not isinstance(attestation.get("execution_method"), str) or not attestation["execution_method"]:
+        raise ValueError("Canonical Code_Aster gallery attestation requires execution_method.")
     if attestation.get("solver_name") != "Code_Aster":
         raise ValueError("Canonical Code_Aster gallery attestation must name Code_Aster.")
     if not isinstance(attestation.get("solved_at"), str) or not attestation["solved_at"]:
@@ -130,25 +131,32 @@ def _fingerprint_from_attestation(attestation: dict[str, Any]) -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, required=True, help="Canonical Code_Aster gallery directory")
+    parser.add_argument("--output", type=Path, help="Canonical Code_Aster gallery directory")
     parser.add_argument(
         "--gallery",
-        choices=(
-            "autorouted-expansion-loop",
-            "code-aster-review",
-            "pipe-tee-volume-review",
-            "support-rack-review",
-        ),
-        default="code-aster-review",
+        choices=tuple(gallery.id for gallery in OFFICIAL_GALLERIES),
     )
+    parser.add_argument("--all", action="store_true", dest="all_galleries")
     args = parser.parse_args()
-    artifact = refresh_gallery(args.output, gallery=args.gallery)
-    attestation = artifact.result_state.metadata["solve_attestation"]
-    print(
-        f"Refreshed Code_Aster gallery at {args.output} "
-        f"({attestation['execution_method']} Code_Aster {attestation['solver_version']}, "
-        f"{attestation['solved_at']})."
-    )
+    if args.all_galleries:
+        if args.gallery is not None or args.output is not None:
+            parser.error("--all cannot be combined with --gallery or --output")
+        refreshed = refresh_all_galleries()
+    else:
+        if args.output is None:
+            parser.error("single-gallery mode requires --output")
+        gallery_id = args.gallery or "code-aster-review"
+        if _gallery_record(gallery_id).refresh_producer is None:
+            parser.error(f"Official gallery {gallery_id!r} is not refreshable.")
+        refreshed = {gallery_id: refresh_gallery(args.output, gallery=gallery_id)}
+    for gallery_id, artifact in refreshed.items():
+        attestation = artifact.result_state.metadata["solve_attestation"]
+        output = _gallery_record(gallery_id).artifact_dir if args.all_galleries else args.output
+        print(
+            f"Refreshed Code_Aster gallery at {output} "
+            f"({attestation['execution_method']} Code_Aster {attestation['solver_version']}, "
+            f"{attestation['solved_at']})."
+        )
     return 0
 
 

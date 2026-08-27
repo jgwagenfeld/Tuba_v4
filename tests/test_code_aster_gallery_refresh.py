@@ -1,4 +1,6 @@
 import hashlib
+from dataclasses import replace
+from importlib import import_module
 import json
 from pathlib import Path
 import shutil
@@ -23,6 +25,20 @@ _SOLVER_OUTPUT_FILES = (
 _DEFAULT_ATTESTATION = object()
 
 
+def _set_refresh_producer(monkeypatch, gallery_id, producer):
+    galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+    monkeypatch.setattr(
+        refresh_code_aster_gallery,
+        "OFFICIAL_GALLERIES",
+        tuple(
+            replace(gallery, refresh_producer=producer)
+            if gallery.id == gallery_id
+            else gallery
+            for gallery in galleries
+        ),
+    )
+
+
 def test_refresh_cli_starts_from_the_scripts_directory():
     script = Path(__file__).resolve().parents[1] / "scripts" / "refresh_code_aster_gallery.py"
 
@@ -31,22 +47,79 @@ def test_refresh_cli_starts_from_the_scripts_directory():
     assert completed.returncode == 0, completed.stderr
 
 
-def test_refresh_selects_each_official_engineering_gallery(tmp_path, monkeypatch):
-    selector = getattr(refresh_code_aster_gallery, "build_gallery_model", None)
-    assert callable(selector)
-    monkeypatch.setattr(refresh_code_aster_gallery, "build_model", lambda: "pipe")
-    monkeypatch.setattr(refresh_code_aster_gallery, "build_support_rack_model", lambda: "rack")
-    monkeypatch.setattr(refresh_code_aster_gallery, "build_tee_volume_model", lambda: "tee")
+def test_official_gallery_records_own_refresh_metadata():
+    galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+    engineering = tuple(gallery for gallery in galleries if gallery.refresh_producer is not None)
+    model_only = tuple(gallery for gallery in galleries if gallery.refresh_producer is None)
+
+    assert tuple(gallery.id for gallery in engineering) == (
+        "autorouted-expansion-loop",
+        "code-aster-review",
+        "pipe-tee-volume-review",
+        "support-rack-review",
+    )
+    assert all(gallery.artifact_dir is not None for gallery in engineering)
+    assert tuple(gallery.id for gallery in model_only) == ("imported_component_mixed_demo",)
+    assert model_only[0].artifact_dir is None
+    assert [gallery.id for gallery in galleries if gallery.volume_export] == [
+        "pipe-tee-volume-review"
+    ]
+
+
+def test_refresh_all_galleries_uses_record_owned_artifact_directories(monkeypatch):
+    galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+    calls = []
+
+    def refresh(output, *, gallery):
+        calls.append((Path(output), gallery))
+        return gallery
+
+    monkeypatch.setattr(refresh_code_aster_gallery, "refresh_gallery", refresh)
+
+    refreshed = refresh_code_aster_gallery.refresh_all_galleries()
+
+    engineering = tuple(gallery for gallery in galleries if gallery.refresh_producer is not None)
+    assert calls == [(gallery.artifact_dir, gallery.id) for gallery in engineering]
+    assert tuple(refreshed) == tuple(gallery.id for gallery in engineering)
+
+
+def test_refresh_rejects_the_model_only_gallery(tmp_path):
+    with pytest.raises(ValueError, match="not refreshable"):
+        refresh_code_aster_gallery.refresh_gallery(
+            tmp_path,
+            gallery="imported_component_mixed_demo",
+        )
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--all", "--gallery", "code-aster-review"],
+        ["--all", "--output", "artifacts"],
+        ["--gallery", "code-aster-review"],
+    ],
+)
+def test_refresh_cli_rejects_invalid_mode_combinations(arguments, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["refresh_code_aster_gallery.py", *arguments])
+
+    with pytest.raises(SystemExit) as raised:
+        refresh_code_aster_gallery.main()
+
+    assert raised.value.code == 2
+
+
+def test_refresh_cli_all_uses_the_registry_loop(monkeypatch):
+    calls = []
+    monkeypatch.setattr(sys, "argv", ["refresh_code_aster_gallery.py", "--all"])
     monkeypatch.setattr(
         refresh_code_aster_gallery,
-        "build_autorouted_expansion_model",
-        lambda output: ("autorouted", object()),
+        "refresh_all_galleries",
+        lambda: calls.append("all") or {},
+        raising=False,
     )
 
-    assert selector("code-aster-review", tmp_path) == ("pipe", "Operating")
-    assert selector("support-rack-review", tmp_path) == ("rack", "Operating")
-    assert selector("autorouted-expansion-loop", tmp_path) == ("autorouted", "Hot")
-    assert selector("pipe-tee-volume-review", tmp_path) == ("tee", "Operating")
+    assert refresh_code_aster_gallery.main() == 0
+    assert calls == ["all"]
 
 
 def _artifact(identity="gallery-input", *, attestation=_DEFAULT_ATTESTATION):
@@ -104,10 +177,10 @@ def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp
             _write_solver_outputs(tmp_path, prefix="fresh")
 
     model = object()
-    monkeypatch.setattr(
-        refresh_code_aster_gallery,
-        "build_gallery_model",
-        lambda gallery, scratch: scratch_paths.append(Path(scratch)) or (model, "Operating"),
+    _set_refresh_producer(
+        monkeypatch,
+        "code-aster-review",
+        lambda scratch: scratch_paths.append(Path(scratch)) or (model, "Operating"),
     )
     monkeypatch.setattr(refresh_code_aster_gallery, "CodeAsterSolver", FakeSolver)
     monkeypatch.setattr(
@@ -146,10 +219,10 @@ def test_refresh_uses_native_volume_export_for_the_tee_gallery(tmp_path, monkeyp
                 (tmp_path / filename).write_text(filename, encoding="utf-8")
 
     model = object()
-    monkeypatch.setattr(
-        refresh_code_aster_gallery,
-        "build_gallery_model",
-        lambda gallery, scratch: (model, "Operating"),
+    _set_refresh_producer(
+        monkeypatch,
+        "pipe-tee-volume-review",
+        lambda scratch: (model, "Operating"),
     )
     monkeypatch.setattr(refresh_code_aster_gallery, "CodeAsterSolver", FakeSolver)
     monkeypatch.setattr(refresh_code_aster_gallery, "import_code_aster_artifacts", lambda **kwargs: artifact)
@@ -178,10 +251,36 @@ def test_refresh_uses_native_volume_export_for_the_tee_gallery(tmp_path, monkeyp
         (None, _mismatched_identity_artifact(), "identity"),
         (None, _artifact(attestation=None), "attestation"),
         (None, _artifact(attestation={"solver_version": ""}), "solver_version"),
-        (None, _artifact(attestation={"solver_version": "18.0.12", "execution_method": "docker"}), "execution_method"),
+        (None, _artifact(attestation={"solver_version": "18.0.12", "execution_method": ""}), "execution_method"),
+        (
+            None,
+            _artifact(
+                attestation={
+                    "solver_name": "",
+                    "solver_version": "18.0.12",
+                    "execution_method": "wsl",
+                    "solved_at": "2026-07-29T12:00:00Z",
+                    "solver_input_identity": {"fingerprint": "gallery-input"},
+                }
+            ),
+            "Code_Aster",
+        ),
+        (
+            None,
+            _artifact(
+                attestation={
+                    "solver_name": "Code_Aster",
+                    "solver_version": "18.0.12",
+                    "execution_method": "wsl",
+                    "solved_at": "",
+                    "solver_input_identity": {"fingerprint": "gallery-input"},
+                }
+            ),
+            "solved_at",
+        ),
     ],
 )
-def test_refresh_rejects_incomplete_or_non_wsl_artifact_chain(tmp_path, monkeypatch, missing, artifact, message):
+def test_refresh_rejects_incomplete_artifact_chain(tmp_path, monkeypatch, missing, artifact, message):
     class FakeSolver:
         def __init__(self, *, work_dir):
             pass
@@ -193,13 +292,32 @@ def test_refresh_rejects_incomplete_or_non_wsl_artifact_chain(tmp_path, monkeypa
             _write_solver_outputs(tmp_path, prefix="fresh", missing=missing)
             return None
 
-    monkeypatch.setattr(refresh_code_aster_gallery, "build_model", object)
+    _set_refresh_producer(
+        monkeypatch,
+        "code-aster-review",
+        lambda scratch: (object(), "Operating"),
+    )
     monkeypatch.setattr(refresh_code_aster_gallery, "CodeAsterSolver", FakeSolver)
     monkeypatch.setattr(refresh_code_aster_gallery, "import_code_aster_artifacts", lambda **kwargs: artifact)
     _write_solver_outputs(tmp_path, prefix="stale")
 
     with pytest.raises(ValueError, match=message):
         refresh_code_aster_gallery.refresh_gallery(tmp_path)
+
+
+def test_refresh_accepts_a_non_wsl_execution_method(tmp_path):
+    artifact = _artifact(
+        attestation={
+            "solver_name": "Code_Aster",
+            "solver_version": "18.0.12",
+            "execution_method": "native-python-runtime",
+            "solved_at": "2026-07-29T12:00:00Z",
+            "solver_input_identity": {"fingerprint": "gallery-input"},
+        }
+    )
+    _write_solver_outputs(tmp_path, prefix="fresh")
+
+    refresh_code_aster_gallery._validate_gallery_artifact_chain(tmp_path, artifact)
 
 
 def test_artifact_review_uses_the_observed_solve_timestamp(tmp_path):

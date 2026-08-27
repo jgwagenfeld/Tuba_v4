@@ -443,14 +443,23 @@ def test_engineering_profile_rejects_deceptive_result_labels_without_matching_ov
 
 def test_examples_main_does_not_create_or_overwrite_catalog_when_validation_fails(tmp_path: Path, monkeypatch) -> None:
     """Catches the CLI writing a catalog after strict bundle validation fails."""
+    from scripts.official_gallery import OfficialGallery
+
     def produce_invalid(destination: Path, _artifacts: Path | None) -> None:
         destination.mkdir(parents=True)
         (destination / "scene.json").write_text("{}", encoding="utf-8")
 
     monkeypatch.setattr(
         build_pages,
-        "OFFICIAL_EXAMPLES",
-        (("invalid", produce_invalid, frozenset({"pages"}), "engineering-review"),),
+        "OFFICIAL_GALLERIES",
+        (
+            OfficialGallery(
+                id="invalid",
+                audiences=frozenset({"pages"}),
+                profile="engineering-review",
+                bundle_producer=produce_invalid,
+            ),
+        ),
     )
     catalog = tmp_path / "bundles.json"
     catalog.write_text('["previous"]\n', encoding="utf-8")

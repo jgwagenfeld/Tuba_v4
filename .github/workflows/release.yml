@@ -60,10 +60,7 @@ jobs:
         working-directory: viewer
       - run: uv run python -m tuba.solver.code_aster_doctor --check
       - run: uv run python -m pytest tests/test_code_aster_real_smoke.py
-      - run: uv run python scripts/refresh_code_aster_gallery.py --gallery code-aster-review --output notebooks/code_aster_results/viz_gallery_operating
-      - run: uv run python scripts/refresh_code_aster_gallery.py --gallery support-rack-review --output notebooks/code_aster_results/support_rack_operating
-      - run: uv run python scripts/refresh_code_aster_gallery.py --gallery autorouted-expansion-loop --output notebooks/code_aster_results/autorouted_expansion_hot
-      - run: uv run python scripts/refresh_code_aster_gallery.py --gallery pipe-tee-volume-review --output notebooks/code_aster_results/tee_volume_operating
+      - run: uv run python scripts/refresh_code_aster_gallery.py --all
       - run: uv run python scripts/build_pages.py pages --output .build/code-aster-pages
 
   tag:

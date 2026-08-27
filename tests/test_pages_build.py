@@ -1,5 +1,7 @@
 import json
 import os
+from dataclasses import FrozenInstanceError
+from importlib import import_module
 from pathlib import Path
 import subprocess
 from types import SimpleNamespace
@@ -36,6 +38,24 @@ OFFICIAL_BUNDLES = [
     "pipe-tee-volume-review",
     "support-rack-review",
 ]
+
+
+def test_official_gallery_records_drive_pages_ids_and_required_scenes():
+    official_gallery = import_module("scripts.official_gallery")
+    galleries = official_gallery.OFFICIAL_GALLERIES
+    pages = tuple(gallery for gallery in galleries if "pages" in gallery.audiences)
+
+    assert isinstance(galleries, tuple)
+    assert tuple(gallery.id for gallery in galleries) == tuple(OFFICIAL_BUNDLES)
+    assert build_pages.PAGES_BUNDLE_IDS == tuple(gallery.id for gallery in pages)
+    assert {
+        required
+        for required in build_pages._PAGES_REQUIRED_FILES
+        if required.startswith("viewer/") and required.endswith("/scene.json")
+    } == {f"viewer/{gallery.id}/scene.json" for gallery in pages}
+
+    with pytest.raises(FrozenInstanceError):
+        galleries[0].profile = "model-review"
 
 
 def _project_tree(root: Path) -> None:
@@ -89,9 +109,8 @@ def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[st
             target.write_text(relative, encoding="utf-8")
         return subprocess.CompletedProcess(command, 0)
 
-    def examples(viewer_root, *, audience, code_aster_artifacts=None):
+    def examples(viewer_root, *, audience):
         assert audience == "pages"
-        assert code_aster_artifacts is None
         assert not (root / "viewer" / "public").exists()
         events.append("examples")
         bundle_ids = OFFICIAL_BUNDLES if complete else OFFICIAL_BUNDLES[:1]
