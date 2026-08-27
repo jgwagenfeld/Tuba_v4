@@ -234,7 +234,6 @@ test("browser review rows wire resolvable actions through the selection bridge",
 
   assert.match(app, /from ["']\.\/reviewSelection\.js["']/);
   assert.match(app, /getReviewEntityAction\(currentState, row\.entityRef\)/);
-  assert.match(app, /showReviewEntityIn3d\(currentState, entityRef\)/);
   assert.match(app, /setAttribute\(["']aria-label["'], action\.accessibleName\)/);
   assert.match(app, /No 3D object is available for/);
 });

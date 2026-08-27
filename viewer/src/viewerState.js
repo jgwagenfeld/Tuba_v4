@@ -1,8 +1,11 @@
-import { getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
-import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, withDefaultBodyOpacity } from "./bodies.js";
+import { applyTaskVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
+import { cycleBodyOpacity, setBodyVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
+import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
+import { hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
+import { showReviewEntityIn3d } from "./reviewSelection.js";
 import {
   setColoringComponent,
   setColoringField,
@@ -26,17 +29,26 @@ export function reduceViewerState(state, action) {
         ...state,
         selectedObjectIds: filterExistingObjectIds(state, action.objectIds ?? [])
       });
-    case "hideObjects":
-      return withVisibility({
-        ...state,
-        hiddenObjectIds: unique([...(state.hiddenObjectIds ?? []), ...filterExistingObjectIds(state, action.objectIds ?? [])])
-      });
+    case "selectObject":
+      return selectObject(state, action.objectId, { additive: action.additive });
+    case "hideSelected":
+      return hideSelected(state);
+    case "isolateSelection":
+      return isolateSelection(state);
+    case "restoreVisibility":
+      return restoreVisibility(state);
+    case "applySectionBox":
+      return applySectionBox(state, action.sectionBox);
+    case "restoreViewState":
+      return restoreViewState(state, action.view);
+    case "focusIssue":
+      return focusIssue(state, action.issueId);
+    case "showReviewEntityIn3d":
+      return showReviewEntityIn3d(state, action.entityRef);
     case "setLayerVisibility":
       return setLayerVisibility(state, action.layerId, action.visible);
     case "setBodyVisibility":
       return setBodyVisibility(state, action.bodyId, action.visible);
-    case "setBodyOpacity":
-      return setBodyOpacity(state, action.bodyId, action.opacity);
     case "cycleBodyOpacity":
       return cycleBodyOpacity(state, action.bodyId);
     case "setUnitSystem":
@@ -68,8 +80,8 @@ export function reduceViewerState(state, action) {
         }
       };
     }
-    case "setActiveOverlayIds":
-      return { ...state, activeOverlayIds: [...(action.overlayIds ?? [])] };
+    case "activateTask":
+      return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
     case "setWorkflowTab":
       return setWorkflowTab(state, action.tabId);
     case "setActiveResultState":
@@ -118,8 +130,8 @@ export function reduceViewerState(state, action) {
           }
         }
       };
-    case "restoreVisibility":
-      return withVisibility({ ...state, hiddenObjectIds: [], isolatedObjectIds: [], sectionBox: undefined });
+    case "appendDiagnostic":
+      return { ...state, diagnostics: [...(state.diagnostics ?? []), action.diagnostic] };
     default:
       return state;
   }
@@ -179,27 +191,6 @@ export function preserveViewerStateForReload(previousState, nextState) {
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id)
   };
   return withDefaultBodyOpacity(withVisibility(withCoherentColoring(preserved)));
-}
-
-export function createViewerStore(initialState) {
-  let state = initialState;
-  const listeners = new Set();
-  return {
-    dispatch(action) {
-      state = reduceViewerState(state, action);
-      for (const listener of listeners) {
-        listener(state, action);
-      }
-      return state;
-    },
-    getState() {
-      return state;
-    },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    }
-  };
 }
 
 function withVisibility(state) {

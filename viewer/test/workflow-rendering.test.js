@@ -105,7 +105,6 @@ test("workflow rendering adds cockpit status, report links, saved views, and rev
   assert.match(app, /setAttribute\("aria-expanded", String\(evidenceExpanded\)\)/);
   assert.match(app, /status\.governingLocation/);
   assert.match(app, /saveViewState\(currentState, name\)/);
-  assert.match(app, /restoreViewState\(currentState, view\)/);
   assert.match(app, /tableRow\.dataset\.selected\s*=\s*"true"/);
   assert.match(app, /dom\.inspector\.hidden\s*=\s*sections\.length === 0 && !issueSummary/);
 
@@ -141,7 +140,6 @@ test("app renders a pinned display strip of bodies and applies presets", async (
   assert.match(app, /data-display-strip|data-body-list/);
   assert.match(app, /renderDisplayStrip/);
   assert.match(app, /renderBodyList/);
-  assert.match(app, /applyTaskVisibilityPreset/);
   // Rail no longer groups tasks under Review/Explore/Display headings:
   assert.doesNotMatch(app, /\["Explore", \[/);
 });
@@ -181,7 +179,6 @@ test("display units convert at the boundary and never in stored state", async ()
   const threshold = app.slice(app.indexOf("function thresholdControl()"), app.indexOf("function renderHeader()"));
   assert.match(threshold, /toDisplay\(/);
   assert.match(threshold, /toStored\(/);
-  assert.match(threshold, /setResultThreshold\(/);
 
   // Nothing may reach into the reducers with a converted value.
   assert.doesNotMatch(units, /setResultThreshold|getColoringValues|overlays/);

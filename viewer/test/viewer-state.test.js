@@ -149,6 +149,57 @@ test("viewer reducer updates active result and geometry state controls", () => {
   assert.equal(geometry.activeGeometryStateId, "geometry_state:Hot:visual_x50");
 });
 
+test("viewer reducer owns compound selection and visibility transitions", () => {
+  const initial = createViewerState(bundle());
+  const selected = reduceViewerState(
+    reduceViewerState(initial, { type: "selectObject", objectId: "object:cold" }),
+    { type: "selectObject", objectId: "object:clash", additive: true },
+  );
+  const hidden = reduceViewerState(selected, { type: "hideSelected" });
+  const isolated = reduceViewerState(hidden, { type: "isolateSelection" });
+  const restored = reduceViewerState(isolated, { type: "restoreVisibility" });
+  const sectioned = reduceViewerState(restored, {
+    type: "applySectionBox",
+    sectionBox: { min: [0, 0, 0], max: [0.5, 0.5, 0.5] },
+  });
+  const view = reduceViewerState(sectioned, {
+    type: "restoreViewState",
+    view: { selectedObjectIds: ["object:cold"], visibleLayers: { "issues:clash": false } },
+  });
+  const shown = reduceViewerState(view, { type: "showReviewEntityIn3d", entityRef: "object:clash" });
+
+  assert.deepEqual(selected.selectedObjectIds, ["object:cold", "object:clash"]);
+  assert.ok(!hidden.visibleObjectIds.includes("object:cold"));
+  assert.deepEqual(isolated.isolatedObjectIds, ["object:cold", "object:clash"]);
+  assert.deepEqual(restored.hiddenObjectIds, []);
+  assert.deepEqual(sectioned.sectionBox, { min: [0, 0, 0], max: [0.5, 0.5, 0.5] });
+  assert.equal(view.layers["issues:clash"].visible, false);
+  assert.deepEqual(shown.selectedObjectIds, ["object:clash"]);
+  assert.ok(shown.camera.fitRequest);
+});
+
+test("viewer reducer owns task, issue, and live diagnostic transitions", () => {
+  const review = { schema_version: "engineering_review.v1", analysis_status: "solved", tables: {} };
+  const initial = {
+    ...createViewerState(bundle({
+      issues: [{ id: "issue:clash", type: "clash", object_ids: ["object:clash"] }],
+    })),
+    ...createWorkflowState({ review }),
+  };
+  const task = reduceViewerState(initial, { type: "activateTask", tabId: "model" });
+  const issue = reduceViewerState(task, { type: "focusIssue", issueId: "issue:clash" });
+  const diagnosed = reduceViewerState(issue, {
+    type: "appendDiagnostic",
+    diagnostic: { severity: "warning", code: "preview.warning", message: "Check preview" },
+  });
+
+  assert.equal(task.activeTab, "model");
+  assert.equal(task.layers["result:hot"].visible, false);
+  assert.equal(issue.activeIssueId, "issue:clash");
+  assert.deepEqual(issue.selectedObjectIds, ["object:clash"]);
+  assert.equal(diagnosed.diagnostics.at(-1).code, "preview.warning");
+});
+
 test("viewer reducer tracks result review controls without changing clash metadata", () => {
   const state = createViewerState(bundle({
     issues: [

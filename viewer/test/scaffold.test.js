@@ -130,7 +130,6 @@ test("browser table orchestration uses text content and the workflow reducer", a
   const app = await readViewerFile("src/app.js");
 
   assert.match(app, /workflowViewModel/);
-  assert.match(app, /type:\s*["']setWorkflowTab["']/);
   assert.match(app, /setAttribute\(["']aria-current["']/);
   assert.match(app, /addEventListener\(["']keydown["']/);
   assert.match(app, /workflowTabForKey/);

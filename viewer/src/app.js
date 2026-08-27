@@ -1,11 +1,8 @@
 import {
-  applySectionBox,
   buildObjectTree,
   filterIssues,
-  focusIssue,
   getIssueSummary,
   groupIssues,
-  restoreViewState,
   saveViewState,
   sectionBoxDefaults,
   rankObjectMatches
@@ -27,9 +24,6 @@ import {
   getActiveField,
   getComplianceNotice,
   getFieldOptions,
-  setColoringComponent,
-  setColoringField,
-  setColoringLoadCase,
   shouldShowComplianceNotice
 } from "./coloring.js";
 import {
@@ -39,14 +33,7 @@ import {
   getLoadCaseOptions,
   getResultStateOptions,
   getScalarLegend,
-  getVisualDeformationDisplayScale,
-  setActiveGeometryState,
-  setActiveLoadCase,
-  setActiveResultState,
-  setResultThreshold,
-  setResultVectorScale,
-  setUtilizationThreshold,
-  setVisualDeformationScale
+  getVisualDeformationDisplayScale
 } from "./resultReview.js";
 import {
   UNIT_SYSTEMS,
@@ -60,10 +47,9 @@ import {
   toStored
 } from "./units.js";
 import { cockpitStatusViewModel, workflowViewModel } from "./reviewTables.js";
-import { getReviewEntityAction, showReviewEntityIn3d } from "./reviewSelection.js";
-import { applySceneDiffToState } from "./sceneDiff.js";
-import { applyTaskVisibilityPreset, categorizeLayers, createViewerState, loadSceneBundleFromUrl, setLayerVisibility } from "./sceneLoader.js";
-import { fitSelection, getPropertySections, hideSelected, isolateSelection, pickObjectAt, restoreVisibility, selectObject } from "./selection.js";
+import { getReviewEntityAction } from "./reviewSelection.js";
+import { categorizeLayers, createViewerState, loadSceneBundleFromUrl } from "./sceneLoader.js";
+import { fitSelection, getPropertySections, pickObjectAt } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
   WORKFLOW_TABS,
@@ -138,6 +124,12 @@ const startupConfig = Object.freeze({
 let currentBundle = null;
 let currentBundleUrl = ".";
 let currentState = null;
+
+function dispatch(action) {
+  currentState = reduceViewerState(currentState, action);
+  return currentState;
+}
+
 let selectedObjectId = null;
 let currentSearch = "";
 let issueFilters = { operatingOnly: false };
@@ -340,8 +332,7 @@ function renderTaskRail() {
 }
 
 function activateTask(id) {
-  currentState = reduceViewerState(currentState, { type: "setWorkflowTab", tabId: id });
-  currentState = applyTaskVisibilityPreset(currentState, id);
+  dispatch({ type: "activateTask", tabId: id });
   selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
   render();
 }
@@ -418,7 +409,7 @@ function renderSavedViews() {
     button.type = "button";
     button.textContent = view.name;
     button.addEventListener("click", () => {
-      currentState = restoreViewState(currentState, view);
+      dispatch({ type: "restoreViewState", view });
       selectedObjectId = currentState.selectedObjectIds[0] ?? null;
       render();
     });
@@ -669,12 +660,12 @@ function createShowIn3dButton(action) {
 }
 
 function showReviewEntity(entityRef) {
-  const nextState = showReviewEntityIn3d(currentState, entityRef);
-  if (nextState === currentState) {
+  const previousState = currentState;
+  dispatch({ type: "showReviewEntityIn3d", entityRef });
+  if (currentState === previousState) {
     setStatus(`No 3D object is available for ${entityRef}.`);
     return;
   }
-  currentState = nextState;
   selectedObjectId = currentState.selectedObjectIds[0] ?? null;
   render();
 }
@@ -710,7 +701,7 @@ function renderResultControls() {
   if (getFieldOptions(currentState).length === 0 && resultStates.length > 0) {
     dom.resultControls.append(
       selectControl("Result state", currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
-        currentState = setActiveResultState(currentState, value);
+        dispatch({ type: "setActiveResultState", resultStateId: value });
         render();
       })
     );
@@ -720,7 +711,7 @@ function renderResultControls() {
     dom.resultControls.append(
       selectControl("Deformed state", currentState.activeGeometryStateId ?? geometryStates[0].id, geometryStates, (value) => {
         stopDeformationAnimation();
-        currentState = setActiveGeometryState(currentState, value);
+        dispatch({ type: "setActiveGeometryState", geometryStateId: value });
         render();
       })
     );
@@ -729,7 +720,7 @@ function renderResultControls() {
   dom.resultControls.append(thresholdControl());
   dom.resultControls.append(
     numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
-      currentState = setUtilizationThreshold(currentState, value);
+      dispatch({ type: "setUtilizationThreshold", threshold: value });
       render();
     })
   );
@@ -741,7 +732,7 @@ function renderResultControls() {
       20,
       0.5,
       (value) => {
-        currentState = setResultVectorScale(currentState, "displacement", value);
+        dispatch({ type: "setDisplacementVectorScale", scale: value });
         render();
       }
     )
@@ -754,7 +745,7 @@ function renderResultControls() {
       5,
       0.25,
       (value) => {
-        currentState = setResultVectorScale(currentState, "reaction", value);
+        dispatch({ type: "setReactionVectorScale", scale: value });
         render();
       }
     )
@@ -789,7 +780,7 @@ function renderResultControls() {
     button.textContent = `${hotspot.objectName}${identity} ${magnitude}${hotspot.utilization !== null ? ` u=${formatScale(hotspot.utilization)}` : ""}`;
     button.addEventListener("click", () => {
       selectedObjectId = hotspot.objectId;
-      currentState = selectObject(currentState, hotspot.objectId);
+      dispatch({ type: "selectObject", objectId: hotspot.objectId });
       render();
     });
     dom.hotspotList.append(button);
@@ -809,7 +800,7 @@ function thresholdControl() {
   const step = toDisplay(STORED_THRESHOLD_STEP_PA, unit === "Pa" ? unit : "", system) || 1;
   return numericControl(`Stress threshold${suffix}`, shown, String(step), (value) => {
     const typed = String(value).trim();
-    currentState = setResultThreshold(currentState, typed === "" ? 0 : toStored(typed, unit, system));
+    dispatch({ type: "setResultThreshold", threshold: typed === "" ? 0 : toStored(typed, unit, system) });
     render();
   });
 }
@@ -881,7 +872,7 @@ function bodyRow(body) {
   input.setAttribute("aria-label", body.label);
   input.dataset.focusKey = `body:${body.id}`;
   input.addEventListener("change", () => {
-    currentState = reduceViewerState(currentState, {
+    dispatch({
       type: "setBodyVisibility",
       bodyId: body.id,
       visible: input.checked
@@ -931,7 +922,7 @@ function opacityChip(body) {
     `${body.label} opacity ${percent}%, cycles through ${OPACITY_STEPS.map((step) => `${Math.round(step * 100)}%`).join(", ")}`
   );
   button.addEventListener("click", () => {
-    currentState = reduceViewerState(currentState, { type: "cycleBodyOpacity", bodyId: body.id });
+    dispatch({ type: "cycleBodyOpacity", bodyId: body.id });
     render();
   });
   return button;
@@ -1116,7 +1107,7 @@ function renderColoringBar() {
   if (loadCases.length > 0) {
     dom.coloringBar.append(
       barControl("Case", currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
-        currentState = setColoringLoadCase(setActiveLoadCase(currentState, value), value);
+        dispatch({ type: "setActiveLoadCase", loadCase: value });
         render();
       })
     );
@@ -1126,7 +1117,7 @@ function renderColoringBar() {
     const field = getActiveField(currentState);
     dom.coloringBar.append(
       barControl("Field", field?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
-        currentState = setColoringField(currentState, value);
+        dispatch({ type: "setColoringField", fieldId: value });
         render();
       })
     );
@@ -1150,7 +1141,7 @@ function renderColoringBar() {
       getActiveComponent(currentState),
       components,
       (value) => {
-        currentState = setColoringComponent(currentState, value);
+        dispatch({ type: "setColoringComponent", component: value });
         render();
       }
     );
@@ -1179,7 +1170,7 @@ function unitSystemChip() {
   button.title = `${active.title} — click to switch`;
   button.setAttribute("aria-label", `Display units: ${active.title}`);
   button.addEventListener("click", () => {
-    currentState = reduceViewerState(currentState, {
+    dispatch({
       type: "setUnitSystem",
       unitSystem: nextUnitSystem(currentState)
     });
@@ -1205,7 +1196,7 @@ function deformationControl() {
   input.dataset.focusKey = "deform-scale";
   input.addEventListener("input", () => {
     stopDeformationAnimation();
-    currentState = setVisualDeformationScale(currentState, input.value);
+    dispatch({ type: "setVisualDeformationScale", scale: input.value });
     render();
   });
   const readout = document.createElement("span");
@@ -1379,7 +1370,7 @@ function renderSectionBoxControls() {
       }
     }
     if (!valid) return;
-    currentState = applySectionBox(currentState, next);
+    dispatch({ type: "applySectionBox", sectionBox: next });
     updateSectionBoxControlValues(next, true);
     renderCanvas();
   };
@@ -1387,7 +1378,7 @@ function renderSectionBoxControls() {
     if (enabled.checked) {
       update();
     } else {
-      currentState = applySectionBox(currentState, undefined);
+      dispatch({ type: "applySectionBox" });
       updateSectionBoxControlValues(sectionBoxDefaults(currentState.bounds), false);
       renderCanvas();
     }
@@ -1397,7 +1388,7 @@ function renderSectionBoxControls() {
   reset.type = "button";
   reset.textContent = "Reset section";
   reset.addEventListener("click", () => {
-    currentState = applySectionBox(currentState, undefined);
+    dispatch({ type: "applySectionBox" });
     updateSectionBoxControlValues(sectionBoxDefaults(currentState.bounds), false);
     renderCanvas();
   });
@@ -1481,7 +1472,7 @@ function layerToggle(leaf) {
   input.type = "checkbox";
   input.checked = layer?.visible !== false;
   input.addEventListener("change", () => {
-    currentState = setLayerVisibility(currentState, leaf.layerId, input.checked);
+    dispatch({ type: "setLayerVisibility", layerId: leaf.layerId, visible: input.checked });
     render();
   });
   label.append(input, ` ${leaf.label} (${leaf.count})`);
@@ -1680,7 +1671,7 @@ function groupHeader(group, count) {
   header.append(label, tally);
   header.title = "Select every object in this group";
   header.addEventListener("click", () => {
-    currentState = reduceViewerState(currentState, { type: "selectObjects", objectIds: group.objectIds });
+    dispatch({ type: "selectObjects", objectIds: group.objectIds });
     selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
     render();
   });
@@ -1718,7 +1709,7 @@ function objectRow(match, drawn) {
   }
   button.addEventListener("click", (event) => {
     selectedObjectId = object.id;
-    currentState = selectObject(currentState, object.id, { additive: event.shiftKey });
+    dispatch({ type: "selectObject", objectId: object.id, additive: event.shiftKey });
     render();
   });
   return button;
@@ -1736,9 +1727,7 @@ function hiddenReveal(objectIds, byId) {
     for (const id of objectIds) {
       for (const layerId of currentState.objectLayerIds?.[id] ?? []) layerIds.add(layerId);
     }
-    let next = currentState;
-    for (const layerId of layerIds) next = setLayerVisibility(next, layerId, true);
-    currentState = next;
+    for (const layerId of layerIds) dispatch({ type: "setLayerVisibility", layerId, visible: true });
     render();
   });
   return row;
@@ -1836,7 +1825,7 @@ function renderIssues() {
       button.className = issue.id === currentState.activeIssueId ? "selected" : "";
       button.textContent = `${issue.severity.toUpperCase()} - ${issue.title}`;
       button.addEventListener("click", () => {
-        currentState = focusIssue(currentState, issue.id);
+        dispatch({ type: "focusIssue", issueId: issue.id });
         const marker = currentState.selectedObjectIds
           .map((objectId) => currentState.objects.find((obj) => obj.id === objectId))
           .find((obj) => obj?.kind === "clash_marker");
@@ -1888,14 +1877,14 @@ function renderProperties() {
   hideButton.type = "button";
   hideButton.textContent = "Hide selected";
   hideButton.addEventListener("click", () => {
-    currentState = hideSelected(currentState);
+    dispatch({ type: "hideSelected" });
     render();
   });
   const isolateButton = document.createElement("button");
   isolateButton.type = "button";
   isolateButton.textContent = "Isolate selected";
   isolateButton.addEventListener("click", () => {
-    currentState = isolateSelection(currentState);
+    dispatch({ type: "isolateSelection" });
     render();
   });
   dom.propertyActions.append(fitButton, hideButton, isolateButton);
@@ -1949,7 +1938,7 @@ function appendIssueReviewActions(issueSummary) {
     status.append(element);
   }
   status.addEventListener("change", () => {
-    currentState = reduceViewerState(currentState, { type: "setIssueReviewStatus", issueId: issueSummary.id, status: status.value });
+    dispatch({ type: "setIssueReviewStatus", issueId: issueSummary.id, status: status.value });
     render();
   });
 
@@ -1957,7 +1946,7 @@ function appendIssueReviewActions(issueSummary) {
   comment.setAttribute("aria-label", "Issue Comment");
   comment.value = issueSummary.comment ?? "";
   comment.addEventListener("change", () => {
-    currentState = reduceViewerState(currentState, { type: "setIssueReviewComment", issueId: issueSummary.id, comment: comment.value });
+    dispatch({ type: "setIssueReviewComment", issueId: issueSummary.id, comment: comment.value });
   });
 
   const bcfButton = document.createElement("button");
@@ -1971,7 +1960,7 @@ function appendIssueReviewActions(issueSummary) {
   restoreButton.type = "button";
   restoreButton.textContent = "Restore view";
   restoreButton.addEventListener("click", () => {
-    currentState = restoreVisibility(currentState);
+    dispatch({ type: "restoreVisibility" });
     render();
   });
 
@@ -2058,7 +2047,7 @@ dom.canvas.addEventListener("click", (event) => {
     pickObjectAt(currentState, point, { width: rect.width, height: rect.height });
   if (objectId) {
     selectedObjectId = objectId;
-    currentState = selectObject(currentState, objectId, { additive: event.shiftKey });
+    dispatch({ type: "selectObject", objectId, additive: event.shiftKey });
     render();
   }
 });
@@ -2169,10 +2158,7 @@ async function handleLivePreviewEvent(raw) {
       code: "visualization.preview.diagnostic",
       message: message.message ?? "Preview diagnostic"
     };
-    currentState = {
-      ...currentState,
-      diagnostics: [...(currentState.diagnostics ?? []), diagnostic]
-    };
+    dispatch({ type: "appendDiagnostic", diagnostic });
     renderDiagnostics();
     setStatus(diagnostic.message, true);
     return;
@@ -2191,16 +2177,8 @@ async function handleLivePreviewEvent(raw) {
     return;
   }
   if (message.type === "scene_diff") {
-    const result = applySceneDiffToState(currentState, message.payload ?? message.diff ?? message.scene_diff ?? message);
-    if (result.applied) {
-      const diffId = (message.payload ?? message.diff ?? message.scene_diff ?? message)?.diff_id ?? null;
-      currentState = {
-        ...result.state,
-        lastSceneDiffStatus: {
-          applied: true,
-          diffId
-        }
-      };
+    dispatch({ type: "applySceneDiff", diff: message.payload ?? message.diff ?? message.scene_diff ?? message });
+    if (currentState.lastSceneDiffStatus.applied) {
       render();
       setStatus(`Preview diff applied ${message.revision ?? ""}`.trim());
       return;
@@ -2216,21 +2194,6 @@ async function handleLivePreviewEvent(raw) {
       }
       return;
     }
-    currentState = {
-      ...currentState,
-      diagnostics: [
-        ...(currentState.diagnostics ?? []),
-        {
-          severity: "warning",
-          code: "visualization.scene_diff.fallback_required",
-          message: result.reason ?? "SceneDiff could not be applied."
-        }
-      ],
-      lastSceneDiffStatus: {
-        applied: false,
-        reason: result.reason
-      }
-    };
     renderDiagnostics();
     setStatus("Preview diff requires full reload", true);
     return;
@@ -2314,7 +2277,7 @@ function stopDeformationAnimation() {
   deformationAnimation = null;
   // Put the scale back where the reviewer left it, so pausing never silently
   // changes the exaggeration a screenshot was taken at.
-  currentState = setVisualDeformationScale(currentState, base);
+  dispatch({ type: "setVisualDeformationScale", scale: base });
 }
 
 function stepDeformationAnimation(timestamp = 0) {
@@ -2326,7 +2289,7 @@ function stepDeformationAnimation(timestamp = 0) {
   // Swings between the true displacement and the chosen exaggeration rather
   // than through zero: x1 is the honest shape, and that is the useful anchor.
   const sweep = (1 - Math.cos(deformationAnimation.phase)) / 2;
-  currentState = setVisualDeformationScale(currentState, 1 + (deformationAnimation.base - 1) * sweep);
+  dispatch({ type: "setVisualDeformationScale", scale: 1 + (deformationAnimation.base - 1) * sweep });
   renderCanvas();
 }
 
