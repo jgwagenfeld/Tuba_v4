@@ -492,6 +492,7 @@ def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
                 else "{}" if filename.endswith(".json") else filename
             )
             (root / "artifacts" / filename).write_text(contents, encoding="utf-8")
+        _write_study_manifest(root / "artifacts" / "study_manifest.json", identity)
         artifacts = {
             filename: {
                 "sha256": sha256((root / "artifacts" / filename).read_bytes()).hexdigest(),
@@ -599,6 +600,7 @@ def _artifact_with_files(
                 target = root / source.name
                 if source.resolve() != target.resolve():
                     target.write_bytes(source.read_bytes())
+        _write_study_manifest(root / "study_manifest.json", identity.to_dict())
         defaults = {
             role: str(root / filename)
             for role, filename in (
@@ -677,3 +679,10 @@ def _save_bundle(root: Path, scene: dict, review: dict) -> None:
 def _geometry_hash(payload: dict) -> str:
     value = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return f"sha256:{sha256(value).hexdigest()}"
+
+
+def _write_study_manifest(path: Path, identity: dict[str, str]) -> None:
+    path.write_text(
+        json.dumps({"study": {"metadata": {}, "solver_input_identity": identity}}),
+        encoding="utf-8",
+    )
