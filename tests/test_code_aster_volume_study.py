@@ -58,6 +58,8 @@ def test_exports_grouped_pipe_volume_study_without_claiming_results(tmp_path):
     assert study.metadata["pipe_modelization"] == PipeModelization.SOLID_3D.value
     assert study.metadata["result_status"] == "pending_solver"
     assert study.metadata["code_aster_solve_ready"] is True
+    assert study.metadata["tensor_stress_exported"] is True
+    assert "study_sigm.csv" in Path(study.input_files["export"]).read_text(encoding="utf-8")
     assert Path(study.input_files["med"]).is_file()
     assert manifest["analysis_mesh"]["surface_mesh"]["faces"]
 

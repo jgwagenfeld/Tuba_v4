@@ -10,4 +10,5 @@ tuba/visualization/_viewer/assets/*.js -whitespace
 notebooks/code_aster_results/viz_gallery_operating/* -text -whitespace
 notebooks/code_aster_results/autorouted_expansion_hot/* -text -whitespace
 notebooks/code_aster_results/support_rack_operating/* -text -whitespace
+notebooks/code_aster_results/tee_volume_operating/* -text -whitespace
 viewer/public/code-aster-review/artifacts/* -text -whitespace

@@ -131,6 +131,8 @@ def test_self_hosted_solver_jobs_refresh_every_engineering_gallery_before_pages_
         "--output notebooks/code_aster_results/support_rack_operating",
         "uv run python scripts/refresh_code_aster_gallery.py --gallery autorouted-expansion-loop "
         "--output notebooks/code_aster_results/autorouted_expansion_hot",
+        "uv run python scripts/refresh_code_aster_gallery.py --gallery pipe-tee-volume-review "
+        "--output notebooks/code_aster_results/tee_volume_operating",
     ]
     pages_command = "uv run python scripts/build_pages.py pages --output .build/code-aster-pages"
 

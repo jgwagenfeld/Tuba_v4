@@ -857,7 +857,14 @@ def _displacement_rows(
 ) -> Iterable[dict[str, Any]]:
     for state in result_states:
         identity = _solver_identity(studies_by_id[state.study_id], state)
+        surface_nodes = (
+            set(state.metadata.get("volume_von_mises", {}))
+            if state.metadata.get("volume_analysis")
+            else None
+        )
         for node_id, values in sorted(state.node_displacements.items()):
+            if surface_nodes is not None and node_id not in surface_nodes:
+                continue
             dx, dy, dz, drx, dry, drz = values
             entity_ref, location_kind = _node_location(state, node_id)
             yield {
@@ -957,6 +964,7 @@ def _fe_stress_rows(
 ) -> Iterable[dict[str, Any]]:
     for state in result_states:
         identity = _solver_identity(studies_by_id[state.study_id], state)
+        is_volume = bool(state.metadata.get("volume_analysis"))
         for element_id, result in sorted(state.element_results.items()):
             if not any(key in result for key in ("von_mises_n1", "von_mises_n2", "max_von_mises")):
                 continue
@@ -964,11 +972,15 @@ def _fe_stress_rows(
                 **identity,
                 "entity_ref": f"element:{element_id}",
                 "element_id": element_id,
-                "von_mises_n1_pa": _required_float(
-                    result, "von_mises_n1", state_id=state.id, element_id=element_id
+                "von_mises_n1_pa": (
+                    result.get("von_mises_n1")
+                    if is_volume
+                    else _required_float(result, "von_mises_n1", state_id=state.id, element_id=element_id)
                 ),
-                "von_mises_n2_pa": _required_float(
-                    result, "von_mises_n2", state_id=state.id, element_id=element_id
+                "von_mises_n2_pa": (
+                    result.get("von_mises_n2")
+                    if is_volume
+                    else _required_float(result, "von_mises_n2", state_id=state.id, element_id=element_id)
                 ),
                 "max_von_mises_pa": _required_float(
                     result, "max_von_mises", state_id=state.id, element_id=element_id

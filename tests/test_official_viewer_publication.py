@@ -26,11 +26,12 @@ OFFICIAL_BUNDLES = (
     "autorouted-expansion-loop",
     "code-aster-review",
     "imported_component_mixed_demo",
+    "pipe-tee-volume-review",
     "support-rack-review",
 )
 
 
-def test_pages_catalog_contains_the_four_validated_official_bundles(tmp_path: Path) -> None:
+def test_pages_catalog_contains_the_five_validated_official_bundles(tmp_path: Path) -> None:
     """Catches a publisher that omits an official example or its catalog."""
     bundle_ids = build_examples(tmp_path, audience="pages")
 
@@ -61,6 +62,15 @@ def test_pages_catalog_contains_the_four_validated_official_bundles(tmp_path: Pa
     rack = json.loads((tmp_path / "support-rack-review" / "scene.json").read_text(encoding="utf-8"))
     assert any(overlay["kind"] == "rack_assembly" for overlay in rack["overlays"])
     assert any(overlay["kind"] == "load_path" for overlay in rack["overlays"])
+    tee = json.loads((tmp_path / "pipe-tee-volume-review" / "scene.json").read_text(encoding="utf-8"))
+    tee_fields = {
+        next(overlay for overlay in tee["overlays"] if overlay["id"] == field["overlay_id"])["data"]["result_type"]
+        for field in tee["result_fields"]
+    }
+    assert tee_fields == {"stress", "displacement", "reaction_force", "reaction_moment"}
+    assert any(obj["kind"] == "analysis_mesh_surface" for obj in tee["objects"])
+    assert any(obj["kind"] == "volume_stress_field" for obj in tee["objects"])
+    assert "visualization_only_not_asme_code_stress" in json.dumps(tee)
 
     model_review = json.loads(
         (tmp_path / "imported_component_mixed_demo" / "scene.json").read_text(encoding="utf-8")
@@ -148,6 +158,7 @@ def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None
     [
         Path("notebooks/code_aster_results/autorouted_expansion_hot"),
         Path("notebooks/code_aster_results/support_rack_operating"),
+        Path("notebooks/code_aster_results/tee_volume_operating"),
         Path("notebooks/code_aster_results/viz_gallery_operating"),
     ],
 )

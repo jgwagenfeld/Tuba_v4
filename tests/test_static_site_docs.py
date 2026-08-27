@@ -193,13 +193,14 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertIn("viewer/?bundle=code-aster-review", readme)
         self.assertIn("viewer/?bundle=code-aster-review", home)
 
-    def test_examples_page_lists_the_four_clickable_review_bundles(self):
+    def test_examples_page_lists_the_five_clickable_review_bundles(self):
         text = (CONTENT / "examples.md").read_text(encoding="utf-8")
 
         for bundle_id in (
             "autorouted-expansion-loop",
             "code-aster-review",
             "imported_component_mixed_demo",
+            "pipe-tee-volume-review",
             "support-rack-review",
         ):
             self.assertIn(f"bundle={bundle_id}", text)

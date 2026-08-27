@@ -15,6 +15,11 @@ from examples.code_aster_artifact_review import (
     build_model,
     build_support_rack_model,
 )
+from examples.code_aster_tee_volume_review import (
+    TEE_VOLUME_ELEMENT_IDS,
+    TEE_VOLUME_MAX_ELEMENT_SIZE,
+    build_tee_volume_model,
+)
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 
@@ -24,6 +29,14 @@ _SOLVER_OUTPUT_FILES = (
     "study.rmed",
     "study_depl.csv",
     "study_effo.csv",
+    "study_reac.csv",
+    "study_sieq.csv",
+    "study_execution.json",
+)
+_VOLUME_SOLVER_OUTPUT_FILES = (
+    "study.mess",
+    "study.rmed",
+    "study_depl.csv",
     "study_reac.csv",
     "study_sieq.csv",
     "study_execution.json",
@@ -38,6 +51,8 @@ def build_gallery_model(gallery: str, scratch_root: str | Path) -> tuple[Any, st
     if gallery == "autorouted-expansion-loop":
         model, _route_result = build_autorouted_expansion_model(Path(scratch_root) / "routing")
         return model, "Hot"
+    if gallery == "pipe-tee-volume-review":
+        return build_tee_volume_model(), "Operating"
     raise ValueError(f"Unknown official engineering gallery {gallery!r}.")
 
 
@@ -48,8 +63,19 @@ def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -
     with TemporaryDirectory(prefix="tuba-gallery-routing-") as scratch:
         model, load_case = build_gallery_model(gallery, scratch)
     solver = CodeAsterSolver(work_dir=output_path)
-    study = solver.export_analysis_study(model, load_case, output_path)
-    for filename in _SOLVER_OUTPUT_FILES:
+    study = (
+        solver.export_volume_study(
+            model,
+            load_case,
+            output_path,
+            element_ids=TEE_VOLUME_ELEMENT_IDS,
+            max_element_size=TEE_VOLUME_MAX_ELEMENT_SIZE,
+            export_tensor_stress=False,
+        )
+        if gallery == "pipe-tee-volume-review"
+        else solver.export_analysis_study(model, load_case, output_path)
+    )
+    for filename in {*_SOLVER_OUTPUT_FILES, *_VOLUME_SOLVER_OUTPUT_FILES, "study_sigm.csv"}:
         (output_path / filename).unlink(missing_ok=True)
     solver.solve_exported_study(model, study)
     artifact = import_code_aster_artifacts(model=model, work_dir=output_path, study=study)
@@ -58,7 +84,12 @@ def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -
 
 
 def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
-    for filename in _SOLVER_OUTPUT_FILES:
+    required_outputs = (
+        _VOLUME_SOLVER_OUTPUT_FILES
+        if getattr(artifact.study, "metadata", {}).get("volume_analysis")
+        else _SOLVER_OUTPUT_FILES
+    )
+    for filename in required_outputs:
         if not (output / filename).is_file():
             raise ValueError(f"Canonical Code_Aster gallery is missing required artifact {filename}.")
 
@@ -102,7 +133,12 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True, help="Canonical Code_Aster gallery directory")
     parser.add_argument(
         "--gallery",
-        choices=("autorouted-expansion-loop", "code-aster-review", "support-rack-review"),
+        choices=(
+            "autorouted-expansion-loop",
+            "code-aster-review",
+            "pipe-tee-volume-review",
+            "support-rack-review",
+        ),
         default="code-aster-review",
     )
     args = parser.parse_args()

@@ -36,6 +36,7 @@ def test_refresh_selects_each_official_engineering_gallery(tmp_path, monkeypatch
     assert callable(selector)
     monkeypatch.setattr(refresh_code_aster_gallery, "build_model", lambda: "pipe")
     monkeypatch.setattr(refresh_code_aster_gallery, "build_support_rack_model", lambda: "rack")
+    monkeypatch.setattr(refresh_code_aster_gallery, "build_tee_volume_model", lambda: "tee")
     monkeypatch.setattr(
         refresh_code_aster_gallery,
         "build_autorouted_expansion_model",
@@ -45,6 +46,7 @@ def test_refresh_selects_each_official_engineering_gallery(tmp_path, monkeypatch
     assert selector("code-aster-review", tmp_path) == ("pipe", "Operating")
     assert selector("support-rack-review", tmp_path) == ("rack", "Operating")
     assert selector("autorouted-expansion-loop", tmp_path) == ("autorouted", "Hot")
+    assert selector("pipe-tee-volume-review", tmp_path) == ("tee", "Operating")
 
 
 def _artifact(identity="gallery-input", *, attestation=_DEFAULT_ATTESTATION):
@@ -123,6 +125,45 @@ def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp
     assert all((tmp_path / filename).read_text(encoding="utf-8").startswith("fresh") for filename in _SOLVER_OUTPUT_FILES)
     assert len(scratch_paths) == 1
     assert not scratch_paths[0].exists()
+
+
+def test_refresh_uses_native_volume_export_for_the_tee_gallery(tmp_path, monkeypatch):
+    calls = []
+    artifact = _artifact()
+    artifact.study.metadata = {"volume_analysis": True}
+
+    class FakeSolver:
+        def __init__(self, *, work_dir):
+            self.work_dir = work_dir
+
+        def export_volume_study(self, model, load_case, output, **kwargs):
+            calls.append(("export_volume", model, load_case, output, kwargs))
+            return artifact.study
+
+        def solve_exported_study(self, model, study):
+            calls.append(("solve", model, study))
+            for filename in refresh_code_aster_gallery._VOLUME_SOLVER_OUTPUT_FILES:
+                (tmp_path / filename).write_text(filename, encoding="utf-8")
+
+    model = object()
+    monkeypatch.setattr(
+        refresh_code_aster_gallery,
+        "build_gallery_model",
+        lambda gallery, scratch: (model, "Operating"),
+    )
+    monkeypatch.setattr(refresh_code_aster_gallery, "CodeAsterSolver", FakeSolver)
+    monkeypatch.setattr(refresh_code_aster_gallery, "import_code_aster_artifacts", lambda **kwargs: artifact)
+
+    refreshed = refresh_code_aster_gallery.refresh_gallery(
+        tmp_path,
+        gallery="pipe-tee-volume-review",
+    )
+
+    assert refreshed is artifact
+    assert calls[0][0] == "export_volume"
+    assert calls[0][4]["element_ids"] == refresh_code_aster_gallery.TEE_VOLUME_ELEMENT_IDS
+    assert calls[0][4]["max_element_size"] == refresh_code_aster_gallery.TEE_VOLUME_MAX_ELEMENT_SIZE
+    assert calls[0][4]["export_tensor_stress"] is False
 
 
 @pytest.mark.parametrize(

@@ -26,6 +26,15 @@ analysis mesh, TUYAU wall sub-points, deformation, forces, and reactions.
 
 [Open the solved autorouted expansion-loop review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop).
 
+## Native 3D pipe tee — solved engineering review
+
+**Status: SOLVED / IMPORTED.** Gmsh generates one conformal quadratic
+tetrahedral wall mesh for the header and branch; Code_Aster solves it as `3D`.
+The viewer keeps the design tubes, analysis skin, displacement, terminal
+resultants, and FE VMIS separate. FE VMIS is not ASME piping-code stress.
+
+[Open the solved native 3D tee review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review).
+
 ## Imported-component scene — model review
 
 **Status: MODEL REVIEW / NO SOLVER RESULTS.** This bundle demonstrates imported-component geometry, local frames, object selection, and model provenance.
@@ -52,6 +61,7 @@ Run an example with:
 | `imported_component_mixed_system.py` | **MODEL REVIEW SCENE; OPTIONAL STEP HANDOFF** | Writes a model JSON and geometry-only scene; STEP/STP input can also export an unsolved mixed study |
 | `realtime_visualization_review.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises before writing any result-review scene |
 | `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Imports existing Code_Aster artifacts and writes engineering review and web-scene files |
+| `code_aster_tee_volume_review.py` | **SOLVED 3D ARTIFACT IMPORT + REVIEW BUNDLE** | Imports the attested native Gmsh/Code_Aster tee study and writes its volume-result review |
 
 No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** write `.comm`, `.mail`, and `.export` inputs only; those files remain incomplete for engineering evaluation until Code_Aster runs and Tuba imports the result artifacts. Report-only and model-review rows do not claim to produce solver handoff or result evidence.
 

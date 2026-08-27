@@ -24,6 +24,7 @@ from examples.code_aster_artifact_review import (
     build_support_rack_model,
     run_example,
 )
+from examples.code_aster_tee_volume_review import run_example as run_tee_volume_example
 from examples.imported_component_mixed_system import run_demo
 from scripts import prepare_release
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
@@ -83,16 +84,28 @@ def _build_support_rack_review(destination: Path, _artifacts: Path | None) -> No
         _replace_tree(produced / "review_scene", destination)
 
 
+def _build_tee_volume_review(destination: Path, _artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-tee-volume-") as temporary:
+        produced = Path(temporary) / "review"
+        run_tee_volume_example(
+            produced,
+            artifact_dir=ROOT / "notebooks" / "code_aster_results" / "tee_volume_operating",
+        )
+        _replace_tree(produced / "review_scene", destination)
+
+
 OFFICIAL_EXAMPLES: tuple[tuple[str, Callable[[Path, Path | None], None], frozenset[str], str], ...] = (
     ("autorouted-expansion-loop", _build_autorouted_review, frozenset({"dev", "pages"}), "engineering-review"),
     ("code-aster-review", _build_code_aster_review, frozenset({"dev", "pages"}), "engineering-review"),
     ("imported_component_mixed_demo", _build_model_review, frozenset({"dev", "pages"}), "model-review"),
+    ("pipe-tee-volume-review", _build_tee_volume_review, frozenset({"dev", "pages"}), "volume-engineering-review"),
     ("support-rack-review", _build_support_rack_review, frozenset({"dev", "pages"}), "engineering-review"),
 )
 PAGES_BUNDLE_IDS = (
     "autorouted-expansion-loop",
     "code-aster-review",
     "imported_component_mixed_demo",
+    "pipe-tee-volume-review",
     "support-rack-review",
 )
 _PAGES_REQUIRED_FILES = frozenset(
@@ -111,6 +124,7 @@ _PAGES_REQUIRED_FILES = frozenset(
         "viewer/autorouted-expansion-loop/scene.json",
         "viewer/code-aster-review/scene.json",
         "viewer/imported_component_mixed_demo/scene.json",
+        "viewer/pipe-tee-volume-review/scene.json",
         "viewer/support-rack-review/scene.json",
         "notebooks/10_interactive_postprocessor.ipynb",
         ".nojekyll",
@@ -285,7 +299,7 @@ def write_bundle_catalog(viewer_root: Path, bundle_ids: tuple[str, ...]) -> Path
 
 def validate_official_bundle(root: Path, profile: str) -> None:
     """Reject a bundle that is not portable and complete for its official profile."""
-    if profile not in {"engineering-review", "model-review"}:
+    if profile not in {"engineering-review", "model-review", "volume-engineering-review"}:
         raise ValueError(f"Unknown official profile {profile!r}.")
     scene = _read_json(root / "scene.json")
     _reject_unsafe_references(scene)
@@ -315,7 +329,7 @@ def validate_official_bundle(root: Path, profile: str) -> None:
         "design", "analysis_mesh", "results", "annotations"
     }:
         raise ValueError("Engineering-review bundles require all four layer categories.")
-    _validate_engineering_result_fields(scene)
+    _validate_engineering_result_fields(scene, volume=profile == "volume-engineering-review")
     identity = _validate_engineering_provenance(scene, review)
     _validate_execution_attestation(root, identity)
     _validate_portable_provenance_files(root, review)
@@ -352,7 +366,7 @@ def _validate_geometry(root: Path, scene: dict[str, Any]) -> None:
             raise ValueError(f"Geometry hash does not match payload for {asset.get('id', '<unknown>')!r}.")
 
 
-def _validate_engineering_result_fields(scene: dict[str, Any]) -> None:
+def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool = False) -> None:
     fields = scene.get("result_fields", [])
     overlays = scene.get("overlays", [])
     expected = {
@@ -360,10 +374,11 @@ def _validate_engineering_result_fields(scene: dict[str, Any]) -> None:
         "displacement": "solver_result",
         "reaction_force": "solver_result",
         "reaction_moment": "solver_result",
-        "tuyau_subpoints": "solver_result",
     }
+    if not volume:
+        expected["tuyau_subpoints"] = "solver_result"
     if not isinstance(fields, list) or len(fields) != len(expected):
-        raise ValueError("Engineering-review bundles require five result fields.")
+        raise ValueError(f"Engineering-review bundles require {len(expected)} result fields.")
     overlays_by_id = {
         overlay.get("id"): overlay
         for overlay in overlays

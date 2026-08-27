@@ -103,3 +103,25 @@ test("assembled Pages documentation is accessible", async ({ page }) => {
   // release badge requests /releases/latest, which 404s until the repository
   // publishes its first GitHub release.
 });
+
+test("assembled Pages renders the native 3D tee result fields", async ({ page, request }) => {
+  await page.goto("/viewer/?bundle=pipe-tee-volume-review", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("status")).toHaveText("Ready");
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("[data-canvas]");
+    return canvas?.dataset.renderer === "three" && Number(canvas.dataset.renderedObjects ?? 0) > 0;
+  });
+
+  const response = await request.get("/viewer/pipe-tee-volume-review/scene.json");
+  expect(response.ok()).toBe(true);
+  const scene = await response.json();
+  const objectKinds = new Set(scene.objects.map((object) => object.kind));
+  for (const kind of ["analysis_mesh_surface", "volume_stress_field", "volume_displacement_field"]) {
+    expect(objectKinds.has(kind)).toBe(true);
+  }
+  const overlays = new Map(scene.overlays.map((overlay) => [overlay.id, overlay]));
+  expect(new Set(scene.result_fields.map((field) => overlays.get(field.overlay_id)?.data?.result_type))).toEqual(
+    new Set(["stress", "displacement", "reaction_force", "reaction_moment"])
+  );
+  expect(JSON.stringify(scene)).toContain("visualization_only_not_asme_code_stress");
+});

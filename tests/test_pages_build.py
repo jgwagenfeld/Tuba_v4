@@ -24,6 +24,7 @@ REQUIRED = {
     "viewer/licenses/OFL-1.1.txt",
     "viewer/code-aster-review/scene.json",
     "viewer/imported_component_mixed_demo/scene.json",
+    "viewer/pipe-tee-volume-review/scene.json",
     "viewer/support-rack-review/scene.json",
     "notebooks/10_interactive_postprocessor.ipynb",
     ".nojekyll",
@@ -32,6 +33,7 @@ OFFICIAL_BUNDLES = [
     "autorouted-expansion-loop",
     "code-aster-review",
     "imported_component_mixed_demo",
+    "pipe-tee-volume-review",
     "support-rack-review",
 ]
 

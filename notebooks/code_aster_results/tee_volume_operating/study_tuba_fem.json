@@ -1,0 +1,30 @@
+{
+  "analysis_mesh_id": "pipe-volume-11ee3b6a3d2446f384c983f7a6576c1a",
+  "lineage": {
+    "G_END_N1": "node:N1",
+    "G_END_N2": "node:N2",
+    "G_END_N3": "node:N3",
+    "G_INNER_region_0": "group:G_INNER_region_0",
+    "G_OUTER_region_0": "group:G_OUTER_region_0",
+    "G_SOLID_region_0": "group:G_SOLID_region_0",
+    "G_TEE_N0": "node:N0"
+  },
+  "load_case": "Operating",
+  "name_map": {
+    "G_END_N1": "G_END_N1",
+    "G_END_N2": "G_END_N2",
+    "G_END_N3": "G_END_N3",
+    "G_INNER_region_0": "G_INNER_region_0",
+    "G_OUTER_region_0": "G_OUTER_region_0",
+    "G_SOLID_region_0": "G_SOLID_region_0",
+    "G_TEE_N0": "G_TEE_N0"
+  },
+  "schema_version": 1,
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.volume.v1",
+    "fingerprint": "9badcbd974f468610dc1d5391a9fde38a423e0c631361014f97fa0b7d3882ecf",
+    "load_case": "Operating",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster"
+}

@@ -28,6 +28,7 @@ class PipeVolumeStudyExporter:
         element_ids: Iterable[str],
         max_element_size: float,
         element_order: int = 2,
+        export_tensor_stress: bool = True,
     ) -> AnalysisStudy:
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
@@ -53,6 +54,7 @@ class PipeVolumeStudyExporter:
             "element_ids": sorted(ids),
             "element_order": element_order,
             "max_element_size": float(max_element_size),
+            "export_tensor_stress": bool(export_tensor_stress),
         }
         identity = build_solver_input_identity(
             model,
@@ -71,8 +73,9 @@ class PipeVolumeStudyExporter:
             anchor_groups=anchor_groups,
             gravity=load_case.gravity,
             material_name=model.get_element(ids[0]).material,
+            export_tensor_stress=export_tensor_stress,
         )
-        _write_export(export_path)
+        _write_export(export_path, export_tensor_stress=export_tensor_stress)
         dump_solver_sidecar(
             sidecar_path,
             solver_name=self.SOLVER_NAME,
@@ -92,6 +95,7 @@ class PipeVolumeStudyExporter:
             "compiler_inputs": compiler_inputs,
             "gmsh_version": generated.gmsh_version,
             "mesh_settings": generated.settings,
+            "tensor_stress_exported": bool(export_tensor_stress),
         }
         study = AnalysisStudy(
             id=f"pipe_volume_study:{load_case_name}",
@@ -184,6 +188,7 @@ def _write_comm(
     anchor_groups: tuple[str, ...],
     gravity: bool,
     material_name: str,
+    export_tensor_stress: bool,
 ) -> None:
     material = model.materials[material_name]
     solid = name_map["G_SOLID_region_0"]
@@ -292,39 +297,47 @@ def _write_comm(
             "            NOM_CMP=('VMIS', 'TRESCA')),",
             ");",
             "IMPR_TABLE(TABLE=TAB_SIEQ, FORMAT='TABLEAU', UNITE=41, SEPARATEUR=',');",
-            "TAB_SIGM = CREA_TABLE(",
-            "    RESU=_F(RESULTAT=RESU, NOM_CHAM='SIGM_ELNO', TOUT='OUI',",
-            "            NOM_CMP=('SIXX', 'SIYY', 'SIZZ', 'SIXY', 'SIXZ', 'SIYZ')),",
-            ");",
-            "IMPR_TABLE(TABLE=TAB_SIGM, FORMAT='TABLEAU', UNITE=42, SEPARATEUR=',');",
+        ]
+    )
+    if export_tensor_stress:
+        lines.extend(
+            [
+                "TAB_SIGM = CREA_TABLE(",
+                "    RESU=_F(RESULTAT=RESU, NOM_CHAM='SIGM_ELNO', TOUT='OUI',",
+                "            NOM_CMP=('SIXX', 'SIYY', 'SIZZ', 'SIXY', 'SIXZ', 'SIYZ')),",
+                ");",
+                "IMPR_TABLE(TABLE=TAB_SIGM, FORMAT='TABLEAU', UNITE=42, SEPARATEUR=',');",
+            ]
+        )
+    lines.extend(
+        [
             "FIN();",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _write_export(path: Path) -> None:
+def _write_export(path: Path, *, export_tensor_stress: bool) -> None:
+    files = [
+        "P actions make_etude",
+        "P version stable",
+        "P nomjob study",
+        "P mode interactif",
+        "P ncpus 1",
+        "A memjeveux 1024",
+        "A tpmax 3600",
+        "F comm study.comm D 1",
+        "F mmed study.med D 20",
+        "F mess study.mess R 6",
+        "F rmed study.rmed R 80",
+        "F depl study_depl.csv R 39",
+        "F reac study_reac.csv R 40",
+        "F sieq study_sieq.csv R 41",
+    ]
+    if export_tensor_stress:
+        files.append("F sigm study_sigm.csv R 42")
     path.write_text(
-        "\n".join(
-            [
-                "P actions make_etude",
-                "P version stable",
-                "P nomjob study",
-                "P mode interactif",
-                "P ncpus 1",
-                "A memjeveux 1024",
-                "A tpmax 3600",
-                "F comm study.comm D 1",
-                "F mmed study.med D 20",
-                "F mess study.mess R 6",
-                "F rmed study.rmed R 80",
-                "F depl study_depl.csv R 39",
-                "F reac study_reac.csv R 40",
-                "F sieq study_sieq.csv R 41",
-                "F sigm study_sigm.csv R 42",
-            ]
-        )
-        + "\n",
+        "\n".join(files) + "\n",
         encoding="utf-8",
     )
 

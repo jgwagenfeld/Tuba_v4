@@ -12,6 +12,7 @@ from tuba.analysis.study import AnalysisStudy
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
     MIXED_CODE_ASTER_COMPILER_ID,
+    VOLUME_CODE_ASTER_COMPILER_ID,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
@@ -115,16 +116,14 @@ def _validate_lineage(
         if study.id in studies_by_id:
             raise EngineeringReviewError(f"Duplicate supplied study {study.id!r}.")
         studies_by_id[study.id] = study
+        compiler_id, compiler_inputs = _compiler_contract(study.metadata)
         _validate_solver_identity(
             model,
             study.solver_input_identity,
             f"Study {study.id!r}",
             expected_load_case=study.load_case,
-            expected_compiler_id=(
-                MIXED_CODE_ASTER_COMPILER_ID
-                if study.metadata.get("mixed_analysis")
-                else CODE_ASTER_COMPILER_ID
-            ),
+            expected_compiler_id=compiler_id,
+            compiler_inputs=compiler_inputs,
         )
         if study.model_revision != model_revision:
             raise EngineeringReviewError(
@@ -153,27 +152,27 @@ def _validate_lineage(
                 )
             except ValueError as exc:
                 raise EngineeringReviewError(str(exc)) from exc
+            compiler_id, compiler_inputs = _compiler_contract(study.metadata)
             _validate_solver_identity(
                 model,
                 mesh.solver_input_identity,
                 f"Analysis mesh {mesh.id!r}",
                 expected_load_case=study.load_case,
-                expected_compiler_id=(
-                    MIXED_CODE_ASTER_COMPILER_ID
-                    if study.metadata.get("mixed_analysis")
-                    else CODE_ASTER_COMPILER_ID
-                ),
+                expected_compiler_id=compiler_id,
+                compiler_inputs=compiler_inputs,
             )
     for state in result_states:
         if state.id in result_ids:
             raise EngineeringReviewError(f"Duplicate result state {state.id!r}.")
         result_ids.add(state.id)
+        compiler_id, compiler_inputs = _compiler_contract(state.metadata)
         _validate_solver_identity(
             model,
             state.solver_input_identity,
             f"Result state {state.id!r}",
             expected_load_case=state.load_case,
-            expected_compiler_id=CODE_ASTER_COMPILER_ID,
+            expected_compiler_id=compiler_id,
+            compiler_inputs=compiler_inputs,
         )
         if state.model_revision != model_revision:
             raise EngineeringReviewError(
@@ -442,6 +441,7 @@ def _validate_solver_identity(
     *,
     expected_load_case: str,
     expected_compiler_id: str,
+    compiler_inputs: dict[str, Any] | None = None,
 ) -> None:
     try:
         validate_solver_input_identity(
@@ -450,6 +450,7 @@ def _validate_solver_identity(
             context=context,
             expected_load_case=expected_load_case,
             expected_compiler_id=expected_compiler_id,
+            compiler_inputs=compiler_inputs,
         )
     except ValueError as exc:
         raise EngineeringReviewError(str(exc)) from exc
@@ -463,7 +464,20 @@ def _compact_result_metadata(state: ResultState) -> dict[str, Any]:
         source_file = state.files.get("tuyau_subpoints") or state.files.get("sieq")
         if source_file:
             metadata["tuyau_subpoints_file"] = source_file
+    volume_values = metadata.pop("volume_von_mises", None)
+    if isinstance(volume_values, dict):
+        metadata["volume_von_mises_count"] = len(volume_values)
+        if state.files.get("sieq"):
+            metadata["volume_von_mises_file"] = state.files["sieq"]
     return metadata
+
+
+def _compiler_contract(metadata: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+    if metadata.get("mixed_analysis"):
+        return MIXED_CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
+    if metadata.get("volume_analysis"):
+        return VOLUME_CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
+    return CODE_ASTER_COMPILER_ID, None
 
 
 def _default_package_id(model: TubaModel) -> str:

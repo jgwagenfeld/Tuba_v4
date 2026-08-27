@@ -438,7 +438,7 @@ def _readback(
     analysis_mesh = AnalysisMesh(
         id=f"pipe-volume-{uuid4().hex}",
         model_revision=int(getattr(model, "revision", 0)),
-        solver_name="code_aster",
+        solver_name="Code_Aster",
         nodes=nodes,
         elements=elements,
         groups=groups,

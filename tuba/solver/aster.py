@@ -341,6 +341,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         element_ids,
         max_element_size: float,
         element_order: int = 2,
+        export_tensor_stress: bool = True,
     ) -> AnalysisStudy:
         """Export a native Gmsh pipe-volume study without claiming solver results."""
         from tuba.solver.aster_volume import PipeVolumeStudyExporter
@@ -352,6 +353,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             element_ids=element_ids,
             max_element_size=max_element_size,
             element_order=element_order,
+            export_tensor_stress=export_tensor_stress,
         )
 
     def solve_volume_study(
@@ -362,6 +364,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         element_ids,
         max_element_size: float,
         element_order: int = 2,
+        export_tensor_stress: bool = True,
     ) -> AnalysisRun:
         """Generate, execute, attest, and import an explicit pipe-volume study."""
         output_dir = self.work_dir or Path(tempfile.mkdtemp(prefix="tuba_aster_volume_"))
@@ -372,6 +375,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             element_ids=element_ids,
             max_element_size=max_element_size,
             element_order=element_order,
+            export_tensor_stress=export_tensor_stress,
         )
         return self.solve_exported_study(model, study)
 

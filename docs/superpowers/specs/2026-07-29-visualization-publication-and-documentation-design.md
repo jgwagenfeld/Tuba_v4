@@ -150,9 +150,10 @@ Pages build module. Each record contains only:
 - bundle ID;
 - producer adapter;
 - audience (`dev` and/or `pages`);
-- validation profile (`engineering-review` or `model-review`).
+- validation profile (`engineering-review`, `volume-engineering-review`, or
+  `model-review`).
 
-The four published records are:
+The five published records are:
 
 - `code-aster-review`, produced from the canonical solved Code_Aster artifact
   set;
@@ -160,6 +161,8 @@ The four published records are:
   load-path overlays;
 - `autorouted-expansion-loop`, a solved U-loop selected by the autorouter with
   the route alternatives retained for review;
+- `pipe-tee-volume-review`, a solved native Gmsh/Code_Aster 3D tee with the
+  volume analysis skin and FE result fields retained for review;
 - `imported_component_mixed_demo`, explicitly labelled as a model-review bundle
   without solver results.
 
@@ -382,7 +385,7 @@ is a hard blocker and must not fall back to fabricated or export-only results.
 
 Serve the assembled `_site`, not the Vite development server, and verify:
 
-- the picker is visible with exactly the four official Pages examples;
+- the picker is visible with exactly the five official Pages examples;
 - switching the picker updates the URL and loaded scene;
 - the engineering example exposes Load case, Field, and Component controls;
 - displacement component selection changes the legend and rendered state;

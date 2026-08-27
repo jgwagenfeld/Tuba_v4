@@ -28,7 +28,7 @@ ATTESTED_CODE_ASTER_FILES = (
 VOLUME_ATTESTED_CODE_ASTER_FILES = (
     "study.comm", "study.med", "study.export", "study_manifest.json",
     "study_tuba_fem.json", "study.mess", "study.rmed", "study_depl.csv",
-    "study_reac.csv", "study_sieq.csv", "study_sigm.csv",
+    "study_reac.csv", "study_sieq.csv",
 )
 _EXECUTION_ATTESTATION_SCHEMA = "tuba.code_aster_execution.v1"
 _SOLVER_VERSION_PATTERN = re.compile(r"\bVersion\s+(\d+(?:\.\d+)+)\b")
@@ -313,7 +313,11 @@ def attested_code_aster_files(work_dir: str | Path) -> tuple[str, ...]:
     except (OSError, json.JSONDecodeError):
         return ATTESTED_CODE_ASTER_FILES
     metadata = manifest.get("study", {}).get("metadata", {})
-    return VOLUME_ATTESTED_CODE_ASTER_FILES if metadata.get("volume_analysis") else ATTESTED_CODE_ASTER_FILES
+    if not metadata.get("volume_analysis"):
+        return ATTESTED_CODE_ASTER_FILES
+    return VOLUME_ATTESTED_CODE_ASTER_FILES + (
+        ("study_sigm.csv",) if metadata.get("tensor_stress_exported", True) else ()
+    )
 
 
 def validate_code_aster_execution_attestation(
