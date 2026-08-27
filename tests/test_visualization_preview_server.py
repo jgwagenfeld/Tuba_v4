@@ -4,9 +4,11 @@ import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from urllib.request import urlopen
 
 from tuba.visualization.preview import PreviewServer, execute_preview_script, run_preview_once
+from tuba.visualization.preview import _runner
 
 
 SCENE_SCRIPT = """
@@ -40,6 +42,26 @@ show_scene(scene)
 
 
 class TestVisualizationPreviewServer(unittest.TestCase):
+    def test_runner_uses_package_root_capture_when_legacy_registry_is_unavailable(self):
+        """Package-root show_scene is the runner's sole trusted-script capture seam."""
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            script = root / "preview_scene.py"
+            out = root / "bundle"
+            script.write_text(SCENE_SCRIPT.format(scene_id="scene:root-capture", name="Root capture"), encoding="utf-8")
+
+            with patch.object(
+                _runner,
+                "clear_preview_outputs",
+                side_effect=AssertionError("legacy registry used"),
+                create=True,
+            ):
+                payload = _runner.run_trusted_script(script, out)
+
+            self.assertTrue(payload["ok"])
+            scene = json.loads((out / "scene.json").read_text(encoding="utf-8"))
+            self.assertEqual(scene["scene_id"], "scene:root-capture")
+
     def test_run_preview_once_writes_bundle_and_events(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

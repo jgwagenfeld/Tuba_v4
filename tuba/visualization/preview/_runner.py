@@ -14,7 +14,6 @@ from tuba.model import TubaModel
 from tuba.patches import ModelPatch
 from tuba.visualization.builders import build_visualization_scene
 from tuba.visualization.live_preview import preview_json_patch
-from tuba.visualization.preview.api import PreviewOutput, clear_preview_outputs, collected_preview_outputs
 import tuba.visualization.preview as preview_package
 from tuba.visualization.scene import SceneDiagnostic, VisualizationScene
 from tuba.visualization.web_export import write_scene_bundle
@@ -34,17 +33,12 @@ def main(argv: list[str] | None = None) -> int:
 
 def run_trusted_script(script_path: Path, out_dir: Path) -> dict[str, Any]:
     try:
-        clear_preview_outputs()
-        if hasattr(preview_package, "_reset_output_capture"):
-            preview_package._reset_output_capture()
+        preview_package._reset_output_capture()
         namespace = runpy.run_path(str(script_path), run_name="__main__")
-        outputs = collected_preview_outputs()
-        if hasattr(preview_package, "_consume_output_capture"):
-            for output in preview_package._consume_output_capture():
-                outputs.append(PreviewOutput(output["kind"], output["value"]))
+        outputs = preview_package._consume_output_capture()
         for kind in ("scene", "model", "patch"):
             if kind in namespace:
-                outputs.append(PreviewOutput(kind, namespace[kind]))
+                outputs.append({"kind": kind, "value": namespace[kind]})
         return _materialize_outputs(outputs, out_dir)
     except Exception as exc:
         diagnostic = SceneDiagnostic(
@@ -57,18 +51,18 @@ def run_trusted_script(script_path: Path, out_dir: Path) -> dict[str, Any]:
         return {"ok": False, "diagnostics": [diagnostic.to_dict()], "messages": [_diagnostic_event(diagnostic)]}
 
 
-def _materialize_outputs(outputs: list[Any], out_dir: Path) -> dict[str, Any]:
+def _materialize_outputs(outputs: list[dict[str, Any]], out_dir: Path) -> dict[str, Any]:
     model: TubaModel | None = None
     patch: ModelPatch | dict[str, Any] | None = None
     scene: VisualizationScene | None = None
 
     for output in outputs:
-        if output.kind == "model":
-            model = output.value
-        elif output.kind == "patch":
-            patch = output.value
-        elif output.kind == "scene":
-            scene = _coerce_scene(output.value)
+        if output["kind"] == "model":
+            model = output["value"]
+        elif output["kind"] == "patch":
+            patch = output["value"]
+        elif output["kind"] == "scene":
+            scene = _coerce_scene(output["value"])
 
     if scene is None and model is not None and patch is None:
         scene = build_visualization_scene(model)
