@@ -29,6 +29,20 @@ jobs:
         working-directory: viewer
       - run: xvfb-run -a uv run python -m pytest
 
+  ifc-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --extra ifc --locked
+      - run: uv run python -c "import ifcopenshell"
+      - run: >-
+          uv run python -m pytest tests/test_ifc.py tests/test_ifc_mapping.py
+          tests/test_ifc_pipe_systems.py tests/test_ifc_placements.py
+          tests/test_code_aster_artifact_import.py -q
+
   notebooks-and-docs:
     runs-on: ubuntu-latest
     steps:

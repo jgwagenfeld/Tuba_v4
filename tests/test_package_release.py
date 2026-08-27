@@ -138,6 +138,15 @@ def test_collision_extra_uses_python_310_to_312_wheel_floor():
     assert "python-fcl>=0.7.0.11" in _project()["optional-dependencies"]["collision"]
 
 
+def test_supported_python_and_ifc_versions_are_explicit():
+    project = _project()
+
+    assert project["requires-python"] == ">=3.11,<3.13"
+    for extra in ("ifc", "course"):
+        assert "ifcopenshell==0.8.4.post1" in project["optional-dependencies"][extra]
+    assert "pyyaml>=6" in project["optional-dependencies"]["dev"]
+
+
 def test_course_extra_includes_dependencies_used_by_all_notebooks():
     course = _project()["optional-dependencies"]["course"]
 

@@ -93,6 +93,28 @@ def test_ci_and_release_workflows_cover_local_release_gates():
     assert "tests/test_code_aster_real_smoke.py" in ci
 
 
+def test_windows_ifc_job_fails_closed_on_the_locked_runtime():
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    job = workflow["jobs"]["ifc-windows"]
+    commands = [step["run"] for step in job["steps"] if "run" in step]
+
+    assert job["runs-on"] == "windows-latest"
+    assert any(
+        step.get("uses") == "astral-sh/setup-uv@v6"
+        and step.get("with", {}).get("python-version") == "3.12"
+        for step in job["steps"]
+    )
+    assert "uv sync --extra dev --extra ifc --locked" in commands
+    assert 'uv run python -c "import ifcopenshell"' in commands
+    assert (
+        "uv run python -m pytest tests/test_ifc.py tests/test_ifc_mapping.py "
+        "tests/test_ifc_pipe_systems.py tests/test_ifc_placements.py "
+        "tests/test_code_aster_artifact_import.py -q"
+    ) in commands
+
+
 def test_source_release_gates_tag_on_build_and_real_code_aster_without_pypi():
     release = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")

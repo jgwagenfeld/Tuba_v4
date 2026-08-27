@@ -2,11 +2,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tuba.external.ifc import _HAS_IFCOPENSHELL
+import pytest
+
+pytest.importorskip("ifcopenshell")
+
 from tuba.placements import PlacementFrame
 
 
-@unittest.skipUnless(_HAS_IFCOPENSHELL, "ifcopenshell is not installed")
 class TestIfcPlacements(unittest.TestCase):
     def test_create_axis2placement_from_frame(self):
         import ifcopenshell
@@ -29,7 +31,6 @@ class TestIfcPlacements(unittest.TestCase):
         self.assertEqual(tuple(float(v) for v in placement.RefDirection.DirectionRatios), (0.0, 1.0, 0.0))
 
 
-@unittest.skipUnless(_HAS_IFCOPENSHELL, "ifcopenshell is not installed")
 class TestIfcPlacementExport(unittest.TestCase):
     def test_export_uses_native_product_placement_when_available(self):
         import ifcopenshell
@@ -68,7 +69,6 @@ class TestIfcPlacementExport(unittest.TestCase):
         self.assertTrue(product.ObjectPlacement.RelativePlacement.is_a("IfcAxis2Placement3D"))
 
 
-@unittest.skipUnless(_HAS_IFCOPENSHELL, "ifcopenshell is not installed")
 class TestIfcPlacementImport(unittest.TestCase):
     def test_extract_frame_from_ifc_local_placement(self):
         import ifcopenshell

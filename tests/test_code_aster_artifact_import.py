@@ -6,7 +6,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-import ifcopenshell
+import pytest
+
+ifcopenshell = pytest.importorskip("ifcopenshell")
 
 from tuba import Model
 from tuba.analysis import AnalysisRun, create_operating_geometry_state, create_visual_deformed_geometry_state
@@ -197,6 +199,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertEqual(artifact.result_state.files["execution"], str(work_dir / "study_execution.json"))
 
     def test_import_preserves_rmed_diagnostic_in_result_state_metadata(self):
+        pytest.importorskip("h5py")
         model, n0, n1 = self._model()
 
         with TemporaryDirectory() as tmpdir:

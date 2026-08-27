@@ -2,7 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import ifcopenshell
+import pytest
+
+ifcopenshell = pytest.importorskip("ifcopenshell")
 
 from tuba import Model
 from tuba.external.ifc import IfcExporter

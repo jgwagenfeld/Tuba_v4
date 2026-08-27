@@ -2,7 +2,9 @@ import unittest
 import tempfile
 from pathlib import Path
 import numpy as np
-import ifcopenshell
+import pytest
+
+ifcopenshell = pytest.importorskip("ifcopenshell")
 
 from tuba import Model
 from tests.operating_state_fixtures import straight_pipe_hot_clash_fixture

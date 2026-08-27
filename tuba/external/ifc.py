@@ -12,13 +12,11 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Any
 
 import numpy as np
 
-from tuba.external.ifc_mapping import IfcGuidRegistry, ifc_property
 from tuba.external.ifc_placements import (
     create_local_placement,
     frame_from_local_placement,
     placement_for_target,
 )
-from tuba.external.ifc_pipes import export_pipe_products
 from tuba.placements import PlacementAssignment
 
 if TYPE_CHECKING:
@@ -31,6 +29,10 @@ try:
     import ifcopenshell
     import ifcopenshell.guid
     import ifcopenshell.util.representation
+
+    from tuba.external.ifc_mapping import IfcGuidRegistry, ifc_property
+    from tuba.external.ifc_pipes import export_pipe_products
+
     _HAS_IFCOPENSHELL = True
 except ImportError:
     _HAS_IFCOPENSHELL = False
@@ -40,7 +42,7 @@ def _require_ifcopenshell():
     if not _HAS_IFCOPENSHELL:
         raise ImportError(
             "ifcopenshell is required for IFC integration. "
-            "Install it via: pip install ifcopenshell"
+            "Install it via: pip install 'tuba[ifc]'"
         )
 
 

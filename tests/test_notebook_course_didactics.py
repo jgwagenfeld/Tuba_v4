@@ -2,7 +2,9 @@ import json
 import unittest
 from pathlib import Path
 
-import nbformat
+import pytest
+
+nbformat = pytest.importorskip("nbformat")
 
 
 NOTEBOOK_DIR = Path(__file__).resolve().parents[1] / "notebooks"
