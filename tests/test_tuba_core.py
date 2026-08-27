@@ -9,7 +9,6 @@ from tuba.model import Material, PipeSection
 from tuba.solver.base import FEAResults, NodeResult, ElementResult
 from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
 from tuba.compliance.asme_b313 import ASMEB313Evaluator
-from tuba.optimization.optimizer import GeneticSupportPlacer, LLMSupportOptimizer
 from tuba.plotting.pipeline import build_mesh_from_model, build_3d_mesh_from_model
 
 
@@ -168,38 +167,6 @@ class TestModelAndBuilder(unittest.TestCase):
         self.assertEqual(model.supports[0].type, "spring")
         self.assertEqual(model.supports[0].stiffness_matrix, [0.0, 1.5e6, 0.0, 0.0, 0.0, 0.0])
         self.assertIsNone(model.supports[0].stiffness)
-
-    def test_optimizer_llm_spring_suggestions_use_stiffness_matrix(self):
-        model = Model(project_name="LLMSpring")
-        model.add_node(np.array([0.0, 0.0, 0.0]))
-
-        optimizer = LLMSupportOptimizer()
-        logs = optimizer.apply_llm_suggestions(
-            model,
-            '[{"action": "ADD", "node": "N0", "type": "spring", "y": 150000.0}]',
-        )
-
-        self.assertEqual(logs, ["Added spring support at node N0"])
-        self.assertEqual(model.supports[0].stiffness_matrix, [0.0, 150000.0, 0.0, 0.0, 0.0, 0.0])
-        self.assertIsNone(model.supports[0].stiffness)
-
-    def test_genetic_support_placer_spring_gene_uses_stiffness_matrix(self):
-        model = Model(project_name="GeneticSpring")
-        model.add_support(node="N0", type="anchor")
-
-        placer = GeneticSupportPlacer(spring_stiffness_matrix=[0.0, 200000.0, 0.0, 0.0, 0.0, 0.0])
-        placer._apply_chromosome(model, ["N1"], np.array([3]))
-
-        spring = next(s for s in model.supports if s.type == "spring")
-        self.assertEqual(spring.stiffness_matrix, [0.0, 200000.0, 0.0, 0.0, 0.0, 0.0])
-        self.assertIsNone(spring.stiffness)
-
-    def test_genetic_support_placer_rejects_implicit_spring_gene(self):
-        model = Model(project_name="GeneticNoImplicitSpring")
-        placer = GeneticSupportPlacer()
-
-        with self.assertRaisesRegex(ValueError, "spring_stiffness_matrix"):
-            placer._apply_chromosome(model, ["N1"], np.array([3]))
 
     def test_load_case_ref_temperature_roundtrip(self):
         model = Model(project_name="LoadCaseRoundtrip")

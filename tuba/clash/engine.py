@@ -20,15 +20,12 @@ class ClashEngine:
 
     This is the default clash engine used across rules, routing, and
     visualization. It computes segment-vs-AABB distances analytically and
-    returns structured :class:`ClashResult` objects, so it has no trimesh /
-    IFC / viewer dependency.
+    returns structured :class:`ClashResult` objects, so it has no trimesh / IFC
+    / viewer dependency.
 
-    Boundary: exact mesh-mesh collision against imported STEP/STL (``type:
-    "mesh"``) obstacles is *not* handled here — that lives in
-    :class:`tuba.geometry.collision.PipingCollisionChecker`, which uses trimesh
-    and returns colliding element ids. Use this engine for the analytic
-    cuboid/cylinder + operating-state path; use ``PipingCollisionChecker`` when
-    obstacles are imported meshes.
+    Model clash checks cover analytic cuboid/cylinder obstacles; operating
+    checks use the current result and geometry states. Other obstacle types are
+    intentionally outside this review path.
     """
 
     def check_model(self, model: TubaModel, *, clearance_m: float = 0.0) -> list[ClashResult]:
@@ -111,11 +108,6 @@ class ClashEngine:
                 location=tuple(float(value) for value in location),
             )
         ]
-
-
-# Backwards-compatible alias. The engine is analytic (no trimesh); the old
-# name was misleading. Kept so existing imports keep working.
-TrimeshClashEngine = ClashEngine
 
 
 def _segment_aabb_distance(

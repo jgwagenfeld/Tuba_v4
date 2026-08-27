@@ -131,11 +131,8 @@ def test_heavy_geometry_readers_are_optional():
     assert "meshio" not in dependencies
     assert "trimesh" not in dependencies
     assert "python-fcl" not in dependencies
-    assert {"collision", "viz"} <= set(project["optional-dependencies"])
-
-
-def test_collision_extra_uses_python_310_to_312_wheel_floor():
-    assert "python-fcl>=0.7.0.11" in _project()["optional-dependencies"]["collision"]
+    assert "collision" not in project["optional-dependencies"]
+    assert "viz" in project["optional-dependencies"]
 
 
 def test_supported_python_and_ifc_versions_are_explicit():
@@ -152,7 +149,8 @@ def test_course_extra_includes_dependencies_used_by_all_notebooks():
     course = _project()["optional-dependencies"]["course"]
 
     assert "h5py>=3.10" in course
-    assert "python-fcl>=0.7.0.11" in course
+    assert "trimesh>=4.0" in course
+    assert all("python-fcl" not in dependency and "scipy" not in dependency for dependency in course)
 
 
 def test_validation_workflows_exist():

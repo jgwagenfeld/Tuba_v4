@@ -29,12 +29,12 @@ class TestPublicApi(unittest.TestCase):
         self.assertEqual("", completed.stderr)
         self.assertEqual(0, completed.returncode)
 
-    def test_geometry_modules_do_not_require_scipy(self):
+    def test_step_analysis_importer_does_not_require_scipy(self):
         completed = subprocess.run(
             [
                 sys.executable,
                 "-c",
-                "import sys; import tuba.builder, tuba.geometry.collision; "
+                "import sys; import tuba.builder, tuba.geometry.step_analysis_importer; "
                 "assert 'scipy' not in sys.modules",
             ],
             capture_output=True,

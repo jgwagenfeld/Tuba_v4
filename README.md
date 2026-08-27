@@ -145,7 +145,6 @@ Install only the optional surfaces you use:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install ".[viz]"       # PyVista quick-look and RMED reading
-.\.venv\Scripts\python.exe -m pip install ".[collision]" # exact Trimesh/FCL collision checks
 .\.venv\Scripts\python.exe -m pip install ".[ifc]"       # IFC exchange
 ```
 
