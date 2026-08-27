@@ -49,7 +49,7 @@ import {
 import { cockpitStatusViewModel, workflowViewModel } from "./reviewTables.js";
 import { getReviewEntityAction } from "./reviewSelection.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl } from "./sceneLoader.js";
-import { fitSelection, getPropertySections, pickObjectAt } from "./selection.js";
+import { getPropertySections, pickObjectAt } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
   WORKFLOW_TABS,
@@ -1870,7 +1870,7 @@ function renderProperties() {
   fitButton.type = "button";
   fitButton.textContent = "Fit selected";
   fitButton.addEventListener("click", () => {
-    currentState = fitSelection(currentState);
+    dispatch({ type: "fitSelection" });
     render();
   });
   const hideButton = document.createElement("button");

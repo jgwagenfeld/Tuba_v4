@@ -4,7 +4,7 @@ import { setUnitSystem } from "./units.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
-import { hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
+import { fitSelection, hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
 import { showReviewEntityIn3d } from "./reviewSelection.js";
 import {
   setColoringComponent,
@@ -36,6 +36,8 @@ export function reduceViewerState(state, action) {
       return hideSelected(state);
     case "isolateSelection":
       return isolateSelection(state);
+    case "fitSelection":
+      return fitSelection(state);
     case "restoreVisibility":
       return restoreVisibility(state);
     case "applySectionBox":

@@ -180,6 +180,13 @@ test("viewer reducer owns compound selection and visibility transitions", () => 
   assert.ok(shown.camera.fitRequest);
 });
 
+test("viewer reducer fits the current selection through a camera request", () => {
+  const selected = reduceViewerState(createViewerState(bundle()), { type: "selectObject", objectId: "object:cold" });
+  const fitted = reduceViewerState(selected, { type: "fitSelection" });
+
+  assert.deepEqual(fitted.camera.fitRequest.bounds, [0, 0, 0, 1, 0.1, 0.1]);
+});
+
 test("viewer reducer owns task, issue, and live diagnostic transitions", () => {
   const review = { schema_version: "engineering_review.v1", analysis_status: "solved", tables: {} };
   const initial = {
