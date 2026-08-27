@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-27
 
-**Status:** Proposed for review
+**Status:** Approved for implementation
 
 **Scope:** Profile-aware structural examples, native straight-pipe and tee solid meshing, Code_Aster volume-study preparation, and review geometry
 
