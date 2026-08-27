@@ -59,6 +59,11 @@ def build_engineering_review(
             raise EngineeringReviewError(
                 "analysis_runs cannot be mixed with lower-level studies, analysis_meshes, or result_states."
             )
+        for run in run_records:
+            try:
+                run.validate_for_publication(model)
+            except ValueError as exc:
+                raise EngineeringReviewError(str(exc)) from exc
         study_records = tuple(run.study for run in run_records)
         mesh_records = tuple(run.analysis_mesh for run in run_records if run.analysis_mesh is not None)
         state_records = tuple(run.result_state for run in run_records)

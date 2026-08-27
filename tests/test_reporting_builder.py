@@ -5,12 +5,13 @@ from dataclasses import replace
 import pytest
 
 from tests.reporting_fixtures import build_review_model
-from tuba.analysis import AnalysisRun
+from tuba.analysis import AnalysisRun, build_solver_input_identity
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.reporting import EngineeringReviewError, build_engineering_review
 from tuba.solver.base import FEAResults
+from tuba.visualization import build_visualization_scene
 
 
 @pytest.fixture
@@ -88,15 +89,38 @@ def code_aster_analysis_mesh() -> AnalysisMesh:
 
 @pytest.fixture
 def code_aster_run(
+    review_model,
     code_aster_study,
     code_aster_result_state,
     code_aster_analysis_mesh,
 ) -> AnalysisRun:
+    identity = build_solver_input_identity(review_model, "Hot")
+    study = replace(code_aster_study, solver_input_identity=identity)
+    result_state = replace(
+        code_aster_result_state,
+        metadata={
+            **code_aster_result_state.metadata,
+            "result_trust": "verified",
+            "solve_attestation": {
+                "schema_version": "tuba.code_aster_execution.v1",
+                "solver_name": "Code_Aster",
+                "solver_version": "18.0.12",
+                "execution_method": "test",
+                "solved_at": "2026-08-27T12:00:00Z",
+                "solver_input_identity": identity.to_dict(),
+                "artifacts": {
+                    "study.rmed": {"size_bytes": 1, "sha256": "0" * 64},
+                },
+            },
+        },
+        solver_input_identity=identity,
+    )
+    analysis_mesh = replace(code_aster_analysis_mesh, solver_input_identity=identity)
     return AnalysisRun(
-        study=code_aster_study,
+        study=study,
         results=FEAResults(solver_name="Code_Aster", load_case="Hot"),
-        result_state=code_aster_result_state,
-        analysis_mesh=code_aster_analysis_mesh,
+        result_state=result_state,
+        analysis_mesh=analysis_mesh,
     )
 
 
@@ -154,6 +178,88 @@ def test_analysis_run_cannot_mix_with_lower_level_review_records(
             analysis_runs=[code_aster_run],
             **{name: records(code_aster_run)},
         )
+
+
+@pytest.mark.parametrize(
+    ("defect", "message"),
+    (
+        ("raw_solver", "Code_Aster"),
+        ("mesh_solver", "Code_Aster"),
+        ("unverified", "result_trust"),
+        ("attestation", "attestation"),
+        ("study_identity", "identity"),
+        ("state_identity", "identity"),
+        ("mesh_identity", "identity"),
+        ("attestation_identity", "identity"),
+        ("mesh_revision", "model revision"),
+        ("raw_load_case", "load case"),
+    ),
+)
+@pytest.mark.parametrize(
+    ("consumer", "error_type"),
+    (
+        ("scene", ValueError),
+        ("review", EngineeringReviewError),
+    ),
+)
+def test_analysis_run_publication_rejects_unverified_lineage(
+    review_model,
+    code_aster_run,
+    defect,
+    message,
+    consumer,
+    error_type,
+):
+    invalid_run = _invalid_analysis_run(code_aster_run, defect)
+
+    with pytest.raises(error_type, match=message):
+        if consumer == "scene":
+            build_visualization_scene(review_model, analysis_runs=[invalid_run])
+        else:
+            build_engineering_review(review_model, analysis_runs=[invalid_run])
+
+
+def _invalid_analysis_run(run: AnalysisRun, defect: str) -> AnalysisRun:
+    if defect == "raw_solver":
+        return replace(run, results=replace(run.results, solver_name="Fabricated"))
+    if defect == "mesh_solver":
+        return replace(run, analysis_mesh=replace(run.analysis_mesh, solver_name="Fabricated"))
+    if defect == "unverified":
+        state = replace(
+            run.result_state,
+            metadata={**run.result_state.metadata, "result_trust": "unverified"},
+        )
+        return replace(run, result_state=state)
+    if defect == "attestation":
+        state = replace(
+            run.result_state,
+            metadata={**run.result_state.metadata, "solve_attestation": {}},
+        )
+        return replace(run, result_state=state)
+    if defect == "study_identity":
+        return replace(run, study=replace(run.study, solver_input_identity=None))
+    if defect == "state_identity":
+        return replace(run, result_state=replace(run.result_state, solver_input_identity=None))
+    if defect == "mesh_identity":
+        return replace(run, analysis_mesh=replace(run.analysis_mesh, solver_input_identity=None))
+    if defect == "attestation_identity":
+        identity = replace(run.study.solver_input_identity, fingerprint="f" * 64)
+        state = replace(
+            run.result_state,
+            metadata={
+                **run.result_state.metadata,
+                "solve_attestation": {
+                    **run.result_state.metadata["solve_attestation"],
+                    "solver_input_identity": identity.to_dict(),
+                },
+            },
+        )
+        return replace(run, result_state=state)
+    if defect == "mesh_revision":
+        return replace(run, analysis_mesh=replace(run.analysis_mesh, model_revision=5))
+    if defect == "raw_load_case":
+        return replace(run, results=replace(run.results, load_case="Cold"))
+    raise AssertionError(f"Unknown defect {defect!r}")
 
 
 def test_model_only_review_is_not_solved_and_has_no_result_tables(review_model):

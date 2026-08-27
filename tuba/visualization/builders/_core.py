@@ -78,6 +78,8 @@ def build_visualization_scene(
             raise ValueError(
                 "analysis_runs cannot be mixed with lower-level result_states or analysis_meshes."
             )
+        for run in analysis_run_records:
+            run.validate_for_publication(model)
         result_state_records = [run.result_state for run in analysis_run_records]
         analysis_mesh_records = [
             run.analysis_mesh for run in analysis_run_records if run.analysis_mesh is not None

@@ -4,7 +4,7 @@ from dataclasses import replace
 import numpy as np
 
 from tuba import Model
-from tuba.analysis import AnalysisMesh, AnalysisRun, AnalysisStudy
+from tuba.analysis import AnalysisMesh, AnalysisRun, AnalysisStudy, build_solver_input_identity
 from tuba.analysis.results import result_state_from_fea_results
 from tuba.analysis.states import (
     create_cold_geometry_state,
@@ -49,6 +49,7 @@ class TestVisualizationResults(unittest.TestCase):
 
     def _analysis_run(self):
         model, results = self._model_and_results()
+        identity = build_solver_input_identity(model, "Hot")
         study = AnalysisStudy(
             id="analysis_study:Hot",
             model_revision=0,
@@ -57,11 +58,26 @@ class TestVisualizationResults(unittest.TestCase):
             work_dir=None,
             input_files={},
             mesh_id="analysis_mesh:Hot",
+            solver_input_identity=identity,
         )
         state = result_state_from_fea_results(model=model, study=study, results=results)
         state = replace(
             state,
-            metadata={**state.metadata, "solve_attestation": {"fixture": "verified Code_Aster solve"}},
+            metadata={
+                **state.metadata,
+                "result_trust": "verified",
+                "solve_attestation": {
+                    "schema_version": "tuba.code_aster_execution.v1",
+                    "solver_name": "Code_Aster",
+                    "solver_version": "18.0.12",
+                    "execution_method": "test",
+                    "solved_at": "2026-08-27T12:00:00Z",
+                    "solver_input_identity": identity.to_dict(),
+                    "artifacts": {
+                        "study.rmed": {"size_bytes": 1, "sha256": "0" * 64},
+                    },
+                },
+            },
         )
         mesh = AnalysisMesh(
             id=study.mesh_id,
@@ -72,6 +88,7 @@ class TestVisualizationResults(unittest.TestCase):
             groups={},
             node_sources={},
             element_sources={},
+            solver_input_identity=identity,
         )
         return model, AnalysisRun(study=study, results=results, result_state=state, analysis_mesh=mesh)
 
@@ -118,6 +135,37 @@ class TestVisualizationResults(unittest.TestCase):
             with self.subTest(records=tuple(records)):
                 with self.assertRaisesRegex(ValueError, "analysis_runs.*lower-level"):
                     build_visualization_scene(model, analysis_runs=[run], **records)
+
+    def test_scene_analysis_run_validates_persistent_record_lineage(self):
+        model, run = self._analysis_run()
+        invalid_runs = (
+            ("study solver", replace(run, study=replace(run.study, solver_name="Fabricated")), "Code_Aster"),
+            (
+                "result state solver",
+                replace(run, result_state=replace(run.result_state, solver_name="Fabricated")),
+                "Code_Aster",
+            ),
+            (
+                "study revision",
+                replace(run, study=replace(run.study, model_revision=1)),
+                "model revision",
+            ),
+            (
+                "result state revision",
+                replace(run, result_state=replace(run.result_state, model_revision=1)),
+                "model revision",
+            ),
+            (
+                "study load case",
+                replace(run, study=replace(run.study, load_case="Cold")),
+                "load case",
+            ),
+        )
+
+        for name, invalid_run, message in invalid_runs:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(ValueError, message):
+                    build_visualization_scene(model, analysis_runs=[invalid_run])
 
     def test_web_scene_rejects_raw_solver_results_keyword(self):
         model, run = self._analysis_run()
