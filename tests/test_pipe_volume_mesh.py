@@ -23,6 +23,60 @@ def _straight_pipe_model(*, length=0.2):
     return model, n0, n1
 
 
+def _tee_model(*, branch_od=0.1):
+    model = Model("TeeVolume")
+    model.add_material("Steel", E=2.1e11, nu=0.3)
+    model.add_pipe_section("Header", OD=0.1, WT=0.01)
+    branch_section = "Header"
+    if branch_od != 0.1:
+        branch_section = "Branch"
+        model.add_pipe_section(branch_section, OD=branch_od, WT=0.008)
+    junction = model.add_node([0.0, 0.0, 0.0])
+    ends = (
+        model.add_node([-0.12, 0.0, 0.0]),
+        model.add_node([0.12, 0.0, 0.0]),
+        model.add_node([0.0, 0.12, 0.0]),
+    )
+    for element_id, end, section in zip(
+        ("left", "right", "branch"),
+        ends,
+        ("Header", "Header", branch_section),
+    ):
+        model.add_element(
+            id=element_id,
+            type="pipe_straight",
+            n1=junction,
+            n2=end,
+            section=section,
+            material="Steel",
+        )
+    model.define_tee(junction)
+    return model, junction, ends
+
+
+def _tetra_component_count(elements):
+    cells = [tuple(nodes[:4]) for nodes in elements.values()]
+    neighbours = [set() for _cell in cells]
+    face_owners = {}
+    for cell_index, cell in enumerate(cells):
+        for omitted in range(4):
+            face = frozenset(node for index, node in enumerate(cell) if index != omitted)
+            for owner in face_owners.get(face, ()):
+                neighbours[cell_index].add(owner)
+                neighbours[owner].add(cell_index)
+            face_owners.setdefault(face, []).append(cell_index)
+    unseen = set(range(len(cells)))
+    components = 0
+    while unseen:
+        components += 1
+        pending = [unseen.pop()]
+        while pending:
+            for neighbour in neighbours[pending.pop()] & unseen:
+                unseen.remove(neighbour)
+                pending.append(neighbour)
+    return components
+
+
 def test_builds_grouped_quadratic_straight_pipe_med(tmp_path):
     meshio = pytest.importorskip("meshio")
     model, n0, n1 = _straight_pipe_model()
@@ -110,3 +164,36 @@ def test_preserves_caller_owned_gmsh_session(tmp_path):
     finally:
         if gmsh.isInitialized():
             gmsh.finalize()
+
+
+@pytest.mark.parametrize("branch_od", [0.1, 0.06])
+def test_meshes_conformal_explicit_tee(tmp_path, branch_od):
+    model, junction, ends = _tee_model(branch_od=branch_od)
+
+    generated = build_pipe_volume_mesh(
+        model,
+        tmp_path / "tee.med",
+        element_ids=["left", "right", "branch"],
+        max_element_size=0.004,
+    )
+
+    assert generated.groups[f"G_TEE_{junction}"]
+    assert generated.groups["G_SOLID_region_0"]
+    assert {f"G_END_{node}" for node in ends} <= generated.groups.keys()
+    assert _tetra_component_count(generated.analysis_mesh.elements) == 1
+
+
+def test_rejects_undeclared_tee_before_writing(tmp_path):
+    model, junction, _ends = _tee_model()
+    del model.tees[junction]
+    output = tmp_path / "undeclared.med"
+
+    with pytest.raises(ValueError, match="explicit tee"):
+        build_pipe_volume_mesh(
+            model,
+            output,
+            element_ids=["left", "right", "branch"],
+            max_element_size=0.004,
+        )
+
+    assert not output.exists()

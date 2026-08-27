@@ -12,6 +12,7 @@ import gmsh
 import numpy as np
 
 from tuba.analysis.mesh import AnalysisMesh, MeshElementSource, MeshNodeSource
+from tuba.geometry.junctions import classify_tee_junction
 from tuba.model import PipeSection, TubaModel
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map
@@ -38,6 +39,12 @@ class _StraightSelection:
     section: PipeSection
 
 
+@dataclass(frozen=True)
+class _PipeSelection:
+    pipes: tuple[_StraightSelection, ...]
+    tee_node: str | None = None
+
+
 def build_pipe_volume_mesh(
     model: TubaModel,
     output_path: str | Path,
@@ -46,7 +53,7 @@ def build_pipe_volume_mesh(
     max_element_size: float,
     element_order: int = 2,
 ) -> GeneratedPipeVolumeMesh:
-    """Mesh one selected straight hollow pipe as quadratic tetrahedra."""
+    """Mesh one straight pipe or one explicit three-run tee."""
     selection = _preflight(model, element_ids, max_element_size, element_order)
     output = Path(output_path)
     temporary = output.with_name(f".{output.stem}-{uuid4().hex}.tmp.med")
@@ -69,11 +76,16 @@ def build_pipe_volume_mesh(
         if owned_session:
             gmsh.initialize()
         gmsh.model.add(created_model)
-        volume_tags, surface_groups = _build_straight_geometry(selection)
+        if selection.tee_node is None:
+            volume_tags, surface_groups = _build_straight_geometry(selection.pipes[0])
+        else:
+            volume_tags, surface_groups = _build_tee_geometry(model, selection)
         raw_entities: dict[str, tuple[int, tuple[int, ...]]] = {
             "G_SOLID_region_0": (3, volume_tags),
             **{name: (2, tags) for name, tags in surface_groups.items()},
         }
+        if selection.tee_node is not None:
+            raw_entities[f"G_TEE_{selection.tee_node}"] = (3, volume_tags)
         name_map = build_solver_name_map(raw_entities)
         for raw_name, (dimension, tags) in raw_entities.items():
             physical = gmsh.model.addPhysicalGroup(dimension, list(tags))
@@ -129,34 +141,58 @@ def _preflight(
     element_ids: Iterable[str],
     max_element_size: float,
     element_order: int,
-) -> _StraightSelection:
+) -> _PipeSelection:
     ids = tuple(element_ids)
     if element_order != 2:
         raise ValueError("Native pipe volume meshes require element_order=2.")
     if not math.isfinite(max_element_size) or max_element_size <= 0.0:
         raise ValueError("max_element_size must be positive and finite.")
-    if len(ids) != 1:
-        raise ValueError("The current native volume mesher requires one selected pipe_straight element.")
-    element = model.get_element(ids[0])
-    if element is None:
-        raise ValueError(f"Unknown selected element {ids[0]!r}.")
-    if element.type != "pipe_straight":
-        raise ValueError(f"Selected element {element.id!r} must be pipe_straight, got {element.type!r}.")
-    section = model.sections.get(element.section)
-    if not isinstance(section, PipeSection):
-        raise ValueError(f"Selected element {element.id!r} must use a circular PipeSection.")
-    if section.ID <= 0.0 or section.WT <= 0.0:
-        raise ValueError(f"Pipe section {section.name!r} must have positive bore and wall thickness.")
-    if max_element_size > section.WT / 2.0:
-        raise ValueError("max_element_size must provide at least two elements through the pipe wall.")
-    if element.material not in model.materials:
-        raise ValueError(f"Selected element {element.id!r} references missing material {element.material!r}.")
-    start = np.asarray(model.nodes[element.n1].coords, dtype=float)
-    end = np.asarray(model.nodes[element.n2].coords, dtype=float)
-    direction = end - start
-    if not np.isfinite(direction).all() or float(np.linalg.norm(direction)) <= 0.0:
-        raise ValueError(f"Selected element {element.id!r} must have non-zero finite length.")
-    return _StraightSelection(element.id, element.n1, element.n2, start, direction, section)
+    if len(ids) not in {1, 3} or len(set(ids)) != len(ids):
+        raise ValueError("Select one pipe_straight or the three unique runs of one explicit tee.")
+    pipes: list[_StraightSelection] = []
+    materials: set[str] = set()
+    for element_id in ids:
+        element = model.get_element(element_id)
+        if element is None:
+            raise ValueError(f"Unknown selected element {element_id!r}.")
+        if element.type != "pipe_straight":
+            raise ValueError(f"Selected element {element.id!r} must be pipe_straight, got {element.type!r}.")
+        section = model.sections.get(element.section)
+        if not isinstance(section, PipeSection):
+            raise ValueError(f"Selected element {element.id!r} must use a circular PipeSection.")
+        if section.ID <= 0.0 or section.WT <= 0.0:
+            raise ValueError(f"Pipe section {section.name!r} must have positive bore and wall thickness.")
+        if max_element_size > section.WT / 2.0:
+            raise ValueError("max_element_size must provide at least two elements through the pipe wall.")
+        if element.material not in model.materials:
+            raise ValueError(f"Selected element {element.id!r} references missing material {element.material!r}.")
+        start = np.asarray(model.nodes[element.n1].coords, dtype=float)
+        end = np.asarray(model.nodes[element.n2].coords, dtype=float)
+        direction = end - start
+        if not np.isfinite(direction).all() or float(np.linalg.norm(direction)) <= 0.0:
+            raise ValueError(f"Selected element {element.id!r} must have non-zero finite length.")
+        materials.add(element.material)
+        pipes.append(_StraightSelection(element.id, element.n1, element.n2, start, direction, section))
+    if len(materials) != 1:
+        raise ValueError("A native pipe volume region must use one material.")
+    if len(pipes) == 1:
+        return _PipeSelection(tuple(pipes))
+
+    common_nodes = set.intersection(*({pipe.n1, pipe.n2} for pipe in pipes))
+    if len(common_nodes) != 1:
+        raise ValueError("The three selected pipe_straight elements must share one junction node.")
+    tee_node = common_nodes.pop()
+    if tee_node not in model.tees:
+        raise ValueError(f"Junction {tee_node!r} must have an explicit tee definition.")
+    junction = classify_tee_junction(model, tee_node, element_ids=ids)
+    pipe_by_id = {pipe.element_id: pipe for pipe in pipes}
+    headers = [pipe_by_id[element_id].section for element_id in junction.header_element_ids]
+    if not math.isclose(headers[0].OD, headers[1].OD) or not math.isclose(headers[0].WT, headers[1].WT):
+        raise ValueError("The two tee header runs must use matching pipe dimensions.")
+    branch = pipe_by_id[junction.branch_element_id].section
+    if branch.OD > headers[0].OD:
+        raise ValueError("The tee branch OD cannot exceed the header OD.")
+    return _PipeSelection(tuple(pipes), tee_node)
 
 
 def _build_straight_geometry(
@@ -198,9 +234,128 @@ def _build_straight_geometry(
     }
 
 
+def _build_tee_geometry(
+    model: TubaModel,
+    selection: _PipeSelection,
+) -> tuple[tuple[int, ...], dict[str, tuple[int, ...]]]:
+    assert selection.tee_node is not None
+    junction = np.asarray(model.nodes[selection.tee_node].coords, dtype=float)
+    axes: list[tuple[np.ndarray, np.ndarray, PipeSection]] = []
+    terminals: dict[str, np.ndarray] = {}
+    pipe_by_id = {pipe.element_id: pipe for pipe in selection.pipes}
+    for pipe in selection.pipes:
+        terminal_node = pipe.n2 if pipe.n1 == selection.tee_node else pipe.n1
+        terminal = np.asarray(model.nodes[terminal_node].coords, dtype=float)
+        direction = terminal - junction
+        axes.append((junction, direction / np.linalg.norm(direction), pipe.section))
+        terminals[terminal_node] = terminal
+
+    classified = classify_tee_junction(model, selection.tee_node, element_ids=[*pipe_by_id])
+    header_pipes = [pipe_by_id[element_id] for element_id in classified.header_element_ids]
+    header_ends = [
+        np.asarray(
+            model.nodes[pipe.n2 if pipe.n1 == selection.tee_node else pipe.n1].coords,
+            dtype=float,
+        )
+        for pipe in header_pipes
+    ]
+    header_direction = header_ends[1] - header_ends[0]
+    header_section = header_pipes[0].section
+    branch_pipe = pipe_by_id[classified.branch_element_id]
+    branch_node = branch_pipe.n2 if branch_pipe.n1 == selection.tee_node else branch_pipe.n1
+    branch_direction = np.asarray(model.nodes[branch_node].coords, dtype=float) - junction
+    outer_cylinders = [
+        (3, gmsh.model.occ.addCylinder(*header_ends[0].tolist(), *header_direction.tolist(), header_section.OD / 2.0)),
+        (3, gmsh.model.occ.addCylinder(*junction.tolist(), *branch_direction.tolist(), branch_pipe.section.OD / 2.0)),
+    ]
+    inner_cylinders = [
+        (3, gmsh.model.occ.addCylinder(*header_ends[0].tolist(), *header_direction.tolist(), header_section.ID / 2.0)),
+        (3, gmsh.model.occ.addCylinder(*junction.tolist(), *branch_direction.tolist(), branch_pipe.section.ID / 2.0)),
+    ]
+
+    outer, _outer_lineage = gmsh.model.occ.fuse(
+        [outer_cylinders[0]], outer_cylinders[1:], removeObject=True, removeTool=True
+    )
+    inner, _inner_lineage = gmsh.model.occ.fuse(
+        [inner_cylinders[0]], inner_cylinders[1:], removeObject=True, removeTool=True
+    )
+    wall, _wall_lineage = gmsh.model.occ.cut(outer, inner, removeObject=True, removeTool=True)
+    gmsh.model.occ.synchronize()
+    volumes = tuple(tag for dimension, tag in wall if dimension == 3)
+    if len(volumes) != 1:
+        raise RuntimeError(f"Expected one conformal tee-wall volume, got {len(volumes)}.")
+
+    boundary = gmsh.model.getBoundary([(3, tag) for tag in volumes], oriented=False, recursive=False)
+    surface_tags = tuple(sorted({tag for dimension, tag in boundary if dimension == 2}))
+    end_tolerance = max(max(np.linalg.norm(point - junction) for point in terminals.values()) * 1e-7, 1e-9)
+    ends: dict[str, list[int]] = {node_id: [] for node_id in terminals}
+    curved: list[int] = []
+    for tag in surface_tags:
+        center = np.asarray(gmsh.model.occ.getCenterOfMass(2, tag), dtype=float)
+        end_node = next(
+            (node_id for node_id, point in terminals.items() if np.linalg.norm(center - point) <= end_tolerance),
+            None,
+        )
+        if end_node is None:
+            curved.append(tag)
+        else:
+            ends[end_node].append(tag)
+    if any(len(tags) != 1 for tags in ends.values()):
+        raise RuntimeError("Could not classify every tee terminal face exactly once.")
+
+    inner_surfaces: list[int] = []
+    outer_surfaces: list[int] = []
+    for tag in curved:
+        points = _surface_sample_points(tag)
+        inner_error = _radius_error(points, axes, inner=True)
+        outer_error = _radius_error(points, axes, inner=False)
+        (inner_surfaces if inner_error < outer_error else outer_surfaces).append(tag)
+    if not inner_surfaces or not outer_surfaces or set(inner_surfaces) & set(outer_surfaces):
+        raise RuntimeError("Could not classify disjoint tee inner and outer surfaces.")
+    return volumes, {
+        "G_INNER_region_0": tuple(inner_surfaces),
+        "G_OUTER_region_0": tuple(outer_surfaces),
+        **{f"G_END_{node_id}": tuple(tags) for node_id, tags in ends.items()},
+    }
+
+
+def _surface_sample_points(tag: int) -> tuple[np.ndarray, ...]:
+    lower, upper = gmsh.model.getParametrizationBounds(2, tag)
+    lower = np.asarray(lower, dtype=float)
+    upper = np.asarray(upper, dtype=float)
+    points: list[np.ndarray] = []
+    for u_fraction in (0.2, 0.5, 0.8):
+        for v_fraction in (0.2, 0.5, 0.8):
+            parameters = lower + (upper - lower) * np.asarray((u_fraction, v_fraction))
+            point = np.asarray(gmsh.model.getValue(2, tag, parameters.tolist()), dtype=float)
+            if point.size == 3 and np.isfinite(point).all():
+                points.append(point)
+    if not points:
+        raise RuntimeError(f"Could not sample tee surface {tag}.")
+    return tuple(points)
+
+
+def _radius_error(
+    points: tuple[np.ndarray, ...],
+    axes: list[tuple[np.ndarray, np.ndarray, PipeSection]],
+    *,
+    inner: bool,
+) -> float:
+    errors = []
+    for point in points:
+        candidates = []
+        for origin, unit_axis, section in axes:
+            offset = point - origin
+            radial_distance = float(np.linalg.norm(offset - np.dot(offset, unit_axis) * unit_axis))
+            radius = section.ID / 2.0 if inner else section.OD / 2.0
+            candidates.append(abs(radial_distance - radius))
+        errors.append(min(candidates))
+    return float(np.mean(errors))
+
+
 def _readback(
     model: TubaModel,
-    selection: _StraightSelection,
+    selection: _PipeSelection,
     output: Path,
     raw_entities: dict[str, tuple[int, tuple[int, ...]]],
 ) -> tuple[
@@ -214,7 +369,7 @@ def _readback(
         int(tag): tuple(float(value) for value in coordinates[index * 3 : index * 3 + 3])
         for index, tag in enumerate(node_tags)
     }
-    source_ref = EntityRef("element", selection.element_id)
+    source_ref = EntityRef("element", selection.pipes[0].element_id)
     nodes = {f"N{tag}": value for tag, value in coordinates_by_tag.items()}
     node_sources = {
         node_id: MeshNodeSource(node_id=node_id, source_ref=source_ref, role="volume_node")
@@ -248,7 +403,11 @@ def _readback(
     if not qualities.size or not np.isfinite(qualities).all() or float(qualities.min()) <= 0.0:
         raise RuntimeError("Gmsh generated an invalid quadratic tetrahedral cell.")
 
-    groups: dict[str, tuple[str, ...]] = {"G_SOLID_region_0": tuple(elements)}
+    groups: dict[str, tuple[str, ...]] = {
+        raw_name: tuple(elements)
+        for raw_name, (dimension, _entity_tags) in raw_entities.items()
+        if dimension == 3
+    }
     surface_triangle_nodes: list[tuple[int, int, int]] = []
     for raw_name, (dimension, entity_tags) in raw_entities.items():
         if dimension != 2:
