@@ -324,7 +324,12 @@ export function setResultVectorScale(state, vectorType, scale) {
 }
 
 export function setVisualDeformationScale(state, scale) {
-  return { ...state, visualDeformationScale: Math.max(Number(scale) || 0, 0) };
+  const visualState = getGeometryStateOptions(state).find((option) => option.purpose === "visualization");
+  return {
+    ...state,
+    activeGeometryStateId: visualState?.id ?? state.activeGeometryStateId,
+    visualDeformationScale: Math.max(Number(scale) || 0, 0)
+  };
 }
 
 function solverResultOverlays(state) {

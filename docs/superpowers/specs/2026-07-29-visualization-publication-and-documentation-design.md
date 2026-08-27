@@ -2,18 +2,23 @@
 
 **Date:** 2026-07-29
 
-**Status:** Implemented; public gallery expanded 2026-08-25
+**Status:** Implemented design record; automated gallery refresh gate wired 2026-08-26
 **Scope:** Official web-review examples, GitHub Pages assembly, viewer production verification, and public documentation ownership
+
+> **Authority note (2026-08-26):** This file is retained as the historical
+> implementation design. Current behavior is documented under
+> `docs/content/architecture/`. Self-hosted CI and beta release jobs now re-solve
+> and attest all three engineering galleries before strict Pages assembly.
 
 ## Implementation Update
 
 The single Pages builder, strict publication profiles, portable Code_Aster
-evidence, Zensical documentation, production picker, section controls, and
-browser gates described below are implemented. The public catalog now contains
-four deliberately reviewed examples: the original solved pipe and imported
-component bundles, a solved pipe-on-rack review, and a solved autorouted
-expansion loop. README and documentation entry points use the current solved
-pipe review as their clickable hero image.
+evidence, Zensical documentation, production picker, section controls, browser
+gates, and self-hosted gallery refresh gate described below are implemented.
+The public catalog contains four deliberately reviewed examples: the original
+solved pipe and imported component bundles, a solved pipe-on-rack review, and a
+solved autorouted expansion loop. README and documentation entry points use the
+current solved pipe review as their clickable hero image.
 
 ## Objective
 
@@ -50,7 +55,7 @@ though both examples exist.
 
 `viewer/public/code-aster-review` predates the current scene contract. A fresh
 run of `examples/code_aster_artifact_review.py` produces declared layer
-categories and four result fields, while the published bundle contains neither.
+categories and five result fields, while the published bundle contains neither.
 The runtime loader correctly accepts the older shape, which means compatibility
 masks publication staleness.
 
@@ -207,8 +212,8 @@ Official publication uses a stricter profile. The engineering example must have:
 - `analysis_status == "solved"`;
 - real Code_Aster provenance and no fixture provenance;
 - matching non-null solver-input identities;
-- the four expected result-field families: stress, displacement, reaction, and
-  TUYAU subpoint stress;
+- the five expected result-field families: stress, displacement, reaction force,
+  reaction moment, and TUYAU subpoint stress;
 - non-empty design, analysis-mesh, results, and annotations layer categories;
 - valid scene references and geometry hashes;
 - no absolute local paths anywhere in public JSON or HTML;

@@ -358,11 +358,12 @@ def _validate_engineering_result_fields(scene: dict[str, Any]) -> None:
     expected = {
         "stress": "solver_result",
         "displacement": "solver_result",
-        "reaction": "solver_result",
+        "reaction_force": "solver_result",
+        "reaction_moment": "solver_result",
         "tuyau_subpoints": "solver_result",
     }
     if not isinstance(fields, list) or len(fields) != len(expected):
-        raise ValueError("Engineering-review bundles require four result fields.")
+        raise ValueError("Engineering-review bundles require five result fields.")
     overlays_by_id = {
         overlay.get("id"): overlay
         for overlay in overlays

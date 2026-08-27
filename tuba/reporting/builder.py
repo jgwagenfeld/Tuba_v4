@@ -247,6 +247,11 @@ def _validate_lineage(
                 f"Result state {state.id!r} references unknown model element(s): "
                 f"{sorted(unknown_elements)}."
             )
+        if not isinstance(state.metadata.get("solve_attestation"), dict):
+            raise EngineeringReviewError(
+                f"Result state {state.id!r} requires a verified Code_Aster solve attestation "
+                "before it can enter an engineering review."
+            )
         result_load_cases.add(state.load_case)
         result_load_case_counts[state.load_case] = (
             result_load_case_counts.get(state.load_case, 0) + 1

@@ -55,7 +55,7 @@ def build_model() -> tuple[Model, list[str]]:
     return model, list(model.nodes)
 
 
-def fixture_result_state(*, model: Model, study, manifest_path: Path, node_ids: list[str]) -> ResultState:
+def fixture_result_state(*, model: Model, study, node_ids: list[str]) -> ResultState:
     """A deterministic stand-in for a solved state. Never a Code_Aster result."""
     anchor, tip = node_ids[0], node_ids[-1]
     displacements = {}
@@ -84,9 +84,8 @@ def fixture_result_state(*, model: Model, study, manifest_path: Path, node_ids: 
         load_case="Hot",
         mesh_id=study.mesh_id,
         node_displacements=displacements,
-        node_reactions={anchor: (1200.0, 0.0, 3400.0, 0.0, 0.0, 0.0)},
+        node_reactions={anchor: (1200.0, 0.0, 3400.0, 0.0, 850.0, -400.0)},
         element_results=element_results,
-        files={"manifest": str(manifest_path)},
         metadata={
             "source": FIXTURE_TAG,
             "tuyau_subpoints": tuyau_subpoint_rows(model, elements[-1].id, node_id=tip),
@@ -138,7 +137,7 @@ def main() -> None:
         manifest_path = study_dir / "study_manifest.json"
         analysis_mesh = AnalysisMesh.from_dict(json.loads(manifest_path.read_text(encoding="utf-8"))["analysis_mesh"])
         result_state = fixture_result_state(
-            model=model, study=study, manifest_path=manifest_path, node_ids=node_ids
+            model=model, study=study, node_ids=node_ids
         )
         scene = build_visualization_scene(
             model,

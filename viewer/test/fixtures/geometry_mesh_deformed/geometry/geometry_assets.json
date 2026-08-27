@@ -390,13 +390,8 @@
         0.0,
         3400.0
       ],
-      "reaction_moment_nm": [
-        0.0,
-        0.0,
-        0.0
-      ],
       "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
-      "result_type": "reaction",
+      "result_type": "reaction_force",
       "source": "tuba.result_state",
       "start": [
         0.0,
@@ -404,12 +399,52 @@
         0.0
       ]
     },
-    "hash": "sha256:afbd98dae341ca0817ea127085f1e754fa8adfa17c2548429508af3e2c22642e",
-    "id": "geometry:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "hash": "sha256:280404388de0b8f8451c3b91f3f2d398c47d8964d15fa78c39fc91e08097520f",
+    "id": "geometry:solver_result:reaction_force:result_state_Hot_gmd_fixture_not_a_solve:N0",
     "object_ids": [
-      "object:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0"
+      "object:solver_result:reaction_force:result_state_Hot_gmd_fixture_not_a_solve:N0"
     ],
-    "uri": "geometry/geometry_solver_result_reaction_result_state_Hot_gmd_fixture_not_a_solve_N0.json"
+    "uri": "geometry/geometry_solver_result_reaction_force_result_state_Hot_gmd_fixture_not_a_solve_N0.json"
+  },
+  {
+    "bounds": [
+      0.0,
+      0.0,
+      -0.4705882352941176,
+      0.0,
+      0.9999999999999999,
+      0.0
+    ],
+    "format": "vector",
+    "generation_config": {
+      "color": "#f97316",
+      "end": [
+        0.0,
+        0.9999999999999999,
+        -0.4705882352941176
+      ],
+      "load_case": "Hot",
+      "node_id": "N0",
+      "reaction_moment_nm": [
+        0.0,
+        850.0,
+        -400.0
+      ],
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "reaction_moment",
+      "source": "tuba.result_state",
+      "start": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "hash": "sha256:33ee501a5d8576ce628cb49dbbe756ae73438283deb3e37776528cef23018d13",
+    "id": "geometry:solver_result:reaction_moment:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "object_ids": [
+      "object:solver_result:reaction_moment:result_state_Hot_gmd_fixture_not_a_solve:N0"
+    ],
+    "uri": "geometry/geometry_solver_result_reaction_moment_result_state_Hot_gmd_fixture_not_a_solve_N0.json"
   },
   {
     "bounds": [

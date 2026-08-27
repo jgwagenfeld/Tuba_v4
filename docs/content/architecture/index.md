@@ -4,7 +4,7 @@ Tuba v4 has one production workflow:
 
 1. A **Tuba model** owns the authored piping structure, materials, sections, supports, loads, operations, and imported context.
 2. The solver boundary exports a Code_Aster study and runs Code_Aster as an external process. Exported input files alone are an incomplete handoff.
-3. **Artifact import** validates the study, mesh, result, and execution lineage before parsing Code_Aster tables and RMED data into `FEAResults` and `ResultState` records.
+3. **Artifact import** validates the study, mesh, result, and execution lineage before linking Code_Aster data into an `AnalysisRun` with persistent `ResultState` and transient `FEAResults` records.
 4. Reporting builds renderer-independent engineering review records from those supplied authoritative records. It never substitutes for a solve.
 5. One of the two supported visualization paths displays the model or processed results.
 

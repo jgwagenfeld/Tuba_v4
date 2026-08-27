@@ -105,7 +105,7 @@ LAYER_ID_PREFIX_CATEGORY: tuple[tuple[str, str], ...] = (
 )
 
 #: Fields whose overlay stores per-node vectors rather than per-object scalars.
-VECTOR_RESULT_TYPES = frozenset({"displacement", "reaction"})
+VECTOR_RESULT_TYPES = frozenset({"displacement", "reaction_force", "reaction_moment"})
 VECTOR_COMPONENTS = ("DX", "DY", "DZ", "magnitude")
 SCALAR_COMPONENTS = ("magnitude",)
 

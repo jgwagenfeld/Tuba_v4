@@ -128,6 +128,8 @@ class TestComplianceReportMetadata(unittest.TestCase):
 
         self.assertEqual(report.code_name, "ASME B31.3")
         self.assertEqual(report.code_edition, "2020")
+        self.assertIsNone(report.overall_pass)
+        self.assertIn("**UNAVAILABLE**", report.summary())
         self.assertIn("ASME B31.3-2020 Compliance", report.summary())
 
     def test_existing_positional_construction_remains_compatible(self):
@@ -156,6 +158,18 @@ class TestComplianceReportMetadata(unittest.TestCase):
 
         self.assertEqual(report.code_edition, "2022")
         self.assertIn("ASME B31.3-2022 Compliance", report.summary())
+
+    def test_evaluator_rejects_missing_pipe_results(self):
+        m = tuba.Model("missing")
+        m.add_material("steel", E=210e9, nu=0.3, allowable_stress={20.0: 120e6})
+        m.add_pipe_section("P", OD=0.1143, WT=0.006)
+        n0 = m.add_node([0.0, 0.0, 0.0])
+        n1 = m.add_node([1.0, 0.0, 0.0])
+        m.add_element(id="pipe_str_0", type="pipe_straight", n1=n0, n2=n1, section="P", material="steel")
+        m.define_load_case("Hot", pressure=0.0, temperature=20.0, ref_temperature=20.0)
+
+        with self.assertRaisesRegex(ValueError, "missing element result.*pipe_str_0"):
+            ASMEB313Evaluator().evaluate(m, FEAResults(solver_name="Code_Aster", load_case="Hot"))
 
 
 class TestLiberalAllowable(unittest.TestCase):

@@ -225,6 +225,15 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                         f"{element_id},N1,101.0,0.0,0.0,0.0,0.0,0.0\n"
                     )
 
+    def test_missing_sieq_is_unavailable_instead_of_zero(self):
+        results = self._parse_single_pipe_forces(
+            "MAILLE,NOEUD,N,VY,VZ,MT,MFY,MFZ\n"
+            "pipe_0,N0,100.0,0.0,0.0,0.0,0.0,0.0\n"
+            "pipe_0,N1,100.0,0.0,0.0,0.0,0.0,0.0\n"
+        )
+
+        self.assertTrue(np.isnan(results.get_max_von_mises("pipe_0")))
+
     def test_result_parsers_fold_only_generated_bend_segments(self):
         model = Model(project_name="GeneratedBendResultIds")
         model.add_material("Steel", E=2.0e11, nu=0.3)

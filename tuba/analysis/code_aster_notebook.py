@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from tuba.analysis.code_aster_artifacts import CodeAsterArtifactImport, import_code_aster_artifacts
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.analysis.run import AnalysisRun
 from tuba.analysis.study import AnalysisStudy
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.base import FEAResults
@@ -29,7 +30,7 @@ REFRESHED_CODE_ASTER_OUTPUTS = REQUIRED_CODE_ASTER_TABLES + ("study.rmed",)
 @dataclass(frozen=True)
 class CodeAsterNotebookRun:
     results: FEAResults
-    artifact: CodeAsterArtifactImport
+    artifact: AnalysisRun
     study: AnalysisStudy
     work_dir: Path
     ran_solver: bool
@@ -75,6 +76,7 @@ def load_or_run_code_aster_results(
     exec_method: str = "auto",
     wsl_distro: str | None = None,
     docker_image: str | None = None,
+    allow_unverified: bool = False,
     solver_factory: Callable[..., Any] = CodeAsterSolver,
 ) -> CodeAsterNotebookRun:
     """Load Code_Aster result artifacts, running the exported study when requested."""
@@ -91,7 +93,11 @@ def load_or_run_code_aster_results(
         missing_before = tuple(_missing_result_tables(root, model))
         if missing_before:
             raise FileNotFoundError(_missing_tables_message(root, missing_before, run_solver=False))
-        artifact = import_code_aster_artifacts(model=model, work_dir=root)
+        artifact = import_code_aster_artifacts(
+            model=model,
+            work_dir=root,
+            allow_unverified=allow_unverified,
+        )
         artifact.results._model = model
         return CodeAsterNotebookRun(
             results=artifact.results,

@@ -29,14 +29,19 @@ The pipe context returns the current fluent builder.
 
 ## Solver and artifact workflow
 
-`Model.solve()` runs the Code_Aster-backed solve path. Use the artifact importer when Code_Aster has already produced the study result directory.
+`Model.solve()` runs the Code_Aster-backed solve path and returns an `AnalysisRun`. Use the artifact importer when Code_Aster has already produced the study result directory; it returns the same type.
+
+::: tuba.analysis.run.AnalysisRun
+    options:
+      show_source: false
+      members_order: source
 
 ::: tuba.analysis.code_aster_artifacts.import_code_aster_artifacts
     options:
       show_source: false
       members_order: source
 
-Import validates the study/artifact lineage and returns parsed results. Merely producing `.comm`, `.mail`, or `.export` files is not a completed engineering evaluation.
+Import validates the study/artifact lineage and returns the study, analysis mesh, persistent `ResultState`, and transient `FEAResults` as one run. Merely producing `.comm`, `.mail`, or `.export` files is not a completed engineering evaluation.
 
 ## Reporting
 
@@ -73,7 +78,7 @@ Autorouting produces candidates for review. Engineering acceptance still require
 
 ## PyVista quick-look and export
 
-`Model.solve()` and the artifact-import path produce `FEAResults`. Its `plot_*()` and export helpers are the supported `tuba/plotting/` quick-look boundary and operate on real parsed Code_Aster results.
+`Model.solve()` and the artifact-import path produce `AnalysisRun`; use `run.results` for the `FEAResults` quick-look helpers. Its `plot_*()` and export helpers are the supported `tuba/plotting/` boundary and operate on real parsed Code_Aster results.
 
 ::: tuba.solver.base.FEAResults
     options:

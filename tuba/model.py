@@ -15,7 +15,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -31,6 +31,9 @@ from tuba.mixed import (
     Port,
 )
 from tuba.refs import EntityRef, resolve_entity_ref
+
+if TYPE_CHECKING:
+    from tuba.analysis.run import AnalysisRun
 
 
 # Stable model-schema identity. This intentionally does not track the package
@@ -1112,8 +1115,8 @@ class TubaModel:
         load_case: Optional[str] = None,
         operation: Optional[str] = None,
         **kwargs,
-    ):
-        """Run Code_Aster and return its parsed results.
+    ) -> AnalysisRun:
+        """Run Code_Aster and return its provenance-bearing analysis run.
 
         Parameters
         ----------
@@ -1126,7 +1129,7 @@ class TubaModel:
 
         Returns
         -------
-        FEAResults
+        AnalysisRun
         """
         if load_case is not None and operation is not None:
             raise ValueError("Pass either load_case or operation, not both.")

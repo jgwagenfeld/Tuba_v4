@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+from tuba.analysis.run import AnalysisRun
 from tuba.model import TubaModel, Support
 from tuba.solver.base import FEAResults
 from tuba.optimization.objectives import ObjectiveEvaluator
@@ -22,10 +23,10 @@ class BasePipingOptimizer(ABC):
         model: TubaModel,
         evaluator: ObjectiveEvaluator,
         **kwargs,
-    ) -> Tuple[TubaModel, Optional[FEAResults]]:
+    ) -> Tuple[TubaModel, Optional[AnalysisRun]]:
         """Run the optimization loop.
 
-        Returns the optimized model and the associated FEA results.
+        Returns the optimized model and the associated analysis run.
         """
         pass
 
@@ -158,7 +159,7 @@ class LLMSupportOptimizer(BasePipingOptimizer):
         model: TubaModel,
         evaluator: ObjectiveEvaluator,
         **kwargs,
-    ) -> Tuple[TubaModel, Optional[FEAResults]]:
+    ) -> Tuple[TubaModel, Optional[AnalysisRun]]:
         """Return the model with fresh solver results.
 
         Layout changes from LLMs must arrive through explicit suggestions.
@@ -166,15 +167,15 @@ class LLMSupportOptimizer(BasePipingOptimizer):
         artifacts are unavailable.
         """
         try:
-            results = model.solve()
+            run = model.solve()
         except Exception as exc:
             raise RuntimeError(
                 "LLMSupportOptimizer requires a successful solver run; no support layout was optimized."
             ) from exc
-        if results is None:
+        if run is None:
             raise RuntimeError("LLMSupportOptimizer did not receive solver results.")
             
-        return model, results
+        return model, run
 
 
 class GeneticSupportPlacer(BasePipingOptimizer):
@@ -279,7 +280,7 @@ class GeneticSupportPlacer(BasePipingOptimizer):
         model: TubaModel,
         evaluator: ObjectiveEvaluator,
         **kwargs,
-    ) -> Tuple[TubaModel, Optional[FEAResults]]:
+    ) -> Tuple[TubaModel, Optional[AnalysisRun]]:
         """Run the genetic algorithm optimisation loop.
 
         Returns the model configured with the best-scoring support layout and
@@ -296,7 +297,7 @@ class GeneticSupportPlacer(BasePipingOptimizer):
         population = [self._encode_chromosome(n_genes) for _ in range(self.population_size)]
         best_chromosome = population[0].copy()
         best_score = float("inf")
-        best_results: Optional[FEAResults] = None
+        best_run: Optional[AnalysisRun] = None
         history: List[float] = []
 
         for gen in range(self.generations):
@@ -307,21 +308,21 @@ class GeneticSupportPlacer(BasePipingOptimizer):
                 self._apply_chromosome(temp_model, candidate_nodes, chromosome)
 
                 try:
-                    results = temp_model.solve()
+                    run = temp_model.solve()
                 except Exception:
                     scores.append(float("inf"))
                     continue
-                if results is None:
+                if run is None:
                     scores.append(float("inf"))
                     continue
 
-                score = evaluator.evaluate_model(temp_model, results)
+                score = evaluator.evaluate_model(temp_model, run.results)
                 scores.append(score)
 
                 if score < best_score:
                     best_score = score
                     best_chromosome = chromosome.copy()
-                    best_results = results
+                    best_run = run
 
             history.append(best_score)
 
@@ -336,10 +337,10 @@ class GeneticSupportPlacer(BasePipingOptimizer):
 
             population = next_pop
 
-        if best_results is None or not np.isfinite(best_score):
+        if best_run is None or not np.isfinite(best_score):
             raise RuntimeError("GeneticSupportPlacer found no solver-backed candidate; model was not modified.")
 
         # Apply best configuration to the original model
         self._apply_chromosome(model, candidate_nodes, best_chromosome)
         self._history = history
-        return model, best_results
+        return model, best_run

@@ -59,7 +59,10 @@ def code_aster_result_state() -> ResultState:
             }
         },
         files={"result": "artifacts/hot/study.rmed"},
-        metadata={"parser_diagnostics": ["SIEQ table omitted one optional component."]},
+        metadata={
+            "parser_diagnostics": ["SIEQ table omitted one optional component."],
+            "solve_attestation": {"fixture": "validated Code_Aster solve"},
+        },
     )
 
 
@@ -105,6 +108,22 @@ def test_model_only_review_is_not_solved_and_has_no_result_tables(review_model):
     assert "displacements" not in review.tables_by_id
     assert "code_compliance" not in review.tables_by_id
     assert "diagnostics" in review.tables_by_id
+
+
+def test_unverified_result_state_cannot_build_engineering_review(
+    review_model, code_aster_study, code_aster_result_state
+):
+    unverified = replace(
+        code_aster_result_state,
+        metadata={"result_trust": "unverified"},
+    )
+
+    with pytest.raises(EngineeringReviewError, match="verified Code_Aster solve attestation"):
+        build_engineering_review(
+            review_model,
+            studies=[code_aster_study],
+            result_states=[unverified],
+        )
 
 
 def test_study_without_results_is_listed_but_not_solved(review_model, code_aster_study):
@@ -444,6 +463,26 @@ def test_fe_stress_is_explicitly_not_code_stress(solved_review):
     assert row["max_von_mises_pa"] == 15.0e6
     assert "code_utilization" not in row
     assert "compliance" not in row
+
+
+def test_elements_without_fe_stress_are_unavailable_not_zero(
+    review_model, code_aster_study, code_aster_result_state
+):
+    state = replace(
+        code_aster_result_state,
+        element_results={
+            **code_aster_result_state.element_results,
+            "E-30": {"forces_n1": [0.0] * 6, "forces_n2": [0.0] * 6},
+        },
+    )
+
+    review = build_engineering_review(
+        review_model,
+        studies=[code_aster_study],
+        result_states=[state],
+    )
+
+    assert {row["element_id"] for row in review.table("fe_stress").rows} == {"E-20"}
 
 
 def test_result_summary_has_governing_locations(solved_review):

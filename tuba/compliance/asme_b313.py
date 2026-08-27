@@ -140,20 +140,22 @@ class ComplianceReport:
     # ------------------------------------------------------------------
 
     @property
-    def overall_pass(self) -> bool:
-        """``True`` if every element end passes both checks."""
+    def overall_pass(self) -> Optional[bool]:
+        """Verdict, or ``None`` when no element ends were evaluated."""
+        if not self.results:
+            return None
         return all(r.sustained_pass and r.expansion_pass for r in self.results)
 
     @property
-    def worst_sustained_ratio(self) -> float:
+    def worst_sustained_ratio(self) -> Optional[float]:
         if not self.results:
-            return 0.0
+            return None
         return max(r.sustained_ratio for r in self.results)
 
     @property
-    def worst_expansion_ratio(self) -> float:
+    def worst_expansion_ratio(self) -> Optional[float]:
         if not self.results:
-            return 0.0
+            return None
         return max(r.expansion_ratio for r in self.results)
 
     # ------------------------------------------------------------------
@@ -162,7 +164,8 @@ class ComplianceReport:
 
     def summary(self) -> str:
         """Human-readable one-line summary with overall verdict."""
-        status = "**PASS**" if self.overall_pass else "**FAIL**"
+        verdict = self.overall_pass
+        status = "**UNAVAILABLE**" if verdict is None else ("**PASS**" if verdict else "**FAIL**")
         worst_sus = self.worst_sustained_ratio
         worst_exp = self.worst_expansion_ratio
         n_total = len(self.results)
@@ -176,8 +179,8 @@ class ComplianceReport:
             f"  Load case       : {self.load_case or '(default)'}",
             f"  Elements checked : {n_total}",
             f"  Failures         : {n_fail}",
-            f"  Worst sustained  : {worst_sus:.3f}",
-            f"  Worst expansion  : {worst_exp:.3f}",
+            f"  Worst sustained  : {'unavailable' if worst_sus is None else f'{worst_sus:.3f}'}",
+            f"  Worst expansion  : {'unavailable' if worst_exp is None else f'{worst_exp:.3f}'}",
         ]
         return "\n".join(lines)
 
@@ -392,18 +395,25 @@ class ASMEB313Evaluator:
         """
         report = ComplianceReport(load_case=results.load_case, code_edition=self.edition)
 
+        pipe_elements = [
+            elem for elem in model.elements
+            if elem.type in ("pipe_straight", "pipe_bend")
+        ]
+        missing = [elem.id for elem in pipe_elements if elem.id not in results.element_results]
+        if missing:
+            raise ValueError(
+                f"Code compliance is unavailable: missing element result(s) {missing}."
+            )
+
         # Resolve the active load case
         lc = self._resolve_load_case(model, results.load_case)
         base_pressure = lc.internal_pressure if lc else 0.0
         base_temperature = lc.temperature if lc else 20.0
         ref_temperature = lc.ref_temperature if lc else 20.0
 
-        for elem in model.elements:
-            if elem.type not in ("pipe_straight", "pipe_bend"):
-                continue
+        for elem in pipe_elements:
             er = results.element_results.get(elem.id)
-            if er is None:
-                continue
+            assert er is not None
 
             section: PipeSection = model.sections[elem.section]
             material: Material = model.materials[elem.material]
@@ -438,6 +448,11 @@ class ASMEB313Evaluator:
                 (elem.n1, er.forces_n1),
                 (elem.n2, er.forces_n2),
             ):
+                if len(forces) != 6 or not np.isfinite(forces).all():
+                    raise ValueError(
+                        "Code compliance is unavailable: non-finite internal-force "
+                        f"result for {elem.id}:{node_tag}."
+                    )
                 # B31J directional indices for this specific end
                 sif = compute_sif_set(elem, model, node_id=node_tag)
                 M_i, M_o, M_t, moment_basis = self._moment_components(

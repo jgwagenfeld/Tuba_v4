@@ -112,7 +112,7 @@ $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
 .\.venv\Scripts\python.exe -m unittest tests.test_code_aster_real_smoke -v
 ```
 
-`OK` proves that Tuba exported a study, executed Code_Aster, read the displacement, internal-force, reaction, and stress tables, and returned `FEAResults`.
+`OK` proves that Tuba exported a study, executed Code_Aster, read the displacement, internal-force, reaction, and stress tables, and returned a verified `AnalysisRun`.
 
 ## Native Linux x86_64
 

@@ -2,7 +2,8 @@ import unittest
 
 import numpy as np
 
-from tuba import CoordinateSystem, Model
+from tuba import Model
+from tuba.coordinates import CoordinateSystem
 from tuba.fragments import ModelFragment, place_fragment
 
 

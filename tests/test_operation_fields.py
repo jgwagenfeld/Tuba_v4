@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tuba import Model, ModelValidationError
+from tuba import Model
+from tuba.validation import ModelValidationError
 from tuba.solver.aster import CodeAsterSolver
 
 

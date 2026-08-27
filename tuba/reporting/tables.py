@@ -958,6 +958,8 @@ def _fe_stress_rows(
     for state in result_states:
         identity = _solver_identity(studies_by_id[state.study_id], state)
         for element_id, result in sorted(state.element_results.items()):
+            if not any(key in result for key in ("von_mises_n1", "von_mises_n2", "max_von_mises")):
+                continue
             yield {
                 **identity,
                 "entity_ref": f"element:{element_id}",

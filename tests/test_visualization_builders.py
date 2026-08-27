@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import patch
 
-from tuba import EntityRef, Model
+from tuba import Model
+from tuba.refs import EntityRef
 from tuba.model import sample_bend_geometry
 from tuba.visualization import SceneBuildOptions, build_visualization_scene
 from tuba.visualization.builders import _find_element

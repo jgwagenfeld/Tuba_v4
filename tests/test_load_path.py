@@ -1,6 +1,7 @@
 import unittest
 
-from tuba import Model, RackBay
+from tuba import Model
+from tuba.assemblies import RackBay
 from tuba.analysis import ResultState
 from tuba.load_path import analyze_load_paths
 from tuba.patches import ModelTransaction

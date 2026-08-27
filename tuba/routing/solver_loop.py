@@ -85,7 +85,8 @@ class SolverLoopScorer:
                 if hasattr(solver, "export_study"):
                     solver.export_study(temp_model, config.load_case, study_dir)
                 if config.run_solver:
-                    results = solver.solve(temp_model, config.load_case)
+                    solved = solver.solve(temp_model, config.load_case)
+                    results = getattr(solved, "results", solved)
                     candidate.metadata["solver"]["solver_ran"] = True
                     candidate.metadata["solver"]["solver_name"] = results.solver_name
                     _attach_solver_result_metadata(
@@ -153,9 +154,11 @@ def _attach_solver_acceptance(candidate: PipeRouteCandidate, criteria) -> None:
 
     compliance = candidate.metadata.get("compliance", {})
     failed: list[str] = []
-    if compliance.get("worst_expansion_ratio", 0.0) > criteria.max_expansion_ratio:
+    if compliance.get("overall_pass") is None:
+        failed.append("compliance_unavailable")
+    elif compliance.get("worst_expansion_ratio", 0.0) > criteria.max_expansion_ratio:
         failed.append("expansion_ratio")
-    if compliance.get("worst_sustained_ratio", 0.0) > criteria.max_sustained_ratio:
+    if compliance.get("overall_pass") is not None and compliance.get("worst_sustained_ratio", 0.0) > criteria.max_sustained_ratio:
         failed.append("sustained_ratio")
 
     max_reaction = 0.0

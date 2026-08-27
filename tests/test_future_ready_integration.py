@@ -2,7 +2,8 @@ import unittest
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
-from tuba import Model, RackBay
+from tuba import Model
+from tuba.assemblies import RackBay
 from tuba.benchmarks import write_model_benchmark_summary
 from tuba.external.bom import bom_to_dict
 from tuba.load_path import analyze_load_paths

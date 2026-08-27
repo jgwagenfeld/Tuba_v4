@@ -36,9 +36,9 @@ class ElementResult:
     # Internal forces at node 2 (end)
     forces_n2: np.ndarray  # shape (6,)
     # Stress scalars
-    von_mises_n1: float = 0.0
-    von_mises_n2: float = 0.0
-    max_von_mises: float = 0.0
+    von_mises_n1: float = float("nan")
+    von_mises_n2: float = float("nan")
+    max_von_mises: float = float("nan")
 
 
 @dataclass

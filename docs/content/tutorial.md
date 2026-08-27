@@ -31,7 +31,6 @@ If the doctor is blocked, stop after export inspection or load an existing solve
 from pathlib import Path
 
 from tuba import Model
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import build_visualization_scene, write_scene_bundle
 
@@ -77,13 +76,12 @@ solver = CodeAsterSolver(
     wsl_distro="Ubuntu",
 )
 study = solver.export_analysis_study(model, "Operating", work_dir)
-solver.solve_exported_study(model, study)
-artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, study=study)
+run = solver.solve_exported_study(model, study)
 
 scene = build_visualization_scene(
     model,
-    analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
-    result_states=[artifact.result_state],
+    analysis_meshes=[run.analysis_mesh] if run.analysis_mesh is not None else [],
+    result_states=[run.result_state],
 )
 write_scene_bundle(scene, work_dir / "review_scene")
 ```
@@ -163,4 +161,4 @@ With `run_solver=False`, the directory must already contain real Code_Aster arti
 
 ## Done when
 
-The tutorial is complete only when Code_Aster has produced result artifacts and Tuba has parsed them into `FEAResults` or a `ResultState`. Export-only output is useful for diagnostics and handoff review, but it is not an engineering evaluation.
+The tutorial is complete only when Code_Aster has produced result artifacts and Tuba has imported them as an `AnalysisRun` with a persistent `ResultState`. Export-only output is useful for diagnostics and handoff review, but it is not an engineering evaluation.

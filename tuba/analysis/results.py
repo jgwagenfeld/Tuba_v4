@@ -152,13 +152,15 @@ def result_state_from_fea_results(
 
     element_results: dict[str, dict[str, Any]] = {}
     for element_id, element_result in results.element_results.items():
-        element_results[element_id] = {
+        data = {
             "forces_n1": _persistent_result_vector(element_result.forces_n1, f"forces_n1 {element_id}"),
             "forces_n2": _persistent_result_vector(element_result.forces_n2, f"forces_n2 {element_id}"),
-            "von_mises_n1": float(element_result.von_mises_n1),
-            "von_mises_n2": float(element_result.von_mises_n2),
-            "max_von_mises": float(element_result.max_von_mises),
         }
+        for key in ("von_mises_n1", "von_mises_n2", "max_von_mises"):
+            value = float(getattr(element_result, key))
+            if np.isfinite(value):
+                data[key] = value
+        element_results[element_id] = data
 
     files: dict[str, str] = {}
     if results.result_file is not None:
@@ -281,7 +283,7 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
         if element.id not in result_state.element_results:
             raise ValueError(f"ResultState {result_state.id!r} is missing element result for {element.id!r}.")
         data = result_state.element_results[element.id]
-        for field_name in ("forces_n1", "forces_n2", "von_mises_n1", "von_mises_n2", "max_von_mises"):
+        for field_name in ("forces_n1", "forces_n2"):
             if field_name not in data:
                 raise ValueError(
                     f"ResultState {result_state.id!r} element {element.id!r} is missing result field {field_name!r}."
@@ -290,9 +292,9 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
             element_id=element.id,
             forces_n1=_element_result_array(data["forces_n1"], f"forces_n1 {element.id}"),
             forces_n2=_element_result_array(data["forces_n2"], f"forces_n2 {element.id}"),
-            von_mises_n1=float(data["von_mises_n1"]),
-            von_mises_n2=float(data["von_mises_n2"]),
-            max_von_mises=float(data["max_von_mises"]),
+            von_mises_n1=float(data.get("von_mises_n1", np.nan)),
+            von_mises_n2=float(data.get("von_mises_n2", np.nan)),
+            max_von_mises=float(data.get("max_von_mises", np.nan)),
         )
     return results
 

@@ -10,7 +10,6 @@ from tuba.analysis.tuyau import (
     section_profile,
     subpoint_station,
 )
-from tuba.model import Element
 from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
 from tuba.refs import EntityRef
@@ -90,15 +89,10 @@ def _build_solver_result_scene(
     if stress_overlay is not None:
         overlays.append(stress_overlay)
 
-    reaction_objects, reaction_assets, reaction_overlay = _solver_reaction_vectors(model, results, load_case)
+    reaction_objects, reaction_assets, reaction_overlays = _solver_reaction_vectors(model, results, load_case)
     objects.extend(reaction_objects)
     assets.extend(reaction_assets)
-    if reaction_overlay is not None:
-        overlays.append(reaction_overlay)
-
-    temperature_overlay = _solver_temperature_overlay(model, results, load_case)
-    if temperature_overlay is not None:
-        overlays.append(temperature_overlay)
+    overlays.extend(reaction_overlays)
 
     return objects, assets, overlays
 def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, Overlay]:
@@ -160,8 +154,7 @@ def _build_result_state_result_scene(
         assets.extend(displacement_assets)
         overlays.append(displacement_overlay)
 
-    reaction_overlay = _result_state_reaction_overlay(model, result_state)
-    if reaction_overlay is not None:
+    for reaction_overlay in _result_state_reaction_overlays(model, result_state):
         reaction_objects, reaction_assets = _result_state_vector_scene(result_state, reaction_overlay)
         objects.extend(reaction_objects)
         assets.extend(reaction_assets)
@@ -187,9 +180,9 @@ def _result_state_vector_scene(
     overlay: Overlay,
 ) -> tuple[list[SceneObject], list[GeometryAsset]]:
     result_type = str(overlay.data.get("result_type", ""))
-    if result_type not in {"displacement", "reaction"}:
+    if result_type not in {"displacement", "reaction_force", "reaction_moment"}:
         return [], []
-    kind = f"{result_type}_vector"
+    kind = "displacement_vector" if result_type == "displacement" else "reaction_vector"
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
     vector_object_ids: list[str] = []
@@ -216,10 +209,15 @@ def _result_state_vector_scene(
             "node_id": node_id,
             "start": start,
             "end": end,
-            "color": "#dc2626" if result_type == "reaction" else "#7c3aed",
+            "color": {
+                "displacement": "#7c3aed",
+                "reaction_force": "#dc2626",
+                "reaction_moment": "#f97316",
+            }[result_type],
         }
-        if result_type == "reaction":
+        if result_type == "reaction_force":
             generation_config["reaction_force_n"] = list(vector.get("reaction_force_n", []))
+        elif result_type == "reaction_moment":
             generation_config["reaction_moment_nm"] = list(vector.get("reaction_moment_nm", []))
         else:
             generation_config["displacement_m"] = list(vector.get("displacement_m", []))
@@ -237,7 +235,7 @@ def _result_state_vector_scene(
             SceneObject(
                 id=object_id,
                 kind=kind,
-                name=f"{node_id} {result_type} {result_state.load_case}",
+                name=f"{node_id} {result_type.replace('_', ' ')} {result_state.load_case}",
                 geometry_asset_id=asset_id,
                 layer_ids=[f"result:{result_type}"],
                 metadata={
@@ -245,7 +243,13 @@ def _result_state_vector_scene(
                     "result_state_id": result_state.id,
                     "load_case": result_state.load_case,
                     "node_id": node_id,
-                    "magnitude": vector.get(f"magnitude_{'n' if result_type == 'reaction' else 'm'}"),
+                    "magnitude": vector.get(
+                        {
+                            "displacement": "magnitude_m",
+                            "reaction_force": "magnitude_n",
+                            "reaction_moment": "magnitude_nm",
+                        }[result_type]
+                    ),
                 },
             )
         )
@@ -259,7 +263,6 @@ def _result_state_stress_overlay(
     diagnostics: list[SceneDiagnostic],
 ) -> Overlay | None:
     values: dict[str, float] = {}
-    utilization_values: dict[str, float] = {}
     object_ids: list[str] = []
     entity_refs: list[EntityRef] = []
     element_metadata: dict[str, dict[str, Any]] = {}
@@ -289,24 +292,32 @@ def _result_state_stress_overlay(
             )
             continue
         value = float(data["max_von_mises"])
+        if not np.isfinite(value):
+            diagnostics.append(
+                SceneDiagnostic(
+                    severity="warning",
+                    code="result_state.invalid_stress",
+                    message=f"ResultState {result_state.id!r} has non-finite max_von_mises for {elem.id!r}.",
+                    target=str(EntityRef("element", elem.id)),
+                    source=result_state.id,
+                )
+            )
+            continue
         values[object_id] = value
         object_ids.append(object_id)
         entity_refs.append(EntityRef("element", elem.id))
         element_metadata[object_id] = _result_state_element_result_metadata(data)
-        allowable = _allowable_stress_for_element(model, elem, result_state.load_case)
-        if allowable is not None and allowable > 0.0:
-            utilization_values[object_id] = value / allowable
 
     if not values:
         return None
     numeric_values = list(values.values())
-    hotspots = _stress_hotspots(values, utilization_values)
+    hotspots = _stress_hotspots(values)
     return Overlay(
         id=f"overlay:solver_result:stress:{result_state.id}",
         kind="solver_result",
         object_ids=object_ids,
         entity_refs=entity_refs,
-        name=f"Stress {result_state.load_case}",
+        name=f"FE VMIS (not code stress) {result_state.load_case}",
         data={
             "result_type": "stress",
             "result_state_id": result_state.id,
@@ -315,15 +326,15 @@ def _result_state_stress_overlay(
             "load_case": result_state.load_case,
             "field": "max_von_mises",
             "values": values,
-            "utilization_values": utilization_values,
+            "compliance_role": "visualization_only_not_asme_code_stress",
             "range": {"min": min(numeric_values), "max": max(numeric_values)},
             "unit": "Pa",
             "legend": {
-                "field": "max_von_mises",
+                "field": "FE VMIS (not code stress)",
                 "unit": "Pa",
                 "range": {"min": min(numeric_values), "max": max(numeric_values)},
                 "color_map": "turbo",
-                "thresholds": {"warning": 0.8, "critical": 1.0},
+                "thresholds": {},
             },
             "hotspots": hotspots,
             "element_results": element_metadata,
@@ -400,55 +411,61 @@ def _result_state_displacement_overlay(
             },
         },
     )
-def _result_state_reaction_overlay(model: TubaModel, result_state: ResultState) -> Overlay | None:
-    vectors: list[dict[str, Any]] = []
-    values: dict[str, list[float]] = {}
-    object_ids: list[str] = []
-    for node_id, reaction in result_state.node_reactions.items():
-        vector = [float(value) for value in reaction[:3]]
-        magnitude = float(np.linalg.norm(vector))
-        if magnitude <= 0.0:
+def _result_state_reaction_overlays(model: TubaModel, result_state: ResultState) -> list[Overlay]:
+    overlays: list[Overlay] = []
+    for result_type, component_slice, value_key, magnitude_key, unit, label in (
+        ("reaction_force", slice(0, 3), "reaction_force_n", "magnitude_n", "N", "Reaction forces"),
+        ("reaction_moment", slice(3, 6), "reaction_moment_nm", "magnitude_nm", "N*m", "Reaction moments"),
+    ):
+        vectors: list[dict[str, Any]] = []
+        values: dict[str, list[float]] = {}
+        object_ids: list[str] = []
+        for node_id, reaction in result_state.node_reactions.items():
+            vector = [float(value) for value in reaction[component_slice]]
+            magnitude = float(np.linalg.norm(vector))
+            if magnitude <= 0.0:
+                continue
+            values[node_id] = vector
+            node_object_ids = _object_ids_for_node(model, node_id)
+            object_ids.extend(node_object_ids)
+            entry: dict[str, Any] = {
+                "node_id": node_id,
+                value_key: vector,
+                magnitude_key: magnitude,
+                "object_ids": node_object_ids,
+            }
+            if node_id in model.nodes:
+                entry["start"] = _node_coords(model, node_id)
+                entry["end"] = _vector_endpoint(entry["start"], vector)
+            vectors.append(entry)
+        if not vectors:
             continue
-        values[node_id] = vector
-        node_object_ids = _object_ids_for_node(model, node_id)
-        object_ids.extend(node_object_ids)
-        entry: dict[str, Any] = {
-            "node_id": node_id,
-            "reaction_force_n": vector,
-            "reaction_moment_nm": [float(value) for value in reaction[3:6]],
-            "magnitude_n": magnitude,
-            "object_ids": node_object_ids,
-        }
-        if node_id in model.nodes:
-            entry["start"] = _node_coords(model, node_id)
-            entry["end"] = _vector_endpoint(entry["start"], vector)
-        vectors.append(entry)
-
-    if not vectors:
-        return None
-    numeric_values = [float(np.linalg.norm(vector)) for vector in values.values()]
-    return Overlay(
-        id=f"overlay:solver_result:reaction:{result_state.id}",
-        kind="solver_result",
-        object_ids=_dedupe(object_ids),
-        name=f"Reactions {result_state.load_case}",
-        data={
-            "result_type": "reaction",
-            "result_state_id": result_state.id,
-            "study_id": result_state.study_id,
-            "mesh_id": result_state.mesh_id,
-            "load_case": result_state.load_case,
-            "vectors": vectors,
-            "values": values,
-            "legend": {
-                "field": "reaction_force_magnitude",
-                "unit": "N",
-                "range": {"min": min(numeric_values), "max": max(numeric_values)},
-                "color_map": "magma",
-                "thresholds": {},
-            },
-        },
-    )
+        numeric_values = [float(np.linalg.norm(vector)) for vector in values.values()]
+        overlays.append(
+            Overlay(
+                id=f"overlay:solver_result:{result_type}:{result_state.id}",
+                kind="solver_result",
+                object_ids=_dedupe(object_ids),
+                name=f"{label} {result_state.load_case}",
+                data={
+                    "result_type": result_type,
+                    "result_state_id": result_state.id,
+                    "study_id": result_state.study_id,
+                    "mesh_id": result_state.mesh_id,
+                    "load_case": result_state.load_case,
+                    "vectors": vectors,
+                    "values": values,
+                    "legend": {
+                        "field": f"{result_type}_magnitude",
+                        "unit": unit,
+                        "range": {"min": min(numeric_values), "max": max(numeric_values)},
+                        "color_map": "magma",
+                        "thresholds": {},
+                    },
+                },
+            )
+        )
+    return overlays
 def _result_state_parser_diagnostics_overlay(result_state: ResultState) -> Overlay | None:
     diagnostics = list(result_state.metadata.get("parser_diagnostics", []))
     if not diagnostics:
@@ -747,38 +764,29 @@ def _result_state_element_result_metadata(data: dict[str, Any]) -> dict[str, Any
             metadata[key] = [value if value is not None and np.isfinite(value) else None for value in values]
     for key in ("von_mises_n1", "von_mises_n2", "max_von_mises"):
         if key in data:
-            metadata[key] = float(data[key])
+            value = float(data[key])
+            if np.isfinite(value):
+                metadata[key] = value
     metadata["force_unit"] = "N"
     metadata["moment_unit"] = "N*m"
     metadata["stress_unit"] = "Pa"
     return metadata
-def _allowable_stress_for_element(model: TubaModel, elem: Element, load_case: str) -> float | None:
-    material = model.materials.get(elem.material)
-    if material is None:
-        return None
-    try:
-        _, load_case_data = model.resolve_load_case(load_case)
-    except ValueError:
-        return None
-    temperature = float(load_case_data.temperature)
-    try:
-        return float(material.get_allowable(temperature))
-    except ValueError:
-        return None
-def _stress_hotspots(values: dict[str, float], utilization_values: dict[str, float]) -> list[dict[str, Any]]:
+def _stress_hotspots(values: dict[str, float]) -> list[dict[str, Any]]:
     hotspots: list[dict[str, Any]] = []
     for object_id, value in sorted(values.items(), key=lambda item: item[1], reverse=True):
         hotspot = {"object_id": object_id, "value": float(value), "unit": "Pa"}
-        if object_id in utilization_values:
-            hotspot["utilization"] = float(utilization_values[object_id])
         hotspots.append(hotspot)
     return hotspots[:10]
 def _solver_stress_overlay(results: FEAResults, load_case: str) -> Overlay | None:
     values: dict[str, float] = {}
     object_ids: list[str] = []
+    entity_refs: list[EntityRef] = []
     for element_id, result in results.element_results.items():
+        if not np.isfinite(result.max_von_mises):
+            continue
         object_id = _object_id(EntityRef("element", element_id))
         object_ids.append(object_id)
+        entity_refs.append(EntityRef("element", element_id))
         values[object_id] = float(result.max_von_mises)
     if not values:
         return None
@@ -787,13 +795,14 @@ def _solver_stress_overlay(results: FEAResults, load_case: str) -> Overlay | Non
         id=f"overlay:solver_result:stress:{load_case}",
         kind="solver_result",
         object_ids=object_ids,
-        entity_refs=[EntityRef("element", element_id) for element_id in results.element_results],
-        name=f"Stress {load_case}",
+        entity_refs=entity_refs,
+        name=f"FE VMIS (not code stress) {load_case}",
         data={
             "result_type": "stress",
             "load_case": load_case,
             "field": "max_von_mises",
             "values": values,
+            "compliance_role": "visualization_only_not_asme_code_stress",
             "range": {"min": min(numeric_values), "max": max(numeric_values)},
             "unit": "Pa",
         },
@@ -802,80 +811,68 @@ def _solver_reaction_vectors(
     model: TubaModel,
     results: FEAResults,
     load_case: str,
-) -> tuple[list[SceneObject], list[GeometryAsset], Overlay | None]:
+) -> tuple[list[SceneObject], list[GeometryAsset], list[Overlay]]:
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
-    object_ids: list[str] = []
-    values: dict[str, list[float]] = {}
-    for node_id, result in results.node_results.items():
-        if result.reaction_force is None:
-            continue
-        reaction = [float(value) for value in result.reaction_force[:3].tolist()]
-        if max((abs(value) for value in reaction), default=0.0) <= 0.0:
-            continue
-        start = _node_coords(model, node_id)
-        end = _vector_endpoint(start, reaction)
-        object_id = f"object:solver_result:reaction:{load_case}:{node_id}"
-        asset_id = f"geometry:solver_result:reaction:{load_case}:{node_id}"
-        assets.append(
-            GeometryAsset(
-                id=asset_id,
-                format="vector",
-                bounds=_bounds_for_points([start, end], 0.0),
-                object_ids=[object_id],
-                generation_config={
-                    "source": "tuba.solver_results",
-                    "result_type": "reaction",
-                    "load_case": load_case,
-                    "node_id": node_id,
-                    "start": start,
-                    "end": end,
-                    "reaction_force_n": reaction,
-                },
+    overlays: list[Overlay] = []
+    for result_type, component_slice, value_key, unit, label in (
+        ("reaction_force", slice(0, 3), "reaction_force_n", "N", "Reaction forces"),
+        ("reaction_moment", slice(3, 6), "reaction_moment_nm", "N*m", "Reaction moments"),
+    ):
+        object_ids: list[str] = []
+        values: dict[str, list[float]] = {}
+        for node_id, result in results.node_results.items():
+            if result.reaction_force is None:
+                continue
+            vector = [float(value) for value in result.reaction_force[component_slice].tolist()]
+            if max((abs(value) for value in vector), default=0.0) <= 0.0:
+                continue
+            start = _node_coords(model, node_id)
+            end = _vector_endpoint(start, vector)
+            object_id = f"object:solver_result:{result_type}:{load_case}:{node_id}"
+            asset_id = f"geometry:solver_result:{result_type}:{load_case}:{node_id}"
+            assets.append(
+                GeometryAsset(
+                    id=asset_id,
+                    format="vector",
+                    bounds=_bounds_for_points([start, end], 0.0),
+                    object_ids=[object_id],
+                    generation_config={
+                        "source": "tuba.solver_results",
+                        "result_type": result_type,
+                        "load_case": load_case,
+                        "node_id": node_id,
+                        "start": start,
+                        "end": end,
+                        value_key: vector,
+                    },
+                )
             )
-        )
-        objects.append(
-            SceneObject(
-                id=object_id,
-                kind="reaction_vector",
-                name=f"{node_id} reaction {load_case}",
-                geometry_asset_id=asset_id,
-                layer_ids=["result:reaction"],
-                metadata={"result_type": "reaction", "load_case": load_case, "node_id": node_id, "reaction_force_n": reaction},
+            objects.append(
+                SceneObject(
+                    id=object_id,
+                    kind="reaction_vector",
+                    name=f"{node_id} {label.lower()} {load_case}",
+                    geometry_asset_id=asset_id,
+                    layer_ids=[f"result:{result_type}"],
+                    metadata={
+                        "result_type": result_type,
+                        "load_case": load_case,
+                        "node_id": node_id,
+                        value_key: vector,
+                    },
+                )
             )
-        )
-        object_ids.append(object_id)
-        values[node_id] = reaction
-    if not object_ids:
-        return objects, assets, None
-    return (
-        objects,
-        assets,
-        Overlay(
-            id=f"overlay:solver_result:reaction:{load_case}",
-            kind="solver_result",
-            object_ids=object_ids,
-            name=f"Reactions {load_case}",
-            data={"result_type": "reaction", "load_case": load_case, "values": values, "unit": "N"},
-        ),
-    )
-def _solver_temperature_overlay(model: TubaModel, results: FEAResults, load_case: str) -> Overlay | None:
-    try:
-        _, load_case_data = model.resolve_load_case(load_case)
-    except ValueError:
-        return None
-    object_ids = [_object_id(EntityRef("element", elem.id)) for elem in model.elements]
-    return Overlay(
-        id=f"overlay:solver_result:temperature:{load_case}",
-        kind="solver_result",
-        object_ids=object_ids,
-        entity_refs=[EntityRef("element", elem.id) for elem in model.elements],
-        name=f"Temperature {load_case}",
-        data={
-            "result_type": "temperature",
-            "load_case": load_case,
-            "temperature_c": float(load_case_data.temperature),
-            "values": {object_id: float(load_case_data.temperature) for object_id in object_ids},
-            "unit": "C",
-        },
-    )
+            object_ids.append(object_id)
+            values[node_id] = vector
+        if object_ids:
+            overlays.append(
+                Overlay(
+                    id=f"overlay:solver_result:{result_type}:{load_case}",
+                    kind="solver_result",
+                    object_ids=object_ids,
+                    name=f"{label} {load_case}",
+                    data={"result_type": result_type, "load_case": load_case, "values": values, "unit": unit},
+                )
+            )
+    return objects, assets, overlays

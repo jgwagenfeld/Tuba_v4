@@ -8,7 +8,7 @@ review.
 [![Code_Aster-backed Tuba review showing the pipe geometry, 1D analysis mesh, TUYAU wall sub-points, deformation, and stress results.](docs/content/assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
 *Code_Aster-backed engineering review: authored geometry, solver mesh, TUYAU
-wall sub-points, deformation, reactions, and stress remain inspectable together.*
+wall sub-points, deformation, reaction forces, reaction moments, and stress remain inspectable together.*
 
 ## Core Workflow
 
@@ -39,6 +39,7 @@ Read these first - they describe what the code actually does today:
 | `docs/content/`                                    | Canonical Zensical source: setup, tutorial, modeling, workflow, autorouting, examples, API, architecture, developer   |
 | `docs/architecture/library-architecture-review.md` | Current architecture map                                                                                              |
 | `docs/architecture/*`                              | Focused design decisions and explicitly labeled roadmap docs                                                          |
+| `docs/adr/`                                       | Accepted product, API, and result-authority decisions                                                                  |
 | `docs/content/setup.md`                            | Canonical Code_Aster and developer setup                                                                              |
 
 ## Installation

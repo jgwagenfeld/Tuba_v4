@@ -301,9 +301,7 @@
             "von_mises_n2": 200000000.0
           }
         },
-        "files": {
-          "manifest": "C:\\Users\\jange\\AppData\\Local\\Temp\\tmpvj3_yrdt\\code_aster\\study_manifest.json"
-        },
+        "files": {},
         "id": "result_state:Hot:gmd_fixture_not_a_solve",
         "load_case": "Hot",
         "mesh_id": "analysis_mesh:Hot",
@@ -352,8 +350,8 @@
             0.0,
             3400.0,
             0.0,
-            0.0,
-            0.0
+            850.0,
+            -400.0
           ]
         },
         "solver_name": "Code_Aster",
@@ -410,20 +408,36 @@
     "name": "N3 displacement Hot"
   },
   {
-    "geometry_asset_id": "geometry:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0",
-    "id": "object:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "geometry_asset_id": "geometry:solver_result:reaction_force:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "id": "object:solver_result:reaction_force:result_state_Hot_gmd_fixture_not_a_solve:N0",
     "kind": "reaction_vector",
     "layer_ids": [
-      "result:reaction"
+      "result:reaction_force"
     ],
     "metadata": {
       "load_case": "Hot",
       "magnitude": 3605.5512754639894,
       "node_id": "N0",
       "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
-      "result_type": "reaction"
+      "result_type": "reaction_force"
     },
-    "name": "N0 reaction Hot"
+    "name": "N0 reaction force Hot"
+  },
+  {
+    "geometry_asset_id": "geometry:solver_result:reaction_moment:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "id": "object:solver_result:reaction_moment:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "kind": "reaction_vector",
+    "layer_ids": [
+      "result:reaction_moment"
+    ],
+    "metadata": {
+      "load_case": "Hot",
+      "magnitude": 939.4147114027968,
+      "node_id": "N0",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "reaction_moment"
+    },
+    "name": "N0 reaction moment Hot"
   },
   {
     "geometry_asset_id": "geometry:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve",

@@ -67,12 +67,12 @@ def test_operation_results_use_resolved_case_for_web_and_pyvista(tmp_path: Path)
     scene = build_visualization_scene(model, result_states=[state], solver_results=results)
 
     stress = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "stress")
-    temperature = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "temperature")
     load = next(overlay for overlay in scene.overlays if overlay.kind == "load_case" and overlay.data["load_case"] == "Hot")
     mesh = build_3d_mesh_from_model(model, results)
 
-    assert stress.data["utilization_values"] == {"object:element:pipe_0": 1.1}
-    assert temperature.data["temperature_c"] == 200.0
+    assert "utilization_values" not in stress.data
+    assert stress.data["compliance_role"] == "visualization_only_not_asme_code_stress"
+    assert load.data["temperature_c"] == 200.0
     assert load.data["nodal_force_count"] == 1
     assert any(obj.metadata.get("node_id") == loaded_node for obj in scene.objects if obj.kind == "applied_load")
     assert np.all(mesh.point_data["TEMP"] == 200.0)
@@ -358,7 +358,7 @@ def test_artifact_import_preserves_fully_legacy_identity_chain(
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
     monkeypatch.setattr(CodeAsterSolver, "_parse_result_artifacts_after_validation", lambda *_args, **_kwargs: results)
 
-    imported = import_code_aster_artifacts(model=model, work_dir=tmp_path)
+    imported = import_code_aster_artifacts(model=model, work_dir=tmp_path, allow_unverified=True)
 
     assert imported.study.solver_input_identity is None
     assert imported.analysis_mesh is not None
@@ -431,7 +431,7 @@ def test_legacy_records_without_solver_input_identity_remain_loadable():
     assert study.solver_input_identity is None
 
 
-def test_unknown_result_case_omits_allowable_utilization_instead_of_using_20_c(tmp_path: Path):
+def test_unknown_result_case_keeps_fe_stress_without_code_utilization(tmp_path: Path):
     model, _, results = _operation_model()
     study = CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
     state = result_state_from_fea_results(model=model, study=study, results=results)
@@ -440,7 +440,7 @@ def test_unknown_result_case_omits_allowable_utilization_instead_of_using_20_c(t
     scene = build_visualization_scene(model, result_states=[legacy_unknown])
     stress = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "stress")
 
-    assert stress.data["utilization_values"] == {}
+    assert "utilization_values" not in stress.data
 
 
 def test_pyvista_rejects_unknown_named_result_case():

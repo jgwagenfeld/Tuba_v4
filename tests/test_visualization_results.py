@@ -29,7 +29,7 @@ class TestVisualizationResults(unittest.TestCase):
         results.node_results[n0] = NodeResult(
             node_id=n0,
             displacement=np.zeros(6),
-            reaction_force=np.array([100.0, 0.0, -500.0, 0.0, 0.0, 0.0]),
+            reaction_force=np.array([100.0, 0.0, -500.0, 25.0, 0.0, -75.0]),
         )
         results.node_results[n1] = NodeResult(
             node_id=n1,
@@ -68,21 +68,28 @@ class TestVisualizationResults(unittest.TestCase):
         self.assertEqual(stress.data["values"], {"object:element:pipe_0": 120.0e6})
         self.assertEqual(stress.data["range"], {"min": 120.0e6, "max": 120.0e6})
 
-    def test_build_scene_adds_reaction_vectors_and_temperature_overlay(self):
+    def test_build_scene_adds_reactions_and_keeps_temperature_as_input(self):
         model, results = self._model_and_results()
 
         scene = build_visualization_scene(model, solver_results=results, scene_id="scene_result_review")
 
-        reaction = next(obj for obj in scene.objects if obj.kind == "reaction_vector")
-        self.assertEqual(reaction.metadata["node_id"], "N0")
-        self.assertEqual(reaction.metadata["reaction_force_n"], [100.0, 0.0, -500.0])
-        self.assertIn("result:reaction", reaction.layer_ids)
+        reactions = [obj for obj in scene.objects if obj.kind == "reaction_vector"]
+        reaction_force = next(obj for obj in reactions if obj.metadata["result_type"] == "reaction_force")
+        reaction_moment = next(obj for obj in reactions if obj.metadata["result_type"] == "reaction_moment")
+        self.assertEqual(reaction_force.metadata["reaction_force_n"], [100.0, 0.0, -500.0])
+        self.assertEqual(reaction_moment.metadata["reaction_moment_nm"], [25.0, 0.0, -75.0])
+        self.assertIn("result:reaction_force", reaction_force.layer_ids)
+        self.assertIn("result:reaction_moment", reaction_moment.layer_ids)
 
-        temperature = next(
-            overlay for overlay in scene.overlays if overlay.kind == "solver_result" and overlay.data["result_type"] == "temperature"
+        self.assertFalse(
+            any(
+                overlay.kind == "solver_result" and overlay.data.get("result_type") == "temperature"
+                for overlay in scene.overlays
+            )
         )
-        self.assertEqual(temperature.data["load_case"], "Hot")
-        self.assertEqual(temperature.data["temperature_c"], 100.0)
+        inputs = next(overlay for overlay in scene.overlays if overlay.kind == "load_case")
+        self.assertEqual(inputs.data["load_case"], "Hot")
+        self.assertEqual(inputs.data["temperature_c"], 100.0)
 
     def test_build_scene_adds_result_and_geometry_state_records(self):
         fixture = straight_pipe_hot_clash_fixture()

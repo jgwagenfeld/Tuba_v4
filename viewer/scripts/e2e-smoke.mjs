@@ -485,24 +485,39 @@ const scenarios = {
       const physicalCenterline = page.getByLabel(/^\s*Physical Centerline/);
       // Only one geometry state is drawn at a time - assetMatchesActiveGeometryState
       // filters every asset that names a different one - so the physical and the
-      // x50 visual deformed shapes can never be on screen together. Which one you
-      // see follows the Deformed state selector; the layer toggles then control
-      // visibility within that state.
+      // x50 visual deformed shapes can never be on screen together. A solved
+      // scene opens on the visual state so the deformation control works at once.
+      await page.waitForFunction(() => {
+        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
+        return ids.includes("object:deformed_visual") && !ids.includes("object:deformed_physical");
+      });
+      assert.equal(await visualCenterline.isChecked(), true);
+
+      const deformedState = page.getByRole("combobox", { name: /^Deformed state/ });
+      const stateValues = await deformedState.evaluate((select) => [...select.options].map((option) => option.value));
+      const physicalValue = stateValues.find((value) => /physical/i.test(value));
+      const visualValue = stateValues.find((value) => /visual/i.test(value));
+      assert.ok(physicalValue, "the bundle must offer a physical deformed state");
+      assert.ok(visualValue, "the bundle must offer a visual deformed state");
+      await deformedState.selectOption(physicalValue);
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.includes("object:deformed_physical") && !ids.includes("object:deformed_visual");
       });
       assert.equal(await physicalCenterline.isChecked(), true);
 
-      const deformedState = page.getByRole("combobox", { name: /^Deformed state/ });
-      const visualValue = (await deformedState.evaluate((select) => [...select.options].map((option) => option.value)))
-        .find((value) => /visual/i.test(value));
-      assert.ok(visualValue, "the bundle must offer a visual deformed state");
-      await deformedState.selectOption(visualValue);
-      await page.waitForFunction(() => {
-        const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return ids.includes("object:deformed_visual") && !ids.includes("object:deformed_physical");
+      await page.getByRole("slider", { name: "Visual deformation scale (display only)" }).evaluate((input) => {
+        input.value = "25";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
       });
+      await page.waitForFunction((expected) => {
+        const viewer = window.__tubaViewer;
+        const ids = viewer?.lastRender?.objectIds ?? [];
+        return viewer?.state?.activeGeometryStateId === expected &&
+          viewer.state.visualDeformationScale === 25 &&
+          ids.includes("object:deformed_visual") &&
+          !ids.includes("object:deformed_physical");
+      }, visualValue);
 
       await visualCenterline.uncheck();
       await page.waitForFunction(
@@ -784,9 +799,10 @@ const scenarios = {
           options.map((option) => ({ label: option.textContent, value: option.value }))
         ),
         [
-          { label: "max_von_mises (cell)", value: "field:solver_result:stress:result_state:Operating" },
+          { label: "FE VMIS (not code stress) (cell)", value: "field:solver_result:stress:result_state:Operating" },
           { label: "displacement_magnitude", value: "field:solver_result:displacement:result_state:Operating" },
-          { label: "reaction_force_magnitude", value: "field:solver_result:reaction:result_state:Operating" },
+          { label: "reaction_force_magnitude", value: "field:solver_result:reaction_force:result_state:Operating" },
+          { label: "reaction_moment_magnitude", value: "field:solver_result:reaction_moment:result_state:Operating" },
           { label: "FE VMIS (not code stress) (subpoint)", value: "field:solver_result:tuyau_subpoints:result_state:Operating" }
         ]
       );

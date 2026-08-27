@@ -7,12 +7,54 @@ from unittest.mock import patch
 import numpy as np
 
 from tuba import Model, Operation
+from tuba.analysis import AnalysisRun, AnalysisStudy, ResultState
 from tuba.compliance import ASMEB313Evaluator
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.base import ElementResult, FEAResults
 
 
 class TestOperationModel(unittest.TestCase):
+    def test_code_aster_solve_returns_provenance_bearing_analysis_run(self):
+        model = _base_model("SolveRun")
+        model.define_operation("Operating")
+        results = FEAResults(solver_name="Code_Aster", load_case="Operating")
+
+        with TemporaryDirectory() as tmpdir:
+            study = AnalysisStudy(
+                id="analysis_study:Operating",
+                model_revision=0,
+                solver_name="Code_Aster",
+                load_case="Operating",
+                work_dir=tmpdir,
+                input_files={},
+                mesh_id="analysis_mesh:Operating",
+            )
+            state = ResultState(
+                id="result_state:Operating",
+                study_id=study.id,
+                model_revision=0,
+                solver_name="Code_Aster",
+                load_case="Operating",
+                mesh_id=study.mesh_id,
+                node_displacements={},
+                node_reactions={},
+                element_results={},
+            )
+            expected = AnalysisRun(study=study, results=results, result_state=state)
+            solver = CodeAsterSolver(work_dir=tmpdir)
+
+            with (
+                patch("tuba.solver.aster.load_and_validate_artifact_chain", return_value=(study, study, None, None)),
+                patch.object(solver, "_execute", return_value=object()),
+                patch("tuba.solver.aster.write_code_aster_execution_attestation"),
+                patch.object(solver, "parse_result_artifacts", return_value=results),
+                patch("tuba.analysis.code_aster_artifacts.import_code_aster_artifacts", return_value=expected) as importer,
+            ):
+                run = solver.solve_exported_study(model, study)
+
+        self.assertIs(run, expected)
+        importer.assert_called_once_with(model=model, work_dir=Path(tmpdir), study=study)
+
     def test_operation_roundtrips_without_requiring_load_case(self):
         model = Model(project_name="OperationRoundtrip")
         op = model.define_operation(

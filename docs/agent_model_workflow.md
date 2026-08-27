@@ -15,7 +15,9 @@ Preferred workflow:
 Example:
 
 ```python
-from tuba import CoordinateSystem, Model, ModelFragment
+from tuba import Model
+from tuba.coordinates import CoordinateSystem
+from tuba.fragments import ModelFragment
 
 fragment = ModelFragment("rack_template")
 fragment.model.add_material("Steel", E=2.0e11, nu=0.3)

@@ -16,7 +16,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from tuba import Model, RackBay
+from tuba import Model
+from tuba.assemblies import RackBay
 from tuba.patches import ModelTransaction
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
 

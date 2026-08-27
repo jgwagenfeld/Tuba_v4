@@ -80,7 +80,7 @@ def _render(model, path: Path, *, results=None, deform_scale=None,
     return path
 
 
-from tuba import PlacementFrame
+from tuba.placements import PlacementFrame
 from tuba.coordinates import CoordinateSystem
 
 

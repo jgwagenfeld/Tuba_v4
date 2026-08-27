@@ -1,9 +1,13 @@
-"""Reject releases whose Git tag differs from installed package metadata."""
+"""Reject releases whose Git tag differs from this checkout's metadata."""
 
 from __future__ import annotations
 
-from importlib.metadata import version
+from pathlib import Path
 import sys
+import tomllib
+
+
+PROJECT_FILE = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,7 +22,8 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    package_version = version("tuba")
+    with PROJECT_FILE.open("rb") as stream:
+        package_version = tomllib.load(stream)["project"]["version"]
     if tag != f"v{package_version}":
         print(
             f"release tag {tag!r} does not match package version {package_version!r}",

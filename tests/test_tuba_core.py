@@ -3,7 +3,9 @@ import numpy as np
 import tempfile
 from pathlib import Path
 
-from tuba import Model, Material, PipeSection, PipingBuilder
+from tuba import Model
+from tuba.builder import PipingBuilder
+from tuba.model import Material, PipeSection
 from tuba.solver.base import FEAResults, NodeResult, ElementResult
 from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
 from tuba.compliance.asme_b313 import ASMEB313Evaluator

@@ -119,6 +119,41 @@ def test_source_release_gates_tag_on_build_and_real_code_aster_without_pypi():
     assert "environment: pypi" not in release_text
 
 
+def test_self_hosted_solver_jobs_refresh_every_engineering_gallery_before_pages_validation():
+    workflows = [
+        yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
+        for name in ("ci.yml", "release.yml")
+    ]
+    refresh_commands = [
+        "uv run python scripts/refresh_code_aster_gallery.py --gallery code-aster-review "
+        "--output notebooks/code_aster_results/viz_gallery_operating",
+        "uv run python scripts/refresh_code_aster_gallery.py --gallery support-rack-review "
+        "--output notebooks/code_aster_results/support_rack_operating",
+        "uv run python scripts/refresh_code_aster_gallery.py --gallery autorouted-expansion-loop "
+        "--output notebooks/code_aster_results/autorouted_expansion_hot",
+    ]
+    pages_command = "uv run python scripts/build_pages.py pages --output .build/code-aster-pages"
+
+    for workflow in workflows:
+        job = workflow["jobs"]["code-aster-integration"]
+        steps = job["steps"]
+        commands = [step["run"] for step in steps if "run" in step]
+
+        assert any(step.get("uses") == "actions/setup-node@v4" for step in steps)
+        assert "uv sync --group docs --extra dev --extra code-aster-rmed --locked" in commands
+        assert any(
+            step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
+            for step in steps
+        )
+        assert all(command in commands for command in refresh_commands)
+        assert pages_command in commands
+        assert max(commands.index(command) for command in refresh_commands) < commands.index(pages_command)
+
+    ci_job = workflows[0]["jobs"]["code-aster-integration"]
+    assert "pull_request" not in ci_job["if"]
+    assert "refs/heads/main" in ci_job["if"]
+
+
 def test_source_release_smokes_the_build_artifact():
     release = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")

@@ -81,9 +81,7 @@
           "von_mises_n2": 200000000.0
         }
       },
-      "files": {
-        "manifest": "C:\\Users\\jange\\AppData\\Local\\Temp\\tmpvj3_yrdt\\code_aster\\study_manifest.json"
-      },
+      "files": {},
       "id": "result_state:Hot:gmd_fixture_not_a_solve",
       "load_case": "Hot",
       "mesh_id": "analysis_mesh:Hot",
@@ -132,8 +130,8 @@
           0.0,
           3400.0,
           0.0,
-          0.0,
-          0.0
+          850.0,
+          -400.0
         ]
       },
       "solver_name": "Code_Aster",
@@ -149,6 +147,7 @@
   },
   {
     "data": {
+      "compliance_role": "visualization_only_not_asme_code_stress",
       "element_results": {
         "object:element:pipe_bend_0": {
           "force_unit": "N",
@@ -228,33 +227,27 @@
         {
           "object_id": "object:element:pipe_str_1",
           "unit": "Pa",
-          "utilization": 1.4598540145985401,
           "value": 200000000.0
         },
         {
           "object_id": "object:element:pipe_bend_0",
           "unit": "Pa",
-          "utilization": 0.9854014598540146,
           "value": 135000000.0
         },
         {
           "object_id": "object:element:pipe_str_0",
           "unit": "Pa",
-          "utilization": 0.5109489051094891,
           "value": 70000000.0
         }
       ],
       "legend": {
         "color_map": "turbo",
-        "field": "max_von_mises",
+        "field": "FE VMIS (not code stress)",
         "range": {
           "max": 200000000.0,
           "min": 70000000.0
         },
-        "thresholds": {
-          "critical": 1.0,
-          "warning": 0.8
-        },
+        "thresholds": {},
         "unit": "Pa"
       },
       "load_case": "Hot",
@@ -267,11 +260,6 @@
       "result_type": "stress",
       "study_id": "analysis_study:Hot",
       "unit": "Pa",
-      "utilization_values": {
-        "object:element:pipe_bend_0": 0.9854014598540146,
-        "object:element:pipe_str_0": 0.5109489051094891,
-        "object:element:pipe_str_1": 1.4598540145985401
-      },
       "values": {
         "object:element:pipe_bend_0": 135000000.0,
         "object:element:pipe_str_0": 70000000.0,
@@ -285,7 +273,7 @@
     ],
     "id": "overlay:solver_result:stress:result_state:Hot:gmd_fixture_not_a_solve",
     "kind": "solver_result",
-    "name": "Stress Hot",
+    "name": "FE VMIS (not code stress) Hot",
     "object_ids": [
       "object:element:pipe_str_0",
       "object:element:pipe_bend_0",
@@ -473,7 +461,7 @@
       "load_case": "Hot",
       "mesh_id": "analysis_mesh:Hot",
       "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
-      "result_type": "reaction",
+      "result_type": "reaction_force",
       "study_id": "analysis_study:Hot",
       "values": {
         "N0": [
@@ -499,10 +487,63 @@
             0.0,
             3400.0
           ],
-          "reaction_moment_nm": [
+          "start": [
             0.0,
             0.0,
             0.0
+          ]
+        }
+      ]
+    },
+    "id": "overlay:solver_result:reaction_force:result_state:Hot:gmd_fixture_not_a_solve",
+    "kind": "solver_result",
+    "name": "Reaction forces Hot",
+    "object_ids": [
+      "object:element:pipe_str_0",
+      "object:solver_result:reaction_force:result_state_Hot_gmd_fixture_not_a_solve:N0"
+    ],
+    "visible": true
+  },
+  {
+    "data": {
+      "legend": {
+        "color_map": "magma",
+        "field": "reaction_moment_magnitude",
+        "range": {
+          "max": 939.4147114027968,
+          "min": 939.4147114027968
+        },
+        "thresholds": {},
+        "unit": "N*m"
+      },
+      "load_case": "Hot",
+      "mesh_id": "analysis_mesh:Hot",
+      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
+      "result_type": "reaction_moment",
+      "study_id": "analysis_study:Hot",
+      "values": {
+        "N0": [
+          0.0,
+          850.0,
+          -400.0
+        ]
+      },
+      "vectors": [
+        {
+          "end": [
+            0.0,
+            0.9999999999999999,
+            -0.4705882352941176
+          ],
+          "magnitude_nm": 939.4147114027968,
+          "node_id": "N0",
+          "object_ids": [
+            "object:element:pipe_str_0"
+          ],
+          "reaction_moment_nm": [
+            0.0,
+            850.0,
+            -400.0
           ],
           "start": [
             0.0,
@@ -512,12 +553,12 @@
         }
       ]
     },
-    "id": "overlay:solver_result:reaction:result_state:Hot:gmd_fixture_not_a_solve",
+    "id": "overlay:solver_result:reaction_moment:result_state:Hot:gmd_fixture_not_a_solve",
     "kind": "solver_result",
-    "name": "Reactions Hot",
+    "name": "Reaction moments Hot",
     "object_ids": [
       "object:element:pipe_str_0",
-      "object:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0"
+      "object:solver_result:reaction_moment:result_state_Hot_gmd_fixture_not_a_solve:N0"
     ],
     "visible": true
   },

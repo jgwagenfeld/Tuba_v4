@@ -7,7 +7,12 @@ from unittest.mock import patch
 from tuba import Model
 from tuba.analysis.code_aster_notebook import configure_code_aster_notebook_runtime, load_or_run_code_aster_results
 from tuba.solver.aster import CodeAsterSolver
-from tuba.solver.code_aster_runtime import CodeAsterRuntimeCandidate, CodeAsterRuntimeCheck
+from tuba.solver.code_aster_runtime import (
+    CodeAsterExecution,
+    CodeAsterRuntimeCandidate,
+    CodeAsterRuntimeCheck,
+    write_code_aster_execution_attestation,
+)
 
 
 class TestCodeAsterNotebookLoader(unittest.TestCase):
@@ -43,6 +48,7 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
             def solve_exported_study(self, model, study):
                 self.ran_exported_study = True
                 _write_solver_tables(Path(study.work_dir), n0=n0, n1=n1)
+                _write_test_attestation(Path(study.work_dir), study)
 
         with TemporaryDirectory() as tmpdir:
             with patch("tuba.analysis.code_aster_notebook.preflight_code_aster_runtimes", return_value=[ready]):
@@ -80,6 +86,7 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
             def solve_exported_study(self, model, study):
                 self.ran_exported_study = True
                 _write_solver_tables(Path(study.work_dir), n0=n0, n1=n1, n1_dy=0.025)
+                _write_test_attestation(Path(study.work_dir), study)
 
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -170,6 +177,7 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
                 "Hot",
                 root,
                 run_solver=False,
+                allow_unverified=True,
                 solver_factory=SolverThatMustNotExport,
             )
 
@@ -193,7 +201,13 @@ class TestCodeAsterNotebookLoader(unittest.TestCase):
             CodeAsterSolver(work_dir=root).export_analysis_study(model, "PointLoad", root)
             _write_beam_solver_tables(root, n0="N0", n1="N1")
 
-            loaded = load_or_run_code_aster_results(model, "PointLoad", root, run_solver=False)
+            loaded = load_or_run_code_aster_results(
+                model,
+                "PointLoad",
+                root,
+                run_solver=False,
+                allow_unverified=True,
+            )
 
         self.assertFalse(loaded.ran_solver)
         self.assertEqual(loaded.artifact.result_state.node_displacements["N1"][:3], (0.0, 0.0, -0.012))
@@ -359,6 +373,22 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str, n1_dy: float = 0.0
             ]
         ),
         encoding="utf-8",
+    )
+
+
+def _write_test_attestation(work_dir: Path, study) -> None:
+    (work_dir / "study.mess").write_text("Version 18.0.12", encoding="utf-8")
+    (work_dir / "study.rmed").write_bytes(b"test rmed")
+    write_code_aster_execution_attestation(
+        work_dir,
+        CodeAsterExecution(
+            runtime=CodeAsterRuntimeCandidate("test", ("test",)),
+            command=("test",),
+            returncode=0,
+            stdout="",
+            stderr="",
+        ),
+        study.solver_input_identity,
     )
 
 

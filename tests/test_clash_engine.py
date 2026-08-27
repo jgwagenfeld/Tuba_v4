@@ -5,11 +5,8 @@ from tuba.clash import ClashEngine, TrimeshClashEngine, clash_report_to_dict, cl
 
 
 class TestClashEngineAlias(unittest.TestCase):
-    def test_trimesh_name_is_a_backwards_compatible_alias(self):
-        import tuba
-
+    def test_trimesh_name_is_the_clash_module_alias(self):
         self.assertIs(TrimeshClashEngine, ClashEngine)
-        self.assertIs(tuba.TrimeshClashEngine, tuba.ClashEngine)
 
 
 class TestClashEngine(unittest.TestCase):

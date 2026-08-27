@@ -49,6 +49,7 @@ def code_aster_result_state() -> ResultState:
                 "max_von_mises": 15.0e6,
             }
         },
+        metadata={"solve_attestation": {"fixture": "validated Code_Aster solve"}},
     )
 
 

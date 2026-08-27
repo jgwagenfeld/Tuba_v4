@@ -52,7 +52,7 @@ from tuba.solver.code_aster_runtime import (
     validate_code_aster_execution_attestation,
     write_code_aster_execution_attestation,
 )
-from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
+from tuba.analysis import AnalysisMesh, AnalysisRun, AnalysisStudy, MeshElementSource, MeshNodeSource
 from tuba.analysis.tuyau import (
     CODE_ASTER_TUYAU_NCOU,
     CODE_ASTER_TUYAU_NSEC,
@@ -142,7 +142,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         self,
         model: TubaModel,
         load_case_name: Optional[str] = None,
-    ) -> FEAResults:
+    ) -> AnalysisRun:
         """Run a static piping analysis through Code_Aster.
 
         Parameters
@@ -155,8 +155,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
         Returns
         -------
-        FEAResults
-            Populated result container.
+        AnalysisRun
+            Provenance-bearing study, mesh, persistent state, and transient results.
 
         Raises
         ------
@@ -332,8 +332,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
         return MixedCodeAsterStudyExporter().export_analysis_study(model, load_case_name, output_dir)
 
-    def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> FEAResults:
-        """Execute an already-exported Code_Aster analysis study and parse its artifacts."""
+    def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> AnalysisRun:
+        """Execute an exported study and return its verified analysis run."""
         self._require_solve_ready_study(study)
         work_dir = Path(study.work_dir)
         _, manifest_study, _, _ = load_and_validate_artifact_chain(
@@ -350,7 +350,9 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             execution,
             (manifest_study or study).solver_input_identity,
         )
-        return self.parse_result_artifacts(model, work_dir, study.load_case, study=study)
+        from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+
+        return import_code_aster_artifacts(model=model, work_dir=work_dir, study=study)
 
     def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
         metadata = study.metadata
@@ -847,17 +849,19 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             nid = node_label_map.get(raw_nid, raw_nid)
             if nid not in support_nodes or nid not in results.node_results:
                 continue
+            raw_values = [row.get(key, "").strip() for key in ("DX", "DY", "DZ", "DRX", "DRY", "DRZ")]
             try:
-                reaction = np.array([
-                    float(row.get("DX", 0)),
-                    float(row.get("DY", 0)),
-                    float(row.get("DZ", 0)),
-                    float(row.get("DRX", 0)),
-                    float(row.get("DRY", 0)),
-                    float(row.get("DRZ", 0)),
-                ])
-            except (ValueError, TypeError):
-                continue
+                reaction = np.asarray(raw_values, dtype=float)
+            except (ValueError, TypeError) as exc:
+                raise RuntimeError(
+                    f"Code_Aster row has invalid reaction components for support node {nid!r}; "
+                    "all six force and moment components must be finite numeric values."
+                ) from exc
+            if not np.isfinite(reaction).all():
+                raise RuntimeError(
+                    f"Code_Aster row has invalid reaction components for support node {nid!r}; "
+                    "all six force and moment components must be finite numeric values."
+                )
             results.node_results[nid].reaction_force = reaction
 
     def _parse_sieq_table(
@@ -886,9 +890,15 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
                 continue
             orig_eid = elem.id
             try:
-                vmis = float(row.get("VMIS", 0))
-            except (ValueError, TypeError):
-                continue
+                vmis = float(row.get("VMIS", ""))
+            except (ValueError, TypeError) as exc:
+                raise RuntimeError(
+                    f"Code_Aster row has invalid VMIS value for element {orig_eid!r}."
+                ) from exc
+            if not np.isfinite(vmis):
+                raise RuntimeError(
+                    f"Code_Aster row has invalid VMIS value for element {orig_eid!r}."
+                )
 
             subpoint = row.get("SOUS_POINT", "").strip()
             if subpoint:
@@ -944,7 +954,10 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
                 er.von_mises_n1 = vmis
             elif nid == elem.n2:
                 er.von_mises_n2 = vmis
-            er.max_von_mises = max(er.max_von_mises, vmis)
+            er.max_von_mises = (
+                vmis if not np.isfinite(er.max_von_mises)
+                else max(er.max_von_mises, vmis)
+            )
 
     @staticmethod
     def _read_analysis_element_tangents(work_dir: Path) -> dict[str, np.ndarray]:

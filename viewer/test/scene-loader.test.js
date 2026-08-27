@@ -88,6 +88,50 @@ test("creates viewer state with visible layers and scene bounds", async () => {
   assert.deepEqual(state.visibleObjectIds, ["object:element:pipe_0"]);
 });
 
+test("opens solved scenes on the visual deformation state", () => {
+  const geometryStates = [
+    {
+      id: "overlay:geometry:physical",
+      kind: "geometry_state",
+      data: {
+        id: "geometry_state:Operating:physical",
+        load_case: "Operating",
+        purpose: "engineering",
+        displacement_scale: 1
+      }
+    },
+    {
+      id: "overlay:geometry:visual",
+      kind: "geometry_state",
+      data: {
+        id: "geometry_state:Operating:visual_x40",
+        load_case: "Operating",
+        purpose: "visualization",
+        displacement_scale: 40
+      }
+    }
+  ];
+  const scene = {
+    scene_id: "scene:solved",
+    model_id: "model:solved",
+    objects: [],
+    geometry_assets: [],
+    overlays: [
+      {
+        id: "overlay:result:Operating",
+        kind: "result_state",
+        data: { id: "result_state:Operating", load_case: "Operating" }
+      },
+      ...geometryStates
+    ]
+  };
+
+  const state = createViewerState({ scene, objects: [], overlays: scene.overlays, geometryAssets: [], geometryPayloads: [] });
+
+  assert.equal(state.activeGeometryStateId, "geometry_state:Operating:visual_x40");
+  assert.equal(state.visualDeformationScale, 40);
+});
+
 test("loads scene files before the optional review and exposes review state", async () => {
   const fixtureRoot = new URL("./fixtures/code_aster_results/", import.meta.url);
   const fixturePaths = [

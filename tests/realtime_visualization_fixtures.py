@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from tuba import Model, TrimeshClashEngine
+from tuba import Model
+from tuba.clash import TrimeshClashEngine
 from tuba.analysis import (
     AnalysisMesh,
     GeometryState,

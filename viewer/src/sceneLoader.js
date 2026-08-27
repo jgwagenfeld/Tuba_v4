@@ -81,7 +81,16 @@ export function createViewerState(bundle) {
   const resultStates = overlays.filter((overlay) => overlay.kind === "result_state");
   const geometryStates = overlays.filter((overlay) => overlay.kind === "geometry_state");
   const activeResultState = resultStates[0] ?? null;
-  const activeGeometryState = geometryStates[0] ?? null;
+  const initialLoadCase = activeResultState?.data?.load_case ?? geometryStates[0]?.data?.load_case ?? null;
+  const activeGeometryState =
+    geometryStates.find(
+      (overlay) =>
+        overlay.data?.purpose === "visualization" &&
+        (!initialLoadCase || overlay.data?.load_case === initialLoadCase)
+    ) ??
+    geometryStates.find((overlay) => !initialLoadCase || overlay.data?.load_case === initialLoadCase) ??
+    geometryStates[0] ??
+    null;
 
   const state = {
     sceneId: scene.scene_id,
@@ -116,7 +125,7 @@ export function createViewerState(bundle) {
     resultStates,
     geometryStates,
     resultFields: Array.isArray(scene.result_fields) ? scene.result_fields : [],
-    activeLoadCase: activeResultState?.data?.load_case ?? activeGeometryState?.data?.load_case ?? null,
+    activeLoadCase: initialLoadCase,
     activeResultStateId: activeResultState?.data?.id ?? activeResultState?.id ?? null,
     activeGeometryStateId: activeGeometryState?.data?.id ?? activeGeometryState?.id ?? null,
     displacementVectorScale: 1,

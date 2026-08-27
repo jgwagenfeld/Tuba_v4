@@ -8,7 +8,7 @@ from tuba.visualization import build_visualization_scene
 
 
 class TestVisualizationResultOverlays(unittest.TestCase):
-    def test_result_state_adds_stress_utilization_legend_and_hotspots(self):
+    def test_result_state_labels_fe_stress_without_code_utilization(self):
         model, result_state = _model_and_result_state()
 
         scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:result_overlays")
@@ -16,22 +16,23 @@ class TestVisualizationResultOverlays(unittest.TestCase):
 
         stress = _result_overlay(scene, "stress")
         values = stress.data["values"]
-        utilization = stress.data["utilization_values"]
         hotspot = stress.data["hotspots"][0]
         element_metadata = stress.data["element_results"]["object:element:pipe_0"]
 
         self.assertEqual(stress.data["result_state_id"], result_state.id)
         self.assertEqual(stress.data["load_case"], "Hot")
         self.assertEqual(values, {"object:element:pipe_0": 120.0e6})
-        self.assertEqual(utilization, {"object:element:pipe_0": 0.6})
-        self.assertEqual(stress.data["legend"]["field"], "max_von_mises")
+        self.assertNotIn("utilization_values", stress.data)
+        self.assertEqual(stress.name, "FE VMIS (not code stress) Hot")
+        self.assertEqual(stress.data["compliance_role"], "visualization_only_not_asme_code_stress")
+        self.assertEqual(stress.data["legend"]["field"], "FE VMIS (not code stress)")
         self.assertEqual(stress.data["legend"]["unit"], "Pa")
         self.assertEqual(stress.data["legend"]["range"], {"min": 120.0e6, "max": 120.0e6})
         self.assertEqual(stress.data["legend"]["color_map"], "turbo")
-        self.assertEqual(stress.data["legend"]["thresholds"]["critical"], 1.0)
+        self.assertEqual(stress.data["legend"]["thresholds"], {})
         self.assertEqual(hotspot["object_id"], "object:element:pipe_0")
         self.assertEqual(hotspot["value"], 120.0e6)
-        self.assertEqual(hotspot["utilization"], 0.6)
+        self.assertNotIn("utilization", hotspot)
         self.assertEqual(element_metadata["forces_n1"], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         self.assertEqual(element_metadata["forces_n2"], [6.0, 5.0, 4.0, 3.0, 2.0, 1.0])
 
@@ -53,7 +54,8 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         scene.validate()
 
         displacement = _result_overlay(scene, "displacement")
-        reaction = _result_overlay(scene, "reaction")
+        reaction_force = _result_overlay(scene, "reaction_force")
+        reaction_moment = _result_overlay(scene, "reaction_moment")
         diagnostics = _result_overlay(scene, "parser_diagnostics")
 
         self.assertEqual(displacement.data["result_state_id"], result_state.id)
@@ -62,21 +64,26 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(displacement.data["values"]["N0"], [0.001, 0.002, 0.0])
         self.assertAlmostEqual(displacement.data["vectors"][0]["magnitude_m"], 0.0022360679, places=9)
         self.assertEqual(displacement.data["legend"]["unit"], "m")
-        self.assertEqual(reaction.data["vectors"][0]["node_id"], "N0")
-        self.assertEqual(reaction.data["vectors"][0]["reaction_force_n"], [100.0, 0.0, -500.0])
-        self.assertEqual(reaction.data["values"]["N0"], [100.0, 0.0, -500.0])
-        self.assertEqual(reaction.data["legend"]["unit"], "N")
+        self.assertEqual(reaction_force.data["vectors"][0]["reaction_force_n"], [100.0, 0.0, -500.0])
+        self.assertEqual(reaction_force.data["values"]["N0"], [100.0, 0.0, -500.0])
+        self.assertEqual(reaction_force.data["legend"]["unit"], "N")
+        self.assertEqual(reaction_moment.data["vectors"][0]["reaction_moment_nm"], [25.0, 0.0, -75.0])
+        self.assertEqual(reaction_moment.data["values"]["N0"], [25.0, 0.0, -75.0])
+        self.assertEqual(reaction_moment.data["legend"]["unit"], "N*m")
         self.assertEqual(diagnostics.data["diagnostics"], ["parser diagnostic"])
         displacement_vector = next(obj for obj in scene.objects if obj.kind == "displacement_vector")
-        reaction_vector = next(obj for obj in scene.objects if obj.kind == "reaction_vector")
-        reaction_asset = next(asset for asset in scene.geometry_assets if asset.id == reaction_vector.geometry_asset_id)
+        reaction_vectors = [obj for obj in scene.objects if obj.kind == "reaction_vector"]
+        force_vector = next(obj for obj in reaction_vectors if obj.metadata["result_type"] == "reaction_force")
+        moment_vector = next(obj for obj in reaction_vectors if obj.metadata["result_type"] == "reaction_moment")
+        force_asset = next(asset for asset in scene.geometry_assets if asset.id == force_vector.geometry_asset_id)
+        moment_asset = next(asset for asset in scene.geometry_assets if asset.id == moment_vector.geometry_asset_id)
         self.assertIn("result:displacement", displacement_vector.layer_ids)
-        self.assertIn("result:reaction", reaction_vector.layer_ids)
-        self.assertIn(reaction_vector.id, reaction.object_ids)
-        self.assertEqual(reaction_asset.format, "vector")
-        self.assertEqual(reaction_asset.generation_config["source"], "tuba.result_state")
-        self.assertEqual(reaction_asset.generation_config["result_type"], "reaction")
-        self.assertEqual(reaction_asset.generation_config["reaction_force_n"], [100.0, 0.0, -500.0])
+        self.assertIn("result:reaction_force", force_vector.layer_ids)
+        self.assertIn("result:reaction_moment", moment_vector.layer_ids)
+        self.assertIn(force_vector.id, reaction_force.object_ids)
+        self.assertIn(moment_vector.id, reaction_moment.object_ids)
+        self.assertEqual(force_asset.generation_config["reaction_force_n"], [100.0, 0.0, -500.0])
+        self.assertEqual(moment_asset.generation_config["reaction_moment_nm"], [25.0, 0.0, -75.0])
 
     def test_result_state_missing_element_results_emit_diagnostics(self):
         model, result_state = _model_and_result_state(element_results=False)
@@ -86,6 +93,20 @@ class TestVisualizationResultOverlays(unittest.TestCase):
 
         diagnostic_codes = {diagnostic.code for diagnostic in scene.diagnostics}
         self.assertIn("result_state.missing_element_result", diagnostic_codes)
+
+    def test_non_finite_stress_is_unavailable_instead_of_rendered(self):
+        model, result_state = _model_and_result_state()
+        data = dict(result_state.element_results["pipe_0"])
+        data["max_von_mises"] = float("nan")
+        result_state = replace(result_state, element_results={"pipe_0": data})
+
+        scene = build_visualization_scene(model, result_states=[result_state])
+
+        self.assertNotIn(
+            "stress",
+            {overlay.data.get("result_type") for overlay in scene.overlays},
+        )
+        self.assertIn("result_state.invalid_stress", {item.code for item in scene.diagnostics})
 
     def test_analysis_mesh_displacement_uses_mesh_node_without_duplicate_vector_geometry(self):
         model, result_state = _model_and_result_state()
@@ -279,7 +300,7 @@ def _model_and_result_state(*, element_results=True):
             n1: (0.002, 0.0, 0.0, 0.0, 0.0, 0.0),
         },
         node_reactions={
-            n0: (100.0, 0.0, -500.0, 0.0, 0.0, 0.0),
+            n0: (100.0, 0.0, -500.0, 25.0, 0.0, -75.0),
         },
         element_results=results,
         metadata={"parser_diagnostics": ["parser diagnostic"]},

@@ -1,9 +1,41 @@
 import unittest
+from dataclasses import replace
 
-from tuba.analysis import AnalysisStudy, ResultState
+from tuba.analysis import AnalysisRun, AnalysisStudy, ResultState
+from tuba.solver.base import FEAResults
 
 
 class TestAnalysisStudy(unittest.TestCase):
+    def test_analysis_run_links_transient_results_to_persistent_state(self):
+        study = AnalysisStudy(
+            id="study_hot",
+            model_revision=7,
+            solver_name="Code_Aster",
+            load_case="Hot",
+            work_dir="solver/hot",
+            input_files={},
+            mesh_id="mesh_hot",
+        )
+        state = ResultState(
+            id="result_hot",
+            study_id=study.id,
+            model_revision=study.model_revision,
+            solver_name=study.solver_name,
+            load_case=study.load_case,
+            mesh_id=study.mesh_id,
+            node_displacements={},
+            node_reactions={},
+            element_results={},
+        )
+        results = FEAResults(solver_name=study.solver_name, load_case=study.load_case)
+
+        run = AnalysisRun(study=study, results=results, result_state=state)
+
+        self.assertIs(run.results, results)
+        self.assertIs(run.result_state, state)
+        with self.assertRaisesRegex(ValueError, "does not belong"):
+            AnalysisRun(study=study, results=results, result_state=replace(state, study_id="other"))
+
     def test_analysis_study_roundtrips_with_metadata_and_files(self):
         study = AnalysisStudy(
             id="study_hot",

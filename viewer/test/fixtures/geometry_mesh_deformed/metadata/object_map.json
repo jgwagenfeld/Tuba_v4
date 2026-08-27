@@ -439,9 +439,14 @@
     "geometry_asset_id": "geometry:solver_result:displacement:result_state_Hot_gmd_fixture_not_a_solve:N3",
     "kind": "displacement_vector"
   },
-  "object:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0": {
+  "object:solver_result:reaction_force:result_state_Hot_gmd_fixture_not_a_solve:N0": {
     "entity_ref": null,
-    "geometry_asset_id": "geometry:solver_result:reaction:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "geometry_asset_id": "geometry:solver_result:reaction_force:result_state_Hot_gmd_fixture_not_a_solve:N0",
+    "kind": "reaction_vector"
+  },
+  "object:solver_result:reaction_moment:result_state_Hot_gmd_fixture_not_a_solve:N0": {
+    "entity_ref": null,
+    "geometry_asset_id": "geometry:solver_result:reaction_moment:result_state_Hot_gmd_fixture_not_a_solve:N0",
     "kind": "reaction_vector"
   },
   "object:support:support_0": {

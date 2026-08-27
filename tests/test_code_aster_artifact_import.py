@@ -9,7 +9,7 @@ from unittest.mock import patch
 import ifcopenshell
 
 from tuba import Model
-from tuba.analysis import create_operating_geometry_state, create_visual_deformed_geometry_state
+from tuba.analysis import AnalysisRun, create_operating_geometry_state, create_visual_deformed_geometry_state
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.external.ifc import IfcExporter
 from tuba.solver.aster import CodeAsterSolver
@@ -44,8 +44,9 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             _write_solver_tables(work_dir, n0=n0, n1=n1)
             (work_dir / "study.mess").write_text("Version 18.0.12", encoding="utf-8")
 
-            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, allow_unverified=True)
 
+        self.assertIsInstance(artifact, AnalysisRun)
         result_state = artifact.result_state
         self.assertEqual(artifact.study.id, exported.id)
         self.assertEqual(artifact.analysis_mesh.id, exported.mesh_id)
@@ -88,7 +89,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             with self.assertRaisesRegex(FileNotFoundError, "study_manifest.json"):
                 import_code_aster_artifacts(model=model, work_dir=work_dir)
 
-    def test_import_without_attestation_remains_compatible_with_historical_artifacts(self):
+    def test_import_without_attestation_requires_explicit_historical_mode(self):
         model, n0, n1 = self._model()
 
         with TemporaryDirectory() as tmpdir:
@@ -96,9 +97,16 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
             _write_solver_tables(work_dir, n0=n0, n1=n1)
 
-            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+            with self.assertRaisesRegex(ValueError, "solve attestation.*allow_unverified"):
+                import_code_aster_artifacts(model=model, work_dir=work_dir)
+            artifact = import_code_aster_artifacts(
+                model=model,
+                work_dir=work_dir,
+                allow_unverified=True,
+            )
 
         self.assertNotIn("solve_attestation", artifact.result_state.metadata)
+        self.assertEqual(artifact.result_state.metadata["result_trust"], "unverified")
 
     def test_import_rebases_portable_manifest_records_to_the_actual_import_root(self):
         model, n0, n1 = self._model()
@@ -111,7 +119,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             _write_solver_tables(original, n0=n0, n1=n1)
             shutil.move(str(original), moved)
 
-            artifact = import_code_aster_artifacts(model=model, work_dir=moved)
+            artifact = import_code_aster_artifacts(model=model, work_dir=moved, allow_unverified=True)
 
             self.assertEqual(Path(artifact.study.work_dir), moved)
             self.assertTrue(
@@ -185,6 +193,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             artifact.result_state.metadata["solve_attestation"]["solver_input_identity"],
             study.solver_input_identity.to_dict(),
         )
+        self.assertEqual(artifact.result_state.metadata["result_trust"], "verified")
         self.assertEqual(artifact.result_state.files["execution"], str(work_dir / "study_execution.json"))
 
     def test_import_preserves_rmed_diagnostic_in_result_state_metadata(self):
@@ -196,7 +205,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             _write_solver_tables(work_dir, n0=n0, n1=n1)
             (work_dir / "study.rmed").write_bytes(b"not-an-rmed-file")
 
-            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, allow_unverified=True)
 
         warning = next(
             item
@@ -221,7 +230,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             _write_solver_tables(work_dir, n0=n0, n1=n1)
 
             with patch.object(CodeAsterSolver, "_parse_result_artifacts_after_validation", parse_with_duplicate_diagnostics):
-                artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+                artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, allow_unverified=True)
 
         self.assertEqual(artifact.result_state.metadata["parser_diagnostics"], [warning])
 
@@ -265,16 +274,6 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertEqual(analysis_row["entity_ref"], "analysis_node:pipe_bend_0_n1")
         self.assertEqual(analysis_row["location_kind"], "analysis_node")
 
-    def test_artifact_review_fixture_mode_is_explicitly_non_engineering(self):
-        from examples.code_aster_artifact_review import run_example
-
-        with TemporaryDirectory() as tmpdir:
-            summary = run_example(tmpdir, test_fixture_mode=True)
-            review = json.loads((Path(summary["bundle_root"]) / "review.json").read_text(encoding="utf-8"))
-
-        self.assertEqual(summary["artifact_provenance"], "deterministic_non_engineering_test_fixture")
-        self.assertIn("non-engineering test fixture", json.dumps(review).lower())
-
     def test_artifact_review_chain_exports_ifc_result_provenance(self):
         model, n0, n1 = self._model()
 
@@ -283,7 +282,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
             _write_solver_tables(work_dir, n0=n0, n1=n1)
 
-            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, allow_unverified=True)
             operating_state = create_operating_geometry_state(model=model, result_state=artifact.result_state)
             visual_state = create_visual_deformed_geometry_state(model=model, result_state=artifact.result_state, visual_scale=25.0)
             scene = build_visualization_scene(

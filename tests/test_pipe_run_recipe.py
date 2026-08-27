@@ -2,7 +2,8 @@ import unittest
 
 import numpy as np
 
-from tuba import Model, PipeRunRecipe
+from tuba import Model
+from tuba.builder import PipeRunRecipe
 
 
 def _model(name: str) -> Model:

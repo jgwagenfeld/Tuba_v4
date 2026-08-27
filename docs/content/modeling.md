@@ -50,7 +50,8 @@ Section orientation, bend planes, and local axial, shear, bending, and torsion r
 A placement frame retains reusable local geometry, IFC placement, and editing provenance. `axis` is local Z, `ref_direction` is projected to local X, and local Y is computed from Z cross X. Local points map through `origin + basis * point`.
 
 ```python
-from tuba import Model, PlacementFrame
+from tuba import Model
+from tuba.placements import PlacementFrame
 
 model = Model("Frames")
 model.add_placement_frame(

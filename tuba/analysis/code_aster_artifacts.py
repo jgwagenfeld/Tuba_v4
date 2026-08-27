@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 import hashlib
 from pathlib import Path, PureWindowsPath
 import shutil
 from typing import Any
 
-from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState, result_state_from_fea_results
+from tuba.analysis.run import AnalysisRun
 from tuba.analysis.study import AnalysisStudy
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_sidecar import load_and_validate_artifact_chain
@@ -20,22 +20,12 @@ from tuba.solver.code_aster_runtime import (
     validate_code_aster_execution_attestation,
 )
 from tuba.analysis.provenance import SolverInputIdentity, require_matching_solver_input_identities
-from tuba.solver.base import FEAResults
-
-
-@dataclass(frozen=True)
-class CodeAsterArtifactImport:
-    study: AnalysisStudy
-    results: FEAResults
-    result_state: ResultState
-    analysis_mesh: AnalysisMesh | None = None
-    diagnostics: list[dict[str, Any]] = field(default_factory=list)
 
 
 def stage_code_aster_artifact_evidence(
-    artifact: CodeAsterArtifactImport,
+    artifact: AnalysisRun,
     bundle_root: str | Path,
-) -> CodeAsterArtifactImport:
+) -> AnalysisRun:
     """Copy attested Code_Aster evidence into a portable review bundle."""
     destination = Path(bundle_root) / "artifacts"
     staged: dict[Path, str] = {}
@@ -195,8 +185,9 @@ def import_code_aster_artifacts(
     model: Any,
     work_dir: str | Path,
     study: AnalysisStudy | None = None,
-) -> CodeAsterArtifactImport:
-    """Import an existing Code_Aster result directory without executing Code_Aster."""
+    allow_unverified: bool = False,
+) -> AnalysisRun:
+    """Import Code_Aster results; historical unattested data requires explicit opt-in."""
     root = Path(work_dir)
     diagnostics: list[dict[str, Any]] = []
     loaded_study, _, analysis_mesh, sidecar = load_and_validate_artifact_chain(
@@ -214,6 +205,11 @@ def import_code_aster_artifacts(
         mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
         sidecar_identity=sidecar_identity,
     )
+    if attestation is None and not allow_unverified:
+        raise ValueError(
+            "Code_Aster artifact import requires a validated solve attestation; "
+            "pass allow_unverified=True only for explicit historical inspection."
+        )
     results = CodeAsterSolver()._parse_result_artifacts_after_validation(model, root, loaded_study.load_case)
     result_state = result_state_from_fea_results(
         model=model,
@@ -222,11 +218,10 @@ def import_code_aster_artifacts(
         analysis_mesh=analysis_mesh,
     )
     result_state = _with_artifact_files(result_state, _artifact_files(root, loaded_study))
+    metadata = {**result_state.metadata, "result_trust": "verified" if attestation is not None else "unverified"}
     if attestation is not None:
-        result_state = replace(
-            result_state,
-            metadata={**result_state.metadata, "solve_attestation": attestation},
-        )
+        metadata["solve_attestation"] = attestation
+    result_state = replace(result_state, metadata=metadata)
     rmed_path = root / "study.rmed"
     if rmed_path.exists():
         try:
@@ -271,7 +266,7 @@ def import_code_aster_artifacts(
             result_state,
             metadata={**result_state.metadata, "parser_diagnostics": combined},
         )
-    return CodeAsterArtifactImport(
+    return AnalysisRun(
         study=loaded_study,
         analysis_mesh=analysis_mesh,
         results=results,

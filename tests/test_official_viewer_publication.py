@@ -12,7 +12,8 @@ import pytest
 
 from scripts import build_pages
 from scripts.build_pages import build_examples, validate_official_bundle, write_bundle_catalog
-from tuba.analysis.code_aster_artifacts import CodeAsterArtifactImport, stage_code_aster_artifact_evidence
+from tuba.analysis import AnalysisRun
+from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidence
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.provenance import SolverInputIdentity
 from tuba.analysis.results import ResultState
@@ -39,14 +40,18 @@ def test_pages_catalog_contains_the_four_validated_official_bundles(tmp_path: Pa
     assert json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8")) == list(bundle_ids)
 
     engineering = json.loads((tmp_path / "code-aster-review" / "scene.json").read_text(encoding="utf-8"))
-    assert len(engineering["result_fields"]) == 4
+    assert len(engineering["result_fields"]) == 5
+    assert {
+        next(overlay for overlay in engineering["overlays"] if overlay["id"] == field["overlay_id"])["data"]["result_type"]
+        for field in engineering["result_fields"]
+    } == {"stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"}
     assert {layer["category"] for layer in engineering["layers"]} == {
         "design", "analysis_mesh", "results", "annotations"
     }
     for bundle_id in ("autorouted-expansion-loop", "support-rack-review"):
         scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
         review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
-        assert len(scene["result_fields"]) == 4
+        assert len(scene["result_fields"]) == 5
         assert review["analysis_status"] == "solved"
 
     autorouted = json.loads(
@@ -517,7 +522,7 @@ def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
                 "kind": "solver_result",
                 "data": {"result_type": family, "result_state_id": "result_state:Operating", "load_case": "Operating", "values": {"N0": 1.0}},
             }
-            for family in ("stress", "displacement", "reaction", "tuyau_subpoints")
+            for family in ("stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints")
         ],
         "result_fields": [
             {
@@ -528,7 +533,7 @@ def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
                 "load_case": "Operating",
                 "components": ["magnitude"],
             }
-            for family in ("stress", "displacement", "reaction", "tuyau_subpoints")
+            for family in ("stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints")
         ],
         "solver_input_identities": [identity],
     }), encoding="utf-8")
@@ -543,7 +548,7 @@ def _artifact_with_files(
     *,
     work_dir: Path | str = "unsafe",
     attested: bool = False,
-) -> CodeAsterArtifactImport:
+) -> AnalysisRun:
     identity = SolverInputIdentity(
         schema_id="tuba.model.v4",
         compiler_id="tuba.code_aster.v1",
@@ -630,7 +635,7 @@ def _artifact_with_files(
         mesh_id=study.mesh_id, node_displacements={}, node_reactions={}, element_results={}, files=result_files,
         metadata=metadata, solver_input_identity=identity if attested else None,
     )
-    return CodeAsterArtifactImport(
+    return AnalysisRun(
         study=study, analysis_mesh=analysis_mesh,
         results=FEAResults("Code_Aster", "Operating"), result_state=state,
     )

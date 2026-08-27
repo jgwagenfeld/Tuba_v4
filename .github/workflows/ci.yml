@@ -116,7 +116,7 @@ jobs:
       - run: uv run python scripts/verify_release_wheel.py dist
 
   code-aster-integration:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     runs-on: [self-hosted, code-aster]
     env:
       TUBA_RUN_CODE_ASTER_INTEGRATION: "1"
@@ -125,6 +125,17 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
-      - run: uv sync --extra dev --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - run: uv sync --group docs --extra dev --extra code-aster-rmed --locked
+      - run: npm ci
+        working-directory: viewer
       - run: uv run python -m tuba.solver.code_aster_doctor --check
       - run: uv run python -m pytest tests/test_code_aster_real_smoke.py
+      - run: uv run python scripts/refresh_code_aster_gallery.py --gallery code-aster-review --output notebooks/code_aster_results/viz_gallery_operating
+      - run: uv run python scripts/refresh_code_aster_gallery.py --gallery support-rack-review --output notebooks/code_aster_results/support_rack_operating
+      - run: uv run python scripts/refresh_code_aster_gallery.py --gallery autorouted-expansion-loop --output notebooks/code_aster_results/autorouted_expansion_hot
+      - run: uv run python scripts/build_pages.py pages --output .build/code-aster-pages

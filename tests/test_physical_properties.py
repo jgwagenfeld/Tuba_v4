@@ -1,7 +1,8 @@
 import math
 import unittest
 
-from tuba import EntityRef, Model
+from tuba import Model
+from tuba.refs import EntityRef
 from tuba.physical import (
     element_length,
     element_quantities,

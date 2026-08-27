@@ -39,7 +39,7 @@ class TestCodeAsterRuntime(unittest.TestCase):
             execution = CodeAsterExecution(CodeAsterRuntimeCandidate("wsl", ("wsl",)), (), 0, "", "")
 
             with patch("tuba.solver.aster.run_code_aster_export", return_value=execution):
-                with patch.object(solver, "parse_result_artifacts", return_value=object()):
+                with patch("tuba.analysis.code_aster_artifacts.import_code_aster_artifacts", return_value=object()):
                     solver.solve_exported_study(model, solver.export_analysis_study(model, "Hot", root))
 
             attestation = json.loads((root / "study_execution.json").read_text(encoding="utf-8"))

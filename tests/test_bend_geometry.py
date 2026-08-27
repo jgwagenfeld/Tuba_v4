@@ -5,7 +5,8 @@ from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tuba import BendGeometry, Model
+from tuba import Model
+from tuba.model import BendGeometry
 from tuba.analysis import AnalysisMesh
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import build_visualization_scene

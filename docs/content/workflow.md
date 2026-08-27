@@ -16,16 +16,15 @@ Tuba model -> Code_Aster solve -> imported artifacts -> processed result review
 2. Run `model.validate()` and fix the complete error batch.
 3. Use `export_analysis_study(...)` to write the `.mail`, `.comm`, `.export`, manifest, and sidecar handoff files.
 4. Execute Code_Aster through the configured runtime.
-5. Parse the produced CSV/RMED artifacts into `FEAResults` and a revision-tagged `ResultState`.
+5. Import the produced CSV/RMED artifacts into a provenance-bearing `AnalysisRun`, whose persistent authority is `ResultState` and whose transient numerical carrier is `FEAResults`.
 6. Build engineering review records and display the imported state through one of the two visualization paths.
 
-`solve_exported_study(...)` performs execution and parsing while preserving the inspectable export boundary. `model.solve()` is the convenience path that exports, executes, and parses in one call.
+`solve_exported_study(...)` performs execution and verified import while preserving the inspectable export boundary. `model.solve()` is the convenience path; both return `AnalysisRun`.
 
 ```python
 from pathlib import Path
 
 from tuba import Model
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
 
 model = Model(project_name="Demo")
@@ -54,12 +53,7 @@ solver = CodeAsterSolver(
     wsl_distro="Ubuntu",
 )
 study = solver.export_analysis_study(model, "Hot", Path("runs/demo_hot"))
-results = solver.solve_exported_study(model, study)
-artifact = import_code_aster_artifacts(
-    model=model,
-    work_dir=study.work_dir,
-    study=study,
-)
+run = solver.solve_exported_study(model, study)
 ```
 
 Export success is not solve success. If required result tables are missing or empty, read the runner logs and treat the evaluation as incomplete.
@@ -73,8 +67,8 @@ from tuba.reporting import build_engineering_review, write_engineering_review
 
 review = build_engineering_review(
     model,
-    studies=[artifact.study],
-    result_states=[artifact.result_state],
+    studies=[run.study],
+    result_states=[run.result_state],
 )
 write_engineering_review(review, "runs/demo_hot/review")
 ```
@@ -90,7 +84,7 @@ Both paths consume real imported results. Choose one path per notebook or exampl
 `tuba/plotting/` is wired to `FEAResults.plot_*()`. It reads real `.rmed` artifacts and supports notebook inspection plus PLY, glTF, and Blender export.
 
 ```python
-results.plot_deformed_stress(
+run.results.plot_deformed_stress(
     deform_scale=40.0,
     model=model,
     jupyter_backend="html",
@@ -106,8 +100,8 @@ from tuba.visualization import build_visualization_scene, write_scene_bundle
 
 scene = build_visualization_scene(
     model,
-    analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
-    result_states=[artifact.result_state],
+    analysis_meshes=[run.analysis_mesh] if run.analysis_mesh is not None else [],
+    result_states=[run.result_state],
 )
 write_scene_bundle(scene, "runs/demo_hot/review_scene")
 ```

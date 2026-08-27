@@ -188,7 +188,7 @@ class TestResultStateConversion(unittest.TestCase):
                 result_state=replace(state, element_results={}),
             )
 
-    def test_fea_results_rejects_missing_force_or_stress_fields(self):
+    def test_fea_results_rejects_missing_force_but_preserves_unavailable_stress(self):
         model, study, results = self._model_study_and_results()
         state = result_state_from_fea_results(
             model=model,
@@ -197,18 +197,21 @@ class TestResultStateConversion(unittest.TestCase):
             analysis_mesh=self._analysis_mesh(),
         )
 
-        for missing_field in ("forces_n1", "max_von_mises"):
-            element_result = dict(state.element_results["pipe_0"])
-            element_result.pop(missing_field)
-            with self.subTest(missing_field=missing_field):
-                with self.assertRaisesRegex(ValueError, f"missing result field.*{missing_field}"):
-                    fea_results_from_result_state(
-                        model=model,
-                        result_state=replace(
-                            state,
-                            element_results={"pipe_0": element_result},
-                        ),
-                    )
+        missing_force = dict(state.element_results["pipe_0"])
+        missing_force.pop("forces_n1")
+        with self.assertRaisesRegex(ValueError, "missing result field.*forces_n1"):
+            fea_results_from_result_state(
+                model=model,
+                result_state=replace(state, element_results={"pipe_0": missing_force}),
+            )
+
+        missing_stress = dict(state.element_results["pipe_0"])
+        missing_stress.pop("max_von_mises")
+        reconstructed = fea_results_from_result_state(
+            model=model,
+            result_state=replace(state, element_results={"pipe_0": missing_stress}),
+        )
+        self.assertTrue(np.isnan(reconstructed.get_max_von_mises("pipe_0")))
 
 
 if __name__ == "__main__":

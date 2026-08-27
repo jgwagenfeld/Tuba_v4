@@ -186,6 +186,41 @@ test("visual deformation and vector display controls do not mutate clash issue m
   assert.deepEqual(next.issues, originalIssues);
 });
 
+test("moving the deformation slider activates the visual state", () => {
+  const state = {
+    activeLoadCase: "Operating",
+    activeGeometryStateId: "geometry_state:Operating:physical",
+    visualDeformationScale: 1,
+    geometryStates: [
+      {
+        id: "overlay:geometry:physical",
+        kind: "geometry_state",
+        data: {
+          id: "geometry_state:Operating:physical",
+          load_case: "Operating",
+          purpose: "engineering",
+          displacement_scale: 1
+        }
+      },
+      {
+        id: "overlay:geometry:visual",
+        kind: "geometry_state",
+        data: {
+          id: "geometry_state:Operating:visual_x40",
+          load_case: "Operating",
+          purpose: "visualization",
+          displacement_scale: 40
+        }
+      }
+    ]
+  };
+
+  const next = setVisualDeformationScale(state, 25);
+
+  assert.equal(next.activeGeometryStateId, "geometry_state:Operating:visual_x40");
+  assert.equal(next.visualDeformationScale, 25);
+});
+
 test("load case changes keep result and geometry states on the case while preserving deformation purpose", () => {
   const state = resultState();
   state.resultStates.push({

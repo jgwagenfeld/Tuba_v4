@@ -17,14 +17,15 @@ TubaModel
   -> Code_Aster study export
   -> Code_Aster execution
   -> imported result artifacts
-  -> FEAResults / ResultState
+  -> AnalysisRun (AnalysisStudy + AnalysisMesh + ResultState + FEAResults)
   -> renderer-independent engineering review package
   -> PyVista quick-look or web review bundle
 ```
 
 There is no need for a broad rewrite. The useful boundaries already exist:
 `TubaModel` owns the pipe-native engineering model, `CodeAsterSolver` owns the
-solver adapter, `ResultState` owns traceable imported results, and the two
+solver adapter, `ResultState` owns traceable imported results, and `AnalysisRun`
+links the complete evaluation. The two
 visualization paths are intentionally separate.
 
 The major issues are narrower:
@@ -66,7 +67,7 @@ Historical root-level `*_design.md`, `*_specification.md`, and
 | `tuba.solver.aster_comm` | `_write_comm(...)` | Code_Aster command-file orchestration in solver execution order. |
 | `tuba.solver.aster_loads` | load-block helpers | Pressure, temperature, and wind operation-field compilation. |
 | `tuba.solver.code_aster_runtime` | runtime discovery/execution | WSL, command runner, Python bridge, and Docker fallback command construction. |
-| `tuba.analysis.*` | `AnalysisStudy`, `AnalysisMesh`, `ResultState`, artifact import helpers | Traceability from Tuba model to solver files and parsed outputs. |
+| `tuba.analysis.*` | `AnalysisRun`, `AnalysisStudy`, `AnalysisMesh`, `ResultState`, artifact import helpers | Traceability from Tuba model to solver files and parsed outputs. |
 | `tuba.solver.base` | `FEAResults` | Solver-neutral result container and plotting convenience methods. |
 | `tuba.reporting` | `build_engineering_review(...)`, `write_engineering_review(...)` | Renderer-independent review tables, solver lineage, manifest, CSV, JSON, and printable HTML. It does not run Code_Aster. |
 | `tuba.plotting` | `results.plot_*()` | PyVista quick-look, notebook rendering, PLY/glTF export. |
@@ -79,7 +80,7 @@ Historical root-level `*_design.md`, `*_specification.md`, and
 
 ### 1. Author A Pipe-Native Model
 
-The public API is deliberately small at the top level:
+The top-level facade contains only `Model`, `Operation`, and `AnalysisRun`; extension types are imported from their owning modules.
 
 ```python
 from tuba import Model
@@ -154,7 +155,8 @@ solver = CodeAsterSolver(
 )
 
 study = solver.export_analysis_study(model, "Hot", Path("runs/demo_hot"))
-results = solver.solve_exported_study(model, study)
+run = solver.solve_exported_study(model, study)
+results = run.results
 ```
 
 `export_analysis_study(...)` writes:

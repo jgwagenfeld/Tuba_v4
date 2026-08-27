@@ -1,6 +1,7 @@
 import unittest
 
-from tuba import EntityRef, Model
+from tuba import Model
+from tuba.refs import EntityRef
 from tuba.attributes import InsulationSpec
 from tuba.schema import validate_model_dict
 from tuba.validation import ModelValidationError, validate_model
