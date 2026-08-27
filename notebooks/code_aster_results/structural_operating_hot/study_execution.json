@@ -1,0 +1,59 @@
+{
+  "artifacts": {
+    "study.comm": {
+      "sha256": "9f33d98a110e0b0a71e9a5866a7ccfe515a88383fef4b1724e0bd582c4acf18c",
+      "size_bytes": 7006
+    },
+    "study.export": {
+      "sha256": "66b82ed835f314cb13ef7f1ff83320c1e1542f88ffdcd4bb0492ed8963e24d6c",
+      "size_bytes": 363
+    },
+    "study.mail": {
+      "sha256": "43c6a8f8eb1d7c1239d53b43ad6878bb6c5733b0f7240170e5504e62f45296fd",
+      "size_bytes": 1623
+    },
+    "study.mess": {
+      "sha256": "cb758368e93218e73f3351dae5716428d85710ef0a99a104f2ffdbad751cc9a7",
+      "size_bytes": 52838
+    },
+    "study.rmed": {
+      "sha256": "3dcd00d0dc7dfc9756c2306e7447edb704f6293f060595f448b9d723a3e2eb49",
+      "size_bytes": 332797
+    },
+    "study_depl.csv": {
+      "sha256": "ebca48750652da42fab43f5d04f78dcfd15aec8b2eda1e86e45165936cb30a92",
+      "size_bytes": 1924
+    },
+    "study_effo.csv": {
+      "sha256": "94d44990b5741f6162dcae9eba72003a838eb62e37bdd04539c67b38fe4100e2",
+      "size_bytes": 2762
+    },
+    "study_manifest.json": {
+      "sha256": "349fefb54a3f1c85fedcd749d18ac8056b9cdc3847610e2aeff3ff45c7e591b6",
+      "size_bytes": 6201
+    },
+    "study_reac.csv": {
+      "sha256": "1e79288008e165c89c1cb7222abdb5ce5efaba16a47d8595438677182b0ca361",
+      "size_bytes": 1924
+    },
+    "study_sieq.csv": {
+      "sha256": "d6f9ad69dc3a20f62bbfcb2ebb3f17dbc43709e754fa1c7142681c829044ee61",
+      "size_bytes": 198450
+    },
+    "study_tuba_fem.json": {
+      "sha256": "3424a714dc5c20bfe726a8c558c65d7701162395223fadf3d008bb2a74a38f8f",
+      "size_bytes": 1331
+    }
+  },
+  "execution_method": "wsl",
+  "schema_version": "tuba.code_aster_execution.v1",
+  "solved_at": "2026-08-27T11:52:14.835373Z",
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v1",
+    "fingerprint": "a2594fa2cdcd53e8d27cc04ad9dc319373feb6cb41e2dad325f2d554bd9ef1e4",
+    "load_case": "Operating_Hot",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster",
+  "solver_version": "18.0.12"
+}

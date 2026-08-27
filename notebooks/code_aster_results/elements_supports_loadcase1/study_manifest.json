@@ -717,7 +717,7 @@
       ]
     },
     "files": {
-      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\elements_supports_loadcase1\\study.mail"
+      "mail": "study.mail"
     },
     "groups": {
       "AllPipes": [
@@ -874,6 +874,15 @@
     },
     "id": "analysis_mesh:LoadCase1",
     "model_revision": 0,
+    "modelisations": {
+      "AllPipes": "TUYAU_3M",
+      "DIS_N1": "DIS_TR",
+      "DIS_N3": "DIS_TR",
+      "DIS_N4": "DIS_TR",
+      "G_BAR": "BARRE",
+      "G_CABLE": "CABLE",
+      "G_TUBE": "POU_D_T"
+    },
     "node_sources": {
       "N0": {
         "node_id": "N0",
@@ -1692,7 +1701,7 @@
         0.0
       ],
       "N3": [
-        2.2000000000000006,
+        2.2,
         1.7,
         0.0
       ],
@@ -1882,16 +1891,22 @@
         0.0
       ]
     },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "262fb28342fdcd354c0d14eb884415f775b141a6618f2d8851f4597a329103ab",
+      "load_case": "LoadCase1",
+      "schema_id": "tuba.model.v4"
+    },
     "solver_name": "Code_Aster"
   },
   "study": {
     "id": "analysis_study:LoadCase1",
     "input_files": {
-      "comm": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\elements_supports_loadcase1\\study.comm",
-      "export": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\elements_supports_loadcase1\\study.export",
-      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\elements_supports_loadcase1\\study.mail",
-      "manifest": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\elements_supports_loadcase1\\study_manifest.json",
-      "sidecar": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\elements_supports_loadcase1\\study_tuba_fem.json"
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
     },
     "load_case": "LoadCase1",
     "mesh_id": "analysis_mesh:LoadCase1",
@@ -1899,7 +1914,12 @@
       "project_name": "Tuba_v4_Demo_Study"
     },
     "model_revision": 0,
-    "solver_name": "Code_Aster",
-    "work_dir": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\elements_supports_loadcase1"
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "262fb28342fdcd354c0d14eb884415f775b141a6618f2d8851f4597a329103ab",
+      "load_case": "LoadCase1",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
   }
 }

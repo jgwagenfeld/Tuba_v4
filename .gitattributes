@@ -11,4 +11,10 @@ notebooks/code_aster_results/viz_gallery_operating/* -text -whitespace
 notebooks/code_aster_results/autorouted_expansion_hot/* -text -whitespace
 notebooks/code_aster_results/support_rack_operating/* -text -whitespace
 notebooks/code_aster_results/tee_volume_operating/* -text -whitespace
+notebooks/code_aster_results/stress_analysis_operating/* -text -whitespace
+notebooks/code_aster_results/structural_operating_hot/* -text -whitespace
+notebooks/code_aster_results/bim_operating/* -text -whitespace
+notebooks/code_aster_results/advanced_operating_hot/* -text -whitespace
+notebooks/code_aster_results/building_profile_end_force/* -text -whitespace
+notebooks/code_aster_results/elements_supports_loadcase1/* -text -whitespace
 viewer/public/code-aster-review/artifacts/* -text -whitespace

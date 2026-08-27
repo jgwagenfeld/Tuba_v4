@@ -24,7 +24,7 @@ class TestTeeSif(unittest.TestCase):
             
         with self.model.pipe(section="3inch", material="St37") as b:
             # Branch Run (starts from N1)
-            b.start([2, 0, 0]).run(2.0) # Starts at N1 (automatically reused), ends at N3
+            b.start([2, 0, 0]).set_direction([0, 1, 0]).run(2.0) # Starts at N1, ends at N3
 
         # We verify that node N1 connects exactly 3 elements
         connecting = [e for e in self.model.elements if e.n1 == "N1" or e.n2 == "N1"]

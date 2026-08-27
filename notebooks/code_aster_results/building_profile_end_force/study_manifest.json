@@ -581,7 +581,7 @@
       ]
     },
     "files": {
-      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.mail"
+      "mail": "study.mail"
     },
     "groups": {
       "AllSupports": [
@@ -913,6 +913,9 @@
     },
     "id": "analysis_mesh:EndForce",
     "model_revision": 0,
+    "modelisations": {
+      "G_TUBE": "POU_D_T"
+    },
     "node_sources": {
       "N0": {
         "node_id": "N0",
@@ -1593,24 +1596,36 @@
         0.0
       ]
     },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "d192e80abf03546c003001f1360afdfc45b0c30b47ada64880793c14c61a8041",
+      "load_case": "EndForce",
+      "schema_id": "tuba.model.v4"
+    },
     "solver_name": "Code_Aster"
   },
   "study": {
     "id": "analysis_study:EndForce",
     "input_files": {
-      "comm": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.comm",
-      "export": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.export",
-      "mail": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study.mail",
-      "manifest": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study_manifest.json",
-      "sidecar": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force\\study_tuba_fem.json"
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
     },
     "load_case": "EndForce",
     "mesh_id": "analysis_mesh:EndForce",
     "metadata": {
+      "pipe_stress_exported": false,
       "project_name": "ProfileEndForceComparison"
     },
     "model_revision": 0,
-    "solver_name": "Code_Aster",
-    "work_dir": "D:\\Gitprojects\\Tuba_v4\\notebooks\\code_aster_results\\building_profile_end_force"
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v1",
+      "fingerprint": "d192e80abf03546c003001f1360afdfc45b0c30b47ada64880793c14c61a8041",
+      "load_case": "EndForce",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
   }
 }
