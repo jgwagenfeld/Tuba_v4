@@ -13,6 +13,7 @@ from tuba.analysis.states import (
 )
 from tuba.clash import TrimeshClashEngine
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
+from tuba.solver.code_aster_runtime import expected_code_aster_artifact_files
 from tuba.visualization import build_visualization_scene
 from tests.operating_state_fixtures import straight_pipe_hot_clash_fixture
 
@@ -74,7 +75,8 @@ class TestVisualizationResults(unittest.TestCase):
                     "solved_at": "2026-08-27T12:00:00Z",
                     "solver_input_identity": identity.to_dict(),
                     "artifacts": {
-                        "study.rmed": {"size_bytes": 1, "sha256": "0" * 64},
+                        filename: {"size_bytes": 1, "sha256": "0" * 64}
+                        for filename in expected_code_aster_artifact_files(study.metadata)
                     },
                 },
             },

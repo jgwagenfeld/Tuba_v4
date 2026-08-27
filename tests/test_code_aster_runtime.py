@@ -5,6 +5,8 @@ from pathlib import Path, PureWindowsPath
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import tuba.solver.code_aster_runtime as runtime
+from tuba.analysis.provenance import SolverInputIdentity
 from tuba.solver.code_aster_runtime import (
     CodeAsterExecution,
     CodeAsterRuntimeCandidate,
@@ -21,6 +23,74 @@ from tuba.solver.aster import CodeAsterSolver
 
 
 class TestCodeAsterRuntime(unittest.TestCase):
+    def test_expected_attestation_artifacts_follow_study_metadata(self):
+        standard = {
+            "study.comm",
+            "study.mail",
+            "study.export",
+            "study_manifest.json",
+            "study_tuba_fem.json",
+            "study.mess",
+            "study.rmed",
+            "study_depl.csv",
+            "study_effo.csv",
+            "study_reac.csv",
+            "study_sieq.csv",
+        }
+        volume = {
+            "study.comm",
+            "study.med",
+            "study.export",
+            "study_manifest.json",
+            "study_tuba_fem.json",
+            "study.mess",
+            "study.rmed",
+            "study_depl.csv",
+            "study_reac.csv",
+            "study_sieq.csv",
+        }
+
+        self.assertEqual(set(runtime.expected_code_aster_artifact_files({})), standard)
+        self.assertEqual(
+            set(runtime.expected_code_aster_artifact_files({"pipe_stress_exported": False})),
+            standard - {"study_sieq.csv"},
+        )
+        self.assertEqual(
+            set(runtime.expected_code_aster_artifact_files({"volume_analysis": True})),
+            volume | {"study_sigm.csv"},
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"volume_analysis": True, "tensor_stress_exported": False}
+                )
+            ),
+            volume,
+        )
+
+    def test_pure_attestation_validator_returns_the_bound_identity(self):
+        identity = SolverInputIdentity("f" * 64, "Hot", "tuba.model.v4", "tuba.code_aster.v1")
+        artifact_names = runtime.ATTESTED_CODE_ASTER_FILES
+        payload = {
+            "schema_version": "tuba.code_aster_execution.v1",
+            "solver_name": "Code_Aster",
+            "solver_version": "18.0.12",
+            "execution_method": "test",
+            "solved_at": "2026-08-27T12:00:00Z",
+            "solver_input_identity": identity.to_dict(),
+            "artifacts": {
+                filename: {"size_bytes": 1, "sha256": "0" * 64}
+                for filename in artifact_names
+            },
+        }
+
+        actual = runtime.validate_code_aster_execution_attestation_payload(
+            payload,
+            expected_artifacts=artifact_names,
+        )
+
+        self.assertEqual(actual, identity)
+
     def test_beam_only_attestation_does_not_require_pipe_stress_table(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

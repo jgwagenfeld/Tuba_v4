@@ -269,34 +269,15 @@ def load_code_aster_execution_attestation(work_dir: str | Path) -> dict[str, Any
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: {exc}") from exc
-    if not isinstance(payload, dict):
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: expected an object.")
-    _require_exact_fields(payload, _EXECUTION_ATTESTATION_FIELDS, "attestation", path)
-    if payload.get("schema_version") != _EXECUTION_ATTESTATION_SCHEMA:
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: unsupported schema_version.")
-    if payload.get("solver_name") != "Code_Aster":
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_name must be Code_Aster.")
-    if not isinstance(payload.get("solver_version"), str) or not _SOLVER_VERSION_PATTERN.fullmatch(
-        f"Version {payload.get('solver_version', '')}"
-    ):
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_version is required.")
-    if not isinstance(payload.get("execution_method"), str) or not payload["execution_method"]:
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: execution_method is required.")
-    _validate_solved_at(payload.get("solved_at"), path)
-    _attestation_identity(payload.get("solver_input_identity"), path)
     artifact_names = attested_code_aster_files(root)
-    artifacts = payload.get("artifacts")
-    if not isinstance(artifacts, dict) or set(artifacts) != set(artifact_names):
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: required artifact inventory does not match.")
+    validate_code_aster_execution_attestation_payload(
+        payload,
+        expected_artifacts=artifact_names,
+        source=path,
+    )
+    artifacts = payload["artifacts"]
     for filename in artifact_names:
         expected = artifacts[filename]
-        if not isinstance(expected, dict):
-            raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} integrity record is invalid.")
-        _require_exact_fields(expected, _ARTIFACT_INTEGRITY_FIELDS, f"{filename} integrity record", path)
-        if not isinstance(expected["size_bytes"], int) or expected["size_bytes"] < 0:
-            raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} size_bytes is invalid.")
-        if not isinstance(expected["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", expected["sha256"]):
-            raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} sha256 is invalid.")
         actual = _file_integrity(root / filename)
         if expected.get("size_bytes") != actual["size_bytes"]:
             raise ValueError(f"Code_Aster execution attestation {path}: {filename} size does not match.")
@@ -311,15 +292,68 @@ def attested_code_aster_files(work_dir: str | Path) -> tuple[str, ...]:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return ATTESTED_CODE_ASTER_FILES
+        return expected_code_aster_artifact_files({})
     metadata = manifest.get("study", {}).get("metadata", {})
-    if not metadata.get("volume_analysis"):
-        if metadata.get("pipe_stress_exported") is False:
+    return expected_code_aster_artifact_files(metadata if isinstance(metadata, Mapping) else {})
+
+
+def expected_code_aster_artifact_files(study_metadata: Mapping[str, Any]) -> tuple[str, ...]:
+    """Return the exact attested artifact inventory selected by study metadata."""
+    if not study_metadata.get("volume_analysis"):
+        if study_metadata.get("pipe_stress_exported") is False:
             return tuple(name for name in ATTESTED_CODE_ASTER_FILES if name != "study_sieq.csv")
         return ATTESTED_CODE_ASTER_FILES
     return VOLUME_ATTESTED_CODE_ASTER_FILES + (
-        ("study_sigm.csv",) if metadata.get("tensor_stress_exported", True) else ()
+        ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
     )
+
+
+def validate_code_aster_execution_attestation_payload(
+    payload: Any,
+    *,
+    expected_artifacts: Sequence[str],
+    source: str | Path = "payload",
+) -> SolverInputIdentity:
+    """Validate a portable Code_Aster attestation payload without reading files."""
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: expected an object.")
+    _require_exact_fields(payload, _EXECUTION_ATTESTATION_FIELDS, "attestation", source)
+    if payload.get("schema_version") != _EXECUTION_ATTESTATION_SCHEMA:
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: unsupported schema_version.")
+    if payload.get("solver_name") != "Code_Aster":
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: solver_name must be Code_Aster.")
+    if not isinstance(payload.get("solver_version"), str) or not _SOLVER_VERSION_PATTERN.fullmatch(
+        f"Version {payload.get('solver_version', '')}"
+    ):
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: solver_version is required.")
+    if not isinstance(payload.get("execution_method"), str) or not payload["execution_method"]:
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: execution_method is required.")
+    _validate_solved_at(payload.get("solved_at"), source)
+    identity = _attestation_identity(payload.get("solver_input_identity"), source)
+    artifact_names = tuple(expected_artifacts)
+    artifacts = payload.get("artifacts")
+    if not artifact_names or not isinstance(artifacts, Mapping) or set(artifacts) != set(artifact_names):
+        raise ValueError(
+            f"Invalid Code_Aster execution attestation {source}: required artifact inventory does not match."
+        )
+    for filename in artifact_names:
+        expected = artifacts[filename]
+        if not isinstance(expected, Mapping):
+            raise ValueError(
+                f"Invalid Code_Aster execution attestation {source}: {filename} integrity record is invalid."
+            )
+        _require_exact_fields(expected, _ARTIFACT_INTEGRITY_FIELDS, f"{filename} integrity record", source)
+        if (
+            isinstance(expected["size_bytes"], bool)
+            or not isinstance(expected["size_bytes"], int)
+            or expected["size_bytes"] < 0
+        ):
+            raise ValueError(
+                f"Invalid Code_Aster execution attestation {source}: {filename} size_bytes is invalid."
+            )
+        if not isinstance(expected["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", expected["sha256"]):
+            raise ValueError(f"Invalid Code_Aster execution attestation {source}: {filename} sha256 is invalid.")
+    return identity
 
 
 def validate_code_aster_execution_attestation(
@@ -333,7 +367,7 @@ def validate_code_aster_execution_attestation(
     payload = load_code_aster_execution_attestation(work_dir)
     if payload is None:
         return None
-    attestation_identity = _attestation_identity(payload["solver_input_identity"], Path(work_dir) / "study_execution.json")
+    attestation_identity = SolverInputIdentity.from_dict(payload["solver_input_identity"])
     for context, identity in (
         ("Code_Aster study", study_identity),
         ("Code_Aster analysis mesh", mesh_identity),
@@ -359,25 +393,30 @@ def _file_integrity(path: Path) -> dict[str, int | str]:
     return {"size_bytes": path.stat().st_size, "sha256": digest.hexdigest()}
 
 
-def _attestation_identity(value: Any, path: Path) -> SolverInputIdentity:
-    if not isinstance(value, dict):
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_input_identity is required.")
-    _require_exact_fields(value, _SOLVER_INPUT_IDENTITY_FIELDS, "solver_input_identity", path)
+def _attestation_identity(value: Any, source: str | Path) -> SolverInputIdentity:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: solver_input_identity is required.")
+    _require_exact_fields(value, _SOLVER_INPUT_IDENTITY_FIELDS, "solver_input_identity", source)
     if any(not isinstance(value[key], str) or not value[key] for key in _SOLVER_INPUT_IDENTITY_FIELDS):
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solver_input_identity is required.")
-    return SolverInputIdentity.from_dict(value)
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: solver_input_identity is required.")
+    return SolverInputIdentity.from_dict(dict(value))
 
 
-def _validate_solved_at(value: Any, path: Path) -> None:
+def _validate_solved_at(value: Any, source: str | Path) -> None:
     if not isinstance(value, str) or not value.endswith("Z"):
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solved_at must be a UTC timestamp.")
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: solved_at must be a UTC timestamp.")
     try:
         datetime.fromisoformat(f"{value[:-1]}+00:00")
     except ValueError as exc:
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: solved_at is invalid.") from exc
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: solved_at is invalid.") from exc
 
 
-def _require_exact_fields(value: Mapping[str, Any], fields: frozenset[str], label: str, path: Path) -> None:
+def _require_exact_fields(
+    value: Mapping[str, Any],
+    fields: frozenset[str],
+    label: str,
+    source: str | Path,
+) -> None:
     unknown = sorted(set(value) - fields)
     missing = sorted(fields - set(value))
     if unknown or missing:
@@ -386,7 +425,7 @@ def _require_exact_fields(value: Mapping[str, Any], fields: frozenset[str], labe
             details.append(f"unknown fields: {', '.join(unknown)}")
         if missing:
             details.append(f"missing fields: {', '.join(missing)}")
-        raise ValueError(f"Invalid Code_Aster execution attestation {path}: {label} has {'; '.join(details)}.")
+        raise ValueError(f"Invalid Code_Aster execution attestation {source}: {label} has {'; '.join(details)}.")
 
 
 def _requested_methods(exec_method: str) -> list[str]:

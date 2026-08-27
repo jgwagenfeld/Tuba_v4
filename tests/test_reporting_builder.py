@@ -11,6 +11,7 @@ from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.reporting import EngineeringReviewError, build_engineering_review
 from tuba.solver.base import FEAResults
+from tuba.solver.code_aster_runtime import expected_code_aster_artifact_files
 from tuba.visualization import build_visualization_scene
 
 
@@ -109,7 +110,8 @@ def code_aster_run(
                 "solved_at": "2026-08-27T12:00:00Z",
                 "solver_input_identity": identity.to_dict(),
                 "artifacts": {
-                    "study.rmed": {"size_bytes": 1, "sha256": "0" * 64},
+                    filename: {"size_bytes": 1, "sha256": "0" * 64}
+                    for filename in expected_code_aster_artifact_files(study.metadata)
                 },
             },
         },
@@ -191,6 +193,10 @@ def test_analysis_run_cannot_mix_with_lower_level_review_records(
         ("state_identity", "identity"),
         ("mesh_identity", "identity"),
         ("attestation_identity", "identity"),
+        ("solver_version", "solver_version"),
+        ("missing_artifact", "artifact inventory"),
+        ("extra_artifact", "artifact inventory"),
+        ("invented_artifact", "artifact inventory"),
         ("mesh_revision", "model revision"),
         ("raw_load_case", "load case"),
     ),
@@ -255,11 +261,42 @@ def _invalid_analysis_run(run: AnalysisRun, defect: str) -> AnalysisRun:
             },
         )
         return replace(run, result_state=state)
+    if defect == "solver_version":
+        return _replace_attestation(run, solver_version="dev-build")
+    if defect == "missing_artifact":
+        artifacts = dict(run.result_state.metadata["solve_attestation"]["artifacts"])
+        artifacts.pop("study.rmed")
+        return _replace_attestation(run, artifacts=artifacts)
+    if defect == "extra_artifact":
+        artifacts = {
+            **run.result_state.metadata["solve_attestation"]["artifacts"],
+            "unexpected.csv": {"size_bytes": 1, "sha256": "0" * 64},
+        }
+        return _replace_attestation(run, artifacts=artifacts)
+    if defect == "invented_artifact":
+        return _replace_attestation(
+            run,
+            artifacts={"invented.rmed": {"size_bytes": 1, "sha256": "0" * 64}},
+        )
     if defect == "mesh_revision":
         return replace(run, analysis_mesh=replace(run.analysis_mesh, model_revision=5))
     if defect == "raw_load_case":
         return replace(run, results=replace(run.results, load_case="Cold"))
     raise AssertionError(f"Unknown defect {defect!r}")
+
+
+def _replace_attestation(run: AnalysisRun, **changes) -> AnalysisRun:
+    state = replace(
+        run.result_state,
+        metadata={
+            **run.result_state.metadata,
+            "solve_attestation": {
+                **run.result_state.metadata["solve_attestation"],
+                **changes,
+            },
+        },
+    )
+    return replace(run, result_state=state)
 
 
 def test_model_only_review_is_not_solved_and_has_no_result_tables(review_model):
