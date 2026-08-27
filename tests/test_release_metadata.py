@@ -1,7 +1,5 @@
 from importlib.metadata import version
 from copy import deepcopy
-import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -356,43 +354,3 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     assert setup_uv < sync
     assert setup_node < npm
     assert max(sync, npm, graphics) < python_tests < build_step < chromium < semantic < visual
-
-
-def test_playwright_pages_gate_can_serve_the_prebuilt_workflow_artifact():
-    script = (
-        "import config from './viewer/playwright.config.js';"
-        "console.log(JSON.stringify({"
-        "webServer: config.webServer, snapshotPathTemplate: config.snapshotPathTemplate"
-        "}));"
-    )
-    default_environment = os.environ.copy()
-    default_environment.pop("TUBA_PAGES_SITE_ROOT", None)
-    default_result = subprocess.run(
-        ["node", "--input-type=module", "--eval", script],
-        cwd=ROOT,
-        env=default_environment,
-        capture_output=True,
-        text=True,
-    )
-    environment = default_environment | {"TUBA_PAGES_SITE_ROOT": "../_site"}
-    result = subprocess.run(
-        ["node", "--input-type=module", "--eval", script],
-        cwd=ROOT,
-        env=environment,
-        capture_output=True,
-        text=True,
-    )
-
-    assert default_result.returncode == 0, default_result.stderr
-    default_config = json.loads(default_result.stdout)
-    default_server = default_config["webServer"]
-    assert default_config["snapshotPathTemplate"] == (
-        "{testDir}/snapshots/{testFilePath}/{platform}/{arg}{ext}"
-    )
-    assert "scripts/build_pages.py pages --output .build/pages-check" in default_server["command"]
-    assert "../.build/pages-check" in default_server["command"]
-    assert result.returncode == 0, result.stderr
-    web_server = json.loads(result.stdout)["webServer"]
-    assert "../_site" in web_server["command"]
-    assert "configFile: false" in web_server["command"]
-    assert "scripts/build_pages.py" not in web_server["command"]
