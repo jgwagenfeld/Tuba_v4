@@ -18,10 +18,6 @@ from tuba.solver.modelisation import PipeModelization
 
 class PipeVolumeStudyExporter:
     SOLVER_NAME = "Code_Aster"
-    RUNTIME_BLOCKER = (
-        "Pipe-volume execution remains disabled until the real Code_Aster "
-        "Lame reference solve and volume-result import are verified."
-    )
 
     def export_analysis_study(
         self,
@@ -91,9 +87,8 @@ class PipeVolumeStudyExporter:
             "project_name": model.project_name,
             "volume_analysis": True,
             "pipe_modelization": PipeModelization.SOLID_3D.value,
-            "result_status": "export_only",
-            "code_aster_solve_ready": False,
-            "runtime_blocker": self.RUNTIME_BLOCKER,
+            "result_status": "pending_solver",
+            "code_aster_solve_ready": True,
             "compiler_inputs": compiler_inputs,
             "gmsh_version": generated.gmsh_version,
             "mesh_settings": generated.settings,
@@ -193,13 +188,27 @@ def _write_comm(
     material = model.materials[material_name]
     solid = name_map["G_SOLID_region_0"]
     inner = name_map["G_INNER_region_0"]
+    skin_groups = [
+        mapped
+        for raw, mapped in name_map.items()
+        if raw.startswith(("G_INNER_", "G_OUTER_", "G_END_"))
+    ]
+    skin_group_value = "(" + ", ".join(f"'{group}'" for group in skin_groups) + ",)"
     lines = [
         "DEBUT(PAR_LOT='NON');",
         "MAIL = LIRE_MAILLAGE(FORMAT='MED', UNITE=20);",
+        "MAIL = MODI_MAILLAGE(",
+        "    reuse=MAIL,",
+        "    MAILLAGE=MAIL,",
+        "    ORIE_PEAU_3D=_F(",
+        f"        GROUP_MA={skin_group_value},",
+        f"        GROUP_MA_VOLU=('{solid}',),",
+        "    ),",
+        ");",
         "MODELE = AFFE_MODELE(",
         "    MAILLAGE=MAIL,",
         "    AFFE=_F(",
-        f"        GROUP_MA='{solid}',",
+        "        TOUT='OUI',",
         "        PHENOMENE='MECANIQUE',",
         "        MODELISATION='3D',",
         "    ),",
@@ -261,28 +270,33 @@ def _write_comm(
             "    RESULTAT=RESU,",
             "    CONTRAINTE=('SIGM_ELGA', 'SIGM_ELNO'),",
             "    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),",
-            "    FORCE=('REAC_NODA',),",
+            "    FORCE='FORC_NODA',",
             ");",
             "IMPR_RESU(",
             "    FORMAT='MED',",
             "    UNITE=80,",
-            "    RESU=_F(RESULTAT=RESU, NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'REAC_NODA')),",
+            "    RESU=_F(RESULTAT=RESU, NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'FORC_NODA')),",
             ");",
-            "TAB_DEPL = POST_RELEVE_T(",
-            "    ACTION=_F(OPERATION='EXTRACTION', INTITULE='DEPL', RESULTAT=RESU,",
-            "              NOM_CHAM='DEPL', TOUT='OUI', NOM_CMP=('DX', 'DY', 'DZ')),",
+            "TAB_DEPL = CREA_TABLE(",
+            "    RESU=_F(RESULTAT=RESU, NOM_CHAM='DEPL', TOUT='OUI',",
+            "            NOM_CMP=('DX', 'DY', 'DZ')),",
             ");",
             "IMPR_TABLE(TABLE=TAB_DEPL, FORMAT='TABLEAU', UNITE=39, SEPARATEUR=',');",
-            "TAB_REAC = POST_RELEVE_T(",
-            "    ACTION=_F(OPERATION='EXTRACTION', INTITULE='REAC', RESULTAT=RESU,",
-            "              NOM_CHAM='REAC_NODA', TOUT='OUI', NOM_CMP=('DX', 'DY', 'DZ')),",
+            "TAB_REAC = CREA_TABLE(",
+            "    RESU=_F(RESULTAT=RESU, NOM_CHAM='FORC_NODA', TOUT='OUI',",
+            "            NOM_CMP=('DX', 'DY', 'DZ')),",
             ");",
             "IMPR_TABLE(TABLE=TAB_REAC, FORMAT='TABLEAU', UNITE=40, SEPARATEUR=',');",
-            "TAB_SIEQ = POST_RELEVE_T(",
-            "    ACTION=_F(OPERATION='EXTRACTION', INTITULE='SIEQ', RESULTAT=RESU,",
-            f"              NOM_CHAM='SIEQ_ELNO', GROUP_MA='{solid}', NOM_CMP=('VMIS', 'TRESCA')),",
+            "TAB_SIEQ = CREA_TABLE(",
+            "    RESU=_F(RESULTAT=RESU, NOM_CHAM='SIEQ_ELNO', TOUT='OUI',",
+            "            NOM_CMP=('VMIS', 'TRESCA')),",
             ");",
             "IMPR_TABLE(TABLE=TAB_SIEQ, FORMAT='TABLEAU', UNITE=41, SEPARATEUR=',');",
+            "TAB_SIGM = CREA_TABLE(",
+            "    RESU=_F(RESULTAT=RESU, NOM_CHAM='SIGM_ELNO', TOUT='OUI',",
+            "            NOM_CMP=('SIXX', 'SIYY', 'SIZZ', 'SIXY', 'SIXZ', 'SIYZ')),",
+            ");",
+            "IMPR_TABLE(TABLE=TAB_SIGM, FORMAT='TABLEAU', UNITE=42, SEPARATEUR=',');",
             "FIN();",
         ]
     )
@@ -307,6 +321,7 @@ def _write_export(path: Path) -> None:
                 "F depl study_depl.csv R 39",
                 "F reac study_reac.csv R 40",
                 "F sieq study_sieq.csv R 41",
+                "F sigm study_sigm.csv R 42",
             ]
         )
         + "\n",

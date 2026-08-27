@@ -636,6 +636,7 @@ def _build_analysis_mesh_scene(
                 source={"analysis_mesh": {"id": analysis_mesh.id, "member_type": "surface_mesh"}},
             )
         )
+        return objects, assets, diagnostics
 
     for node_id, coords in analysis_mesh.nodes.items():
         source = analysis_mesh.node_sources.get(node_id)

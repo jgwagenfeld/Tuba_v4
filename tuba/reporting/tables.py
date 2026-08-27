@@ -871,8 +871,8 @@ def _displacement_rows(
                 "drx": drx,
                 "dry": dry,
                 "drz": drz,
-                "translation_magnitude": math.sqrt(dx * dx + dy * dy + dz * dz),
-                "rotation_magnitude": math.sqrt(drx * drx + dry * dry + drz * drz),
+                "translation_magnitude": _optional_magnitude(dx, dy, dz),
+                "rotation_magnitude": _optional_magnitude(drx, dry, drz),
             }
 
 
@@ -905,8 +905,8 @@ def _reaction_rows(
                 "mx": mx,
                 "my": my,
                 "mz": mz,
-                "force_magnitude": math.sqrt(fx * fx + fy * fy + fz * fz),
-                "moment_magnitude": math.sqrt(mx * mx + my * my + mz * mz),
+                "force_magnitude": _optional_magnitude(fx, fy, fz),
+                "moment_magnitude": _optional_magnitude(mx, my, mz),
             }
 
 

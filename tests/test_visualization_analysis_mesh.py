@@ -51,6 +51,8 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
         self.assertIn("analysis_mesh:volume_skin", surface.layer_ids)
         self.assertFalse(any("solver_result" in layer for layer in surface.layer_ids))
         self.assertEqual(AnalysisMesh.from_dict(mesh.to_dict()).surface_mesh, mesh.surface_mesh)
+        self.assertEqual(len(scene.objects), 1)
+        self.assertEqual(len(scene.geometry_assets), 1)
 
     def test_build_scene_adds_selectable_analysis_mesh_nodes_and_elements(self):
         model = _model_with_exportable_bend()

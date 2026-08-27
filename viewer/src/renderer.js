@@ -737,7 +737,7 @@ function createRenderableForAsset(asset, payload, state) {
       return createBox(asset, config, format);
     }
     if (format === "mesh") {
-      return createMesh(asset, config, payload, format);
+      return createMesh(asset, config, payload, format, state);
     }
   } catch (error) {
     return invalidAsset(asset, error.message);
@@ -912,7 +912,7 @@ function createBox(asset, config, format) {
   return { format, object: mesh };
 }
 
-function createMesh(asset, config, payload, format) {
+function createMesh(asset, config, payload, format, state) {
   const vertices = config.vertices ?? payload.vertices ?? config.mesh?.vertices;
   const faces = config.triangles ?? config.faces ?? config.indices ?? payload.faces ?? payload.indices ?? config.mesh?.faces;
   if (!Array.isArray(vertices) || vertices.length < 3) {
@@ -928,7 +928,18 @@ function createMesh(asset, config, payload, format) {
     geometry.setIndex(faces.flat());
   }
   geometry.computeVertexNormals();
-  const mesh = new THREE.Mesh(geometry, materialForAsset(asset, config, { transparent: true }));
+  const material = materialForAsset(asset, config, { transparent: true });
+  const vertexValues = Array.isArray(config.vertex_values) ? config.vertex_values.map(Number) : [];
+  if (vertexValues.length === vertices.length && vertexValues.every(Number.isFinite)) {
+    const legend = subpointLegend(config, vertexValues, state);
+    const colors = vertexValues.flatMap((value) => {
+      const color = new THREE.Color(colorForSubpointValue(value, legend, asset, config));
+      return [color.r, color.g, color.b];
+    });
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    material.vertexColors = true;
+  }
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.name = asset.id;
   return { format, object: mesh };
 }

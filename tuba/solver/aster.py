@@ -354,6 +354,27 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             element_order=element_order,
         )
 
+    def solve_volume_study(
+        self,
+        model: TubaModel,
+        load_case_name: str | None,
+        *,
+        element_ids,
+        max_element_size: float,
+        element_order: int = 2,
+    ) -> AnalysisRun:
+        """Generate, execute, attest, and import an explicit pipe-volume study."""
+        output_dir = self.work_dir or Path(tempfile.mkdtemp(prefix="tuba_aster_volume_"))
+        study = self.export_volume_study(
+            model,
+            load_case_name,
+            output_dir,
+            element_ids=element_ids,
+            max_element_size=max_element_size,
+            element_order=element_order,
+        )
+        return self.solve_exported_study(model, study)
+
     def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> AnalysisRun:
         """Execute an exported study and return its verified analysis run."""
         self._require_solve_ready_study(study)

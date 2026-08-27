@@ -199,7 +199,13 @@ class AnalysisMesh:
                 raise ValueError("AnalysisMesh surface_mesh requires non-empty triangular vertices and faces.")
             if any(index < 0 or index >= len(vertices) for face in faces for index in face):
                 raise ValueError("AnalysisMesh surface_mesh face index is outside its vertex array.")
-            object.__setattr__(self, "surface_mesh", {"vertices": vertices, "faces": faces})
+            node_ids = list(self.surface_mesh.get("node_ids", []))
+            if node_ids and (len(node_ids) != len(vertices) or any(node_id not in nodes for node_id in node_ids)):
+                raise ValueError("AnalysisMesh surface_mesh node_ids must map every vertex to an analysis node.")
+            surface_mesh = {"vertices": vertices, "faces": faces}
+            if node_ids:
+                surface_mesh["node_ids"] = node_ids
+            object.__setattr__(self, "surface_mesh", surface_mesh)
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -217,10 +223,13 @@ class AnalysisMesh:
         if self.solver_input_identity is not None:
             data["solver_input_identity"] = self.solver_input_identity.to_dict()
         if self.surface_mesh is not None:
-            data["surface_mesh"] = {
+            surface_mesh = {
                 "vertices": [list(vertex) for vertex in self.surface_mesh["vertices"]],
                 "faces": [list(face) for face in self.surface_mesh["faces"]],
             }
+            if "node_ids" in self.surface_mesh:
+                surface_mesh["node_ids"] = list(self.surface_mesh["node_ids"])
+            data["surface_mesh"] = surface_mesh
         return data
 
     @classmethod

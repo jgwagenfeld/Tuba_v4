@@ -60,6 +60,7 @@ class FEAResults:
     # SIF-amplified end-node moments, a different quantity (see
     # tuba.compliance.asme_b313.ASMEB313Evaluator.evaluate).
     tuyau_subpoints: List[Dict[str, Any]] = field(default_factory=list)
+    volume_von_mises: Dict[str, float] = field(default_factory=dict)
     parser_diagnostics: List[str] = field(default_factory=list)
 
     # Path to the raw result file (e.g. .rmed)

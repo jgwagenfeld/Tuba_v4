@@ -372,7 +372,7 @@ def _readback(
         for index, tag in enumerate(node_tags)
     }
     source_ref = EntityRef("element", selection.pipes[0].element_id)
-    nodes = {f"N{tag}": value for tag, value in coordinates_by_tag.items()}
+    nodes = {f"VN{tag}": value for tag, value in coordinates_by_tag.items()}
     node_sources = {
         node_id: MeshNodeSource(node_id=node_id, source_ref=source_ref, role="volume_node")
         for node_id in nodes
@@ -390,9 +390,9 @@ def _readback(
             if dimension != 3 or order != 2 or node_count != 10:
                 continue
             for index, element_tag in enumerate(element_tags):
-                mesh_id = f"M{int(element_tag)}"
+                mesh_id = f"VM{int(element_tag)}"
                 start = index * node_count
-                elements[mesh_id] = tuple(f"N{int(tag)}" for tag in element_nodes[start : start + node_count])
+                elements[mesh_id] = tuple(f"VN{int(tag)}" for tag in element_nodes[start : start + node_count])
                 element_sources[mesh_id] = MeshElementSource(
                     element_id=mesh_id,
                     source_ref=source_ref,
@@ -425,7 +425,7 @@ def _readback(
                     continue
                 for index, element_tag in enumerate(element_tags):
                     tags = tuple(int(tag) for tag in element_nodes[index * node_count : index * node_count + 3])
-                    mesh_ids.append(f"S{int(element_tag)}")
+                    mesh_ids.append(f"VS{int(element_tag)}")
                     surface_triangle_nodes.append(tags)
         groups[raw_name] = tuple(mesh_ids)
         if not groups[raw_name]:
@@ -446,6 +446,10 @@ def _readback(
         element_sources=element_sources,
         files={"med": str(output)},
         modelisations={"G_SOLID_region_0": "3D"},
-        surface_mesh={"vertices": vertices, "faces": faces},
+        surface_mesh={
+            "vertices": vertices,
+            "faces": faces,
+            "node_ids": [f"VN{tag}" for tag in skin_tags],
+        },
     )
     return analysis_mesh, groups, vertices, faces

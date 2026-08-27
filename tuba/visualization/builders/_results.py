@@ -131,6 +131,17 @@ def _compact_result_state_payload(result_state: ResultState) -> dict[str, Any]:
         source_file = result_state.files.get("tuyau_subpoints") or result_state.files.get("sieq")
         if source_file:
             metadata["tuyau_subpoints_file"] = source_file
+    volume_values = metadata.pop("volume_von_mises", None)
+    if isinstance(volume_values, dict):
+        metadata["volume_von_mises_count"] = len(volume_values)
+        source_file = result_state.files.get("sieq")
+        if source_file:
+            metadata["volume_von_mises_file"] = source_file
+    if metadata.get("volume_analysis"):
+        metadata["volume_displacement_count"] = len(payload.get("node_displacements", {}))
+        metadata["volume_reaction_node_count"] = len(payload.get("node_reactions", {}))
+        payload["node_displacements"] = {}
+        payload["node_reactions"] = {}
     payload["metadata"] = metadata
     return payload
 def _build_result_state_result_scene(
@@ -143,18 +154,38 @@ def _build_result_state_result_scene(
     overlays: list[Overlay] = []
     diagnostics: list[SceneDiagnostic] = []
 
-    stress_overlay = _result_state_stress_overlay(model, result_state, diagnostics)
-    if stress_overlay is not None:
-        overlays.append(stress_overlay)
+    volume_objects, volume_assets, volume_overlay = _result_state_volume_stress_scene(
+        result_state,
+        analysis_mesh,
+    )
+    if volume_overlay is not None:
+        objects.extend(volume_objects)
+        assets.extend(volume_assets)
+        overlays.append(volume_overlay)
+    else:
+        stress_overlay = _result_state_stress_overlay(model, result_state, diagnostics)
+        if stress_overlay is not None:
+            overlays.append(stress_overlay)
 
-    displacement_overlay = _result_state_displacement_overlay(model, result_state, analysis_mesh, diagnostics)
+    if volume_overlay is not None:
+        displacement_objects, displacement_assets, displacement_overlay = (
+            _result_state_volume_displacement_scene(result_state, analysis_mesh)
+        )
+        reaction_overlays = _result_state_volume_reaction_overlays(model, result_state, analysis_mesh)
+    else:
+        displacement_overlay = _result_state_displacement_overlay(model, result_state, analysis_mesh, diagnostics)
+        displacement_objects, displacement_assets = (
+            _result_state_vector_scene(result_state, displacement_overlay)
+            if displacement_overlay is not None
+            else ([], [])
+        )
+        reaction_overlays = _result_state_reaction_overlays(model, result_state, analysis_mesh)
     if displacement_overlay is not None:
-        displacement_objects, displacement_assets = _result_state_vector_scene(result_state, displacement_overlay)
         objects.extend(displacement_objects)
         assets.extend(displacement_assets)
         overlays.append(displacement_overlay)
 
-    for reaction_overlay in _result_state_reaction_overlays(model, result_state):
+    for reaction_overlay in reaction_overlays:
         reaction_objects, reaction_assets = _result_state_vector_scene(result_state, reaction_overlay)
         objects.extend(reaction_objects)
         assets.extend(reaction_assets)
@@ -175,6 +206,161 @@ def _build_result_state_result_scene(
     objects.extend(subpoint_objects)
     assets.extend(subpoint_assets)
     return objects, assets, overlays, diagnostics
+
+
+def _result_state_volume_stress_scene(
+    result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None,
+) -> tuple[list[SceneObject], list[GeometryAsset], Overlay | None]:
+    values_by_node = result_state.metadata.get("volume_von_mises")
+    surface_mesh = None if analysis_mesh is None else analysis_mesh.surface_mesh
+    if not isinstance(values_by_node, dict) or not surface_mesh or not surface_mesh.get("node_ids"):
+        return [], [], None
+    node_ids = surface_mesh["node_ids"]
+    try:
+        values = [float(values_by_node[node_id]) for node_id in node_ids]
+    except (KeyError, TypeError, ValueError):
+        return [], [], None
+    if not values or not np.isfinite(values).all():
+        return [], [], None
+
+    object_id = f"object:solver_result:volume_stress:{_safe_id(result_state.id)}"
+    asset_id = f"geometry:solver_result:volume_stress:{_safe_id(result_state.id)}"
+    value_range = {"min": min(values), "max": max(values)}
+    legend = {
+        "field": "FE VMIS (not code stress)",
+        "unit": "Pa",
+        "range": value_range,
+        "color_map": "turbo",
+        "thresholds": {},
+    }
+    asset = GeometryAsset(
+        id=asset_id,
+        format="mesh",
+        bounds=_bounds_for_points(surface_mesh["vertices"], 0.0),
+        object_ids=[object_id],
+        generation_config={
+            "source": "tuba.result_state.volume_stress",
+            "result_state_id": result_state.id,
+            "mesh_id": analysis_mesh.id,
+            "vertices": surface_mesh["vertices"],
+            "faces": surface_mesh["faces"],
+            "vertex_values": values,
+            "legend": legend,
+            "compliance_role": "visualization_only_not_asme_code_stress",
+        },
+    )
+    obj = SceneObject(
+        id=object_id,
+        kind="volume_stress_field",
+        name=f"3D FE VMIS (not code stress) {result_state.load_case}",
+        geometry_asset_id=asset_id,
+        layer_ids=["solver_result:volume_stress"],
+        metadata={
+            "result_state_id": result_state.id,
+            "mesh_id": analysis_mesh.id,
+            "field": "VMIS",
+            "unit": "Pa",
+            "compliance_role": "visualization_only_not_asme_code_stress",
+        },
+    )
+    overlay = Overlay(
+        id=f"overlay:solver_result:volume_stress:{result_state.id}",
+        kind="solver_result",
+        object_ids=[object_id],
+        name=f"3D FE VMIS (not code stress) {result_state.load_case}",
+        data={
+            "result_type": "stress",
+            "field": "FE VMIS (not code stress)",
+            "result_state_id": result_state.id,
+            "study_id": result_state.study_id,
+            "mesh_id": analysis_mesh.id,
+            "load_case": result_state.load_case,
+            "values": {object_id: max(values)},
+            "range": value_range,
+            "unit": "Pa",
+            "legend": legend,
+            "compliance_role": "visualization_only_not_asme_code_stress",
+            "averaging": "arithmetic mean of SIEQ_ELNO element-node rows at each surface node",
+        },
+    )
+    return [obj], [asset], overlay
+
+
+def _result_state_volume_displacement_scene(
+    result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None,
+) -> tuple[list[SceneObject], list[GeometryAsset], Overlay | None]:
+    surface_mesh = None if analysis_mesh is None else analysis_mesh.surface_mesh
+    if not surface_mesh or not surface_mesh.get("node_ids"):
+        return [], [], None
+    node_ids = surface_mesh["node_ids"]
+    try:
+        vectors = [
+            [float(value) for value in result_state.node_displacements[node_id][:3]]
+            for node_id in node_ids
+        ]
+    except (KeyError, TypeError, ValueError):
+        return [], [], None
+    vector_array = np.asarray(vectors, dtype=float)
+    if not np.isfinite(vector_array).all():
+        return [], [], None
+    base = np.asarray(surface_mesh["vertices"], dtype=float)
+    displaced = base + vector_array
+    values = np.linalg.norm(vector_array, axis=1).tolist()
+    value_range = {"min": min(values), "max": max(values)}
+    legend = {
+        "field": "displacement_magnitude",
+        "unit": "m",
+        "range": value_range,
+        "color_map": "viridis",
+        "thresholds": {},
+    }
+    object_id = f"object:solver_result:volume_displacement:{_safe_id(result_state.id)}"
+    asset_id = f"geometry:solver_result:volume_displacement:{_safe_id(result_state.id)}"
+    asset = GeometryAsset(
+        id=asset_id,
+        format="mesh",
+        bounds=_bounds_for_points(displaced.tolist(), 0.0),
+        object_ids=[object_id],
+        generation_config={
+            "source": "tuba.result_state.volume_displacement",
+            "result_state_id": result_state.id,
+            "mesh_id": analysis_mesh.id,
+            "vertices": displaced.tolist(),
+            "base_vertices": surface_mesh["vertices"],
+            "faces": surface_mesh["faces"],
+            "vertex_values": values,
+            "legend": legend,
+            "deformation_scale": 1.0,
+        },
+    )
+    obj = SceneObject(
+        id=object_id,
+        kind="volume_displacement_field",
+        name=f"3D displacement {result_state.load_case}",
+        geometry_asset_id=asset_id,
+        layer_ids=["solver_result:volume_displacement"],
+        metadata={"result_state_id": result_state.id, "mesh_id": analysis_mesh.id, "unit": "m"},
+    )
+    overlay = Overlay(
+        id=f"overlay:solver_result:volume_displacement:{result_state.id}",
+        kind="solver_result",
+        object_ids=[object_id],
+        name=f"3D displacement {result_state.load_case}",
+        data={
+            "result_type": "displacement",
+            "result_state_id": result_state.id,
+            "study_id": result_state.study_id,
+            "mesh_id": analysis_mesh.id,
+            "load_case": result_state.load_case,
+            "values": {object_id: max(values)},
+            "range": value_range,
+            "legend": legend,
+            "deformation_scale": 1.0,
+        },
+    )
+    return [obj], [asset], overlay
 def _result_state_vector_scene(
     result_state: ResultState,
     overlay: Overlay,
@@ -350,6 +536,8 @@ def _result_state_displacement_overlay(
     values: dict[str, list[float]] = {}
     object_ids: list[str] = []
     for node_id, displacement in result_state.node_displacements.items():
+        if any(value is None or not np.isfinite(float(value)) for value in displacement[:3]):
+            continue
         vector = [float(value) for value in displacement[:3]]
         magnitude = float(np.linalg.norm(vector))
         values[node_id] = vector
@@ -358,7 +546,7 @@ def _result_state_displacement_overlay(
         entry: dict[str, Any] = {
             "node_id": node_id,
             "displacement_m": vector,
-            "rotation_rad": [float(value) for value in displacement[3:6]],
+            "rotation_rad": [None if value is None else float(value) for value in displacement[3:6]],
             "magnitude_m": magnitude,
             "object_ids": node_object_ids,
         }
@@ -411,7 +599,11 @@ def _result_state_displacement_overlay(
             },
         },
     )
-def _result_state_reaction_overlays(model: TubaModel, result_state: ResultState) -> list[Overlay]:
+def _result_state_reaction_overlays(
+    model: TubaModel,
+    result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None,
+) -> list[Overlay]:
     overlays: list[Overlay] = []
     for result_type, component_slice, value_key, magnitude_key, unit, label in (
         ("reaction_force", slice(0, 3), "reaction_force_n", "magnitude_n", "N", "Reaction forces"),
@@ -421,7 +613,10 @@ def _result_state_reaction_overlays(model: TubaModel, result_state: ResultState)
         values: dict[str, list[float]] = {}
         object_ids: list[str] = []
         for node_id, reaction in result_state.node_reactions.items():
-            vector = [float(value) for value in reaction[component_slice]]
+            components = reaction[component_slice]
+            if any(value is None or not np.isfinite(float(value)) for value in components):
+                continue
+            vector = [float(value) for value in components]
             magnitude = float(np.linalg.norm(vector))
             if magnitude <= 0.0:
                 continue
@@ -437,6 +632,15 @@ def _result_state_reaction_overlays(model: TubaModel, result_state: ResultState)
             if node_id in model.nodes:
                 entry["start"] = _node_coords(model, node_id)
                 entry["end"] = _vector_endpoint(entry["start"], vector)
+            elif analysis_mesh is not None and node_id in analysis_mesh.nodes:
+                mesh_object_id = f"object:analysis_mesh:{analysis_mesh.id}:node:{node_id}"
+                entry["object_ids"] = [mesh_object_id]
+                entry["analysis_mesh_id"] = analysis_mesh.id
+                entry["analysis_mesh_node_object_id"] = mesh_object_id
+                entry["coordinate_source"] = "analysis_mesh"
+                entry["start"] = [float(value) for value in analysis_mesh.nodes[node_id]]
+                entry["end"] = _vector_endpoint(entry["start"], vector)
+                object_ids.append(mesh_object_id)
             vectors.append(entry)
         if not vectors:
             continue
@@ -462,6 +666,107 @@ def _result_state_reaction_overlays(model: TubaModel, result_state: ResultState)
                         "color_map": "magma",
                         "thresholds": {},
                     },
+                },
+            )
+        )
+    return overlays
+
+
+def _result_state_volume_reaction_overlays(
+    model: TubaModel,
+    result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None,
+) -> list[Overlay]:
+    if analysis_mesh is None or not result_state.node_reactions:
+        return []
+    selected = set(result_state.metadata.get("compiler_inputs", {}).get("element_ids", ()))
+    planes: dict[str, tuple[np.ndarray, np.ndarray, float]] = {}
+    for support in model.supports:
+        if support.type != "anchor" or support.node in planes:
+            continue
+        for element_id in selected:
+            element = model.get_element(element_id)
+            if element is None:
+                continue
+            other_id = element.n2 if element.n1 == support.node else element.n1 if element.n2 == support.node else None
+            if other_id is None:
+                continue
+            origin = np.asarray(model.nodes[support.node].coords, dtype=float)
+            inward = np.asarray(model.nodes[other_id].coords, dtype=float) - origin
+            length = float(np.linalg.norm(inward))
+            planes[support.node] = (origin, inward / length, max(length * 1.0e-7, 1.0e-9))
+            break
+
+    resultants: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+    for support_node, (origin, normal, tolerance) in planes.items():
+        force = np.zeros(3)
+        moment = np.zeros(3)
+        for node_id, reaction in result_state.node_reactions.items():
+            if node_id not in analysis_mesh.nodes or any(value is None for value in reaction[:3]):
+                continue
+            point = np.asarray(analysis_mesh.nodes[node_id], dtype=float)
+            if abs(float(np.dot(point - origin, normal))) > tolerance:
+                continue
+            nodal_force = np.asarray(reaction[:3], dtype=float)
+            if not np.isfinite(nodal_force).all():
+                continue
+            force += nodal_force
+            moment += np.cross(point - origin, nodal_force)
+        resultants[support_node] = (force, moment)
+
+    overlays: list[Overlay] = []
+    for result_type, index, value_key, magnitude_key, unit, label in (
+        ("reaction_force", 0, "reaction_force_n", "magnitude_n", "N", "Reaction forces"),
+        ("reaction_moment", 1, "reaction_moment_nm", "magnitude_nm", "N*m", "Reaction moments"),
+    ):
+        vectors: list[dict[str, Any]] = []
+        values: dict[str, list[float]] = {}
+        object_ids: list[str] = []
+        for node_id, pair in resultants.items():
+            vector = pair[index].tolist()
+            magnitude = float(np.linalg.norm(pair[index]))
+            if magnitude <= 0.0:
+                continue
+            node_object_ids = _object_ids_for_node(model, node_id)
+            object_ids.extend(node_object_ids)
+            start = _node_coords(model, node_id)
+            values[node_id] = vector
+            vectors.append(
+                {
+                    "node_id": node_id,
+                    value_key: vector,
+                    magnitude_key: magnitude,
+                    "object_ids": node_object_ids,
+                    "start": start,
+                    "end": _vector_endpoint(start, vector),
+                    "derivation": "sum of Code_Aster FORC_NODA over the anchored terminal",
+                }
+            )
+        if not vectors:
+            continue
+        magnitudes = [float(np.linalg.norm(value)) for value in values.values()]
+        overlays.append(
+            Overlay(
+                id=f"overlay:solver_result:{result_type}:{result_state.id}",
+                kind="solver_result",
+                object_ids=_dedupe(object_ids),
+                name=f"{label} {result_state.load_case}",
+                data={
+                    "result_type": result_type,
+                    "result_state_id": result_state.id,
+                    "study_id": result_state.study_id,
+                    "mesh_id": result_state.mesh_id,
+                    "load_case": result_state.load_case,
+                    "vectors": vectors,
+                    "values": values,
+                    "legend": {
+                        "field": f"{result_type}_magnitude",
+                        "unit": unit,
+                        "range": {"min": min(magnitudes), "max": max(magnitudes)},
+                        "color_map": "magma",
+                        "thresholds": {},
+                    },
+                    "derivation": "terminal resultant from Code_Aster nodal reactions",
                 },
             )
         )

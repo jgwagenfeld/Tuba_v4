@@ -25,6 +25,11 @@ ATTESTED_CODE_ASTER_FILES = (
     "study_tuba_fem.json", "study.mess", "study.rmed", "study_depl.csv",
     "study_effo.csv", "study_reac.csv", "study_sieq.csv",
 )
+VOLUME_ATTESTED_CODE_ASTER_FILES = (
+    "study.comm", "study.med", "study.export", "study_manifest.json",
+    "study_tuba_fem.json", "study.mess", "study.rmed", "study_depl.csv",
+    "study_reac.csv", "study_sieq.csv", "study_sigm.csv",
+)
 _EXECUTION_ATTESTATION_SCHEMA = "tuba.code_aster_execution.v1"
 _SOLVER_VERSION_PATTERN = re.compile(r"\bVersion\s+(\d+(?:\.\d+)+)\b")
 _EXECUTION_ATTESTATION_FIELDS = frozenset(
@@ -236,9 +241,10 @@ def write_code_aster_execution_attestation(
     version_match = _SOLVER_VERSION_PATTERN.search(mess_path.read_text(encoding="utf-8", errors="replace"))
     if version_match is None:
         raise ValueError("Cannot attest Code_Aster execution: study.mess does not report a solver Version X.Y.Z.")
+    artifact_names = attested_code_aster_files(root)
     artifacts = {
         filename: _file_integrity(root / filename)
-        for filename in ATTESTED_CODE_ASTER_FILES
+        for filename in artifact_names
     }
     payload = {
         "schema_version": _EXECUTION_ATTESTATION_SCHEMA,
@@ -278,10 +284,11 @@ def load_code_aster_execution_attestation(work_dir: str | Path) -> dict[str, Any
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: execution_method is required.")
     _validate_solved_at(payload.get("solved_at"), path)
     _attestation_identity(payload.get("solver_input_identity"), path)
+    artifact_names = attested_code_aster_files(root)
     artifacts = payload.get("artifacts")
-    if not isinstance(artifacts, dict) or set(artifacts) != set(ATTESTED_CODE_ASTER_FILES):
+    if not isinstance(artifacts, dict) or set(artifacts) != set(artifact_names):
         raise ValueError(f"Invalid Code_Aster execution attestation {path}: required artifact inventory does not match.")
-    for filename in ATTESTED_CODE_ASTER_FILES:
+    for filename in artifact_names:
         expected = artifacts[filename]
         if not isinstance(expected, dict):
             raise ValueError(f"Invalid Code_Aster execution attestation {path}: {filename} integrity record is invalid.")
@@ -296,6 +303,17 @@ def load_code_aster_execution_attestation(work_dir: str | Path) -> dict[str, Any
         if expected.get("sha256") != actual["sha256"]:
             raise ValueError(f"Code_Aster execution attestation {path}: {filename} hash does not match.")
     return payload
+
+
+def attested_code_aster_files(work_dir: str | Path) -> tuple[str, ...]:
+    """Return the artifact inventory for the study compiler recorded in its manifest."""
+    manifest_path = Path(work_dir) / "study_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ATTESTED_CODE_ASTER_FILES
+    metadata = manifest.get("study", {}).get("metadata", {})
+    return VOLUME_ATTESTED_CODE_ASTER_FILES if metadata.get("volume_analysis") else ATTESTED_CODE_ASTER_FILES
 
 
 def validate_code_aster_execution_attestation(

@@ -10,6 +10,7 @@ from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
+    VOLUME_CODE_ASTER_COMPILER_ID,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
@@ -81,12 +82,16 @@ def build_visualization_scene(
                 "owning result state."
             )
     for result_state in result_state_records:
+        is_volume = bool(result_state.metadata.get("volume_analysis"))
+        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID if is_volume else CODE_ASTER_COMPILER_ID
+        compiler_inputs = result_state.metadata.get("compiler_inputs") if is_volume else None
         validate_solver_input_identity(
             model,
             result_state.solver_input_identity,
             context=f"ResultState {result_state.id!r}",
             expected_load_case=result_state.load_case,
-            expected_compiler_id=CODE_ASTER_COMPILER_ID,
+            expected_compiler_id=compiler_id,
+            compiler_inputs=compiler_inputs,
         )
         analysis_mesh = analysis_meshes_by_id.get(result_state.mesh_id or "")
         if analysis_mesh is not None:
@@ -100,7 +105,8 @@ def build_visualization_scene(
                 analysis_mesh.solver_input_identity,
                 context=f"Analysis mesh {analysis_mesh.id!r}",
                 expected_load_case=result_state.load_case,
-                expected_compiler_id=CODE_ASTER_COMPILER_ID,
+                expected_compiler_id=compiler_id,
+                compiler_inputs=compiler_inputs,
             )
     diagnostics: list[SceneDiagnostic] = []
     objects: list[SceneObject] = []

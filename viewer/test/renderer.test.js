@@ -100,6 +100,19 @@ test("scene graph renders visible geometry with stable scene object metadata", (
   assert.equal(graph.objectsByObjectId.get("object:issue").userData.assetId, "geometry:issue");
 });
 
+test("mesh vertex values render as a scalar-colored surface", () => {
+  const state = fixtureState();
+  const asset = state.geometryAssets.find((candidate) => candidate.id === "geometry:mesh");
+  asset.generation_config.vertex_values = [10, 20, 30, 40];
+  asset.generation_config.legend = { range: { min: 10, max: 40 }, color_map: "turbo" };
+
+  const graph = createThreeSceneGraph(state);
+  const mesh = graph.objectsByObjectId.get("object:mesh");
+
+  assert.equal(mesh.material.vertexColors, true);
+  assert.equal(mesh.geometry.getAttribute("color").count, 4);
+});
+
 test("scene graph renders cold geometry as transparent gray reference for visual deformation", () => {
   const graph = createThreeSceneGraph({
     bounds: [0, -0.1, -0.1, 1, 0.1, 0.1],

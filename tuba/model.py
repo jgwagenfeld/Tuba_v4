@@ -1114,6 +1114,9 @@ class TubaModel:
         self,
         load_case: Optional[str] = None,
         operation: Optional[str] = None,
+        pipe_modelization=None,
+        volume_element_ids: Optional[Sequence[str]] = None,
+        max_element_size: Optional[float] = None,
         **kwargs,
     ) -> AnalysisRun:
         """Run Code_Aster and return its provenance-bearing analysis run.
@@ -1135,9 +1138,23 @@ class TubaModel:
             raise ValueError("Pass either load_case or operation, not both.")
 
         from tuba.solver.aster import CodeAsterSolver
+        from tuba.solver.modelisation import PipeModelization
 
         lc_name = operation or load_case
-        return CodeAsterSolver(**kwargs).solve(self, lc_name)
+        selected_modelization = PipeModelization(pipe_modelization or PipeModelization.TUYAU_3M)
+        solver = CodeAsterSolver(**kwargs)
+        if selected_modelization is PipeModelization.SOLID_3D:
+            if not volume_element_ids or max_element_size is None:
+                raise ValueError("SOLID_3D requires volume_element_ids and max_element_size.")
+            return solver.solve_volume_study(
+                self,
+                lc_name,
+                element_ids=volume_element_ids,
+                max_element_size=max_element_size,
+            )
+        if volume_element_ids is not None or max_element_size is not None:
+            raise ValueError("Volume mesh arguments require pipe_modelization=PipeModelization.SOLID_3D.")
+        return solver.solve(self, lc_name)
 
     def validate(self) -> None:
         """Validate model references and structural invariants."""

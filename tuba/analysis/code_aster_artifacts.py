@@ -15,7 +15,6 @@ from tuba.analysis.study import AnalysisStudy
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_sidecar import load_and_validate_artifact_chain
 from tuba.solver.code_aster_runtime import (
-    ATTESTED_CODE_ASTER_FILES,
     load_code_aster_execution_attestation,
     validate_code_aster_execution_attestation,
 )
@@ -92,7 +91,7 @@ def stage_code_aster_artifact_evidence(
     )
     result_files, result_hashes, result_sizes = stage_files(artifact.result_state.files)
     staged_names = {Path(relative).name for relative in staged.values()}
-    required_names = {*ATTESTED_CODE_ASTER_FILES, "study_execution.json"}
+    required_names = {*attested, "study_execution.json"}
     missing = sorted(required_names - staged_names)
     if missing:
         raise ValueError(
@@ -210,7 +209,14 @@ def import_code_aster_artifacts(
             "Code_Aster artifact import requires a validated solve attestation; "
             "pass allow_unverified=True only for explicit historical inspection."
         )
-    results = CodeAsterSolver()._parse_result_artifacts_after_validation(model, root, loaded_study.load_case)
+    if loaded_study.metadata.get("volume_analysis"):
+        if analysis_mesh is None:
+            raise ValueError("Code_Aster volume artifact import requires its analysis mesh.")
+        from tuba.solver.aster_volume_results import parse_volume_result_artifacts
+
+        results = parse_volume_result_artifacts(model, root, analysis_mesh, loaded_study)
+    else:
+        results = CodeAsterSolver()._parse_result_artifacts_after_validation(model, root, loaded_study.load_case)
     result_state = result_state_from_fea_results(
         model=model,
         study=loaded_study,
@@ -284,6 +290,7 @@ def _artifact_files(work_dir: Path, study: AnalysisStudy) -> dict[str, str]:
         ("effo", "study_effo.csv"),
         ("reac", "study_reac.csv"),
         ("sieq", "study_sieq.csv"),
+        ("sigm", "study_sigm.csv"),
         ("tuyau_subpoints", "study_sieq.csv"),
         ("rmed", "study.rmed"),
         ("mess", "study.mess"),

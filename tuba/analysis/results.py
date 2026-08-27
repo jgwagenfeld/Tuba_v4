@@ -14,6 +14,7 @@ from tuba.analysis.study import AnalysisStudy
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
     MIXED_CODE_ASTER_COMPILER_ID,
+    VOLUME_CODE_ASTER_COMPILER_ID,
     SolverInputIdentity,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
@@ -28,8 +29,11 @@ class ResultState:
     solver_name: str
     load_case: str
     mesh_id: str | None
-    node_displacements: dict[str, tuple[float, float, float, float, float, float]]
-    node_reactions: dict[str, tuple[float, float, float, float, float, float]]
+    node_displacements: dict[
+        str,
+        tuple[float | None, float | None, float | None, float | None, float | None, float | None],
+    ]
+    node_reactions: dict[str, tuple[float | None, float | None, float | None, float | None, float | None, float | None]]
     element_results: dict[str, dict[str, Any]]
     files: dict[str, str] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -45,12 +49,18 @@ class ResultState:
         object.__setattr__(
             self,
             "node_displacements",
-            {key: _float_tuple(value, 6, f"ResultState displacement {key}") for key, value in self.node_displacements.items()},
+            {
+                key: _optional_float_tuple(value, 6, f"ResultState displacement {key}")
+                for key, value in self.node_displacements.items()
+            },
         )
         object.__setattr__(
             self,
             "node_reactions",
-            {key: _float_tuple(value, 6, f"ResultState reaction {key}") for key, value in self.node_reactions.items()},
+            {
+                key: _optional_float_tuple(value, 6, f"ResultState reaction {key}")
+                for key, value in self.node_reactions.items()
+            },
         )
         object.__setattr__(self, "element_results", {key: dict(value) for key, value in self.element_results.items()})
         object.__setattr__(self, "files", dict(self.files))
@@ -109,17 +119,20 @@ def result_state_from_fea_results(
         raise ValueError(
             f"Cannot create ResultState for model revision {model_revision}; study uses revision {study.model_revision}."
         )
-    compiler_id = (
-        MIXED_CODE_ASTER_COMPILER_ID
-        if study.metadata.get("mixed_analysis")
-        else CODE_ASTER_COMPILER_ID
-    )
+    if study.metadata.get("mixed_analysis"):
+        compiler_id = MIXED_CODE_ASTER_COMPILER_ID
+    elif study.metadata.get("volume_analysis"):
+        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID
+    else:
+        compiler_id = CODE_ASTER_COMPILER_ID
+    compiler_inputs = study.metadata.get("compiler_inputs")
     validate_solver_input_identity(
         model,
         study.solver_input_identity,
         context=f"Study {study.id!r}",
         expected_load_case=study.load_case,
         expected_compiler_id=compiler_id,
+        compiler_inputs=compiler_inputs,
     )
     if analysis_mesh is not None:
         validate_solver_input_identity(
@@ -128,6 +141,7 @@ def result_state_from_fea_results(
             context=f"Analysis mesh {analysis_mesh.id!r}",
             expected_load_case=study.load_case,
             expected_compiler_id=compiler_id,
+            compiler_inputs=compiler_inputs,
         )
         require_matching_solver_input_identities(
             study.solver_input_identity,
@@ -141,14 +155,24 @@ def result_state_from_fea_results(
         analysis_mesh=analysis_mesh,
     )
 
-    node_displacements: dict[str, tuple[float, float, float, float, float, float]] = {}
-    node_reactions: dict[str, tuple[float, float, float, float, float, float]] = {}
+    node_displacements: dict[str, tuple[float | None, ...]] = {}
+    node_reactions: dict[str, tuple[float | None, ...]] = {}
     for node_id, node_result in results.node_results.items():
-        node_displacements[node_id] = _result_vector(node_result.displacement, f"displacement {node_id}")
+        node_displacements[node_id] = tuple(
+            _persistent_result_vector(node_result.displacement, f"displacement {node_id}")
+        )
         if node_result.reaction_force is not None:
-            node_reactions[node_id] = _result_vector(node_result.reaction_force, f"reaction {node_id}")
+            node_reactions[node_id] = tuple(
+                _persistent_result_vector(node_result.reaction_force, f"reaction {node_id}")
+            )
     for node_id, node_result in results.analysis_node_results.items():
-        node_displacements[node_id] = _result_vector(node_result.displacement, f"analysis displacement {node_id}")
+        node_displacements[node_id] = tuple(
+            _persistent_result_vector(node_result.displacement, f"analysis displacement {node_id}")
+        )
+        if node_result.reaction_force is not None:
+            node_reactions[node_id] = tuple(
+                _persistent_result_vector(node_result.reaction_force, f"analysis reaction {node_id}")
+            )
 
     element_results: dict[str, dict[str, Any]] = {}
     for element_id, element_result in results.element_results.items():
@@ -173,6 +197,16 @@ def result_state_from_fea_results(
         metadata["parser_diagnostics"] = list(results.parser_diagnostics)
     if results.tuyau_subpoints:
         metadata["tuyau_subpoints"] = [dict(row) for row in results.tuyau_subpoints]
+    if results.volume_von_mises:
+        metadata.update(
+            {
+                "volume_analysis": True,
+                "compiler_inputs": dict(compiler_inputs or {}),
+                "volume_von_mises": dict(results.volume_von_mises),
+                "stress_basis": "Code_Aster SIEQ_ELNO VMIS averaged at surface nodes",
+                "compliance_role": "visualization_only_not_asme_code_stress",
+            }
+        )
 
     return ResultState(
         id=f"result_state:{study.load_case}",
@@ -245,12 +279,14 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
         raise ValueError(
             f"Cannot apply ResultState revision {result_state.model_revision} to model revision {model_revision}."
         )
+    is_volume = bool(result_state.metadata.get("volume_analysis"))
     validate_solver_input_identity(
         model,
         result_state.solver_input_identity,
         context=f"ResultState {result_state.id!r}",
         expected_load_case=result_state.load_case,
-        expected_compiler_id=CODE_ASTER_COMPILER_ID,
+        expected_compiler_id=(VOLUME_CODE_ASTER_COMPILER_ID if is_volume else CODE_ASTER_COMPILER_ID),
+        compiler_inputs=result_state.metadata.get("compiler_inputs"),
     )
 
     results = FEAResults(solver_name=result_state.solver_name, load_case=result_state.load_case)
@@ -259,27 +295,49 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
         results.result_file = Path(result_state.files["result"])
     results.parser_diagnostics.extend(result_state.metadata.get("parser_diagnostics", []))
     results.tuyau_subpoints.extend(dict(row) for row in result_state.metadata.get("tuyau_subpoints", []))
+    results.volume_von_mises.update(result_state.metadata.get("volume_von_mises", {}))
 
-    for node_id in getattr(model, "nodes", {}):
-        if node_id not in result_state.node_displacements:
-            raise ValueError(f"ResultState {result_state.id!r} is missing displacement for model node {node_id!r}.")
-        displacement = np.asarray(result_state.node_displacements[node_id], dtype=float)
-        reaction = result_state.node_reactions.get(node_id)
-        results.node_results[node_id] = NodeResult(
-            node_id=node_id,
-            displacement=displacement,
-            reaction_force=np.asarray(reaction, dtype=float) if reaction is not None else None,
-        )
+    if not is_volume:
+        for node_id in getattr(model, "nodes", {}):
+            if node_id not in result_state.node_displacements:
+                raise ValueError(f"ResultState {result_state.id!r} is missing displacement for model node {node_id!r}.")
+            displacement = _element_result_array(
+                result_state.node_displacements[node_id],
+                f"displacement {node_id}",
+            )
+            reaction = result_state.node_reactions.get(node_id)
+            results.node_results[node_id] = NodeResult(
+                node_id=node_id,
+                displacement=displacement,
+                reaction_force=(
+                    _element_result_array(reaction, f"reaction {node_id}")
+                    if reaction is not None
+                    else None
+                ),
+            )
 
     for node_id, displacement in result_state.node_displacements.items():
         if node_id in results.node_results:
             continue
         results.analysis_node_results[node_id] = NodeResult(
             node_id=node_id,
-            displacement=np.asarray(displacement, dtype=float),
+            displacement=_element_result_array(displacement, f"displacement {node_id}"),
+            reaction_force=(
+                _element_result_array(result_state.node_reactions[node_id], f"reaction {node_id}")
+                if node_id in result_state.node_reactions
+                else None
+            ),
         )
 
-    for element in getattr(model, "elements", []):
+    element_ids = (
+        result_state.element_results
+        if is_volume
+        else [element.id for element in getattr(model, "elements", [])]
+    )
+    for element_id in element_ids:
+        element = model.get_element(element_id)
+        if element is None:
+            raise ValueError(f"ResultState {result_state.id!r} references missing model element {element_id!r}.")
         if element.id not in result_state.element_results:
             raise ValueError(f"ResultState {result_state.id!r} is missing element result for {element.id!r}.")
         data = result_state.element_results[element.id]
@@ -301,6 +359,13 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
 
 def _float_tuple(values: Any, length: int, label: str) -> tuple[float, ...]:
     data = tuple(float(value) for value in values)
+    if len(data) != length:
+        raise ValueError(f"{label} must have {length} values.")
+    return data
+
+
+def _optional_float_tuple(values: Any, length: int, label: str) -> tuple[float | None, ...]:
+    data = tuple(None if value is None or not np.isfinite(float(value)) else float(value) for value in values)
     if len(data) != length:
         raise ValueError(f"{label} must have {length} values.")
     return data

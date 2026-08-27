@@ -133,6 +133,10 @@ class TestResultStateConversion(unittest.TestCase):
     def test_unavailable_force_components_round_trip_as_json_null(self):
         model, study, results = self._model_study_and_results()
         results.element_results["pipe_0"].forces_n1 = np.array([100.0, np.nan, np.nan, np.nan, np.nan, np.nan])
+        results.analysis_node_results["pipe_bend_0_n1"].reaction_force = np.array(
+            [100.0, 0.0, 0.0, np.nan, np.nan, np.nan]
+        )
+        results.analysis_node_results["pipe_bend_0_n1"].displacement[3:] = np.nan
 
         state = result_state_from_fea_results(
             model=model,
@@ -143,10 +147,21 @@ class TestResultStateConversion(unittest.TestCase):
         payload = state.to_dict()
 
         self.assertEqual(payload["element_results"]["pipe_0"]["forces_n1"], [100.0, None, None, None, None, None])
+        self.assertEqual(
+            payload["node_reactions"]["pipe_bend_0_n1"],
+            [100.0, 0.0, 0.0, None, None, None],
+        )
+        self.assertEqual(
+            payload["node_displacements"]["pipe_bend_0_n1"],
+            [0.01, 0.02, 0.03, None, None, None],
+        )
         json.dumps(payload, allow_nan=False)
         reconstructed = fea_results_from_result_state(model=model, result_state=state)
         self.assertEqual(reconstructed.get_forces("pipe_0")["n1"][0], 100.0)
         self.assertTrue(np.isnan(reconstructed.get_forces("pipe_0")["n1"][1:]).all())
+        self.assertTrue(
+            np.isnan(reconstructed.analysis_node_results["pipe_bend_0_n1"].reaction_force[3:]).all()
+        )
 
     def test_result_state_conversion_rejects_wrong_model_revision(self):
         model, study, results = self._model_study_and_results()

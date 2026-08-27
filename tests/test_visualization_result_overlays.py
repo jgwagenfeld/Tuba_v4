@@ -158,6 +158,88 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertNotIn("result_state.missing_node_geometry", {item.code for item in scene.diagnostics})
         self.assertEqual(len([obj for obj in scene.objects if obj.kind == "displacement_vector"]), 2)
 
+    def test_volume_stress_colors_the_analysis_surface_without_element_overlay(self):
+        model, result_state = _model_and_result_state()
+        model.add_support("N0", type="anchor")
+        node_ids = ["VN1", "VN2", "VN3", "VN4"]
+        result_state = replace(
+            result_state,
+            node_displacements={
+                "VN1": (0.0, 0.0, 0.0, None, None, None),
+                "VN2": (0.1, 0.0, 0.0, None, None, None),
+                "VN3": (0.0, 0.2, 0.0, None, None, None),
+                "VN4": (0.0, 0.0, 0.3, None, None, None),
+            },
+            node_reactions={"VN1": (100.0, 0.0, 0.0, None, None, None)},
+            metadata={
+                **result_state.metadata,
+                "volume_analysis": True,
+                "volume_von_mises": {"VN1": 10.0, "VN2": 20.0, "VN3": 30.0},
+                "compiler_inputs": {"element_ids": ["pipe_0"]},
+            },
+        )
+        mesh = AnalysisMesh(
+            id=result_state.mesh_id,
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={
+                "VN1": (0.0, 0.0, 0.0),
+                "VN2": (1.0, 0.0, 0.0),
+                "VN3": (0.0, 1.0, 0.0),
+                "VN4": (0.0, 0.0, 1.0),
+            },
+            elements={"VM1": tuple(node_ids)},
+            groups={"G_SOLID_region_0": ("VM1",)},
+            node_sources={
+                node_id: MeshNodeSource(node_id, EntityRef("element", "pipe_0"), "volume_node")
+                for node_id in node_ids
+            },
+            element_sources={
+                "VM1": MeshElementSource("VM1", EntityRef("element", "pipe_0"), "volume_cell")
+            },
+            surface_mesh={
+                "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                "faces": [[0, 1, 2]],
+                "node_ids": node_ids[:3],
+            },
+        )
+
+        scene = build_visualization_scene(model, result_states=[result_state], analysis_meshes=[mesh])
+        scene.validate()
+
+        volume_object = next(obj for obj in scene.objects if obj.kind == "volume_stress_field")
+        asset = next(item for item in scene.geometry_assets if item.id == volume_object.geometry_asset_id)
+        stress_overlays = [
+            overlay
+            for overlay in scene.overlays
+            if overlay.kind == "solver_result" and overlay.data.get("result_type") == "stress"
+        ]
+        self.assertEqual(asset.format, "mesh")
+        self.assertEqual(asset.generation_config["vertex_values"], [10.0, 20.0, 30.0])
+        self.assertEqual(asset.generation_config["legend"]["range"], {"min": 10.0, "max": 30.0})
+        self.assertEqual(len(stress_overlays), 1)
+        self.assertEqual(stress_overlays[0].object_ids, [volume_object.id])
+        self.assertEqual(
+            stress_overlays[0].data["compliance_role"],
+            "visualization_only_not_asme_code_stress",
+        )
+        displacement_object = next(obj for obj in scene.objects if obj.kind == "volume_displacement_field")
+        displacement_asset = next(
+            item for item in scene.geometry_assets if item.id == displacement_object.geometry_asset_id
+        )
+        self.assertEqual(displacement_asset.generation_config["vertex_values"], [0.0, 0.1, 0.2])
+        self.assertEqual(displacement_asset.generation_config["deformation_scale"], 1.0)
+        reaction = _result_overlay(scene, "reaction_force")
+        self.assertEqual(reaction.data["vectors"][0]["node_id"], "N0")
+        self.assertEqual(reaction.data["vectors"][0]["reaction_force_n"], [100.0, 0.0, 0.0])
+        result_state_overlay = next(overlay for overlay in scene.overlays if overlay.kind == "result_state")
+        self.assertEqual(result_state_overlay.data["node_displacements"], {})
+        self.assertEqual(result_state_overlay.data["node_reactions"], {})
+        self.assertNotIn(
+            "reaction_moment",
+            {overlay.data.get("result_type") for overlay in scene.overlays},
+        )
+
     def test_result_state_node_absent_from_model_and_analysis_mesh_still_warns(self):
         model, result_state = _model_and_result_state()
         result_state = replace(
