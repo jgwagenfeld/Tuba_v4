@@ -85,6 +85,14 @@ def _write_solver_outputs(output: Path, *, prefix: str, missing: str | None = No
             (output / filename).write_text(f"{prefix} {filename}", encoding="utf-8")
 
 
+def test_refresh_accepts_native_command_artifact_chain(tmp_path):
+    artifact = _artifact()
+    artifact.result_state.metadata["solve_attestation"]["execution_method"] = "command"
+    _write_solver_outputs(tmp_path, prefix="native")
+
+    refresh_code_aster_gallery._validate_gallery_artifact_chain(tmp_path, artifact)
+
+
 def test_refresh_exports_solves_imports_and_requires_real_attested_artifacts(tmp_path, monkeypatch):
     calls = []
     scratch_paths = []

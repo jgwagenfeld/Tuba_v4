@@ -107,8 +107,8 @@ def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
         raise ValueError("Canonical Code_Aster gallery requires a validated solve attestation.")
     if not isinstance(attestation.get("solver_version"), str) or not attestation["solver_version"]:
         raise ValueError("Canonical Code_Aster gallery attestation requires solver_version.")
-    if attestation.get("execution_method") != "wsl":
-        raise ValueError("Canonical Code_Aster gallery attestation execution_method must be wsl.")
+    if attestation.get("execution_method") not in {"command", "python_bridge", "wsl"}:
+        raise ValueError("Canonical Code_Aster gallery attestation requires a native execution_method.")
     if attestation.get("solver_name") != "Code_Aster":
         raise ValueError("Canonical Code_Aster gallery attestation must name Code_Aster.")
     if not isinstance(attestation.get("solved_at"), str) or not attestation["solved_at"]:
