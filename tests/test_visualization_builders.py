@@ -101,6 +101,53 @@ class TestVisualizationBuilders(unittest.TestCase):
 
         self.assertTrue(scene.objects)
 
+    def test_structural_sections_emit_true_mesh_assets(self):
+        model = Model(project_name="StructuralProfiles")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_ibeam_section("ColumnIPE", "IPE100")
+        model.add_rectangular_section(
+            "BeamRHS",
+            height_y=0.12,
+            height_z=0.08,
+            thickness_y=0.01,
+            thickness_z=0.01,
+        )
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([0.0, 0.0, 2.0])
+        n2 = model.add_node([2.0, 0.0, 2.0])
+        model.add_element(
+            id="column",
+            type="beam",
+            n1=n0,
+            n2=n1,
+            section="ColumnIPE",
+            material="Steel",
+        )
+        model.add_element(
+            id="crossbeam",
+            type="beam",
+            n1=n1,
+            n2=n2,
+            section="BeamRHS",
+            material="Steel",
+        )
+
+        scene = build_visualization_scene(model)
+        assets = {asset.id: asset for asset in scene.geometry_assets}
+        column = assets["geometry:element:column"]
+        crossbeam = assets["geometry:element:crossbeam"]
+
+        self.assertEqual(column.format, "mesh")
+        self.assertEqual(crossbeam.format, "mesh")
+        self.assertEqual(len(column.generation_config["vertices"]), 24)
+        self.assertEqual(len(column.generation_config["faces"]), 44)
+        self.assertEqual(len(crossbeam.generation_config["vertices"]), 16)
+        self.assertEqual(len(crossbeam.generation_config["faces"]), 32)
+        self.assertNotEqual(
+            column.generation_config["vertices"],
+            crossbeam.generation_config["vertices"],
+        )
+
     def test_scene_element_lookup_uses_model_index_when_available(self):
         model, elem, _support, _obstacle = self._model()
 

@@ -6,6 +6,7 @@ from typing import Any
 from tuba.model import Element
 from tuba.model import TubaModel
 from tuba.geometry.profiles import profile_for_section
+from tuba.geometry.section_mesh import straight_section_surface_mesh
 from tuba.physical import element_quantities
 from tuba.physical import physical_properties_for_element
 from tuba.refs import EntityRef
@@ -108,10 +109,25 @@ def _build_element_object(
     inner_diameter = profile.get("inner_diameter_m")
     if elem.type.startswith("pipe") and inner_diameter is not None:
         generation_config["inner_radius_m"] = float(inner_diameter) / 2.0
+    asset_format = "tube"
+    asset_bounds = _bounds_for_points(points, radius)
+    if not elem.type.startswith("pipe"):
+        surface = straight_section_surface_mesh(
+            model.sections[elem.section],
+            points[0],
+            points[-1],
+            twist_angle_deg=float(getattr(elem, "twist_angle", 0.0)),
+        )
+        generation_config.update(
+            vertices=[list(vertex) for vertex in surface.vertices],
+            faces=[list(face) for face in surface.faces],
+        )
+        asset_format = "mesh"
+        asset_bounds = _bounds_for_points(generation_config["vertices"], 0.0)
     asset = GeometryAsset(
         id=asset_id,
-        format="tube" if elem.type.startswith("pipe") else "line",
-        bounds=_bounds_for_points(points, radius),
+        format=asset_format,
+        bounds=asset_bounds,
         object_ids=[_object_id(entity_ref)],
         generation_config=generation_config,
     )
