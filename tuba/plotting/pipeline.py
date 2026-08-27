@@ -17,6 +17,9 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
+from tuba.geometry.profiles import profile_for_section
+from tuba.geometry.section_mesh import section_loops, straight_section_surface_mesh
+
 if TYPE_CHECKING:
     from tuba.model import TubaModel
     from tuba.solver.base import FEAResults
@@ -431,31 +434,8 @@ def build_mesh_from_model(
 
 def get_ibeam_dimensions(sec) -> tuple[float, float, float, float]:
     """Retrieve H, B, Tw, Tf (in meters) for an IBeamSection."""
-    h = sec.properties.get("H")
-    b = sec.properties.get("B")
-    tw = sec.properties.get("Tw")
-    tf = sec.properties.get("Tf")
-    if all(x is not None for x in (h, b, tw, tf)):
-        return float(h), float(b), float(tw), float(tf)
-    
-    profile_name = getattr(sec, "profile_name", "")
-    if profile_name:
-        from tuba.sections import SectionCatalog
-
-        try:
-            profile = SectionCatalog.default().get_ibeam_profile(profile_name)
-            return (
-                profile.dimensions["H"],
-                profile.dimensions["B"],
-                profile.dimensions["Tw"],
-                profile.dimensions["Tf"],
-            )
-        except ValueError:
-            pass
-    raise ValueError(
-        f"I-beam section {getattr(sec, 'name', '<unknown>')!r} is missing explicit "
-        "H/B/Tw/Tf dimensions. Load it from the section catalog or provide them explicitly."
-    )
+    dimensions = profile_for_section(sec).dimensions
+    return tuple(float(dimensions[key]) for key in ("H", "B", "Tw", "Tf"))
 
 
 def _get_profile_2d_polygon(sec, n_sides: int = 16) -> np.ndarray:
@@ -463,75 +443,9 @@ def _get_profile_2d_polygon(sec, n_sides: int = 16) -> np.ndarray:
     return _get_profile_2d_loops(sec, n_sides=n_sides)[0]
 
 
-def _circle_polygon(radius: float, n_sides: int) -> np.ndarray:
-    angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
-    y = radius * np.cos(angles)
-    z = radius * np.sin(angles)
-    return np.column_stack([y, z])
-
-
 def _get_profile_2d_loops(sec, n_sides: int = 16) -> list[np.ndarray]:
     """Return section profile loops; inner loops are holes."""
-    from tuba.model import PipeSection, BarSection, CableSection, RectangularSection, IBeamSection
-    
-    if isinstance(sec, PipeSection):
-        r = float(sec.OD / 2.0)
-        loops = [_circle_polygon(r, n_sides)]
-        r_i = max(float(sec.ID / 2.0), 0.0)
-        if 0.0 < r_i < r:
-            loops.append(_circle_polygon(r_i, n_sides))
-        return loops
-
-    elif isinstance(sec, BarSection):
-        r = float(sec.OD / 2.0)
-        loops = [_circle_polygon(r, n_sides)]
-        r_i = r - float(sec.WT)
-        if sec.WT > 0.0 and 0.0 < r_i < r:
-            loops.append(_circle_polygon(r_i, n_sides))
-        return loops
-
-    elif isinstance(sec, CableSection):
-        return [_circle_polygon(float(sec.radius), n_sides)]
-        
-    elif isinstance(sec, RectangularSection):
-        hy = float(sec.height_y)
-        hz = float(sec.height_z)
-        outer = np.array([
-            [-hy/2.0, -hz/2.0],
-            [ hy/2.0, -hz/2.0],
-            [ hy/2.0,  hz/2.0],
-            [-hy/2.0,  hz/2.0],
-        ])
-        loops = [outer]
-        inner_y = hy - 2.0 * float(sec.thickness_y)
-        inner_z = hz - 2.0 * float(sec.thickness_z)
-        if sec.thickness_y > 0.0 and sec.thickness_z > 0.0 and inner_y > 0.0 and inner_z > 0.0:
-            loops.append(np.array([
-                [-inner_y/2.0, -inner_z/2.0],
-                [ inner_y/2.0, -inner_z/2.0],
-                [ inner_y/2.0,  inner_z/2.0],
-                [-inner_y/2.0,  inner_z/2.0],
-            ]))
-        return loops
-        
-    elif isinstance(sec, IBeamSection) or (hasattr(sec, "properties") and "EY" in sec.properties):
-        h, b, tw, tf = get_ibeam_dimensions(sec)
-        return [np.array([
-            [-h/2.0, -b/2.0],
-            [-h/2.0,  b/2.0],
-            [-h/2.0 + tf,  b/2.0],
-            [-h/2.0 + tf,  tw/2.0],
-            [ h/2.0 - tf,  tw/2.0],
-            [ h/2.0 - tf,  b/2.0],
-            [ h/2.0,  b/2.0],
-            [ h/2.0, -b/2.0],
-            [ h/2.0 - tf, -b/2.0],
-            [ h/2.0 - tf, -tw/2.0],
-            [-h/2.0 + tf, -tw/2.0],
-            [-h/2.0 + tf, -b/2.0],
-        ])]
-    else:
-        raise ValueError(f"Unsupported section profile type {type(sec).__name__}.")
+    return [np.asarray(loop, dtype=float) for loop in section_loops(sec, n_sides=n_sides)]
 
 
 def _signed_polygon_area(poly: np.ndarray) -> float:
@@ -599,6 +513,45 @@ def _triangulate_profile_polygon(poly: np.ndarray) -> list[tuple[int, int, int]]
     return triangles
 
 
+def _map_element_surface_data(mesh, model, elem, results, station_fractions):
+    """Attach endpoint-interpolated solver data to an already-built surface."""
+    if results is not None:
+        displacement = [np.zeros(3), np.zeros(3)]
+        reaction = [np.zeros(3), np.zeros(3)]
+        von_mises = [0.0, 0.0]
+        for index, node_id in enumerate((elem.n1, elem.n2)):
+            node_result = results.node_results.get(node_id)
+            if node_result is not None:
+                displacement[index] = node_result.displacement[:3]
+                if node_result.reaction_force is not None:
+                    reaction[index] = node_result.reaction_force[:3]
+        element_result = results.element_results.get(elem.id)
+        if element_result is not None:
+            von_mises = [element_result.von_mises_n1, element_result.von_mises_n2]
+
+        fractions = np.asarray(station_fractions, dtype=float)[:, None]
+        mesh.point_data["DEPL"] = displacement[0] + fractions * (displacement[1] - displacement[0])
+        mesh.point_data["DEPL_magnitude"] = np.linalg.norm(mesh.point_data["DEPL"], axis=1)
+        mesh.point_data["VMIS"] = von_mises[0] + fractions[:, 0] * (von_mises[1] - von_mises[0])
+        mesh.point_data["FORC_NODA"] = reaction[0] + fractions * (reaction[1] - reaction[0])
+        mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
+
+    if results is not None and results.load_case is not None:
+        try:
+            _, resolved_case = model.resolve_load_case(results.load_case)
+        except ValueError as exc:
+            raise ValueError(f"Cannot map temperature for result load case {results.load_case!r}.") from exc
+        mesh.point_data["TEMP"] = np.full(mesh.n_points, resolved_case.temperature)
+    elif results is None:
+        try:
+            _, resolved_case = model.resolve_load_case()
+        except ValueError:
+            resolved_case = None
+        if resolved_case is not None:
+            mesh.point_data["TEMP"] = np.full(mesh.n_points, resolved_case.temperature)
+    return mesh
+
+
 def _get_element_3d_mesh(
     model: "TubaModel",
     elem: "Element",
@@ -606,6 +559,24 @@ def _get_element_3d_mesh(
 ) -> "pv.PolyData":
     """Construct a 3-D extruded solid mesh for a single element with result mapping."""
     _require_pyvista()
+
+    if elem.type != "pipe_bend" or not elem.bend_radius:
+        surface = straight_section_surface_mesh(
+            model.sections[elem.section],
+            model.nodes[elem.n1].coords,
+            model.nodes[elem.n2].coords,
+            twist_angle_deg=float(getattr(elem, "twist_angle", 0.0)),
+        )
+        cells = np.asarray([[3, *face] for face in surface.faces], dtype=np.int32).ravel()
+        mesh = pv.PolyData(np.asarray(surface.vertices), faces=cells)
+        points_per_end = len(surface.vertices) // 2
+        return _map_element_surface_data(
+            mesh,
+            model,
+            elem,
+            results,
+            [0.0] * points_per_end + [1.0] * points_per_end,
+        )
     
     # 1. Determine centerline path points
     if elem.type == "pipe_bend" and elem.bend_radius:
@@ -764,70 +735,8 @@ def _get_element_3d_mesh(
     
     mesh = pv.PolyData(points_3d, faces=cells_arr)
     
-    # 6. Map results. Geometry-only meshes must not expose zero-valued solver
-    # arrays, otherwise downstream renderers mistake them for result plots.
-    disp1 = np.zeros(3)
-    disp2 = np.zeros(3)
-    vmis1 = 0.0
-    vmis2 = 0.0
-    forc1 = np.zeros(3)
-    forc2 = np.zeros(3)
-    
-    if results is not None:
-        nr1 = results.node_results.get(elem.n1)
-        nr2 = results.node_results.get(elem.n2)
-        if nr1 is not None:
-            disp1 = nr1.displacement[:3]
-            if nr1.reaction_force is not None:
-                forc1 = nr1.reaction_force[:3]
-        if nr2 is not None:
-            disp2 = nr2.displacement[:3]
-            if nr2.reaction_force is not None:
-                forc2 = nr2.reaction_force[:3]
-                
-        er = results.element_results.get(elem.id)
-        if er is not None:
-            vmis1 = er.von_mises_n1
-            vmis2 = er.von_mises_n2
-            
-        disp_3d = []
-        vmis_3d = []
-        forc_3d = []
-        for j in range(N):
-            t = j / (N - 1) if N > 1 else 0.0
-            d_val = disp1 + t * (disp2 - disp1)
-            v_val = vmis1 + t * (vmis2 - vmis1)
-            f_val = forc1 + t * (forc2 - forc1)
-            for _ in range(M):
-                disp_3d.append(d_val)
-                vmis_3d.append(v_val)
-                forc_3d.append(f_val)
-
-        mesh.point_data["DEPL"] = np.array(disp_3d)
-        mesh.point_data["DEPL_magnitude"] = np.linalg.norm(mesh.point_data["DEPL"], axis=1)
-        mesh.point_data["VMIS"] = np.array(vmis_3d)
-        mesh.point_data["FORC_NODA"] = np.array(forc_3d)
-        mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
-    
-    # Map temperature only from a resolvable model case. Solver results with a
-    # named unknown case are stale or misbound and must not acquire a 20 C value.
-    if results is not None and results.load_case is not None:
-        try:
-            _, resolved_case = model.resolve_load_case(results.load_case)
-        except ValueError as exc:
-            raise ValueError(
-                f"Cannot map temperature for result load case {results.load_case!r}."
-            ) from exc
-        mesh.point_data["TEMP"] = np.full(len(points_3d), resolved_case.temperature)
-    elif results is None:
-        try:
-            _, resolved_case = model.resolve_load_case()
-        except ValueError:
-            resolved_case = None
-        if resolved_case is not None:
-            mesh.point_data["TEMP"] = np.full(len(points_3d), resolved_case.temperature)
-    
-    return mesh
+    station_fractions = np.repeat(np.linspace(0.0, 1.0, N), M)
+    return _map_element_surface_data(mesh, model, elem, results, station_fractions)
 
 
 def build_3d_mesh_from_model(
