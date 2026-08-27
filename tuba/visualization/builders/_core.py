@@ -6,6 +6,7 @@ from datetime import timezone
 from typing import Any
 from typing import Iterable
 from tuba.analysis.mesh import AnalysisMesh
+from tuba.analysis.run import AnalysisRun
 from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
 from tuba.analysis.provenance import (
@@ -20,7 +21,6 @@ from tuba.clash.types import ClashResult
 from tuba.load_path import LoadPathReport
 from tuba.routing.types import PipeRouteResult
 from tuba.rules import RuleResult
-from tuba.solver.base import FEAResults
 from tuba.visualization.scene import AgentProposal
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Issue
@@ -37,7 +37,7 @@ from tuba.visualization.builders._imported import _build_imported_component_scen
 from tuba.visualization.builders._layers import build_layer_registry, build_result_fields
 from tuba.visualization.builders._loads import build_load_scene
 from tuba.visualization.builders._states import _build_analysis_mesh_scene, _build_deformed_state_scene, _build_geometry_state_record
-from tuba.visualization.builders._results import _build_result_state_record, _build_result_state_result_scene, _build_solver_result_scene
+from tuba.visualization.builders._results import _build_result_state_record, _build_result_state_result_scene
 from tuba.visualization.builders._review import _build_agent_proposal_preview, _build_clash_issue_scene, _build_cost_quantity_overlays, _build_external_source_scene, _build_field_context_scene, _build_load_path_scene, _build_route_result_scene, _build_rule_issue_scene, _build_runtime_state_overlay
 
 
@@ -50,11 +50,10 @@ def build_visualization_scene(
     operating_clash_results: Iterable[ClashResult] | None = None,
     rule_results: Iterable[RuleResult] | None = None,
     load_path_report: LoadPathReport | None = None,
-    solver_results: FEAResults | None = None,
+    analysis_runs: Iterable[AnalysisRun] = (),
     result_states: Iterable[ResultState] | None = None,
     geometry_states: Iterable[GeometryState] | None = None,
     analysis_meshes: Iterable[AnalysisMesh] | None = None,
-    result_deformation_scale: float = 50.0,
     agent_proposals: Iterable[AgentProposal | dict[str, Any]] | None = None,
     ifc_guid_map: dict[str | EntityRef, str] | None = None,
     ifc_context: dict[str, Any] | None = None,
@@ -70,9 +69,19 @@ def build_visualization_scene(
     opts = options or SceneBuildOptions()
     resolved_scene_id = scene_id or _default_scene_id(model)
     resolved_ifc_guid_map = _normalize_ifc_guid_map(ifc_guid_map)
+    analysis_run_records = tuple(analysis_runs)
     result_state_records = list(result_states or [])
     geometry_state_records = list(geometry_states or [])
     analysis_mesh_records = list(analysis_meshes or [])
+    if analysis_run_records:
+        if result_state_records or analysis_mesh_records:
+            raise ValueError(
+                "analysis_runs cannot be mixed with lower-level result_states or analysis_meshes."
+            )
+        result_state_records = [run.result_state for run in analysis_run_records]
+        analysis_mesh_records = [
+            run.analysis_mesh for run in analysis_run_records if run.analysis_mesh is not None
+        ]
     analysis_meshes_by_id = {analysis_mesh.id: analysis_mesh for analysis_mesh in analysis_mesh_records}
     owned_mesh_ids = {state.mesh_id for state in result_state_records if state.mesh_id}
     for analysis_mesh in analysis_mesh_records:
@@ -230,16 +239,6 @@ def build_visualization_scene(
         assets.extend(load_assets)
         overlays.extend(load_overlays)
         issues.extend(load_issues)
-
-    if solver_results is not None:
-        result_objects, result_assets, result_overlays = _build_solver_result_scene(
-            model,
-            solver_results,
-            result_deformation_scale,
-        )
-        objects.extend(result_objects)
-        assets.extend(result_assets)
-        overlays.extend(result_overlays)
 
     if opts.include_cost_overlays:
         overlays.extend(_build_cost_quantity_overlays(model, opts.cost_metric))

@@ -64,7 +64,7 @@ def test_operation_results_use_resolved_case_for_web_and_pyvista(tmp_path: Path)
     study = CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
     state = result_state_from_fea_results(model=model, study=study, results=results)
 
-    scene = build_visualization_scene(model, result_states=[state], solver_results=results)
+    scene = build_visualization_scene(model, result_states=[state])
 
     stress = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "stress")
     load = next(overlay for overlay in scene.overlays if overlay.kind == "load_case" and overlay.data["load_case"] == "Hot")

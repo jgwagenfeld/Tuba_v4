@@ -16,7 +16,6 @@ from tuba.patches import ModelPatch
 from tuba.routing.types import PipeRouteCandidate
 from tuba.routing.types import RouteSegment
 from tuba.rules import RuleResult
-from tuba.solver.base import FEAResults
 
 
 @dataclass(frozen=True)
@@ -223,22 +222,6 @@ def _point_for_refs(model: TubaModel, refs: list[EntityRef]) -> list[float]:
                 if support.id == ref.id:
                     return _node_coords(model, support.node)
     return [0.0, 0.0, 0.0]
-def _deformed_element_points(
-    model: TubaModel,
-    results: FEAResults,
-    elem: Element,
-    deformation_scale: float,
-) -> list[list[float]] | None:
-    points: list[list[float]] = []
-    for node_id in (elem.n1, elem.n2):
-        node_result = results.node_results.get(node_id)
-        if node_result is None:
-            return None
-        base = np.array(_node_coords(model, node_id), dtype=float)
-        displacement = np.array(node_result.displacement[:3], dtype=float)
-        point = base + displacement * float(deformation_scale)
-        points.append([float(value) for value in point.tolist()])
-    return points
 def _support_point(model: TubaModel, support_id: str) -> list[float]:
     for support in model.supports:
         if support.id == support_id:

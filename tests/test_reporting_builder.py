@@ -5,10 +5,12 @@ from dataclasses import replace
 import pytest
 
 from tests.reporting_fixtures import build_review_model
+from tuba.analysis import AnalysisRun
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.reporting import EngineeringReviewError, build_engineering_review
+from tuba.solver.base import FEAResults
 
 
 @pytest.fixture
@@ -85,6 +87,20 @@ def code_aster_analysis_mesh() -> AnalysisMesh:
 
 
 @pytest.fixture
+def code_aster_run(
+    code_aster_study,
+    code_aster_result_state,
+    code_aster_analysis_mesh,
+) -> AnalysisRun:
+    return AnalysisRun(
+        study=code_aster_study,
+        results=FEAResults(solver_name="Code_Aster", load_case="Hot"),
+        result_state=code_aster_result_state,
+        analysis_mesh=code_aster_analysis_mesh,
+    )
+
+
+@pytest.fixture
 def solved_review(review_model, code_aster_study, code_aster_result_state):
     return build_engineering_review(
         review_model,
@@ -93,6 +109,51 @@ def solved_review(review_model, code_aster_study, code_aster_result_state):
         package_id="review:solved",
         created_at="2026-07-15T00:00:00Z",
     )
+
+
+def test_analysis_run_publishes_the_same_review_records(
+    review_model,
+    code_aster_run,
+):
+    expected = build_engineering_review(
+        review_model,
+        studies=[code_aster_run.study],
+        analysis_meshes=[code_aster_run.analysis_mesh],
+        result_states=[code_aster_run.result_state],
+        package_id="review:run",
+        created_at="2026-07-15T00:00:00Z",
+    )
+
+    actual = build_engineering_review(
+        review_model,
+        analysis_runs=[code_aster_run],
+        package_id="review:run",
+        created_at="2026-07-15T00:00:00Z",
+    )
+
+    assert actual.to_dict() == expected.to_dict()
+
+
+@pytest.mark.parametrize(
+    ("name", "records"),
+    (
+        ("studies", lambda run: [run.study]),
+        ("analysis_meshes", lambda run: [run.analysis_mesh]),
+        ("result_states", lambda run: [run.result_state]),
+    ),
+)
+def test_analysis_run_cannot_mix_with_lower_level_review_records(
+    review_model,
+    code_aster_run,
+    name,
+    records,
+):
+    with pytest.raises(EngineeringReviewError, match="analysis_runs.*lower-level"):
+        build_engineering_review(
+            review_model,
+            analysis_runs=[code_aster_run],
+            **{name: records(code_aster_run)},
+        )
 
 
 def test_model_only_review_is_not_solved_and_has_no_result_tables(review_model):

@@ -75,8 +75,7 @@ def run_example(
     )
     scene = build_visualization_scene(
         resolved_model,
-        analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
-        result_states=[artifact.result_state],
+        analysis_runs=[artifact],
         geometry_states=[operating_state, visual_state],
         field_notes=[
             {
@@ -97,11 +96,7 @@ def run_example(
     )
     review = build_engineering_review(
         resolved_model,
-        studies=[artifact.study],
-        analysis_meshes=(
-            [artifact.analysis_mesh] if artifact.analysis_mesh is not None else []
-        ),
-        result_states=[artifact.result_state],
+        analysis_runs=[artifact],
         package_id="review:code_aster_artifact",
         created_at=solved_at,
     )

@@ -1,9 +1,10 @@
 import unittest
+from dataclasses import replace
 
 import numpy as np
 
 from tuba import Model
-from tuba.analysis import AnalysisStudy
+from tuba.analysis import AnalysisMesh, AnalysisRun, AnalysisStudy
 from tuba.analysis.results import result_state_from_fea_results
 from tuba.analysis.states import (
     create_cold_geometry_state,
@@ -25,7 +26,7 @@ class TestVisualizationResults(unittest.TestCase):
         n1 = model.add_node([1.0, 0.0, 0.0])
         elem = model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
         model.define_load_case("Hot", gravity=True, temperature=100.0)
-        results = FEAResults(solver_name="mock", load_case="Hot")
+        results = FEAResults(solver_name="Code_Aster", load_case="Hot")
         results.node_results[n0] = NodeResult(
             node_id=n0,
             displacement=np.zeros(6),
@@ -46,50 +47,83 @@ class TestVisualizationResults(unittest.TestCase):
         )
         return model, results
 
-    def test_build_scene_adds_deformed_shape_and_stress_overlay(self):
+    def _analysis_run(self):
         model, results = self._model_and_results()
+        study = AnalysisStudy(
+            id="analysis_study:Hot",
+            model_revision=0,
+            solver_name="Code_Aster",
+            load_case="Hot",
+            work_dir=None,
+            input_files={},
+            mesh_id="analysis_mesh:Hot",
+        )
+        state = result_state_from_fea_results(model=model, study=study, results=results)
+        state = replace(
+            state,
+            metadata={**state.metadata, "solve_attestation": {"fixture": "verified Code_Aster solve"}},
+        )
+        mesh = AnalysisMesh(
+            id=study.mesh_id,
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={node_id: tuple(node.coords) for node_id, node in model.nodes.items()},
+            elements={element.id: (element.n1, element.n2) for element in model.elements},
+            groups={},
+            node_sources={},
+            element_sources={},
+        )
+        return model, AnalysisRun(study=study, results=results, result_state=state, analysis_mesh=mesh)
+
+    def test_analysis_run_publishes_result_mesh_and_deformed_records(self):
+        model, run = self._analysis_run()
+        visual_state = create_visual_deformed_geometry_state(
+            model=model,
+            result_state=run.result_state,
+            visual_scale=10.0,
+        )
 
         scene = build_visualization_scene(
             model,
-            solver_results=results,
-            result_deformation_scale=10.0,
+            analysis_runs=[run],
+            geometry_states=[visual_state],
             scene_id="scene_result_review",
         )
         scene.validate()
 
-        deformed = next(obj for obj in scene.objects if obj.kind == "deformed_result")
+        deformed = next(obj for obj in scene.objects if obj.kind == "deformed_centerline")
         asset = next(asset for asset in scene.geometry_assets if asset.id == deformed.geometry_asset_id)
         self.assertEqual(asset.format, "polyline")
         self.assertEqual(asset.generation_config["points"], [[0.0, 0.0, 0.0], [1.1, 0.0, 0.0]])
         self.assertEqual(deformed.metadata["load_case"], "Hot")
-        self.assertEqual(deformed.metadata["deformation_scale"], 10.0)
+        self.assertEqual(deformed.metadata["displacement_scale"], 10.0)
+        self.assertTrue(any(obj.kind == "result_state" for obj in scene.objects))
+        self.assertTrue(any(obj.kind == "analysis_mesh_element" for obj in scene.objects))
 
         stress = next(overlay for overlay in scene.overlays if overlay.kind == "solver_result" and overlay.data["result_type"] == "stress")
         self.assertEqual(stress.data["values"], {"object:element:pipe_0": 120.0e6})
         self.assertEqual(stress.data["range"], {"min": 120.0e6, "max": 120.0e6})
-
-    def test_build_scene_adds_reactions_and_keeps_temperature_as_input(self):
-        model, results = self._model_and_results()
-
-        scene = build_visualization_scene(model, solver_results=results, scene_id="scene_result_review")
-
-        reactions = [obj for obj in scene.objects if obj.kind == "reaction_vector"]
-        reaction_force = next(obj for obj in reactions if obj.metadata["result_type"] == "reaction_force")
-        reaction_moment = next(obj for obj in reactions if obj.metadata["result_type"] == "reaction_moment")
-        self.assertEqual(reaction_force.metadata["reaction_force_n"], [100.0, 0.0, -500.0])
-        self.assertEqual(reaction_moment.metadata["reaction_moment_nm"], [25.0, 0.0, -75.0])
-        self.assertIn("result:reaction_force", reaction_force.layer_ids)
-        self.assertIn("result:reaction_moment", reaction_moment.layer_ids)
-
-        self.assertFalse(
-            any(
-                overlay.kind == "solver_result" and overlay.data.get("result_type") == "temperature"
-                for overlay in scene.overlays
-            )
+        self.assertEqual(
+            {overlay.data.get("result_type") for overlay in scene.overlays if overlay.kind == "solver_result"},
+            {"stress", "displacement", "reaction_force", "reaction_moment"},
         )
-        inputs = next(overlay for overlay in scene.overlays if overlay.kind == "load_case")
-        self.assertEqual(inputs.data["load_case"], "Hot")
-        self.assertEqual(inputs.data["temperature_c"], 100.0)
+
+    def test_analysis_run_cannot_mix_with_lower_level_result_records(self):
+        model, run = self._analysis_run()
+
+        for records in (
+            {"result_states": [run.result_state]},
+            {"analysis_meshes": [run.analysis_mesh]},
+        ):
+            with self.subTest(records=tuple(records)):
+                with self.assertRaisesRegex(ValueError, "analysis_runs.*lower-level"):
+                    build_visualization_scene(model, analysis_runs=[run], **records)
+
+    def test_web_scene_rejects_raw_solver_results_keyword(self):
+        model, run = self._analysis_run()
+
+        with self.assertRaisesRegex(TypeError, "unexpected keyword argument 'solver_results'"):
+            build_visualization_scene(model, solver_results=run.results)
 
     def test_build_scene_adds_result_and_geometry_state_records(self):
         fixture = straight_pipe_hot_clash_fixture()

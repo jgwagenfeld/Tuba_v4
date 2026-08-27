@@ -8,6 +8,7 @@ from typing import Any
 
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.results import ResultState
+from tuba.analysis.run import AnalysisRun
 from tuba.analysis.study import AnalysisStudy
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
@@ -36,6 +37,7 @@ from tuba.reporting.tables import (
 def build_engineering_review(
     model: TubaModel,
     *,
+    analysis_runs: Iterable[AnalysisRun] = (),
     studies: Iterable[AnalysisStudy] = (),
     analysis_meshes: Iterable[AnalysisMesh] = (),
     result_states: Iterable[ResultState] = (),
@@ -48,9 +50,18 @@ def build_engineering_review(
     This function never invokes a solver. Result tables are emitted only after
     the supplied study/result lineage has been validated as Code_Aster output.
     """
+    run_records = tuple(analysis_runs)
     study_records = tuple(studies)
     mesh_records = tuple(analysis_meshes)
     state_records = tuple(result_states)
+    if run_records:
+        if study_records or mesh_records or state_records:
+            raise EngineeringReviewError(
+                "analysis_runs cannot be mixed with lower-level studies, analysis_meshes, or result_states."
+            )
+        study_records = tuple(run.study for run in run_records)
+        mesh_records = tuple(run.analysis_mesh for run in run_records if run.analysis_mesh is not None)
+        state_records = tuple(run.result_state for run in run_records)
     compliance_records = tuple(compliance_reports)
     _validate_lineage(
         model,

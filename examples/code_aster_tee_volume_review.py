@@ -72,8 +72,7 @@ def run_example(
     artifact = stage_code_aster_artifact_evidence(artifact, output / "review_scene")
     scene = build_visualization_scene(
         model,
-        analysis_meshes=[artifact.analysis_mesh],
-        result_states=[artifact.result_state],
+        analysis_runs=[artifact],
         field_notes=[
             {
                 "id": "tee_volume_scope",
@@ -87,9 +86,7 @@ def run_example(
     )
     review = build_engineering_review(
         model,
-        studies=[artifact.study],
-        analysis_meshes=[artifact.analysis_mesh],
-        result_states=[artifact.result_state],
+        analysis_runs=[artifact],
         package_id="review:pipe_tee_volume",
         created_at=solved_at,
     )
