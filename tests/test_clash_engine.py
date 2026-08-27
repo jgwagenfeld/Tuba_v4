@@ -1,12 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.clash import ClashEngine, TrimeshClashEngine, clash_report_to_dict, clash_report_to_markdown
-
-
-class TestClashEngineAlias(unittest.TestCase):
-    def test_trimesh_name_is_the_clash_module_alias(self):
-        self.assertIs(TrimeshClashEngine, ClashEngine)
+from tuba.clash import ClashEngine, clash_report_to_dict, clash_report_to_markdown
 
 
 class TestClashEngine(unittest.TestCase):
@@ -41,7 +36,7 @@ class TestClashEngine(unittest.TestCase):
             max_point=[1.5, 0.20, 0.10],
         )
 
-        clashes = TrimeshClashEngine().check_model(model)
+        clashes = ClashEngine().check_model(model)
 
         self.assertEqual(len(clashes), 1)
         clash = clashes[0]
@@ -54,13 +49,13 @@ class TestClashEngine(unittest.TestCase):
     def test_insulation_envelope_can_create_clash(self):
         model, elem = self._model()
 
-        bare_clashes = TrimeshClashEngine().check_model(model)
+        bare_clashes = ClashEngine().check_model(model)
         self.assertEqual(bare_clashes, [])
 
         model.add_insulation_spec("mw_80", material="mineral_wool", thickness_m=0.08)
         model.assign_insulation(f"element:{elem.id}", "mw_80")
 
-        insulated_clashes = TrimeshClashEngine().check_model(model)
+        insulated_clashes = ClashEngine().check_model(model)
         self.assertEqual(len(insulated_clashes), 1)
         self.assertEqual(str(insulated_clashes[0].right), "obstacle:tray_0")
         self.assertGreater(insulated_clashes[0].penetration_m, 0.01)
@@ -69,7 +64,7 @@ class TestClashEngine(unittest.TestCase):
         model, elem = self._model()
         model.add_insulation_spec("mw_80", material="mineral_wool", thickness_m=0.08)
         model.assign_insulation(f"element:{elem.id}", "mw_80")
-        clashes = TrimeshClashEngine().check_model(model)
+        clashes = ClashEngine().check_model(model)
 
         data = clash_report_to_dict(clashes)
         markdown = clash_report_to_markdown(clashes)
