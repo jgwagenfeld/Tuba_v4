@@ -50,7 +50,7 @@ def build_tee_volume_model() -> Model:
 
 
 def run_example(
-    output_dir: str | Path = ".benchmarks/code_aster_tee_volume_review",
+    output_dir: str | Path = ".build/benchmarks/code_aster_tee_volume_review",
     *,
     artifact_dir: str | Path | None = None,
 ) -> dict[str, Any]:

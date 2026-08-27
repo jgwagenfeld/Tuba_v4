@@ -13,7 +13,7 @@ except ModuleNotFoundError:  # pragma: no cover - direct script execution from e
     from operating_state_clash import build_model
 
 
-def run_example(output_dir: str | Path = ".benchmarks/realtime_visualization_review") -> dict[str, Any]:
+def run_example(output_dir: str | Path = ".build/benchmarks/realtime_visualization_review") -> dict[str, Any]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     model, _n0, _n1 = build_model()

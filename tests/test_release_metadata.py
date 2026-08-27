@@ -12,6 +12,28 @@ from tuba.model import MODEL_SERIALIZATION_VERSION
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_test_only_ci_jobs_end_with_clean_tree_check():
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+
+    for job_name in ("python", "ifc-windows", "notebooks-and-docs", "viewer", "assembled-pages"):
+        commands = [
+            step["run"]
+            for step in workflow["jobs"][job_name]["steps"]
+            if "run" in step
+        ]
+        assert commands[-1] == "git diff --exit-code"
+
+    for job_name in ("distribution", "code-aster-integration"):
+        commands = [
+            step["run"]
+            for step in workflow["jobs"][job_name]["steps"]
+            if "run" in step
+        ]
+        assert "git diff --exit-code" not in commands
+
+
 def test_runtime_version_comes_from_installed_package_metadata():
     source = (ROOT / "tuba" / "__init__.py").read_text(encoding="utf-8")
 

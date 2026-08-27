@@ -29,7 +29,7 @@ def build_model() -> tuple[Model, str, str]:
     return model, n0, n1
 
 
-def run_example(output_dir: str | Path = ".benchmarks/operating_state_clash_example") -> dict[str, Any]:
+def run_example(output_dir: str | Path = ".build/benchmarks/operating_state_clash_example") -> dict[str, Any]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     model, _n0, _n1 = build_model()

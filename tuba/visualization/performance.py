@@ -61,7 +61,7 @@ def benchmark_scene_build(
 
 def benchmark_viewer_smoke(
     *,
-    output_dir: str | Path = ".benchmarks",
+    output_dir: str | Path = ".build/benchmarks",
     model: TubaModel | None = None,
     limits: dict[str, float] | None = None,
 ) -> dict[str, Any]:

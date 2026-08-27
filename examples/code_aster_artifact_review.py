@@ -33,7 +33,7 @@ from tuba.visualization import (
 
 
 def run_example(
-    output_dir: str | Path = ".benchmarks/code_aster_artifact_review",
+    output_dir: str | Path = ".build/benchmarks/code_aster_artifact_review",
     *,
     artifact_dir: str | Path | None = None,
     model: Model | None = None,

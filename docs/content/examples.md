@@ -49,6 +49,16 @@ Run an example with:
 .\.venv\Scripts\python.exe examples\<name>.py
 ```
 
+Tuba-owned benchmark and review outputs default to `.build/`. When no Tuba
+command is running, remove all ignored Tuba build output with:
+
+```powershell
+git clean -fdX -- .build
+```
+
+Canonical Code_Aster artifacts under `notebooks/code_aster_results/` are
+committed engineering evidence and are not cleanup targets.
+
 | Example | Evidence status | Purpose |
 | --- | --- | --- |
 | `demo.py` | **MODEL JSON + STUDY HANDOFF** | Writes `piping_model.json` and Code_Aster input files, then stops before results |

@@ -1,13 +1,33 @@
 import ast
 import unittest
+from inspect import signature
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from examples.autoroute_expansion_loop import run_example as run_expansion_loop_example
+from examples.code_aster_artifact_review import run_example as run_artifact_review
+from examples.code_aster_tee_volume_review import run_example as run_tee_volume_review
 from examples.future_ready_semantic_workflow import run_demo
+from examples.operating_state_clash import run_example as run_operating_clash
+from examples.realtime_visualization_review import run_example as run_realtime_review
 
 
 class TestExamples(unittest.TestCase):
+    def test_generated_example_defaults_use_build_root(self):
+        expected = {
+            run_artifact_review: ".build/benchmarks/code_aster_artifact_review",
+            run_tee_volume_review: ".build/benchmarks/code_aster_tee_volume_review",
+            run_operating_clash: ".build/benchmarks/operating_state_clash_example",
+            run_realtime_review: ".build/benchmarks/realtime_visualization_review",
+        }
+
+        for runner, output_dir in expected.items():
+            with self.subTest(runner=runner.__module__):
+                self.assertEqual(
+                    signature(runner).parameters["output_dir"].default,
+                    output_dir,
+                )
+
     def test_future_ready_semantic_workflow_runs(self):
         with TemporaryDirectory() as tmpdir:
             summary = run_demo(tmpdir)

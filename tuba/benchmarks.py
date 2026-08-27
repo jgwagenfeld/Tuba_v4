@@ -10,11 +10,13 @@ from typing import Any
 
 from tuba.model import TubaModel
 
+_DEFAULT_BENCHMARK_DIRECTORY = ".build/benchmarks"
+
 
 def write_model_benchmark_summary(
     model: TubaModel,
     *,
-    directory: str | Path = ".benchmarks",
+    directory: str | Path = _DEFAULT_BENCHMARK_DIRECTORY,
 ) -> str:
     output_dir = Path(directory)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -36,7 +38,7 @@ def write_model_benchmark_summary(
 def run_deformed_clash_benchmark(
     *,
     size: str = "smoke",
-    directory: str | Path = ".benchmarks",
+    directory: str | Path = _DEFAULT_BENCHMARK_DIRECTORY,
 ) -> dict[str, Any]:
     from tuba.analysis import GeometryState, ResultState
     from tuba.clash.operating import candidate_obstacle_pairs_for_envelopes, check_operating_state
@@ -127,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     deformed_clash = subparsers.add_parser("deformed-clash")
     deformed_clash.add_argument("--size", choices=("smoke", "small"), default="smoke")
-    deformed_clash.add_argument("--directory", default=".benchmarks")
+    deformed_clash.add_argument("--directory", default=_DEFAULT_BENCHMARK_DIRECTORY)
     args = parser.parse_args(argv)
 
     if args.command == "deformed-clash":
