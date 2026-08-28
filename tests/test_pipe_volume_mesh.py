@@ -232,6 +232,69 @@ def test_meshes_conformal_explicit_tee(tmp_path, branch_od):
     assert generated.groups["G_SOLID_region_0"]
     assert {f"G_END_{node}" for node in ends} <= generated.groups.keys()
     assert _tetra_component_count(generated.analysis_mesh.elements) == 1
+    expected_sources = ["element:branch", "element:left", "element:right"]
+    assert {str(source.source_ref) for source in generated.analysis_mesh.node_sources.values()} == {
+        f"node:{junction}"
+    }
+    assert {str(source.source_ref) for source in generated.analysis_mesh.element_sources.values()} == {
+        f"node:{junction}"
+    }
+    assert all(
+        source.metadata["source_element_refs"] == expected_sources
+        for source in generated.analysis_mesh.element_sources.values()
+    )
+
+
+def test_rejects_non_finite_generated_coordinates(tmp_path, monkeypatch):
+    model, _n0, _n1 = _straight_pipe_model(length=0.1)
+    original = gmsh.model.mesh.getNodes
+
+    def non_finite_nodes(*args, **kwargs):
+        node_tags, coordinates, parameters = original(*args, **kwargs)
+        coordinates = coordinates.copy()
+        coordinates[0] = np.nan
+        return node_tags, coordinates, parameters
+
+    monkeypatch.setattr(gmsh.model.mesh, "getNodes", non_finite_nodes)
+
+    with pytest.raises(RuntimeError, match="non-finite node coordinates"):
+        build_pipe_volume_mesh(
+            model,
+            tmp_path / "non-finite.med",
+            element_ids=["pipe_0"],
+            max_element_size=0.005,
+        )
+
+
+def test_rejects_disconnected_generated_volume(tmp_path, monkeypatch):
+    model, _n0, _n1 = _straight_pipe_model(length=0.1)
+    original = gmsh.model.mesh.getElements
+
+    def disconnected_cells(dim=-1, tag=-1):
+        types, element_tag_blocks, node_tag_blocks = original(dim, tag)
+        if dim != 3:
+            return types, element_tag_blocks, node_tag_blocks
+        filtered_tags = []
+        filtered_nodes = []
+        for element_type, element_tags, element_nodes in zip(types, element_tag_blocks, node_tag_blocks):
+            node_count = gmsh.model.mesh.getElementProperties(element_type)[3]
+            cells = np.asarray(element_nodes).reshape(-1, node_count)
+            first = cells[0]
+            other = next(cell for cell in cells[1:] if len(set(first[:4]) & set(cell[:4])) < 3)
+            other_index = next(index for index, cell in enumerate(cells) if np.array_equal(cell, other))
+            filtered_tags.append(np.asarray([element_tags[0], element_tags[other_index]]))
+            filtered_nodes.append(np.concatenate([first, other]))
+        return types, filtered_tags, filtered_nodes
+
+    monkeypatch.setattr(gmsh.model.mesh, "getElements", disconnected_cells)
+
+    with pytest.raises(RuntimeError, match="disconnected volume mesh"):
+        build_pipe_volume_mesh(
+            model,
+            tmp_path / "disconnected.med",
+            element_ids=["pipe_0"],
+            max_element_size=0.005,
+        )
 
 
 def test_rejects_undeclared_tee_before_writing(tmp_path):

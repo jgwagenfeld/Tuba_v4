@@ -18,6 +18,7 @@ from examples.code_aster_tee_volume_review import (
     build_tee_volume_model,
     run_example as run_tee_volume_example,
 )
+from examples.gmsh_tee_mesh_review import run_example as run_gmsh_tee_mesh_example
 from examples.imported_component_mixed_system import run_demo
 
 
@@ -58,6 +59,13 @@ def _build_model_review(destination: Path, _artifacts: Path | None) -> None:
             output_root=produced,
             export_study=False,
         )
+        _replace_tree(produced / "review_scene", destination)
+
+
+def _build_gmsh_tee_mesh_review(destination: Path, _artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-gmsh-mesh-") as temporary:
+        produced = Path(temporary) / "gmsh-tee-mesh"
+        run_gmsh_tee_mesh_example(produced)
         _replace_tree(produced / "review_scene", destination)
 
 
@@ -131,6 +139,12 @@ OFFICIAL_GALLERIES = (
         _build_code_aster_review,
         ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating",
         _code_aster_refresh,
+    ),
+    OfficialGallery(
+        "gmsh-tee-mesh-review",
+        frozenset({"dev", "pages"}),
+        "mesh-review",
+        _build_gmsh_tee_mesh_review,
     ),
     OfficialGallery(
         "imported_component_mixed_demo",

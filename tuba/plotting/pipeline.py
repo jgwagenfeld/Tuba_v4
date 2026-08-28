@@ -438,11 +438,6 @@ def get_ibeam_dimensions(sec) -> tuple[float, float, float, float]:
     return tuple(float(dimensions[key]) for key in ("H", "B", "Tw", "Tf"))
 
 
-def _get_profile_2d_polygon(sec, n_sides: int = 16) -> np.ndarray:
-    """Return a 2D closed polygon (y, z) representing the section profile in meters."""
-    return _get_profile_2d_loops(sec, n_sides=n_sides)[0]
-
-
 def _get_profile_2d_loops(sec, n_sides: int = 16) -> list[np.ndarray]:
     """Return section profile loops; inner loops are holes."""
     return [np.asarray(loop, dtype=float) for loop in section_loops(sec, n_sides=n_sides)]

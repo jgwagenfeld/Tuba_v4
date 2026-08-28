@@ -28,6 +28,10 @@ _Avoid_: Public load case, scenario
 The provenance-bearing record of one Code_Aster evaluation, linking its study, analysis mesh, persistent result state, and numerical results.
 _Avoid_: Bare results, solve output
 
+**Analysis mesh**:
+The solver-facing discretization retained with stable groups and source-entity lineage as part of an analysis run.
+_Avoid_: Display mesh, design geometry
+
 **Result state**:
 The persistent authority for imported solver results and their identity, provenance, and diagnostics.
 _Avoid_: Plot data, transient results

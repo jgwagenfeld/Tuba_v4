@@ -16,6 +16,7 @@ import numpy as np
 
 from tuba.model import Element, TubaModel
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
+from tuba.meshing._gmsh import gmsh_model
 from tuba.refs import EntityRef
 from tuba.solver.modelisation import modelisation_assignments
 
@@ -569,16 +570,13 @@ class _MeshWriterMixin:
 
         import gmsh
 
-        we_initialised = False
-        if not gmsh.isInitialized():
-            gmsh.initialize(["-noenv"])
-            we_initialised = True
-        gmsh.option.setNumber("General.Terminal", 0)
-        gmsh.model.add("tuba_bend_mesh")
-
         result: Dict[str, List[Tuple[str, np.ndarray]]] = {}
-
-        try:
+        with gmsh_model(
+            gmsh,
+            "tuba_bend_mesh",
+            initialize_args=["-noenv"],
+            options={"General.Terminal": 0},
+        ):
             # --- Create OCC points for every node referenced by bends -----
             bend_node_ids: set[str] = set()
             for elem in bend_elems:
@@ -643,11 +641,6 @@ class _MeshWriterMixin:
                     name = f"{elem.id}_n{i}"
                     int_nodes.append((name, sorted_coords[i].copy()))
                 result[elem.id] = int_nodes
-
-        finally:
-            gmsh.model.remove()
-            if we_initialised:
-                gmsh.finalize()
 
         self._bend_gmsh_cache[cache_key] = result
         return result

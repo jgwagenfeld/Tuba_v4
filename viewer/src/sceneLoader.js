@@ -5,6 +5,13 @@ import { createColoringState } from "./coloring.js";
 const NODE_FS_PROMISES = "node:fs/promises";
 const NODE_PATH = "node:path";
 
+export function resolveBundleId(requestedBundle, availableBundles = []) {
+  if (requestedBundle) return requestedBundle;
+  return availableBundles.includes("code-aster-review")
+    ? "code-aster-review"
+    : availableBundles[0] ?? "code-aster-review";
+}
+
 export async function loadSceneBundle(root) {
   const { readFile } = await import(/* @vite-ignore */ NODE_FS_PROMISES);
   const { join } = await import(/* @vite-ignore */ NODE_PATH);

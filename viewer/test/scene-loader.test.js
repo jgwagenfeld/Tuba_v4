@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import * as sceneLoaderModule from "../src/sceneLoader.js";
 
 import {
   createViewerState,
@@ -14,6 +15,22 @@ import {
   categorizeLayers,
   applyTaskVisibilityPreset
 } from "../src/sceneLoader.js";
+
+test("startup falls back to the first available bundle when the preferred review is absent", () => {
+  assert.equal(typeof sceneLoaderModule.resolveBundleId, "function");
+  assert.equal(
+    sceneLoaderModule.resolveBundleId(null, ["gmsh-tee-mesh-review", "smoke-scene"]),
+    "gmsh-tee-mesh-review"
+  );
+});
+
+test("startup retains explicit and available preferred bundles", () => {
+  assert.equal(sceneLoaderModule.resolveBundleId("custom-review", []), "custom-review");
+  assert.equal(
+    sceneLoaderModule.resolveBundleId(null, ["gmsh-tee-mesh-review", "code-aster-review"]),
+    "code-aster-review"
+  );
+});
 
 async function createFixtureBundle() {
   const root = join(tmpdir(), `tuba-viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -86,6 +103,31 @@ test("creates viewer state with visible layers and scene bounds", async () => {
   assert.equal(state.objectMap, bundle.objectMap);
   assert.equal(state.layers.pipe.visible, true);
   assert.deepEqual(state.visibleObjectIds, ["object:element:pipe_0"]);
+});
+
+test("opens an unsolved mesh review with design and analysis mesh visible", () => {
+  const scene = {
+    scene_id: "scene:gmsh-mesh",
+    model_id: "model:tee",
+    publication_status: "mesh_only_unsolved",
+    objects: [
+      { id: "object:design", kind: "pipe", layer_ids: ["design:pipes"] },
+      { id: "object:mesh", kind: "analysis_mesh_surface", layer_ids: ["analysis_mesh:volume_skin"] }
+    ],
+    geometry_assets: [],
+    overlays: [],
+    layers: [
+      { id: "design:pipes", category: "design", default_visible: true },
+      { id: "analysis_mesh:volume_skin", category: "analysis_mesh", default_visible: true }
+    ],
+    result_fields: [],
+    diagnostics: []
+  };
+
+  const state = createViewerState({ scene, objectMap: {}, geometryPayloads: [] });
+
+  assert.deepEqual(state.visibleObjectIds, ["object:design", "object:mesh"]);
+  assert.deepEqual(state.resultFields, []);
 });
 
 test("opens solved scenes on the visual deformation state", () => {

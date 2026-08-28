@@ -50,7 +50,7 @@ def test_refresh_cli_starts_from_the_scripts_directory():
 def test_official_gallery_records_own_refresh_metadata():
     galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
     engineering = tuple(gallery for gallery in galleries if gallery.refresh_producer is not None)
-    model_only = tuple(gallery for gallery in galleries if gallery.refresh_producer is None)
+    non_refreshable = tuple(gallery for gallery in galleries if gallery.refresh_producer is None)
 
     assert tuple(gallery.id for gallery in engineering) == (
         "autorouted-expansion-loop",
@@ -59,8 +59,11 @@ def test_official_gallery_records_own_refresh_metadata():
         "support-rack-review",
     )
     assert all(gallery.artifact_dir is not None for gallery in engineering)
-    assert tuple(gallery.id for gallery in model_only) == ("imported_component_mixed_demo",)
-    assert model_only[0].artifact_dir is None
+    assert tuple(gallery.id for gallery in non_refreshable) == (
+        "gmsh-tee-mesh-review",
+        "imported_component_mixed_demo",
+    )
+    assert all(gallery.artifact_dir is None for gallery in non_refreshable)
     assert [gallery.id for gallery in galleries if gallery.volume_export] == [
         "pipe-tee-volume-review"
     ]

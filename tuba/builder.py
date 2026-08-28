@@ -149,68 +149,12 @@ class PipingBuilder:
             Plane in which the bend occurs: ``"XY"``, ``"XZ"``, or ``"YZ"``.
         """
         self._record("bend", radius=radius, angle=angle, plane=plane)
-        # Determine rotation axis
-        if plane == "XY":
-            axis = self.up_vector.copy()
-        elif plane == "XZ":
-            axis = np.cross(self.direction, self.up_vector)
-            norm = np.linalg.norm(axis)
-            if norm < 1e-12:
-                axis = np.array([0.0, 1.0, 0.0])
-            else:
-                axis /= norm
-        else:  # YZ or arbitrary
-            axis = self.direction.copy()
-
-        theta = np.radians(angle)
-        new_direction = _rotate_about_axis(self.direction, axis, theta)
-        new_direction /= np.linalg.norm(new_direction)  # normalise
-
-        # Tangent length from bend geometry
-        tangent_len = radius * abs(np.tan(theta / 2.0))
-
-        # Bend entry → exit: advance by tangent in old dir, then tangent in new dir
-        bend_entry = self.cursor + self.direction * tangent_len
-        bend_exit = bend_entry + new_direction * tangent_len
-
-        exit_node_id = self.model.add_node(bend_exit)
-
-        elem_id = self.model.next_element_id("pipe_bend")
-        station_start = self.station
-        station_end = station_start + radius * abs(theta)
-        from tuba.model import make_bend_geometry
-
-        geometry = make_bend_geometry(
-            start=self.cursor,
-            end=bend_exit,
+        return self._bend_with_axis(
             radius=radius,
             angle=angle,
-            normal=axis,
-            start_tangent=self.direction,
-            end_tangent=new_direction,
-            generation_mode="bend",
+            axis=self._axis_for_plane(plane),
+            mode="bend",
         )
-
-        self.model.add_element(
-            id=elem_id,
-            type="pipe_bend",
-            n1=self.last_node_id,
-            n2=exit_node_id,
-            section=self.section_name,
-            material=self.material_name,
-            bend_radius=radius,
-            bend_angle=angle,
-            bend_geometry=geometry,
-            route_id=self.route_id,
-            station_start=station_start,
-            station_end=station_end,
-        )
-
-        self.direction = new_direction
-        self.cursor = bend_exit
-        self.station = station_end
-        self.last_node_id = exit_node_id
-        return self
 
     def bend_in_plane(
         self,

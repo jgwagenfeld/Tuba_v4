@@ -16,6 +16,11 @@ from tuba.plotting.pipeline import build_3d_mesh_from_model
 from tuba.reporting import EngineeringReviewError, build_engineering_review
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
+from tuba.solver.code_aster_runtime import (
+    CodeAsterExecution,
+    CodeAsterRuntimeCandidate,
+    write_code_aster_execution_attestation,
+)
 from tuba.visualization import build_visualization_scene
 
 
@@ -475,3 +480,85 @@ def test_solver_input_identity_ignores_int_versus_float_literals():
     floats = build_solver_input_identity(bend_model(1.0, 90.0), "Operating")
 
     assert integers == floats
+
+
+def _fake_solved_artifacts(work_dir: Path) -> None:
+    """Write the artifact set a successful Code_Aster run leaves behind."""
+    (work_dir / "study.mess").write_text("Code_Aster Version 17.1.0\n", encoding="utf-8")
+    (work_dir / "study.rmed").write_bytes(b"rmed")
+    for name in ("study_depl.csv", "study_effo.csv", "study_reac.csv", "study_sieq.csv"):
+        (work_dir / name).write_text("node,value\n", encoding="utf-8")
+
+
+def _attest(work_dir: Path, identity) -> None:
+    write_code_aster_execution_attestation(
+        work_dir,
+        CodeAsterExecution(CodeAsterRuntimeCandidate("wsl", ("wsl",)), ("wsl",), 0, "", ""),
+        identity,
+    )
+
+
+def test_unchanged_study_reuses_its_attested_solve(tmp_path: Path, monkeypatch):
+    model, _, _ = _operation_model()
+    solver = CodeAsterSolver(work_dir=tmp_path)
+    study = solver.export_analysis_study(model, "Hot", tmp_path)
+    _fake_solved_artifacts(tmp_path)
+    _attest(tmp_path, study.solver_input_identity)
+
+    monkeypatch.setattr(solver, "_execute", lambda _: pytest.fail("unchanged study re-executed Code_Aster"))
+    monkeypatch.setattr(
+        "tuba.analysis.code_aster_artifacts.import_code_aster_artifacts",
+        lambda **kwargs: "imported",
+    )
+
+    assert solver.solve_exported_study(model, study) == "imported"
+
+
+def test_force_re_executes_an_already_attested_solve(tmp_path: Path, monkeypatch):
+    model, _, _ = _operation_model()
+    solver = CodeAsterSolver(work_dir=tmp_path)
+    study = solver.export_analysis_study(model, "Hot", tmp_path)
+    _fake_solved_artifacts(tmp_path)
+    _attest(tmp_path, study.solver_input_identity)
+
+    calls: list[Path] = []
+
+    def _record(work_dir: Path):
+        calls.append(work_dir)
+        return CodeAsterExecution(CodeAsterRuntimeCandidate("wsl", ("wsl",)), ("wsl",), 0, "", "")
+
+    monkeypatch.setattr(solver, "_execute", _record)
+    monkeypatch.setattr(
+        "tuba.analysis.code_aster_artifacts.import_code_aster_artifacts",
+        lambda **kwargs: "imported",
+    )
+
+    solver.solve_exported_study(model, study, force=True)
+
+    assert calls == [tmp_path]
+
+
+def test_incomplete_work_dir_re_executes_instead_of_raising(tmp_path: Path, monkeypatch):
+    model, _, _ = _operation_model()
+    solver = CodeAsterSolver(work_dir=tmp_path)
+    study = solver.export_analysis_study(model, "Hot", tmp_path)
+    _fake_solved_artifacts(tmp_path)
+    _attest(tmp_path, study.solver_input_identity)
+    (tmp_path / "study.rmed").unlink()
+
+    calls: list[Path] = []
+
+    def _record(work_dir: Path):
+        calls.append(work_dir)
+        _fake_solved_artifacts(work_dir)
+        return CodeAsterExecution(CodeAsterRuntimeCandidate("wsl", ("wsl",)), ("wsl",), 0, "", "")
+
+    monkeypatch.setattr(solver, "_execute", _record)
+    monkeypatch.setattr(
+        "tuba.analysis.code_aster_artifacts.import_code_aster_artifacts",
+        lambda **kwargs: "imported",
+    )
+
+    solver.solve_exported_study(model, study)
+
+    assert calls == [tmp_path]

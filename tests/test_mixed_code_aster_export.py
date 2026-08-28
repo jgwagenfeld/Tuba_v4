@@ -100,6 +100,12 @@ class TestMixedCodeAsterExport(unittest.TestCase):
         loaded_study = AnalysisStudy.from_dict(manifest["study"])
         mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
         self.assertEqual(loaded_study.id, study.id)
+        self.assertIsNone(loaded_study.work_dir)
+        self.assertEqual(
+            set(loaded_study.input_files.values()),
+            {"study.med", "study.comm", "study.export", "study_manifest.json", "study_tuba_fem.json"},
+        )
+        self.assertEqual(mesh.files, {"med": "study.med"})
         self.assertIn("FORMAT='MED'", comm)
         self.assertIn("MODELISATION='TUYAU_3M'", comm)
         self.assertIn("MODELISATION='3D'", comm)

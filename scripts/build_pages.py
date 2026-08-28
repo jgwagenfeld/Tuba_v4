@@ -212,7 +212,7 @@ def write_bundle_catalog(viewer_root: Path, bundle_ids: tuple[str, ...]) -> Path
 
 def validate_official_bundle(root: Path, profile: str) -> None:
     """Reject a bundle that is not portable and complete for its official profile."""
-    if profile not in {"engineering-review", "model-review", "volume-engineering-review"}:
+    if profile not in {"engineering-review", "mesh-review", "model-review", "volume-engineering-review"}:
         raise ValueError(f"Unknown official profile {profile!r}.")
     scene = _read_json(root / "scene.json")
     _reject_unsafe_references(scene)
@@ -231,6 +231,23 @@ def validate_official_bundle(root: Path, profile: str) -> None:
             raise ValueError("Model-review bundles must explicitly state that they have no solver results.")
         if (root / "review.json").exists():
             raise ValueError("Model-review bundles must not publish an engineering review.")
+        return
+
+    if profile == "mesh-review":
+        if scene.get("result_fields") or any(
+            layer.get("category") == "results" for layer in scene.get("layers", [])
+        ):
+            raise ValueError("Mesh-review bundles must not contain solver results.")
+        if not any(obj.get("kind") == "analysis_mesh_surface" for obj in scene.get("objects", [])):
+            raise ValueError("Mesh-review bundles must contain an analysis mesh surface.")
+        if not any(
+            entry.get("code") == "publication.mesh_review.no_solver_results"
+            for entry in scene.get("diagnostics", [])
+            if isinstance(entry, dict)
+        ):
+            raise ValueError("Mesh-review bundles must explicitly state that they have no solver results.")
+        if (root / "review.json").exists():
+            raise ValueError("Mesh-review bundles must not publish an engineering review.")
         return
 
     review = _read_json(root / "review.json")

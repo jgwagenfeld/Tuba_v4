@@ -46,6 +46,7 @@ viewer/node_modules/
 /viewer/public/bundles.json
 /viewer/public/autorouted-expansion-loop/
 /viewer/public/code-aster-review/
+/viewer/public/gmsh-tee-mesh-review/
 /viewer/public/imported_component_mixed_demo/
 /viewer/public/pipe-tee-volume-review/
 /viewer/public/support-rack-review/
@@ -63,6 +64,7 @@ code_aster_smoke_debug/
 
 # Runtime logs
 *.log
+/logs_*.zip
 
 # Generated notebook artifacts (regenerate by re-running the notebooks)
 notebooks/viz_gallery_report/

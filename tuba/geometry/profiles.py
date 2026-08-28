@@ -82,10 +82,6 @@ def collision_radius_for_section(section) -> float:
     return profile_for_section(section).collision_radius_m
 
 
-def area_for_section(section) -> float:
-    return profile_for_section(section).area_m2
-
-
 def _dimension(section: IBeamSection, primary: str, fallback: str) -> float:
     if primary in section.properties:
         return float(section.properties[primary])

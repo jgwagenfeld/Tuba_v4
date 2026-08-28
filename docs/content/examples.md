@@ -26,6 +26,28 @@ analysis mesh, TUYAU wall sub-points, deformation, forces, and reactions.
 
 [Open the solved autorouted expansion-loop review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop).
 
+## Native 3D pipe tee mesh — unsolved mesh review
+
+**Status: MESH ONLY / UNSOLVED.** Gmsh generates the conformal quadratic
+tetrahedral wall mesh. The viewer opens on the authoritative analysis mesh;
+the authored pipe tubes remain available as an optional layer but start hidden
+so they cannot obscure the tee junction. It contains no Code_Aster result
+fields or engineering review.
+
+[Open the unsolved Gmsh tee mesh](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=gmsh-tee-mesh-review).
+
+Generate the bundle directly into the local viewer:
+
+```powershell
+uv run python viewer/scripts/make_bundle.py --recipe examples/gmsh_tee_mesh_review.py --name gmsh-tee-mesh-review --force
+Set-Location viewer
+npm.cmd run dev
+```
+
+Select `Gmsh Tee Mesh Review` in the viewer. The recipe also works as a
+standalone example with `uv run python examples/gmsh_tee_mesh_review.py`; that
+writes `study.med`, `summary.json`, and the browser bundle under `.build/`.
+
 ## Native 3D pipe tee — solved engineering review
 
 **Status: SOLVED / IMPORTED.** Gmsh generates one conformal quadratic
@@ -34,6 +56,41 @@ The viewer keeps the design tubes, analysis skin, displacement, terminal
 resultants, and FE VMIS separate. FE VMIS is not ASME piping-code stress.
 
 [Open the solved native 3D tee review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review).
+
+The mesh-only recipe uses the following API without claiming solver results:
+
+```python
+from examples.code_aster_tee_volume_review import TEE_VOLUME_ELEMENT_IDS, build_tee_volume_model
+from tuba.meshing import build_pipe_volume_mesh
+from tuba.visualization import build_visualization_scene, write_scene_bundle
+
+model = build_tee_volume_model()
+generated = build_pipe_volume_mesh(
+    model,
+    ".build/tee-mesh/study.med",
+    element_ids=TEE_VOLUME_ELEMENT_IDS,
+    max_element_size=0.005,
+)
+scene = build_visualization_scene(model, analysis_meshes=[generated.analysis_mesh])
+write_scene_bundle(scene, ".build/tee-mesh/viewer")
+```
+
+Run the complete Gmsh -> Code_Aster -> verified result workflow:
+
+```python
+from tuba import PipeModelization
+
+run = model.solve(
+    operation="Operating",
+    pipe_modelization=PipeModelization.SOLID_3D,
+    volume_element_ids=TEE_VOLUME_ELEMENT_IDS,
+    max_element_size=0.005,
+    work_dir=".build/tee-solve",
+    exec_method="auto",
+)
+```
+
+The first call writes analysis input only. The second must find a real Code_Aster runtime and returns an attested `AnalysisRun`; it fails before result display when no runtime is available.
 
 ## Imported-component scene — model review
 
@@ -70,6 +127,7 @@ committed engineering evidence and are not cleanup targets.
 | `future_ready_semantic_workflow.py` | **BOM + BENCHMARK; COMPUTED MODEL CHECKS** | Writes a BOM CSV and benchmark summary, then prints quantity, route-cost, load-path, and rule results; no solver study or results |
 | `imported_component_mixed_system.py` | **MODEL REVIEW SCENE; OPTIONAL STEP HANDOFF** | Writes a model JSON and geometry-only scene; STEP/STP input can also export an unsolved mixed study |
 | `realtime_visualization_review.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises before writing any result-review scene |
+| `gmsh_tee_mesh_review.py` | **GMSH MESH REVIEW; UNSOLVED** | Generates a native 3D tee MED mesh and a web scene with optional design geometry and no solver results |
 | `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Imports existing Code_Aster artifacts and writes engineering review and web-scene files |
 | `code_aster_tee_volume_review.py` | **SOLVED 3D ARTIFACT IMPORT + REVIEW BUNDLE** | Imports the attested native Gmsh/Code_Aster tee study and writes its volume-result review |
 

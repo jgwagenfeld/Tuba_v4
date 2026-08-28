@@ -46,12 +46,13 @@ class TestPublicApi(unittest.TestCase):
 
     def test_public_facade_contains_only_the_stable_engineering_entry_points(self):
         import tuba
-        from tuba import AnalysisRun, Model, Operation
+        from tuba import AnalysisRun, Model, Operation, PipeModelization
 
-        self.assertEqual(tuba.__all__, ["AnalysisRun", "Model", "Operation"])
+        self.assertEqual(tuba.__all__, ["AnalysisRun", "Model", "Operation", "PipeModelization"])
         self.assertIsNotNone(AnalysisRun)
         self.assertIsNotNone(Model)
         self.assertIsNotNone(Operation)
+        self.assertEqual(PipeModelization.SOLID_3D.value, "3D")
 
 
 if __name__ == "__main__":

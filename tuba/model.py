@@ -34,6 +34,7 @@ from tuba.refs import EntityRef, resolve_entity_ref
 
 if TYPE_CHECKING:
     from tuba.analysis.run import AnalysisRun
+    from tuba.solver.modelisation import PipeModelization
 
 
 # Stable model-schema identity. This intentionally does not track the package
@@ -1114,9 +1115,10 @@ class TubaModel:
         self,
         load_case: Optional[str] = None,
         operation: Optional[str] = None,
-        pipe_modelization=None,
+        pipe_modelization: PipeModelization | str | None = None,
         volume_element_ids: Optional[Sequence[str]] = None,
         max_element_size: Optional[float] = None,
+        force: bool = False,
         **kwargs,
     ) -> AnalysisRun:
         """Run Code_Aster and return its provenance-bearing analysis run.
@@ -1129,6 +1131,9 @@ class TubaModel:
         operation : str, optional
             Name of a uniform operation to solve. Mutually exclusive with
             *load_case*.
+        force : bool, default False
+            Re-execute Code_Aster even when the solver work directory already
+            holds an attested solve for this exact model and operation.
 
         Returns
         -------
@@ -1151,10 +1156,11 @@ class TubaModel:
                 lc_name,
                 element_ids=volume_element_ids,
                 max_element_size=max_element_size,
+                force=force,
             )
         if volume_element_ids is not None or max_element_size is not None:
             raise ValueError("Volume mesh arguments require pipe_modelization=PipeModelization.SOLID_3D.")
-        return solver.solve(self, lc_name)
+        return solver.solve(self, lc_name, force=force)
 
     def validate(self) -> None:
         """Validate model references and structural invariants."""

@@ -15,6 +15,35 @@ from tuba.visualization import build_visualization_scene
 
 
 class TestVisualizationAnalysisMesh(unittest.TestCase):
+    def test_volume_skin_hides_procedural_pipe_geometry_by_default(self):
+        model = Model("VolumeSkinWithPipe")
+        model.add_material("Steel", E=2.1e11, nu=0.3)
+        model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe", type="pipe_straight", n1=n0, n2=n1, section="Pipe", material="Steel")
+        mesh = AnalysisMesh(
+            id="volume_region_0",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={n0: (0.0, 0.0, 0.0), n1: (1.0, 0.0, 0.0)},
+            elements={"M0": (n0, n1)},
+            groups={"G_SOLID_region_0": ("M0",)},
+            node_sources={},
+            element_sources={},
+            modelisations={"G_SOLID_region_0": "3D"},
+            surface_mesh={
+                "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                "faces": [[0, 1, 2]],
+            },
+        )
+
+        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        layers = {layer.id: layer for layer in scene.layers}
+
+        self.assertFalse(layers["pipe"].default_visible)
+        self.assertTrue(layers["analysis_mesh:volume_skin"].default_visible)
+
     def test_build_scene_adds_native_volume_skin_as_analysis_input(self):
         mesh = AnalysisMesh(
             id="volume_region_0",

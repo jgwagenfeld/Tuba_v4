@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import replace
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import Iterable
 
 from tuba.analysis import AnalysisStudy
@@ -12,7 +11,7 @@ from tuba.analysis.provenance import VOLUME_CODE_ASTER_COMPILER_ID, build_solver
 from tuba.meshing import build_pipe_volume_mesh
 from tuba.model import TubaModel
 from tuba.solver.aster_loads import resolve_operation_field_groups
-from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar
+from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
 from tuba.solver.modelisation import PipeModelization
 
 
@@ -114,23 +113,7 @@ class PipeVolumeStudyExporter:
             metadata=metadata,
             solver_input_identity=identity,
         )
-        portable_study = replace(
-            study,
-            work_dir=None,
-            input_files={role: PureWindowsPath(value).name for role, value in study.input_files.items()},
-        )
-        portable_mesh = replace(
-            analysis_mesh,
-            files={role: PureWindowsPath(value).name for role, value in analysis_mesh.files.items()},
-        )
-        manifest_path.write_text(
-            json.dumps(
-                {"study": portable_study.to_dict(), "analysis_mesh": portable_mesh.to_dict()},
-                indent=2,
-                sort_keys=True,
-            ),
-            encoding="utf-8",
-        )
+        dump_study_manifest(manifest_path, study, analysis_mesh)
         return study
 
 

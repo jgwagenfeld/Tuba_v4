@@ -25,13 +25,25 @@ from tuba.solver.code_aster_runtime import ATTESTED_CODE_ASTER_FILES
 OFFICIAL_BUNDLES = (
     "autorouted-expansion-loop",
     "code-aster-review",
+    "gmsh-tee-mesh-review",
     "imported_component_mixed_demo",
     "pipe-tee-volume-review",
     "support-rack-review",
 )
 
 
-def test_pages_catalog_contains_the_five_validated_official_bundles(tmp_path: Path) -> None:
+def test_gmsh_mesh_viewer_recipe_builds_an_unsolved_scene() -> None:
+    from examples.gmsh_tee_mesh_review import build
+
+    scene = build()
+
+    assert scene.extra["publication_status"] == "mesh_only_unsolved"
+    assert not scene.result_fields
+    assert any(obj.kind == "analysis_mesh_surface" for obj in scene.objects)
+    assert not any(layer.category == "results" for layer in scene.layers)
+
+
+def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -> None:
     """Catches a publisher that omits an official example or its catalog."""
     bundle_ids = build_examples(tmp_path, audience="pages")
 
@@ -71,6 +83,19 @@ def test_pages_catalog_contains_the_five_validated_official_bundles(tmp_path: Pa
     assert any(obj["kind"] == "analysis_mesh_surface" for obj in tee["objects"])
     assert any(obj["kind"] == "volume_stress_field" for obj in tee["objects"])
     assert "visualization_only_not_asme_code_stress" in json.dumps(tee)
+
+    mesh_review = json.loads(
+        (tmp_path / "gmsh-tee-mesh-review" / "scene.json").read_text(encoding="utf-8")
+    )
+    assert mesh_review["publication_status"] == "mesh_only_unsolved"
+    assert mesh_review["result_fields"] == []
+    assert any(obj["kind"] == "analysis_mesh_surface" for obj in mesh_review["objects"])
+    assert not any(layer["category"] == "results" for layer in mesh_review["layers"])
+    assert next(
+        layer for layer in mesh_review["layers"] if layer["id"] == "analysis_mesh:volume_skin"
+    )["default_visible"]
+    assert not next(layer for layer in mesh_review["layers"] if layer["id"] == "pipe")["default_visible"]
+    assert "no solver results" in json.dumps(mesh_review).lower()
 
     model_review = json.loads(
         (tmp_path / "imported_component_mixed_demo" / "scene.json").read_text(encoding="utf-8")

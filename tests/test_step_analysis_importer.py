@@ -148,14 +148,25 @@ def test_import_component_preserves_existing_gmsh_session(tmp_path: Path, monkey
 
     class FakeModel:
         occ = FakeOcc()
+        current = "caller_model"
 
-        @staticmethod
-        def add(name):
+        @classmethod
+        def add(cls, name):
             calls.append(f"add:{name}")
+            cls.current = name
 
         @staticmethod
         def remove():
             calls.append("remove")
+
+        @classmethod
+        def getCurrent(cls):
+            return cls.current
+
+        @classmethod
+        def setCurrent(cls, name):
+            calls.append(f"set:{name}")
+            cls.current = name
 
         @staticmethod
         def getBoundary(entities, oriented=False, recursive=False):
@@ -190,4 +201,5 @@ def test_import_component_preserves_existing_gmsh_session(tmp_path: Path, monkey
     assert "port_candidate_0" in model.ports
     assert "initialize" not in calls
     assert "finalize" not in calls
-    assert "remove" not in calls
+    assert "remove" in calls
+    assert FakeModel.current == "caller_model"

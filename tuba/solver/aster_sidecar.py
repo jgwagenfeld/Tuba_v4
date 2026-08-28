@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import replace
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Iterable
 
 from tuba.analysis.mesh import AnalysisMesh
@@ -83,6 +83,31 @@ def dump_solver_sidecar(
     if solver_input_identity is not None:
         payload["solver_input_identity"] = solver_input_identity.to_dict()
     Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def dump_study_manifest(
+    path: str | Path,
+    study: AnalysisStudy,
+    analysis_mesh: AnalysisMesh,
+) -> None:
+    """Write portable study and mesh records for artifact transfer."""
+    portable_study = replace(
+        study,
+        work_dir=None,
+        input_files={role: PureWindowsPath(value).name for role, value in study.input_files.items()},
+    )
+    portable_mesh = replace(
+        analysis_mesh,
+        files={role: PureWindowsPath(value).name for role, value in analysis_mesh.files.items()},
+    )
+    Path(path).write_text(
+        json.dumps(
+            {"study": portable_study.to_dict(), "analysis_mesh": portable_mesh.to_dict()},
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def load_and_validate_artifact_chain(

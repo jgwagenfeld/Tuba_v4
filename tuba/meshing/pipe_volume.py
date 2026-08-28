@@ -13,6 +13,7 @@ import numpy as np
 
 from tuba.analysis.mesh import AnalysisMesh, MeshElementSource, MeshNodeSource
 from tuba.geometry.junctions import classify_tee_junction
+from tuba.meshing._gmsh import gmsh_model
 from tuba.model import BendGeometry, PipeSection, TubaModel, sample_bend_geometry
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map
@@ -58,90 +59,59 @@ def build_pipe_volume_mesh(
     selection = _preflight(model, element_ids, max_element_size, element_order)
     output = Path(output_path)
     temporary = output.with_name(f".{output.stem}-{uuid4().hex}.tmp.med")
-    owned_session = not bool(gmsh.isInitialized())
-    previous_model = gmsh.model.getCurrent() if not owned_session else ""
-    created_model = f"tuba_pipe_volume_{uuid4().hex}"
-    option_names = (
-        "General.Terminal",
-        "Mesh.MeshSizeMin",
-        "Mesh.MeshSizeMax",
-        "Mesh.MeshSizeFromCurvature",
-        "Mesh.ElementOrder",
-    )
-    previous_options = (
-        {name: gmsh.option.getNumber(name) for name in option_names}
-        if not owned_session
-        else {}
-    )
-
     try:
-        if owned_session:
-            gmsh.initialize(["-noenv"])
-        gmsh.model.add(created_model)
-        gmsh.option.setNumber("General.Terminal", 0)
-        if selection.tee_node is None:
-            selected_pipe = selection.pipes[0]
-            volume_tags, surface_groups = (
-                _build_bend_geometry(selected_pipe)
-                if selected_pipe.bend_geometry is not None
-                else _build_straight_geometry(selected_pipe)
+        with gmsh_model(
+            gmsh,
+            "tuba_pipe_volume",
+            initialize_args=["-noenv"],
+            options={
+                "General.Terminal": 0,
+                "Mesh.MeshSizeMin": max_element_size,
+                "Mesh.MeshSizeMax": max_element_size,
+                "Mesh.MeshSizeFromCurvature": 20,
+                "Mesh.ElementOrder": element_order,
+            },
+        ):
+            if selection.tee_node is None:
+                selected_pipe = selection.pipes[0]
+                volume_tags, surface_groups = (
+                    _build_bend_geometry(selected_pipe)
+                    if selected_pipe.bend_geometry is not None
+                    else _build_straight_geometry(selected_pipe)
+                )
+            else:
+                volume_tags, surface_groups = _build_tee_geometry(model, selection)
+            raw_entities: dict[str, tuple[int, tuple[int, ...]]] = {
+                "G_SOLID_region_0": (3, volume_tags),
+                **{name: (2, tags) for name, tags in surface_groups.items()},
+            }
+            if selection.tee_node is not None:
+                raw_entities[f"G_TEE_{selection.tee_node}"] = (3, volume_tags)
+            name_map = build_solver_name_map(raw_entities)
+            for raw_name, (dimension, tags) in raw_entities.items():
+                physical = gmsh.model.addPhysicalGroup(dimension, list(tags))
+                gmsh.model.setPhysicalName(dimension, physical, name_map[raw_name])
+
+            gmsh.model.mesh.generate(3)
+            gmsh.model.mesh.setOrder(element_order)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            gmsh.write(str(temporary))
+            if not temporary.is_file() or temporary.stat().st_size == 0:
+                raise RuntimeError("Gmsh did not write a non-empty MED mesh.")
+
+            analysis_mesh, groups, vertices, faces = _readback(model, selection, output, raw_entities)
+            temporary.replace(output)
+            return GeneratedPipeVolumeMesh(
+                analysis_mesh=analysis_mesh,
+                groups=groups,
+                surface_vertices=vertices,
+                surface_faces=faces,
+                gmsh_version=str(gmsh.__version__),
+                settings={"element_order": element_order, "max_element_size": max_element_size},
+                med_path=output,
             )
-        else:
-            volume_tags, surface_groups = _build_tee_geometry(model, selection)
-        raw_entities: dict[str, tuple[int, tuple[int, ...]]] = {
-            "G_SOLID_region_0": (3, volume_tags),
-            **{name: (2, tags) for name, tags in surface_groups.items()},
-        }
-        if selection.tee_node is not None:
-            raw_entities[f"G_TEE_{selection.tee_node}"] = (3, volume_tags)
-        name_map = build_solver_name_map(raw_entities)
-        for raw_name, (dimension, tags) in raw_entities.items():
-            physical = gmsh.model.addPhysicalGroup(dimension, list(tags))
-            gmsh.model.setPhysicalName(dimension, physical, name_map[raw_name])
-
-        gmsh.option.setNumber("Mesh.MeshSizeMin", max_element_size)
-        gmsh.option.setNumber("Mesh.MeshSizeMax", max_element_size)
-        gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 20)
-        gmsh.option.setNumber("Mesh.ElementOrder", element_order)
-        gmsh.model.mesh.generate(3)
-        gmsh.model.mesh.setOrder(element_order)
-
-        output.parent.mkdir(parents=True, exist_ok=True)
-        gmsh.write(str(temporary))
-        if not temporary.is_file() or temporary.stat().st_size == 0:
-            raise RuntimeError("Gmsh did not write a non-empty MED mesh.")
-
-        analysis_mesh, groups, vertices, faces = _readback(
-            model,
-            selection,
-            output,
-            raw_entities,
-        )
-        temporary.replace(output)
-        return GeneratedPipeVolumeMesh(
-            analysis_mesh=analysis_mesh,
-            groups=groups,
-            surface_vertices=vertices,
-            surface_faces=faces,
-            gmsh_version=str(gmsh.__version__),
-            settings={"element_order": element_order, "max_element_size": max_element_size},
-            med_path=output,
-        )
     finally:
         temporary.unlink(missing_ok=True)
-        if gmsh.isInitialized():
-            try:
-                gmsh.model.setCurrent(created_model)
-                gmsh.model.remove()
-            except Exception:
-                pass
-            if owned_session:
-                gmsh.finalize()
-            else:
-                for name, value in previous_options.items():
-                    gmsh.option.setNumber(name, value)
-                if previous_model:
-                    gmsh.model.setCurrent(previous_model)
 
 
 def _preflight(
@@ -449,14 +419,30 @@ def _readback(
     tuple[tuple[int, int, int], ...],
 ]:
     node_tags, coordinates, _parameters = gmsh.model.mesh.getNodes()
+    if not np.isfinite(coordinates).all():
+        raise RuntimeError("Gmsh generated non-finite node coordinates.")
     coordinates_by_tag = {
         int(tag): tuple(float(value) for value in coordinates[index * 3 : index * 3 + 3])
         for index, tag in enumerate(node_tags)
     }
-    source_ref = EntityRef("element", selection.pipes[0].element_id)
+    source_ref = (
+        EntityRef("node", selection.tee_node)
+        if selection.tee_node is not None
+        else EntityRef("element", selection.pipes[0].element_id)
+    )
+    source_metadata = (
+        {"source_element_refs": sorted(f"element:{pipe.element_id}" for pipe in selection.pipes)}
+        if selection.tee_node is not None
+        else {}
+    )
     nodes = {f"VN{tag}": value for tag, value in coordinates_by_tag.items()}
     node_sources = {
-        node_id: MeshNodeSource(node_id=node_id, source_ref=source_ref, role="volume_node")
+        node_id: MeshNodeSource(
+            node_id=node_id,
+            source_ref=source_ref,
+            role="volume_node",
+            metadata=source_metadata,
+        )
         for node_id in nodes
     }
 
@@ -479,6 +465,7 @@ def _readback(
                     element_id=mesh_id,
                     source_ref=source_ref,
                     role="volume_cell",
+                    metadata=source_metadata,
                 )
                 volume_mesh_tags.append(int(element_tag))
     if not volume_mesh_tags:
@@ -486,6 +473,7 @@ def _readback(
     qualities = np.asarray(gmsh.model.mesh.getElementQualities(volume_mesh_tags, "minSJ"), dtype=float)
     if not qualities.size or not np.isfinite(qualities).all() or float(qualities.min()) <= 0.0:
         raise RuntimeError("Gmsh generated an invalid quadratic tetrahedral cell.")
+    _require_connected_volume(elements)
 
     groups: dict[str, tuple[str, ...]] = {
         raw_name: tuple(elements)
@@ -535,3 +523,26 @@ def _readback(
         },
     )
     return analysis_mesh, groups, vertices, faces
+
+
+def _require_connected_volume(elements: dict[str, tuple[str, ...]]) -> None:
+    neighbours = {element_id: set() for element_id in elements}
+    face_owner: dict[frozenset[str], str] = {}
+    for element_id, node_ids in elements.items():
+        corners = node_ids[:4]
+        for omitted in range(4):
+            face = frozenset(node_id for index, node_id in enumerate(corners) if index != omitted)
+            owner = face_owner.setdefault(face, element_id)
+            if owner != element_id:
+                neighbours[element_id].add(owner)
+                neighbours[owner].add(element_id)
+    visited: set[str] = set()
+    pending = [next(iter(elements))]
+    while pending:
+        element_id = pending.pop()
+        if element_id in visited:
+            continue
+        visited.add(element_id)
+        pending.extend(neighbours[element_id] - visited)
+    if len(visited) != len(elements):
+        raise RuntimeError("Gmsh generated a disconnected volume mesh.")

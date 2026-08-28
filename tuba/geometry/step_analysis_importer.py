@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from tuba.meshing._gmsh import gmsh_model
 from tuba.model import TubaModel
 
 try:
@@ -38,15 +39,7 @@ class StepAnalysisImporter:
         if gmsh is None:
             raise StepImportError("gmsh is required to import STEP files for mixed analysis.")
 
-        owns_gmsh = False
-        model_added = False
-        try:
-            if not gmsh.isInitialized():
-                gmsh.initialize()
-                owns_gmsh = True
-
-            gmsh.model.add(id)
-            model_added = True
+        with gmsh_model(gmsh, f"tuba_step_{id}"):
             imported = gmsh.model.occ.importShapes(str(path))
             gmsh.model.occ.synchronize()
 
@@ -62,17 +55,6 @@ class StepAnalysisImporter:
                 content_digest=digest,
                 ports=ports,
             )
-        finally:
-            if owns_gmsh and model_added:
-                try:
-                    gmsh.model.remove()
-                except Exception:
-                    pass
-            if owns_gmsh:
-                try:
-                    gmsh.finalize()
-                except Exception:
-                    pass
 
     def record_component_from_metadata(
         self,

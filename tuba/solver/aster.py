@@ -19,7 +19,7 @@ import os
 import re
 import tempfile
 from dataclasses import replace
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
@@ -43,11 +43,13 @@ from tuba.solver.aster_sidecar import (
     SolverNameMap,
     build_solver_name_map,
     dump_solver_sidecar,
+    dump_study_manifest,
     load_and_validate_artifact_chain,
 )
 from tuba.solver.code_aster_runtime import (
     CodeAsterExecution,
     CodeAsterRuntimeConfig,
+    load_code_aster_execution_attestation,
     run_code_aster_export,
     validate_code_aster_execution_attestation,
     write_code_aster_execution_attestation,
@@ -142,6 +144,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         self,
         model: TubaModel,
         load_case_name: Optional[str] = None,
+        *,
+        force: bool = False,
     ) -> AnalysisRun:
         """Run a static piping analysis through Code_Aster.
 
@@ -166,7 +170,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             If Code_Aster returns a non-zero exit code.
         """
         study = self.export_analysis_study(model, load_case_name)
-        return self.solve_exported_study(model, study)
+        return self.solve_exported_study(model, study, force=force)
 
     def export_study(
         self,
@@ -310,20 +314,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             },
             solver_input_identity=solver_input_identity,
         )
-        portable_study = replace(
-            study,
-            work_dir=None,
-            input_files={role: PureWindowsPath(value).name for role, value in study.input_files.items()},
-        )
-        portable_mesh = replace(
-            analysis_mesh,
-            files={role: PureWindowsPath(value).name for role, value in analysis_mesh.files.items()},
-        )
-        manifest = {
-            "study": portable_study.to_dict(),
-            "analysis_mesh": portable_mesh.to_dict(),
-        }
-        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+        dump_study_manifest(manifest_path, study, analysis_mesh)
         return study
 
     def export_mixed_analysis_study(
@@ -370,6 +361,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         max_element_size: float,
         element_order: int = 2,
         export_tensor_stress: bool = True,
+        force: bool = False,
     ) -> AnalysisRun:
         """Generate, execute, attest, and import an explicit pipe-volume study."""
         output_dir = self.work_dir or Path(tempfile.mkdtemp(prefix="tuba_aster_volume_"))
@@ -382,10 +374,22 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             element_order=element_order,
             export_tensor_stress=export_tensor_stress,
         )
-        return self.solve_exported_study(model, study)
+        return self.solve_exported_study(model, study, force=force)
 
-    def solve_exported_study(self, model: TubaModel, study: AnalysisStudy) -> AnalysisRun:
-        """Execute an exported study and return its verified analysis run."""
+    def solve_exported_study(
+        self,
+        model: TubaModel,
+        study: AnalysisStudy,
+        *,
+        force: bool = False,
+    ) -> AnalysisRun:
+        """Execute an exported study and return its verified analysis run.
+
+        A previous solve in the same work directory is reused when its
+        attestation still binds to this study's solver input identity. Any
+        model edit changes that identity and forces a fresh solve; pass
+        ``force=True`` to re-execute regardless.
+        """
         self._require_solve_ready_study(study)
         work_dir = Path(study.work_dir)
         _, manifest_study, _, _ = load_and_validate_artifact_chain(
@@ -396,15 +400,34 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         )
         if manifest_study is not None:
             self._require_solve_ready_study(manifest_study)
-        execution = self._execute(work_dir)
-        write_code_aster_execution_attestation(
-            work_dir,
-            execution,
-            (manifest_study or study).solver_input_identity,
-        )
+        identity = (manifest_study or study).solver_input_identity
+        if force or not self._attested_solve_matches(work_dir, identity):
+            execution = self._execute(work_dir)
+            write_code_aster_execution_attestation(work_dir, execution, identity)
+        else:
+            logger.info("Reusing attested Code_Aster solve in %s", work_dir)
         from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 
         return import_code_aster_artifacts(model=model, work_dir=work_dir, study=study)
+
+    @staticmethod
+    def _attested_solve_matches(work_dir: Path, identity: SolverInputIdentity) -> bool:
+        """Report whether ``work_dir`` already holds a solve for this identity.
+
+        This is a cheap reuse probe, not the trust check. Any unreadable,
+        mismatched, or incomplete attestation is a miss that re-executes, so a
+        half-deleted work directory still solves instead of raising.
+        ``import_code_aster_artifacts`` still runs the full attestation
+        validation on whatever is reused.
+        """
+        try:
+            payload = load_code_aster_execution_attestation(work_dir)
+            if payload is None:
+                return False
+            attested = SolverInputIdentity.from_dict(payload["solver_input_identity"])
+        except (KeyError, OSError, TypeError, ValueError):
+            return False
+        return attested == identity
 
     def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
         metadata = study.metadata

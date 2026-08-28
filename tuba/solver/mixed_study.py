@@ -9,9 +9,10 @@ from typing import Any
 
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
 from tuba.analysis.provenance import MIXED_CODE_ASTER_COMPILER_ID, build_solver_input_identity
+from tuba.meshing._gmsh import gmsh_model
 from tuba.model import TubaModel
 from tuba.refs import EntityRef
-from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar
+from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
 
 
 class MixedCodeAsterStudyExporter:
@@ -90,11 +91,7 @@ class MixedCodeAsterStudyExporter:
             },
             solver_input_identity=solver_input_identity,
         )
-        manifest = {
-            "study": study.to_dict(),
-            "analysis_mesh": analysis_mesh.to_dict(),
-        }
-        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+        dump_study_manifest(manifest_path, study, analysis_mesh)
         return study
 
     def _write_med(self, model: TubaModel, path: Path) -> None:
@@ -122,67 +119,48 @@ class MixedCodeAsterStudyExporter:
             raise RuntimeError("gmsh is required to write MED studies from STEP assets.") from exc
 
         name_map = self._group_name_map(model)
-        owns_gmsh = False
-        model_added = False
         try:
-            if not gmsh.isInitialized():
-                gmsh.initialize()
-                owns_gmsh = True
+            with gmsh_model(gmsh, "tuba_mixed"):
+                volume_tags_by_asset: dict[str, list[int]] = {}
+                known_volume_tags: set[int] = set()
+                for asset in self._existing_step_assets(model):
+                    source = Path(asset.source_path)
+                    gmsh.model.occ.importShapes(str(source))
+                    gmsh.model.occ.synchronize()
+                    current_volume_tags = {tag for _, tag in gmsh.model.getEntities(3)}
+                    volume_tags_by_asset[asset.id] = sorted(current_volume_tags - known_volume_tags)
+                    known_volume_tags = current_volume_tags
 
-            gmsh.model.add("tuba_mixed")
-            model_added = True
+                volume_tags = sorted(known_volume_tags)
+                for region in model.analysis_regions.values():
+                    region_volume_tags = self._region_volume_tags(model, region, volume_tags_by_asset, volume_tags)
+                    if region.role == "solid_3d" and region_volume_tags:
+                        gmsh.model.addPhysicalGroup(
+                            3,
+                            region_volume_tags,
+                            name=name_map[region.mesh_group],
+                        )
 
-            volume_tags_by_asset: dict[str, list[int]] = {}
-            known_volume_tags: set[int] = set()
-            for asset in self._existing_step_assets(model):
-                source = Path(asset.source_path)
-                gmsh.model.occ.importShapes(str(source))
-                gmsh.model.occ.synchronize()
-                current_volume_tags = {tag for _, tag in gmsh.model.getEntities(3)}
-                volume_tags_by_asset[asset.id] = sorted(current_volume_tags - known_volume_tags)
-                known_volume_tags = current_volume_tags
+                pipe_line_tags = []
+                for element in self._line_elements_for_med(model):
+                    n1 = model.nodes[element.n1].coords
+                    n2 = model.nodes[element.n2].coords
+                    p1 = gmsh.model.geo.addPoint(float(n1[0]), float(n1[1]), float(n1[2]), 1.0)
+                    p2 = gmsh.model.geo.addPoint(float(n2[0]), float(n2[1]), float(n2[2]), 1.0)
+                    pipe_line_tags.append(gmsh.model.geo.addLine(p1, p2))
+                gmsh.model.geo.synchronize()
+                if pipe_line_tags:
+                    gmsh.model.addPhysicalGroup(1, pipe_line_tags, name=name_map["G_TUBE"])
 
-            volume_tags = sorted(known_volume_tags)
-            for region in model.analysis_regions.values():
-                region_volume_tags = self._region_volume_tags(model, region, volume_tags_by_asset, volume_tags)
-                if region.role == "solid_3d" and region_volume_tags:
-                    gmsh.model.addPhysicalGroup(
-                        3,
-                        region_volume_tags,
-                        name=name_map[region.mesh_group],
-                    )
+                for port in model.ports.values():
+                    face_tag = port.metadata.get("gmsh_face_tag")
+                    if port.face_group and isinstance(face_tag, int):
+                        gmsh.model.addPhysicalGroup(2, [face_tag], name=name_map[port.face_group])
 
-            pipe_line_tags = []
-            for element in self._line_elements_for_med(model):
-                n1 = model.nodes[element.n1].coords
-                n2 = model.nodes[element.n2].coords
-                p1 = gmsh.model.geo.addPoint(float(n1[0]), float(n1[1]), float(n1[2]), 1.0)
-                p2 = gmsh.model.geo.addPoint(float(n2[0]), float(n2[1]), float(n2[2]), 1.0)
-                pipe_line_tags.append(gmsh.model.geo.addLine(p1, p2))
-            gmsh.model.geo.synchronize()
-            if pipe_line_tags:
-                gmsh.model.addPhysicalGroup(1, pipe_line_tags, name=name_map["G_TUBE"])
-
-            for port in model.ports.values():
-                face_tag = port.metadata.get("gmsh_face_tag")
-                if port.face_group and isinstance(face_tag, int):
-                    gmsh.model.addPhysicalGroup(2, [face_tag], name=name_map[port.face_group])
-
-            gmsh.model.mesh.generate(3)
-            gmsh.write(str(path))
+                gmsh.model.mesh.generate(3)
+                gmsh.write(str(path))
         except Exception as exc:
             raise RuntimeError(f"Failed to write Gmsh MED mesh {path}: {exc}") from exc
-        finally:
-            if model_added:
-                try:
-                    gmsh.model.remove()
-                except Exception:
-                    pass
-            if owns_gmsh:
-                try:
-                    gmsh.finalize()
-                except Exception:
-                    pass
         if not path.exists() or path.stat().st_size == 0:
             raise RuntimeError(f"Gmsh MED writer produced an empty file: {path}")
 

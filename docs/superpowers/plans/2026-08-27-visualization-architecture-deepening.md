@@ -19,7 +19,7 @@
 - Treat this as a cleanup, not a compatibility exercise: trace every live caller, migrate it in the same task, and delete the superseded code instead of keeping aliases, wrappers, parallel lists, or deprecated entry points.
 - Prefer a net reduction in executable LOC across each affected ownership area. Any unavoidable added line must replace caller knowledge or duplicated policy; reviewers must call out avoidable additions.
 - Write each behavioral test first, run it, and record the expected RED before the minimum GREEN implementation.
-- Preserve the untracked `logs_82787023332.zip`; do not stage, modify, or delete it.
+- Preserve unrelated tracked and untracked work; do not stage, modify, or delete it.
 - Work in the user's current `main` checkout as explicitly requested. Keep commits local and do not push.
 - Each task must leave its focused tests green and create one local commit containing only its intended paths.
 
@@ -238,6 +238,6 @@ Set-Location viewer
 npm.cmd test
 ```
 
-Also run `git diff --check`, inspect `git status --short`, and confirm `logs_82787023332.zip` remains untouched. A final independent reviewer must inspect the complete implementation diff against this plan before completion is claimed.
+Also run `git diff --check`, inspect `git status --short`, and confirm unrelated work remains untouched. A final independent reviewer must inspect the complete implementation diff against this plan before completion is claimed.
 
 The final review must also run `rg` for deleted legacy symbols (`OFFICIAL_EXAMPLES`, `_build_solver_result_scene`, `solver_results=`, `result_deformation_scale`, and `createViewerStore`) in live source/tests, explain any intentional historical-document match, and compare executable-line additions/deletions for avoidable growth.

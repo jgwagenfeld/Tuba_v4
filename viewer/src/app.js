@@ -48,7 +48,7 @@ import {
 } from "./units.js";
 import { cockpitStatusViewModel, workflowViewModel } from "./reviewTables.js";
 import { getReviewEntityAction } from "./reviewSelection.js";
-import { categorizeLayers, createViewerState, loadSceneBundleFromUrl } from "./sceneLoader.js";
+import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { getPropertySections, pickObjectAt } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
@@ -116,7 +116,7 @@ const dom = {
 
 const startupParams = new URLSearchParams(window.location.search);
 const startupConfig = Object.freeze({
-  bundleUrl: startupParams.get("bundle") || "code-aster-review",
+  requestedBundle: startupParams.get("bundle"),
   embed: startupParams.get("embed") === "1",
   previewWebSocketUrl: startupParams.get("preview_ws")
 });
@@ -152,7 +152,8 @@ globalThis.__tubaViewerBootId = bootId;
 globalThis.__tubaViewerPreviewEvents ??= [];
 
 async function main() {
-  currentBundleUrl = startupConfig.bundleUrl;
+  const bundleIds = await loadBundleCatalog();
+  currentBundleUrl = resolveBundleId(startupConfig.requestedBundle, bundleIds);
   document.body.dataset.embed = String(startupConfig.embed);
   dom.appShell.dataset.embed = String(startupConfig.embed);
   try {
@@ -160,7 +161,7 @@ async function main() {
     await loadBundle(currentBundleUrl, { preserve: false });
     setStatus("Ready");
     render();
-    await initBundlePicker();
+    await initBundlePicker(bundleIds);
     if (startupConfig.previewWebSocketUrl) {
       connectLivePreview(startupConfig.previewWebSocketUrl);
     }
@@ -172,18 +173,22 @@ async function main() {
 // Populate the header dropdown from the /bundles.json manifest (served by the
 // vite plugin in dev, emitted at build). Absent manifest or a lone example ->
 // stay hidden; this is a convenience control, never a hard dependency.
-async function initBundlePicker() {
-  if (startupConfig.embed || !dom.bundlePicker) {
-    return;
-  }
-  let bundles = [];
+async function loadBundleCatalog() {
   try {
     const response = await fetch("./bundles.json");
     if (response.ok) {
-      bundles = await response.json();
+      const bundles = await response.json();
+      return Array.isArray(bundles) ? bundles : [];
     }
   } catch {
-    // No manifest available (e.g. bundle served without the vite plugin).
+    // A standalone bundle does not need a gallery catalog.
+  }
+  return [];
+}
+
+async function initBundlePicker(bundles) {
+  if (startupConfig.embed || !dom.bundlePicker) {
+    return;
   }
   if (!Array.isArray(bundles) || bundles.length <= 1) {
     dom.bundlePicker.hidden = true;

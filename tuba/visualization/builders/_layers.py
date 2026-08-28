@@ -130,6 +130,7 @@ def build_layer_registry(
     """Return the scene's layers plus diagnostics for unclassified content."""
     layers: dict[str, SceneLayer] = {}
     diagnostics: list[SceneDiagnostic] = []
+    has_volume_skin = any(mesh.surface_mesh is not None for mesh in analysis_meshes)
 
     def add(layer_id: str, category: str | None, label: str, source: str, source_kind: str) -> None:
         if layer_id in layers:
@@ -146,7 +147,12 @@ def build_layer_registry(
                     ),
                 )
             )
-        layers[layer_id] = SceneLayer(id=layer_id, category=category, label=_label_for(layer_id))
+        layers[layer_id] = SceneLayer(
+            id=layer_id,
+            category=category,
+            label=_label_for(layer_id),
+            default_visible=not (layer_id == "pipe" and has_volume_skin),
+        )
 
     for obj in objects:
         layer_ids = list(obj.layer_ids) if obj.layer_ids else [obj.kind or "object"]
