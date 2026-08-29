@@ -1968,8 +1968,10 @@ body[data-view="gallery"] .app-shell {
   display: none;
 }
 
+/* No display rule here on purpose. A <main> is already block, and an author
+   `display` would override the UA's [hidden] rule - which it did, leaving an
+   empty full-viewport panel covering every review. */
 .gallery {
-  display: block;
   min-height: 100vh;
   padding: 3rem 1.5rem 4rem;
   background: var(--graphite);

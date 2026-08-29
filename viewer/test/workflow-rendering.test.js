@@ -298,3 +298,13 @@ test("reports tab offers the authoring script as a download, not a page to open"
   // alone has no rule in styles.css.
   assert.match(app, /"report-link evidence-report-link evidence-source-link"/);
 });
+
+test("gallery panel never overrides the hidden attribute", async () => {
+  const css = await readViewerFile("src/styles.css");
+
+  // `.gallery { display: ... }` is an author rule and beats the UA
+  // `[hidden] { display: none }`, which left an empty full-viewport panel on
+  // top of every review. A <main> is block already; it needs no display rule.
+  const block = css.slice(css.indexOf("\n.gallery {"), css.indexOf("\n.gallery-heading"));
+  assert.doesNotMatch(block, /display\s*:/, "the .gallery rule must not set display");
+});

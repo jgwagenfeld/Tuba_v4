@@ -759,6 +759,14 @@ const scenarios = {
     async run(page) {
       const picker = page.getByRole("combobox", { name: "Example scene", exact: true });
       await picker.waitFor({ state: "visible" });
+      // The landing gallery must stay out of the way on a review page. An
+      // author `display` rule once beat the UA [hidden] rule and left an empty
+      // full-viewport panel covering the viewer.
+      assert.equal(await page.locator("[data-gallery]").isVisible(), false);
+      assert.ok(
+        await page.locator("[data-canvas]").isVisible(),
+        "the review canvas must be visible on a review page"
+      );
       assert.deepEqual(
         await picker.locator("option").evaluateAll((options) =>
           options.map((option) => ({ label: option.textContent, value: option.value }))
