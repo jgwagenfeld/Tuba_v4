@@ -16,7 +16,6 @@ import numpy as np
 
 from tuba.model import Element, TubaModel
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
-from tuba.meshing._gmsh import gmsh_model
 from tuba.refs import EntityRef
 from tuba.solver.modelisation import modelisation_assignments
 
@@ -30,6 +29,17 @@ class _SegmentMidpoint(NamedTuple):
     source_element_id: str
     segment_index: int
     coords: np.ndarray
+
+
+
+def _rotate_about_axis(vector: np.ndarray, unit_axis: np.ndarray, angle: float) -> np.ndarray:
+    """Rodrigues rotation of ``vector`` about a unit axis through the origin."""
+    cos_angle = np.cos(angle)
+    return (
+        vector * cos_angle
+        + np.cross(unit_axis, vector) * np.sin(angle)
+        + unit_axis * float(np.dot(unit_axis, vector)) * (1.0 - cos_angle)
+    )
 
 
 class _MeshWriterMixin:
@@ -74,7 +84,7 @@ class _MeshWriterMixin:
         bend_intermediate: Dict[str, List[Tuple[str, np.ndarray]]] = {}
 
         if bend_elems:
-            bend_intermediate = self._compute_bend_nodes_gmsh(
+            bend_intermediate = self._compute_bend_nodes(
                 model, bend_elems, N
             )
         pipe_midpoints = self._pipe_straight_midpoint_nodes(model, pipe_straights)
@@ -541,108 +551,63 @@ class _MeshWriterMixin:
     # Gmsh-based bend node computation
     # ------------------------------------------------------------------
 
-    def _compute_bend_nodes_gmsh(
+    def _compute_bend_nodes(
         self,
         model: TubaModel,
         bend_elems: List[Element],
         n_segments: int,
     ) -> Dict[str, List[Tuple[str, np.ndarray]]]:
-        """Use the Gmsh OCC kernel to discretise bend arcs.
+        """Discretise bend arcs into evenly spaced interior nodes.
 
-        For each bend element a proper OCC ``CircleArc`` is created from
-        *n1* through the computed arc centre to *n2*.  Transfinite
-        meshing with ``n_segments + 1`` nodes produces evenly spaced
-        intermediate points that lie exactly on the circular arc.
+        A transfinite curve on a circular arc is a uniform subdivision of the
+        swept angle, so the interior nodes are the start radius rotated about
+        the bend axis in equal steps. This used to ask Gmsh's OCC kernel for
+        the same points; doing the rotation directly agrees with it to about
+        1e-15 m and keeps the whole 1D solver handoff free of a compiled
+        meshing dependency.
 
         Returns
         -------
-        Dict mapping ``elem.id`` → list of ``(node_name, coord_array)``
-        for the ``n_segments - 1`` interior nodes.
+        Dict mapping ``elem.id`` -> list of ``(node_name, coord_array)`` for
+        the ``n_segments - 1`` interior nodes.
         """
         cache_key = (
             int(getattr(model, "revision", 0)),
             tuple(sorted(e.id for e in bend_elems)),
             int(n_segments),
         )
-        cached = self._bend_gmsh_cache.get(cache_key)
+        cached = self._bend_node_cache.get(cache_key)
         if cached is not None:
             return cached
 
-        import gmsh
-
         result: Dict[str, List[Tuple[str, np.ndarray]]] = {}
-        with gmsh_model(
-            gmsh,
-            "tuba_bend_mesh",
-            initialize_args=["-noenv"],
-            options={"General.Terminal": 0},
-        ):
-            # --- Create OCC points for every node referenced by bends -----
-            bend_node_ids: set[str] = set()
-            for elem in bend_elems:
-                bend_node_ids.add(elem.n1)
-                bend_node_ids.add(elem.n2)
+        for elem in bend_elems:
+            center, axis, r1, theta = self._get_bend_geometry(model, elem)
+            norm = float(np.linalg.norm(axis))
+            if norm <= 1e-12:
+                raise ValueError(f"Bend {elem.id!r} has a degenerate rotation axis.")
+            unit_axis = axis / norm
 
-            node_to_occ: Dict[str, int] = {}
-            for nid in bend_node_ids:
-                n = model.nodes[nid]
-                x, y, z = n.coords
-                tag = gmsh.model.occ.addPoint(x, y, z)
-                node_to_occ[nid] = tag
-
-            # --- Create OCC circle arcs -----------------------------------
-            bend_occ_curves: Dict[str, int] = {}
-            for elem in bend_elems:
-                C, _axis, _r1, _theta = self._get_bend_geometry(
-                    model, elem
-                )
-                center_tag = gmsh.model.occ.addPoint(C[0], C[1], C[2])
-                arc_tag = gmsh.model.occ.addCircleArc(
-                    node_to_occ[elem.n1],
-                    center_tag,
-                    node_to_occ[elem.n2],
-                )
-                bend_occ_curves[elem.id] = arc_tag
-
-            gmsh.model.occ.synchronize()
-
-            # --- Transfinite meshing & 1-D mesh generation ----------------
-            for elem in bend_elems:
-                gmsh.model.mesh.setTransfiniteCurve(
-                    bend_occ_curves[elem.id], n_segments + 1
+            # The arc must actually end on n2. A wrong axis sign would still
+            # produce plausible interior points, on the far side of the circle.
+            end = center + _rotate_about_axis(r1, unit_axis, theta)
+            expected_end = np.asarray(model.nodes[elem.n2].coords, dtype=float)
+            radius = float(np.linalg.norm(r1))
+            if float(np.linalg.norm(end - expected_end)) > max(1e-9, 1e-9 * radius):
+                raise ValueError(
+                    f"Bend {elem.id!r} arc geometry does not close on its end node; "
+                    "check the stored bend centre, normal and angle."
                 )
 
-            gmsh.model.mesh.generate(1)
-
-            # --- Extract intermediate node coordinates --------------------
-            for elem in bend_elems:
-                curve_tag = bend_occ_curves[elem.id]
-                node_tags, coords, param_coords = (
-                    gmsh.model.mesh.getNodes(
-                        1, curve_tag, includeBoundary=True
-                    )
+            result[elem.id] = [
+                (
+                    f"{elem.id}_n{index}",
+                    center + _rotate_about_axis(r1, unit_axis, theta * index / n_segments),
                 )
-                coords_3d = np.asarray(coords).reshape(-1, 3)
+                for index in range(1, n_segments)
+            ]
 
-                # Sort along the curve by parametric coordinate
-                sorted_idx = np.argsort(param_coords)
-                sorted_tags = node_tags[sorted_idx]
-                sorted_coords = coords_3d[sorted_idx]
-
-                # The sorted list may run n1→n2 or n2→n1 depending on
-                # internal OCC orientation.  Ensure n1 comes first.
-                start_occ = node_to_occ[elem.n1]
-                if int(sorted_tags[0]) != start_occ:
-                    sorted_coords = sorted_coords[::-1]
-
-                # Interior nodes are indices 1 … n_segments-1
-                int_nodes: List[Tuple[str, np.ndarray]] = []
-                for i in range(1, n_segments):
-                    name = f"{elem.id}_n{i}"
-                    int_nodes.append((name, sorted_coords[i].copy()))
-                result[elem.id] = int_nodes
-
-        self._bend_gmsh_cache[cache_key] = result
+        self._bend_node_cache[cache_key] = result
         return result
 
     @staticmethod

@@ -7,6 +7,7 @@ from typing import Iterable
 import numpy as np
 
 from tuba.analysis.mesh import AnalysisMesh
+from tuba.analysis.projection import centerline_node_ids
 from tuba.analysis.results import ResultState
 from tuba.analysis.states import GeometryState
 from tuba.clash.engine import _segment_aabb_distance
@@ -47,7 +48,12 @@ def check_operating_state(
         for index, obstacle in enumerate(model.obstacles)
         if _obstacle_bounds(obstacle) is not None
     }
-    candidate_pairs = candidate_obstacle_pairs_for_envelopes(model=model, envelopes=operating_envelopes)
+    candidate_pairs = candidate_obstacle_pairs_for_envelopes(
+        model=model,
+        envelopes=operating_envelopes,
+        result_state=result_state,
+        analysis_mesh=analysis_mesh,
+    )
     clashes: list[ClashResult] = []
     for element_id, obstacle_id in candidate_pairs:
         envelope = envelopes_by_element_id.get(element_id)
@@ -66,6 +72,7 @@ def check_operating_state(
                 operating_state=operating_state,
                 result_state=result_state,
                 envelope_type=envelope_type,
+                analysis_mesh=analysis_mesh,
             )
         )
     return clashes
@@ -75,6 +82,8 @@ def candidate_obstacle_pairs_for_envelopes(
     *,
     model: TubaModel,
     envelopes: tuple[DeformedEnvelope, ...],
+    result_state: ResultState | None = None,
+    analysis_mesh: AnalysisMesh | None = None,
 ) -> list[tuple[str, str]]:
     obstacle_index = _obstacle_spatial_index(model.obstacles)
     elements_by_id = {element.id: element for element in model.elements}
@@ -83,7 +92,16 @@ def candidate_obstacle_pairs_for_envelopes(
         element = elements_by_id.get(envelope.entity.id)
         bounds = envelope.bounds
         if element is not None:
-            bounds = union_bounds(bounds, _cold_polyline_bounds(model, element, envelope.radius_m))
+            bounds = union_bounds(
+                bounds,
+                _cold_polyline_bounds(
+                    model,
+                    element,
+                    envelope.radius_m,
+                    result_state=result_state,
+                    analysis_mesh=analysis_mesh,
+                ),
+            )
         query_bounds.append((envelope.entity.id, bounds))
     return obstacle_index.candidate_pairs(query_bounds)
 
@@ -97,6 +115,7 @@ def _check_envelope_obstacle(
     operating_state: GeometryState,
     result_state: ResultState,
     envelope_type: str,
+    analysis_mesh: AnalysisMesh | None = None,
 ) -> Iterable[ClashResult]:
     if obstacle.get("type") not in ("cuboid", "cylinder"):
         return []
@@ -106,7 +125,9 @@ def _check_envelope_obstacle(
     lo = np.asarray(obstacle["min_point"], dtype=float)
     hi = np.asarray(obstacle["max_point"], dtype=float)
     radius = envelope.radius_m
-    cold_polyline = _cold_polyline(model, element)
+    cold_polyline = _cold_polyline(
+        model, element, result_state=result_state, analysis_mesh=analysis_mesh
+    )
     cold_distance, _cold_location = _polyline_aabb_distance(cold_polyline, lo, hi)
     operating_distance, operating_location = _polyline_aabb_distance(envelope.polyline, lo, hi)
 
@@ -151,14 +172,53 @@ def _classify(cold_overlaps: bool, operating_overlaps: bool, envelope_type: str)
     return "resolved_in_operating"
 
 
-def _cold_polyline(model: TubaModel, element: Element) -> tuple[tuple[float, float, float], ...]:
-    p1 = tuple(float(value) for value in model.nodes[element.n1].coords)
-    p2 = tuple(float(value) for value in model.nodes[element.n2].coords)
-    return (p1, p2)
+def _cold_polyline(
+    model: TubaModel,
+    element: Element,
+    *,
+    result_state: ResultState | None = None,
+    analysis_mesh: AnalysisMesh | None = None,
+) -> tuple[tuple[float, float, float], ...]:
+    """The undeformed centreline, discretised exactly as the operating one is.
+
+    A bend's operating centreline runs through the generated interior nodes,
+    so measuring the cold side on the two-point chord compared two different
+    curves: the chord cuts inside the arc, and the difference showed up as
+    movement the solver never reported.
+    """
+    node_ids, _diagnostics = centerline_node_ids(
+        element=element,
+        result_state=result_state,
+        analysis_mesh=analysis_mesh,
+    ) if result_state is not None else ((element.n1, element.n2), ())
+    return tuple(
+        tuple(float(value) for value in _undeformed_point(model, analysis_mesh, node_id))
+        for node_id in node_ids
+    )
 
 
-def _cold_polyline_bounds(model: TubaModel, element: Element, radius: float) -> Bounds:
-    points = np.asarray(_cold_polyline(model, element), dtype=float)
+def _undeformed_point(
+    model: TubaModel, analysis_mesh: AnalysisMesh | None, node_id: str
+) -> np.ndarray:
+    if node_id in model.nodes:
+        return np.asarray(model.nodes[node_id].coords, dtype=float)
+    if analysis_mesh is not None and node_id in analysis_mesh.nodes:
+        return np.asarray(analysis_mesh.nodes[node_id], dtype=float)
+    raise KeyError(f"Cannot place unknown node {node_id!r}.")
+
+
+def _cold_polyline_bounds(
+    model: TubaModel,
+    element: Element,
+    radius: float,
+    *,
+    result_state: ResultState | None = None,
+    analysis_mesh: AnalysisMesh | None = None,
+) -> Bounds:
+    points = np.asarray(
+        _cold_polyline(model, element, result_state=result_state, analysis_mesh=analysis_mesh),
+        dtype=float,
+    )
     lo = points.min(axis=0) - radius
     hi = points.max(axis=0) + radius
     return tuple(float(value) for value in (*lo, *hi))

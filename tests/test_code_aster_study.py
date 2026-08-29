@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import numpy as np
 
+import numpy as np
+
 from tuba import Model
 from tuba.analysis import AnalysisMesh, AnalysisStudy
 from tuba.routing.adapter import apply_candidate_to_model
@@ -88,21 +90,42 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertEqual(str(mesh.element_sources["rack_beam_0"].source_ref), "element:rack_beam_0")
         self.assertIn("PipeElbows", mesh.groups)
 
-    def test_bend_gmsh_meshing_is_memoized_within_an_export(self):
+    def test_bend_discretisation_is_memoized_within_an_export(self):
         model = self._model_with_bend_and_structure()
         bends = [e for e in model.elements if e.type == "pipe_bend"]
         self.assertTrue(bends)
         solver = CodeAsterSolver()
 
-        first = solver._compute_bend_nodes_gmsh(model, bends, 16)
-        second = solver._compute_bend_nodes_gmsh(model, bends, 16)
-        self.assertIs(first, second)  # memoized: the OCC bend mesher runs once
+        first = solver._compute_bend_nodes(model, bends, 16)
+        second = solver._compute_bend_nodes(model, bends, 16)
+        self.assertIs(first, second)  # memoized: the arc is subdivided once
 
         # A fresh export clears the memo (so it never spans models), then the
-        # two .mail writes share a single Gmsh run -> exactly one cached entry.
+        # two .mail writes share one subdivision -> exactly one cached entry.
         with TemporaryDirectory() as tmpdir:
             solver.export_analysis_study(model, "Hot", tmpdir)
-        self.assertEqual(len(solver._bend_gmsh_cache), 1)
+        self.assertEqual(len(solver._bend_node_cache), 1)
+
+    def test_bend_arc_subdivision_closes_on_the_end_node(self):
+        """A wrong axis sign still yields plausible points - on the far side."""
+        model = self._model_with_bend_and_structure()
+        bend = next(e for e in model.elements if e.type == "pipe_bend")
+        solver = CodeAsterSolver()
+
+        interior = solver._compute_bend_nodes(model, [bend], 16)[bend.id]
+
+        self.assertEqual(len(interior), 15)
+        centre, axis, radius_vector, _theta = solver._get_bend_geometry(model, bend)
+        expected_radius = float(np.linalg.norm(radius_vector))
+        for _name, coord in interior:
+            self.assertAlmostEqual(
+                float(np.linalg.norm(coord - centre)), expected_radius, places=9
+            )
+        start = np.asarray(model.nodes[bend.n1].coords, dtype=float)
+        end = np.asarray(model.nodes[bend.n2].coords, dtype=float)
+        walked = [start, *(coord for _name, coord in interior), end]
+        steps = [float(np.linalg.norm(b - a)) for a, b in zip(walked, walked[1:])]
+        self.assertAlmostEqual(min(steps), max(steps), places=9)  # evenly spaced
 
     def test_export_study_keeps_returning_output_directory(self):
         model = self._model_with_bend_and_structure()
@@ -540,3 +563,58 @@ def _extract_gene_tuyau_vector(comm: str) -> np.ndarray:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOneDimensionalHandoffNeedsNoMesher(unittest.TestCase):
+    """The 1D path must stay free of compiled meshing dependencies.
+
+    Bend arcs are subdivided analytically rather than by Gmsh's OCC kernel, so
+    authoring a model and writing its complete Code_Aster handoff works in any
+    environment that has numpy - a browser runtime included. This is the guard
+    that keeps that true; without it a stray import quietly closes the door.
+    """
+
+    def test_authoring_and_study_export_never_reach_gmsh(self):
+        import builtins
+        import importlib
+        import sys
+
+        # Make gmsh genuinely unimportable rather than merely unused: that is
+        # the condition in a runtime where no compiled wheel exists at all.
+        blocked = {"gmsh", "pyvista", "h5py", "meshio", "ifcopenshell"}
+        real_import = builtins.__import__
+
+        def guarded_import(name, *args, **kwargs):
+            if name.split(".")[0] in blocked:
+                raise ImportError(f"No module named {name!r}")
+            return real_import(name, *args, **kwargs)
+
+        model = Model("BendHandoff", standard="ASME_B31.3")
+        model.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0, alpha=1.2e-5)
+        model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+        model.define_load_case("Operating", gravity=True, pressure=1.5e6, temperature=150.0)
+        with model.pipe(section="DN100", material="Steel") as builder:
+            builder.start([0.0, 0.0, 0.0], support="anchor")
+            builder.run(3.0)
+            builder.bend(radius=0.3, angle=90.0, plane="XY")
+            builder.run(2.0)
+            builder.end(support="anchor")
+        model.validate()
+
+        saved = {name: sys.modules.pop(name, None) for name in blocked}
+        builtins.__import__ = guarded_import
+        try:
+            importlib.reload(importlib.import_module("tuba.solver.aster_mesh"))
+            with TemporaryDirectory() as tmpdir:
+                study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(
+                    model, "Operating", tmpdir
+                )
+                written = {path.name for path in Path(tmpdir).iterdir()}
+        finally:
+            builtins.__import__ = real_import
+            for name, module in saved.items():
+                if module is not None:
+                    sys.modules[name] = module
+
+        self.assertIsNotNone(study.solver_input_identity)
+        self.assertTrue({"study.comm", "study.mail", "study.export"} <= written)

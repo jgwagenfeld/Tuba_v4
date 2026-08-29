@@ -134,7 +134,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         # export_analysis_study writes the .mail file twice (default names,
         # then solver names); without this the OCC bend mesher would run
         # twice. Cleared at each export entry so it never spans models.
-        self._bend_gmsh_cache: dict = {}
+        self._bend_node_cache: dict = {}
 
     # ==================================================================
     # Public API
@@ -194,7 +194,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         Path
             The path to the output directory containing the study files.
         """
-        self._bend_gmsh_cache.clear()
+        self._bend_node_cache.clear()
         # Resolve load case ------------------------------------------------
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
@@ -226,7 +226,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         output_dir: Optional[str | Path] = None,
     ) -> AnalysisStudy:
         """Generate Code_Aster input files plus a traceable analysis manifest."""
-        self._bend_gmsh_cache.clear()
+        self._bend_node_cache.clear()
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
 

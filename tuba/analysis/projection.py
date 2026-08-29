@@ -32,18 +32,9 @@ def project_deformed_centerline(
     analysis_mesh: AnalysisMesh | None = None,
 ) -> DeformedCenterline:
     factor = geometry_state.displacement_scale * geometry_state.safety_factor
-    diagnostics: list[str] = []
-
-    node_ids: tuple[str, ...]
-    if element.type == "pipe_bend":
-        generated = _generated_bend_nodes(element, analysis_mesh)
-        if generated and all(node_id in result_state.node_displacements for node_id in generated):
-            node_ids = (element.n1, *generated, element.n2)
-        else:
-            node_ids = (element.n1, element.n2)
-            diagnostics.append("bend_displacement_interpolated")
-    else:
-        node_ids = (element.n1, element.n2)
+    node_ids, diagnostics = centerline_node_ids(
+        element=element, result_state=result_state, analysis_mesh=analysis_mesh
+    )
 
     points = tuple(
         _project_node(model, analysis_mesh, result_state, node_id, factor)
@@ -54,8 +45,30 @@ def project_deformed_centerline(
         geometry_state_id=geometry_state.id,
         points=points,
         source_mesh_nodes=node_ids,
-        diagnostics=tuple(diagnostics),
+        diagnostics=diagnostics,
     )
+
+
+
+def centerline_node_ids(
+    *,
+    element: Element,
+    result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None = None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """The nodes an element's centreline runs through, and any diagnostics.
+
+    A bend is a chord between its end nodes until the analysis mesh supplies
+    the generated interior nodes. Every consumer must ask for the same node
+    set: comparing a chord against a refined arc measures the discretisation,
+    not the movement.
+    """
+    if element.type != "pipe_bend":
+        return (element.n1, element.n2), ()
+    generated = _generated_bend_nodes(element, analysis_mesh)
+    if generated and all(node_id in result_state.node_displacements for node_id in generated):
+        return (element.n1, *generated, element.n2), ()
+    return (element.n1, element.n2), ("bend_displacement_interpolated",)
 
 
 def _generated_bend_nodes(element: Element, analysis_mesh: AnalysisMesh | None) -> tuple[str, ...]:

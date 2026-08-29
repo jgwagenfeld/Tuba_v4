@@ -60,3 +60,56 @@ class TestOperatingClash(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestColdCentrelineMatchesTheOperatingOne(unittest.TestCase):
+    """Both sides of an operating comparison must use the same discretisation.
+
+    A bend's operating centreline runs through the generated interior nodes.
+    Measuring the cold side on the two-point chord compared a chord against an
+    arc, so part of the reported movement was the discretisation rather than
+    anything the solver returned.
+    """
+
+    def test_cold_bend_centreline_follows_the_arc_not_the_chord(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        import numpy as np
+
+        from examples.code_aster_artifact_review import build_autorouted_expansion_model
+        from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+        from tuba.clash.operating import _cold_polyline
+
+        with TemporaryDirectory() as tmpdir:
+            model, _route = build_autorouted_expansion_model(Path(tmpdir) / "routing")
+        run = import_code_aster_artifacts(
+            model=model,
+            work_dir=Path("notebooks/code_aster_results/autorouted_expansion_hot"),
+        )
+        bend = next(element for element in model.elements if element.type == "pipe_bend")
+
+        chord = _cold_polyline(model, bend)
+        arc = _cold_polyline(
+            model, bend, result_state=run.result_state, analysis_mesh=run.analysis_mesh
+        )
+
+        self.assertEqual(len(chord), 2)
+        self.assertGreater(len(arc), 2, "a meshed bend must be discretised, not chorded")
+
+        # Every arc point sits on the bend circle; the chord's midpoint cuts
+        # inside it, which is exactly the error the old cold side introduced.
+        centre = np.asarray(bend.bend_geometry.center, dtype=float)
+        radius = float(
+            np.linalg.norm(np.asarray(model.nodes[bend.n1].coords, dtype=float) - centre)
+        )
+        for point in arc:
+            self.assertAlmostEqual(
+                float(np.linalg.norm(np.asarray(point) - centre)), radius, places=9
+            )
+        chord_midpoint = (np.asarray(chord[0]) + np.asarray(chord[1])) / 2.0
+        self.assertLess(
+            float(np.linalg.norm(chord_midpoint - centre)),
+            radius - 1e-3,
+            "the chord cuts inside the arc, which is why it cannot be the cold side",
+        )

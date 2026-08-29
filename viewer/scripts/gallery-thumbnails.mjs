@@ -48,11 +48,14 @@ try {
     await page.waitForFunction(
       () => (window.__tubaViewer?.lastRender?.objectIds ?? []).length > 0
     );
-    // ponytail: shot at the review's own default view, reaction arrows and all.
-    // On a small model drawn beside engineering-scale arrows (the 3D tee) the
-    // camera fits the arrows and the pipework ends up small. Framing it better
-    // means hiding layers, and the layer list is not in embed mode - upgrade
-    // path is a shot-specific view preset in the scene, not UI driving here.
+    // ponytail: shot at each review's own default view, reaction arrows and
+    // all. Where a small model is drawn beside engineering-scale arrows (the
+    // 3D tee) the camera fits the arrows and the pipework comes out small.
+    // Driving the layer tree to hide them proved fragile - the toggles live in
+    // a popover, inside collapsed groups, and the viewer exposes no state API.
+    // Upgrade path: give the scene a named "thumbnail" ViewState with
+    // visible_layers set, and a ?view= parameter to open it, rather than
+    // teaching this script the viewer's DOM.
     const target = join(outDir, `${bundleId}.png`);
     await page.locator("[data-canvas]").screenshot({ path: target });
     console.log(`wrote ${target}`);
