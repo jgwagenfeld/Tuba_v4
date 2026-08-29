@@ -465,3 +465,16 @@ test("applyTaskVisibilityPreset toggles categories to match the task preset", ()
 
   assert.equal(applyTaskVisibilityPreset(state, "3d"), state);
 });
+
+test("scene loader carries the authoring script uri into viewer state", async () => {
+  const bundle = await loadSceneBundle(await createFixtureBundle());
+  bundle.scene.source_uri = "source.py";
+
+  assert.equal(createViewerState(bundle).sourceUri, "source.py");
+});
+
+test("scene loader reports no authoring script when the bundle omits one", async () => {
+  const bundle = await loadSceneBundle(await createFixtureBundle());
+
+  assert.equal(createViewerState(bundle).sourceUri, null);
+});

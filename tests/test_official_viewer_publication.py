@@ -25,6 +25,7 @@ from tuba.solver.code_aster_runtime import ATTESTED_CODE_ASTER_FILES
 OFFICIAL_BUNDLES = (
     "autorouted-expansion-loop",
     "code-aster-review",
+    "elements-supports-review",
     "gmsh-tee-mesh-review",
     "imported_component_mixed_demo",
     "pipe-tee-volume-review",
@@ -41,6 +42,26 @@ def test_gmsh_mesh_viewer_recipe_builds_an_unsolved_scene() -> None:
     assert not scene.result_fields
     assert any(obj.kind == "analysis_mesh_surface" for obj in scene.objects)
     assert not any(layer.category == "results" for layer in scene.layers)
+
+
+def _assert_thermal_clearance_clash(scene: dict) -> None:
+    """Pin the published clash to the one state the publication gate allows.
+
+    The autorouted line clears its cable tray cold and only reaches it once it
+    expands, so the margin is millimetres. A re-solve that shifts the
+    displacement field could turn this into a hard clash, which
+    ``_reject_error_diagnostics`` would refuse to publish, or into no clash at
+    all, which would silently drop the capability from the gallery.
+    """
+    markers = [obj for obj in scene["objects"] if obj["kind"] == "clash_marker"]
+    assert markers, "Autorouted gallery must publish operating-state clash markers."
+    for marker in markers:
+        metadata = marker["metadata"]
+        clash = metadata["clash_metadata"]
+        assert metadata["severity"] == "operating_only_clearance"
+        assert clash["introduced_by_deformation"] is True
+        assert clash["cold_distance_m"] > clash["operating_distance_m"]
+    assert all(issue["severity"] != "error" for issue in scene["issues"])
 
 
 def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -> None:
@@ -65,15 +86,29 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
         scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
         review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
         assert len(scene["result_fields"]) == 5
-        assert review["analysis_status"] == "solved"
+        # Both galleries publish an ASME B31.3 evaluation, so their status is the
+        # stronger 'compliance_complete' rather than a bare 'solved'.
+        assert review["analysis_status"] == "compliance_complete"
+        compliance = review["tables"]["code_compliance"]
+        assert compliance["rows"]
+        assert all(
+            row["sustained_pass"] is True and row["expansion_pass"] is True
+            for row in compliance["rows"]
+        )
 
     autorouted = json.loads(
         (tmp_path / "autorouted-expansion-loop" / "scene.json").read_text(encoding="utf-8")
     )
     assert autorouted["route_reviews"]
+    _assert_thermal_clearance_clash(autorouted)
+    assert {"physical_envelope", "cost_heatmap", "quantity_summary"} <= {
+        overlay["kind"] for overlay in autorouted["overlays"]
+    }
     rack = json.loads((tmp_path / "support-rack-review" / "scene.json").read_text(encoding="utf-8"))
     assert any(overlay["kind"] == "rack_assembly" for overlay in rack["overlays"])
     assert any(overlay["kind"] == "load_path" for overlay in rack["overlays"])
+    assert any(overlay["kind"] == "rule_violation" for overlay in rack["overlays"])
+    assert any(obj["kind"] == "rule_marker" for obj in rack["objects"])
     tee = json.loads((tmp_path / "pipe-tee-volume-review" / "scene.json").read_text(encoding="utf-8"))
     tee_fields = {
         next(overlay for overlay in tee["overlays"] if overlay["id"] == field["overlay_id"])["data"]["result_type"]

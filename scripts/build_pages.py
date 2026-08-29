@@ -253,8 +253,10 @@ def validate_official_bundle(root: Path, profile: str) -> None:
     review = _read_json(root / "review.json")
     _reject_unsafe_references(review)
     _reject_error_diagnostics(review)
-    if review.get("analysis_status") != "solved":
-        raise ValueError("Engineering-review bundles require analysis_status == 'solved'.")
+    if review.get("analysis_status") not in {"solved", "compliance_complete"}:
+        raise ValueError(
+            "Engineering-review bundles require analysis_status 'solved' or 'compliance_complete'."
+        )
     if {layer.get("category") for layer in scene.get("layers", [])} != {
         "design", "analysis_mesh", "results", "annotations"
     }:

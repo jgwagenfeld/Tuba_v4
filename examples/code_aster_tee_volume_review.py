@@ -95,6 +95,7 @@ def run_example(
         output / "review_scene",
         scene=scene,
         title="Solved native 3D pipe-tee review",
+        source=__file__,
     )
     summary = {
         "project_name": model.project_name,

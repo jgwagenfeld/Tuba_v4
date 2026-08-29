@@ -454,6 +454,19 @@ function renderWorkflow() {
     link.href = `${currentBundleUrl}/index.html`;
     link.textContent = "Open printable engineering report";
     dom.workflowPanel.append(link);
+    // The authoring script is provenance, not solver evidence: it says how the
+    // geometry was written, and deliberately does not claim to reproduce the
+    // solve. Downloaded rather than opened, because host mime tables disagree
+    // about .py.
+    if (currentState.sourceUri) {
+      const source = document.createElement("a");
+      source.className = "report-link evidence-source-link";
+      source.dataset.evidenceSourceLink = "";
+      source.href = `${currentBundleUrl}/${currentState.sourceUri}`;
+      source.download = currentState.sourceUri;
+      source.textContent = "Download the Tuba script that generated this model";
+      dom.workflowPanel.append(source);
+    }
     return;
   }
 

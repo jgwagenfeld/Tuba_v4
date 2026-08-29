@@ -283,3 +283,14 @@ test("the viewport canvas has a keyboard path to the camera", async () => {
     assert.ok(app.includes(`${key}:`), `no canvas binding for ${key}`);
   }
 });
+
+test("reports tab offers the authoring script as a download, not a page to open", async () => {
+  const app = await readViewerFile("src/app.js");
+
+  // A .py served by GitHub Pages, vite and the local preview server resolves to
+  // three different content types; the download attribute is what makes the
+  // link behave the same in all three.
+  assert.match(app, /currentState\.sourceUri/);
+  assert.match(app, /source\.download = currentState\.sourceUri/);
+  assert.match(app, /data-evidence-source-link|dataset\.evidenceSourceLink/);
+});

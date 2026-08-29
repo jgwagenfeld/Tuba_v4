@@ -26,6 +26,7 @@ REQUIRED = {
     "viewer/licenses/font-notices.txt",
     "viewer/licenses/OFL-1.1.txt",
     "viewer/code-aster-review/scene.json",
+    "viewer/elements-supports-review/scene.json",
     "viewer/imported_component_mixed_demo/scene.json",
     "viewer/pipe-tee-volume-review/scene.json",
     "viewer/support-rack-review/scene.json",
@@ -35,6 +36,7 @@ REQUIRED = {
 OFFICIAL_BUNDLES = [
     "autorouted-expansion-loop",
     "code-aster-review",
+    "elements-supports-review",
     "gmsh-tee-mesh-review",
     "imported_component_mixed_demo",
     "pipe-tee-volume-review",

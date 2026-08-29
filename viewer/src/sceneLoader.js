@@ -103,6 +103,7 @@ export function createViewerState(bundle) {
     sceneId: scene.scene_id,
     modelId: scene.model_id,
     schemaVersion: scene.schema_version,
+    sourceUri: scene.source_uri ?? null,
     units: scene.units ?? {},
     coordinateSystem: scene.coordinate_system ?? {},
     objects,

@@ -157,7 +157,7 @@ def run_demo(
         )
     )
     scene.extra["publication_status"] = "No solver results are included in this model-review bundle."
-    scene_bundle = write_scene_bundle(scene, output / "review_scene")
+    scene_bundle = write_scene_bundle(scene, output / "review_scene", source=__file__)
 
     summary: dict[str, Any] = {
         "model_path": str(model_path),

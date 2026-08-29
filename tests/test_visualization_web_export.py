@@ -117,3 +117,58 @@ class TestVisualizationWebExport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSceneBundleSourceScript(unittest.TestCase):
+    """The authoring script travels with the bundle, and never outlives it."""
+
+    def _scene(self) -> VisualizationScene:
+        model = Model(project_name="SourceExport")
+        model.add_material("Steel", E=2.0e11, nu=0.3, rho=7850.0)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(
+            id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel"
+        )
+        return build_visualization_scene(
+            model,
+            options=SceneBuildOptions(include_supports=False, include_obstacles=False),
+            scene_id="scene_source",
+            created_at="2026-06-20T12:00:00Z",
+        )
+
+    def test_source_script_is_published_and_recorded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            recipe = root / "recipe.py"
+            recipe.write_text("MODEL = 'authored here'\n", encoding="utf-8")
+
+            write_scene_bundle(self._scene(), root / "bundle", source=recipe)
+
+            scene = json.loads((root / "bundle" / "scene.json").read_text(encoding="utf-8"))
+            self.assertEqual(scene["source_uri"], "source.py")
+            self.assertEqual(
+                (root / "bundle" / "source.py").read_text(encoding="utf-8"),
+                "MODEL = 'authored here'\n",
+            )
+
+    def test_re_export_without_a_source_clears_the_previous_script(self) -> None:
+        """A stale script would be silently mislabelled as this scene's origin."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            recipe = root / "recipe.py"
+            recipe.write_text("MODEL = 'first'\n", encoding="utf-8")
+            write_scene_bundle(self._scene(), root / "bundle", source=recipe)
+
+            write_scene_bundle(self._scene(), root / "bundle")
+
+            scene = json.loads((root / "bundle" / "scene.json").read_text(encoding="utf-8"))
+            self.assertNotIn("source_uri", scene)
+            self.assertFalse((root / "bundle" / "source.py").exists())
+
+    def test_missing_source_script_fails_loudly(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(ValueError, "source script does not exist"):
+                write_scene_bundle(self._scene(), root / "bundle", source=root / "absent.py")

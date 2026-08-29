@@ -46,6 +46,7 @@ viewer/node_modules/
 /viewer/public/bundles.json
 /viewer/public/autorouted-expansion-loop/
 /viewer/public/code-aster-review/
+/viewer/public/elements-supports-review/
 /viewer/public/gmsh-tee-mesh-review/
 /viewer/public/imported_component_mixed_demo/
 /viewer/public/pipe-tee-volume-review/

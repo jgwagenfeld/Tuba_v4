@@ -14,6 +14,7 @@ from typing import Any
 from tuba import Model
 from tuba.assemblies import RackBay
 from tuba.analysis import (
+    create_cold_geometry_state,
     create_operating_geometry_state,
     create_visual_deformed_geometry_state,
 )
@@ -21,12 +22,16 @@ from tuba.analysis.code_aster_artifacts import (
     import_code_aster_artifacts,
     stage_code_aster_artifact_evidence,
 )
+from tuba.clash import ClashEngine
+from tuba.compliance.asme_b313 import ASMEB313Evaluator
 from tuba.reporting import build_engineering_review
 from tuba.load_path import analyze_load_paths
 from tuba.patches import ModelTransaction
 from tuba.routing import AutoroutingAgent
 from tuba.routing.solver_loop import SolverLoopConfig
+from tuba.rules import RuleEngine
 from tuba.visualization import (
+    SceneBuildOptions,
     build_visualization_scene,
     write_engineering_review_with_scene,
 )
@@ -41,11 +46,33 @@ def run_example(
     title: str = "Code_Aster artifact engineering review",
     route_results: list[Any] | None = None,
     include_load_paths: bool = False,
+    include_compliance: bool = False,
+    clash_clearance_m: float | None = None,
+    model_rules: list[Any] | None = None,
+    scene_options: SceneBuildOptions | None = None,
+    source: str | Path | None = None,
 ) -> dict[str, Any]:
     """Write the review package without running Code_Aster.
 
     ``artifact_dir`` must contain attested, solved Code_Aster outputs matching
     the model.
+
+    ``include_compliance`` evaluates ASME B31.3 from the imported solver
+    evidence and publishes the resulting ``code_compliance`` table. It is
+    opt-in because a model without an allowable-stress table cannot be
+    evaluated at all, and because a failing model must publish its failure
+    rather than have compliance quietly omitted.
+
+    ``clash_clearance_m`` runs the operating-state clash check against the
+    imported displacement field using a clearance envelope of that radius.
+
+    ``model_rules`` are engineer-authored design rules evaluated against the
+    model. They annotate the review; they are not solver results and not a
+    piping-code judgement.
+
+    ``source`` names the authoring script published beside the scene; it
+    defaults to this module, which is what defines the models this function
+    reviews. A caller that supplies its own model should name its own file.
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -73,9 +100,29 @@ def run_example(
         result_state=artifact.result_state,
         visual_scale=40.0,
     )
+    compliance_reports = (
+        [ASMEB313Evaluator().evaluate(resolved_model, artifact.results)] if include_compliance else []
+    )
+    operating_clashes = (
+        ClashEngine().check_operating_state(
+            resolved_model,
+            cold_state=create_cold_geometry_state(resolved_model),
+            operating_state=operating_state,
+            result_state=artifact.result_state,
+            envelope_type="clearance",
+            clearance_m=clash_clearance_m,
+            analysis_mesh=artifact.analysis_mesh,
+        )
+        if clash_clearance_m is not None
+        else []
+    )
+    rule_report = RuleEngine(list(model_rules)).evaluate(resolved_model) if model_rules else None
     scene = build_visualization_scene(
         resolved_model,
+        options=scene_options,
         analysis_runs=[artifact],
+        operating_clash_results=operating_clashes,
+        rule_results=rule_report.results if rule_report is not None else None,
         geometry_states=[operating_state, visual_state],
         field_notes=[
             {
@@ -97,6 +144,7 @@ def run_example(
     review = build_engineering_review(
         resolved_model,
         analysis_runs=[artifact],
+        compliance_reports=compliance_reports,
         package_id="review:code_aster_artifact",
         created_at=solved_at,
     )
@@ -105,6 +153,7 @@ def run_example(
         output_path / "review_scene",
         scene=scene,
         title=title,
+        source=source if source is not None else __file__,
     )
     summary = {
         "project_name": resolved_model.project_name,
@@ -116,6 +165,19 @@ def run_example(
         "bundle_root": str(bundle.root),
         "scene": str(bundle.root / bundle.scene_uri),
         "diagnostics": artifact.diagnostics,
+        "analysis_status": review.analysis_status,
+        "compliance": [
+            {
+                "load_case": report.load_case,
+                "code": f"{report.code_name} {report.code_edition}",
+                "overall_pass": report.overall_pass,
+                "worst_sustained_ratio": report.worst_sustained_ratio,
+                "worst_expansion_ratio": report.worst_expansion_ratio,
+            }
+            for report in compliance_reports
+        ],
+        "operating_clashes": [clash.to_dict() for clash in operating_clashes],
+        "model_rules": rule_report.to_dict() if rule_report is not None else None,
         "counts": {
             "scene_objects": len(scene.objects),
             "scene_geometry_assets": len(scene.geometry_assets),
@@ -285,6 +347,16 @@ def build_autorouted_expansion_model(output_root: str | Path) -> tuple[Model, An
         elements[run.created_element_ids[-1]].n2,
     ):
         model.add_support(node_id, "anchor")
+    # Added after routing on purpose: the router consumes model.obstacles, so an
+    # obstacle declared earlier would change the generated nodes and elements and
+    # break the solver-input fingerprint of the committed Code_Aster artifacts.
+    # This tray clears the cold loop and is only reached once the line expands.
+    model.add_obstacle(
+        id="cable_tray",
+        type="cuboid",
+        min_point=(4.6, 0.95, -0.20),
+        max_point=(6.4, 1.15, 0.20),
+    )
     model.validate()
     return model, run.result
 

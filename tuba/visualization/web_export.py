@@ -21,12 +21,22 @@ class SceneBundle:
     geometry_dir: Path
 
 
-def write_scene_bundle(scene: VisualizationScene, path: str | Path) -> SceneBundle:
+def write_scene_bundle(
+    scene: VisualizationScene,
+    path: str | Path,
+    *,
+    source: str | Path | None = None,
+) -> SceneBundle:
     """Write a browser-loadable semantic scene bundle.
 
     The first implementation writes deterministic JSON geometry payloads. Later
     renderer adapters can replace those payloads with GLB/XKT/Fragments assets
     while keeping the same scene and metadata contract.
+
+    ``source`` copies the authoring Tuba script beside the scene as
+    ``source.py`` and records it as ``source_uri``, so a reviewer can read the
+    code that produced the geometry. It is a provenance record, not solver
+    evidence, and not necessarily a standalone reproducer.
     """
     root = Path(path)
     metadata_dir = root / "metadata"
@@ -36,6 +46,13 @@ def write_scene_bundle(scene: VisualizationScene, path: str | Path) -> SceneBund
 
     scene_payload = scene.to_dict()
     scene_payload["geometry_assets"] = []
+    scene_payload.pop("source_uri", None)
+    # Always resolve the source, including the absent case: a re-export into an
+    # existing root would otherwise leave the previous run's script in place,
+    # silently mislabelled as this scene's origin.
+    staged_source = _stage_source(root, source)
+    if staged_source is not None:
+        scene_payload["source_uri"] = staged_source
 
     for asset in scene.geometry_assets:
         asset_payload = asset.to_dict()
@@ -78,6 +95,19 @@ def write_scene_bundle(scene: VisualizationScene, path: str | Path) -> SceneBund
         metadata_dir=metadata_dir,
         geometry_dir=geometry_dir,
     )
+
+
+def _stage_source(root: Path, source: str | Path | None) -> str | None:
+    """Place the authoring script beside the scene, or clear a stale one."""
+    staged = root / "source.py"
+    if source is None:
+        staged.unlink(missing_ok=True)
+        return None
+    origin = Path(source)
+    if not origin.is_file():
+        raise ValueError(f"Scene source script does not exist: {origin}")
+    staged.write_text(origin.read_text(encoding="utf-8"), encoding="utf-8")
+    return staged.name
 
 
 def _relative_geometry_uri(asset_id: str) -> str:

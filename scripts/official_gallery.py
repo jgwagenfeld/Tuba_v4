@@ -18,11 +18,21 @@ from examples.code_aster_tee_volume_review import (
     build_tee_volume_model,
     run_example as run_tee_volume_example,
 )
+from examples.elements_supports_review import (
+    build_elements_supports_model,
+    run_example as run_elements_supports_example,
+)
 from examples.gmsh_tee_mesh_review import run_example as run_gmsh_tee_mesh_example
 from examples.imported_component_mixed_system import run_demo
+from tuba.rules import SupportSpacingRule
+from tuba.visualization import SceneBuildOptions
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+#: Design clearance carried by the autorouted line, reused for its operating
+#: clash envelope and for the envelope geometry published beside it.
+_AUTOROUTED_CLEARANCE_M = 0.10
 
 
 @dataclass(frozen=True)
@@ -62,6 +72,13 @@ def _build_model_review(destination: Path, _artifacts: Path | None) -> None:
         _replace_tree(produced / "review_scene", destination)
 
 
+def _build_elements_supports_review(destination: Path, artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-elements-supports-") as temporary:
+        produced = Path(temporary) / "review"
+        run_elements_supports_example(produced, artifact_dir=artifacts)
+        _replace_tree(produced / "review_scene", destination)
+
+
 def _build_gmsh_tee_mesh_review(destination: Path, _artifacts: Path | None) -> None:
     with TemporaryDirectory(prefix="tuba-official-gmsh-mesh-") as temporary:
         produced = Path(temporary) / "gmsh-tee-mesh"
@@ -81,6 +98,13 @@ def _build_autorouted_review(destination: Path, artifacts: Path | None) -> None:
             scene_id="scene:autorouted_expansion_loop",
             title="Solved autorouted expansion-loop review",
             route_results=[route_result],
+            include_compliance=True,
+            clash_clearance_m=_AUTOROUTED_CLEARANCE_M,
+            scene_options=SceneBuildOptions(
+                include_physical_envelopes=True,
+                clearance_m=_AUTOROUTED_CLEARANCE_M,
+                include_cost_overlays=True,
+            ),
         )
         _replace_tree(produced / "review_scene", destination)
 
@@ -95,6 +119,11 @@ def _build_support_rack_review(destination: Path, artifacts: Path | None) -> Non
             scene_id="scene:support_rack_review",
             title="Solved support-rack load-path review",
             include_load_paths=True,
+            include_compliance=True,
+            # An engineer-authored project limit, not a code requirement: the
+            # 4 m rack span exceeds it, so the review carries a design-rule
+            # annotation beside its solver evidence.
+            model_rules=[SupportSpacingRule(max_span_m=3.5)],
         )
         _replace_tree(produced / "review_scene", destination)
 
@@ -113,6 +142,10 @@ def _autorouted_refresh(scratch_root: Path) -> tuple[Any, str]:
 
 def _code_aster_refresh(_scratch_root: Path) -> tuple[Any, str]:
     return build_model(), "Operating"
+
+
+def _elements_supports_refresh(_scratch_root: Path) -> tuple[Any, str]:
+    return build_elements_supports_model(), "LoadCase1"
 
 
 def _tee_volume_refresh(_scratch_root: Path) -> tuple[Any, str]:
@@ -139,6 +172,14 @@ OFFICIAL_GALLERIES = (
         _build_code_aster_review,
         ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating",
         _code_aster_refresh,
+    ),
+    OfficialGallery(
+        "elements-supports-review",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        _build_elements_supports_review,
+        ROOT / "notebooks" / "code_aster_results" / "elements_supports_loadcase1",
+        _elements_supports_refresh,
     ),
     OfficialGallery(
         "gmsh-tee-mesh-review",

@@ -67,7 +67,7 @@ def run_example(
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     scene, generated = _build_scene(output)
-    bundle = write_scene_bundle(scene, output / "review_scene")
+    bundle = write_scene_bundle(scene, output / "review_scene", source=__file__)
     summary = {
         "publication_status": "mesh_only_unsolved",
         "mesh_nodes": len(generated.analysis_mesh.nodes),

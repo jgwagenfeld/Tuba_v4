@@ -193,17 +193,52 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertIn("viewer/?bundle=code-aster-review", readme)
         self.assertIn("viewer/?bundle=code-aster-review", home)
 
-    def test_examples_page_lists_the_five_clickable_review_bundles(self):
+    def test_examples_page_lists_every_published_review_bundle(self):
+        """Every published gallery must be reachable from the examples page.
+
+        Hardcoding the id list here let two galleries ship undocumented, so the
+        expectation is derived from the registry instead.
+        """
+        from scripts.official_gallery import OFFICIAL_GALLERIES
+
         text = (CONTENT / "examples.md").read_text(encoding="utf-8")
 
-        for bundle_id in (
-            "autorouted-expansion-loop",
-            "code-aster-review",
-            "imported_component_mixed_demo",
-            "pipe-tee-volume-review",
-            "support-rack-review",
-        ):
-            self.assertIn(f"bundle={bundle_id}", text)
+        for gallery in OFFICIAL_GALLERIES:
+            if "pages" not in gallery.audiences:
+                continue
+            self.assertIn(
+                f"bundle={gallery.id}",
+                text,
+                f"docs/content/examples.md does not link the {gallery.id!r} gallery",
+            )
+
+    def test_viewer_e2e_picker_expectation_matches_the_gallery_registry(self):
+        """The e2e picker assertion is a hand-maintained mirror of the registry.
+
+        It silently fell one gallery behind once already; this keeps the drift
+        visible in the Python suite rather than only in a browser run.
+        """
+        from scripts.official_gallery import OFFICIAL_GALLERIES
+
+        smoke = (ROOT / "viewer" / "scripts" / "e2e-smoke.mjs").read_text(encoding="utf-8")
+        catalog = smoke.split('"pages-catalog"', 1)[1]
+        listed = re.findall(r'\{ label: "[^"]+", value: "([^"]+)" \}', catalog)
+        expected = [gallery.id for gallery in OFFICIAL_GALLERIES if "pages" in gallery.audiences]
+
+        self.assertEqual(listed[: len(expected)], expected)
+
+    def test_gitignore_covers_every_generated_viewer_bundle(self):
+        """A gallery built into viewer/public/ must not become a committable diff."""
+        from scripts.official_gallery import OFFICIAL_GALLERIES
+
+        ignored = (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+        for gallery in OFFICIAL_GALLERIES:
+            self.assertIn(
+                f"/viewer/public/{gallery.id}/",
+                ignored,
+                f".gitignore does not cover generated bundle {gallery.id!r}",
+            )
 
     def test_frame_and_result_pages_embed_the_viewer(self):
         embeds = {

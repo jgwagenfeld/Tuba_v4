@@ -114,7 +114,7 @@ class TestOperationModel(unittest.TestCase):
 
         self.assertEqual(result, "solved")
         solver_class.assert_called_once_with(work_dir="ignored")
-        solver.solve.assert_called_once_with(model, "Operating")
+        solver.solve.assert_called_once_with(model, "Operating", force=False)
 
     def test_compliance_lookup_accepts_operation_name(self):
         model = _base_model("ComplianceOperation")

@@ -10,21 +10,46 @@ Examples are labelled by evidence status so geometry, handoff files, and solved 
 
 The browser performs no engineering calculation. It displays the preserved Python-produced review and scene contracts.
 
-## Support-rack scene — solved engineering review
+## Support-rack scene — solved engineering review with code compliance
 
-**Status: SOLVED / IMPORTED.** This Code_Aster-backed bundle shows the pipe,
-beam rack, anchors and rests, 1D analysis mesh, reactions, deformation, stress,
-and support-to-rack load paths.
+**Status: SOLVED / IMPORTED / COMPLIANCE EVALUATED.** This Code_Aster-backed
+bundle shows the pipe, beam rack, anchors and rests, 1D analysis mesh,
+reactions, deformation, stress, and support-to-rack load paths. Its Compliance
+tab carries an ASME B31.3 evaluation derived from the imported solver evidence.
+
+It also carries a design-rule annotation: an engineer-authored 3.5 m
+support-spacing limit that the 4 m rack span exceeds. A design rule is not a
+piping-code judgement and not a solver result; it is marked as a warning
+beside the evidence, not instead of it.
 
 [Open the solved support-rack review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review).
 
-## Autorouted expansion loop — solved engineering review
+## Autorouted expansion loop — solved review with operating-state clash
 
-**Status: SOLVED / IMPORTED.** This bundle retains the selected U-loop and its
-route-review metadata, then overlays the attested Code_Aster operating results,
-analysis mesh, TUYAU wall sub-points, deformation, forces, and reactions.
+**Status: SOLVED / IMPORTED / COMPLIANCE EVALUATED.** This bundle retains the
+selected U-loop and its route-review metadata, then overlays the attested
+Code_Aster operating results, analysis mesh, TUYAU wall sub-points,
+deformation, forces, and reactions.
+
+It also carries the two capabilities that only a solved model can show. Its
+ASME B31.3 evaluation appears in the Compliance tab. Its clearance envelopes
+are checked against a cable tray that the line clears when cold and reaches
+once it expands, so the published clash markers are marked
+`introduced_by_deformation` — a clash that exists only in the operating state.
+The tray is authored design geometry; the displacement that closes the gap is
+imported solver evidence.
 
 [Open the solved autorouted expansion-loop review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop).
+
+## Mixed elements and supports — solved engineering review
+
+**Status: SOLVED / IMPORTED.** The only committed Code_Aster study that
+exercises bar, cable and discrete-spring elements beside pipe and beam
+elements, with spring, custom-blocked-DOF, rest and anchor supports. It is the
+gallery's evidence that Tuba's element and support translation survives the
+round trip to the solver.
+
+[Open the solved mixed element and support review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review).
 
 ## Native 3D pipe tee mesh — unsolved mesh review
 
@@ -128,7 +153,8 @@ committed engineering evidence and are not cleanup targets.
 | `imported_component_mixed_system.py` | **MODEL REVIEW SCENE; OPTIONAL STEP HANDOFF** | Writes a model JSON and geometry-only scene; STEP/STP input can also export an unsolved mixed study |
 | `realtime_visualization_review.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises before writing any result-review scene |
 | `gmsh_tee_mesh_review.py` | **GMSH MESH REVIEW; UNSOLVED** | Generates a native 3D tee MED mesh and a web scene with optional design geometry and no solver results |
-| `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Imports existing Code_Aster artifacts and writes engineering review and web-scene files |
+| `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Imports existing Code_Aster artifacts and writes engineering review and web-scene files; `include_compliance` adds the ASME B31.3 table and `clash_clearance_m` adds the operating-state clash check |
+| `elements_supports_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Rebuilds the mixed bar/cable/spring model and imports its committed Code_Aster artifacts |
 | `code_aster_tee_volume_review.py` | **SOLVED 3D ARTIFACT IMPORT + REVIEW BUNDLE** | Imports the attested native Gmsh/Code_Aster tee study and writes its volume-result review |
 
 No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** write `.comm`, `.mail`, and `.export` inputs only; those files remain incomplete for engineering evaluation until Code_Aster runs and Tuba imports the result artifacts. Report-only and model-review rows do not claim to produce solver handoff or result evidence.
