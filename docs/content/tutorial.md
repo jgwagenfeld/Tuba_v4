@@ -162,3 +162,49 @@ With `run_solver=False`, the directory must already contain real Code_Aster arti
 ## Done when
 
 The tutorial is complete only when Code_Aster has produced result artifacts and Tuba has imported them as an `AnalysisRun` with a persistent `ResultState`. Export-only output is useful for diagnostics and handoff review, but it is not an engineering evaluation.
+
+## The notebook course
+
+
+One install command provides every dependency used by all 14 course and
+supplemental notebooks:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install ".[course]"
+.\.venv\Scripts\jupyter.exe lab notebooks\00_welcome_and_setup.ipynb
+```
+
+The first workflow in that notebook builds a piping model, loads or runs
+Code_Aster through the configured runtime, imports the generated result
+artifacts, and opens an interactive deformed-stress view. Continue with
+`notebooks\03_stress_analysis_and_compliance.ipynb` for compliance checks and
+`notebooks\04_visualization_gallery.ipynb` for additional result exports.
+
+Course sequence:
+
+| Notebook                                        | Purpose                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| `00_welcome_and_setup.ipynb`                  | Fast complete workflow: model, Code_Aster, interactive result |
+| `01_building_piping_systems.ipynb`            | Geometry authoring with the piping DSL                        |
+| `02_supports_and_loading.ipynb`               | Supports, boundary conditions, and load cases                 |
+| `03_stress_analysis_and_compliance.ipynb`     | Code_Aster-backed stress and ASME B31.3 checks                |
+| `04_visualization_gallery.ipynb`              | Result visualization and export formats                       |
+| `05_autorouting.ipynb`                        | Deterministic routing and Code_Aster study handoff            |
+| `06_structural_frames_and_optimization.ipynb` | Pipe racks and Code_Aster-backed design evaluation            |
+| `07_bim_data_exchange.ipynb`                  | JSON and IFC/BIM exchange with solver properties              |
+| `08_expansion_aware_autorouting.ipynb`        | Hot-line routing with reserved expansion envelopes            |
+| `09_imported_component_mixed_system.ipynb`    | Imported CAD component placement and pipe coupling            |
+| `10_interactive_postprocessor.ipynb`          | Focused Code_Aster artifact post-processing                   |
+
+Supplemental notebooks: `autorouting_quick_iteration.ipynb`,
+`visualize_elements_and_supports.ipynb`, and
+`advanced_piping_design_and_bim.ipynb`.
+
+For focused post-processing, open:
+
+```powershell
+.\.venv\Scripts\jupyter.exe lab notebooks\10_interactive_postprocessor.ipynb
+```
+
+It loads preserved Code_Aster artifacts by default, renders interactive
+PyVista result views, and writes a `viewer/` scene bundle for review.

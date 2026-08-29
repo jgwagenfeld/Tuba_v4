@@ -115,9 +115,6 @@ class TestVisualizationWebExport(unittest.TestCase):
             self.assertEqual(geometry_payload["generation_config"]["starts"], [[0, 0, 0], [0, 0, 0.1]])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestSceneBundleSourceScript(unittest.TestCase):
     """The authoring script travels with the bundle, and never outlives it."""
@@ -172,3 +169,8 @@ class TestSceneBundleSourceScript(unittest.TestCase):
             root = Path(tmp)
             with self.assertRaisesRegex(ValueError, "source script does not exist"):
                 write_scene_bundle(self._scene(), root / "bundle", source=root / "absent.py")
+
+
+if __name__ == "__main__":
+    unittest.main()
+

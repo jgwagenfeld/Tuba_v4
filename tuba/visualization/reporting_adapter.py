@@ -29,6 +29,9 @@ def write_engineering_review_with_scene(
     :func:`write_scene_bundle` to publish the authoring script.
     """
 
+    if source is not None and scene is None:
+        raise ValueError("An authoring source script requires a scene to publish it beside.")
+
     def write_scene(root: Path) -> str:
         assert scene is not None
         write_scene_bundle(scene, root, source=source)

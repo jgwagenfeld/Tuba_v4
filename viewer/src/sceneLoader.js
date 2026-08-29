@@ -5,11 +5,11 @@ import { createColoringState } from "./coloring.js";
 const NODE_FS_PROMISES = "node:fs/promises";
 const NODE_PATH = "node:path";
 
+// Only reached now when a review was asked for, when a folder holds a single
+// bundle, or when the viewer is embedded: a multi-bundle landing page shows the
+// gallery instead of guessing which review the reader wanted.
 export function resolveBundleId(requestedBundle, availableBundles = []) {
-  if (requestedBundle) return requestedBundle;
-  return availableBundles.includes("code-aster-review")
-    ? "code-aster-review"
-    : availableBundles[0] ?? "code-aster-review";
+  return requestedBundle || availableBundles[0] || "code-aster-review";
 }
 
 export async function loadSceneBundle(root) {
@@ -103,7 +103,7 @@ export function createViewerState(bundle) {
     sceneId: scene.scene_id,
     modelId: scene.model_id,
     schemaVersion: scene.schema_version,
-    sourceUri: scene.source_uri ?? null,
+    sourceUri: typeof scene.source_uri === "string" ? scene.source_uri : null,
     units: scene.units ?? {},
     coordinateSystem: scene.coordinate_system ?? {},
     objects,

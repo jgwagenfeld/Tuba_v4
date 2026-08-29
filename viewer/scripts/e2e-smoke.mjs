@@ -712,6 +712,45 @@ const scenarios = {
       });
     }
   },
+  "pages-gallery": {
+    path: "/viewer/",
+    canvasFree: true,
+    beforeNavigate: captureUnexpectedBrowserEvents,
+    async run(page) {
+      const cards = page.locator("[data-gallery-card]");
+      await cards.first().waitFor({ state: "visible" });
+      assert.equal(await cards.count(), 7, "the landing gallery must offer every published review");
+
+      // Every card leads with the question it answers and keeps its evidence
+      // badge visible; a blank card is the failure this page exists to prevent.
+      const rendered = await cards.evaluateAll((nodes) =>
+        nodes.map((node) => ({
+          bundle: node.dataset.galleryCard,
+          question: node.querySelector(".gallery-card-question")?.textContent ?? "",
+          evidence: node.querySelector("[data-gallery-evidence]")?.textContent ?? "",
+          image: node.querySelector(".gallery-card-image")?.getAttribute("src") ?? ""
+        }))
+      );
+      for (const card of rendered) {
+        assert.ok(card.question.endsWith("?"), `card ${card.bundle} must ask a question: ${card.question}`);
+        assert.ok(card.evidence.length > 0, `card ${card.bundle} must state its evidence`);
+        assert.equal(card.image, `gallery/${card.bundle}.png`);
+      }
+      assert.ok(
+        rendered.some((card) => /no results/i.test(card.evidence)),
+        "an unsolved review must say so on its card"
+      );
+
+      // Choosing a card is an ordinary navigation into the existing review path.
+      await page.locator('[data-gallery-card="support-rack-review"]').click();
+      await page.waitForFunction(
+        () => window.__tubaViewer?.state?.sceneId === "scene:support_rack_review"
+      );
+      assert.equal(new URL(page.url()).searchParams.get("bundle"), "support-rack-review");
+      await page.locator("[data-gallery-link]").click();
+      await page.locator("[data-gallery-card]").first().waitFor({ state: "visible" });
+    }
+  },
   "pages-catalog": {
     path: "/viewer/",
     bundle: "code-aster-review",
@@ -725,13 +764,13 @@ const scenarios = {
           options.map((option) => ({ label: option.textContent, value: option.value }))
         ),
         [
-          { label: "Autorouted Expansion Loop", value: "autorouted-expansion-loop" },
-          { label: "Code Aster Review", value: "code-aster-review" },
-          { label: "Elements Supports Review", value: "elements-supports-review" },
-          { label: "Gmsh Tee Mesh Review", value: "gmsh-tee-mesh-review" },
-          { label: "Imported Component Mixed Demo", value: "imported_component_mixed_demo" },
-          { label: "Pipe Tee Volume Review", value: "pipe-tee-volume-review" },
-          { label: "Support Rack Review", value: "support-rack-review" }
+          { label: "Hot line expansion loop", value: "autorouted-expansion-loop" },
+          { label: "Anchored line with two bends", value: "code-aster-review" },
+          { label: "Mixed elements and supports", value: "elements-supports-review" },
+          { label: "Tee junction mesh", value: "gmsh-tee-mesh-review" },
+          { label: "Imported equipment connection", value: "imported_component_mixed_demo" },
+          { label: "Tee junction wall stress", value: "pipe-tee-volume-review" },
+          { label: "Pipe on a support rack", value: "support-rack-review" }
         ]
       );
       assert.equal(await picker.inputValue(), "code-aster-review");
@@ -1458,6 +1497,14 @@ try {
   }
   await page.goto(url.toString(), { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => /Ready/.test(document.querySelector("[data-status]")?.textContent ?? ""));
+  if (selected.canvasFree) {
+    // The gallery is a navigation surface: it never builds a viewport, so the
+    // canvas and WebGL gates below have nothing to wait for.
+    await selected.run?.(page, runtime);
+    console.log(`${scenario} ok: canvas-free scenario`);
+    await shutdown();
+    process.exit(0);
+  }
   await page.waitForFunction(() => document.querySelector("[data-canvas]")?.dataset.renderer === "three");
   await page.waitForFunction(
     (minimumObjects) => Number(document.querySelector("[data-canvas]")?.dataset.renderedObjects ?? 0) >= minimumObjects,

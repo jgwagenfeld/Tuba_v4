@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import hashlib
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -46,7 +47,6 @@ def write_scene_bundle(
 
     scene_payload = scene.to_dict()
     scene_payload["geometry_assets"] = []
-    scene_payload.pop("source_uri", None)
     # Always resolve the source, including the absent case: a re-export into an
     # existing root would otherwise leave the previous run's script in place,
     # silently mislabelled as this scene's origin.
@@ -106,7 +106,12 @@ def _stage_source(root: Path, source: str | Path | None) -> str | None:
     origin = Path(source)
     if not origin.is_file():
         raise ValueError(f"Scene source script does not exist: {origin}")
-    staged.write_text(origin.read_text(encoding="utf-8"), encoding="utf-8")
+    # A byte copy, not a text round trip: reading and rewriting as text
+    # rewrites line endings to the publisher's platform, which would make the
+    # published script differ between a Windows and a Linux build of the same
+    # bundle. It also refuses to write through a symlink.
+    staged.unlink(missing_ok=True)
+    shutil.copyfile(origin, staged)
     return staged.name
 
 

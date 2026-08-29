@@ -60,7 +60,16 @@ def _assert_thermal_clearance_clash(scene: dict) -> None:
         clash = metadata["clash_metadata"]
         assert metadata["severity"] == "operating_only_clearance"
         assert clash["introduced_by_deformation"] is True
-        assert clash["cold_distance_m"] > clash["operating_distance_m"]
+        # Magnitudes, not just flags. The flags above are fixed by the authored
+        # geometry and would still hold if the solve moved the line ten times
+        # as far, or barely at all; these bounds are what a re-solve can break.
+        # Cold clear of the 144.45 mm envelope, hot inside it, by millimetres.
+        assert clash["cold_distance_m"] > 0.1445, "Cold gap must clear the clearance envelope."
+        assert 0.130 < clash["operating_distance_m"] < 0.1445, "Hot gap must fall inside it."
+        assert 0.002 < marker["metadata"]["penetration_m"] < 0.020, (
+            "Published penetration left its expected millimetre band; re-check the tray "
+            "placement against the current displacement field before republishing."
+        )
     assert all(issue["severity"] != "error" for issue in scene["issues"])
 
 
@@ -71,7 +80,13 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     write_bundle_catalog(tmp_path, bundle_ids)
 
     assert bundle_ids == OFFICIAL_BUNDLES
-    assert json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8")) == list(bundle_ids)
+    catalog = json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8"))
+    assert [entry["id"] for entry in catalog] == list(bundle_ids)
+    # A card cannot be published without the narrative it renders.
+    assert all(
+        entry["title"] and entry["question"] and entry["summary"] and entry["evidence"]
+        for entry in catalog
+    )
 
     engineering = json.loads((tmp_path / "code-aster-review" / "scene.json").read_text(encoding="utf-8"))
     assert len(engineering["result_fields"]) == 5
@@ -86,8 +101,9 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
         scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
         review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
         assert len(scene["result_fields"]) == 5
-        # Both galleries publish an ASME B31.3 evaluation, so their status is the
-        # stronger 'compliance_complete' rather than a bare 'solved'.
+        # Both galleries carry an optional ASME B31.3 layer, which is what
+        # 'compliance_complete' records. It is not a higher grade of evidence
+        # than 'solved' -- the solver evidence is identical either way.
         assert review["analysis_status"] == "compliance_complete"
         compliance = review["tables"]["code_compliance"]
         assert compliance["rows"]
@@ -168,9 +184,10 @@ def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> 
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8")) == [
-        *OFFICIAL_BUNDLES
-    ]
+    assert [
+        entry["id"]
+        for entry in json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8"))
+    ] == [*OFFICIAL_BUNDLES]
 
 
 def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None:
@@ -518,6 +535,9 @@ def test_examples_main_does_not_create_or_overwrite_catalog_when_validation_fail
                 audiences=frozenset({"pages"}),
                 profile="engineering-review",
                 bundle_producer=produce_invalid,
+                title="Invalid",
+                question="Does a broken bundle stop the publisher?",
+                summary="A deliberately invalid bundle used to prove the gate holds.",
             ),
         ),
     )

@@ -44,16 +44,25 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("pip installs Tuba, not Code_Aster", source)
         self.assertIn("python -m tuba.solver.code_aster_doctor --check", source)
 
-    def test_readme_documents_required_runtime_and_doctor(self):
+    def test_readme_states_that_results_require_the_solver(self):
+        """The README no longer teaches runtime setup, but it must still be
+        honest that results are computed, never assumed."""
         text = Path("README.md").read_text(encoding="utf-8")
 
-        self.assertIn("Code_Aster is required for the full Tuba workflow", text)
+        self.assertIn("Code_Aster", text)
+        self.assertIn("Tuba will not show you a number it did not compute", text)
+        self.assertIn("a study has no results", text)
+        self.assertIn("git clone --branch v4.0.1", text)
+
+    def test_setup_documents_required_runtime_and_doctor(self):
+        """Runtime setup lives on the Setup page; it owns every detail of it."""
+        text = Path("docs/content/setup.md").read_text(encoding="utf-8")
+
         self.assertIn("TUBA_CODE_ASTER_EXEC_METHOD", text)
         self.assertIn("python -m tuba.solver.code_aster_doctor --check", text)
         self.assertIn("VS Code notebooks default to loading committed Code_Aster artifacts", text)
         self.assertIn("This installs Tuba from the checkout; it does not install Code_Aster", text)
         self.assertIn("sudo apt-get install -y libglu1-mesa", text)
-        self.assertLess(text.index("## Installation"), text.index("## Code_Aster Runtime"))
         self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
         self.assertIn(". .venv/bin/activate", text)
 

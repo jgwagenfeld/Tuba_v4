@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Callable
@@ -30,9 +30,27 @@ from tuba.visualization import SceneBuildOptions
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: Design clearance carried by the autorouted line, reused for its operating
-#: clash envelope and for the envelope geometry published beside it.
+#: Clearance band applied around the bare pipe radius for the autorouted
+#: gallery's operating clash check, and for the envelope geometry published
+#: beside it so the reviewer sees the band the check used.
+#:
+#: This is NOT the router's reserved corridor. The router reserves
+#: ``OD/2 + insulation_thickness + clearance`` (0.194 m for this line), while
+#: the model carries no insulation spec, so the published envelope is
+#: ``OD/2 + 0.10`` = 0.144 m. The two numbers answer different questions and
+#: are deliberately not unified here.
 _AUTOROUTED_CLEARANCE_M = 0.10
+
+
+#: How much evidence a profile actually carries, in the reviewer's words rather
+#: than the solver's. This is the honest half of hiding the solver: the badge
+#: never disappears, it just stops being the headline.
+PROFILE_EVIDENCE = {
+    "engineering-review": "Results",
+    "volume-engineering-review": "Results",
+    "mesh-review": "Mesh only - no results",
+    "model-review": "Model only - no results",
+}
 
 
 @dataclass(frozen=True)
@@ -44,6 +62,30 @@ class OfficialGallery:
     artifact_dir: Path | None = None
     refresh_producer: Callable[[Path], tuple[Any, str]] | None = None
     volume_export: bool = False
+    #: Keyword-only and undefaulted on purpose: a gallery that cannot say what
+    #: question it answers has no business being published.
+    title: str = field(kw_only=True)
+    question: str = field(kw_only=True)
+    summary: str = field(kw_only=True)
+
+    @property
+    def evidence(self) -> str:
+        return PROFILE_EVIDENCE[self.profile]
+
+    @property
+    def thumbnail(self) -> str:
+        return f"gallery/{self.id}.png"
+
+    def to_catalog_entry(self) -> dict[str, str]:
+        """The record the viewer renders a gallery card from."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "question": self.question,
+            "summary": self.summary,
+            "evidence": self.evidence,
+            "thumbnail": self.thumbnail,
+        }
 
 
 def _replace_tree(source: Path, destination: Path) -> None:
@@ -104,6 +146,10 @@ def _build_autorouted_review(destination: Path, artifacts: Path | None) -> None:
                 include_physical_envelopes=True,
                 clearance_m=_AUTOROUTED_CLEARANCE_M,
                 include_cost_overlays=True,
+                # The default metric is insulation_cost, which is identically
+                # zero for a line with no insulation spec. Mass is a quantity
+                # this model actually carries.
+                cost_metric="total_mass_kg",
             ),
         )
         _replace_tree(produced / "review_scene", destination)
@@ -164,6 +210,13 @@ OFFICIAL_GALLERIES = (
         _build_autorouted_review,
         ROOT / "notebooks" / "code_aster_results" / "autorouted_expansion_hot",
         _autorouted_refresh,
+        title="Hot line expansion loop",
+        question="Where does a hot line move, and what does it reach?",
+        summary=(
+            "A 180 C line routed around equipment, with the expansion loop chosen "
+            "automatically. Shows how far it grows when hot and where it infringes "
+            "the clearance it was given around a cable tray."
+        ),
     ),
     OfficialGallery(
         "code-aster-review",
@@ -172,6 +225,13 @@ OFFICIAL_GALLERIES = (
         _build_code_aster_review,
         ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating",
         _code_aster_refresh,
+        title="Anchored line with two bends",
+        question="What happens to a pressurised line held at both ends?",
+        summary=(
+            "The starting point for reading a Tuba review. One line, two anchors, "
+            "two bends: deflection, wall stress through the pipe section, and the "
+            "loads arriving at each anchor, all from the same run."
+        ),
     ),
     OfficialGallery(
         "elements-supports-review",
@@ -180,18 +240,39 @@ OFFICIAL_GALLERIES = (
         _build_elements_supports_review,
         ROOT / "notebooks" / "code_aster_results" / "elements_supports_loadcase1",
         _elements_supports_refresh,
+        title="Mixed elements and supports",
+        question="Do bars, cables and spring supports survive the trip to the solver?",
+        summary=(
+            "Pipe, beam, bar, cable and rectangular members in one model, held by "
+            "spring, rest, anchor and partly-released supports. Evidence that each "
+            "element and support type is translated and analysed as authored."
+        ),
     ),
     OfficialGallery(
         "gmsh-tee-mesh-review",
         frozenset({"dev", "pages"}),
         "mesh-review",
         _build_gmsh_tee_mesh_review,
+        title="Tee junction mesh",
+        question="What does the analysis actually discretise at a branch?",
+        summary=(
+            "The conformal tetrahedral wall mesh generated for a header and its "
+            "branch, before anything is solved. Useful for judging mesh quality at "
+            "the junction where a beam idealisation stops being enough."
+        ),
     ),
     OfficialGallery(
         "imported_component_mixed_demo",
         frozenset({"dev", "pages"}),
         "model-review",
         _build_model_review,
+        title="Imported equipment connection",
+        question="How does a supplied component join an authored line?",
+        summary=(
+            "A STEP/STL component brought in beside Tuba-authored pipework, with "
+            "its connection ports, local frames and coupling shown. Geometry "
+            "review only - nothing here has been analysed."
+        ),
     ),
     OfficialGallery(
         "pipe-tee-volume-review",
@@ -201,6 +282,13 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "tee_volume_operating",
         _tee_volume_refresh,
         True,
+        title="Tee junction wall stress",
+        question="Does stress concentrate where the branch meets the header?",
+        summary=(
+            "The same tee, meshed as a solid wall and analysed in 3D. Shows the "
+            "stress pattern around the junction that a centreline beam model "
+            "cannot resolve."
+        ),
     ),
     OfficialGallery(
         "support-rack-review",
@@ -209,5 +297,12 @@ OFFICIAL_GALLERIES = (
         _build_support_rack_review,
         ROOT / "notebooks" / "code_aster_results" / "support_rack_operating",
         _support_rack_refresh,
+        title="Pipe on a support rack",
+        question="What do the supports and the steel underneath actually carry?",
+        summary=(
+            "A line resting on a framed rack, analysed together. Traces the load "
+            "from the pipe through each support into the rack members, and flags a "
+            "span that exceeds the project support-spacing limit."
+        ),
     ),
 )

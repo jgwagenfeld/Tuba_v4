@@ -290,7 +290,11 @@ test("reports tab offers the authoring script as a download, not a page to open"
   // A .py served by GitHub Pages, vite and the local preview server resolves to
   // three different content types; the download attribute is what makes the
   // link behave the same in all three.
-  assert.match(app, /currentState\.sourceUri/);
+  assert.match(app, /typeof currentState\.sourceUri === "string"/);
   assert.match(app, /source\.download = currentState\.sourceUri/);
-  assert.match(app, /data-evidence-source-link|dataset\.evidenceSourceLink/);
+  assert.match(app, /encodeURIComponent\(currentState\.sourceUri\)/);
+  assert.match(app, /dataset\.evidenceSourceLink/);
+  // Shares the sibling's class so it is actually styled; .evidence-source-link
+  // alone has no rule in styles.css.
+  assert.match(app, /"report-link evidence-report-link evidence-source-link"/);
 });

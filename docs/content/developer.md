@@ -128,8 +128,10 @@ uv run python -m unittest tests.test_code_aster_real_smoke -v
 
 The self-hosted `code-aster-integration` jobs run on trusted pushes to `main`
 and beta release dispatches, never on pull requests. They run the real solver
-smoke and reference cases, refresh `code-aster-review`, `support-rack-review`,
-`autorouted-expansion-loop`, and `pipe-tee-volume-review`, then pass the fresh
+smoke and reference cases, refresh every gallery in
+`scripts/official_gallery.py` that declares a refresh producer
+(`code-aster-review`, `support-rack-review`, `autorouted-expansion-loop`,
+`elements-supports-review`, and `pipe-tee-volume-review`), then pass the fresh
 artifacts through the strict Pages assembler. A failed solve, attestation,
 bundle profile, or Pages build blocks the gate and beta release.
 

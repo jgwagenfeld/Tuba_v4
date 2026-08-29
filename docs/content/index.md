@@ -1,18 +1,27 @@
 # Tuba v4
 
-Tuba v4 defines piping structures, evaluates them with Code_Aster, and displays the processed results for engineering review.
+Piping engineering in Python: define a piping system, analyse it, and review the results as traceable engineering evidence.
 
-[![Code_Aster-backed Tuba review showing geometry, 1D mesh, TUYAU wall sub-points, deformation, and stress.](assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
+[![A solved Tuba review showing pipe geometry, the analysis mesh, wall stress, deformation and support reactions together.](assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
-The live review keeps authored geometry, solver mesh, wall sub-points, deformation, reactions, forces, and stress connected to the same attested Code_Aster run.
+**[Open the review gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)** — real analysed piping models in your browser, nothing to install. Each one keeps the authored geometry, the analysis mesh, the pipe-wall results, the deformed shape and the support reactions connected to the run that produced them.
 
-Code_Aster is required for production stress, displacement, reaction, thermal-expansion, operating-state clash, compliance, and result-visualization workflows. Exported study files are only a handoff until Code_Aster has solved the model and Tuba has imported the result artifacts.
+## Start here
 
-Start with [Setup](https://jgwagenfeld.github.io/Tuba_v4/setup.html), then [build and solve the tutorial model](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html). You can also open the [live Code_Aster review viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).
+- **[Setup](setup.md)** — install Tuba, and the solver when you want to compute your own results.
+- **[Tutorial](tutorial.md)** — build a model, analyse it, and read the answers back.
+- **[Examples](examples.md)** — what each published review demonstrates.
+- **[Modeling](modeling.md)** — sections, supports, placements, fragments and interop.
 
-Tuba has two visualization paths:
+## Where results come from
 
-- `tuba/plotting/` provides PyVista quick-look and export views from real `.rmed` results.
-- `tuba/visualization/` and `viewer/` produce reviewable web-scene bundles from real solver artifacts.
+Analysis runs on [Code_Aster](https://code-aster.org), a separate open-source solver. Authoring, routing, geometry and review work without it; computing stresses, displacements, reactions, thermal expansion and operating-state clearances does not.
+
+Writing solver input files is a handoff, not an analysis. Until the solver has run and Tuba has imported what it produced, a study has no results — and Tuba says so rather than filling the gap with a plausible number.
+
+## Two ways to look at results
+
+- `tuba/plotting/` gives PyVista quick-look and export views while you work.
+- `tuba/visualization/` and `viewer/` produce the shareable web review bundles behind the gallery.
 
 Use one path per notebook or example.

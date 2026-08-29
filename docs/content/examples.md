@@ -1,127 +1,81 @@
 # Examples
 
-Examples are labelled by evidence status so geometry, handoff files, and solved engineering results cannot be confused.
+Every review below is a piping model that was analysed and kept together with
+its evidence. Open one to inspect the geometry, the deformed shape, the
+stresses and the support loads.
 
-## Code_Aster review scene — solved engineering review
+**[Browse them all in the gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)** - no install required.
 
-**Status: SOLVED / IMPORTED.** The published bundle contains an attested Code_Aster run, imported result tables, analysis mesh, result fields, review records, and scene geometry.
+What a review is backed by is stated on each entry. Anything calculated on top
+of that evidence - a piping-code evaluation, a clearance check, a design rule -
+is an optional layer a review may or may not carry. None of them is the
+reference the review is measured against, and a review without them is not a
+lesser review.
 
-[Open the Code_Aster review scene](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).
+## Where does a hot line move, and what does it reach?
 
-The browser performs no engineering calculation. It displays the preserved Python-produced review and scene contracts.
+**Hot line expansion loop.** A 180 C line routed around equipment, with the expansion loop chosen automatically. Shows how far it grows when hot and where it infringes the clearance it was given around a cable tray.
 
-## Support-rack scene — solved engineering review with code compliance
+The line clears the tray cold and reaches it hot: the gap is 150.0 mm cold and
+137.6 mm once it expands. What it infringes is the authored 100 mm clearance
+band around it, by 6.8 mm, so the markers are warnings flagged
+`introduced_by_deformation` - an infringement that exists only in the operating
+state. The tray and the band are authored design inputs; the displacement that
+closes the gap is imported solver evidence. The band is not the router's
+reserved corridor, which additionally reserves the declared insulation.
 
-**Status: SOLVED / IMPORTED / COMPLIANCE EVALUATED.** This Code_Aster-backed
-bundle shows the pipe, beam rack, anchors and rests, 1D analysis mesh,
-reactions, deformation, stress, and support-to-rack load paths. Its Compliance
-tab carries an ASME B31.3 evaluation derived from the imported solver evidence.
+It also carries an optional ASME B31.3 evaluation.
 
-It also carries a design-rule annotation: an engineer-authored 3.5 m
-support-spacing limit that the 4 m rack span exceeds. A design rule is not a
-piping-code judgement and not a solver result; it is marked as a warning
-beside the evidence, not instead of it.
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop) &middot; Evidence: **Results**
 
-[Open the solved support-rack review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review).
+## What happens to a pressurised line held at both ends?
 
-## Autorouted expansion loop — solved review with operating-state clash
+**Anchored line with two bends.** The starting point for reading a Tuba review. One line, two anchors, two bends: deflection, wall stress through the pipe section, and the loads arriving at each anchor, all from the same run.
 
-**Status: SOLVED / IMPORTED / COMPLIANCE EVALUATED.** This bundle retains the
-selected U-loop and its route-review metadata, then overlays the attested
-Code_Aster operating results, analysis mesh, TUYAU wall sub-points,
-deformation, forces, and reactions.
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review) &middot; Evidence: **Results**
 
-It also carries the two capabilities that only a solved model can show. Its
-ASME B31.3 evaluation appears in the Compliance tab. Its clearance envelopes
-are checked against a cable tray that the line clears when cold and reaches
-once it expands, so the published clash markers are marked
-`introduced_by_deformation` — a clash that exists only in the operating state.
-The tray is authored design geometry; the displacement that closes the gap is
-imported solver evidence.
+## Do bars, cables and spring supports survive the trip to the solver?
 
-[Open the solved autorouted expansion-loop review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop).
+**Mixed elements and supports.** Pipe, beam, bar, cable and rectangular members in one model, held by spring, rest, anchor and partly-released supports. Evidence that each element and support type is translated and analysed as authored.
 
-## Mixed elements and supports — solved engineering review
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review) &middot; Evidence: **Results**
 
-**Status: SOLVED / IMPORTED.** The only committed Code_Aster study that
-exercises bar, cable and discrete-spring elements beside pipe and beam
-elements, with spring, custom-blocked-DOF, rest and anchor supports. It is the
-gallery's evidence that Tuba's element and support translation survives the
-round trip to the solver.
+## What does the analysis actually discretise at a branch?
 
-[Open the solved mixed element and support review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review).
+**Tee junction mesh.** The conformal tetrahedral wall mesh generated for a header and its branch, before anything is solved. Useful for judging mesh quality at the junction where a beam idealisation stops being enough.
 
-## Native 3D pipe tee mesh — unsolved mesh review
+The viewer opens on the analysis mesh; the authored pipe tubes remain available
+as a layer but start hidden so they cannot obscure the junction.
 
-**Status: MESH ONLY / UNSOLVED.** Gmsh generates the conformal quadratic
-tetrahedral wall mesh. The viewer opens on the authoritative analysis mesh;
-the authored pipe tubes remain available as an optional layer but start hidden
-so they cannot obscure the tee junction. It contains no Code_Aster result
-fields or engineering review.
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=gmsh-tee-mesh-review) &middot; Evidence: **Mesh only - no results**
 
-[Open the unsolved Gmsh tee mesh](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=gmsh-tee-mesh-review).
+## How does a supplied component join an authored line?
 
-Generate the bundle directly into the local viewer:
+**Imported equipment connection.** A STEP/STL component brought in beside Tuba-authored pipework, with its connection ports, local frames and coupling shown. Geometry review only - nothing here has been analysed.
 
-```powershell
-uv run python viewer/scripts/make_bundle.py --recipe examples/gmsh_tee_mesh_review.py --name gmsh-tee-mesh-review --force
-Set-Location viewer
-npm.cmd run dev
-```
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo) &middot; Evidence: **Model only - no results**
 
-Select `Gmsh Tee Mesh Review` in the viewer. The recipe also works as a
-standalone example with `uv run python examples/gmsh_tee_mesh_review.py`; that
-writes `study.med`, `summary.json`, and the browser bundle under `.build/`.
+## Does stress concentrate where the branch meets the header?
 
-## Native 3D pipe tee — solved engineering review
+**Tee junction wall stress.** The same tee, meshed as a solid wall and analysed in 3D. Shows the stress pattern around the junction that a centreline beam model cannot resolve.
 
-**Status: SOLVED / IMPORTED.** Gmsh generates one conformal quadratic
-tetrahedral wall mesh for the header and branch; Code_Aster solves it as `3D`.
-The viewer keeps the design tubes, analysis skin, displacement, terminal
-resultants, and FE VMIS separate. FE VMIS is not ASME piping-code stress.
+FE von Mises is not ASME piping-code stress. The design tubes, analysis skin,
+displacement, terminal resultants and stress field stay separately inspectable.
 
-[Open the solved native 3D tee review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review).
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review) &middot; Evidence: **Results**
 
-The mesh-only recipe uses the following API without claiming solver results:
+## What do the supports and the steel underneath actually carry?
 
-```python
-from examples.code_aster_tee_volume_review import TEE_VOLUME_ELEMENT_IDS, build_tee_volume_model
-from tuba.meshing import build_pipe_volume_mesh
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+**Pipe on a support rack.** A line resting on a framed rack, analysed together. Traces the load from the pipe through each support into the rack members, and flags a span that exceeds the project support-spacing limit.
 
-model = build_tee_volume_model()
-generated = build_pipe_volume_mesh(
-    model,
-    ".build/tee-mesh/study.med",
-    element_ids=TEE_VOLUME_ELEMENT_IDS,
-    max_element_size=0.005,
-)
-scene = build_visualization_scene(model, analysis_meshes=[generated.analysis_mesh])
-write_scene_bundle(scene, ".build/tee-mesh/viewer")
-```
+Two optional layers sit on top of the evidence. Its Compliance tab carries an
+ASME B31.3 evaluation, which covers the pipe elements only - B31.3 does not
+govern the rack steel, and the evaluator is one code implementation, not the
+standard the solver results are judged by. It also carries an engineer-authored
+3.5 m support-spacing rule that the 4 m rack span exceeds. Neither layer is a
+solver result; both are annotations beside the evidence, not instead of it.
 
-Run the complete Gmsh -> Code_Aster -> verified result workflow:
-
-```python
-from tuba import PipeModelization
-
-run = model.solve(
-    operation="Operating",
-    pipe_modelization=PipeModelization.SOLID_3D,
-    volume_element_ids=TEE_VOLUME_ELEMENT_IDS,
-    max_element_size=0.005,
-    work_dir=".build/tee-solve",
-    exec_method="auto",
-)
-```
-
-The first call writes analysis input only. The second must find a real Code_Aster runtime and returns an attested `AnalysisRun`; it fails before result display when no runtime is available.
-
-## Imported-component scene — model review
-
-**Status: MODEL REVIEW / NO SOLVER RESULTS.** This bundle demonstrates imported-component geometry, local frames, object selection, and model provenance.
-
-[Open the imported-component model review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo).
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review) &middot; Evidence: **Results**
 
 ## Local examples
 

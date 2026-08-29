@@ -7,6 +7,7 @@ import {
   sectionBoxDefaults,
   rankObjectMatches
 } from "./controls.js";
+import { bundleIdsOf, normalizeCatalog, renderGallery, shouldShowGallery } from "./gallery.js";
 import { applyHoverHighlight, createThreeViewport, pickRenderedObject } from "./renderer.js";
 import {
   OPACITY_STEPS,
@@ -111,7 +112,9 @@ const dom = {
   bundlePicker: document.querySelector("[data-bundle-picker]"),
   resetView: document.querySelector("[data-reset-view]"),
   cameraControls: document.querySelector("[data-camera-controls]"),
-  canvas: document.querySelector("[data-canvas]")
+  canvas: document.querySelector("[data-canvas]"),
+  gallery: document.querySelector("[data-gallery]"),
+  galleryLink: document.querySelector("[data-gallery-link]")
 };
 
 const startupParams = new URLSearchParams(window.location.search);
@@ -152,16 +155,32 @@ globalThis.__tubaViewerBootId = bootId;
 globalThis.__tubaViewerPreviewEvents ??= [];
 
 async function main() {
-  const bundleIds = await loadBundleCatalog();
-  currentBundleUrl = resolveBundleId(startupConfig.requestedBundle, bundleIds);
+  const catalog = await loadBundleCatalog();
   document.body.dataset.embed = String(startupConfig.embed);
   dom.appShell.dataset.embed = String(startupConfig.embed);
+
+  // The gallery is a navigation surface, not a view of a scene. Returning here
+  // means the Three.js viewport is never constructed on the landing path.
+  if (dom.gallery && shouldShowGallery({ ...startupConfig, catalog })) {
+    document.body.dataset.view = "gallery";
+    dom.gallery.hidden = false;
+    renderGallery(dom.gallery, catalog);
+    setStatus("Ready");
+    return;
+  }
+
+  const bundleIds = bundleIdsOf(catalog);
+  currentBundleUrl = resolveBundleId(startupConfig.requestedBundle, bundleIds);
+  document.body.dataset.view = "review";
+  if (dom.galleryLink) {
+    dom.galleryLink.hidden = bundleIds.length <= 1 || startupConfig.embed;
+  }
   try {
     setStatus(`Loading ${currentBundleUrl}`);
     await loadBundle(currentBundleUrl, { preserve: false });
     setStatus("Ready");
     render();
-    await initBundlePicker(bundleIds);
+    await initBundlePicker(catalog);
     if (startupConfig.previewWebSocketUrl) {
       connectLivePreview(startupConfig.previewWebSocketUrl);
     }
@@ -190,16 +209,16 @@ async function initBundlePicker(bundles) {
   if (startupConfig.embed || !dom.bundlePicker) {
     return;
   }
-  if (!Array.isArray(bundles) || bundles.length <= 1) {
+  if (normalizeCatalog(bundles).length <= 1) {
     dom.bundlePicker.hidden = true;
     return;
   }
   dom.bundlePicker.replaceChildren(
-    ...bundles.map((id) => {
+    ...normalizeCatalog(bundles).map((entry) => {
       const option = document.createElement("option");
-      option.value = id;
-      option.textContent = labelForBundle(id);
-      option.selected = id === currentBundleUrl;
+      option.value = entry.id;
+      option.textContent = entry.title;
+      option.selected = entry.id === currentBundleUrl;
       return option;
     })
   );
@@ -220,12 +239,6 @@ async function switchBundle(bundleId) {
   } catch (error) {
     setStatus(error.message, true);
   }
-}
-
-function labelForBundle(bundleId) {
-  return String(bundleId)
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 async function loadBundle(bundleUrl, options = {}) {
@@ -458,13 +471,17 @@ function renderWorkflow() {
     // geometry was written, and deliberately does not claim to reproduce the
     // solve. Downloaded rather than opened, because host mime tables disagree
     // about .py.
-    if (currentState.sourceUri) {
+    if (typeof currentState.sourceUri === "string" && currentState.sourceUri) {
       const source = document.createElement("a");
-      source.className = "report-link evidence-source-link";
+      // Shares .evidence-report-link so it renders as a sibling button rather
+      // than falling back to the bare header-grid .report-link style.
+      source.className = "report-link evidence-report-link evidence-source-link";
       source.dataset.evidenceSourceLink = "";
-      source.href = `${currentBundleUrl}/${currentState.sourceUri}`;
+      source.href = `${currentBundleUrl}/${encodeURIComponent(currentState.sourceUri)}`;
       source.download = currentState.sourceUri;
-      source.textContent = "Download the Tuba script that generated this model";
+      // Deliberately "authoring script", not "the script that reproduces this":
+      // it records how the model was written, not how the solve was run.
+      source.textContent = "Download the authoring Tuba script for this model";
       dom.workflowPanel.append(source);
     }
     return;

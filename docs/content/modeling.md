@@ -169,3 +169,30 @@ except ModelValidationError as exc:
 Common messages include `Pipe section ... WT is too large for OD`, missing section/material/node references, invalid placement frames, zero-length elements, unsupported operation quantities, and wind fields without a finite non-zero direction.
 
 Debug in that same order. Import the result artifacts before plotting, reviewing, or reporting stress, displacement, reaction, compliance, or operating-state results. Never replace a blocked solver or missing table with fabricated values.
+
+## Section catalogue
+
+I-beam profile data is loaded through `SectionCatalog` from `tuba.sections`.
+Active profile data lives under `tuba/sections/data`. The runtime package no
+longer carries the old vendored Euclid geometry code or the Salome
+section-generation scripts.
+
+## Reusable fragments and agent workflows
+
+Reusable local-coordinate assemblies are represented as `ModelFragment` objects
+and placed into parent models with `CoordinateSystem`. This supports templates,
+repeated subassemblies, GUI groups, and safer agent-generated model changes.
+
+Generated edits can be validated as `ModelPatch` payloads and applied through
+`ModelTransaction`, so a rejected edit rolls back rather than half-applying.
+See [`agent_model_workflow.md`](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/agent_model_workflow.md).
+
+## IFC and external interop
+
+Tuba exports pipe runs as IFC pipe systems while keeping `TubaModel` as the
+source of truth. Pipe flow elements are emitted as `IfcPipeSegment` and
+`IfcPipeFitting` products grouped by an `IfcDistributionSystem`. Tuba property
+sets carry section, material, bend, support, stress, and operating-state
+metadata for round-trip and coordination review.
+
+Install the exchange surface with the `ifc` extra.

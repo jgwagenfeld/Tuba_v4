@@ -24,11 +24,11 @@ test("startup falls back to the first available bundle when the preferred review
   );
 });
 
-test("startup retains explicit and available preferred bundles", () => {
+test("startup retains an explicitly requested bundle", () => {
   assert.equal(sceneLoaderModule.resolveBundleId("custom-review", []), "custom-review");
   assert.equal(
-    sceneLoaderModule.resolveBundleId(null, ["gmsh-tee-mesh-review", "code-aster-review"]),
-    "code-aster-review"
+    sceneLoaderModule.resolveBundleId("custom-review", ["gmsh-tee-mesh-review"]),
+    "custom-review"
   );
 });
 

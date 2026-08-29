@@ -1955,3 +1955,137 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Landing gallery
+
+   The front door for a reader who has never opened a Tuba review. It reuses the
+   review shell's tokens so arriving at a scene is not a change of product, and
+   it renders in place of that shell rather than alongside it.
+   --------------------------------------------------------------------------- */
+
+body[data-view="gallery"] .app-shell {
+  display: none;
+}
+
+.gallery {
+  display: block;
+  min-height: 100vh;
+  padding: 3rem 1.5rem 4rem;
+  background: var(--graphite);
+  color: var(--chrome-text);
+  overflow-y: auto;
+}
+
+.gallery-heading {
+  max-width: 68rem;
+  margin: 0 auto 0.5rem;
+  font-size: 1.9rem;
+  letter-spacing: 0.01em;
+}
+
+.gallery-intro {
+  max-width: 68rem;
+  margin: 0 auto 2.25rem;
+  color: #b9c4c9;
+  line-height: 1.5;
+  max-inline-size: 60ch;
+}
+
+.gallery-grid {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 68rem;
+  margin: 0 auto;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+}
+
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--graphite-line);
+  border-radius: 4px;
+  background: var(--graphite-raised);
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.gallery-card:hover,
+.gallery-card:focus-visible {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.gallery-card-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--graphite);
+  border-bottom: 1px solid var(--graphite-line);
+}
+
+.gallery-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.gallery-card-question {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.gallery-card-title {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gallery-card-summary {
+  margin: 0;
+  color: #b9c4c9;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.gallery-card-evidence {
+  margin: 0.35rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--graphite-line);
+  color: #8ea0a8;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gallery-back {
+  align-self: flex-start;
+  color: var(--accent);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.gallery-back:hover,
+.gallery-back:focus-visible {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-card {
+    transition: none;
+  }
+  .gallery-card:hover,
+  .gallery-card:focus-visible {
+    transform: none;
+  }
+}

@@ -8,12 +8,16 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
+    <!-- The landing gallery. Rendered instead of the review shell when no
+         specific review was asked for; hidden in every other case. -->
+    <main class="gallery" data-gallery hidden></main>
     <main class="app-shell" data-embed="false">
       <header class="app-header" data-app-header>
         <div class="app-identity">
           <span class="app-kicker">TUBA / ENGINEERING REVIEW</span>
           <h1 data-scene-title>Scene</h1>
           <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
+          <a class="gallery-back" href="./" data-gallery-link hidden>All reviews</a>
         </div>
         <div class="meta" data-scene-meta></div>
         <a class="report-link" data-report-link>Open Report</a>

@@ -58,10 +58,12 @@ def run_example(
     the model.
 
     ``include_compliance`` evaluates ASME B31.3 from the imported solver
-    evidence and publishes the resulting ``code_compliance`` table. It is
-    opt-in because a model without an allowable-stress table cannot be
-    evaluated at all, and because a failing model must publish its failure
-    rather than have compliance quietly omitted.
+    evidence and publishes the resulting ``code_compliance`` table. It is an
+    optional layer over the result review, not part of it: the review is a
+    Code_Aster result review with or without it, and a model whose material
+    carries no allowable-stress table cannot be evaluated at all. When it is
+    enabled the verdict is published as it comes out, pass or fail; it is
+    never suppressed for a failing model.
 
     ``clash_clearance_m`` runs the operating-state clash check against the
     imported displacement field using a clearance envelope of that radius.
@@ -100,6 +102,11 @@ def run_example(
         result_state=artifact.result_state,
         visual_scale=40.0,
     )
+    if include_compliance and not str(resolved_model.standard).startswith("ASME_B31.3"):
+        raise ValueError(
+            "Compliance publication uses the ASME B31.3 evaluator, but the model declares "
+            f"standard {resolved_model.standard!r}."
+        )
     compliance_reports = (
         [ASMEB313Evaluator().evaluate(resolved_model, artifact.results)] if include_compliance else []
     )

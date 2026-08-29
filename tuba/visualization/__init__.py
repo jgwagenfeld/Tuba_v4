@@ -30,7 +30,6 @@ from tuba.visualization.builders import SceneBuildOptions, build_visualization_s
 from tuba.visualization.schema import SceneValidationError, validate_scene_dict
 from tuba.visualization.bcf import export_bcf_topics, import_bcf_topics
 from tuba.visualization.live_preview import LivePreviewResult, preview_json_patch, preview_python_script
-from tuba.visualization.scene_diff import SceneDiffBuildResult, apply_scene_diff, build_scene_diff
 from tuba.visualization.web_export import SceneBundle, write_scene_bundle
 from tuba.visualization.reporting_adapter import write_engineering_review_with_scene
 
@@ -66,9 +65,6 @@ __all__ = [
     "validate_scene_dict",
     "export_bcf_topics",
     "import_bcf_topics",
-    "SceneDiffBuildResult",
-    "apply_scene_diff",
-    "build_scene_diff",
     "LivePreviewResult",
     "preview_json_patch",
     "preview_python_script",

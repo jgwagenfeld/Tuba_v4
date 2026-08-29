@@ -95,7 +95,7 @@ class TestStaticSiteDocs(unittest.TestCase):
             "modeling.md": ["Cross-sections", "Local coordinate systems", "Schemas and serialized models", "How errors work"],
             "workflow.md": ["model.pipe", "export_analysis_study", "write_scene_bundle"],
             "autorouting.md": ["Route candidates, not magic signoff", "SolverAcceptanceCriteria", "Current limitations"],
-            "examples.md": ["Local examples", "Code_Aster review scene", "Autorouting example outputs"],
+            "examples.md": ["Local examples", "Evidence:", "Autorouting example outputs"],
             "developer.md": ["Module map", "Solver file map", "How to extend autorouting", "CONTRIBUTING.md"],
         }
 
@@ -182,7 +182,12 @@ class TestStaticSiteDocs(unittest.TestCase):
                          "sections.png should be replaced by sections.svg")
         self.assertNotIn("sections.png", (CONTENT / "modeling.md").read_text(encoding="utf-8"))
 
-    def test_readme_and_home_lead_with_the_code_aster_review_hero(self):
+    def test_readme_and_home_lead_into_the_review_gallery(self):
+        """First contact is the browser, so both front pages open the gallery.
+
+        They deliberately do not deep-link one review: the gallery is what
+        explains the product to someone who has not heard of it.
+        """
         figure = CONTENT / "assets" / "figures" / "code_aster_review.png"
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         home = (CONTENT / "index.md").read_text(encoding="utf-8")
@@ -190,8 +195,21 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertTrue(figure.is_file())
         self.assertIn("docs/content/assets/figures/code_aster_review.png", readme)
         self.assertIn("assets/figures/code_aster_review.png", home)
-        self.assertIn("viewer/?bundle=code-aster-review", readme)
-        self.assertIn("viewer/?bundle=code-aster-review", home)
+        for page, text in (("README.md", readme), ("index.md", home)):
+            self.assertIn("Tuba_v4/viewer/", text, f"{page} must link the review gallery")
+
+    def test_readme_stays_short_enough_to_read(self):
+        """It reached 377 lines and buried the product under its own features."""
+        readme = (ROOT / "README.md").read_text(encoding="utf-8").splitlines()
+
+        self.assertLessEqual(
+            len(readme), 140, "README is drifting back into a documentation dump"
+        )
+        self.assertNotIn(
+            "## Documentation Map",
+            "\n".join(readme),
+            "the docs site navigation is the documentation map",
+        )
 
     def test_examples_page_lists_every_published_review_bundle(self):
         """Every published gallery must be reachable from the examples page.
@@ -221,11 +239,16 @@ class TestStaticSiteDocs(unittest.TestCase):
         from scripts.official_gallery import OFFICIAL_GALLERIES
 
         smoke = (ROOT / "viewer" / "scripts" / "e2e-smoke.mjs").read_text(encoding="utf-8")
+        # Scope to the picker assertion itself. Splitting on "pages-catalog"
+        # alone keeps the rest of the file, whose later scenarios contain
+        # label/value literals of their own and would pad the parsed list.
         catalog = smoke.split('"pages-catalog"', 1)[1]
-        listed = re.findall(r'\{ label: "[^"]+", value: "([^"]+)" \}', catalog)
+        block = catalog.split("await picker.locator", 1)[1].split("]", 1)[0]
+        listed = re.findall(r'\{ label: "[^"]+", value: "([^"]+)" \}', block)
         expected = [gallery.id for gallery in OFFICIAL_GALLERIES if "pages" in gallery.audiences]
 
-        self.assertEqual(listed[: len(expected)], expected)
+        # Full equality, not a prefix: a stale extra entry is drift too.
+        self.assertEqual(listed, expected)
 
     def test_gitignore_covers_every_generated_viewer_bundle(self):
         """A gallery built into viewer/public/ must not become a committable diff."""

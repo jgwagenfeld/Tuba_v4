@@ -63,12 +63,16 @@ class TestNotebookCourseDidactics(unittest.TestCase):
 
     def test_course_map_covers_all_numbered_notebooks(self):
         welcome = _notebook_text("00_welcome_and_setup.ipynb")
-        readme = (NOTEBOOK_DIR.parent / "README.md").read_text(encoding="utf-8")
+        # The course map moved out of the README when it stopped being a
+        # documentation dump; the Tutorial page owns it now.
+        tutorial = (NOTEBOOK_DIR.parent / "docs" / "content" / "tutorial.md").read_text(
+            encoding="utf-8"
+        )
 
         for label in [f"{index:02d}" for index in range(11)]:
             with self.subTest(label=label):
                 self.assertIn(f"**{label}**", welcome)
-                self.assertIn(f"{label}_", readme)
+                self.assertIn(f"{label}_", tutorial)
 
     def test_notebooks_that_print_n1_n2_also_show_endpoint_vectors(self):
         expected_phrases = {

@@ -152,7 +152,10 @@ def test_pages_build_assembles_exact_validated_tree_in_order(tmp_path, monkeypat
         for path in output.rglob("*")
         if path.is_file()
     }
-    assert json.loads((output / "viewer" / "bundles.json").read_text(encoding="utf-8")) == OFFICIAL_BUNDLES
+    assert [
+        entry["id"]
+        for entry in json.loads((output / "viewer" / "bundles.json").read_text(encoding="utf-8"))
+    ] == OFFICIAL_BUNDLES
     assert sorted(
         path.name
         for path in (output / "viewer").iterdir()
@@ -284,3 +287,43 @@ def test_pages_build_rejects_dangerous_output_before_running_builders(dangerous,
 
     with pytest.raises(ValueError, match="Refusing to replace protected Pages output"):
         build_pages.assemble_pages(dangerous)
+
+
+def test_source_script_is_held_to_the_bundle_portability_rules(tmp_path):
+    """The published .py is text, so the JSON scanner never reaches it alone."""
+    (tmp_path / "source.py").write_text(
+        'ARTIFACTS = "C:/Users/someone/secret/notebooks"\n', encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="non-portable path reference"):
+        build_pages._validate_source_script(tmp_path, {"source_uri": "source.py"})
+
+
+def test_source_script_declaration_must_resolve(tmp_path):
+    with pytest.raises(ValueError, match="Referenced bundle file is missing"):
+        build_pages._validate_source_script(tmp_path, {"source_uri": "source.py"})
+
+
+def test_bundle_without_a_source_script_is_accepted(tmp_path):
+    build_pages._validate_source_script(tmp_path, {})
+
+
+def test_every_published_gallery_can_explain_itself():
+    """A card is the first thing a new reader sees; none may ship blank."""
+    for gallery in build_pages.PAGES_GALLERIES:
+        assert gallery.title.strip(), f"{gallery.id} has no title"
+        assert gallery.question.strip().endswith("?"), (
+            f"{gallery.id} must lead with an engineering question, not a label"
+        )
+        assert len(gallery.summary.split()) >= 10, f"{gallery.id} summary is too thin"
+        assert gallery.evidence, f"{gallery.id} has no evidence badge"
+
+
+def test_every_published_gallery_has_a_committed_thumbnail():
+    for gallery in build_pages.PAGES_GALLERIES:
+        thumbnail = build_pages.GALLERY_THUMBNAIL_DIR / f"{gallery.id}.png"
+        assert thumbnail.is_file(), (
+            f"{gallery.id} has no thumbnail; "
+            "run scripts/docs/generate_gallery_thumbnails.py"
+        )
+        assert thumbnail.stat().st_size > 5_000, f"{gallery.id} thumbnail looks empty"

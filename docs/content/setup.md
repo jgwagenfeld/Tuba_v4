@@ -177,3 +177,37 @@ Open the postprocessor only after the runtime check passes or when loading prese
 | Doctor reports blocked | `python -m tuba.solver.code_aster_doctor --check` | Fix the selected runtime before using `run_solver=True` |
 | Integration test skips | Check `TUBA_RUN_CODE_ASTER_INTEGRATION` | Set it to `1`; the opt-in is deliberate |
 | Study exports but results are absent | Inspect `stdout.wsl.log`, `stderr.wsl.log`, and `study.mess` | Treat the run as failed; export does not prove execution |
+
+## Optional surfaces
+
+
+Install only the optional surfaces you use:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install ".[viz]"       # PyVista quick-look and RMED reading
+.\.venv\Scripts\python.exe -m pip install ".[ifc]"       # IFC exchange
+```
+
+The installed package includes the built Three.js review application. Its asset
+directory is available through `tuba.visualization.viewer_assets_path()`.
+Start it against a generated scene bundle with:
+
+```powershell
+.\.venv\Scripts\python.exe -m tuba.visualization.viewer path/to/bundle --open
+```
+
+The command validates `scene.json`, serves only the packaged viewer and selected
+bundle, and prints the exact local URL. `.\.venv\Scripts\tuba-viewer.exe` is the
+equivalent installed Windows console command.
+
+## Installing Tuba beside the solver
+
+This installs Tuba from the checkout; it does not install Code_Aster. The
+solver is a separate Linux runtime. On Windows, install it in WSL2 Ubuntu
+following the walkthrough above. The `code-aster-rmed` extra adds result-file
+reading support only; it is not the solver.
+
+VS Code notebooks default to loading committed Code_Aster artifacts when those
+artifacts are present. Set `RUN_CODE_ASTER = True` only after the doctor check
+reports a ready runtime; the notebook loader preserves existing result tables
+when runtime preflight fails.

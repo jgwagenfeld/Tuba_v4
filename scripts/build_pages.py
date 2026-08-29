@@ -48,7 +48,11 @@ _PAGES_REQUIRED_FILES = frozenset(
         "notebooks/10_interactive_postprocessor.ipynb",
         ".nojekyll",
     }
-) | frozenset(f"viewer/{gallery.id}/scene.json" for gallery in PAGES_GALLERIES)
+) | frozenset(f"viewer/{gallery.id}/scene.json" for gallery in PAGES_GALLERIES) | frozenset(
+    # A card without its image is a broken card, so the gallery's thumbnails are
+    # required output rather than a nice-to-have asset.
+    f"viewer/{gallery.thumbnail}" for gallery in PAGES_GALLERIES
+)
 
 
 def assemble_pages(output: Path) -> Path:
@@ -86,6 +90,7 @@ def assemble_pages(output: Path) -> Path:
         shutil.copytree(ROOT / "tuba" / "visualization" / "_viewer", viewer_root)
         bundle_ids = build_examples(viewer_root, audience="pages")
         write_bundle_catalog(viewer_root, bundle_ids)
+        copy_gallery_thumbnails(viewer_root)
 
         notebooks = staged / "notebooks"
         notebooks.mkdir()
@@ -113,8 +118,14 @@ def validate_pages_tree(root: Path) -> None:
         raise ValueError(f"Pages tree is incomplete; missing: {', '.join(missing)}")
 
     catalog = json.loads((root / "viewer" / "bundles.json").read_text(encoding="utf-8"))
-    if catalog != list(PAGES_BUNDLE_IDS):
+    if [entry.get("id") for entry in catalog] != list(PAGES_BUNDLE_IDS):
         raise ValueError(f"Pages catalog must contain exactly {list(PAGES_BUNDLE_IDS)!r}.")
+    for entry in catalog:
+        missing = [key for key in ("title", "question", "summary", "evidence") if not entry.get(key)]
+        if missing:
+            raise ValueError(
+                f"Gallery {entry.get('id')!r} cannot publish without {', '.join(missing)}."
+            )
     viewer_directories = {
         path.name: path
         for path in (root / "viewer").iterdir()
@@ -127,7 +138,9 @@ def validate_pages_tree(root: Path) -> None:
     )
     if bundle_directories != list(PAGES_BUNDLE_IDS):
         raise ValueError("Pages viewer directories must match its official catalog exactly.")
-    unexpected_directories = set(viewer_directories) - set(bundle_directories) - {"assets", "licenses"}
+    unexpected_directories = (
+        set(viewer_directories) - set(bundle_directories) - {"assets", "licenses", "gallery"}
+    )
     if unexpected_directories:
         raise ValueError("Pages viewer contains an unexpected non-bundle directory.")
 
@@ -204,10 +217,34 @@ def build_examples(
 
 
 def write_bundle_catalog(viewer_root: Path, bundle_ids: tuple[str, ...]) -> Path:
-    """Write the viewer's deliberately small official-bundle catalog."""
+    """Write the viewer's deliberately small official-bundle catalog.
+
+    Entries carry the narrative the gallery renders. The viewer also accepts a
+    bare list of ids, which is what its dev server discovers from ``public/``,
+    so a recipe bundle keeps working without a registry entry.
+    """
+    by_id = {gallery.id: gallery for gallery in OFFICIAL_GALLERIES}
+    catalog = [by_id[bundle_id].to_catalog_entry() for bundle_id in bundle_ids]
     target = viewer_root / "bundles.json"
-    target.write_text(json.dumps(list(bundle_ids), indent=2) + "\n", encoding="utf-8")
+    target.write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
     return target
+
+
+GALLERY_THUMBNAIL_DIR = ROOT / "docs" / "content" / "assets" / "gallery"
+
+
+def copy_gallery_thumbnails(viewer_root: Path) -> None:
+    """Place the committed gallery card images beside the published bundles."""
+    for gallery in PAGES_GALLERIES:
+        source = GALLERY_THUMBNAIL_DIR / f"{gallery.id}.png"
+        if not source.is_file():
+            raise ValueError(
+                f"Gallery {gallery.id!r} has no thumbnail at {source}. "
+                "Run scripts/docs/generate_gallery_thumbnails.py."
+            )
+        destination = viewer_root / gallery.thumbnail
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
 
 
 def validate_official_bundle(root: Path, profile: str) -> None:
@@ -217,6 +254,7 @@ def validate_official_bundle(root: Path, profile: str) -> None:
     scene = _read_json(root / "scene.json")
     _reject_unsafe_references(scene)
     _validate_geometry(root, scene)
+    _validate_source_script(root, scene)
     _reject_error_diagnostics(scene)
 
     if profile == "model-review":
@@ -275,6 +313,23 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"Official bundle JSON must be an object: {path.name}.")
     return data
+
+
+def _validate_source_script(root: Path, scene: dict[str, Any]) -> None:
+    """Hold the published authoring script to the bundle's portability rules.
+
+    Every other cross-reference a bundle publishes is resolved and scanned. The
+    script is plain text rather than JSON, so ``_reject_unsafe_references``
+    never reaches it on its own -- and an absolute developer path leaks just as
+    readily out of a Python comment as out of a JSON value.
+    """
+    source_uri = scene.get("source_uri")
+    if source_uri is None:
+        return
+    if not isinstance(source_uri, str) or source_uri != "source.py":
+        raise ValueError("Bundle source_uri must be the literal 'source.py'.")
+    path = _bundle_path(root, source_uri)
+    _reject_unsafe_references(path.read_text(encoding="utf-8").splitlines())
 
 
 def _validate_geometry(root: Path, scene: dict[str, Any]) -> None:

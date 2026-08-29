@@ -109,3 +109,16 @@ write_scene_bundle(scene, "runs/demo_hot/review_scene")
 `write_engineering_review_with_scene(...)` can place review tables beside the same scene bundle. That adapter combines reporting with the existing web-scene path; it does not create a third visualization path.
 
 Legacy scene-only bundles remain displayable without implying that missing review evidence exists. Neither visualization path makes Code_Aster optional.
+
+## Working from model facts alone
+
+Not every question needs a solve. Geometry authored patch-first, with
+engineering facts such as insulation attached as typed attributes, already
+feeds physical envelopes, clash checks, quantity take-off, route cost,
+load-path reports, rules, and BOM export from the same input.
+
+```powershell
+.\.venv\Scripts\python.exe examples\future_ready_semantic_workflow.py
+```
+
+None of those outputs is a solver result, and none of them substitutes for one.
