@@ -22,6 +22,32 @@ test("assembled Pages gallery scrolls to the final review", async ({ page }) => 
   await expect(cards.last()).toBeInViewport();
 });
 
+test("assembled Pages keeps results accessible when WebGL2 is unavailable", async ({ page }) => {
+  const browserErrors = [];
+  page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(`console: ${message.text()}`);
+  });
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, ...args) {
+      return type === "webgl2" ? null : getContext.call(this, type, ...args);
+    };
+  });
+
+  await page.goto("/viewer/?bundle=code-aster-review", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("[data-viewport-unavailable]")).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("Results ready · 3D unavailable");
+  await expect(page.locator("[data-canvas]")).toBeHidden();
+
+  await page.getByRole("button", { name: "Evidence", exact: true }).click();
+  await page.getByRole("tab", { name: "Results", exact: true }).click();
+  await expect(page.locator("[data-workflow-panel]")).toContainText("Finite-element Von Mises stress");
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("assembled Pages viewer is accessible and visually stable", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));

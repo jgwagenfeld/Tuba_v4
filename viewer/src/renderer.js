@@ -38,6 +38,8 @@ export const STANDARD_VIEW_DIRECTIONS = {
   negativeZ: [0, 0, -1]
 };
 
+export const WEBGL2_UNAVAILABLE = "viewer.webgl2_unavailable";
+
 export function createThreeSceneGraph(state, options = {}) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(options.backgroundColor ?? 0xf8fafc);
@@ -182,9 +184,19 @@ function stateHasVisibleVisualDeformedGeometry(state) {
 }
 
 export function createThreeCanvasRenderer(canvas, options = {}) {
+  const context = canvas.getContext?.("webgl2", {
+    antialias: true,
+    preserveDrawingBuffer: true
+  });
+  if (!context) {
+    const error = new Error("This browser could not start WebGL2.");
+    error.code = WEBGL2_UNAVAILABLE;
+    throw error;
+  }
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     canvas,
+    context,
     preserveDrawingBuffer: true
   });
   renderer.setClearColor(options.backgroundColor ?? 0xf8fafc, 1);

@@ -1395,6 +1395,28 @@ section {
   background: #0e1418;
 }
 
+.viewport[data-renderer="unavailable"] > :not(.viewport-unavailable) {
+  display: none;
+}
+
+.viewport-unavailable {
+  place-self: center;
+  max-width: 34rem;
+  margin: 2rem;
+  color: var(--chrome-text);
+  text-align: center;
+}
+
+.viewport-unavailable h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.25rem;
+}
+
+.viewport-unavailable p {
+  margin: 0.35rem 0;
+  color: #b8c2c8;
+}
+
 /* A quiet caption rather than a slab. It is a first-run hint, not a control,
    so it should not out-weigh the legend it used to sit on top of. */
 .viewport-guidance {

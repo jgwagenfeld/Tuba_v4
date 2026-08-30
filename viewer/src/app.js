@@ -8,7 +8,12 @@ import {
   rankObjectMatches
 } from "./controls.js";
 import { bundleIdsOf, renderGallery, shouldShowGallery } from "./gallery.js";
-import { applyHoverHighlight, createThreeViewport, pickRenderedObject } from "./renderer.js";
+import {
+  WEBGL2_UNAVAILABLE,
+  applyHoverHighlight,
+  createThreeViewport,
+  pickRenderedObject
+} from "./renderer.js";
 import {
   OPACITY_STEPS,
   getBodies,
@@ -113,6 +118,7 @@ const dom = {
   resetView: document.querySelector("[data-reset-view]"),
   cameraControls: document.querySelector("[data-camera-controls]"),
   canvas: document.querySelector("[data-canvas]"),
+  viewport: document.querySelector(".viewport"),
   gallery: document.querySelector("[data-gallery]"),
   galleryLink: document.querySelector("[data-gallery-link]")
 };
@@ -144,6 +150,7 @@ const savedViews = [];
 const MAX_HOVER_PICK_OBJECTS = 50;
 const ORBIT_CLICK_DRAG_THRESHOLD_PX = 4;
 let viewportRenderer = null;
+let viewportUnavailable = false;
 let lastRenderGraph = null;
 let hoveredObjectId = null;
 let hoverFrameId = null;
@@ -1942,7 +1949,19 @@ function appendIssueReviewActions(issueSummary) {
 }
 
 function renderCanvas() {
-  viewportRenderer ??= createThreeViewport(dom.canvas);
+  if (viewportUnavailable) {
+    setStatus("Results ready · 3D unavailable", true);
+    return;
+  }
+  try {
+    viewportRenderer ??= createThreeViewport(dom.canvas);
+  } catch (error) {
+    if (error?.code !== WEBGL2_UNAVAILABLE) throw error;
+    viewportUnavailable = true;
+    renderViewportUnavailable();
+    setStatus("Results ready · 3D unavailable", true);
+    return;
+  }
   renderCameraControls();
   const result = viewportRenderer.setState(currentState);
   lastRenderGraph = result;
@@ -1966,6 +1985,23 @@ function renderCanvas() {
   } else {
     setStatus("Ready");
   }
+}
+
+function renderViewportUnavailable() {
+  dom.viewport.dataset.renderer = "unavailable";
+  const panel = document.createElement("section");
+  panel.className = "viewport-unavailable";
+  panel.dataset.viewportUnavailable = "";
+  panel.setAttribute("aria-label", "3D view unavailable");
+
+  const heading = document.createElement("h2");
+  heading.textContent = "3D view unavailable";
+  const explanation = document.createElement("p");
+  explanation.textContent = "This browser could not start WebGL2. Processed result tables and evidence remain available below.";
+  const action = document.createElement("p");
+  action.textContent = "Try a current browser with graphics acceleration enabled, then reload this review.";
+  panel.append(heading, explanation, action);
+  dom.viewport.append(panel);
 }
 
 // The canvas carries tabindex="0" and an aria-label announcing an "Interactive
