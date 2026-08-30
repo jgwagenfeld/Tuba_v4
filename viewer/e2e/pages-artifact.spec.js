@@ -9,6 +9,19 @@ const VIEWPORTS = {
 
 const DOCUMENTATION_PAGES = ["/index.html", "/setup.html"];
 
+test("assembled Pages gallery scrolls to the final review", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 600 });
+  await page.goto("/viewer/", { waitUntil: "domcontentloaded" });
+  const cards = page.locator("[data-gallery-card]");
+  await expect(cards).toHaveCount(7);
+  expect(await page.evaluate(() => getComputedStyle(document.body).overflowY)).toBe("auto");
+
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await page.keyboard.press("End");
+  await expect(cards.last()).toBeInViewport();
+});
+
 test("assembled Pages viewer is accessible and visually stable", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));

@@ -1864,6 +1864,11 @@ body[data-view="gallery"] .app-shell {
   display: none;
 }
 
+body[data-view="gallery"] {
+  height: auto;
+  overflow-y: auto;
+}
+
 /* No display rule here on purpose. A <main> is already block, and an author
    `display` would override the UA's [hidden] rule - which it did, leaving an
    empty full-viewport panel covering every review. */
@@ -1872,7 +1877,6 @@ body[data-view="gallery"] .app-shell {
   padding: 3rem 1.5rem 4rem;
   background: var(--graphite);
   color: var(--chrome-text);
-  overflow-y: auto;
 }
 
 .gallery-heading {
