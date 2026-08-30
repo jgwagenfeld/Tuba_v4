@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-woVDvnHl.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DOB2iIyX.css">
+    <script type="module" crossorigin src="./assets/index-DFLUXfb_.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CW6i-41B.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -17,17 +17,26 @@
         <div class="app-identity">
           <span class="app-kicker">TUBA / ENGINEERING REVIEW</span>
           <h1 data-scene-title>Scene</h1>
-          <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
-          <a class="gallery-back" href="./" data-gallery-link hidden>All reviews</a>
+          <div class="meta" data-scene-meta></div>
         </div>
-        <div class="meta" data-scene-meta></div>
-        <a class="report-link" data-report-link>Open Report</a>
-        <div class="runtime-status" data-status role="status" aria-live="polite">Starting</div>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="rail-toggle"
+            aria-expanded="false"
+            aria-controls="review-controls"
+            data-rail-toggle
+          >Controls</button>
+          <button type="button" aria-expanded="false" data-evidence-expand>Evidence</button>
+          <a class="gallery-back" href="./" data-gallery-link hidden>Gallery</a>
+          <a class="report-link" data-report-link>Report</a>
+          <div class="runtime-status" data-status role="status" aria-live="polite">Starting</div>
+        </div>
       </header>
       <section class="cockpit-status" aria-label="Engineering review status" data-cockpit-status></section>
       <section class="coloring-bar" aria-label="Result coloring channel" data-coloring-bar></section>
       <section class="viewer-workspace" data-viewer-workspace>
-        <aside class="cockpit-rail" data-task-rail>
+        <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
           <div class="rail-head">
             <nav aria-label="Engineering review tasks" data-workflow-tabs></nav>
             <div class="rail-find">
@@ -53,8 +62,7 @@
                 </section>
               </div>
               <div class="strip-heading">
-                <h2>Bodies — what is drawn</h2>
-                <span class="strip-tag">overlaid</span>
+                <h2>Layers</h2>
               </div>
               <div class="body-list" data-body-list></div>
               <p class="projection-note" data-projection-note></p>
@@ -80,12 +88,19 @@
           </div>
         </aside>
         <section class="viewport">
-          <canvas data-canvas tabindex="0" aria-label="Interactive 3D engineering review viewport" width="1280" height="800"></canvas>
+          <canvas
+            data-canvas
+            tabindex="0"
+            aria-label="Interactive 3D engineering review viewport"
+            aria-describedby="viewport-guidance"
+            width="1280"
+            height="800"
+          ></canvas>
           <div class="camera-controls" role="group" aria-label="Standard camera views" data-camera-controls></div>
           <button class="reset-view" type="button" data-reset-view aria-label="Reset 3D view">Reset view</button>
           <div class="viewport-legend" data-viewport-legend></div>
           <div class="body-legend" aria-label="What each mark in the viewport means" data-body-legend></div>
-          <p class="viewport-guidance" data-viewport-guidance>
+          <p id="viewport-guidance" class="viewport-guidance" data-viewport-guidance>
             Orbit: drag or arrow keys. Zoom: scroll, or + and -. Select: click. Axes: X, Y, Z keys or the labelled controls. Reset: Home fits the full scene.
           </p>
         </section>
@@ -95,7 +110,6 @@
           <div class="property-sections" data-properties></div>
         </aside>
         <section class="evidence-dock" aria-label="Engineering evidence" data-evidence-dock>
-          <button type="button" aria-expanded="false" data-evidence-expand>Expand Evidence</button>
           <nav class="evidence-tabs" role="tablist" aria-label="Evidence views" data-evidence-tabs></nav>
           <div id="engineering-workflow-panel" class="workflow-panel" role="tabpanel" tabindex="0" data-workflow-panel>
             <section hidden data-diagnostic-list></section>

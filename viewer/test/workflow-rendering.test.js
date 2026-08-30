@@ -42,21 +42,20 @@ test("workflow rendering styles real task buttons, horizontal tables, and visibl
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
-test("workflow rendering uses the responsive cockpit grid and preserves embed mode", async () => {
+test("workflow rendering uses a scene-first responsive shell and preserves embed mode", async () => {
   const css = await readViewerFile("src/styles.css");
 
   // header / cockpit status / coloring bar / workspace
   assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto auto auto minmax\(0, 1fr\)/s);
-  assert.match(css, /\.app-header\s*\{[^}]*grid-template-columns:\s*minmax\(12rem, 1fr\) minmax\(16rem, auto\) auto auto/s);
-  assert.match(css, /\.cockpit-status\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/s);
-  assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"rail viewport inspector"[^;]*"rail evidence inspector"/s);
+  assert.match(css, /\.app-header\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /\.cockpit-status\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /\.cockpit-status\s+\.review-overview-card\s*\{[^}]*min-height:\s*0/s);
+  assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"viewport inspector"[^;]*"evidence inspector"/s);
+  assert.match(css, /\.cockpit-rail\s*\{[^}]*position:\s*absolute[^}]*width:\s*min\(18\.5rem, calc\(100% - 3rem\)\)/s);
+  assert.match(css, /\.cockpit-rail\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.inspector[\s\S]*position:\s*absolute/);
-  assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.evidence-dock:not\(\.expanded\)[^}]*max-height:\s*3\.25rem/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.evidence-dock\.expanded\s*\{[^}]*position:\s*absolute[^}]*height:\s*min\(60vh, 32rem\)/s);
-  // Narrow: the rail becomes a horizontal scrolling strip above the viewport,
-  // tall enough that a body row is readable rather than a sliver.
-  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*height:\s*auto[^}]*max-height:\s*min\(13rem, 30vh\)[^}]*overflow-x:\s*auto[^}]*overflow-y:\s*hidden/s);
-  assert.match(css, /@media\s*\(max-width:\s*800px\)[\s\S]*\.cockpit-status\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(8rem, 1fr\)\)[^}]*overflow-x:\s*auto/s);
+  assert.doesNotMatch(css, /grid-template-areas:[^;]*"rail viewport"/s);
   assert.match(css, /\[data-embed="true"\][\s\S]*grid-template-areas:\s*"viewport"/);
   assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace,\s*body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)[^}]*grid-template-areas:\s*"viewport"/s);
 });
@@ -91,6 +90,9 @@ test("workflow rendering keeps the viewport persistent and separates tasks from 
   assert.match(app, /evidenceTabForKey\(currentState, id, event\.key\)/);
   assert.match(app, /activateEvidence\(nextId\)[\s\S]*data-evidence-tab="\$\{nextId\}"[\s\S]*\.focus\(\)/);
   assert.match(app, /const activeTab = activeEvidenceTab/);
+  assert.match(app, /let railExpanded\s*=\s*false/);
+  assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded/);
+  assert.match(app, /dom\.railToggle\.setAttribute\("aria-expanded", String\(railExpanded\)\)/);
   assert.doesNotMatch(app, /dom\.viewerWorkspace\.hidden\s*=/);
 });
 
@@ -208,11 +210,20 @@ test("the bodies panel is the rail's primary content, not a window onto it", asy
   assert.doesNotMatch(css, /^\.display-strip\s*\{[^}]*max-height/ms);
 });
 
-test("collapsed evidence is a bar, and the viewport keeps the height", async () => {
+test("collapsed evidence reserves no viewport space", async () => {
   const css = await readViewerFile("src/styles.css");
-  // Reserving a minimum for a panel nobody opened cost the viewport 235px.
+  // Reserving space for a panel nobody opened cost the viewport 235px.
   assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto/s);
-  assert.match(css, /\.evidence-dock:not\(\.expanded\)\s+\.workflow-panel\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /\.evidence-dock:not\(\.expanded\)\s*\{[^}]*display:\s*none/s);
+});
+
+test("cockpit status omits unavailable facts instead of printing placeholders", async () => {
+  const app = await readViewerFile("src/app.js");
+  const status = app.slice(app.indexOf("function renderCockpitStatus()"), app.indexOf("function renderOverviewCard("));
+  assert.match(status, /status\.complianceStatus === "Not available" \? null/);
+  assert.match(status, /status\.governingLoadCase === "Not available" \? null/);
+  assert.match(status, /status\.governingRatio === "Not available"/);
+  assert.match(status, /status\.warningCount > 0/);
 });
 
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {

@@ -230,8 +230,8 @@ class TestStaticSiteDocs(unittest.TestCase):
                 f"docs/content/examples.md does not link the {gallery.id!r} gallery",
             )
 
-    def test_viewer_e2e_picker_expectation_matches_the_gallery_registry(self):
-        """The e2e picker assertion is a hand-maintained mirror of the registry.
+    def test_viewer_e2e_catalog_expectation_matches_the_gallery_registry(self):
+        """The e2e card assertion is a hand-maintained mirror of the registry.
 
         It silently fell one gallery behind once already; this keeps the drift
         visible in the Python suite rather than only in a browser run.
@@ -239,12 +239,12 @@ class TestStaticSiteDocs(unittest.TestCase):
         from scripts.official_gallery import OFFICIAL_GALLERIES
 
         smoke = (ROOT / "viewer" / "scripts" / "e2e-smoke.mjs").read_text(encoding="utf-8")
-        # Scope to the picker assertion itself. Splitting on "pages-catalog"
+        # Scope to the card assertion itself. Splitting on "pages-catalog"
         # alone keeps the rest of the file, whose later scenarios contain
-        # label/value literals of their own and would pad the parsed list.
+        # bundle literals of their own and would pad the parsed list.
         catalog = smoke.split('"pages-catalog"', 1)[1]
-        block = catalog.split("await picker.locator", 1)[1].split("]", 1)[0]
-        listed = re.findall(r'\{ label: "[^"]+", value: "([^"]+)" \}', block)
+        block = catalog.split("await cards.evaluateAll", 1)[1].split("]", 1)[0]
+        listed = re.findall(r'^\s+"([^"]+)",?$', block, re.MULTILINE)
         expected = [gallery.id for gallery in OFFICIAL_GALLERIES if "pages" in gallery.audiences]
 
         # Full equality, not a prefix: a stale extra entry is drift too.

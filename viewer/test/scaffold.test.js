@@ -56,6 +56,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "report-link",
     "cockpit-status",
     "task-rail",
+    "rail-toggle",
     "task-panel",
     "workflow-tabs",
     "workflow-panel",
@@ -96,6 +97,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<section[^>]*class="cockpit-status"[^>]*aria-label="Engineering review status"[^>]*data-cockpit-status/);
   assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace/);
   assert.match(html, /<aside[^>]*class="cockpit-rail"[^>]*data-task-rail/);
+  assert.match(html, /<button[^>]*aria-expanded="false"[^>]*aria-controls="review-controls"[^>]*data-rail-toggle/);
   assert.match(html, /<nav[^>]*aria-label="Engineering review tasks"[^>]*data-workflow-tabs/);
   assert.match(html, /<div[^>]*class="task-panel"[^>]*data-task-panel/);
   assert.match(html, /<aside[^>]*class="inspector"[^>]*data-inspector[^>]*hidden/);

@@ -7,7 +7,7 @@ import {
   sectionBoxDefaults,
   rankObjectMatches
 } from "./controls.js";
-import { bundleIdsOf, normalizeCatalog, renderGallery, shouldShowGallery } from "./gallery.js";
+import { bundleIdsOf, renderGallery, shouldShowGallery } from "./gallery.js";
 import { applyHoverHighlight, createThreeViewport, pickRenderedObject } from "./renderer.js";
 import {
   OPACITY_STEPS,
@@ -109,7 +109,7 @@ const dom = {
   savedViews: document.querySelector("[data-saved-views]"),
   properties: document.querySelector("[data-properties]"),
   propertyActions: document.querySelector("[data-property-actions]"),
-  bundlePicker: document.querySelector("[data-bundle-picker]"),
+  railToggle: document.querySelector("[data-rail-toggle]"),
   resetView: document.querySelector("[data-reset-view]"),
   cameraControls: document.querySelector("[data-camera-controls]"),
   canvas: document.querySelector("[data-canvas]"),
@@ -136,6 +136,7 @@ function dispatch(action) {
 let selectedObjectId = null;
 let currentSearch = "";
 let issueFilters = { operatingOnly: false };
+let railExpanded = false;
 let evidenceExpanded = false;
 let activeEvidenceTab = "summary";
 const savedViews = [];
@@ -180,7 +181,6 @@ async function main() {
     await loadBundle(currentBundleUrl, { preserve: false });
     setStatus("Ready");
     render();
-    await initBundlePicker(catalog);
     if (startupConfig.previewWebSocketUrl) {
       connectLivePreview(startupConfig.previewWebSocketUrl);
     }
@@ -189,9 +189,7 @@ async function main() {
   }
 }
 
-// Populate the header dropdown from the /bundles.json manifest (served by the
-// vite plugin in dev, emitted at build). Absent manifest or a lone example ->
-// stay hidden; this is a convenience control, never a hard dependency.
+// The catalog owns gallery navigation. A standalone bundle does not need one.
 async function loadBundleCatalog() {
   try {
     const response = await fetch("./bundles.json");
@@ -203,42 +201,6 @@ async function loadBundleCatalog() {
     // A standalone bundle does not need a gallery catalog.
   }
   return [];
-}
-
-async function initBundlePicker(bundles) {
-  if (startupConfig.embed || !dom.bundlePicker) {
-    return;
-  }
-  if (normalizeCatalog(bundles).length <= 1) {
-    dom.bundlePicker.hidden = true;
-    return;
-  }
-  dom.bundlePicker.replaceChildren(
-    ...normalizeCatalog(bundles).map((entry) => {
-      const option = document.createElement("option");
-      option.value = entry.id;
-      option.textContent = entry.title;
-      option.selected = entry.id === currentBundleUrl;
-      return option;
-    })
-  );
-  dom.bundlePicker.hidden = false;
-  dom.bundlePicker.addEventListener("change", () => switchBundle(dom.bundlePicker.value));
-}
-
-async function switchBundle(bundleId) {
-  currentBundleUrl = bundleId;
-  const url = new URL(window.location.href);
-  url.searchParams.set("bundle", bundleId);
-  window.history.replaceState({}, "", url);
-  setStatus(`Loading ${bundleId}`);
-  try {
-    await loadBundle(bundleId, { preserve: false });
-    setStatus("Ready");
-    render();
-  } catch (error) {
-    setStatus(error.message, true);
-  }
 }
 
 async function loadBundle(bundleUrl, options = {}) {
@@ -326,7 +288,11 @@ function restoreFocus(focus) {
 
 function renderTaskRail() {
   dom.workflowTabs.replaceChildren();
-  dom.taskRail.hidden = currentState.embed;
+  dom.taskRail.hidden = currentState.embed || !railExpanded;
+  dom.railToggle.hidden = currentState.embed;
+  dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
+  dom.railToggle.textContent = railExpanded ? "Close" : "Controls";
+  document.body.dataset.railOpen = String(railExpanded);
   dom.appHeader.hidden = currentState.embed;
   for (const id of getVisibleCockpitTaskIds(currentState)) {
     const task = WORKFLOW_TABS.find((candidate) => candidate.id === id);
@@ -391,7 +357,7 @@ function renderEvidenceTabs() {
   }
   dom.evidenceDock.classList.toggle("expanded", evidenceExpanded);
   dom.evidenceExpand.setAttribute("aria-expanded", String(evidenceExpanded));
-  dom.evidenceExpand.textContent = evidenceExpanded ? "Collapse Evidence" : "Expand Evidence";
+  dom.evidenceExpand.textContent = evidenceExpanded ? "Close evidence" : "Evidence";
 }
 
 function activateEvidence(id) {
@@ -526,22 +492,21 @@ function renderReviewOverview(review) {
 
 function renderCockpitStatus() {
   dom.cockpitStatus.replaceChildren();
-  dom.cockpitStatus.hidden = currentState.embed;
+  dom.cockpitStatus.hidden = currentState.embed || !currentState.review;
   if (!currentState.review) return;
   const status = cockpitStatusViewModel(currentState.review);
-  for (const [label, value] of [
-    ["Analysis", status.analysisStatus],
-    ["Compliance", status.complianceStatus],
-    ["Governing case", status.governingLoadCase],
-    ["Attention", `${status.warningCount} warning(s)`],
-    [
-      "Governing ratio",
-      status.governingRatio === "Not available"
-        ? status.governingRatio
-        : `${status.governingRatio} at ${status.governingLocation}`
-    ]
-  ]) {
-    dom.cockpitStatus.append(renderOverviewCard(label, value, label === "Analysis" ? "status" : "text"));
+  const available = [
+    ["Analysis", status.analysisStatus, "status"],
+    status.complianceStatus === "Not available" ? null : ["Compliance", status.complianceStatus],
+    status.governingLoadCase === "Not available" ? null : ["Governing case", status.governingLoadCase],
+    status.warningCount > 0 ? ["Attention", `${status.warningCount} warning(s)`] : null,
+    status.governingRatio === "Not available"
+      ? null
+      : ["Governing ratio", `${status.governingRatio} at ${status.governingLocation}`]
+  ].filter(Boolean);
+  dom.cockpitStatus.hidden = currentState.embed || available.length === 0;
+  for (const [label, value, kind] of available) {
+    dom.cockpitStatus.append(renderOverviewCard(label, value, kind));
   }
 }
 
@@ -930,11 +895,6 @@ function bodyRow(body) {
 
   row.append(head);
 
-  const description = document.createElement("p");
-  description.className = "body-description";
-  description.textContent = body.description;
-  row.append(description);
-
   for (const metric of body.metrics) {
     const line = document.createElement("p");
     line.className = "body-metric";
@@ -973,8 +933,7 @@ function renderProjectionNote() {
     return;
   }
   dom.projectionNote.textContent =
-    "Sub-points carry a shell display position from the Code_Aster fibre formula, so they land on the real wall. " +
-    "The surface between them is interpolated: measured points, interpolated surface, mesh underneath.";
+    "Sub-points are measured; the surface between them is interpolated.";
 }
 
 // The sub-point grid on one element node, drawn to scale from NSEC/NCOU rather
@@ -1156,36 +1115,16 @@ function renderColoringBar() {
         render();
       })
     );
-    if (field?.support) {
-      const support = document.createElement("span");
-      support.className = "bar-tag";
-      support.dataset.fieldSupport = field.support;
-      support.textContent = field.support;
-      dom.coloringBar.append(support);
-    }
-    // A scalar field has one component by definition. Say so in the visible
-    // option text rather than a title attribute, which is unreachable on touch,
-    // unreliable to assistive tech and invisible in a screenshot.
     const selectable = componentIsSelectable(currentState);
-    const components = (field?.components ?? ["magnitude"]).map((id) => ({
-      id,
-      label: selectable ? id : `${id} — scalar field`
-    }));
-    const componentControl = barControl(
-      "Component",
-      getActiveComponent(currentState),
-      components,
-      (value) => {
-        dispatch({ type: "setColoringComponent", component: value });
-        render();
-      }
-    );
-    if (!selectable) {
-      // The control stays on screen, disabled, so its absence is never read as
-      // a missing choice.
-      componentControl.querySelector("select").disabled = true;
+    if (selectable) {
+      const components = (field?.components ?? ["magnitude"]).map((id) => ({ id, label: id }));
+      dom.coloringBar.append(
+        barControl("Component", getActiveComponent(currentState), components, (value) => {
+          dispatch({ type: "setColoringComponent", component: value });
+          render();
+        })
+      );
     }
-    dom.coloringBar.append(componentControl);
   }
 
   dom.coloringBar.append(deformationControl(), unitSystemChip());
@@ -2155,6 +2094,7 @@ function setStatus(message, error = false) {
   }
   dom.status.textContent = message;
   dom.status.dataset.error = flag;
+  dom.status.dataset.ready = String(!error && message === "Ready");
 }
 
 function connectLivePreview(wsUrl) {
@@ -2407,7 +2347,16 @@ dom.searchInput.addEventListener("keydown", (event) => {
 
 dom.evidenceExpand.addEventListener("click", () => {
   evidenceExpanded = !evidenceExpanded;
+  if (evidenceExpanded) railExpanded = false;
+  renderTaskRail();
   renderEvidenceTabs();
+});
+
+dom.railToggle.addEventListener("click", () => {
+  railExpanded = !railExpanded;
+  if (railExpanded) evidenceExpanded = false;
+  renderEvidenceTabs();
+  renderTaskRail();
 });
 
 main();

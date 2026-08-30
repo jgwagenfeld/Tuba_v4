@@ -52,6 +52,18 @@ async function assertSameCanvas(page) {
   assert.equal(await page.locator('[data-canvas][data-e2e-persistent="true"]').isVisible(), true);
 }
 
+async function openReviewControls(page) {
+  const toggle = page.locator("[data-rail-toggle]");
+  await toggle.waitFor();
+  assert.equal(await toggle.textContent(), "Controls");
+  assert.equal(await toggle.getAttribute("aria-expanded"), "false");
+  assert.equal(await page.locator("[data-task-rail]").isHidden(), true);
+  await toggle.focus();
+  await page.keyboard.press("Enter");
+  assert.equal(await toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
+}
+
 async function assertInspectorIdentity(page, objectId, entityRef) {
   const identity = page.locator("[data-properties] .property-section").filter({
     has: page.getByRole("heading", { level: 3, name: "Identity", exact: true })
@@ -402,6 +414,7 @@ const scenarios = {
     // renders. The gate had been asserting a count this bundle cannot reach.
     minimumObjects: 6,
     async run(page) {
+      await openReviewControls(page);
       const reviewTask = page.getByRole("button", { name: "Review", exact: true });
       await reviewTask.waitFor();
       assert.equal(await reviewTask.getAttribute("aria-current"), "page");
@@ -414,7 +427,7 @@ const scenarios = {
       assert.equal(await page.locator("[data-cockpit-status]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
       assert.equal(
-        await page.getByRole("tab", { name: "Governing Results", exact: true }).getAttribute("aria-selected"),
+        await page.locator('[data-evidence-tab="summary"]').getAttribute("aria-selected"),
         "true"
       );
       await assertSelectedEvidenceTab(page, "Governing Results");
@@ -424,13 +437,13 @@ const scenarios = {
       await page.getByRole("heading", { level: 2, name: "Governing Results", exact: true }).waitFor();
       assert.equal(await page.locator("[data-report-link]").isVisible(), true);
       const headerLayout = await page.locator("[data-app-header]").evaluate((header) => ({
-        columns: getComputedStyle(header).gridTemplateColumns.split(" ").length,
+        display: getComputedStyle(header).display,
         centers: [...header.children].map((child) => {
           const rect = child.getBoundingClientRect();
           return rect.top + rect.height / 2;
         })
       }));
-      assert.equal(headerLayout.columns, 4);
+      assert.equal(headerLayout.display, "flex");
       assert.ok(
         headerLayout.centers.every((center) => Math.abs(center - headerLayout.centers[0]) <= 1),
         JSON.stringify(headerLayout)
@@ -443,9 +456,10 @@ const scenarios = {
       await page.getByRole("tab", { name: "Governing Results", exact: true }).click();
       await rememberCanvas(page);
 
+      await openReviewControls(page);
       await page.getByRole("button", { name: "Model", exact: true }).click();
       await assertSelectedEvidenceTab(page, "Governing Results");
-      await page.getByRole("heading", { level: 2, name: "Governing Results", exact: true }).waitFor();
+      assert.equal(await page.locator("[data-evidence-dock]").evaluate((dock) => dock.classList.contains("expanded")), false);
       await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
       await assertSelectedEvidenceTab(page, "Governing Results");
@@ -538,7 +552,7 @@ const scenarios = {
         const style = getComputedStyle(launcher);
         return {
           workspace: { left: workspace.left, right: workspace.right },
-          rail: { top: rail.top, bottom: rail.bottom },
+          rail: { left: rail.left, right: rail.right, top: rail.top, bottom: rail.bottom },
           canvas: { left: canvas.left, right: canvas.right, top: canvas.top, width: canvas.width, height: canvas.height },
           display: style.display,
           overflowX: style.overflowX,
@@ -546,16 +560,18 @@ const scenarios = {
         };
       });
       assert.equal(compactLayout.display, "flex");
-      assert.equal(compactLayout.overflowX, "auto");
+      assert.equal(compactLayout.overflowX, "hidden");
       assert.equal(compactLayout.overflowY, "hidden");
-      assert.ok(compactLayout.rail.bottom <= compactLayout.canvas.top + 1, JSON.stringify(compactLayout));
+      assert.ok(Math.abs(compactLayout.rail.left - compactLayout.canvas.left) <= 1, JSON.stringify(compactLayout));
+      assert.ok(compactLayout.rail.right < compactLayout.canvas.right, JSON.stringify(compactLayout));
+      assert.ok(Math.abs(compactLayout.rail.top - compactLayout.canvas.top) <= 1, JSON.stringify(compactLayout));
       assert.ok(Math.abs(compactLayout.canvas.left - compactLayout.workspace.left) <= 1, JSON.stringify(compactLayout));
       assert.ok(Math.abs(compactLayout.canvas.right - compactLayout.workspace.right) <= 1, JSON.stringify(compactLayout));
       assert.ok(compactLayout.canvas.width >= 480, `compact canvas width is too small: ${JSON.stringify(compactLayout)}`);
       assert.ok(compactLayout.canvas.height >= 240, `compact canvas height is too small: ${JSON.stringify(compactLayout)}`);
       const compactStatus = await page.locator("[data-cockpit-status]").textContent();
       assert.match(compactStatus, /Analysis\s*solved/i);
-      assert.match(compactStatus, /Governing case\s*Not available/i);
+      assert.doesNotMatch(compactStatus, /Not available/i);
       const compactExpand = page.locator("[data-evidence-expand]");
       // This block exercises the toggle itself, so start from collapsed: the
       // dock was expanded earlier to read Governing Results.
@@ -569,11 +585,12 @@ const scenarios = {
       await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
       await assertSelectedEvidenceTab(page, "Warnings");
       await assertSameCanvas(page);
+      await openReviewControls(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
       assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
       await assertSelectedEvidenceTab(page, "Warnings");
       await assertSameCanvas(page);
-      await compactExpand.click();
+      assert.equal(await compactExpand.getAttribute("aria-expanded"), "false");
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.innerWidth), 1440);
@@ -678,6 +695,7 @@ const scenarios = {
       assert.ok(compactExpandedLayout.canvas.width >= 480, JSON.stringify(compactExpandedLayout));
       await expandEvidence.click();
       await page.setViewportSize({ width: 1440, height: 900 });
+      await openReviewControls(page);
 
       await page.getByLabel(/Stress threshold/i).evaluate((input) => {
         input.value = "0";
@@ -757,8 +775,6 @@ const scenarios = {
     minimumObjects: 1,
     beforeNavigate: captureUnexpectedBrowserEvents,
     async run(page) {
-      const picker = page.getByRole("combobox", { name: "Example scene", exact: true });
-      await picker.waitFor({ state: "visible" });
       // The landing gallery must stay out of the way on a review page. An
       // author `display` rule once beat the UA [hidden] rule and left an empty
       // full-viewport panel covering the viewer.
@@ -767,31 +783,33 @@ const scenarios = {
         await page.locator("[data-canvas]").isVisible(),
         "the review canvas must be visible on a review page"
       );
-      assert.deepEqual(
-        await picker.locator("option").evaluateAll((options) =>
-          options.map((option) => ({ label: option.textContent, value: option.value }))
-        ),
-        [
-          { label: "Hot line expansion loop", value: "autorouted-expansion-loop" },
-          { label: "Anchored line with two bends", value: "code-aster-review" },
-          { label: "Mixed elements and supports", value: "elements-supports-review" },
-          { label: "Tee junction mesh", value: "gmsh-tee-mesh-review" },
-          { label: "Imported equipment connection", value: "imported_component_mixed_demo" },
-          { label: "Tee junction wall stress", value: "pipe-tee-volume-review" },
-          { label: "Pipe on a support rack", value: "support-rack-review" }
-        ]
-      );
-      assert.equal(await picker.inputValue(), "code-aster-review");
+      assert.equal(await page.locator("[data-bundle-picker]").count(), 0);
       assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.sceneId), "scene:code_aster_artifact_review");
 
-      await picker.selectOption("imported_component_mixed_demo");
+      await page.locator("[data-gallery-link]").click();
+      const cards = page.locator("[data-gallery-card]");
+      await cards.first().waitFor({ state: "visible" });
+      assert.deepEqual(
+        await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.galleryCard)),
+        [
+          "autorouted-expansion-loop",
+          "code-aster-review",
+          "elements-supports-review",
+          "gmsh-tee-mesh-review",
+          "imported_component_mixed_demo",
+          "pipe-tee-volume-review",
+          "support-rack-review"
+        ]
+      );
+
+      await page.locator('[data-gallery-card="imported_component_mixed_demo"]').click();
       await page.waitForFunction(
         () => window.__tubaViewer?.state?.sceneId === "scene:imported_component_mixed_system"
       );
       assert.equal(new URL(page.url()).pathname, "/viewer/");
       assert.equal(new URL(page.url()).searchParams.get("bundle"), "imported_component_mixed_demo");
-      // Collapsed evidence is a bar, not a strip of an unopened panel, so the
-      // diagnostics behind the tabs appear once it is expanded.
+      // Evidence is launched from the header, so diagnostics appear only once
+      // the overlay is requested.
       const pagesEvidenceExpand = page.locator("[data-evidence-expand]");
       if ((await pagesEvidenceExpand.getAttribute("aria-expanded")) === "false") {
         await pagesEvidenceExpand.click();
@@ -801,17 +819,14 @@ const scenarios = {
       assert.match(await page.locator("[data-diagnostic-list]").textContent(), /publication\.model_review\.no_solver_results/);
       assert.match(await page.locator("[data-diagnostic-list]").textContent(), /Code_Aster has not been run/);
 
-      await picker.selectOption("code-aster-review");
-      await page.waitForFunction(
-        () => window.__tubaViewer?.state?.sceneId === "scene:code_aster_artifact_review"
-      );
-      assert.equal(new URL(page.url()).searchParams.get("bundle"), "code-aster-review");
-
       for (const [bundle, sceneId] of [
+        ["code-aster-review", "scene:code_aster_artifact_review"],
         ["autorouted-expansion-loop", "scene:autorouted_expansion_loop"],
-        ["support-rack-review", "scene:support_rack_review"]
+        ["support-rack-review", "scene:support_rack_review"],
+        ["code-aster-review", "scene:code_aster_artifact_review"]
       ]) {
-        await picker.selectOption(bundle);
+        await page.locator("[data-gallery-link]").click();
+        await page.locator(`[data-gallery-card="${bundle}"]`).click();
         await page.waitForFunction(
           (expected) => window.__tubaViewer?.state?.sceneId === expected,
           sceneId
@@ -819,11 +834,7 @@ const scenarios = {
         assert.equal(new URL(page.url()).searchParams.get("bundle"), bundle);
       }
 
-      await picker.selectOption("code-aster-review");
-      await page.waitForFunction(
-        () => window.__tubaViewer?.state?.sceneId === "scene:code_aster_artifact_review"
-      );
-
+      await openReviewControls(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
       // The rail's primary control is the composited bodies, not the four layer
       // categories: "what is drawn" is the question this screen answers.
@@ -904,6 +915,7 @@ const scenarios = {
       assert.ok(!objectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
       assert.ok(objectIds.includes("object:element:pipe_str_0"), "undeformed reference must remain visible");
 
+      await page.locator("[data-evidence-expand]").click();
       await page.getByRole("tab", { name: "Warnings", exact: true }).click();
       await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
       const warnings = await page.locator("[data-diagnostic-list]").textContent();
@@ -918,6 +930,7 @@ const scenarios = {
         return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
       });
       // The section box is a secondary tool in the rail popover now.
+      await openReviewControls(page);
       await page.locator('[data-rail-tool="section"]').click();
       const sectionEnabled = page.getByLabel("Enable section", { exact: true });
       await sectionEnabled.focus();
@@ -943,6 +956,7 @@ const scenarios = {
       await page.waitForFunction(
         () => window.__tubaViewer?.state?.review?.schema_version === "engineering_review.v1"
       );
+      await openReviewControls(page);
       const reviewTask = page.getByRole("button", { name: "Review", exact: true });
       await reviewTask.waitFor();
       assert.equal(await reviewTask.getAttribute("aria-current"), "page");
@@ -976,11 +990,11 @@ const scenarios = {
           renderDiagnostics: viewer.lastRender.diagnostics
         };
       });
-      assert.equal(loaded.objects, 217);
-      assert.equal(loaded.geometryPayloads, 214);
-      assert.equal(loaded.overlays, 10);
-      assert.equal(loaded.layers, 39);
-      assert.equal(loaded.resultFields, 4);
+      assert.equal(loaded.objects, 221);
+      assert.equal(loaded.geometryPayloads, 218);
+      assert.equal(loaded.overlays, 11);
+      assert.equal(loaded.layers, 40);
+      assert.equal(loaded.resultFields, 5);
       assert.equal(loaded.hasParserDiagnostics, true);
       assert.equal(loaded.hasFieldContext, true);
       assert.deepEqual(loaded.reviewLoadDiagnostics, []);
@@ -1100,12 +1114,10 @@ const scenarios = {
         "field:solver_result:stress:result_state:Operating"
       );
       assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).count(), 0);
-      // Present but disabled for a scalar field, and saying why in its own text,
-      // so an absent control is never read as a missing choice.
+      // Scalar fields have no component decision; the control appears only
+      // when the selected vector field actually offers one.
       const scalarComponent = page.getByRole("combobox", { name: "Component", exact: true });
-      assert.equal(await scalarComponent.count(), 1);
-      assert.equal(await scalarComponent.isDisabled(), true);
-      assert.match(await scalarComponent.textContent(), /scalar field/);
+      assert.equal(await scalarComponent.count(), 0);
 
       await page.getByRole("combobox", { name: "Field", exact: true }).selectOption(
         "field:solver_result:displacement:result_state:Operating"

@@ -102,14 +102,10 @@ textarea,
 }
 
 .app-header {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(16rem, auto) auto auto;
-  grid-template-areas: "identity meta report runtime";
+  display: flex;
   align-items: center;
-  gap: 0.9rem;
-  /* One line. The identity, the tally, the report and the runtime light are
-     all it carries, and none of them needs a second row. */
-  min-height: 2.4rem;
+  gap: 1rem;
+  min-height: 3rem;
   border-bottom: 1px solid var(--graphite-line);
   background: var(--graphite);
   color: var(--chrome-text);
@@ -123,10 +119,11 @@ textarea,
 }
 
 .app-identity {
-  grid-area: identity;
-  display: grid;
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  flex: 1 1 auto;
   min-width: 0;
-  gap: 0.1rem;
 }
 
 /* The document's one h1: what you are looking at. It used to be a <strong>,
@@ -140,23 +137,6 @@ textarea,
   letter-spacing: 0.015em;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.bundle-picker {
-  margin-top: 0.2rem;
-  justify-self: start;
-  width: auto;
-  max-width: 100%;
-  border: 1px solid var(--graphite-line);
-  border-radius: 0.2rem;
-  background: var(--graphite-raised);
-  color: var(--chrome-text);
-  font-size: 0.72rem;
-  padding: 0.15rem 0.35rem;
-}
-
-.bundle-picker[hidden] {
-  display: none;
 }
 
 .app-kicker,
@@ -174,14 +154,24 @@ textarea,
 }
 
 .app-header .meta {
-  grid-area: meta;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.report-link {
-  grid-area: report;
-  justify-self: end;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.header-actions > a,
+.header-actions > button {
+  width: auto;
   border: 1px solid var(--graphite-line);
   border-radius: 0.15rem;
+  background: transparent;
   color: var(--accent);
   font-size: 0.8rem;
   padding: 0.35rem 0.55rem;
@@ -189,27 +179,47 @@ textarea,
   white-space: nowrap;
 }
 
-.report-link:hover {
+.header-actions > a:hover,
+.header-actions > button:hover {
   border-color: var(--focus-on-dark);
   color: var(--chrome-text);
+}
+
+.header-actions > a:focus-visible,
+.header-actions > button:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.header-actions > [hidden] {
+  display: none;
+}
+
+.report-link {
+  color: var(--accent);
+  text-decoration: none;
 }
 
 .report-link:focus-visible {
   outline-color: var(--focus-on-dark);
 }
 
-.report-link[hidden] {
-  display: none;
-}
-
 .runtime-status {
-  grid-area: runtime;
   border: 1px solid var(--graphite-line);
   color: var(--chrome-text);
   font-family: var(--font-mono);
   font-size: 0.75rem;
   padding: 0.3rem 0.55rem;
   white-space: nowrap;
+}
+
+.runtime-status[data-ready="true"] {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .runtime-status::before {
@@ -225,44 +235,6 @@ textarea,
 
 .runtime-status[data-error="true"]::before {
   color: #ff857d;
-}
-
-.cockpit-rail [data-workflow-tabs] {
-  position: sticky;
-  z-index: 5;
-  top: 0;
-  display: grid;
-  gap: 0.75rem;
-  overflow: visible;
-  border-bottom: 1px solid var(--graphite-line);
-  background: var(--graphite-raised);
-  padding: 0 0 0.75rem;
-  scrollbar-width: thin;
-}
-
-.cockpit-rail .task-button {
-  flex: 0 0 auto;
-  width: 100%;
-  min-height: 2.75rem;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: #c5ced1;
-  cursor: pointer;
-  padding: 0.65rem 0.85rem 0.55rem;
-  text-align: left;
-}
-
-.cockpit-rail .task-button:hover {
-  background: #2a353d;
-  color: var(--chrome-text);
-}
-
-.cockpit-rail .task-button[aria-current="page"] {
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 650;
 }
 
 /* The primary panel in the rail: it takes the height that is left and scrolls
@@ -318,6 +290,11 @@ textarea,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.cockpit-rail .task-button:hover {
+  background: #2a353d;
+  color: var(--chrome-text);
 }
 
 /* The accent budget is spent on the scene, not on the least important control
@@ -599,15 +576,6 @@ textarea,
   color: #9aa7ad;
 }
 
-.strip-tag {
-  border-radius: 0.2rem;
-  background: var(--graphite-raised);
-  color: #9aa7ad;
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
-  padding: 0.1rem 0.3rem;
-}
-
 .strip-subheading {
   margin: 0 0 0.3rem;
   font-size: 0.7rem;
@@ -697,14 +665,6 @@ textarea,
 
 .body-opacity:hover {
   background: #36434c;
-}
-
-.body-description {
-  margin: 0;
-  padding-left: 1.35rem;
-  color: #9aa7ad;
-  font-size: 0.7rem;
-  line-height: 1.4;
 }
 
 .body-metric {
@@ -881,15 +841,6 @@ textarea,
   cursor: not-allowed;
 }
 
-.bar-tag {
-  border-radius: 0.2rem;
-  background: rgb(94 216 229 / 16%);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 0.64rem;
-  padding: 0.1rem 0.3rem;
-}
-
 .bar-deform input[type="range"] {
   width: 6rem;
 }
@@ -984,6 +935,10 @@ textarea,
   right: 0.75rem;
   bottom: 9rem;
   gap: 0.25rem;
+}
+
+body[data-rail-open="true"] .body-legend {
+  display: none;
 }
 
 .body-legend-row {
@@ -1096,12 +1051,46 @@ textarea,
 }
 
 .cockpit-status {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
+  display: flex;
+  align-items: center;
+  gap: 0;
   overflow-x: auto;
-  border-bottom: 1px solid var(--line);
-  background: var(--line);
+  border-bottom: 1px solid var(--graphite-line);
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  padding: 0.25rem 0.85rem;
+}
+
+.cockpit-status[hidden] {
+  display: none;
+}
+
+.cockpit-status .review-overview-card {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 0;
+  border-right: 1px solid var(--graphite-line);
+  background: transparent;
+  padding: 0 0.75rem;
+}
+
+.cockpit-status .review-overview-card:first-child {
+  padding-left: 0;
+}
+
+.cockpit-status .review-overview-card:last-child {
+  border-right: 0;
+}
+
+.cockpit-status .review-overview-label {
+  color: #9aa7ad;
+  font-size: 0.62rem;
+}
+
+.cockpit-status .review-overview-card strong:not(.status-badge) {
+  color: var(--chrome-text);
+  font-size: 0.72rem;
 }
 
 .review-overview-card {
@@ -1310,16 +1299,11 @@ textarea,
 .viewer-workspace {
   position: relative;
   display: grid;
-  /* 18.5rem carries the bodies panel without wrapping "OD 114.3 · WT 6.02 · R
-     342.9 mm" or the section heading onto a second line. */
-  grid-template-columns: 18.5rem minmax(24rem, 1fr) minmax(16rem, 20rem);
-  /* Collapsed evidence is its own toggle bar and nothing more. Reserving a
-     minimum here cost the viewport 235px to show a strip of a panel nobody
-     had opened. */
+  grid-template-columns: minmax(24rem, 1fr) minmax(16rem, 20rem);
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
-    "rail viewport inspector"
-    "rail evidence inspector";
+    "viewport inspector"
+    "evidence inspector";
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -1327,20 +1311,14 @@ textarea,
 }
 
 .viewer-workspace:has(.inspector[hidden]) {
-  grid-template-columns: 18.5rem minmax(24rem, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "rail viewport"
-    "rail evidence";
+    "viewport"
+    "evidence";
 }
 
 .viewer-workspace:has(.evidence-dock.expanded) {
   grid-template-rows: minmax(0, 1fr) minmax(16rem, 50vh);
-}
-
-/* Collapsed means collapsed: the tabs stay reachable, the panel behind them
-   does not occupy the viewport's height until someone asks for it. */
-.evidence-dock:not(.expanded) .workflow-panel {
-  display: none;
 }
 
 .viewer-workspace[hidden] {
@@ -1370,11 +1348,19 @@ section {
 }
 
 .cockpit-rail {
-  grid-area: rail;
+  position: absolute;
+  z-index: 6;
+  inset: 0 auto 0 0;
   display: flex;
   flex-direction: column;
+  width: min(18.5rem, calc(100% - 3rem));
   overflow: hidden;
   border-right: 1px solid var(--graphite-line);
+  box-shadow: 0.65rem 0 1.4rem rgba(8, 12, 15, 0.28);
+}
+
+.cockpit-rail[hidden] {
+  display: none;
 }
 
 /* Secondary to the bodies panel below it. Tree, search and the object list are
@@ -1422,7 +1408,12 @@ section {
   color: #7c8894;
   font-size: 0.68rem;
   text-align: center;
+  opacity: 0;
   pointer-events: none;
+}
+
+.viewport:has([data-canvas]:focus-visible) .viewport-guidance {
+  opacity: 1;
 }
 
 /* Top-right column of compact chips, out of the way of the model. */
@@ -1493,26 +1484,8 @@ section {
   background: var(--paper);
 }
 
-/* Collapsed, the toggle and the tabs share one row instead of stacking into
-   two - it is a bar, and a bar is one row tall. */
 .evidence-dock:not(.expanded) {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-}
-
-.evidence-dock:not(.expanded) > [data-evidence-expand] {
-  margin: 0;
-}
-
-.evidence-dock:not(.expanded) .evidence-tabs {
-  padding: 0;
-}
-
-.evidence-dock > [data-evidence-expand] {
-  width: auto;
-  margin: 0.5rem;
+  display: none;
 }
 
 .evidence-tabs {
@@ -1534,7 +1507,12 @@ section {
 .evidence-report-link {
   display: inline-block;
   margin: 0 auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
   background: var(--graphite);
+  color: var(--accent);
+  padding: 0.5rem 0.65rem;
+  text-decoration: none;
 }
 
 h1,
@@ -1622,11 +1600,10 @@ input[type="range"] {
 
 .result-legend {
   margin-top: 0.65rem;
-  border-left: 3px solid var(--accent);
   color: #d9e0e2;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  padding: 0.3rem 0 0.3rem 0.55rem;
+  padding-block: 0.3rem;
 }
 
 /* Travels with the legend and is never collapsed away: mislabelling FE stress
@@ -1770,11 +1747,11 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   .viewer-workspace,
   .viewer-workspace:has(.inspector[hidden]),
   .viewer-workspace:has(.evidence-dock.expanded) {
-    grid-template-columns: 12rem minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 3.25rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas:
-      "rail viewport"
-      "rail evidence";
+      "viewport"
+      "evidence";
   }
 
   .inspector {
@@ -1785,20 +1762,10 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     box-shadow: -0.5rem 0 1rem rgba(14, 20, 24, 0.35);
   }
 
-  .evidence-dock:not(.expanded) {
-    max-height: 3.25rem;
-    overflow: hidden;
-  }
-
-  .evidence-dock:not(.expanded) .evidence-tabs,
-  .evidence-dock:not(.expanded) .workflow-panel {
-    display: none;
-  }
-
   .evidence-dock.expanded {
     position: absolute;
     z-index: 3;
-    inset: auto 0 0 12rem;
+    inset: auto 0 0 0;
     height: min(60vh, 32rem);
     max-height: none;
     overflow: auto;
@@ -1807,11 +1774,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 }
 
 @media (max-width: 900px) {
-  .app-header {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas: "identity report runtime";
-  }
-
   .app-header .meta {
     display: none;
   }
@@ -1839,64 +1801,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 }
 
 @media (max-width: 800px) {
-  .cockpit-status {
-    grid-template-columns: repeat(5, minmax(8rem, 1fr));
-    overflow-x: auto;
-  }
-
-  .viewer-workspace,
-  .viewer-workspace:has(.inspector[hidden]),
-  .viewer-workspace:has(.evidence-dock.expanded) {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) minmax(8rem, 20vh);
-    grid-template-areas:
-      "rail"
-      "viewport"
-      "evidence";
-  }
-
-  .cockpit-rail {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 0.5rem;
-    height: auto;
-    /* Tall enough for a body row to be readable. At 8rem the narrow layout had
-       the same one-third-of-a-list window the wide one used to. */
-    max-height: min(13rem, 30vh);
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-right: 0;
-    border-bottom: 1px solid var(--graphite-line);
-  }
-
-  .cockpit-rail .display-strip {
-    flex: 0 0 min(20rem, 80vw);
-    max-height: min(13rem, 30vh);
-    overflow-y: auto;
-  }
-
-  .cockpit-rail [data-workflow-tabs] {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 0.25rem;
-  }
-
-  .cockpit-rail .task-button {
-    width: auto;
-    white-space: nowrap;
-  }
-
-  .evidence-dock.expanded {
-    left: 0;
-  }
-
-  .cockpit-rail .task-panel:not(:empty) {
-    flex: 0 0 min(18rem, 70vw);
-    max-height: 6rem;
-    overflow: auto;
-  }
-
   body[data-embed="true"] .viewer-workspace {
     grid-template-rows: minmax(0, 1fr);
     grid-template-areas: "viewport";
@@ -1905,26 +1809,18 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
 @media (max-width: 520px) {
   .app-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "identity runtime"
-      "report report";
     min-height: 3.25rem;
     padding-inline: 0.7rem;
   }
 
-  .report-link {
-    justify-self: start;
+  .header-actions {
+    gap: 0.2rem;
   }
 
-  .app-kicker {
-    display: none;
-  }
-
-  .runtime-status {
-    max-width: 9rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .header-actions > a,
+  .header-actions > button {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.4rem;
   }
 
   [data-workflow-tabs] {
@@ -2072,9 +1968,7 @@ body[data-view="gallery"] .app-shell {
   align-self: flex-start;
   color: var(--accent);
   font-size: 0.78rem;
-  letter-spacing: 0.06em;
   text-decoration: none;
-  text-transform: uppercase;
 }
 
 .gallery-back:hover,
