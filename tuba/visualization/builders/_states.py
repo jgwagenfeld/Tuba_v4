@@ -357,6 +357,32 @@ def _build_analysis_mesh_scene(
     if analysis_mesh.surface_mesh is not None:
         vertices = analysis_mesh.surface_mesh["vertices"]
         faces = analysis_mesh.surface_mesh["faces"]
+        surface_edges = {
+            tuple(sorted((face[index], face[(index + 1) % len(face)])))
+            for face in faces
+            for index in range(len(face))
+        }
+        volume_edges: set[tuple[str, str]] = set()
+        for element_nodes in analysis_mesh.elements.values():
+            if len(element_nodes) in {4, 10}:
+                corners = element_nodes[:4]
+                edge_pairs = ((0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3))
+            elif len(element_nodes) in {8, 20, 27}:
+                corners = element_nodes[:8]
+                edge_pairs = (
+                    (0, 1), (1, 2), (2, 3), (3, 0),
+                    (4, 5), (5, 6), (6, 7), (7, 4),
+                    (0, 4), (1, 5), (2, 6), (3, 7),
+                )
+            else:
+                continue
+            volume_edges.update(
+                tuple(sorted((corners[left], corners[right])))
+                for left, right in edge_pairs
+            )
+        volume_corner_node_ids = {node_id for edge in volume_edges for node_id in edge}
+        volume_node_ids = [node_id for node_id in analysis_mesh.nodes if node_id in volume_corner_node_ids]
+        volume_node_indices = {node_id: index for index, node_id in enumerate(volume_node_ids)}
         object_id = f"object:analysis_mesh:{analysis_mesh.id}:volume_skin"
         asset_id = f"geometry:analysis_mesh:{analysis_mesh.id}:volume_skin"
         assets.append(
@@ -370,6 +396,13 @@ def _build_analysis_mesh_scene(
                     "mesh_id": analysis_mesh.id,
                     "vertices": vertices,
                     "faces": faces,
+                    "show_edges": True,
+                    "surface_edge_indices": [list(edge) for edge in sorted(surface_edges)],
+                    "volume_vertices": [list(analysis_mesh.nodes[node_id]) for node_id in volume_node_ids],
+                    "volume_edge_indices": [
+                        [volume_node_indices[left], volume_node_indices[right]]
+                        for left, right in sorted(volume_edges)
+                    ],
                 },
             )
         )

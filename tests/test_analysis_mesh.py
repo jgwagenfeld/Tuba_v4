@@ -5,6 +5,31 @@ from tuba.refs import EntityRef
 
 
 class TestAnalysisMesh(unittest.TestCase):
+    def test_analysis_mesh_accepts_quadrilateral_surface_cells(self):
+        mesh = AnalysisMesh(
+            id="hex_skin",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={
+                "N0": (0.0, 0.0, 0.0),
+                "N1": (1.0, 0.0, 0.0),
+                "N2": (1.0, 1.0, 0.0),
+                "N3": (0.0, 1.0, 0.0),
+            },
+            elements={"H0": ("N0", "N1", "N2", "N3")},
+            groups={"G_SOLID": ("H0",)},
+            node_sources={},
+            element_sources={},
+            surface_mesh={
+                "vertices": ((0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)),
+                "faces": ((0, 1, 2, 3),),
+                "node_ids": ("N0", "N1", "N2", "N3"),
+            },
+        )
+
+        self.assertEqual(mesh.surface_mesh["faces"], [[0, 1, 2, 3]])
+        self.assertEqual(AnalysisMesh.from_dict(mesh.to_dict()), mesh)
+
     def test_analysis_mesh_roundtrips_source_refs(self):
         mesh = AnalysisMesh(
             id="mesh_hot",

@@ -54,15 +54,25 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
                 "N1": (1.0, 0.0, 0.0),
                 "N2": (0.0, 1.0, 0.0),
                 "N3": (0.0, 0.0, 1.0),
+                "N4": (1.0, 0.0, 1.0),
+                "N5": (1.0, 1.0, 1.0),
+                "N6": (0.0, 1.0, 1.0),
+                "N7": (1.0, 1.0, 0.0),
+                **{f"N{index}": (0.5, 0.5, 0.5) for index in range(8, 20)},
             },
-            elements={"M0": ("N0", "N1", "N2", "N3")},
+            elements={
+                "M0": (
+                    "N0", "N1", "N7", "N2", "N3", "N4", "N5", "N6",
+                    *(f"N{index}" for index in range(8, 20)),
+                )
+            },
             groups={"G_SOLID_region_0": ("M0",)},
             node_sources={},
             element_sources={},
             modelisations={"G_SOLID_region_0": "3D"},
             surface_mesh={
-                "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-                "faces": [[0, 1, 2]],
+                "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+                "faces": [[0, 1, 2, 3]],
             },
         )
 
@@ -75,7 +85,14 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
         )
         surface = next(obj for obj in scene.objects if obj.geometry_asset_id == asset.id)
         self.assertEqual(asset.format, "mesh")
-        self.assertEqual(asset.generation_config["faces"], [[0, 1, 2]])
+        self.assertEqual(asset.generation_config["faces"], [[0, 1, 2, 3]])
+        self.assertEqual(asset.generation_config["surface_edge_indices"], [[0, 1], [0, 3], [1, 2], [2, 3]])
+        self.assertTrue(asset.generation_config["show_edges"])
+        self.assertEqual(
+            asset.generation_config["volume_edge_indices"],
+            [[0, 1], [0, 2], [0, 3], [1, 4], [1, 7], [2, 6], [2, 7], [3, 4], [3, 6], [4, 5], [5, 6], [5, 7]],
+        )
+        self.assertEqual(len(asset.generation_config["volume_vertices"]), 8)
         self.assertEqual(surface.kind, "analysis_mesh_surface")
         self.assertIn("analysis_mesh:volume_skin", surface.layer_ids)
         self.assertFalse(any("solver_result" in layer for layer in surface.layer_ids))

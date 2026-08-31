@@ -195,8 +195,8 @@ class AnalysisMesh:
                 for vertex in self.surface_mesh.get("vertices", [])
             ]
             faces = [list(int(index) for index in face) for face in self.surface_mesh.get("faces", [])]
-            if not vertices or not faces or any(len(face) != 3 for face in faces):
-                raise ValueError("AnalysisMesh surface_mesh requires non-empty triangular vertices and faces.")
+            if not vertices or not faces or any(len(face) not in {3, 4} for face in faces):
+                raise ValueError("AnalysisMesh surface_mesh requires non-empty triangular or quadrilateral faces.")
             if any(index < 0 or index >= len(vertices) for face in faces for index in face):
                 raise ValueError("AnalysisMesh surface_mesh face index is outside its vertex array.")
             node_ids = list(self.surface_mesh.get("node_ids", []))

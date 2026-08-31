@@ -487,6 +487,7 @@ export function sectionBoxClippingPlanes(sectionBox) {
 export function applySectionBoxClipping(graph, sectionBox) {
   const clippingPlanes = sectionBox ? sectionBoxClippingPlanes(sectionBox) : null;
   graph.root?.traverse((object) => {
+    if (object.userData?.volumeMeshEdges) object.visible = Boolean(sectionBox);
     const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : [];
     for (const material of materials) {
       material.clippingPlanes = clippingPlanes;
@@ -937,10 +938,18 @@ function createMesh(asset, config, payload, format, state) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(flatVertices, 3));
   if (Array.isArray(faces) && faces.length > 0) {
-    geometry.setIndex(faces.flat());
+    geometry.setIndex(
+      faces.flatMap((face) =>
+        Array.isArray(face) && face.length === 4
+          ? [face[0], face[1], face[2], face[0], face[2], face[3]]
+          : face
+      )
+    );
   }
   geometry.computeVertexNormals();
-  const material = materialForAsset(asset, config, { transparent: true });
+  const meshConfig = { opacity: 1, ...config };
+  const material = materialForAsset(asset, meshConfig);
+  material.side = THREE.DoubleSide;
   const vertexValues = Array.isArray(config.vertex_values) ? config.vertex_values.map(Number) : [];
   if (vertexValues.length === vertices.length && vertexValues.every(Number.isFinite)) {
     const legend = subpointLegend(config, vertexValues, state);
@@ -952,8 +961,44 @@ function createMesh(asset, config, payload, format, state) {
     material.vertexColors = true;
   }
   const mesh = new THREE.Mesh(geometry, material);
+  if (config.show_edges) {
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = 1;
+    material.polygonOffsetUnits = 1;
+    const opacity = opacityForConfig(meshConfig, 1);
+    const surfaceEdges = config.surface_edge_indices;
+    let edgeGeometry;
+    if (Array.isArray(surfaceEdges) && surfaceEdges.length > 0) {
+      edgeGeometry = new THREE.BufferGeometry();
+      edgeGeometry.setAttribute("position", geometry.getAttribute("position"));
+      edgeGeometry.setIndex(surfaceEdges.flat());
+    } else {
+      edgeGeometry = new THREE.WireframeGeometry(geometry);
+    }
+    mesh.add(new THREE.LineSegments(edgeGeometry, meshEdgeMaterial(asset, meshConfig, opacity)));
+  }
+  const volumeVertices = config.volume_vertices;
+  const volumeEdgeIndices = config.volume_edge_indices;
+  if (Array.isArray(volumeVertices) && volumeVertices.length > 0 && Array.isArray(volumeEdgeIndices) && volumeEdgeIndices.length > 0) {
+    const edgeGeometry = new THREE.BufferGeometry();
+    edgeGeometry.setAttribute("position", new THREE.Float32BufferAttribute(volumeVertices.flat(), 3));
+    edgeGeometry.setIndex(volumeEdgeIndices.flat());
+    const volumeEdges = new THREE.LineSegments(edgeGeometry, meshEdgeMaterial(asset, meshConfig));
+    volumeEdges.userData.volumeMeshEdges = true;
+    volumeEdges.visible = false;
+    mesh.add(volumeEdges);
+  }
   mesh.name = asset.id;
   return { format, object: mesh };
+}
+
+function meshEdgeMaterial(asset, config, opacity = opacityForConfig(config, 1)) {
+  return new THREE.LineBasicMaterial({
+    color: 0x1f2937,
+    depthWrite: false,
+    opacity,
+    transparent: opacity < 1
+  });
 }
 
 function addReferenceHelpers(scene, bounds) {

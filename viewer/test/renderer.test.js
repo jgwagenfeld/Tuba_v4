@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BoxGeometry, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
+import { BoxGeometry, DoubleSide, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
 
 import * as rendererModule from "../src/renderer.js";
 
@@ -111,6 +111,73 @@ test("mesh vertex values render as a scalar-colored surface", () => {
 
   assert.equal(mesh.material.vertexColors, true);
   assert.equal(mesh.geometry.getAttribute("color").count, 4);
+});
+
+test("analysis mesh at 100 percent opacity is actually opaque", () => {
+  const state = fixtureState();
+  const asset = state.geometryAssets.find((candidate) => candidate.id === "geometry:mesh");
+  asset.generation_config.show_edges = true;
+  state.objectLayerIds = { "object:mesh": ["analysis_mesh:volume_skin"] };
+  state.layers = { "analysis_mesh:volume_skin": { category: "analysis_mesh" } };
+  state.bodyOpacity = { analysis_mesh: 1 };
+
+  const mesh = createThreeSceneGraph(state).objectsByObjectId.get("object:mesh");
+
+  assert.equal(mesh.material.opacity, 1);
+  assert.equal(mesh.material.transparent, false);
+  assert.equal(mesh.material.depthWrite, true);
+});
+
+test("analysis surface mesh triangulates quadrilateral fills without drawing diagonals", () => {
+  const state = fixtureState();
+  const asset = state.geometryAssets.find((candidate) => candidate.id === "geometry:mesh");
+  asset.generation_config.vertices = [
+    [0, 0, 0],
+    [1, 0, 0],
+    [1, 1, 0],
+    [0, 1, 0]
+  ];
+  asset.generation_config.faces = [[0, 1, 2, 3]];
+  asset.generation_config.show_edges = true;
+  asset.generation_config.surface_edge_indices = [[0, 1], [1, 2], [2, 3], [3, 0]];
+
+  const mesh = createThreeSceneGraph(state).objectsByObjectId.get("object:mesh");
+  const edges = mesh.children.find((child) => child.isLineSegments);
+
+  assert.ok(edges);
+  assert.deepEqual([...mesh.geometry.index.array], [0, 1, 2, 0, 2, 3]);
+  assert.deepEqual([...edges.geometry.index.array], [0, 1, 1, 2, 2, 3, 3, 0]);
+  assert.equal(mesh.material.side, DoubleSide);
+  assert.equal(edges.material.color.getHex(), 0x1f2937);
+});
+
+test("section box reveals the internal volume-element edges", () => {
+  const state = fixtureState();
+  const asset = state.geometryAssets.find((candidate) => candidate.id === "geometry:mesh");
+  asset.generation_config.volume_vertices = [
+    [0, 0, 0],
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1]
+  ];
+  asset.generation_config.volume_edge_indices = [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [1, 2],
+    [1, 3],
+    [2, 3]
+  ];
+
+  const mesh = createThreeSceneGraph(state).objectsByObjectId.get("object:mesh");
+  const volumeEdges = mesh.children.find((child) => child.userData.volumeMeshEdges);
+
+  assert.ok(volumeEdges);
+  assert.equal(volumeEdges.visible, false);
+  applySectionBoxClipping({ root: mesh }, { min: [0, 0, 0], max: [0.5, 0.5, 0.5] });
+  assert.equal(volumeEdges.visible, true);
+  applySectionBoxClipping({ root: mesh }, null);
+  assert.equal(volumeEdges.visible, false);
 });
 
 test("scene graph renders cold geometry as transparent gray reference for visual deformation", () => {

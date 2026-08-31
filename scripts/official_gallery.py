@@ -256,7 +256,7 @@ OFFICIAL_GALLERIES = (
         title="Tee junction mesh",
         question="What does the analysis actually discretise at a branch?",
         summary=(
-            "The conformal tetrahedral wall mesh generated for a header and its "
+            "The conformal quadratic-hexahedral wall mesh generated for a header and its "
             "branch, before anything is solved. Useful for judging mesh quality at "
             "the junction where a beam idealisation stops being enough."
         ),

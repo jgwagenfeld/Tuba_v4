@@ -42,7 +42,7 @@ It also carries an optional ASME B31.3 evaluation.
 
 ## What does the analysis actually discretise at a branch?
 
-**Tee junction mesh.** The conformal tetrahedral wall mesh generated for a header and its branch, before anything is solved. Useful for judging mesh quality at the junction where a beam idealisation stops being enough.
+**Tee junction mesh.** The conformal quadratic-hexahedral wall mesh generated for a header and its branch, before anything is solved. Useful for judging mesh quality at the junction where a beam idealisation stops being enough.
 
 The viewer opens on the analysis mesh; the authored pipe tubes remain available
 as a layer but start hidden so they cannot obscure the junction.

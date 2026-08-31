@@ -85,13 +85,20 @@ def _bend_pipe_model():
     return model, n0, n1
 
 
-def _tetra_component_count(elements):
-    cells = [tuple(nodes[:4]) for nodes in elements.values()]
+def _hexa_component_count(elements):
+    cells = [tuple(nodes[:8]) for nodes in elements.values()]
     neighbours = [set() for _cell in cells]
     face_owners = {}
     for cell_index, cell in enumerate(cells):
-        for omitted in range(4):
-            face = frozenset(node for index, node in enumerate(cell) if index != omitted)
+        for indices in (
+            (0, 1, 2, 3),
+            (4, 5, 6, 7),
+            (0, 1, 5, 4),
+            (1, 2, 6, 5),
+            (2, 3, 7, 6),
+            (3, 0, 4, 7),
+        ):
+            face = frozenset(cell[index] for index in indices)
             for owner in face_owners.get(face, ()):
                 neighbours[cell_index].add(owner)
                 neighbours[owner].add(cell_index)
@@ -134,14 +141,17 @@ def test_builds_grouped_quadratic_straight_pipe_med(tmp_path):
     ):
         assert generated.groups[name]
 
-    assert generated.settings == {"element_order": 2, "max_element_size": 0.005}
+    assert generated.settings == {"element_family": "HEXA20", "element_order": 2, "max_element_size": 0.005}
     assert generated.gmsh_version
     assert np.isfinite(np.asarray(generated.surface_vertices)).all()
     assert generated.surface_faces
+    assert {len(face) for face in generated.surface_faces} == {4}
+    assert {len(nodes) for nodes in generated.analysis_mesh.elements.values()} == {20}
     assert max(index for face in generated.surface_faces for index in face) < len(generated.surface_vertices)
 
     med = meshio.read(output)
-    assert any(block.type == "tetra10" for block in med.cells)
+    assert any(block.type == "hexahedron20" for block in med.cells)
+    assert not any(block.type.startswith("tetra") for block in med.cells)
 
 
 @pytest.mark.parametrize(
@@ -179,7 +189,9 @@ def test_builds_grouped_quadratic_bend_pipe_med(tmp_path):
         f"G_END_{n1}",
     ):
         assert generated.groups[name]
-    assert _tetra_component_count(generated.analysis_mesh.elements) == 1
+    assert _hexa_component_count(generated.analysis_mesh.elements) == 1
+    assert {len(face) for face in generated.surface_faces} == {4}
+    assert {len(nodes) for nodes in generated.analysis_mesh.elements.values()} == {20}
     assert np.isfinite(np.asarray(generated.surface_vertices)).all()
     assert generated.surface_faces
     assert generated.analysis_mesh.surface_mesh
@@ -231,7 +243,7 @@ def test_meshes_conformal_explicit_tee(tmp_path, branch_od):
     assert generated.groups[f"G_TEE_{junction}"]
     assert generated.groups["G_SOLID_region_0"]
     assert {f"G_END_{node}" for node in ends} <= generated.groups.keys()
-    assert _tetra_component_count(generated.analysis_mesh.elements) == 1
+    assert _hexa_component_count(generated.analysis_mesh.elements) == 1
     expected_sources = ["element:branch", "element:left", "element:right"]
     assert {str(source.source_ref) for source in generated.analysis_mesh.node_sources.values()} == {
         f"node:{junction}"
@@ -280,7 +292,7 @@ def test_rejects_disconnected_generated_volume(tmp_path, monkeypatch):
             node_count = gmsh.model.mesh.getElementProperties(element_type)[3]
             cells = np.asarray(element_nodes).reshape(-1, node_count)
             first = cells[0]
-            other = next(cell for cell in cells[1:] if len(set(first[:4]) & set(cell[:4])) < 3)
+            other = next(cell for cell in cells[1:] if len(set(first[:8]) & set(cell[:8])) < 4)
             other_index = next(index for index, cell in enumerate(cells) if np.array_equal(cell, other))
             filtered_tags.append(np.asarray([element_tags[0], element_tags[other_index]]))
             filtered_nodes.append(np.concatenate([first, other]))

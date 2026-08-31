@@ -145,6 +145,22 @@ class TestDiscretisationSummary(unittest.TestCase):
 
 
 class TestMeshIdentityCarriesTheCheck(unittest.TestCase):
+    def test_identity_names_quadratic_hexahedral_volume_cells(self):
+        nodes = {f"N{index}": (float(index), 0.0, 0.0) for index in range(20)}
+        mesh = AnalysisMesh(
+            id="solid",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes=nodes,
+            elements={"H0": tuple(nodes)},
+            groups={"G_SOLID": ("H0",)},
+            node_sources={},
+            element_sources={},
+            modelisations={"G_SOLID": "3D"},
+        )
+
+        self.assertEqual(mesh_identity(mesh)["element_families"], [{"family": "HEXA20", "element_count": 1}])
+
     def test_identity_reports_element_family_and_discretisation(self):
         identity = mesh_identity(_bend_mesh(segments=3, radius=0.3429, angle=90.0))
         self.assertEqual(identity["element_families"], [{"family": "SEG2", "element_count": 3}])

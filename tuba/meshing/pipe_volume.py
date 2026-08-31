@@ -1,4 +1,4 @@
-"""Quadratic Gmsh volume meshes for explicitly selected pipe geometry."""
+"""Quadratic hexahedral Gmsh meshes for explicitly selected pipe geometry."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ class GeneratedPipeVolumeMesh:
     analysis_mesh: AnalysisMesh
     groups: dict[str, tuple[str, ...]]
     surface_vertices: tuple[tuple[float, float, float], ...]
-    surface_faces: tuple[tuple[int, int, int], ...]
+    surface_faces: tuple[tuple[int, ...], ...]
     gmsh_version: str
     settings: dict[str, Any]
     med_path: Path
@@ -66,10 +66,12 @@ def build_pipe_volume_mesh(
             initialize_args=["-noenv"],
             options={
                 "General.Terminal": 0,
-                "Mesh.MeshSizeMin": max_element_size,
-                "Mesh.MeshSizeMax": max_element_size,
+                "Mesh.MeshSizeMin": max_element_size * 2.0,
+                "Mesh.MeshSizeMax": max_element_size * 2.0,
                 "Mesh.MeshSizeFromCurvature": 20,
                 "Mesh.ElementOrder": element_order,
+                "Mesh.SecondOrderIncomplete": 1,
+                "Mesh.SubdivisionAlgorithm": 2,
             },
         ):
             if selection.tee_node is None:
@@ -107,7 +109,11 @@ def build_pipe_volume_mesh(
                 surface_vertices=vertices,
                 surface_faces=faces,
                 gmsh_version=str(gmsh.__version__),
-                settings={"element_order": element_order, "max_element_size": max_element_size},
+                settings={
+                    "element_family": "HEXA20",
+                    "element_order": element_order,
+                    "max_element_size": max_element_size,
+                },
                 med_path=output,
             )
     finally:
@@ -416,7 +422,7 @@ def _readback(
     AnalysisMesh,
     dict[str, tuple[str, ...]],
     tuple[tuple[float, float, float], ...],
-    tuple[tuple[int, int, int], ...],
+    tuple[tuple[int, ...], ...],
 ]:
     node_tags, coordinates, _parameters = gmsh.model.mesh.getNodes()
     if not np.isfinite(coordinates).all():
@@ -452,10 +458,10 @@ def _readback(
     for volume_tag in raw_entities["G_SOLID_region_0"][1]:
         types, element_tag_blocks, node_tag_blocks = gmsh.model.mesh.getElements(3, volume_tag)
         for element_type, element_tags, element_nodes in zip(types, element_tag_blocks, node_tag_blocks):
-            _name, dimension, order, node_count, _local, _primary_count = gmsh.model.mesh.getElementProperties(
+            _name, dimension, order, node_count, _local, primary_count = gmsh.model.mesh.getElementProperties(
                 element_type
             )
-            if dimension != 3 or order != 2 or node_count != 10:
+            if dimension != 3 or order != 2 or node_count != 20 or primary_count != 8:
                 continue
             for index, element_tag in enumerate(element_tags):
                 mesh_id = f"VM{int(element_tag)}"
@@ -469,10 +475,10 @@ def _readback(
                 )
                 volume_mesh_tags.append(int(element_tag))
     if not volume_mesh_tags:
-        raise RuntimeError("Gmsh generated no quadratic tetrahedral volume cells.")
+        raise RuntimeError("Gmsh generated no quadratic hexahedral volume cells.")
     qualities = np.asarray(gmsh.model.mesh.getElementQualities(volume_mesh_tags, "minSJ"), dtype=float)
     if not qualities.size or not np.isfinite(qualities).all() or float(qualities.min()) <= 0.0:
-        raise RuntimeError("Gmsh generated an invalid quadratic tetrahedral cell.")
+        raise RuntimeError("Gmsh generated an invalid quadratic hexahedral cell.")
     _require_connected_volume(elements)
 
     groups: dict[str, tuple[str, ...]] = {
@@ -480,7 +486,7 @@ def _readback(
         for raw_name, (dimension, _entity_tags) in raw_entities.items()
         if dimension == 3
     }
-    surface_triangle_nodes: list[tuple[int, int, int]] = []
+    surface_quad_nodes: list[tuple[int, int, int, int]] = []
     for raw_name, (dimension, entity_tags) in raw_entities.items():
         if dimension != 2:
             continue
@@ -491,20 +497,20 @@ def _readback(
                 _name, cell_dimension, _order, node_count, _local, primary_count = (
                     gmsh.model.mesh.getElementProperties(element_type)
                 )
-                if cell_dimension != 2 or primary_count != 3:
+                if cell_dimension != 2 or primary_count != 4:
                     continue
                 for index, element_tag in enumerate(element_tags):
-                    tags = tuple(int(tag) for tag in element_nodes[index * node_count : index * node_count + 3])
+                    tags = tuple(int(tag) for tag in element_nodes[index * node_count : index * node_count + 4])
                     mesh_ids.append(f"VS{int(element_tag)}")
-                    surface_triangle_nodes.append(tags)
+                    surface_quad_nodes.append(tags)
         groups[raw_name] = tuple(mesh_ids)
         if not groups[raw_name]:
             raise RuntimeError(f"Gmsh generated an empty physical group {raw_name!r}.")
 
-    skin_tags = tuple(dict.fromkeys(tag for face in surface_triangle_nodes for tag in face))
+    skin_tags = tuple(dict.fromkeys(tag for face in surface_quad_nodes for tag in face))
     skin_indices = {tag: index for index, tag in enumerate(skin_tags)}
     vertices = tuple(coordinates_by_tag[tag] for tag in skin_tags)
-    faces = tuple(tuple(skin_indices[tag] for tag in face) for face in surface_triangle_nodes)
+    faces = tuple(tuple(skin_indices[tag] for tag in face) for face in surface_quad_nodes)
     analysis_mesh = AnalysisMesh(
         id=f"pipe-volume-{uuid4().hex}",
         model_revision=int(getattr(model, "revision", 0)),
@@ -529,9 +535,16 @@ def _require_connected_volume(elements: dict[str, tuple[str, ...]]) -> None:
     neighbours = {element_id: set() for element_id in elements}
     face_owner: dict[frozenset[str], str] = {}
     for element_id, node_ids in elements.items():
-        corners = node_ids[:4]
-        for omitted in range(4):
-            face = frozenset(node_id for index, node_id in enumerate(corners) if index != omitted)
+        corners = node_ids[:8]
+        for indices in (
+            (0, 1, 2, 3),
+            (4, 5, 6, 7),
+            (0, 1, 5, 4),
+            (1, 2, 6, 5),
+            (2, 3, 7, 6),
+            (3, 0, 4, 7),
+        ):
+            face = frozenset(corners[index] for index in indices)
             owner = face_owner.setdefault(face, element_id)
             if owner != element_id:
                 neighbours[element_id].add(owner)

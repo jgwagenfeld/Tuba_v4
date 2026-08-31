@@ -206,8 +206,8 @@ def mesh_identity(analysis_mesh: AnalysisMesh) -> dict[str, object]:
     return identity
 
 
-#: Node count -> Code_Aster element family, for the 1D meshes Tuba emits.
-_SEG_FAMILIES: dict[int, str] = {1: "POI1", 2: "SEG2", 3: "SEG3", 4: "SEG4"}
+#: Node count -> Code_Aster element family for meshes Tuba emits.
+_ELEMENT_FAMILIES: dict[int, str] = {1: "POI1", 2: "SEG2", 3: "SEG3", 4: "SEG4", 20: "HEXA20"}
 
 
 def _element_families(analysis_mesh: AnalysisMesh) -> list[dict[str, object]]:
@@ -221,7 +221,7 @@ def _element_families(analysis_mesh: AnalysisMesh) -> list[dict[str, object]]:
     for node_ids in analysis_mesh.elements.values():
         counts[len(node_ids)] = counts.get(len(node_ids), 0) + 1
     return [
-        {"family": _SEG_FAMILIES.get(node_count, f"NODE{node_count}"), "element_count": count}
+        {"family": _ELEMENT_FAMILIES.get(node_count, f"NODE{node_count}"), "element_count": count}
         for node_count, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     ]
 
