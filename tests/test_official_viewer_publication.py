@@ -41,6 +41,7 @@ def test_gmsh_mesh_viewer_recipe_builds_an_unsolved_scene() -> None:
     assert scene.extra["publication_status"] == "mesh_only_unsolved"
     assert not scene.result_fields
     assert any(obj.kind == "analysis_mesh_surface" for obj in scene.objects)
+    assert not any(asset.generation_config.get("source") == "tuba.element" for asset in scene.geometry_assets)
     assert not any(layer.category == "results" for layer in scene.layers)
 
 
@@ -145,7 +146,11 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     assert next(
         layer for layer in mesh_review["layers"] if layer["id"] == "analysis_mesh:volume_skin"
     )["default_visible"]
-    assert not next(layer for layer in mesh_review["layers"] if layer["id"] == "pipe")["default_visible"]
+    assert not any(layer["id"] == "pipe" for layer in mesh_review["layers"])
+    assert not any(
+        asset.get("generation_config", {}).get("source") == "tuba.element"
+        for asset in mesh_review["geometry_assets"]
+    )
     assert "no solver results" in json.dumps(mesh_review).lower()
 
     model_review = json.loads(

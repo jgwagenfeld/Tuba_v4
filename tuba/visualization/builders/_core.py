@@ -1,6 +1,7 @@
 """Scene orchestrator: build_visualization_scene."""
 
 from __future__ import annotations
+from dataclasses import replace
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -85,6 +86,35 @@ def build_visualization_scene(
             run.analysis_mesh for run in analysis_run_records if run.analysis_mesh is not None
         ]
     analysis_meshes_by_id = {analysis_mesh.id: analysis_mesh for analysis_mesh in analysis_mesh_records}
+    volume_element_refs: set[str] = set()
+    unscoped_volume_skin = False
+    for analysis_mesh in analysis_mesh_records:
+        if analysis_mesh.surface_mesh is None:
+            continue
+        mesh_element_refs = {
+            str(source.source_ref)
+            for source in analysis_mesh.element_sources.values()
+            if source.source_ref.kind == "element"
+        }
+        for source in analysis_mesh.element_sources.values():
+            mesh_element_refs.update(source.metadata.get("source_element_refs", ()))
+        volume_element_refs.update(mesh_element_refs)
+        unscoped_volume_skin = unscoped_volume_skin or not mesh_element_refs
+    for analysis_run in analysis_run_records:
+        if analysis_run.analysis_mesh is None or analysis_run.analysis_mesh.surface_mesh is None:
+            continue
+        volume_element_refs.update(
+            f"element:{element_id}"
+            for element_id in analysis_run.study.metadata.get("compiler_inputs", {}).get("element_ids", ())
+        )
+    for result_state in result_state_records:
+        analysis_mesh = analysis_meshes_by_id.get(result_state.mesh_id or "")
+        if analysis_mesh is None or analysis_mesh.surface_mesh is None:
+            continue
+        volume_element_refs.update(
+            f"element:{element_id}"
+            for element_id in result_state.metadata.get("compiler_inputs", {}).get("element_ids", ())
+        )
     owned_mesh_ids = {state.mesh_id for state in result_state_records if state.mesh_id}
     for analysis_mesh in analysis_mesh_records:
         if analysis_mesh.solver_input_identity is not None and analysis_mesh.id not in owned_mesh_ids:
@@ -134,6 +164,18 @@ def build_visualization_scene(
             scene_object, asset, object_diagnostics, envelope_objects, envelope_assets, envelope_overlays = (
                 _build_element_object(model, elem, opts, resolved_ifc_guid_map)
             )
+            if elem.type.startswith("pipe") and (
+                unscoped_volume_skin or f"element:{elem.id}" in volume_element_refs
+            ):
+                objects.append(
+                    replace(
+                        scene_object,
+                        geometry_asset_id=None,
+                        layer_ids=["analysis_mesh:volume_skin"],
+                    )
+                )
+                diagnostics.extend(object_diagnostics)
+                continue
             objects.append(scene_object)
             assets.append(asset)
             diagnostics.extend(object_diagnostics)
