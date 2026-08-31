@@ -319,24 +319,26 @@ def expected_code_aster_artifact_files(
     """Return the exact inventory selected by a consistent compiler/metadata pair."""
     mixed_analysis = bool(study_metadata.get("mixed_analysis"))
     volume_analysis = bool(study_metadata.get("volume_analysis"))
-    compiler_contracts = {
-        CODE_ASTER_COMPILER_ID: (False, False, False),
-        MIXED_CODE_ASTER_COMPILER_ID: (True, False, False),
-        VOLUME_CODE_ASTER_COMPILER_ID: (False, True, True),
-    }
-    try:
-        expected_mixed, expected_volume, volume_compiler = compiler_contracts[compiler_id]
-    except KeyError:
+    if compiler_id not in {
+        CODE_ASTER_COMPILER_ID,
+        MIXED_CODE_ASTER_COMPILER_ID,
+        VOLUME_CODE_ASTER_COMPILER_ID,
+    }:
         raise ValueError(f"Unknown Code_Aster compiler identity {compiler_id!r}.")
-    if (mixed_analysis, volume_analysis) != (expected_mixed, expected_volume):
+    contradictory = (
+        compiler_id == CODE_ASTER_COMPILER_ID and (mixed_analysis or volume_analysis)
+        or compiler_id == MIXED_CODE_ASTER_COMPILER_ID and not mixed_analysis
+        or compiler_id == VOLUME_CODE_ASTER_COMPILER_ID and (mixed_analysis or not volume_analysis)
+    )
+    if contradictory:
         raise ValueError(
             f"Code_Aster compiler identity {compiler_id!r} contradicts study analysis metadata."
-        ) from None
-    if not volume_compiler:
+        )
+    if not volume_analysis:
         if study_metadata.get("pipe_stress_exported") is False:
             return tuple(name for name in ATTESTED_CODE_ASTER_FILES if name != "study_sieq.csv")
         return ATTESTED_CODE_ASTER_FILES
-    return VOLUME_ATTESTED_CODE_ASTER_FILES + (
+    return VOLUME_ATTESTED_CODE_ASTER_FILES + (("study_effo.csv",) if mixed_analysis else ()) + (
         ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
     )
 

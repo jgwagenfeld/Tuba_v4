@@ -31,10 +31,22 @@ def parse_volume_result_artifacts(
         node_id = _volume_node_id(row.get("NOEUD", ""))
         if node_id not in analysis_mesh.nodes:
             continue
+        displacement = np.asarray(
+            [
+                *_components(row, ("DX", "DY", "DZ")),
+                *_optional_components(row, ("DRX", "DRY", "DRZ")),
+            ]
+        )
         results.analysis_node_results[node_id] = NodeResult(
             node_id=node_id,
-            displacement=np.asarray([*_components(row, ("DX", "DY", "DZ")), np.nan, np.nan, np.nan]),
+            displacement=displacement,
         )
+        source = analysis_mesh.node_sources.get(node_id)
+        if source is not None and source.source_ref.kind == "node":
+            results.node_results[source.source_ref.id] = NodeResult(
+                node_id=source.source_ref.id,
+                displacement=displacement.copy(),
+            )
     missing = sorted(set(analysis_mesh.nodes) - set(results.analysis_node_results))
     if missing:
         raise RuntimeError(
@@ -46,23 +58,36 @@ def parse_volume_result_artifacts(
         node_id = _volume_node_id(row.get("NOEUD", ""))
         node_result = results.analysis_node_results.get(node_id)
         if node_result is not None and node_id in anchored_nodes:
-            node_result.reaction_force = np.asarray(
-                [*_components(row, ("DX", "DY", "DZ")), np.nan, np.nan, np.nan]
+            reaction = np.asarray(
+                [
+                    *_components(row, ("DX", "DY", "DZ")),
+                    *_optional_components(row, ("DRX", "DRY", "DRZ")),
+                ]
             )
+            node_result.reaction_force = reaction
+            source = analysis_mesh.node_sources.get(node_id)
+            if source is not None and source.source_ref.kind == "node":
+                results.node_results[source.source_ref.id].reaction_force = reaction.copy()
 
     surface_mesh = analysis_mesh.surface_mesh or {}
     surface_nodes = set(surface_mesh.get("node_ids", []))
     sums: dict[str, float] = {}
     counts: dict[str, int] = {}
-    maximum = -math.inf
+    volume_maximum = -math.inf
     for row in _rows(root / "study_sieq.csv"):
         value = _finite(row, "VMIS")
-        maximum = max(maximum, value)
+        element_label = row.get("MAILLE", "").strip()
+        if element_label:
+            element_id = _analysis_element_id(element_label, analysis_mesh)
+            source = analysis_mesh.element_sources.get(element_id)
+            if source is None or source.role != "volume_cell":
+                continue
+        volume_maximum = max(volume_maximum, value)
         node_id = _volume_node_id(row.get("NOEUD", ""))
         if node_id in surface_nodes:
             sums[node_id] = sums.get(node_id, 0.0) + value
             counts[node_id] = counts.get(node_id, 0) + 1
-    if not math.isfinite(maximum):
+    if not math.isfinite(volume_maximum):
         raise RuntimeError("Code_Aster volume output contains no finite SIEQ_ELNO VMIS values.")
     results.volume_von_mises = {node_id: sums[node_id] / counts[node_id] for node_id in sums}
     missing_surface = sorted(surface_nodes - set(results.volume_von_mises))
@@ -76,8 +101,10 @@ def parse_volume_result_artifacts(
             element_id=element_id,
             forces_n1=np.full(6, np.nan),
             forces_n2=np.full(6, np.nan),
-            max_von_mises=maximum,
+            max_von_mises=volume_maximum,
         )
+    if study.metadata.get("mixed_analysis"):
+        _parse_line_results(model, root, analysis_mesh, study, results)
     return results
 
 
@@ -88,6 +115,11 @@ def _anchored_volume_nodes(
 ) -> set[str]:
     selected_ids = set(study.metadata["compiler_inputs"]["element_ids"])
     anchor_ids = {support.node for support in model.supports if support.type == "anchor"}
+    anchored_nodes = {
+        mesh_node_id
+        for anchor_id in anchor_ids
+        for mesh_node_id in analysis_mesh.groups.get(f"G_NODE_{anchor_id}", ())
+    }
     planes: list[tuple[np.ndarray, np.ndarray, float]] = []
     for element_id in selected_ids:
         element = model.get_element(element_id)
@@ -107,14 +139,50 @@ def _anchored_volume_nodes(
                 inward = np.asarray(model.nodes[other_id].coords, dtype=float) - origin
                 length = float(np.linalg.norm(inward))
             planes.append((origin, inward / np.linalg.norm(inward), max(length * 1.0e-7, 1.0e-9)))
-    return {
+    anchored_nodes.update(
+        {
         node_id
         for node_id, coords in analysis_mesh.nodes.items()
         if any(
             abs(float(np.dot(np.asarray(coords, dtype=float) - origin, normal))) <= tolerance
             for origin, normal, tolerance in planes
         )
+        }
+    )
+    return anchored_nodes
+
+
+def _parse_line_results(
+    model: TubaModel,
+    root: Path,
+    analysis_mesh: AnalysisMesh,
+    study: AnalysisStudy,
+    results: FEAResults,
+) -> None:
+    from tuba.solver.aster import CodeAsterSolver
+
+    line_ids = set(study.metadata.get("compiler_inputs", {}).get("line_element_ids", ()))
+    for element_id in line_ids:
+        results.element_results[element_id] = ElementResult(
+            element_id=element_id,
+            forces_n1=np.full(6, np.nan),
+            forces_n2=np.full(6, np.nan),
+        )
+    node_label_map: dict[str, str] = {}
+    for mesh_node_id, source in analysis_mesh.node_sources.items():
+        if not mesh_node_id.startswith("VN"):
+            continue
+        node_label_map[mesh_node_id.removeprefix("VN")] = (
+            source.source_ref.id if source.source_ref.kind == "node" else mesh_node_id
+        )
+    element_label_map = {
+        mesh_element_id.removeprefix("LM"): source.source_ref.id
+        for mesh_element_id, source in analysis_mesh.element_sources.items()
+        if source.role == "native_element" and mesh_element_id.startswith("LM")
     }
+    solver = CodeAsterSolver()
+    solver._parse_effo_table(model, root, results, node_label_map, element_label_map)
+    solver._parse_sieq_table(model, root, results, node_label_map, element_label_map)
 
 
 def _rows(path: Path) -> Iterator[dict[str, str]]:
@@ -134,8 +202,28 @@ def _volume_node_id(label: str) -> str:
         raise RuntimeError(f"Invalid Code_Aster volume node label {label!r}.") from exc
 
 
+def _analysis_element_id(label: str, analysis_mesh: AnalysisMesh) -> str:
+    try:
+        tag = int(label.strip())
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid Code_Aster volume element label {label!r}.") from exc
+    for prefix in ("VM", "LM"):
+        candidate = f"{prefix}{tag}"
+        if candidate in analysis_mesh.elements:
+            return candidate
+    return f"VM{tag}"
+
+
 def _components(row: dict[str, str], names: tuple[str, ...]) -> list[float]:
     return [_finite(row, name) for name in names]
+
+
+def _optional_components(row: dict[str, str], names: tuple[str, ...]) -> list[float]:
+    values = []
+    for name in names:
+        raw = row.get(name, "")
+        values.append(_finite(row, name) if raw is not None and raw.strip() not in {"", "-"} else np.nan)
+    return values
 
 
 def _finite(row: dict[str, str], name: str) -> float:

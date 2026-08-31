@@ -63,7 +63,11 @@ def build_solver_input_identity(
     """Fingerprint the exact model inputs interpreted by a Code_Aster compiler."""
     resolved_name, resolved_case = model.resolve_load_case(load_case)
     model_data = model.to_dict()
-    model_keys = _SOLVER_MODEL_KEYS + (("tees",) if compiler_id == VOLUME_CODE_ASTER_COMPILER_ID else ())
+    model_keys = _SOLVER_MODEL_KEYS + (
+        ("tees",)
+        if compiler_id in {VOLUME_CODE_ASTER_COMPILER_ID, MIXED_CODE_ASTER_COMPILER_ID}
+        else ()
+    )
     payload = {
         "schema_id": MODEL_SCHEMA_ID,
         "compiler_id": compiler_id,

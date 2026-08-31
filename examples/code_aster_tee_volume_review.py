@@ -16,6 +16,7 @@ from tuba.visualization import build_visualization_scene, write_engineering_revi
 
 
 TEE_VOLUME_ELEMENT_IDS = ("header_left", "header_right", "branch")
+TEE_LINE_ELEMENT_IDS = ("line_left", "line_right", "line_branch")
 TEE_VOLUME_MAX_ELEMENT_SIZE = 0.005
 
 
@@ -45,6 +46,28 @@ def build_tee_volume_model() -> Model:
     model.define_tee(junction, type="welding_tee")
     model.add_support(left, type="anchor")
     model.define_load_case("Operating", gravity=True, pressure=1.0e6)
+    model.validate()
+    return model
+
+
+def build_tee_mixed_model() -> Model:
+    model = build_tee_volume_model()
+    model.supports.clear()
+    inner_nodes = [model.get_element(element_id).n2 for element_id in TEE_VOLUME_ELEMENT_IDS]
+    outer_nodes = [
+        model.add_node(coords)
+        for coords in ([-0.2, 0.0, 0.0], [0.2, 0.0, 0.0], [0.0, 0.2, 0.0])
+    ]
+    for element_id, inner, outer in zip(TEE_LINE_ELEMENT_IDS, inner_nodes, outer_nodes):
+        model.add_element(
+            id=element_id,
+            type="pipe_straight",
+            n1=inner,
+            n2=outer,
+            section="Header",
+            material="Steel",
+        )
+    model.add_support(outer_nodes[0], type="anchor")
     model.validate()
     return model
 

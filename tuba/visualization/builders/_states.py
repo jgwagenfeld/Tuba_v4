@@ -353,6 +353,16 @@ def _build_analysis_mesh_scene(
     assets: list[GeometryAsset] = []
     diagnostics: list[SceneDiagnostic] = []
     groups_by_member = _analysis_mesh_groups_by_member(analysis_mesh)
+    line_element_ids = {
+        element_id
+        for element_id, node_ids in analysis_mesh.elements.items()
+        if len(node_ids) in {2, 3}
+    }
+    line_node_ids = {
+        node_id
+        for element_id in line_element_ids
+        for node_id in analysis_mesh.elements[element_id]
+    }
 
     if analysis_mesh.surface_mesh is not None:
         vertices = analysis_mesh.surface_mesh["vertices"]
@@ -423,9 +433,9 @@ def _build_analysis_mesh_scene(
                 source={"analysis_mesh": {"id": analysis_mesh.id, "member_type": "surface_mesh"}},
             )
         )
-        return objects, assets, diagnostics
-
     for node_id, coords in analysis_mesh.nodes.items():
+        if analysis_mesh.surface_mesh is not None and node_id not in line_node_ids:
+            continue
         source = analysis_mesh.node_sources.get(node_id)
         groups = groups_by_member.get(node_id, [])
         if source is None:
@@ -484,6 +494,8 @@ def _build_analysis_mesh_scene(
         )
 
     for element_id, node_ids in analysis_mesh.elements.items():
+        if analysis_mesh.surface_mesh is not None and element_id not in line_element_ids:
+            continue
         source = analysis_mesh.element_sources.get(element_id)
         groups = groups_by_member.get(element_id, [])
         if source is None:

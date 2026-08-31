@@ -80,6 +80,15 @@ class TestCodeAsterRuntime(unittest.TestCase):
         self.assertEqual(
             set(
                 runtime.expected_code_aster_artifact_files(
+                    {"mixed_analysis": True, "volume_analysis": True},
+                    compiler_id=MIXED_CODE_ASTER_COMPILER_ID,
+                )
+            ),
+            volume | {"study_effo.csv", "study_sigm.csv"},
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
                     {"volume_analysis": True},
                     compiler_id=VOLUME_CODE_ASTER_COMPILER_ID,
                 )

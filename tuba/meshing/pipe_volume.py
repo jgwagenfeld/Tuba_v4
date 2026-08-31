@@ -57,6 +57,7 @@ def build_pipe_volume_mesh(
 ) -> GeneratedPipeVolumeMesh:
     """Mesh one straight pipe, one bend, or one explicit three-run tee."""
     selection = _preflight(model, element_ids, max_element_size, element_order)
+    line_elements = _remaining_line_elements(model, selection)
     output = Path(output_path)
     temporary = output.with_name(f".{output.stem}-{uuid4().hex}.tmp.med")
     try:
@@ -83,13 +84,28 @@ def build_pipe_volume_mesh(
                 )
             else:
                 volume_tags, surface_groups = _build_tee_geometry(model, selection)
+            line_entities: dict[str, int] = {}
+            node_entities: dict[str, int] = {}
+            for element in line_elements:
+                for node_id in (element.n1, element.n2):
+                    if node_id not in node_entities:
+                        node_entities[node_id] = gmsh.model.occ.addPoint(*model.nodes[node_id].coords)
+                line_entities[element.id] = gmsh.model.occ.addLine(
+                    node_entities[element.n1],
+                    node_entities[element.n2],
+                )
+            gmsh.model.occ.synchronize()
             raw_entities: dict[str, tuple[int, tuple[int, ...]]] = {
                 "G_SOLID_region_0": (3, volume_tags),
                 **{name: (2, tags) for name, tags in surface_groups.items()},
             }
             if selection.tee_node is not None:
                 raw_entities[f"G_TEE_{selection.tee_node}"] = (3, volume_tags)
-            name_map = build_solver_name_map(raw_entities)
+            if line_entities:
+                raw_entities["G_TUBE"] = (1, tuple(line_entities.values()))
+            name_map = build_solver_name_map(
+                [*raw_entities, *(f"G_NODE_{node_id}" for node_id in node_entities)]
+            )
             for raw_name, (dimension, tags) in raw_entities.items():
                 physical = gmsh.model.addPhysicalGroup(dimension, list(tags))
                 gmsh.model.setPhysicalName(dimension, physical, name_map[raw_name])
@@ -101,7 +117,14 @@ def build_pipe_volume_mesh(
             if not temporary.is_file() or temporary.stat().st_size == 0:
                 raise RuntimeError("Gmsh did not write a non-empty MED mesh.")
 
-            analysis_mesh, groups, vertices, faces = _readback(model, selection, output, raw_entities)
+            analysis_mesh, groups, vertices, faces = _readback(
+                model,
+                selection,
+                output,
+                raw_entities,
+                line_entities=line_entities,
+                node_entities=node_entities,
+            )
             temporary.replace(output)
             return GeneratedPipeVolumeMesh(
                 analysis_mesh=analysis_mesh,
@@ -113,6 +136,7 @@ def build_pipe_volume_mesh(
                     "element_family": "HEXA20",
                     "element_order": element_order,
                     "max_element_size": max_element_size,
+                    **({"line_element_family": "SEG3"} if line_entities else {}),
                 },
                 med_path=output,
             )
@@ -191,6 +215,19 @@ def _preflight(
     if branch.OD > headers[0].OD:
         raise ValueError("The tee branch OD cannot exceed the header OD.")
     return _PipeSelection(tuple(pipes), tee_node)
+
+
+def _remaining_line_elements(model: TubaModel, selection: _PipeSelection) -> list[Any]:
+    selected_ids = {pipe.element_id for pipe in selection.pipes}
+    remaining = [element for element in model.elements if element.id not in selected_ids]
+    unsupported = [element for element in remaining if element.type != "pipe_straight"]
+    if unsupported:
+        details = ", ".join(f"{element.id}:{element.type}" for element in unsupported)
+        raise ValueError(
+            "Native mixed 1D/3D studies currently require straight TUYAU_3M continuation elements; "
+            f"unsupported remaining elements: {details}."
+        )
+    return remaining
 
 
 def _build_straight_geometry(
@@ -418,6 +455,9 @@ def _readback(
     selection: _PipeSelection,
     output: Path,
     raw_entities: dict[str, tuple[int, tuple[int, ...]]],
+    *,
+    line_entities: dict[str, int],
+    node_entities: dict[str, int],
 ) -> tuple[
     AnalysisMesh,
     dict[str, tuple[str, ...]],
@@ -481,11 +521,63 @@ def _readback(
         raise RuntimeError("Gmsh generated an invalid quadratic hexahedral cell.")
     _require_connected_volume(elements)
 
+    line_mesh_ids: list[str] = []
+    for source_element_id, entity_tag in line_entities.items():
+        types, element_tag_blocks, node_tag_blocks = gmsh.model.mesh.getElements(1, entity_tag)
+        for element_type, element_tags, element_nodes in zip(types, element_tag_blocks, node_tag_blocks):
+            _name, dimension, order, node_count, _local, primary_count = gmsh.model.mesh.getElementProperties(
+                element_type
+            )
+            if dimension != 1 or order != 2 or node_count != 3 or primary_count != 2:
+                continue
+            for index, element_tag in enumerate(element_tags):
+                mesh_id = f"LM{int(element_tag)}"
+                start = index * node_count
+                line_node_ids = tuple(
+                    f"VN{int(tag)}" for tag in element_nodes[start : start + node_count]
+                )
+                elements[mesh_id] = line_node_ids
+                element_sources[mesh_id] = MeshElementSource(
+                    element_id=mesh_id,
+                    source_ref=EntityRef("element", source_element_id),
+                    role="native_element",
+                )
+                line_mesh_ids.append(mesh_id)
+                for node_id in line_node_ids:
+                    node_sources[node_id] = MeshNodeSource(
+                        node_id=node_id,
+                        source_ref=EntityRef("element", source_element_id),
+                        role="generated_element_node",
+                    )
+    if line_entities and not line_mesh_ids:
+        raise RuntimeError("Gmsh generated no quadratic line elements for the mixed pipe region.")
+
+    native_node_ids: dict[str, str] = {}
+    for model_node_id, entity_tag in node_entities.items():
+        entity_node_tags, _coordinates, _parameters = gmsh.model.mesh.getNodes(0, entity_tag)
+        if len(entity_node_tags) != 1:
+            raise RuntimeError(f"Gmsh generated no unique node for mixed endpoint {model_node_id!r}.")
+        mesh_node_id = f"VN{int(entity_node_tags[0])}"
+        native_node_ids[model_node_id] = mesh_node_id
+        node_sources[mesh_node_id] = MeshNodeSource(
+            node_id=mesh_node_id,
+            source_ref=EntityRef("node", model_node_id),
+            role="native_node",
+        )
+
     groups: dict[str, tuple[str, ...]] = {
         raw_name: tuple(elements)
         for raw_name, (dimension, _entity_tags) in raw_entities.items()
         if dimension == 3
     }
+    if line_mesh_ids:
+        groups["G_TUBE"] = tuple(line_mesh_ids)
+        groups.update(
+            {
+                f"G_NODE_{model_node_id}": (mesh_node_id,)
+                for model_node_id, mesh_node_id in native_node_ids.items()
+            }
+        )
     surface_quad_nodes: list[tuple[int, int, int, int]] = []
     for raw_name, (dimension, entity_tags) in raw_entities.items():
         if dimension != 2:
@@ -521,7 +613,10 @@ def _readback(
         node_sources=node_sources,
         element_sources=element_sources,
         files={"med": str(output)},
-        modelisations={"G_SOLID_region_0": "3D"},
+        modelisations={
+            "G_SOLID_region_0": "3D",
+            **({"G_TUBE": "TUYAU_3M"} if line_mesh_ids else {}),
+        },
         surface_mesh={
             "vertices": vertices,
             "faces": faces,

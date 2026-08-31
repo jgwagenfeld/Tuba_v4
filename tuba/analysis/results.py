@@ -191,6 +191,8 @@ def result_state_from_fea_results(
         files["result"] = str(results.result_file)
 
     metadata: dict[str, Any] = {}
+    if study.metadata.get("mixed_analysis"):
+        metadata["mixed_analysis"] = True
     if analysis_node_ids:
         metadata["analysis_node_ids"] = analysis_node_ids
     if results.parser_diagnostics:
@@ -280,12 +282,19 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
             f"Cannot apply ResultState revision {result_state.model_revision} to model revision {model_revision}."
         )
     is_volume = bool(result_state.metadata.get("volume_analysis"))
+    is_mixed = bool(result_state.metadata.get("mixed_analysis"))
     validate_solver_input_identity(
         model,
         result_state.solver_input_identity,
         context=f"ResultState {result_state.id!r}",
         expected_load_case=result_state.load_case,
-        expected_compiler_id=(VOLUME_CODE_ASTER_COMPILER_ID if is_volume else CODE_ASTER_COMPILER_ID),
+        expected_compiler_id=(
+            MIXED_CODE_ASTER_COMPILER_ID
+            if is_mixed
+            else VOLUME_CODE_ASTER_COMPILER_ID
+            if is_volume
+            else CODE_ASTER_COMPILER_ID
+        ),
         compiler_inputs=result_state.metadata.get("compiler_inputs"),
     )
 
@@ -297,8 +306,14 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
     results.tuyau_subpoints.extend(dict(row) for row in result_state.metadata.get("tuyau_subpoints", []))
     results.volume_von_mises.update(result_state.metadata.get("volume_von_mises", {}))
 
-    if not is_volume:
-        for node_id in getattr(model, "nodes", {}):
+    if not is_volume or is_mixed:
+        model_node_ids = set(getattr(model, "nodes", {}))
+        required_node_ids = (
+            model_node_ids & set(result_state.node_displacements)
+            if is_mixed
+            else model_node_ids
+        )
+        for node_id in required_node_ids:
             if node_id not in result_state.node_displacements:
                 raise ValueError(f"ResultState {result_state.id!r} is missing displacement for model node {node_id!r}.")
             displacement = _element_result_array(

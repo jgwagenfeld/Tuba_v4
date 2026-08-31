@@ -15,6 +15,61 @@ from tuba.visualization import build_visualization_scene
 
 
 class TestVisualizationAnalysisMesh(unittest.TestCase):
+    def test_mixed_mesh_replaces_only_the_solid_span_and_keeps_line_mesh_visible(self):
+        model = Model("MixedVolumeSkin")
+        model.add_material("Steel", E=2.1e11, nu=0.3)
+        model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+        n0 = model.add_node([-1.0, 0.0, 0.0])
+        n1 = model.add_node([0.0, 0.0, 0.0])
+        n2 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="line", type="pipe_straight", n1=n0, n2=n1, section="Pipe", material="Steel")
+        model.add_element(id="solid", type="pipe_straight", n1=n1, n2=n2, section="Pipe", material="Steel")
+        mesh = AnalysisMesh(
+            id="mixed_mesh",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={
+                "VN1": (-1.0, 0.0, 0.0),
+                "VN2": (0.0, 0.0, 0.0),
+                "VN3": (-0.5, 0.0, 0.0),
+                **{f"VN{index}": (0.5, 0.0, 0.0) for index in range(4, 24)},
+            },
+            elements={
+                "LM1": ("VN1", "VN2", "VN3"),
+                "VM1": tuple(f"VN{index}" for index in range(4, 24)),
+            },
+            groups={"G_TUBE": ("LM1",), "G_SOLID_region_0": ("VM1",)},
+            node_sources={},
+            element_sources={
+                "LM1": MeshElementSource("LM1", EntityRef("element", "line"), "native_element"),
+                "VM1": MeshElementSource("VM1", EntityRef("element", "solid"), "volume_cell"),
+            },
+            modelisations={"G_TUBE": "TUYAU_3M", "G_SOLID_region_0": "3D"},
+            surface_mesh={
+                "vertices": [[0.0, -0.1, 0.0], [1.0, -0.1, 0.0], [1.0, 0.1, 0.0], [0.0, 0.1, 0.0]],
+                "faces": [[0, 1, 2, 3]],
+            },
+        )
+
+        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+
+        model_objects = {
+            str(obj.entity_ref): obj
+            for obj in scene.objects
+            if obj.entity_ref and obj.entity_ref.kind == "element" and obj.kind == "pipe"
+        }
+        mesh_lines = [
+            obj
+            for obj in scene.objects
+            if obj.kind == "analysis_mesh_element" and obj.metadata["role"] == "native_element"
+        ]
+        layers = {layer.id: layer for layer in scene.layers}
+        assert model_objects["element:solid"].geometry_asset_id is None
+        assert model_objects["element:line"].geometry_asset_id is not None
+        assert layers["pipe"].default_visible is True
+        assert len(mesh_lines) == 1
+        assert mesh_lines[0].metadata["source_ref"] == "element:line"
+
     def test_volume_skin_replaces_procedural_pipe_geometry(self):
         model = Model("VolumeSkinWithPipe")
         model.add_material("Steel", E=2.1e11, nu=0.3)

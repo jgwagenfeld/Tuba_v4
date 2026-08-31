@@ -24,6 +24,23 @@ def _straight_pipe_model(*, length=0.2):
     return model, n0, n1
 
 
+def _mixed_straight_pipe_model():
+    model = Model("MixedStraightPipeVolume")
+    model.add_material("Steel", E=2.1e11, nu=0.3)
+    model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+    nodes = [model.add_node([x, 0.0, 0.0]) for x in (-0.1, 0.0, 0.1, 0.2)]
+    for element_id, n1, n2 in zip(("left", "solid", "right"), nodes, nodes[1:]):
+        model.add_element(
+            id=element_id,
+            type="pipe_straight",
+            n1=n1,
+            n2=n2,
+            section="Pipe",
+            material="Steel",
+        )
+    return model, nodes
+
+
 def _tee_model(*, branch_od=0.1):
     model = Model("TeeVolume")
     model.add_material("Steel", E=2.1e11, nu=0.3)
@@ -152,6 +169,36 @@ def test_builds_grouped_quadratic_straight_pipe_med(tmp_path):
     med = meshio.read(output)
     assert any(block.type == "hexahedron20" for block in med.cells)
     assert not any(block.type.startswith("tetra") for block in med.cells)
+
+
+def test_selected_volume_keeps_remaining_pipes_in_the_same_analysis_mesh(tmp_path):
+    model, nodes = _mixed_straight_pipe_model()
+
+    generated = build_pipe_volume_mesh(
+        model,
+        tmp_path / "mixed.med",
+        element_ids=["solid"],
+        max_element_size=0.005,
+    )
+
+    mesh = generated.analysis_mesh
+    line_elements = {
+        element_id: source
+        for element_id, source in mesh.element_sources.items()
+        if source.role == "native_element"
+    }
+    assert mesh.modelisations == {
+        "G_SOLID_region_0": "3D",
+        "G_TUBE": "TUYAU_3M",
+    }
+    assert {str(source.source_ref) for source in line_elements.values()} == {
+        "element:left",
+        "element:right",
+    }
+    assert set(line_elements) == set(mesh.groups["G_TUBE"])
+    assert all(len(mesh.elements[element_id]) == 3 for element_id in line_elements)
+    assert mesh.groups[f"G_NODE_{nodes[1]}"]
+    assert mesh.groups[f"G_NODE_{nodes[2]}"]
 
 
 @pytest.mark.parametrize(

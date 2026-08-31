@@ -12,6 +12,7 @@ from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
     VOLUME_CODE_ASTER_COMPILER_ID,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
@@ -94,10 +95,11 @@ def build_visualization_scene(
         mesh_element_refs = {
             str(source.source_ref)
             for source in analysis_mesh.element_sources.values()
-            if source.source_ref.kind == "element"
+            if source.source_ref.kind == "element" and source.role == "volume_cell"
         }
         for source in analysis_mesh.element_sources.values():
-            mesh_element_refs.update(source.metadata.get("source_element_refs", ()))
+            if source.role == "volume_cell":
+                mesh_element_refs.update(source.metadata.get("source_element_refs", ()))
         volume_element_refs.update(mesh_element_refs)
         unscoped_volume_skin = unscoped_volume_skin or not mesh_element_refs
     for analysis_run in analysis_run_records:
@@ -124,8 +126,15 @@ def build_visualization_scene(
             )
     for result_state in result_state_records:
         is_volume = bool(result_state.metadata.get("volume_analysis"))
-        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID if is_volume else CODE_ASTER_COMPILER_ID
-        compiler_inputs = result_state.metadata.get("compiler_inputs") if is_volume else None
+        is_mixed = bool(result_state.metadata.get("mixed_analysis"))
+        compiler_id = (
+            MIXED_CODE_ASTER_COMPILER_ID
+            if is_mixed
+            else VOLUME_CODE_ASTER_COMPILER_ID
+            if is_volume
+            else CODE_ASTER_COMPILER_ID
+        )
+        compiler_inputs = result_state.metadata.get("compiler_inputs") if (is_volume or is_mixed) else None
         validate_solver_input_identity(
             model,
             result_state.solver_input_identity,
