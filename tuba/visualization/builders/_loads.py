@@ -51,8 +51,8 @@ def _force_glyphs(
     """One glyph for the force part, one for the moment part.
 
     Moments are drawn separately and tagged ``vector_kind="moment"`` so the
-    viewer can render them double-headed: a moment arrow that looks like a force
-    arrow is a misread waiting to happen.
+    viewer can render their signed axis and right-hand-rule rotation: a moment
+    glyph that looks like a force arrow is a misread waiting to happen.
     """
     start = _node_coords(model, nodal_force.node)
     glyphs: list[tuple[SceneObject, GeometryAsset]] = []

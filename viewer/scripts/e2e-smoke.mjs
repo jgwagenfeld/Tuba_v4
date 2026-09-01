@@ -345,6 +345,14 @@ const scenarios = {
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
       assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.visualDeformationScale), draggedValue);
 
+      const settled = await framebufferSnapshot(page.locator("[data-canvas]"));
+      await page.getByRole("button", { name: /Animate/ }).click();
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const animating = await framebufferSnapshot(page.locator("[data-canvas]"));
+      const animationChangedChannels = animating.samples.filter((value, index) => value !== settled.samples[index]).length;
+      assert.ok(animationChangedChannels >= 20, "animation must not repaint the stale deformed surface");
+      await page.getByRole("button", { name: /Pause/ }).click();
+
       const frameTimes = await slider.evaluate((input) => new Promise((resolve) => {
         const samples = [];
         let previousFrame = performance.now();

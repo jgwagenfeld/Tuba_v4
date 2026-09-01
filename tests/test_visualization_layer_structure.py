@@ -217,6 +217,7 @@ class TestLayerRegistry(unittest.TestCase):
     def test_layers_land_in_the_right_category(self):
         self.assertIn("pipe", self._ids("design"))
         self.assertIn("support", self._ids("design"))
+        self.assertEqual(next(layer for layer in self.scene.layers if layer.id == "support").label, "Supports / constraints")
         self.assertIn("analysis_mesh:nodes", self._ids("analysis_mesh"))
         self.assertIn("result:displacement", self._ids("results"))
         self.assertIn("overlay:clash", self._ids("annotations"))

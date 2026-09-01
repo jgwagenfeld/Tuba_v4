@@ -313,5 +313,7 @@ def _mesh_badge(analysis_mesh: AnalysisMesh) -> str:
 
 
 def _label_for(layer_id: str) -> str:
+    if layer_id == "support":
+        return "Supports / constraints"
     tail = layer_id.split(":")[-1]
     return tail.replace("_", " ").replace("-", " ").strip().capitalize() or layer_id

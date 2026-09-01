@@ -3,6 +3,7 @@ import test from "node:test";
 import { Box3, BoxGeometry, DoubleSide, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
 
 import * as rendererModule from "../src/renderer.js";
+import { colorForScalarValue } from "../src/resultReview.js";
 
 import {
   SUPPORTED_RENDER_FORMATS,
@@ -323,6 +324,40 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
       assert.equal(part.material.color.getHex(), 0xdaa520);
     }
   }
+});
+
+test("support anchors stay on the constrained node without hiding the pipe", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [-0.08, -0.05, -0.05, 0, 0.05, 0.05],
+    geometryAssets: [{
+      id: "geometry:support:anchor",
+      format: "point",
+      bounds: [-0.08, 0, 0, -0.08, 0, 0],
+      object_ids: ["object:support:anchor"],
+      generation_config: {
+        point: [-0.08, 0, 0],
+        source: "tuba.support",
+        support_type: "anchor",
+        radius_m: 0.05,
+        display_direction: [-1, 0, 0]
+      }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:anchor"]
+  });
+
+  const glyph = graph.objectsByObjectId.get("object:support:anchor");
+  const block = glyph.children.find((part) => part.userData.supportPart === "fixed-block");
+  const blockBounds = new Box3().setFromObject(block);
+  const blockSize = blockBounds.getSize(new Vector3());
+
+  assert.ok(glyph.position.distanceTo(new Vector3(-0.08, 0, 0)) < 1e-12, `glyph is offset to ${glyph.position.toArray()}`);
+  assert.ok(Math.abs(blockSize.x - 0.1) < 1e-8, `fixed block width was ${blockSize.x}`);
+  assert.equal(block.material.depthTest, true);
+  assert.equal(block.material.depthWrite, false);
+  assert.equal(block.material.transparent, true);
+  assert.equal(block.material.opacity, 0.5);
+  assert.equal(glyph.children.some((part) => part.userData.supportPart === "leader"), false);
 });
 
 test("support springs and prescribed displacements retain V2 colors and axis semantics", () => {
@@ -678,34 +713,58 @@ test("visual deformation scale updates the cached geometry", () => {
   assert.ok(Math.abs(line.geometry.getAttribute("position").getY(1) - 0.02) < 1e-6);
 });
 
-test("visual deformation scale updates a cached profile mesh", () => {
+test("visual deformation scale updates a cached profile mesh with its source element result color", () => {
   const state = {
     bounds: [0, 0, 0, 1, 0.4, 1],
-    geometryAssets: [{
-      id: "asset:visual-profile",
-      format: "mesh",
-      object_ids: ["object:visual-profile"],
-      generation_config: {
-        base_vertices: [[0, 0, 0], [1, 0, 0], [0, 0, 1]],
-        vertices: [[0, 0, 0], [1, 0.4, 0], [0, 0, 1]],
-        faces: [[0, 1, 2]],
-        source: "tuba.deformed_analysis_mesh.profile",
-        visual_scale: 40
+    geometryAssets: [
+      {
+        id: "asset:reference",
+        format: "tube",
+        object_ids: ["object:reference"],
+        generation_config: { points: [[0, 0, 0], [1, 0, 0]], radius_m: 0.05, source: "tuba.element" }
+      },
+      {
+        id: "asset:visual-profile",
+        format: "mesh",
+        object_ids: ["object:visual-profile"],
+        generation_config: {
+          base_vertices: [[0, 0, 0], [1, 0, 0], [0, 0, 1]],
+          element_id: "pipe_1",
+          vertices: [[0, 0, 0], [1, 0.4, 0], [0, 0, 1]],
+          faces: [[0, 1, 2]],
+          source: "tuba.deformed_analysis_mesh.profile",
+          visual_scale: 40
+        }
       }
-    }],
+    ],
     geometryPayloads: [],
-    visibleObjectIds: ["object:visual-profile"],
+    overlays: [{
+      kind: "solver_result",
+      visible: true,
+      data: { values: { "object:element:pipe_1": 100 }, legend: { range: { min: 0, max: 100 } } }
+    }],
+    resultFields: [],
+    visibleObjectIds: ["object:reference", "object:visual-profile"],
     visualDeformationScale: 40
   };
   const graph = createThreeSceneGraph(state);
   const mesh = graph.objectsByObjectId.get("object:visual-profile");
+  const reference = graph.objectsByObjectId.get("object:reference");
 
   applyVisualDeformationScale(graph.root, { ...state, visualDeformationScale: 20 });
 
   assert.equal(mesh.morphTargetInfluences[0], 0.5);
+  assert.equal(mesh.material.color.getHex(), colorForScalarValue(100, { range: { min: 0, max: 100 } }));
+  rendererModule.setDeformationPreviewMode(graph, true);
+  assert.equal(mesh.visible, false);
+  assert.equal(reference.visible, false);
+  rendererModule.setDeformationPreviewMode(graph, true);
+  rendererModule.setDeformationPreviewMode(graph, false);
+  assert.equal(mesh.visible, true);
+  assert.equal(reference.visible, true);
 });
 
-test("moment vectors render double-headed so they cannot be mistaken for forces", () => {
+test("moment vectors render a signed axis and right-hand-rule rotation at the result node", () => {
   const graph = createThreeSceneGraph({
     ...fixtureState(),
     geometryAssets: [
@@ -717,8 +776,8 @@ test("moment vectors render double-headed so they cannot be mistaken for forces"
         generation_config: {
           source: "tuba.result_state",
           result_type: "reaction_moment",
-          start: [0, 0, 0],
-          end: [1, 0, 0]
+          start: [2, 3, 4],
+          end: [3, 3, 4]
         }
       }
     ],
@@ -727,8 +786,18 @@ test("moment vectors render double-headed so they cannot be mistaken for forces"
   });
 
   const moment = graph.objectsByObjectId.get("object:reaction-moment:N1");
-  assert.equal(moment.children.length, 2);
-  assert.ok(moment.children.every((child) => child.type === "ArrowHelper"));
+  assert.deepEqual(moment.position.toArray(), [2, 3, 4]);
+  assert.deepEqual(moment.children.map((child) => child.name), [
+    "moment-axis",
+    "moment-rotation-arc",
+    "moment-rotation-head"
+  ]);
+  assert.equal(moment.children[0].type, "ArrowHelper");
+  assert.equal(moment.children[1].geometry.type, "TubeGeometry");
+  assert.equal(moment.children[2].geometry.type, "ConeGeometry");
+
+  const worldAxis = new Vector3(0, 1, 0).applyQuaternion(moment.quaternion);
+  assert.ok(worldAxis.distanceTo(new Vector3(1, 0, 0)) < 1e-12);
 });
 
 test("scene graph visibility updates hide cached renderables without rebuilding", () => {

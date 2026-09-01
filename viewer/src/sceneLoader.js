@@ -243,6 +243,7 @@ function buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers = [])
       layers[id] ??= {
         id,
         label: labelForLayer(id),
+        defaultVisible: declaredVisible(id),
         visible: declaredVisible(id),
         count: 0,
         source: "object",
@@ -258,6 +259,7 @@ function buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers = [])
     layers[id] ??= {
       id,
       label: labelForLayer(id),
+      defaultVisible: overlay.visible !== false && declaredVisible(id),
       visible: overlay.visible !== false && declaredVisible(id),
       count: 0,
       source: "overlay",
@@ -277,6 +279,7 @@ function buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers = [])
     layers[spec.id] ??= {
       id: spec.id,
       label: spec.label || labelForLayer(spec.id),
+      defaultVisible: spec.default_visible !== false,
       visible: spec.default_visible !== false,
       count: 0,
       source: "scene",
@@ -444,13 +447,14 @@ export function applyTaskVisibilityPreset(state, taskId) {
     if (!(category.id in preset)) continue;
     const visible = preset[category.id];
     for (const layerId of category.layerIds) {
-      next = setLayerVisibility(next, layerId, visible);
+      next = setLayerVisibility(next, layerId, visible && state.layers[layerId]?.defaultVisible !== false);
     }
   }
   return next;
 }
 
 function leafLabel(layerId) {
+  if (layerId === "support") return "Supports / constraints";
   const last = String(layerId).split(":").at(-1);
   return last
     .split(/[_-]+/)

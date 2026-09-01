@@ -446,6 +446,24 @@ test("categorizeLayers orders categories and collapses mesh groups", () => {
   ]);
 });
 
+test("categorizeLayers gives the support layer its engineering label", () => {
+  const categories = categorizeLayers({
+    support: {
+      id: "support",
+      category: "design",
+      label: "Support",
+      visible: true,
+      count: 4,
+      source: "object",
+      objectIds: []
+    }
+  });
+
+  assert.deepEqual(categories[0].leaves, [
+    { layerId: "support", label: "Supports / constraints", count: 4 }
+  ]);
+});
+
 test("applyTaskVisibilityPreset toggles categories to match the task preset", () => {
   const layers = {
     pipe: { id: "pipe", label: "Pipe", visible: true, count: 3, source: "object", objectIds: [] },
@@ -464,6 +482,27 @@ test("applyTaskVisibilityPreset toggles categories to match the task preset", ()
   assert.equal(resultsState.layers["analysis_mesh:nodes"].visible, false);
 
   assert.equal(applyTaskVisibilityPreset(state, "3d"), state);
+});
+
+test("task presets keep scene-declared analytical layers hidden", () => {
+  const layers = {
+    pipe: { id: "pipe", category: "design", visible: true, defaultVisible: true, count: 1, source: "object", objectIds: [] },
+    "physical_envelope:clearance": {
+      id: "physical_envelope:clearance",
+      category: "design",
+      visible: false,
+      defaultVisible: false,
+      count: 1,
+      source: "object",
+      objectIds: []
+    }
+  };
+  const state = { objects: [], overlays: [], hiddenObjectIds: [], isolatedObjectIds: [], geometryAssets: [], layers };
+
+  const resultsState = applyTaskVisibilityPreset(state, "results");
+
+  assert.equal(resultsState.layers.pipe.visible, true);
+  assert.equal(resultsState.layers["physical_envelope:clearance"].visible, false);
 });
 
 test("scene loader carries the authoring script uri into viewer state", async () => {

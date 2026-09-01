@@ -1279,9 +1279,9 @@ function renderViewportLegend() {
     const key = object.kind === "applied_load" ? `applied_${vectorKind}` : resultType;
     const label = {
       applied_force: "Applied force — authored input",
-      applied_moment: "Applied moment — authored input, double-headed",
+      applied_moment: "Applied moment — authored input, right-hand rule",
       reaction_force: "Reaction force — Code_Aster result",
-      reaction_moment: "Reaction moment — Code_Aster result, double-headed"
+      reaction_moment: "Reaction moment — Code_Aster result, right-hand rule"
     }[key];
     if (!label || vectorKeys.has(key)) continue;
     const asset = currentState.geometryAssets.find((candidate) => candidate.id === object.geometry_asset_id);

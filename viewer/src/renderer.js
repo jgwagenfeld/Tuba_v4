@@ -314,6 +314,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       const graph = graphCache.get(state);
       applyVisualDeformationScale(graph.root, state, { previewOnly: deformationInteractionActive });
       updateSceneGraphVisibility(graph, state);
+      if (deformationInteractionActive) setDeformationPreviewMode(graph, true);
       applySectionBoxClipping(graph, state.sectionBox);
       cameraFitController.apply(state, graph.bounds);
       controls.update();
@@ -333,8 +334,9 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     setDeformationInteraction(active) {
       if (deformationInteractionActive === active || !currentGraph?.deformationPreview) return false;
       deformationInteractionActive = active;
+      setDeformationPreviewMode(currentGraph, active);
       if (deformationOverlay.canvas) deformationOverlay.canvas.hidden = !active;
-      if (active) drawDeformationOverlay(deformationOverlay, currentGraph.deformationPreview, camera);
+      if (active) drawFrame(currentGraph);
       else deformationOverlay.context?.clearRect(0, 0, deformationOverlay.canvas.width, deformationOverlay.canvas.height);
       return true;
     },
@@ -416,7 +418,7 @@ function drawDeformationOverlay(overlay, preview, camera) {
   context.strokeStyle = "#7c3aed";
   context.lineCap = "round";
   context.lineJoin = "round";
-  context.lineWidth = Math.max(3, 3 * (globalThis.devicePixelRatio ?? 1));
+  context.lineWidth = Math.max(6, 6 * (globalThis.devicePixelRatio ?? 1));
   context.stroke();
 }
 
@@ -580,6 +582,28 @@ export function setSceneGraphInteractionMode(graph, active) {
   }
   graph.renderedObjectCount = renderedObjectCount;
   return graph;
+}
+
+export function setDeformationPreviewMode(graph, active) {
+  for (const object of graph.renderableObjects ?? []) {
+    if (!object.userData?.undeformedReference && !objectHasVisualDeformation(object)) continue;
+    if (active) {
+      if (!Object.hasOwn(object.userData, "visibleBeforeDeformationPreview")) {
+        object.userData.visibleBeforeDeformationPreview = object.visible;
+      }
+      object.visible = false;
+    } else if (Object.hasOwn(object.userData, "visibleBeforeDeformationPreview")) {
+      object.visible = object.userData.visibleBeforeDeformationPreview;
+      delete object.userData.visibleBeforeDeformationPreview;
+    }
+  }
+  return graph;
+}
+
+function objectHasVisualDeformation(object) {
+  let found = false;
+  object.traverse((part) => { found ||= Boolean(part.userData?.visualDeformationSourceScale); });
+  return found;
 }
 
 function hasAllVisibleAssets(graph, state) {
@@ -802,6 +826,7 @@ function createRenderableForAsset(asset, payload, state) {
   const config = morph?.sourceConfig ?? preparedConfig;
   try {
     const result = createPreparedRenderable(asset, payload, state, format, config);
+    if (result.object) result.object.userData.undeformedReference = isUndeformedReferenceConfig(asset, preparedConfig, state);
     if (result.object && morph) {
       const base = createPreparedRenderable(asset, payload, state, format, morph.baseConfig);
       if (base.object && attachVisualDeformationMorph(result.object, base.object, morph.sourceScale)) {
@@ -1073,7 +1098,7 @@ function createSupportGlyph(asset, config, format, point, state) {
   const axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
   const blocked = supportBlockedDofs(config, supportType);
   if (blocked.every(Boolean)) {
-    mesh(new THREE.BoxGeometry(size * 4, size * 4, size * 4), "fixed-block", restraintMaterial);
+    mesh(new THREE.BoxGeometry(size * 2, size * 2, size * 2), "fixed-block", restraintMaterial);
   } else {
     for (let index = 0; index < 3; index += 1) {
       if (!blocked[index]) continue;
@@ -1144,8 +1169,10 @@ function createSupportGlyph(asset, config, format, point, state) {
 function supportMaterial(color) {
   return new THREE.MeshBasicMaterial({
     color,
-    depthTest: false,
+    depthTest: true,
     depthWrite: false,
+    opacity: 0.5,
+    transparent: true,
     wireframe: false
   });
 }
@@ -1247,12 +1274,39 @@ function createVector(asset, config, format, state) {
   const headLength = Math.min(length * 0.25, 0.18);
   const headWidth = Math.min(length * 0.12, 0.08);
   if (config.vector_kind === "moment" || String(config.result_type ?? "").endsWith("_moment")) {
-    const midpoint = start.clone().addScaledVector(unitDirection, length / 2);
+    const localAxis = new THREE.Vector3(0, 1, 0);
     const moment = new THREE.Group();
-    moment.add(
-      new THREE.ArrowHelper(unitDirection, midpoint, length / 2, color, headLength, headWidth),
-      new THREE.ArrowHelper(unitDirection.clone().negate(), midpoint, length / 2, color, headLength, headWidth)
+    moment.position.copy(start);
+    moment.quaternion.setFromUnitVectors(localAxis, unitDirection);
+
+    const axis = new THREE.ArrowHelper(localAxis, new THREE.Vector3(), length, color, headLength, headWidth);
+    axis.name = "moment-axis";
+
+    const arcRadius = length * 0.22;
+    const arcStart = -Math.PI / 4;
+    const arcSweep = Math.PI * 1.5;
+    const arcPoints = Array.from({ length: 33 }, (_, index) => {
+      const angle = arcStart + arcSweep * index / 32;
+      return new THREE.Vector3(arcRadius * Math.cos(angle), 0, -arcRadius * Math.sin(angle));
+    });
+    const arc = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arcPoints), 32, length * 0.012, 10, false),
+      new THREE.MeshBasicMaterial({ color })
     );
+    arc.name = "moment-rotation-arc";
+
+    const arcEndAngle = arcStart + arcSweep;
+    const arcTangent = new THREE.Vector3(-Math.sin(arcEndAngle), 0, -Math.cos(arcEndAngle)).normalize();
+    const arcHeadLength = length * 0.12;
+    const arcHead = new THREE.Mesh(
+      new THREE.ConeGeometry(length * 0.045, arcHeadLength, 16),
+      new THREE.MeshBasicMaterial({ color })
+    );
+    arcHead.position.copy(arcPoints.at(-1)).addScaledVector(arcTangent, -arcHeadLength / 2);
+    arcHead.quaternion.setFromUnitVectors(localAxis, arcTangent);
+    arcHead.name = "moment-rotation-head";
+
+    moment.add(axis, arc, arcHead);
     moment.name = asset.id;
     return { format, object: moment };
   }
@@ -1444,7 +1498,7 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
     ...(asset.generation_config ?? {})
   };
   if (String(asset.format ?? "").toLowerCase() !== "tuyau_subpoint_glyphs") {
-    const scalarValueIds = config.node_id ? [String(config.node_id)] : [];
+    const scalarValueIds = [config.node_id, config.element_id && `object:element:${config.element_id}`].filter(Boolean).map(String);
     const scalarColor = getObjectScalarColor(state, asset.object_ids ?? [], scalarValueIds);
     if (scalarColor !== null) {
       config.color = scalarColor;
