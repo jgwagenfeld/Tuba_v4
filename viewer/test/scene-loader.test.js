@@ -130,7 +130,7 @@ test("opens an unsolved mesh review with design and analysis mesh visible", () =
   assert.deepEqual(state.resultFields, []);
 });
 
-test("opens solved scenes on the visual deformation state", () => {
+test("opens solved scenes on the physical engineering state", () => {
   const geometryStates = [
     {
       id: "overlay:geometry:physical",
@@ -170,8 +170,8 @@ test("opens solved scenes on the visual deformation state", () => {
 
   const state = createViewerState({ scene, objects: [], overlays: scene.overlays, geometryAssets: [], geometryPayloads: [] });
 
-  assert.equal(state.activeGeometryStateId, "geometry_state:Operating:visual_x40");
-  assert.equal(state.visualDeformationScale, 40);
+  assert.equal(state.activeGeometryStateId, "geometry_state:Operating:physical");
+  assert.equal(state.visualDeformationScale, 1);
 });
 
 test("loads scene files before the optional review and exposes review state", async () => {

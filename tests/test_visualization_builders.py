@@ -78,6 +78,46 @@ class TestVisualizationBuilders(unittest.TestCase):
         self.assertNotIn(EntityRef("support", "support_0"), entity_refs)
         self.assertNotIn(EntityRef("obstacle", "equipment_box"), entity_refs)
 
+    def test_support_geometry_preserves_the_restraint_definition(self):
+        model, _elem, _support, _obstacle = self._model()
+        support = model.add_support(
+            "N1",
+            "custom",
+            direction=[0.0, 0.0, 1.0],
+            stiffness=125000.0,
+            imposed_displacement=[0.001, 0.0, 0.0],
+            stiffness_matrix=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            blocked_dof=[1, 1, 0, 0, 0, 1],
+            mass=12.0,
+            friction_coefficient=0.2,
+        )
+
+        scene = build_visualization_scene(model)
+        scene_object = next(item for item in scene.objects if item.entity_ref == EntityRef("support", support.id))
+        asset = next(item for item in scene.geometry_assets if item.id == scene_object.geometry_asset_id)
+
+        expected = {
+            "support_type": "custom",
+            "direction": [0.0, 0.0, 1.0],
+            "stiffness": 125000.0,
+            "imposed_displacement": [0.001, 0.0, 0.0],
+            "stiffness_matrix": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            "blocked_dof": [1, 1, 0, 0, 0, 1],
+            "mass": 12.0,
+            "friction_coefficient": 0.2,
+        }
+        self.assertEqual(scene_object.metadata, {"node": "N1", **expected})
+        self.assertEqual(
+            asset.generation_config,
+            {
+                "source": "tuba.support",
+                "entity_ref": f"support:{support.id}",
+                "point": [2.0, 0.0, 0.0],
+                "radius_m": 0.05,
+                **expected,
+            },
+        )
+
     def test_pipe_geometry_carries_inner_radius_for_hollow_rendering(self):
         model, elem, _support, _obstacle = self._model()
 

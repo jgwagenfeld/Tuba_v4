@@ -224,12 +224,31 @@ def _build_physical_envelopes(
 def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, GeometryAsset]:
     entity_ref = EntityRef("support", support.id)
     coords = _node_coords(model, support.node)
+    attached_radii = [
+        profile_for_section(model.sections[element.section]).collision_radius_m
+        for element in model.elements
+        if support.node in (element.n1, element.n2)
+    ]
+    support_data = {
+        "support_type": support.type,
+        **{
+            key: value
+            for key, value in asdict(support).items()
+            if key not in {"id", "node", "type"} and value is not None
+        },
+    }
     asset = GeometryAsset(
         id=_asset_id(entity_ref),
         format="point",
         bounds=_bounds_for_points([coords], 0.0),
         object_ids=[_object_id(entity_ref)],
-        generation_config={"source": "tuba.support", "entity_ref": str(entity_ref), "point": coords},
+        generation_config={
+            "source": "tuba.support",
+            "entity_ref": str(entity_ref),
+            "point": coords,
+            **({"radius_m": max(attached_radii)} if attached_radii else {}),
+            **support_data,
+        },
     )
     scene_object = SceneObject(
         id=_object_id(entity_ref),
@@ -237,7 +256,7 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         kind="support",
         name=support.id,
         geometry_asset_id=asset.id,
-        metadata={"support_type": support.type, "node": support.node},
+        metadata={"node": support.node, **support_data},
     )
     return scene_object, asset
 def _build_obstacle_object(obstacle: dict[str, Any]) -> tuple[SceneObject, GeometryAsset]:

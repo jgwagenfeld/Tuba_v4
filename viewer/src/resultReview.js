@@ -91,6 +91,13 @@ export function getActiveLoadCase(state) {
   return state.activeLoadCase ?? state.resultStates?.[0]?.data?.load_case ?? solverResultOverlays(state)[0]?.data?.load_case ?? null;
 }
 
+export function getActiveLoadCaseDefinition(state) {
+  const activeLoadCase = getActiveLoadCase(state);
+  return (state.overlays ?? []).find(
+    (overlay) => overlay.kind === "load_case" && overlay.data?.load_case === activeLoadCase
+  )?.data ?? null;
+}
+
 export function getSolverResultOverlays(state, resultType = null) {
   const activeState = getActiveResultState(state);
   const activeResultStateId = state.activeResultStateId ?? activeState?.id ?? null;

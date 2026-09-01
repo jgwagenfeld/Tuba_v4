@@ -10,6 +10,8 @@ from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
 from tuba.analysis.states import GeometryState
 from tuba.geometry.deformed import build_deformed_envelopes
+from tuba.geometry.profiles import profile_for_section
+from tuba.geometry.section_mesh import deformed_straight_section_surface_mesh
 from tuba.refs import EntityRef
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
@@ -87,7 +89,7 @@ def _build_deformed_state_scene(
             geometry_state,
             analysis_mesh,
         )
-        mesh_objects, mesh_assets = _build_deformed_mesh_scene(result_state, geometry_state, analysis_mesh)
+        mesh_objects, mesh_assets = _build_deformed_mesh_scene(model, result_state, geometry_state, analysis_mesh)
         objects.extend(centerline_objects)
         assets.extend(centerline_assets)
         diagnostics.extend(centerline_diagnostics)
@@ -245,6 +247,7 @@ def _build_deformed_envelope_scene(
         )
     return objects, assets, diagnostics
 def _build_deformed_mesh_scene(
+    model: TubaModel,
     result_state: ResultState,
     geometry_state: GeometryState,
     analysis_mesh: AnalysisMesh | None,
@@ -255,7 +258,54 @@ def _build_deformed_mesh_scene(
     assets: list[GeometryAsset] = []
     groups_by_member = _analysis_mesh_groups_by_member(analysis_mesh)
     factor = geometry_state.displacement_scale * geometry_state.safety_factor
+    if analysis_mesh.surface_mesh is not None:
+        surface = analysis_mesh.surface_mesh
+        base_vertices = [[float(value) for value in vertex] for vertex in surface["vertices"]]
+        vertices = []
+        for vertex, node_id in zip(base_vertices, surface["node_ids"]):
+            displacement = np.asarray(
+                result_state.node_displacements.get(node_id, (0.0, 0.0, 0.0))[:3],
+                dtype=float,
+            )
+            vertices.append((np.asarray(vertex) + displacement * factor).tolist())
+        object_id = f"object:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:volume_skin"
+        asset_id = f"geometry:deformed_mesh:{geometry_state.id}:{analysis_mesh.id}:volume_skin"
+        assets.append(
+            GeometryAsset(
+                id=asset_id,
+                format="mesh",
+                bounds=_bounds_for_points(vertices, 0.0),
+                object_ids=[object_id],
+                generation_config={
+                    "source": "tuba.deformed_analysis_mesh.volume_surface",
+                    "mesh_id": analysis_mesh.id,
+                    "geometry_state_id": geometry_state.id,
+                    "result_state_id": result_state.id,
+                    "load_case": geometry_state.load_case,
+                    "visual_scale": geometry_state.displacement_scale,
+                    "base_vertices": base_vertices,
+                    "vertices": vertices,
+                    "faces": surface["faces"],
+                },
+            )
+        )
+        objects.append(
+            SceneObject(
+                id=object_id,
+                kind="deformed_analysis_mesh_surface",
+                name=f"{analysis_mesh.id} {geometry_state.id} deformed volume skin",
+                geometry_asset_id=asset_id,
+                layer_ids=["deformed:mesh"],
+                metadata={
+                    **_deformed_metadata(geometry_state, result_state),
+                    "mesh_id": analysis_mesh.id,
+                    "role": "volume_surface",
+                },
+            )
+        )
     for element_id, node_ids in analysis_mesh.elements.items():
+        if analysis_mesh.surface_mesh is not None and len(node_ids) not in {2, 3}:
+            continue
         source = analysis_mesh.element_sources.get(element_id)
         points = [
             _deformed_mesh_point(analysis_mesh, result_state, node_id, factor)
@@ -278,24 +328,60 @@ def _build_deformed_mesh_scene(
         )
         if source is not None and source.segment_index is not None:
             metadata["segment_index"] = source.segment_index
+        asset_format = "polyline"
+        asset_bounds = _safe_bounds_for_points(points, 0.0)
+        generation_config: dict[str, Any] = {
+            "source": "tuba.deformed_analysis_mesh.element",
+            "mesh_id": analysis_mesh.id,
+            "element_id": element_id,
+            "node_ids": list(node_ids),
+            "geometry_state_id": geometry_state.id,
+            "result_state_id": result_state.id,
+            "load_case": geometry_state.load_case,
+            "visual_scale": geometry_state.displacement_scale,
+            "base_points": base_points,
+            "points": points,
+        }
+        model_element = (
+            model.get_element(source.source_ref.id)
+            if source is not None and source.source_ref.kind == "element"
+            else None
+        )
+        if model_element is not None and len(node_ids) == 2:
+            profile = profile_for_section(model.sections[model_element.section])
+            generation_config["profile_kind"] = profile.kind
+            generation_config["source"] = "tuba.deformed_analysis_mesh.profile"
+            if profile.kind in {"ibeam", "rectangular"}:
+                base_surface, deformed_surface = deformed_straight_section_surface_mesh(
+                    model.sections[model_element.section],
+                    base_points[0],
+                    base_points[1],
+                    result_state.node_displacements.get(node_ids[0], (0.0,) * 6),
+                    result_state.node_displacements.get(node_ids[1], (0.0,) * 6),
+                    scale=factor,
+                    twist_angle_deg=float(getattr(model_element, "twist_angle", 0.0)),
+                )
+                generation_config.update(
+                    base_vertices=[list(vertex) for vertex in base_surface.vertices],
+                    vertices=[list(vertex) for vertex in deformed_surface.vertices],
+                    faces=[list(face) for face in deformed_surface.faces],
+                )
+                asset_format = "mesh"
+                asset_bounds = _bounds_for_points(generation_config["vertices"], 0.0)
+            else:
+                radius = float(profile.collision_radius_m)
+                generation_config["radius_m"] = radius
+                if profile.kind == "pipe":
+                    generation_config["inner_radius_m"] = float(profile.dimensions["ID"]) / 2.0
+                asset_format = "tube"
+                asset_bounds = _bounds_for_points(points, radius)
         assets.append(
             GeometryAsset(
                 id=asset_id,
-                format="polyline",
-                bounds=_safe_bounds_for_points(points, 0.0),
+                format=asset_format,
+                bounds=asset_bounds,
                 object_ids=[object_id],
-                generation_config={
-                    "source": "tuba.deformed_analysis_mesh.element",
-                    "mesh_id": analysis_mesh.id,
-                    "element_id": element_id,
-                    "node_ids": list(node_ids),
-                    "geometry_state_id": geometry_state.id,
-                    "result_state_id": result_state.id,
-                    "load_case": geometry_state.load_case,
-                    "visual_scale": geometry_state.displacement_scale,
-                    "base_points": base_points,
-                    "points": points,
-                },
+                generation_config=generation_config,
             )
         )
         objects.append(

@@ -31,6 +31,7 @@ OFFICIAL_BUNDLES = (
     "pipe-tee-volume-review",
     "support-rack-review",
 )
+PAGES_BUNDLES = tuple(bundle for bundle in OFFICIAL_BUNDLES if bundle != "gmsh-tee-mesh-review")
 
 
 def test_gmsh_mesh_viewer_recipe_builds_an_unsolved_scene() -> None:
@@ -80,7 +81,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
 
     write_bundle_catalog(tmp_path, bundle_ids)
 
-    assert bundle_ids == OFFICIAL_BUNDLES
+    assert bundle_ids == PAGES_BUNDLES
     catalog = json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8"))
     assert [entry["id"] for entry in catalog] == list(bundle_ids)
     # A card cannot be published without the narrative it renders.
@@ -136,23 +137,6 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     assert any(obj["kind"] == "volume_stress_field" for obj in tee["objects"])
     assert "visualization_only_not_asme_code_stress" in json.dumps(tee)
 
-    mesh_review = json.loads(
-        (tmp_path / "gmsh-tee-mesh-review" / "scene.json").read_text(encoding="utf-8")
-    )
-    assert mesh_review["publication_status"] == "mesh_only_unsolved"
-    assert mesh_review["result_fields"] == []
-    assert any(obj["kind"] == "analysis_mesh_surface" for obj in mesh_review["objects"])
-    assert not any(layer["category"] == "results" for layer in mesh_review["layers"])
-    assert next(
-        layer for layer in mesh_review["layers"] if layer["id"] == "analysis_mesh:volume_skin"
-    )["default_visible"]
-    assert not any(layer["id"] == "pipe" for layer in mesh_review["layers"])
-    assert not any(
-        asset.get("generation_config", {}).get("source") == "tuba.element"
-        for asset in mesh_review["geometry_assets"]
-    )
-    assert "no solver results" in json.dumps(mesh_review).lower()
-
     model_review = json.loads(
         (tmp_path / "imported_component_mixed_demo" / "scene.json").read_text(encoding="utf-8")
     )
@@ -192,7 +176,7 @@ def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> 
     assert [
         entry["id"]
         for entry in json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8"))
-    ] == [*OFFICIAL_BUNDLES]
+    ] == [*PAGES_BUNDLES]
 
 
 def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None:

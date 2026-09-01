@@ -98,8 +98,10 @@ async function framebufferFingerprint(canvas) {
 async function framebufferSnapshot(canvas) {
   return canvas.evaluate((target) => {
     const gl = target.getContext("webgl2") || target.getContext("webgl");
-    const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
-    gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const pixels = gl
+      ? new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4)
+      : target.getContext("2d").getImageData(0, 0, target.width, target.height).data;
+    if (gl) gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     let hash = 2166136261;
     const samples = [];
     const step = Math.max(4, Math.floor(pixels.length / 4096 / 4) * 4);
@@ -285,6 +287,89 @@ const scenarios = {
 
       await chip.click();
       assert.equal(await chip.getAttribute("data-unit-system"), "engineering");
+    }
+  },
+  "deformation-slider": {
+    bundle: "/code-aster-review",
+    minimumObjects: 1,
+    async run(page) {
+      const slider = page.getByRole("slider", { name: "Visual deformation scale (display only)" });
+      const stayedConnected = await slider.evaluate((input) => {
+        input.value = "25";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        return input.isConnected;
+      });
+
+      assert.equal(stayedConnected, true, "dragging must not replace the active slider element");
+      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.visualDeformationScale), 25);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const deformed = await framebufferFingerprint(page.locator("[data-canvas]"));
+      await slider.evaluate((input) => {
+        input.value = "1";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.notEqual(await framebufferFingerprint(page.locator("[data-canvas]")), deformed);
+
+      const variedSamples = ({ samples }) => {
+        const background = samples.slice(0, 3);
+        let varied = 0;
+        for (let index = 0; index < samples.length; index += 4) {
+          const delta = background.reduce((sum, value, channel) => sum + Math.abs(samples[index + channel] - value), 0);
+          if (delta > 8) varied += 1;
+        }
+        return varied;
+      };
+      const fullScene = await framebufferSnapshot(page.locator("[data-canvas]"));
+      const box = await slider.boundingBox();
+      assert.ok(box, "deformation slider must have a draggable box");
+      await page.mouse.move(box.x + box.width * 0.1, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      const heldLow = await framebufferSnapshot(page.locator("[data-canvas]"));
+      assert.ok(
+        variedSamples(heldLow) >= variedSamples(fullScene) * 0.75,
+        `drag preview hid the scene (${variedSamples(heldLow)}/${variedSamples(fullScene)} varied samples remained)`
+      );
+      const preview = page.locator("[data-deformation-preview]");
+      const previewLow = await framebufferSnapshot(preview);
+      await page.mouse.move(box.x + box.width * 0.9, box.y + box.height / 2, { steps: 8 });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      const draggedValue = Number(await slider.inputValue());
+      assert.ok(draggedValue >= 80, "holding and dragging must move the native range thumb");
+      assert.equal(await page.locator("[data-deform-scale]").textContent(), `×${draggedValue}`);
+      const previewHigh = await framebufferSnapshot(preview);
+      const changedChannels = previewHigh.samples.filter((value, index) => value !== previewLow.samples[index]).length;
+      assert.ok(changedChannels >= 20, "holding and dragging must visibly move the deformed preview");
+      await page.mouse.up();
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.visualDeformationScale), draggedValue);
+
+      const frameTimes = await slider.evaluate((input) => new Promise((resolve) => {
+        const samples = [];
+        let previousFrame = performance.now();
+        input.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        const step = (timestamp) => {
+          const started = performance.now();
+          input.value = String(1 + samples.length % 100);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          samples.push({ frame: timestamp - previousFrame, handler: performance.now() - started });
+          previousFrame = timestamp;
+          if (samples.length < 30) requestAnimationFrame(step);
+          else {
+            input.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+            resolve(samples);
+          }
+        };
+        requestAnimationFrame(step);
+      }));
+      const p95 = (values) => [...values].sort((left, right) => left - right)[Math.floor(values.length * 0.95)];
+      const frameP95 = p95(frameTimes.map(({ frame }) => frame));
+      const handlerP95 = p95(frameTimes.map(({ handler }) => handler));
+      assert.ok(
+        frameP95 <= 34 && handlerP95 <= 8,
+        `deformation p95 frame/handler time was ${frameP95.toFixed(1)}/${handlerP95.toFixed(1)} ms`
+      );
     }
   },
   "units-threshold": {
@@ -737,7 +822,7 @@ const scenarios = {
     async run(page) {
       const cards = page.locator("[data-gallery-card]");
       await cards.first().waitFor({ state: "visible" });
-      assert.equal(await cards.count(), 7, "the landing gallery must offer every published review");
+      assert.equal(await cards.count(), 6, "the landing gallery must offer every published review");
 
       // Every card leads with the question it answers and keeps its evidence
       // badge visible; a blank card is the failure this page exists to prevent.
@@ -795,7 +880,6 @@ const scenarios = {
           "autorouted-expansion-loop",
           "code-aster-review",
           "elements-supports-review",
-          "gmsh-tee-mesh-review",
           "imported_component_mixed_demo",
           "pipe-tee-volume-review",
           "support-rack-review"

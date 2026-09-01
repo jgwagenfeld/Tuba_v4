@@ -149,7 +149,10 @@ def build_layer_registry(
             id=layer_id,
             category=category,
             label=_label_for(layer_id),
-            default_visible=True,
+            default_visible=not (
+                layer_id.startswith("physical_envelope:")
+                or (layer_id.startswith("deformed:") and layer_id.endswith("_envelope"))
+            ),
         )
 
     for obj in objects:

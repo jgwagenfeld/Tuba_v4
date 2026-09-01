@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BoxGeometry, DoubleSide, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
+import { Box3, BoxGeometry, DoubleSide, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
 
 import * as rendererModule from "../src/renderer.js";
 
 import {
   SUPPORTED_RENDER_FORMATS,
+  applyVisualDeformationScale,
   applyHoverHighlight,
   applySelectionHighlight,
   buildRenderableScene,
@@ -277,25 +278,99 @@ test("pipe geometry remains visible end-on as a hollow section", () => {
   assert.equal(pipe.children.filter((child) => child.geometry?.type === "TubeGeometry").length, 2);
 });
 
-test("support points use a non-occluding engineering glyph", () => {
+test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
+  const supports = [
+    { id: "anchor", support_type: "anchor" },
+    { id: "guide-z", support_type: "guide", direction: [0, 0, 1] },
+    { id: "rest-y", support_type: "rest" },
+    { id: "joint", support_type: "custom", blocked_dof: [1, 1, 1, 0, 0, 0] },
+    { id: "custom", support_type: "custom", blocked_dof: [1, 1, 0, 0, 0, 1] }
+  ];
   const graph = createThreeSceneGraph({
-    bounds: [-0.1, -0.1, -0.1, 0.1, 0.1, 0.1],
+    bounds: [0, -1, -1, 10, 1, 1],
+    geometryAssets: supports.map((support, index) => ({
+        id: `geometry:support:${support.id}`,
+        format: "point",
+        bounds: [index, 0, 0, index, 0, 0],
+        object_ids: [`object:support:${support.id}`],
+        generation_config: {
+          point: [index, 0, 0],
+          source: "tuba.support",
+          ...support
+        }
+      })),
+    geometryPayloads: [],
+    visibleObjectIds: supports.map(({ id }) => `object:support:${id}`)
+  });
+
+  const glyphs = supports.map(({ id }) => graph.objectsByObjectId.get(`object:support:${id}`));
+  assert.deepEqual(glyphs.map((glyph) => glyph.userData.supportGlyph), ["dof", "dof", "dof", "dof", "dof"]);
+  assert.deepEqual(
+    glyphs.map((glyph) => glyph.children.map((child) => child.userData.supportPart).filter(Boolean).sort().join(",")),
+    [
+      "fixed-block",
+      "restraint-cone,restraint-cone",
+      "restraint-cone,restraint-cone",
+      "restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-cone",
+      "restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-rotation"
+    ]
+  );
+  for (const glyph of glyphs) {
+    const size = new Box3().setFromObject(glyph).getSize(new Vector3());
+    assert.ok(Math.max(size.x, size.y, size.z) >= 0.15, `${glyph.userData.supportGlyph} remains visible`);
+    for (const part of glyph.children) {
+      assert.equal(part.material.wireframe, false);
+      assert.equal(part.material.color.getHex(), 0xdaa520);
+    }
+  }
+});
+
+test("support springs and prescribed displacements retain V2 colors and axis semantics", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 2, 1, 1],
     geometryAssets: [
       {
-        id: "geometry:support",
+        id: "geometry:support:spring",
         format: "point",
         bounds: [0, 0, 0, 0, 0, 0],
-        object_ids: ["object:support"],
-        generation_config: { point: [0, 0, 0], source: "tuba.support" }
+        object_ids: ["object:support:spring"],
+        generation_config: {
+          point: [0, 0, 0],
+          source: "tuba.support",
+          support_type: "spring",
+          stiffness_matrix: [1000, 0, 3000, 0, 4000, 0]
+        }
+      },
+      {
+        id: "geometry:support:prescribed",
+        format: "point",
+        bounds: [1, 0, 0, 1, 0, 0],
+        object_ids: ["object:support:prescribed"],
+        generation_config: {
+          point: [1, 0, 0],
+          source: "tuba.support",
+          support_type: "custom",
+          blocked_dof: [1, 0, 0, 0, 0, 0],
+          imposed_displacement: [0, 0.001, 0]
+        }
       }
     ],
     geometryPayloads: [],
-    visibleObjectIds: ["object:support"]
+    visibleObjectIds: ["object:support:spring", "object:support:prescribed"]
   });
 
-  const support = graph.objectsByObjectId.get("object:support");
-  assert.equal(support.geometry.type, "OctahedronGeometry");
-  assert.equal(support.material.wireframe, true);
+  const spring = graph.objectsByObjectId.get("object:support:spring");
+  const springParts = spring.children.filter((part) => part.userData.supportPart?.startsWith("spring"));
+  assert.equal(springParts.filter((part) => part.userData.supportPart === "spring-ring").length, 8);
+  assert.equal(springParts.filter((part) => part.userData.supportPart === "spring-rotation").length, 1);
+  assert.ok(springParts.every((part) => part.material.color.getHex() === 0x2563eb && part.material.wireframe === false));
+
+  const prescribed = graph.objectsByObjectId.get("object:support:prescribed");
+  assert.equal(prescribed.children.filter((part) => part.userData.supportPart === "restraint-cone").length, 2);
+  const displacement = prescribed.children.find((part) => part.userData.supportPart === "prescribed-displacement");
+  assert.ok(displacement);
+  assert.equal(displacement.material.color.getHex(), 0xf97316);
+  assert.equal(displacement.material.wireframe, false);
 });
 
 test("scene graph reports invalid assets without throwing", () => {
@@ -573,6 +648,89 @@ test("scene graph recolors a node-result vector when the coloring component chan
   );
 });
 
+test("visual deformation scale updates the cached geometry", () => {
+  const state = {
+    bounds: [0, 0, 0, 1, 0.04, 0],
+    geometryAssets: [{
+      id: "asset:visual",
+      format: "polyline",
+      object_ids: ["object:visual"],
+      generation_config: {
+        base_points: [[0, 0, 0], [1, 0, 0]],
+        points: [[0, 0, 0], [1, 0.04, 0]],
+        source: "tuba.deformed_centerline.visual",
+        visual_scale: 40
+      }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:visual"],
+    visualDeformationScale: 40
+  };
+  const graph = createThreeSceneGraph(state);
+  const line = graph.objectsByObjectId.get("object:visual");
+  const cache = rendererModule.createSceneGraphCache(createThreeSceneGraph);
+  const halfGraph = createThreeSceneGraph({ ...state, visualDeformationScale: 20 });
+
+  applyVisualDeformationScale(graph.root, { ...state, visualDeformationScale: 20 });
+
+  assert.strictEqual(cache.get(state), cache.get({ ...state, visualDeformationScale: 20 }));
+  assert.ok(Math.abs(halfGraph.bounds[4] - 0.02) < 1e-6);
+  assert.ok(Math.abs(line.geometry.getAttribute("position").getY(1) - 0.02) < 1e-6);
+});
+
+test("visual deformation scale updates a cached profile mesh", () => {
+  const state = {
+    bounds: [0, 0, 0, 1, 0.4, 1],
+    geometryAssets: [{
+      id: "asset:visual-profile",
+      format: "mesh",
+      object_ids: ["object:visual-profile"],
+      generation_config: {
+        base_vertices: [[0, 0, 0], [1, 0, 0], [0, 0, 1]],
+        vertices: [[0, 0, 0], [1, 0.4, 0], [0, 0, 1]],
+        faces: [[0, 1, 2]],
+        source: "tuba.deformed_analysis_mesh.profile",
+        visual_scale: 40
+      }
+    }],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:visual-profile"],
+    visualDeformationScale: 40
+  };
+  const graph = createThreeSceneGraph(state);
+  const mesh = graph.objectsByObjectId.get("object:visual-profile");
+
+  applyVisualDeformationScale(graph.root, { ...state, visualDeformationScale: 20 });
+
+  assert.equal(mesh.morphTargetInfluences[0], 0.5);
+});
+
+test("moment vectors render double-headed so they cannot be mistaken for forces", () => {
+  const graph = createThreeSceneGraph({
+    ...fixtureState(),
+    geometryAssets: [
+      {
+        id: "geometry:reaction-moment:N1",
+        format: "vector",
+        bounds: [0, 0, 0, 1, 0, 0],
+        object_ids: ["object:reaction-moment:N1"],
+        generation_config: {
+          source: "tuba.result_state",
+          result_type: "reaction_moment",
+          start: [0, 0, 0],
+          end: [1, 0, 0]
+        }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:reaction-moment:N1"]
+  });
+
+  const moment = graph.objectsByObjectId.get("object:reaction-moment:N1");
+  assert.equal(moment.children.length, 2);
+  assert.ok(moment.children.every((child) => child.type === "ArrowHelper"));
+});
+
 test("scene graph visibility updates hide cached renderables without rebuilding", () => {
   const state = fixtureState();
   const graph = createThreeSceneGraph(state);
@@ -626,6 +784,35 @@ test("the graph is bounded by what it drew, not by what the assets declare", () 
   assert.equal(graph.renderedObjectCount, 1);
   const span = graph.bounds[3] - graph.bounds[0];
   assert.ok(span > 0.9 && span < 1.5, `drawn span was ${span}, not the declared 100`);
+});
+
+test("display vectors do not shrink structural geometry during camera fit", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, -0.05, -0.05, 1, 0.05, 100],
+    geometryAssets: [
+      {
+        id: "asset:pipe",
+        format: "tube",
+        object_ids: ["object:pipe"],
+        generation_config: { points: [[0, 0, 0], [1, 0, 0]], radius_m: 0.05 }
+      },
+      {
+        id: "asset:reaction",
+        format: "vector",
+        object_ids: ["object:reaction"],
+        generation_config: { start: [0, 0, 0], end: [0, 0, 100], source: "tuba.solver_results" }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:pipe", "object:reaction"],
+    objects: [
+      { id: "object:pipe", kind: "pipe" },
+      { id: "object:reaction", kind: "reaction_vector" }
+    ]
+  });
+
+  assert.equal(graph.renderedObjectCount, 2);
+  assert.ok(graph.bounds[5] - graph.bounds[2] < 1, `vector expanded fit bounds to ${graph.bounds}`);
 });
 
 test("the frustum fits what the view can see, not the bounding sphere", () => {

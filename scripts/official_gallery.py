@@ -250,7 +250,7 @@ OFFICIAL_GALLERIES = (
     ),
     OfficialGallery(
         "gmsh-tee-mesh-review",
-        frozenset({"dev", "pages"}),
+        frozenset({"dev"}),
         "mesh-review",
         _build_gmsh_tee_mesh_review,
         title="Tee junction mesh",
@@ -282,7 +282,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "tee_volume_operating",
         _tee_volume_refresh,
         True,
-        title="Tee junction wall stress",
+        title="Solved 3D solid tee",
         question="Does stress concentrate where the branch meets the header?",
         summary=(
             "The same tee, meshed as a solid wall and analysed in 3D. Shows the "
@@ -300,9 +300,10 @@ OFFICIAL_GALLERIES = (
         title="Pipe on a support rack",
         question="What do the supports and the steel underneath actually carry?",
         summary=(
-            "A line resting on a framed rack, analysed together. Traces the load "
-            "from the pipe through each support into the rack members, and flags a "
-            "span that exceeds the project support-spacing limit."
+            "An all-I-beam rack and its pipe analysed together under gravity, "
+            "1.5 MPa internal pressure, and 180 C operation from 20 C, with no "
+            "imposed nodal forces. Traces the resulting support reactions through "
+            "the rack and flags an overlong span."
         ),
     ),
 )

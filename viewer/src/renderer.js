@@ -85,13 +85,17 @@ export function createThreeSceneGraph(state, options = {}) {
   // draw time, so the declared bounds describe an envelope fifty times larger
   // than the shape on screen - and the camera framed that envelope instead.
   const bounds = renderedBounds(root) ?? declaredBounds;
+  const renderableObjects = [...root.children];
+  const deformationPreview = createVisualDeformationPreview(root);
+  if (deformationPreview) root.add(deformationPreview);
   addReferenceHelpers(scene, bounds);
 
   return {
     bounds,
+    deformationPreview,
     diagnostics,
     objectsByObjectId,
-    renderableObjects: [...root.children],
+    renderableObjects,
     renderedObjectCount,
     root,
     scene
@@ -102,7 +106,11 @@ function renderedBounds(root) {
   if (root.children.length === 0) {
     return null;
   }
-  const box = new THREE.Box3().setFromObject(root);
+  const structural = root.children.filter((object) => object.userData?.format !== "vector");
+  const box = new THREE.Box3();
+  for (const object of structural.length > 0 ? structural : root.children) {
+    box.expandByObject(object, true);
+  }
   if (box.isEmpty() || !Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) {
     return null;
   }
@@ -132,7 +140,6 @@ const SCENE_GRAPH_STATE_KEYS = [
   "resultVectorScales",
   "displacementVectorScale",
   "reactionVectorScale",
-  "visualDeformationScale",
   "bodyOpacity"
 ];
 
@@ -202,6 +209,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   renderer.setClearColor(options.backgroundColor ?? 0xf8fafc, 1);
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio ?? 1, 2));
   renderer.localClippingEnabled = true;
+  const deformationOverlay = createDeformationOverlay(canvas);
 
   const camera = createEngineeringCamera(1);
 
@@ -215,6 +223,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   viewHelper.setLabels("X", "Y", "Z");
 
   let currentGraph = null;
+  let deformationInteractionActive = false;
   let redrawFrameId = null;
   const cameraDirection = new THREE.Vector3();
   // Rendering is on-demand, so nothing re-reads the canvas box between state
@@ -247,6 +256,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     renderer.clear();
     renderer.render(graph.scene, camera);
     viewHelper.render(renderer);
+    if (deformationInteractionActive) drawDeformationOverlay(deformationOverlay, graph.deformationPreview, camera);
     canvas.dataset.cameraDirection = camera
       .getWorldDirection(cameraDirection)
       .toArray()
@@ -302,6 +312,7 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
         currentGraph = null;
       }
       const graph = graphCache.get(state);
+      applyVisualDeformationScale(graph.root, state, { previewOnly: deformationInteractionActive });
       updateSceneGraphVisibility(graph, state);
       applySectionBoxClipping(graph, state.sectionBox);
       cameraFitController.apply(state, graph.bounds);
@@ -318,6 +329,20 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     },
     redraw() {
       redrawScene();
+    },
+    setDeformationInteraction(active) {
+      if (deformationInteractionActive === active || !currentGraph?.deformationPreview) return false;
+      deformationInteractionActive = active;
+      if (deformationOverlay.canvas) deformationOverlay.canvas.hidden = !active;
+      if (active) drawDeformationOverlay(deformationOverlay, currentGraph.deformationPreview, camera);
+      else deformationOverlay.context?.clearRect(0, 0, deformationOverlay.canvas.width, deformationOverlay.canvas.height);
+      return true;
+    },
+    renderDeformation(state) {
+      if (!deformationInteractionActive || !currentGraph?.deformationPreview) return false;
+      applyVisualDeformationScale(currentGraph.root, state, { previewOnly: true });
+      drawDeformationOverlay(deformationOverlay, currentGraph.deformationPreview, camera);
+      return true;
     },
     handleGizmoClick(event) {
       viewHelper.center.copy(controls.target);
@@ -354,8 +379,45 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       controls.dispose();
       viewHelper.dispose();
       renderer.dispose();
+      deformationOverlay.canvas?.remove();
     }
   };
+}
+
+function createDeformationOverlay(canvas) {
+  const overlay = canvas.ownerDocument?.createElement?.("canvas");
+  const context = overlay?.getContext?.("2d");
+  if (!overlay || !context || !canvas.parentElement) return { canvas: null, context: null };
+  overlay.dataset.deformationPreview = "";
+  overlay.hidden = true;
+  canvas.insertAdjacentElement("afterend", overlay);
+  return { canvas: overlay, context };
+}
+
+function drawDeformationOverlay(overlay, preview, camera) {
+  if (!overlay?.canvas || !overlay.context || overlay.canvas.hidden || !preview) return;
+  const sourceCanvas = overlay.canvas.previousElementSibling;
+  if (!sourceCanvas) return;
+  if (overlay.canvas.width !== sourceCanvas.width || overlay.canvas.height !== sourceCanvas.height) {
+    overlay.canvas.width = sourceCanvas.width;
+    overlay.canvas.height = sourceCanvas.height;
+  }
+  const { canvas, context } = overlay;
+  const positions = preview.geometry.getAttribute("position");
+  const point = new THREE.Vector3();
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.beginPath();
+  for (let index = 0; index + 1 < positions.count; index += 2) {
+    point.fromBufferAttribute(positions, index).applyMatrix4(preview.matrixWorld).project(camera);
+    context.moveTo((point.x + 1) * canvas.width / 2, (1 - point.y) * canvas.height / 2);
+    point.fromBufferAttribute(positions, index + 1).applyMatrix4(preview.matrixWorld).project(camera);
+    context.lineTo((point.x + 1) * canvas.width / 2, (1 - point.y) * canvas.height / 2);
+  }
+  context.strokeStyle = "#7c3aed";
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.lineWidth = Math.max(3, 3 * (globalThis.devicePixelRatio ?? 1));
+  context.stroke();
 }
 
 function disposeThreeSceneGraph(graph) {
@@ -410,6 +472,12 @@ export function createThreeViewport(canvas, options = {}) {
     },
     render() {
       canvasRenderer.redraw();
+    },
+    setDeformationInteraction(active) {
+      return canvasRenderer.setDeformationInteraction(active);
+    },
+    renderDeformation(state) {
+      return canvasRenderer.renderDeformation(state);
     },
     handleGizmoClick(event) {
       return canvasRenderer.handleGizmoClick(event);
@@ -729,33 +797,177 @@ function createRenderableForAsset(asset, payload, state) {
     return invalidAsset(asset, `Unsupported geometry format '${asset.format}'.`);
   }
 
-  const config = prepareAssetRenderConfig(asset, payload, state);
+  const preparedConfig = prepareAssetRenderConfig(asset, payload, state);
+  const morph = visualDeformationMorphConfigs(asset, payload, preparedConfig);
+  const config = morph?.sourceConfig ?? preparedConfig;
   try {
-    if (format === "tube" || format === "tube_envelope") {
-      return createTube(asset, config, format);
+    const result = createPreparedRenderable(asset, payload, state, format, config);
+    if (result.object && morph) {
+      const base = createPreparedRenderable(asset, payload, state, format, morph.baseConfig);
+      if (base.object && attachVisualDeformationMorph(result.object, base.object, morph.sourceScale)) {
+        applyVisualDeformationScale(result.object, state);
+      }
     }
-    if (format === "polyline" || format === "line") {
-      return createPolyline(asset, config, format);
-    }
-    if (format === "point" || format === "marker") {
-      return createPoint(asset, config, format);
-    }
-    if (format === "tuyau_subpoint_glyphs") {
-      return createTuyauSubpointGlyphs(asset, config, format, state);
-    }
-    if (format === "vector") {
-      return createVector(asset, config, format, state);
-    }
-    if (format === "cuboid" || format === "aabb") {
-      return createBox(asset, config, format);
-    }
-    if (format === "mesh") {
-      return createMesh(asset, config, payload, format, state);
-    }
+    return result;
   } catch (error) {
     return invalidAsset(asset, error.message);
   }
+}
+
+function createPreparedRenderable(asset, payload, state, format, config) {
+  if (format === "tube" || format === "tube_envelope") {
+    return createTube(asset, config, format);
+  }
+  if (format === "polyline" || format === "line") {
+    return createPolyline(asset, config, format);
+  }
+  if (format === "point" || format === "marker") {
+    return createPoint(asset, config, format, state);
+  }
+  if (format === "tuyau_subpoint_glyphs") {
+    return createTuyauSubpointGlyphs(asset, config, format, state);
+  }
+  if (format === "vector") {
+    return createVector(asset, config, format, state);
+  }
+  if (format === "cuboid" || format === "aabb") {
+    return createBox(asset, config, format);
+  }
+  if (format === "mesh") {
+    return createMesh(asset, config, payload, format, state);
+  }
   return invalidAsset(asset, `No renderer for geometry format '${asset.format}'.`);
+}
+
+function visualDeformationMorphConfigs(asset, payload, preparedConfig) {
+  const format = String(asset.format ?? "").toLowerCase();
+  if (format !== "polyline" && format !== "line" && format !== "tube" && format !== "tube_envelope" && format !== "mesh") {
+    return null;
+  }
+  const source = {
+    ...(payload.generation_config ?? {}),
+    ...(asset.generation_config ?? {})
+  };
+  if (!isVisualDeformedConfig(asset, source)) {
+    return null;
+  }
+  const sourceScale = positiveNumber(source.visual_scale ?? source.deformation_scale ?? source.displacement_scale);
+  const sourceKey = format === "mesh" ? "vertices" : "points";
+  const baseKey = format === "mesh" ? "base_vertices" : "base_points";
+  const sourcePoints = numericPoints(source[sourceKey]);
+  const basePoints = numericPoints(source[baseKey] ?? (format === "mesh" ? undefined : source.cold_points));
+  if (!sourceScale || sourcePoints.length < 2 || basePoints.length !== sourcePoints.length) {
+    return null;
+  }
+  return {
+    sourceScale,
+    sourceConfig: { ...preparedConfig, [sourceKey]: sourcePoints, visual_scale_display_only: sourceScale },
+    baseConfig: { ...preparedConfig, [sourceKey]: basePoints, visual_scale_display_only: 0 }
+  };
+}
+
+function attachVisualDeformationMorph(sourceRoot, baseRoot, sourceScale) {
+  const sourceObjects = [];
+  const baseObjects = [];
+  sourceRoot.traverse((object) => {
+    if (object.geometry?.getAttribute("position")) sourceObjects.push(object);
+  });
+  baseRoot.traverse((object) => {
+    if (object.geometry?.getAttribute("position")) baseObjects.push(object);
+  });
+  let attached = false;
+  for (let index = 0; index < Math.min(sourceObjects.length, baseObjects.length); index += 1) {
+    const object = sourceObjects[index];
+    const base = baseObjects[index];
+    const position = object.geometry.getAttribute("position");
+    const basePosition = base.geometry.getAttribute("position");
+    if (position.count !== basePosition.count) continue;
+    object.userData.visualDeformationSourceScale = sourceScale;
+    if (object.isLine) {
+      object.userData.visualDeformationPositions = {
+        base: basePosition.array.slice(),
+        source: position.array.slice()
+      };
+      attached = true;
+      continue;
+    }
+    object.geometry.morphAttributes.position = [basePosition];
+    const normal = object.geometry.getAttribute("normal");
+    const baseNormal = base.geometry.getAttribute("normal");
+    if (normal && baseNormal?.count === normal.count) {
+      object.geometry.morphAttributes.normal = [baseNormal];
+    }
+    object.updateMorphTargets?.();
+    attached = true;
+  }
+  return attached;
+}
+
+function createVisualDeformationPreview(root) {
+  const vertices = [];
+  for (const object of root.children) {
+    const positions = object.userData?.visualDeformationPositions;
+    if (!positions) continue;
+    for (let point = 0; point < positions.base.length / 3 - 1; point += 1) {
+      for (const index of [point, point + 1]) {
+        vertices.push({
+          base: positions.base.slice(index * 3, index * 3 + 3),
+          source: positions.source.slice(index * 3, index * 3 + 3),
+          sourceScale: object.userData.visualDeformationSourceScale
+        });
+      }
+    }
+  }
+  if (vertices.length === 0) return null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices.flatMap(({ source }) => [...source]), 3));
+  const preview = new THREE.LineSegments(
+    geometry,
+    new THREE.LineBasicMaterial({ color: 0x7c3aed, depthTest: false, transparent: true })
+  );
+  preview.name = "VisualDeformationPreview";
+  preview.renderOrder = 1000;
+  preview.visible = false;
+  preview.userData.visualDeformationPreview = vertices;
+  return preview;
+}
+
+export function applyVisualDeformationScale(root, state, options = {}) {
+  const displayScale = getVisualDeformationDisplayScale(state);
+  root?.traverse((object) => {
+    const preview = object.userData?.visualDeformationPreview;
+    if (preview) {
+      const attribute = object.geometry.getAttribute("position");
+      for (let index = 0; index < preview.length; index += 1) {
+        const { base, source, sourceScale } = preview[index];
+        const factor = displayScale / sourceScale;
+        attribute.setXYZ(
+          index,
+          base[0] + (source[0] - base[0]) * factor,
+          base[1] + (source[1] - base[1]) * factor,
+          base[2] + (source[2] - base[2]) * factor
+        );
+      }
+      attribute.needsUpdate = true;
+      return;
+    }
+    if (options.previewOnly) return;
+    const sourceScale = positiveNumber(object.userData?.visualDeformationSourceScale);
+    if (!sourceScale) return;
+    const positions = object.userData.visualDeformationPositions;
+    if (positions) {
+      const attribute = object.geometry.getAttribute("position");
+      const factor = displayScale / sourceScale;
+      for (let index = 0; index < attribute.array.length; index += 1) {
+        attribute.array[index] = positions.base[index] + (positions.source[index] - positions.base[index]) * factor;
+      }
+      attribute.needsUpdate = true;
+      object.geometry.computeBoundingBox();
+      object.geometry.computeBoundingSphere();
+    } else if (object.morphTargetInfluences) {
+      object.morphTargetInfluences[0] = 1 - displayScale / sourceScale;
+    }
+  });
 }
 
 function createTube(asset, config, format) {
@@ -815,22 +1027,158 @@ function createPolyline(asset, config, format) {
   return { format, object: line };
 }
 
-function createPoint(asset, config, format) {
+function createPoint(asset, config, format, state) {
   const point = readPoint(config.point ?? config.location ?? config.clash?.location) ?? centerOfBounds(asset.bounds);
   if (!point) {
     return invalidAsset(asset, "Point assets require a point or valid bounds.");
   }
-  const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, format === "marker" ? 0.06 : 0.035);
   const isSupport = String(config.source ?? "").toLowerCase() === "tuba.support";
-  const geometry = isSupport ? new THREE.OctahedronGeometry(radius) : new THREE.SphereGeometry(radius, 16, 12);
+  if (isSupport) {
+    return createSupportGlyph(asset, config, format, point, state);
+  }
+  const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, format === "marker" ? 0.06 : 0.035);
+  const geometry = new THREE.SphereGeometry(radius, 16, 12);
   geometry.computeBoundingSphere();
-  const material = isSupport
-    ? new THREE.MeshBasicMaterial({ color: colorForAsset(asset, config), wireframe: true })
-    : materialForAsset(asset, config);
+  const material = materialForAsset(asset, config);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(point);
   mesh.name = asset.id;
   return { format, object: mesh };
+}
+
+function createSupportGlyph(asset, config, format, point, state) {
+  const requestedType = String(config.support_type ?? "custom").toLowerCase();
+  const supportType = requestedType === "fixed" ? "anchor" : requestedType;
+  const sceneSize = sizeOfBounds(state?.bounds ?? asset.bounds);
+  const span = Math.max(sceneSize.x, sceneSize.y, sceneSize.z);
+  const size = positiveNumber(config.radius_m) ?? THREE.MathUtils.clamp(span * 0.018, 0.08, 0.3);
+  const restraintMaterial = supportMaterial(0xdaa520);
+  const springMaterial = supportMaterial(0x2563eb);
+  const displacementMaterial = supportMaterial(0xf97316);
+  const glyph = new THREE.Group();
+  glyph.name = asset.id;
+  glyph.position.copy(point);
+  glyph.renderOrder = 20;
+  glyph.userData.supportGlyph = "dof";
+  glyph.userData.supportType = supportType;
+
+  const mesh = (geometry, role, material, position = null) => {
+    const child = new THREE.Mesh(geometry, material);
+    if (position) child.position.copy(position);
+    child.userData.supportPart = role;
+    glyph.add(child);
+    return child;
+  };
+
+  const axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
+  const blocked = supportBlockedDofs(config, supportType);
+  if (blocked.every(Boolean)) {
+    mesh(new THREE.BoxGeometry(size * 4, size * 4, size * 4), "fixed-block", restraintMaterial);
+  } else {
+    for (let index = 0; index < 3; index += 1) {
+      if (!blocked[index]) continue;
+      for (const side of [-1, 1]) {
+        const axis = axes[index];
+        const cone = mesh(
+          new THREE.ConeGeometry(size, size * 2, 24),
+          "restraint-cone",
+          restraintMaterial,
+          axis.clone().multiplyScalar(side * size * 2)
+        );
+        cone.quaternion.setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          axis.clone().multiplyScalar(-side)
+        );
+        cone.userData.supportAxis = index;
+        cone.userData.supportSide = side;
+      }
+    }
+    for (let index = 3; index < 6; index += 1) {
+      if (!blocked[index]) continue;
+      const rotation = mesh(
+        new THREE.TorusGeometry(size * 0.85, size * 0.18, 8, 24),
+        "restraint-rotation",
+        restraintMaterial
+      );
+      rotation.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axes[index - 3]);
+      rotation.userData.supportAxis = index;
+    }
+  }
+
+  const stiffness = Array.isArray(config.stiffness_matrix) ? config.stiffness_matrix.map(Number) : [];
+  for (let index = 0; index < 3; index += 1) {
+    if (!Number.isFinite(stiffness[index]) || Math.abs(stiffness[index]) <= 0) continue;
+    addSupportSpringRings(mesh, axes[index], size, springMaterial, index);
+  }
+  if (stiffness.length === 0 && Number.isFinite(Number(config.stiffness)) && Math.abs(Number(config.stiffness)) > 0) {
+    const direction = readPoint(config.direction);
+    if (direction?.lengthSq() > 1e-12) {
+      addSupportSpringRings(mesh, direction.normalize(), size, springMaterial, "direction");
+    }
+  }
+  for (let index = 3; index < 6; index += 1) {
+    if (!Number.isFinite(stiffness[index]) || Math.abs(stiffness[index]) <= 0) continue;
+    const rotation = mesh(
+      new THREE.TorusGeometry(size * 1.25, size * 0.22, 8, 24),
+      "spring-rotation",
+      springMaterial
+    );
+    rotation.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axes[index - 3]);
+    rotation.userData.supportAxis = index;
+  }
+
+  const imposed = readPoint(config.imposed_displacement);
+  if (imposed?.lengthSq() > 1e-12) {
+    const direction = imposed.normalize();
+    const displacement = mesh(
+      new THREE.ConeGeometry(size, size * 3, 24),
+      "prescribed-displacement",
+      displacementMaterial,
+      direction.clone().multiplyScalar(size * 1.5)
+    );
+    displacement.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+  }
+  return { format, object: glyph };
+}
+
+function supportMaterial(color) {
+  return new THREE.MeshBasicMaterial({
+    color,
+    depthTest: false,
+    depthWrite: false,
+    wireframe: false
+  });
+}
+
+function supportBlockedDofs(config, supportType) {
+  if (Array.isArray(config.blocked_dof)) {
+    return Array.from({ length: 6 }, (_unused, index) => isBlockedDof(config.blocked_dof[index]));
+  }
+  if (supportType === "anchor") return [true, true, true, true, true, true];
+  if (supportType === "spring") return [false, false, false, false, false, false];
+  const direction = readPoint(config.direction);
+  if (direction?.lengthSq() > 1e-12) {
+    return [Math.abs(direction.x) > 1e-12, Math.abs(direction.y) > 1e-12, Math.abs(direction.z) > 1e-12, false, false, false];
+  }
+  if (supportType === "rest") return [false, true, false, false, false, false];
+  return [true, true, true, false, false, false];
+}
+
+function isBlockedDof(value) {
+  return ![false, 0, "0", "x", "X", null, undefined].includes(value);
+}
+
+function addSupportSpringRings(mesh, axis, size, material, supportAxis) {
+  for (const offset of [-3, -2, 2, 3]) {
+    const ring = mesh(
+      new THREE.TorusGeometry(size, size * 0.5, 10, 28),
+      "spring-ring",
+      material,
+      axis.clone().multiplyScalar(offset * size)
+    );
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis);
+    ring.userData.supportAxis = supportAxis;
+  }
 }
 
 function createTuyauSubpointGlyphs(asset, config, format, state) {
@@ -885,7 +1233,7 @@ function createTuyauSubpointGlyphs(asset, config, format, state) {
 
 function createVector(asset, config, format, state) {
   const start = readPoint(config.start);
-  let end = readPoint(config.end);
+  const end = readPoint(config.end);
   if (!start || !end) {
     return invalidAsset(asset, "Vector assets require start and end points.");
   }
@@ -894,13 +1242,27 @@ function createVector(asset, config, format, state) {
   if (length <= 1e-12) {
     return invalidAsset(asset, "Vector assets require non-zero length.");
   }
+  const unitDirection = direction.normalize();
+  const color = colorForAsset(asset, config);
+  const headLength = Math.min(length * 0.25, 0.18);
+  const headWidth = Math.min(length * 0.12, 0.08);
+  if (config.vector_kind === "moment" || String(config.result_type ?? "").endsWith("_moment")) {
+    const midpoint = start.clone().addScaledVector(unitDirection, length / 2);
+    const moment = new THREE.Group();
+    moment.add(
+      new THREE.ArrowHelper(unitDirection, midpoint, length / 2, color, headLength, headWidth),
+      new THREE.ArrowHelper(unitDirection.clone().negate(), midpoint, length / 2, color, headLength, headWidth)
+    );
+    moment.name = asset.id;
+    return { format, object: moment };
+  }
   const arrow = new THREE.ArrowHelper(
-    direction.normalize(),
+    unitDirection,
     start,
     length,
-    colorForAsset(asset, config),
-    Math.min(length * 0.25, 0.18),
-    Math.min(length * 0.12, 0.08)
+    color,
+    headLength,
+    headWidth
   );
   arrow.name = asset.id;
   return { format, object: arrow };

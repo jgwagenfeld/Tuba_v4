@@ -92,7 +92,7 @@ export function createViewerState(bundle) {
   const activeGeometryState =
     geometryStates.find(
       (overlay) =>
-        overlay.data?.purpose === "visualization" &&
+        overlay.data?.purpose === "engineering" &&
         (!initialLoadCase || overlay.data?.load_case === initialLoadCase)
     ) ??
     geometryStates.find((overlay) => !initialLoadCase || overlay.data?.load_case === initialLoadCase) ??

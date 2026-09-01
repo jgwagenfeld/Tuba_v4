@@ -34,6 +34,7 @@ import {
 } from "./coloring.js";
 import {
   colorForScalarValue,
+  getActiveLoadCaseDefinition,
   getGeometryStateOptions,
   getHotspots,
   getLoadCaseOptions,
@@ -1178,8 +1179,15 @@ function deformationControl() {
   input.addEventListener("input", () => {
     stopDeformationAnimation();
     dispatch({ type: "setVisualDeformationScale", scale: input.value });
-    render();
+    readout.textContent = `×${formatScale(getVisualDeformationDisplayScale(currentState))}`;
+    if (!viewportRenderer?.renderDeformation(currentState)) renderCanvas();
   });
+  input.addEventListener("pointerdown", () => viewportRenderer?.setDeformationInteraction(true));
+  for (const eventName of ["pointerup", "pointercancel"]) {
+    input.addEventListener(eventName, () => {
+      if (viewportRenderer?.setDeformationInteraction(false)) renderCanvas();
+    });
+  }
   const readout = document.createElement("span");
   readout.className = "bar-readout";
   readout.dataset.deformScale = "";
@@ -1248,17 +1256,60 @@ function renderViewportLegend() {
   }
 
   const bodies = getBodies(currentState).filter((body) => body.visible);
-  dom.bodyLegend.hidden = bodies.length === 0;
-  for (const body of bodies) {
-    const row = document.createElement("div");
-    row.className = "body-legend-row";
-    const swatch = document.createElement("span");
-    swatch.className = `body-legend-swatch body-legend-${body.id}`;
-    const text = document.createElement("span");
-    text.textContent = `${body.label} — ${BODY_LEGEND_NOTE[body.id] ?? body.badge.text}`;
-    row.append(swatch, text);
-    dom.bodyLegend.append(row);
+  const loadCase = getActiveLoadCaseDefinition(currentState);
+  const visibleIds = new Set(currentState.visibleObjectIds ?? []);
+  const visibleVectors = (currentState.objects ?? []).filter(
+    (object) => visibleIds.has(object.id) && ["applied_load", "reaction_vector"].includes(object.kind)
+  );
+  dom.bodyLegend.hidden = bodies.length === 0 && !loadCase && visibleVectors.length === 0;
+  if (loadCase) {
+    const system = getUnitSystem(currentState);
+    const nodalCount = Number(loadCase.nodal_force_count ?? 0);
+    appendViewportKeyRow(
+      `${loadCase.load_case} inputs — ${loadCase.gravity ? "gravity on" : "gravity off"} · ` +
+      `pressure ${formatQuantity(loadCase.internal_pressure_pa, "Pa", system)} · ` +
+      `${formatQuantity(loadCase.temperature_c, "°C", system)} from ${formatQuantity(loadCase.ref_temperature_c, "°C", system)} · ` +
+      `${nodalCount ? `${nodalCount} imposed nodal force${nodalCount === 1 ? "" : "s"}` : "no imposed nodal forces"}`
+    );
   }
+  const vectorKeys = new Map();
+  for (const object of visibleVectors) {
+    const resultType = object.metadata?.result_type;
+    const vectorKind = object.metadata?.vector_kind;
+    const key = object.kind === "applied_load" ? `applied_${vectorKind}` : resultType;
+    const label = {
+      applied_force: "Applied force — authored input",
+      applied_moment: "Applied moment — authored input, double-headed",
+      reaction_force: "Reaction force — Code_Aster result",
+      reaction_moment: "Reaction moment — Code_Aster result, double-headed"
+    }[key];
+    if (!label || vectorKeys.has(key)) continue;
+    const asset = currentState.geometryAssets.find((candidate) => candidate.id === object.geometry_asset_id);
+    vectorKeys.set(key, { label, color: asset?.generation_config?.color });
+  }
+  for (const { label, color } of vectorKeys.values()) appendViewportKeyRow(label, color);
+  for (const body of bodies) {
+    appendViewportKeyRow(
+      `${body.label} — ${BODY_LEGEND_NOTE[body.id] ?? body.badge.text}`,
+      null,
+      `body-legend-${body.id}`
+    );
+  }
+}
+
+function appendViewportKeyRow(label, color = null, swatchClass = "") {
+  const row = document.createElement("div");
+  row.className = "body-legend-row";
+  if (color || swatchClass) {
+    const swatch = document.createElement("span");
+    swatch.className = `body-legend-swatch ${swatchClass}`.trim();
+    if (color) swatch.style.background = color;
+    row.append(swatch);
+  }
+  const text = document.createElement("span");
+  text.textContent = label;
+  row.append(text);
+  dom.bodyLegend.append(row);
 }
 
 // What the mark in the viewport is actually reporting, which is not the same
@@ -2261,11 +2312,7 @@ function formatPercent(ratio) {
   return `${value >= 1 ? value.toFixed(0) : value.toFixed(2)}%`;
 }
 
-// Sweeping the display deformation rebuilds the scene graph each step, so the
-// loop is throttled well below the display refresh rate. It exists to make the
-// mode shape legible, not to be smooth.
-const DEFORMATION_FRAME_MS = 70;
-const DEFORMATION_PHASE_STEP = 0.2;
+const DEFORMATION_RADIANS_PER_MS = 0.003;
 let deformationAnimation = null;
 
 function toggleDeformationAnimation() {
@@ -2276,7 +2323,8 @@ function toggleDeformationAnimation() {
   }
   const base = getVisualDeformationDisplayScale(currentState);
   if (!(base > 1)) return;
-  deformationAnimation = { base, phase: 0, frameId: null, lastFrame: 0 };
+  deformationAnimation = { base, frameId: null, startedAt: null };
+  viewportRenderer?.setDeformationInteraction(true);
   deformationAnimation.frameId = requestAnimationFrame(stepDeformationAnimation);
   render();
 }
@@ -2286,6 +2334,7 @@ function stopDeformationAnimation() {
   const { base, frameId } = deformationAnimation;
   if (frameId !== null) cancelAnimationFrame(frameId);
   deformationAnimation = null;
+  viewportRenderer?.setDeformationInteraction(false);
   // Put the scale back where the reviewer left it, so pausing never silently
   // changes the exaggeration a screenshot was taken at.
   dispatch({ type: "setVisualDeformationScale", scale: base });
@@ -2294,14 +2343,13 @@ function stopDeformationAnimation() {
 function stepDeformationAnimation(timestamp = 0) {
   if (!deformationAnimation) return;
   deformationAnimation.frameId = requestAnimationFrame(stepDeformationAnimation);
-  if (timestamp - deformationAnimation.lastFrame < DEFORMATION_FRAME_MS) return;
-  deformationAnimation.lastFrame = timestamp;
-  deformationAnimation.phase += DEFORMATION_PHASE_STEP;
+  deformationAnimation.startedAt ??= timestamp;
+  const phase = (timestamp - deformationAnimation.startedAt) * DEFORMATION_RADIANS_PER_MS;
   // Swings between the true displacement and the chosen exaggeration rather
   // than through zero: x1 is the honest shape, and that is the useful anchor.
-  const sweep = (1 - Math.cos(deformationAnimation.phase)) / 2;
+  const sweep = (1 - Math.cos(phase)) / 2;
   dispatch({ type: "setVisualDeformationScale", scale: 1 + (deformationAnimation.base - 1) * sweep });
-  renderCanvas();
+  if (!viewportRenderer?.renderDeformation(currentState)) renderCanvas();
 }
 
 globalThis.addEventListener("beforeunload", stopDeformationAnimation);

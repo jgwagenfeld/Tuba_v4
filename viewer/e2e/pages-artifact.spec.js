@@ -13,7 +13,7 @@ test("assembled Pages gallery scrolls to the final review", async ({ page }) => 
   await page.setViewportSize({ width: 800, height: 600 });
   await page.goto("/viewer/", { waitUntil: "domcontentloaded" });
   const cards = page.locator("[data-gallery-card]");
-  await expect(cards).toHaveCount(7);
+  await expect(cards).toHaveCount(6);
   expect(await page.evaluate(() => getComputedStyle(document.body).overflowY)).toBe("auto");
 
   await page.mouse.wheel(0, 800);

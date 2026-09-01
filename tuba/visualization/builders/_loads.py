@@ -75,6 +75,7 @@ def _force_glyphs(
             "components": vector,
             "unit": unit,
         }
+        color = "#2563eb" if vector_kind == "force" else "#0f766e"
         glyphs.append(
             (
                 SceneObject(
@@ -93,6 +94,7 @@ def _force_glyphs(
                     object_ids=[object_id],
                     generation_config={
                         "source": "tuba.applied_loads",
+                        "color": color,
                         "start": start,
                         "end": end,
                         **metadata,

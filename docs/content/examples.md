@@ -40,15 +40,6 @@ It also carries an optional ASME B31.3 evaluation.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review) &middot; Evidence: **Results**
 
-## What does the analysis actually discretise at a branch?
-
-**Tee junction mesh.** The conformal quadratic-hexahedral wall mesh generated for a header and its branch, before anything is solved. Useful for judging mesh quality at the junction where a beam idealisation stops being enough.
-
-The viewer opens on the analysis mesh; the authored pipe tubes remain available
-as a layer but start hidden so they cannot obscure the junction.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=gmsh-tee-mesh-review) &middot; Evidence: **Mesh only - no results**
-
 ## How does a supplied component join an authored line?
 
 **Imported equipment connection.** A STEP/STL component brought in beside Tuba-authored pipework, with its connection ports, local frames and coupling shown. Geometry review only - nothing here has been analysed.
@@ -57,7 +48,7 @@ as a layer but start hidden so they cannot obscure the junction.
 
 ## Does stress concentrate where the branch meets the header?
 
-**Tee junction wall stress.** The same tee, meshed as a solid wall and analysed in 3D. Shows the stress pattern around the junction that a centreline beam model cannot resolve.
+**Solved 3D solid tee.** The tee is meshed as a solid wall and analysed in 3D. Shows the stress pattern around the junction that a centreline beam model cannot resolve.
 
 FE von Mises is not ASME piping-code stress. The design tubes, analysis skin,
 displacement, terminal resultants and stress field stay separately inspectable.
@@ -66,7 +57,7 @@ displacement, terminal resultants and stress field stay separately inspectable.
 
 ## What do the supports and the steel underneath actually carry?
 
-**Pipe on a support rack.** A line resting on a framed rack, analysed together. Traces the load from the pipe through each support into the rack members, and flags a span that exceeds the project support-spacing limit.
+**Pipe on a support rack.** An all-I-beam rack and its pipe analysed together under gravity, 1.5 MPa internal pressure, and 180 C operation from 20 C, with no imposed nodal forces. Traces the resulting support reactions through the rack and flags an overlong span.
 
 Two optional layers sit on top of the evidence. Its Compliance tab carries an
 ASME B31.3 evaluation, which covers the pipe elements only - B31.3 does not

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getActiveLoadCaseDefinition,
   getGeometryStateOptions,
   getHotspots,
   getLoadCaseOptions,
@@ -184,6 +185,24 @@ test("visual deformation and vector display controls do not mutate clash issue m
   assert.equal(next.resultVectorScales.reaction, 0.25);
   assert.equal(next.visualDeformationScale, 80);
   assert.deepEqual(next.issues, originalIssues);
+});
+
+test("active load-case definition exposes the applied inputs behind the selected results", () => {
+  const state = resultState();
+  state.overlays.push({
+    id: "overlay:load_case:Hot",
+    kind: "load_case",
+    data: {
+      load_case: "Hot",
+      gravity: true,
+      internal_pressure_pa: 1500000,
+      temperature_c: 180,
+      ref_temperature_c: 20,
+      nodal_force_count: 0
+    }
+  });
+
+  assert.deepEqual(getActiveLoadCaseDefinition(state), state.overlays.at(-1).data);
 });
 
 test("moving the deformation slider activates the visual state", () => {

@@ -17,6 +17,7 @@ from tuba.visualization import build_visualization_scene
 from tuba.visualization.builders._layers import (
     OBJECT_KIND_CATEGORY,
     OVERLAY_KIND_CATEGORY,
+    build_layer_registry,
     build_result_fields,
     mesh_identity,
 )
@@ -25,6 +26,7 @@ from tuba.visualization.scene import (
     Overlay,
     ResultField,
     SceneLayer,
+    SceneObject,
     SceneValidationError,
     VisualizationScene,
 )
@@ -141,6 +143,14 @@ class TestAppliedLoads(unittest.TestCase):
         for obj in self.loads:
             self.assertIn(obj.metadata["load_case"], self.scene_load_cases())
 
+    def test_applied_force_and_moment_glyphs_use_authored_input_colours(self):
+        assets = {asset.id: asset for asset in self.scene.geometry_assets}
+        colours = {
+            obj.metadata["vector_kind"]: assets[obj.geometry_asset_id].generation_config["color"]
+            for obj in self.loads
+        }
+        self.assertEqual(colours, {"force": "#2563eb", "moment": "#0f766e"})
+
     def test_load_case_overlay_carries_the_definition(self):
         overlays = [o for o in self.scene.overlays if o.kind == "load_case"]
         self.assertTrue(overlays)
@@ -210,6 +220,24 @@ class TestLayerRegistry(unittest.TestCase):
         self.assertIn("analysis_mesh:nodes", self._ids("analysis_mesh"))
         self.assertIn("result:displacement", self._ids("results"))
         self.assertIn("overlay:clash", self._ids("annotations"))
+
+    def test_analytical_envelopes_start_hidden_while_real_geometry_stays_visible(self):
+        layers, _ = build_layer_registry(
+            [
+                SceneObject(id="object:pipe", kind="pipe"),
+                SceneObject(
+                    id="object:clearance",
+                    kind="physical_envelope",
+                    layer_ids=["physical_envelope:clearance"],
+                ),
+            ],
+            [],
+            [],
+        )
+        by_id = {layer.id: layer for layer in layers}
+
+        self.assertTrue(by_id["pipe"].default_visible)
+        self.assertFalse(by_id["physical_envelope:clearance"].default_visible)
 
     def test_nothing_is_unclassified(self):
         unclassified = [d for d in self.scene.diagnostics if d.code == "visualization.layer.unclassified"]

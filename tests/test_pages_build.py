@@ -22,7 +22,6 @@ REQUIRED = {
     "viewer/index.html",
     "viewer/bundles.json",
     "viewer/autorouted-expansion-loop/scene.json",
-    "viewer/gmsh-tee-mesh-review/scene.json",
     "viewer/licenses/font-notices.txt",
     "viewer/licenses/OFL-1.1.txt",
     "viewer/code-aster-review/scene.json",
@@ -42,6 +41,7 @@ OFFICIAL_BUNDLES = [
     "pipe-tee-volume-review",
     "support-rack-review",
 ]
+PAGES_BUNDLES = [bundle for bundle in OFFICIAL_BUNDLES if bundle != "gmsh-tee-mesh-review"]
 
 
 def test_official_gallery_records_drive_pages_ids_and_required_scenes():
@@ -60,6 +60,17 @@ def test_official_gallery_records_drive_pages_ids_and_required_scenes():
 
     with pytest.raises(FrozenInstanceError):
         galleries[0].profile = "model-review"
+
+
+def test_public_gallery_keeps_the_unsolved_tee_as_a_dev_diagnostic():
+    pages = {
+        gallery.id
+        for gallery in import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+        if "pages" in gallery.audiences
+    }
+
+    assert "gmsh-tee-mesh-review" not in pages
+    assert "pipe-tee-volume-review" in pages
 
 
 def _project_tree(root: Path) -> None:
@@ -117,7 +128,7 @@ def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[st
         assert audience == "pages"
         assert not (root / "viewer" / "public").exists()
         events.append("examples")
-        bundle_ids = OFFICIAL_BUNDLES if complete else OFFICIAL_BUNDLES[:1]
+        bundle_ids = PAGES_BUNDLES if complete else PAGES_BUNDLES[:1]
         for bundle_id in bundle_ids:
             bundle = viewer_root / bundle_id
             bundle.mkdir()
@@ -155,12 +166,12 @@ def test_pages_build_assembles_exact_validated_tree_in_order(tmp_path, monkeypat
     assert [
         entry["id"]
         for entry in json.loads((output / "viewer" / "bundles.json").read_text(encoding="utf-8"))
-    ] == OFFICIAL_BUNDLES
+    ] == PAGES_BUNDLES
     assert sorted(
         path.name
         for path in (output / "viewer").iterdir()
         if path.is_dir() and (path / "scene.json").is_file()
-    ) == OFFICIAL_BUNDLES
+    ) == PAGES_BUNDLES
     for redirect, target in {
         "commands.html": "reference/index.html",
         "overview.html": "architecture/index.html",
@@ -327,3 +338,19 @@ def test_every_published_gallery_has_a_committed_thumbnail():
             "run scripts/docs/generate_gallery_thumbnails.py"
         )
         assert thumbnail.stat().st_size > 5_000, f"{gallery.id} thumbnail looks empty"
+
+
+def test_solved_3d_tee_thumbnail_shows_result_coloring_at_a_useful_scale():
+    from PIL import Image
+
+    thumbnail = build_pages.GALLERY_THUMBNAIL_DIR / "pipe-tee-volume-review.png"
+    with Image.open(thumbnail) as image:
+        rgb = image.convert("RGB")
+        pixels = list(rgb.get_flattened_data() if hasattr(rgb, "get_flattened_data") else rgb.getdata())
+
+    result_colored = sum(
+        (green > red * 1.15 and green > blue * 0.8 and max(red, green, blue) - min(red, green, blue) > 25)
+        or (blue > red * 1.15 and blue > green * 0.8 and max(red, green, blue) - min(red, green, blue) > 25)
+        for red, green, blue in pixels
+    )
+    assert result_colored / len(pixels) > 0.04

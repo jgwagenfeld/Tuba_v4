@@ -1,4 +1,5 @@
 from examples import code_aster_artifact_review as gallery
+from tuba.model import IBeamSection
 
 
 def test_support_rack_gallery_model_has_a_semantic_rack_and_supported_pipe():
@@ -14,13 +15,14 @@ def test_support_rack_gallery_model_has_a_semantic_rack_and_supported_pipe():
     assert {support.type for support in model.supports} >= {"anchor", "rest"}
 
 
-def test_support_rack_gallery_uses_distinct_member_sections():
+def test_support_rack_gallery_uses_ibeams_for_every_structural_member():
     model = gallery.build_support_rack_model()
 
     beam_sections = {element.section for element in model.elements if element.type == "beam"}
     pipe_sections = {element.section for element in model.elements if element.type.startswith("pipe")}
 
-    assert beam_sections == {"RackColumnIPE", "RackLongRHS", "RackCrossRHS"}
+    assert beam_sections == {"RackColumnIPE", "RackLongIPE", "RackCrossIPE"}
+    assert all(isinstance(model.sections[name], IBeamSection) for name in beam_sections)
     assert pipe_sections == {"DN100"}
 
 

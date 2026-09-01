@@ -41,8 +41,8 @@
     "PipeStraights": "G3B3BFA6",
     "SEC_DN100": "GF0AB739",
     "SEC_RackColumnIPE": "G6167DC1",
-    "SEC_RackCrossRHS": "G4F51564",
-    "SEC_RackLongRHS": "G77EC233",
+    "SEC_RackCrossIPE": "G4549CB0",
+    "SEC_RackLongIPE": "GE87720F",
     "pipe_inlet": "G3191480",
     "pipe_inlet_mid": "G6350B05",
     "pipe_outlet": "GF7A8BE1",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v1",
-    "fingerprint": "5ba96420f29cfec1aec59fb1ab18872810b2d5e21926085b9f8eeedc442ad8ce",
+    "fingerprint": "f77f1b5a01c1f2119b81721d988aba907c1c80f7d2f4fcc923529e326ebc7910",
     "load_case": "Operating",
     "schema_id": "tuba.model.v4"
   },

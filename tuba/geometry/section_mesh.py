@@ -160,11 +160,61 @@ def straight_section_surface_mesh(
     return SurfaceMesh(vertices=tuple(vertices), faces=tuple(faces))
 
 
+def deformed_straight_section_surface_mesh(
+    section,
+    start,
+    end,
+    start_deformation,
+    end_deformation,
+    *,
+    scale: float = 1.0,
+    twist_angle_deg: float = 0.0,
+) -> tuple[SurfaceMesh, SurfaceMesh]:
+    """Return base and solver-deformed meshes for a straight 1D member."""
+    base = straight_section_surface_mesh(
+        section,
+        start,
+        end,
+        twist_angle_deg=twist_angle_deg,
+    )
+    endpoints = (np.asarray(start, dtype=float), np.asarray(end, dtype=float))
+    deformations = (
+        _deformation_vector(start_deformation),
+        _deformation_vector(end_deformation),
+    )
+    vertices_per_end = len(base.vertices) // 2
+    vertices = []
+    for endpoint_index, (endpoint, deformation) in enumerate(zip(endpoints, deformations)):
+        rotation = _rotation_matrix(deformation[3:] * float(scale))
+        offset = endpoint_index * vertices_per_end
+        for vertex in base.vertices[offset : offset + vertices_per_end]:
+            local = np.asarray(vertex, dtype=float) - endpoint
+            transformed = endpoint + deformation[:3] * float(scale) + rotation @ local
+            vertices.append(tuple(float(value) for value in transformed))
+    return base, SurfaceMesh(vertices=tuple(vertices), faces=base.faces)
+
+
 def _circle(radius: float, n_sides: int) -> list[tuple[float, float]]:
     return [
         (radius * math.cos(angle), radius * math.sin(angle))
         for angle in np.linspace(0.0, 2.0 * math.pi, n_sides, endpoint=False)
     ]
+
+
+def _deformation_vector(values) -> np.ndarray:
+    vector = np.asarray(values, dtype=float)
+    if vector.shape != (6,) or not np.isfinite(vector).all():
+        raise ValueError("Section deformation requires six finite displacement and rotation components.")
+    return vector
+
+
+def _rotation_matrix(rotation_vector: np.ndarray) -> np.ndarray:
+    angle = float(np.linalg.norm(rotation_vector))
+    if angle <= 1.0e-15:
+        return np.identity(3)
+    x, y, z = rotation_vector / angle
+    skew = np.asarray(((0.0, -z, y), (z, 0.0, -x), (-y, x, 0.0)))
+    return np.identity(3) + math.sin(angle) * skew + (1.0 - math.cos(angle)) * (skew @ skew)
 
 
 def _rectangle(height_y: float, height_z: float) -> list[tuple[float, float]]:

@@ -221,11 +221,11 @@
         "rack_A_beam_2",
         "rack_A_beam_3"
       ],
-      "SEC_RackCrossRHS": [
+      "SEC_RackCrossIPE": [
         "rack_A_beam_6",
         "rack_A_beam_7"
       ],
-      "SEC_RackLongRHS": [
+      "SEC_RackLongIPE": [
         "rack_A_beam_4",
         "rack_A_beam_5"
       ],
@@ -450,7 +450,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v1",
-      "fingerprint": "5ba96420f29cfec1aec59fb1ab18872810b2d5e21926085b9f8eeedc442ad8ce",
+      "fingerprint": "f77f1b5a01c1f2119b81721d988aba907c1c80f7d2f4fcc923529e326ebc7910",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -468,12 +468,13 @@
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "metadata": {
+      "pipe_stress_exported": true,
       "project_name": "SupportRackReview"
     },
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v1",
-      "fingerprint": "5ba96420f29cfec1aec59fb1ab18872810b2d5e21926085b9f8eeedc442ad8ce",
+      "fingerprint": "f77f1b5a01c1f2119b81721d988aba907c1c80f7d2f4fcc923529e326ebc7910",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
