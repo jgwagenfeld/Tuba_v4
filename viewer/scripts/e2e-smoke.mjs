@@ -432,7 +432,10 @@ const scenarios = {
       const storedThreshold = () => page.evaluate(() => window.__tubaViewer?.state?.resultThreshold);
 
       // The field is stress in pascals, so the control is denominated in MPa.
-      assert.match(await page.locator("[data-result-controls]").textContent(), /Stress threshold \(MPa\)/);
+      // The cut-off lives in the folded Filters band now; its unit still follows
+      // the chip, and the Hotspots heading restates it while the band is shut.
+      assert.match(await page.locator("[data-result-shape]").textContent(), /Stress threshold \(MPa\)/);
+      assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hotspots/);
       assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe 57 MPa/);
 
       // Typed in the displayed unit, stored in pascals. Getting this wrong
@@ -450,7 +453,7 @@ const scenarios = {
       await page.locator("[data-unit-system]").click();
       assert.equal(await storedThreshold(), 50000000);
       assert.equal(await threshold.inputValue(), "50000000");
-      assert.match(await page.locator("[data-result-controls]").textContent(), /Stress threshold \(Pa\)/);
+      assert.match(await page.locator("[data-result-shape]").textContent(), /Stress threshold \(Pa\)/);
       assert.match(await page.locator("[data-hotspot-list]").textContent(), /Hot pipe 5\.70e\+7 Pa/);
 
       // A value typed in SI base is stored as typed - 1 MPa admits both pipes,

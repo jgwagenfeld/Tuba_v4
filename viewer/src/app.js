@@ -106,6 +106,8 @@ const dom = {
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
   resultControls: document.querySelector("[data-result-controls]"),
   resultLegend: document.querySelector("[data-result-legend]"),
+  resultShape: document.querySelector("[data-result-shape]"),
+  layersBlock: document.querySelector("[data-layers-block]"),
   hotspotList: document.querySelector("[data-hotspot-list]"),
   diagnosticList: document.querySelector("[data-diagnostic-list]"),
   searchInput: document.querySelector("[data-search]"),
@@ -762,12 +764,14 @@ function appendTableSource(parent, source) {
   parent.append(provenance);
 }
 
-// Load case, field and component are not repeated here: the coloring bar owns
-// the channel and this panel owns thresholds, vector scales and hotspots. Two
-// controls for one selection is how they drift out of sync.
+// Four bands in reading order: what colours the scene, what that colour means,
+// what shape it is drawn in, and where it peaks. Each band states what it is set
+// to in its own heading, so a band scrolled half off still answers for itself -
+// and nothing here toggles a body the Model task owns.
 function renderResultControls() {
   dom.resultControls.replaceChildren();
   dom.resultLegend.replaceChildren();
+  dom.resultShape.replaceChildren();
   dom.hotspotList.replaceChildren();
 
   const loadCases = getLoadCaseOptions(currentState);
@@ -784,67 +788,202 @@ function renderResultControls() {
     return;
   }
 
-  // Case, field and component came down from a permanent bar above the
-  // viewport. They are result controls, so they belong to the Results task -
-  // the model tasks no longer pay for a band they cannot use.
-  if (loadCases.length > 0) {
-    dom.resultControls.append(
-      barControl("Case", currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
-        dispatch({ type: "setActiveLoadCase", loadCase: value });
-        render();
-      })
-    );
-  }
-
+  dom.resultControls.append(railGroup("Colouring"));
   if (fieldOptions.length > 0) {
     const field = getActiveField(currentState);
+    // The one control here that keeps a full-width row: it is the longest string
+    // in the rail, and every other control on the task hangs off it.
     dom.resultControls.append(
-      barControl("Field", field?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
+      fieldSelect(field?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
         dispatch({ type: "setColoringField", fieldId: value });
         render();
       })
     );
-    if (componentIsSelectable(currentState)) {
-      const components = (field?.components ?? ["magnitude"]).map((id) => ({ id, label: id }));
-      dom.resultControls.append(
-        barControl("Component", getActiveComponent(currentState), components, (value) => {
+  }
+  if (loadCases.length > 0) {
+    dom.resultControls.append(
+      propertyRow(
+        "Case",
+        plainSelect(currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
+          dispatch({ type: "setActiveLoadCase", loadCase: value });
+          render();
+        })
+      )
+    );
+  }
+  if (fieldOptions.length > 0 && componentIsSelectable(currentState)) {
+    const components = (getActiveField(currentState)?.components ?? ["magnitude"]).map((id) => ({ id, label: id }));
+    dom.resultControls.append(
+      propertyRow(
+        "Component",
+        plainSelect(getActiveComponent(currentState), components, (value) => {
           dispatch({ type: "setColoringComponent", component: value });
           render();
         })
-      );
-    }
+      )
+    );
   }
-
-  // Only offered when the scene carries no field catalogue; with one, the bar's
-  // field selector already picks the result state through its load case.
+  // Only offered when the scene carries no field catalogue; with one, the field
+  // selector already picks the result state through its load case.
   if (fieldOptions.length === 0 && resultStates.length > 0) {
     dom.resultControls.append(
-      selectControl("Result state", currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
-        dispatch({ type: "setActiveResultState", resultStateId: value });
-        render();
-      })
+      propertyRow(
+        "Result state",
+        plainSelect(currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
+          dispatch({ type: "setActiveResultState", resultStateId: value });
+          render();
+        })
+      )
     );
   }
 
+  // What the colour means. Its own element between the two bands: the legend is
+  // read by name, and the compliance notice rides with it.
+  const legend = getScalarLegend(currentState);
+  if (legend) {
+    const scale = document.createElement("div");
+    const component = legend.component && legend.component !== "magnitude" ? ` ${legend.component}` : "";
+    const system = getUnitSystem(currentState);
+    const low = formatValue(legend.range.min, legend.unit, system);
+    const high = formatQuantity(legend.range.max, legend.unit, system);
+    scale.textContent = `${legend.field}${component}: ${low} - ${high}`.trim();
+    dom.resultLegend.append(scale);
+  }
+
+  dom.resultShape.append(
+    railGroup("Deformation", `\u00d7${formatScale(getVisualDeformationDisplayScale(currentState))}`)
+  );
   if (geometryStates.length > 0) {
-    dom.resultControls.append(
-      selectControl("Deformed state", currentState.activeGeometryStateId ?? geometryStates[0].id, geometryStates, (value) => {
-        stopDeformationAnimation();
-        dispatch({ type: "setActiveGeometryState", geometryStateId: value });
-        render();
-      })
+    dom.resultShape.append(
+      propertyRow(
+        "Deformed state",
+        plainSelect(currentState.activeGeometryStateId ?? geometryStates[0].id, geometryStates, (value) => {
+          stopDeformationAnimation();
+          dispatch({ type: "setActiveGeometryState", geometryStateId: value });
+          render();
+        })
+      )
     );
   }
+  dom.resultShape.append(propertyRow("Deform", deformationControl()));
+  const chips = resultBodyChips();
+  if (chips) {
+    dom.resultShape.append(propertyRow("Draw", chips));
+  }
+  dom.resultShape.append(filtersDrawer());
 
-  dom.resultControls.append(deformationControl());
-  dom.resultControls.append(thresholdControl());
-  dom.resultControls.append(
+  const hotspots = getHotspots(currentState);
+  dom.hotspotList.append(railGroup("Hotspots", hotspotTally(hotspots)));
+  if (hotspots.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "meta";
+    empty.textContent = "No hotspots above threshold.";
+    dom.hotspotList.append(empty);
+    return;
+  }
+  for (const hotspot of hotspots) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "hotspot-row";
+    const identity = hotspot.elementId
+      ? ` ${hotspot.elementId} row ${hotspot.rowIndex ?? "?"} subpoint ${hotspot.subpointIndex ?? "?"}`
+      : "";
+    const magnitude = formatQuantity(hotspot.value, hotspot.unit, getUnitSystem(currentState));
+    // The dot is the colour the scene painted this value, off the same ramp, so
+    // a row in the list and a spot on the model are recognisably the same thing.
+    const dot = document.createElement("span");
+    dot.className = "hotspot-dot";
+    const color = colorForScalarValue(hotspot.value, legend);
+    if (color !== null) dot.style.background = hexColor(color);
+    const name = document.createElement("span");
+    name.className = "hotspot-name";
+    name.textContent = `${hotspot.objectName}${identity} `;
+    const value = document.createElement("span");
+    value.className = "hotspot-value";
+    value.textContent = hotspot.utilization !== null ? `${magnitude} ` : magnitude;
+    button.append(dot, name, value);
+    if (hotspot.utilization !== null) {
+      const utilization = document.createElement("span");
+      utilization.className = "hotspot-util";
+      utilization.textContent = `u=${formatScale(hotspot.utilization)}`;
+      button.append(utilization);
+    }
+    button.addEventListener("click", () => {
+      selectedObjectId = hotspot.objectId;
+      dispatch({ type: "selectObject", objectId: hotspot.objectId });
+      render();
+    });
+    dom.hotspotList.append(button);
+  }
+}
+
+// The cut-off is stated on the heading as well as on the control, so folding the
+// filters away never hides what the list is filtered by.
+function hotspotTally(hotspots) {
+  const stored = currentState.resultThreshold;
+  if (!(Number(stored) > 0)) {
+    return `${hotspots.length}`;
+  }
+  const unit = getScalarLegend(currentState)?.unit ?? "";
+  return `${hotspots.length} above ${formatQuantity(stored, unit, getUnitSystem(currentState))}`;
+}
+
+// The two bodies a reviewer dims while reading a field travel with the field.
+// The rest of the layer list is what the Model task is for.
+const RESULT_BODY_IDS = Object.freeze(["deformed", "subpoints"]);
+
+function resultBodyChips() {
+  const bodies = getBodies(currentState).filter((body) => RESULT_BODY_IDS.includes(body.id));
+  if (bodies.length === 0) {
+    return null;
+  }
+  const row = document.createElement("div");
+  row.className = "body-chips";
+  for (const body of bodies) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "scope-chip body-chip";
+    button.dataset.bodyChip = body.id;
+    button.dataset.focusKey = `chip:${body.id}`;
+    button.setAttribute("aria-pressed", String(body.visible));
+    button.textContent = body.label;
+    button.addEventListener("click", () => {
+      dispatch({ type: "setBodyVisibility", bodyId: body.id, visible: !body.visible });
+      render();
+    });
+    row.append(button);
+  }
+  return row;
+}
+
+// Thresholds and vector scales are set once and then in the way. Folded by
+// default: the cut-off is restated in the summary and in the Hotspots heading,
+// so nothing about what is being filtered depends on opening this.
+let resultFiltersOpen = false;
+
+function filtersDrawer() {
+  const drawer = document.createElement("details");
+  drawer.className = "strip-drawer";
+  drawer.dataset.resultFilters = "";
+  drawer.open = resultFiltersOpen;
+  drawer.addEventListener("toggle", () => {
+    resultFiltersOpen = drawer.open;
+  });
+
+  const summary = document.createElement("summary");
+  summary.append("Filters & vectors");
+  const state = document.createElement("span");
+  state.className = "drawer-state";
+  state.textContent = vectorScaleSummary();
+  summary.append(state);
+
+  drawer.append(
+    summary,
+    thresholdControl(),
     numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
       dispatch({ type: "setUtilizationThreshold", threshold: value });
       render();
-    })
-  );
-  dom.resultControls.append(
+    }),
     rangeControl(
       `Displacement vector scale ${formatScale(currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1)}x`,
       currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1,
@@ -855,9 +994,7 @@ function renderResultControls() {
         dispatch({ type: "setDisplacementVectorScale", scale: value });
         render();
       }
-    )
-  );
-  dom.resultControls.append(
+    ),
     rangeControl(
       // Its own control on purpose: a moment is not a force, and one shared
       // scale let whichever family had the larger numbers hide the other.
@@ -870,9 +1007,7 @@ function renderResultControls() {
         dispatch({ type: "setMomentVectorScale", scale: value });
         render();
       }
-    )
-  );
-  dom.resultControls.append(
+    ),
     rangeControl(
       `Reaction vector scale ${formatScale(currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1)}x`,
       currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1,
@@ -885,41 +1020,16 @@ function renderResultControls() {
       }
     )
   );
+  return drawer;
+}
 
-  const legend = getScalarLegend(currentState);
-  if (legend) {
-    const scale = document.createElement("div");
-    const component = legend.component && legend.component !== "magnitude" ? ` ${legend.component}` : "";
-    const system = getUnitSystem(currentState);
-    const low = formatValue(legend.range.min, legend.unit, system);
-    const high = formatQuantity(legend.range.max, legend.unit, system);
-    scale.textContent = `${legend.field}${component}: ${low} - ${high}`.trim();
-    dom.resultLegend.append(scale);
-  }
-
-  const hotspots = getHotspots(currentState);
-  if (hotspots.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "meta";
-    empty.textContent = "No hotspots above threshold.";
-    dom.hotspotList.append(empty);
-    return;
-  }
-  for (const hotspot of hotspots) {
-    const button = document.createElement("button");
-    button.type = "button";
-    const identity = hotspot.elementId
-      ? ` ${hotspot.elementId} row ${hotspot.rowIndex ?? "?"} subpoint ${hotspot.subpointIndex ?? "?"}`
-      : "";
-    const magnitude = formatQuantity(hotspot.value, hotspot.unit, getUnitSystem(currentState));
-    button.textContent = `${hotspot.objectName}${identity} ${magnitude}${hotspot.utilization !== null ? ` u=${formatScale(hotspot.utilization)}` : ""}`;
-    button.addEventListener("click", () => {
-      selectedObjectId = hotspot.objectId;
-      dispatch({ type: "selectObject", objectId: hotspot.objectId });
-      render();
-    });
-    dom.hotspotList.append(button);
-  }
+function vectorScaleSummary() {
+  const scales = [
+    currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1,
+    currentState.resultVectorScales?.moment ?? 1,
+    currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1
+  ];
+  return scales.map((scale) => formatScale(scale)).join(" / ");
 }
 
 // The threshold filters the field that is currently colouring the scene, so it
@@ -962,6 +1072,10 @@ function renderHeader() {
 
 function renderDisplayStrip() {
   dom.displayStrip.hidden = currentState.embed;
+  // Results owns the field; the full layer list is what Model is for. Sharing
+  // one scroll zone between them is what squeezed the result controls into a
+  // 30%-tall window with a scrollbar of their own.
+  dom.layersBlock.hidden = currentState.activeTab === "results";
   renderBodyList();
   renderProjectionNote();
   renderSectionProfile();
@@ -1248,11 +1362,8 @@ function unitSystemChip() {
 
 function deformationControl() {
   const group = document.createElement("div");
-  group.className = "bar-control bar-deform";
+  group.className = "deform-control";
   const scale = getVisualDeformationDisplayScale(currentState);
-  const label = document.createElement("label");
-  label.className = "bar-label";
-  label.textContent = "Deform";
   const input = document.createElement("input");
   input.type = "range";
   input.min = "1";
@@ -1268,16 +1379,20 @@ function deformationControl() {
     if (!viewportRenderer?.renderDeformation(currentState)) renderCanvas();
   });
   input.addEventListener("pointerdown", () => viewportRenderer?.setDeformationInteraction(true));
+  input.addEventListener("change", () => {
+    viewportRenderer?.setDeformationInteraction(false);
+    render();
+  });
   for (const eventName of ["pointerup", "pointercancel"]) {
     input.addEventListener(eventName, () => {
-      if (viewportRenderer?.setDeformationInteraction(false)) renderCanvas();
+      if (viewportRenderer?.setDeformationInteraction(false)) render();
     });
   }
   const readout = document.createElement("span");
   readout.className = "bar-readout";
   readout.dataset.deformScale = "";
   readout.textContent = `×${formatScale(scale)}`;
-  group.append(label, input, readout, animateButton());
+  group.append(input, readout, animateButton());
   return group;
 }
 
@@ -1287,7 +1402,9 @@ function animateButton() {
   button.className = "bar-button";
   button.dataset.animateDeformation = "";
   const animating = deformationAnimation !== null;
-  button.textContent = animating ? "❚❚ Pause" : "▶ Animate";
+  // Icon only: the word cost 60px of a 172px row and the slider needs it.
+  button.replaceChildren(animating ? glyphIcon("pause") : glyphIcon("play"));
+  button.setAttribute("aria-label", animating ? "Pause deformation animation" : "Animate deformation");
   button.setAttribute("aria-pressed", String(animating));
   // Nothing to animate when the scene carries no exaggerated shape: sweeping a
   // ×1 scale would just redraw the same picture at full cost.
@@ -2381,26 +2498,97 @@ function stripHeading(text) {
   return heading;
 }
 
-function barControl(labelText, value, options, onChange) {
-  const group = document.createElement("div");
-  group.className = "bar-control";
-  const label = document.createElement("label");
-  label.className = "bar-label";
-  label.textContent = labelText;
+// A band heading that carries the state it is set to. Uppercase name, mono
+// value: the name says which control group this is, the value says what it is
+// doing to the scene when the group itself has scrolled out of the pane.
+function railGroup(labelText, stateText = "") {
+  const band = document.createElement("div");
+  band.className = "rail-group";
+  const heading = document.createElement("h2");
+  heading.textContent = labelText;
+  band.append(heading);
+  if (stateText) {
+    const state = document.createElement("span");
+    state.className = "rail-group-state";
+    state.textContent = stateText;
+    band.append(state);
+  }
+  return band;
+}
+
+// One label, one control, on one line. The label-above-control stack this
+// replaces cost 56px for the same pair, which is what filled the rail. A single
+// form control is wrapped so the row label names it; a cluster of controls
+// (slider plus button, a row of chips) is not, because a label may only name one
+// thing - those carry their own aria-label.
+function propertyRow(labelText, control) {
+  const isControl = control.tagName === "SELECT" || control.tagName === "INPUT";
+  const row = document.createElement(isControl ? "label" : "div");
+  row.className = "prow";
+  const name = document.createElement("span");
+  name.className = "pname";
+  name.textContent = labelText;
+  if (isControl) focusKeyFor(control, labelText);
+  row.append(name, control);
+  return row;
+}
+
+// Every panel is replaceChildren()d on render, which destroys whatever the
+// reviewer was inside. This is how restoreFocus puts them back.
+function focusKeyFor(control, name) {
+  control.dataset.focusKey = `bar:${name}`;
+}
+
+function plainSelect(value, options, onChange) {
   const select = document.createElement("select");
-  select.setAttribute("aria-label", labelText);
-  select.dataset.focusKey = `bar:${labelText}`;
   for (const option of options) {
+    const normalized = typeof option === "string" ? { id: option, label: option } : option;
     const element = document.createElement("option");
-    element.value = option.id;
-    element.textContent = option.label;
-    element.selected = option.id === value;
+    element.value = normalized.id;
+    element.textContent = normalized.label;
+    element.selected = normalized.id === value;
     select.append(element);
   }
   select.addEventListener("change", () => onChange(select.value));
-  label.append(select);
-  group.append(label);
-  return group;
+  return select;
+}
+
+function fieldSelect(value, options, onChange) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "field-select";
+  const select = plainSelect(value, options, onChange);
+  // The band above names the group; the control still needs a name of its own.
+  select.setAttribute("aria-label", "Field");
+  focusKeyFor(select, "Field");
+  wrapper.append(select);
+  return wrapper;
+}
+
+function glyphIcon(name) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "8");
+  svg.setAttribute("height", "9");
+  svg.setAttribute("viewBox", "0 0 8 9");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  for (const attributes of name === "pause"
+    ? [{ x: "0", width: "3" }, { x: "5", width: "3" }]
+    : []) {
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", attributes.x);
+    rect.setAttribute("y", "0");
+    rect.setAttribute("width", attributes.width);
+    rect.setAttribute("height", "9");
+    rect.setAttribute("fill", "currentColor");
+    svg.append(rect);
+  }
+  if (name === "play") {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M0 0l8 4.5L0 9z");
+    path.setAttribute("fill", "currentColor");
+    svg.append(path);
+  }
+  return svg;
 }
 
 function hexColor(value) {
@@ -2455,22 +2643,6 @@ function stepDeformationAnimation(timestamp = 0) {
 }
 
 globalThis.addEventListener("beforeunload", stopDeformationAnimation);
-
-function selectControl(labelText, value, options, onChange) {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-  for (const option of options) {
-    const normalized = typeof option === "string" ? { id: option, label: option } : option;
-    const element = document.createElement("option");
-    element.value = normalized.id;
-    element.textContent = normalized.label;
-    element.selected = normalized.id === value;
-    select.append(element);
-  }
-  select.addEventListener("change", () => onChange(select.value));
-  label.append(labelText, select);
-  return label;
-}
 
 function numericControl(labelText, value, step, onChange) {
   const label = document.createElement("label");

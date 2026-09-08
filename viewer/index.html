@@ -53,11 +53,15 @@
             <div class="rail-pane" data-bodies-pane>
               <div class="task-panel" data-task-panel>
                 <div data-result-tools-home>
+                  <!-- Four bands in reading order: what colours the scene, what
+                       that colour means, what shape it is drawn in, and where it
+                       peaks. Each renders its own heading with the state it is
+                       set to, so a band scrolled half off still says what it is
+                       doing. -->
                   <section data-result-tools>
-                    <h2>Results</h2>
                     <div class="result-controls" data-result-controls></div>
                     <div class="result-legend" data-result-legend></div>
-                    <h2>Hotspots</h2>
+                    <div class="result-controls" data-result-shape></div>
                     <div data-hotspot-list></div>
                   </section>
                 </div>
@@ -66,10 +70,14 @@
                   <div data-issue-list></div>
                 </section>
               </div>
-              <div class="strip-heading">
-                <h2>Layers</h2>
+              <!-- What is drawn. The Results task owns the field and hides
+                   this; the full layer list is what the Model task is for. -->
+              <div data-layers-block>
+                <div class="strip-heading">
+                  <h2>Layers</h2>
+                </div>
+                <div class="body-list" data-body-list></div>
               </div>
-              <div class="body-list" data-body-list></div>
               <p class="projection-note" data-projection-note></p>
               <section class="section-profile" aria-label="TUYAU section sub-point grid" data-section-profile></section>
               <div class="rail-spacer"></div>
