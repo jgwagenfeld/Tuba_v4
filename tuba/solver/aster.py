@@ -68,6 +68,7 @@ from tuba.analysis.provenance import (
 from tuba.refs import EntityRef
 from tuba.solver.aster_comm import _CommWriterMixin
 from tuba.solver.aster_mesh import _MeshWriterMixin
+from tuba.solver.features import reject_unsupported_features
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +195,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         Path
             The path to the output directory containing the study files.
         """
+        reject_unsupported_features(model)
         self._bend_node_cache.clear()
         # Resolve load case ------------------------------------------------
         load_case_name, load_case = model.resolve_load_case(load_case_name)
@@ -226,6 +228,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         output_dir: Optional[str | Path] = None,
     ) -> AnalysisStudy:
         """Generate Code_Aster input files plus a traceable analysis manifest."""
+        reject_unsupported_features(model)
         self._bend_node_cache.clear()
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
@@ -340,6 +343,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         export_tensor_stress: bool = True,
     ) -> AnalysisStudy:
         """Export a native Gmsh pipe-volume study without claiming solver results."""
+        reject_unsupported_features(model)
         from tuba.solver.aster_volume import PipeVolumeStudyExporter
 
         return PipeVolumeStudyExporter().export_analysis_study(

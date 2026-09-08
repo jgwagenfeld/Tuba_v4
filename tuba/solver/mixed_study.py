@@ -7,6 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from tuba.solver.features import reject_unsupported_features
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
 from tuba.analysis.provenance import MIXED_CODE_ASTER_COMPILER_ID, build_solver_input_identity
 from tuba.meshing._gmsh import gmsh_model
@@ -33,6 +34,7 @@ class MixedCodeAsterStudyExporter:
         load_case_name: str,
         output_dir: str | Path,
     ) -> AnalysisStudy:
+        reject_unsupported_features(model)
         load_case_name, _ = model.resolve_load_case(load_case_name)
 
         model.validate()

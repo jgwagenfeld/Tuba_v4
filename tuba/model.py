@@ -299,6 +299,23 @@ class Support:
     friction_coefficient: float = 0.0
     id: Optional[str] = None
 
+    def __post_init__(self) -> None:
+        # Validate where the value enters, so every construction path is
+        # covered: add_support, patches, fragments and IFC import all build
+        # Support directly.
+        coefficient = float(self.friction_coefficient)
+        if not math.isfinite(coefficient):
+            raise ValueError(
+                f"Support {self.node!r} friction_coefficient must be a finite number, "
+                f"got {self.friction_coefficient!r}."
+            )
+        if coefficient < 0.0:
+            raise ValueError(
+                f"Support {self.node!r} friction_coefficient must not be negative, "
+                f"got {coefficient!r}. Coulomb friction has no sign."
+            )
+        self.friction_coefficient = coefficient
+
 
 TEE_TYPES = ("welding_tee", "reinforced_tee", "unreinforced_tee")
 
