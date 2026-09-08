@@ -315,7 +315,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertAlmostEqual(operating_props["MaxNodeDisplacementM"], 0.015)
 
         stress_props = _product_pset_values(pipe, "Pset_TubaStressAnalysis")
-        self.assertGreater(stress_props["MaxStress_Pa"], 0.0)
+        self.assertEqual(stress_props, {"MaxVonMisesStress_Pa": artifact.results.element_results["pipe_0"].max_von_mises})
 
 
 def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:

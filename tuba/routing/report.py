@@ -124,11 +124,11 @@ def _single_route_markdown(result: PipeRouteResult) -> str:
         else:
             lines.append("- Solver ran: `False`")
         if compliance:
-            lines.append(f"- ASME overall pass: `{compliance.get('overall_pass')}`")
+            lines.append(f"- User-supplied checks overall pass: `{compliance.get('overall_pass')}`")
             lines.append(f"- Worst sustained ratio: `{compliance.get('worst_sustained_ratio')}`")
             lines.append(f"- Worst expansion ratio: `{compliance.get('worst_expansion_ratio')}`")
         else:
-            lines.append("- ASME compliance: `not run`")
+            lines.append("- User-supplied checks: `not run`")
 
         lines.extend(["", "## Known Limitations", ""])
         lines.append("- Centerline routing; engineer review required before construction or stress signoff.")

@@ -17,7 +17,7 @@ from tuba.analysis.provenance import (
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
-from tuba.compliance.asme_b313 import ComplianceReport
+from tuba.reporting.compliance import ComplianceReport
 from tuba.model import TubaModel
 from tuba.reporting.model import (
     EngineeringReviewError,

@@ -24,7 +24,7 @@ state. The tray and the band are authored design inputs; the displacement that
 closes the gap is imported solver evidence. The band is not the router's
 reserved corridor, which additionally reserves the declared insulation.
 
-It also carries an optional ASME B31.3 evaluation.
+Piping-standard checks are the responsibility of the user.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop) &middot; Evidence: **Results**
 
@@ -50,7 +50,7 @@ It also carries an optional ASME B31.3 evaluation.
 
 **Solved 3D solid tee.** The tee is meshed as a solid wall and analysed in 3D. Shows the stress pattern around the junction that a centreline beam model cannot resolve.
 
-FE von Mises is not ASME piping-code stress. The design tubes, analysis skin,
+FE von Mises is not piping-code stress. The design tubes, analysis skin,
 displacement, terminal resultants and stress field stay separately inspectable.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review) &middot; Evidence: **Results**
@@ -59,12 +59,9 @@ displacement, terminal resultants and stress field stay separately inspectable.
 
 **Pipe on a support rack.** An all-I-beam rack and its pipe analysed together under gravity, 1.5 MPa internal pressure, and 180 C operation from 20 C, with no imposed nodal forces. Traces the resulting support reactions through the rack and flags an overlong span.
 
-Two optional layers sit on top of the evidence. Its Compliance tab carries an
-ASME B31.3 evaluation, which covers the pipe elements only - B31.3 does not
-govern the rack steel, and the evaluator is one code implementation, not the
-standard the solver results are judged by. It also carries an engineer-authored
-3.5 m support-spacing rule that the 4 m rack span exceeds. Neither layer is a
-solver result; both are annotations beside the evidence, not instead of it.
+An engineer-authored 3.5 m support-spacing rule flags the 4 m rack span.
+This project rule annotates the solver evidence; it does not establish
+compliance with a piping or structural standard.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review) &middot; Evidence: **Results**
 
@@ -98,7 +95,7 @@ committed engineering evidence and are not cleanup targets.
 | `imported_component_mixed_system.py` | **MODEL REVIEW SCENE; OPTIONAL STEP HANDOFF** | Writes a model JSON and geometry-only scene; STEP/STP input can also export an unsolved mixed study |
 | `realtime_visualization_review.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises before writing any result-review scene |
 | `gmsh_tee_mesh_review.py` | **GMSH MESH REVIEW; UNSOLVED** | Generates a native 3D tee MED mesh and a web scene with optional design geometry and no solver results |
-| `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Imports existing Code_Aster artifacts and writes engineering review and web-scene files; `include_compliance` adds the ASME B31.3 table and `clash_clearance_m` adds the operating-state clash check |
+| `code_aster_artifact_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Imports existing Code_Aster artifacts and writes engineering review and web-scene files; `clash_clearance_m` adds the operating-state clash check |
 | `elements_supports_review.py` | **SOLVED ARTIFACT IMPORT + REVIEW BUNDLE** | Rebuilds the mixed bar/cable/spring model and imports its committed Code_Aster artifacts |
 | `code_aster_tee_volume_review.py` | **SOLVED 3D ARTIFACT IMPORT + REVIEW BUNDLE** | Imports the attested native Gmsh/Code_Aster tee study and writes its volume-result review |
 

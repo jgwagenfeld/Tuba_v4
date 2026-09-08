@@ -7,7 +7,7 @@ import pytest
 from tests.reporting_fixtures import build_review_model
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
-from tuba.compliance.asme_b313 import ComplianceReport, ElementComplianceResult
+from tuba.reporting.compliance import ComplianceReport, ElementComplianceResult
 from tuba.reporting import EngineeringReviewError, build_engineering_review
 
 
@@ -116,8 +116,8 @@ def test_compliance_table_comes_from_compliance_report(full_review, full_review_
     source = full_review_compliance.results[0]
 
     assert full_review.analysis_status == "compliance_complete"
-    assert row["code_name"] == "ASME B31.3"
-    assert row["code_edition"] == "2020"
+    assert row["code_name"] == "User-defined checks"
+    assert row["code_edition"] == ""
     assert row["sustained_stress_pa"] == source.sustained_stress
     assert row["expansion_stress_pa"] == source.expansion_stress
     assert row["entity_ref"] == f"element:{source.element_id}"

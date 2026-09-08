@@ -1,3 +1,6 @@
+> Historical review: the built-in piping-standard evaluator and SIF helpers
+> described below have since been removed. See [the retirement note](b31j-compliance-migration.md).
+
 # Tuba v4 Library Architecture Review
 
 Status: current-code review, refreshed 2026-07-07.

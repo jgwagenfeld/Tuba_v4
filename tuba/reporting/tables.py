@@ -8,7 +8,7 @@ from typing import Any
 
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
-from tuba.compliance.asme_b313 import ComplianceReport
+from tuba.reporting.compliance import ComplianceReport
 from tuba.model import (
     BarSection,
     CableSection,

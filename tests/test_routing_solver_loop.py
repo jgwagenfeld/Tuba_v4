@@ -122,6 +122,28 @@ class SequencedComplianceEvaluator:
 
 
 class TestSolverLoop(unittest.TestCase):
+    def test_default_scorer_leaves_standards_to_user_and_rejects_missing_checks(self):
+        for criteria in (None, SolverAcceptanceCriteria()):
+            with self.subTest(criteria=criteria), tempfile.TemporaryDirectory() as tmpdir:
+                model, request, candidate = _solver_loop_fixture()
+                model.materials["Steel"].allowable_stress = {}
+                ranked = SolverLoopScorer(solver_factory=PassingSolver).score_candidates(
+                    model,
+                    replace(request, solver_acceptance=criteria),
+                    [candidate],
+                    SolverLoopConfig(run_solver=True, work_root=tmpdir, load_case="Hot", strict=True),
+                )
+                metadata = ranked[0].metadata
+                self.assertTrue(metadata["solver"]["solver_ran"])
+                self.assertNotIn("compliance", metadata)
+                self.assertIn("reactions", metadata)
+                self.assertIn("displacements", metadata)
+                if criteria is None:
+                    self.assertNotIn("solver_acceptance", metadata)
+                else:
+                    self.assertFalse(ranked[0].is_valid)
+                    self.assertIn("compliance_unavailable", metadata["solver_acceptance"]["failed_checks"])
+
     def test_exports_candidate_studies_without_running_solver(self):
         model = Model(project_name="SolverLoop")
         model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5, allowable_stress={20.0: 120e6})
@@ -248,7 +270,7 @@ class TestSolverLoop(unittest.TestCase):
         model, request, candidate = _solver_loop_fixture()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            ranked = SolverLoopScorer(solver_factory=PassingSolver).score_candidates(
+            ranked = SolverLoopScorer(solver_factory=PassingSolver, compliance_evaluator=PassingComplianceEvaluator()).score_candidates(
                 model,
                 request,
                 [candidate],
@@ -310,7 +332,7 @@ class TestSolverLoop(unittest.TestCase):
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            ranked = SolverLoopScorer(solver_factory=PassingSolver).score_candidates(
+            ranked = SolverLoopScorer(solver_factory=PassingSolver, compliance_evaluator=PassingComplianceEvaluator()).score_candidates(
                 model,
                 request,
                 [candidate],
@@ -431,7 +453,7 @@ class TestSolverLoop(unittest.TestCase):
                     load_case="Hot",
                 ),
             )
-            ranked = SolverLoopScorer(solver_factory=PassingSolver).score_candidates(
+            ranked = SolverLoopScorer(solver_factory=PassingSolver, compliance_evaluator=PassingComplianceEvaluator()).score_candidates(
                 model,
                 request,
                 [candidate],
@@ -583,7 +605,7 @@ class TestSolverLoop(unittest.TestCase):
                     load_case="Hot",
                 ),
             )
-            ranked = SolverLoopScorer(solver_factory=PassingSolver).score_candidates(
+            ranked = SolverLoopScorer(solver_factory=PassingSolver, compliance_evaluator=PassingComplianceEvaluator()).score_candidates(
                 model,
                 request,
                 [fresh_candidate, stale_candidate],

@@ -5,6 +5,16 @@ from tuba.schema import SchemaValidationError, validate_model_dict, validate_pat
 
 
 class TestSchema(unittest.TestCase):
+    def test_standard_is_user_metadata_without_a_default_code(self):
+        model = Model()
+        self.assertEqual(model.standard, "")
+        self.assertEqual(Model.from_dict(model.to_dict()).standard, "")
+        data = model.to_dict()
+        del data["meta"]["standard"]
+        self.assertEqual(Model.from_dict(data).standard, "")
+        data["meta"]["standard"] = "Project design basis"
+        self.assertEqual(Model.from_dict(data).standard, "Project design basis")
+
     def test_model_dict_validates(self):
         model = Model(project_name="Schema")
         model.add_material("Steel", E=2.0e11, nu=0.3)

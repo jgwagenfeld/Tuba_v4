@@ -5,9 +5,8 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
-from tuba.compliance.asme_b313 import ASMEB313Evaluator
 from tuba.model import TubaModel
 from tuba.routing.adapter import apply_candidate_to_model
 from tuba.routing.cost import score_candidate
@@ -37,13 +36,15 @@ class SolverLoopConfig:
 
 
 class SolverLoopScorer:
+    """Score solved routes; standards checks require a user-supplied evaluator."""
+
     def __init__(
         self,
         solver_factory: Callable[[str], object] | None = None,
-        compliance_evaluator: ASMEB313Evaluator | None = None,
+        compliance_evaluator: Any = None,
     ) -> None:
         self.solver_factory = solver_factory or CodeAsterSolver
-        self.compliance_evaluator = compliance_evaluator or ASMEB313Evaluator()
+        self.compliance_evaluator = compliance_evaluator
 
     def score_candidates(
         self,
@@ -124,16 +125,17 @@ def _attach_solver_result_metadata(
     candidate: PipeRouteCandidate,
     model: TubaModel,
     results: FEAResults,
-    evaluator: ASMEB313Evaluator,
+    evaluator: Any,
     criteria=None,
 ) -> None:
-    report = evaluator.evaluate(model, results)
-    candidate.metadata["compliance"] = {
-        "overall_pass": report.overall_pass,
-        "worst_sustained_ratio": report.worst_sustained_ratio,
-        "worst_expansion_ratio": report.worst_expansion_ratio,
-        "results_count": len(report.results),
-    }
+    if evaluator is not None:
+        report = evaluator.evaluate(model, results)
+        candidate.metadata["compliance"] = {
+            "overall_pass": report.overall_pass,
+            "worst_sustained_ratio": report.worst_sustained_ratio,
+            "worst_expansion_ratio": report.worst_expansion_ratio,
+            "results_count": len(report.results),
+        }
     candidate.metadata["reactions"] = {
         node_id: _vector_to_list(node.reaction_force)
         for node_id, node in results.node_results.items()

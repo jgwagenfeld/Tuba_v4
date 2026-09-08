@@ -23,7 +23,6 @@ from tuba.analysis.code_aster_artifacts import (
     stage_code_aster_artifact_evidence,
 )
 from tuba.clash import ClashEngine
-from tuba.compliance.asme_b313 import ASMEB313Evaluator
 from tuba.reporting import build_engineering_review
 from tuba.load_path import analyze_load_paths
 from tuba.patches import ModelTransaction
@@ -46,7 +45,6 @@ def run_example(
     title: str = "Code_Aster artifact engineering review",
     route_results: list[Any] | None = None,
     include_load_paths: bool = False,
-    include_compliance: bool = False,
     clash_clearance_m: float | None = None,
     model_rules: list[Any] | None = None,
     scene_options: SceneBuildOptions | None = None,
@@ -56,14 +54,6 @@ def run_example(
 
     ``artifact_dir`` must contain attested, solved Code_Aster outputs matching
     the model.
-
-    ``include_compliance`` evaluates ASME B31.3 from the imported solver
-    evidence and publishes the resulting ``code_compliance`` table. It is an
-    optional layer over the result review, not part of it: the review is a
-    Code_Aster result review with or without it, and a model whose material
-    carries no allowable-stress table cannot be evaluated at all. When it is
-    enabled the verdict is published as it comes out, pass or fail; it is
-    never suppressed for a failing model.
 
     ``clash_clearance_m`` runs the operating-state clash check against the
     imported displacement field using a clearance envelope of that radius.
@@ -101,14 +91,6 @@ def run_example(
         model=resolved_model,
         result_state=artifact.result_state,
         visual_scale=40.0,
-    )
-    if include_compliance and not str(resolved_model.standard).startswith("ASME_B31.3"):
-        raise ValueError(
-            "Compliance publication uses the ASME B31.3 evaluator, but the model declares "
-            f"standard {resolved_model.standard!r}."
-        )
-    compliance_reports = (
-        [ASMEB313Evaluator().evaluate(resolved_model, artifact.results)] if include_compliance else []
     )
     operating_clashes = (
         ClashEngine().check_operating_state(
@@ -151,7 +133,6 @@ def run_example(
     review = build_engineering_review(
         resolved_model,
         analysis_runs=[artifact],
-        compliance_reports=compliance_reports,
         package_id="review:code_aster_artifact",
         created_at=solved_at,
     )
@@ -173,16 +154,6 @@ def run_example(
         "scene": str(bundle.root / bundle.scene_uri),
         "diagnostics": artifact.diagnostics,
         "analysis_status": review.analysis_status,
-        "compliance": [
-            {
-                "load_case": report.load_case,
-                "code": f"{report.code_name} {report.code_edition}",
-                "overall_pass": report.overall_pass,
-                "worst_sustained_ratio": report.worst_sustained_ratio,
-                "worst_expansion_ratio": report.worst_expansion_ratio,
-            }
-            for report in compliance_reports
-        ],
         "operating_clashes": [clash.to_dict() for clash in operating_clashes],
         "model_rules": rule_report.to_dict() if rule_report is not None else None,
         "counts": {
@@ -198,7 +169,7 @@ def run_example(
 
 def build_model() -> Model:
     """Rebuild the model that produced ``viz_gallery_operating`` artifacts."""
-    model = Model("VizGalleryDemo", standard="ASME_B31.3")
+    model = Model("VizGalleryDemo")
     model.add_material(
         "Steel",
         E=2.1e11,
@@ -233,7 +204,7 @@ def build_model() -> Model:
 
 def build_support_rack_model() -> Model:
     """Build the canonical solved pipe-on-rack review model."""
-    model = Model("SupportRackReview", standard="ASME_B31.3")
+    model = Model("SupportRackReview")
     model.add_material(
         "Steel",
         E=2.1e11,

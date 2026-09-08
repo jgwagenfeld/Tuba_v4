@@ -122,7 +122,7 @@ round_tripped.validate()
 
 ```json
 {
-  "meta": {"project_name": "Demo", "standard": "ASME_B31.3", "version": "tuba.model.v4"},
+  "meta": {"project_name": "Demo", "standard": "", "version": "tuba.model.v4"},
   "materials": {"Steel": {"E": 210000000000.0, "nu": 0.3}},
   "sections": {"DN100": {"type": "pipe", "OD": 0.1143, "WT": 0.00602}},
   "nodes": {"N0": [0.0, 0.0, 0.0], "N1": [2.0, 0.0, 0.0]},
@@ -196,3 +196,8 @@ sets carry section, material, bend, support, stress, and operating-state
 metadata for round-trip and coordination review.
 
 Install the exchange surface with the `ifc` extra.
+
+The optional `Model(..., standard="...")` label is user-supplied metadata. New
+models default to an empty label; setting it does not select or enforce a code.
+Existing models retain user-supplied labels when imported; these labels do not
+affect the solver-input fingerprint.

@@ -177,7 +177,7 @@ supplemental notebooks:
 The first workflow in that notebook builds a piping model, loads or runs
 Code_Aster through the configured runtime, imports the generated result
 artifacts, and opens an interactive deformed-stress view. Continue with
-`notebooks\03_stress_analysis_and_compliance.ipynb` for compliance checks and
+`notebooks\03_stress_analysis_and_compliance.ipynb` for stress-result review and
 `notebooks\04_visualization_gallery.ipynb` for additional result exports.
 
 Course sequence:
@@ -187,7 +187,7 @@ Course sequence:
 | `00_welcome_and_setup.ipynb`                  | Fast complete workflow: model, Code_Aster, interactive result |
 | `01_building_piping_systems.ipynb`            | Geometry authoring with the piping DSL                        |
 | `02_supports_and_loading.ipynb`               | Supports, boundary conditions, and load cases                 |
-| `03_stress_analysis_and_compliance.ipynb`     | Code_Aster-backed stress and ASME B31.3 checks                |
+| `03_stress_analysis_and_compliance.ipynb`     | Code_Aster-backed stress and independent engineering review                |
 | `04_visualization_gallery.ipynb`              | Result visualization and export formats                       |
 | `05_autorouting.ipynb`                        | Deterministic routing and Code_Aster study handoff            |
 | `06_structural_frames_and_optimization.ipynb` | Pipe racks and Code_Aster-backed design evaluation            |

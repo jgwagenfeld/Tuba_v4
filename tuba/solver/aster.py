@@ -613,7 +613,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
                 f"{missing_displacements} in {work_dir}. Refusing to substitute zeros."
             )
         force_endpoints = self._parse_effo_table(model, work_dir, results, node_label_map, element_label_map)
-        # Element internal forces are what the ASME B31.3 evaluator turns into code
+        # Element internal forces are what external evaluators can use to calculate code
         # stress. If displacement parsed but the force table is missing/empty/mismapped,
         # every stress-bearing element keeps its all-zero seed and compliance would
         # silently report PASS on fictitious zero moments. Refuse that, mirroring the
@@ -856,7 +856,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             # The mesh subdivides each elbow into sub-elements (pipe_bend_0_s0, _s1, …)
             # for FE accuracy. Fold them back to the single model bend element. Forces
             # attach only at the elbow's own end nodes (n1/n2) below — exactly the input
-            # the B31.3 end-node SIF check consumes; interior sub-node moments feed FE
+            # external end-node checks consume; interior sub-node moments feed FE
             # displacement fidelity, not the code check, so dropping them here is intended.
             elem = element_lookup.get(eid)
             if elem is None or nid not in (elem.n1, elem.n2):
@@ -919,7 +919,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         results: FEAResults,
         node_label_map: dict[str, str],
     ) -> None:
-        """Parse reaction force table (unit 40, ``FORC_NODA``)."""
+        """Parse reaction force table (unit 40, ``REAC_NODA``)."""
         rows = self._parse_csv_table(work_dir / "study_reac.csv")
         support_nodes = {s.node for s in model.supports}
 

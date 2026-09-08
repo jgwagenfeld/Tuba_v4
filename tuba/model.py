@@ -322,7 +322,7 @@ TEE_TYPES = ("welding_tee", "reinforced_tee", "unreinforced_tee")
 
 @dataclass
 class Tee:
-    """A branch/tee junction definition at a node — drives B31.3/B31J SIFs."""
+    """A branch/tee junction definition at a node."""
 
     node: str
     type: str = "unreinforced_tee"  # welding_tee | reinforced_tee | unreinforced_tee
@@ -503,7 +503,7 @@ class TubaModel:
     visualisation).
     """
 
-    def __init__(self, project_name: str = "Untitled", standard: str = "ASME_B31.3"):
+    def __init__(self, project_name: str = "Untitled", standard: str = ""):
         self.project_name = project_name
         self.standard = standard
 
@@ -1358,7 +1358,7 @@ class TubaModel:
         meta = data.get("meta", {})
         model = cls(
             project_name=meta.get("project_name", "Untitled"),
-            standard=meta.get("standard", "ASME_B31.3"),
+            standard=meta.get("standard", ""),
         )
 
         for name, m in data.get("materials", {}).items():

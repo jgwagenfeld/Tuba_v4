@@ -18,7 +18,7 @@ MODEL_SCHEMA_V4 = {
     "properties": {
         "meta": {
             "type": "object",
-            "required": ["project_name", "standard", "version"],
+            "required": ["project_name", "version"],
             "properties": {
                 "project_name": {"type": "string"},
                 "standard": {"type": "string"},

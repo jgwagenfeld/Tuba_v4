@@ -8,7 +8,6 @@ import numpy as np
 
 from tuba import Model, Operation
 from tuba.analysis import AnalysisRun, AnalysisStudy, ResultState
-from tuba.compliance import ASMEB313Evaluator
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.base import ElementResult, FEAResults
 
@@ -116,18 +115,6 @@ class TestOperationModel(unittest.TestCase):
         solver_class.assert_called_once_with(work_dir="ignored")
         solver.solve.assert_called_once_with(model, "Operating", force=False)
 
-    def test_compliance_lookup_accepts_operation_name(self):
-        model = _base_model("ComplianceOperation")
-        model.materials["Steel"].allowable_stress = {20.0: 120e6, 120.0: 110e6}
-        model.define_operation("Operating", pressure=1.0e6, temperature=120.0, ref_temperature=20.0)
-        results = FEAResults(solver_name="Code_Aster", load_case="Operating")
-        moment = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 100.0])
-        results.element_results["pipe_str_0"] = ElementResult("pipe_str_0", moment, moment)
-
-        report = ASMEB313Evaluator().evaluate(model, results)
-
-        self.assertEqual(report.load_case, "Operating")
-        self.assertEqual(len(report.results), 2)
 
 
 def _base_model(name: str) -> Model:

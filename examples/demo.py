@@ -4,10 +4,9 @@ Tuba v4 — Expansion Loop Demo and Workflow Verification.
 This script demonstrates:
 1. Defining a 3D piping system using the cursor DSL.
 2. Exporting the model to the canonical JSON format.
-3. Calculating SIFs (Stress Intensification Factors) per ASME B31.3 Appendix D.
-4. Exporting Code_Aster solver study files (.comm, .mail, .export).
-5. Stopping before compliance until real Code_Aster result tables exist.
-6. Pointing the user at the configured runtime checks and real integration smoke.
+3. Exporting Code_Aster solver study files (.comm, .mail, .export).
+4. Stopping before compliance until real Code_Aster result tables exist.
+5. Pointing the user at the configured runtime checks and real integration smoke.
 """
 
 from pathlib import Path
@@ -22,17 +21,16 @@ def main():
     print("=" * 70)
 
     # 1. Define Model and Material/Section Specs
-    print("\n[1/6] Initializing TubaModel...")
+    print("\n[1/5] Initializing TubaModel...")
     model = tuba.Model(project_name="Expansion_Loop_Project")
 
-    # Add steel material with temperature dependent allowable stress (ASME B31.3)
+    # Add steel material properties
     model.add_material(
         name="P265GH",
         E=2.1e11,
         nu=0.3,
         rho=7850.0,
-        alpha=1.2e-5,
-        allowable_stress={20.0: 147e6, 100.0: 138e6, 200.0: 130e6}
+        alpha=1.2e-5
     )
 
     # Add standard pipe cross-section (4" Schedule 40)
@@ -44,7 +42,7 @@ def main():
     )
 
     # 2. Build the Geometry using Cursor DSL
-    print("[2/6] Building geometry using cursor DSL...")
+    print("[2/5] Building geometry using cursor DSL...")
     with model.pipe(section="4inch_sch40", material="P265GH") as builder:
         builder.start([0.0, 0.0, 0.0], support="anchor")
         builder.run(4.0)                                     # 4m straight in +X direction
@@ -71,20 +69,8 @@ def main():
     print(f"  -> Total Nodes: {len(model.nodes)}")
     print(f"  -> Total Elements: {len(model.elements)}")
 
-    # 3. Compute and Print SIFs
-    print("\n[3/6] Calculating SIFs for elbows per ASME B31.3 Appendix D:")
-    for elem in model.elements:
-        if elem.type == "pipe_bend":
-            from tuba.compliance.sif import compute_sifs
-            i_i, i_o, k, h = compute_sifs(elem, model)
-            print(f"  -> Elbow '{elem.id}':")
-            print(f"     h (flexibility characteristic) : {h:.4f}")
-            print(f"     i_i (in-plane SIF)             : {i_i:.2f}")
-            print(f"     i_o (out-of-plane SIF)         : {i_o:.2f}")
-            print(f"     k (flexibility factor)         : {k:.2f}")
-
-    # 4. Export Code_Aster solver study files
-    print("\n[4/6] Exporting Code_Aster study files (.comm, .mail, .export)...")
+    # 3. Export Code_Aster solver study files
+    print("\n[3/5] Exporting Code_Aster study files (.comm, .mail, .export)...")
     study_dir = Path(".build") / "code_aster_study"
     solver = CodeAsterSolver()
     solver.export_study(model, "hot_operation", study_dir)
@@ -94,13 +80,13 @@ def main():
     print("       - study.mail   (1D pipe line finite element mesh)")
     print("       - study.export (Logical unit maps for Code_Aster execute)")
 
-    # 5. Stop before compliance and result visualization.
-    print("\n[5/6] Code_Aster execution required before compliance or result visualization.")
+    # 4. Stop before compliance and result visualization.
+    print("\n[4/5] Code_Aster execution required before compliance or result visualization.")
     print("  -> This demo generated solver handoff files only.")
     print("  -> Exported studies are not a completed engineering evaluation.")
     print("  -> Run Code_Aster, then import study_depl.csv, study_effo.csv, study_reac.csv, and study_sieq.csv.")
 
-    print("\n[6/6] Next command for a configured runtime:")
+    print("\n[5/5] Next command for a configured runtime:")
     print("     python -m tuba.solver.code_aster_doctor --check")
     print('     $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"')
     print("     .\\.venv\\Scripts\\python.exe -m pytest tests/test_code_aster_real_smoke.py -q")

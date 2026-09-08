@@ -7,8 +7,6 @@ from tuba import Model
 from tuba.builder import PipingBuilder
 from tuba.model import Material, PipeSection
 from tuba.solver.base import FEAResults, NodeResult, ElementResult
-from tuba.compliance.sif import compute_sifs, flexibility_characteristic, flexibility_factor, sif_inplane, sif_outplane
-from tuba.compliance.asme_b313 import ASMEB313Evaluator
 from tuba.plotting.pipeline import build_mesh_from_model, build_3d_mesh_from_model
 
 
@@ -305,109 +303,6 @@ class TestModelAndBuilder(unittest.TestCase):
         np.testing.assert_array_almost_equal(lz2, [0.0, -1.0, 0.0])
 
 
-class TestComplianceAndSif(unittest.TestCase):
-    def test_sif_formulas(self):
-        # Straight pipe
-        from tuba.model import Element
-        straight = Element(id="E0", type="pipe_straight", n1="N0", n2="N1", section="3inch", material="St37")
-        model = Model()
-        model.add_pipe_section("3inch", OD=0.0889, WT=0.00549)
-        model.add_material("St37", E=2.1e11, nu=0.3)
-        
-        i_i, i_o, k, h = compute_sifs(straight, model)
-        self.assertEqual(i_i, 1.0)
-        self.assertEqual(i_o, 1.0)
-        self.assertEqual(k, 1.0)
-        self.assertEqual(h, 0.0)
-        
-        # Elbow
-        elbow = Element(
-            id="E1",
-            type="pipe_bend",
-            n1="N1",
-            n2="N2",
-            section="3inch",
-            material="St37",
-            bend_radius=0.1143,
-            bend_angle=90.0
-        )
-        # Calculate manually
-        # h = t * R / r_m^2
-        t = 0.00549
-        R = 0.1143
-        r_m = (0.0889 - 0.00549) / 2.0
-        expected_h = t * R / (r_m ** 2)
-        expected_ii = max(0.9 / (expected_h ** (2.0 / 3.0)), 1.0)
-        expected_io = max(0.75 / (expected_h ** (2.0 / 3.0)), 1.0)
-        expected_k = 1.65 / expected_h
-        
-        i_i, i_o, k, h = compute_sifs(elbow, model)
-        self.assertAlmostEqual(h, expected_h)
-        self.assertAlmostEqual(i_i, expected_ii)
-        self.assertAlmostEqual(i_o, expected_io)
-        self.assertAlmostEqual(k, expected_k)
-
-    def test_compliance_evaluation(self):
-        model = Model(project_name="TestCompliance")
-        model.add_material("Steel", E=2.0e11, nu=0.3, allowable_stress={20.0: 137.0e6, 200.0: 120.0e6})
-        model.add_pipe_section("PipeSec", OD=0.1143, WT=0.00602, corrosion_allowance=0.001)
-        
-        with model.pipe(section="PipeSec", material="Steel") as b:
-            b.start([0, 0, 0], support="anchor")
-            b.run(5.0)
-            b.end([5, 0, 0], support="anchor")
-            
-        model.define_load_case("HotCase", gravity=True, pressure=1.5e6, temperature=200.0)
-        
-        # Build mock results
-        results = FEAResults(solver_name="mock_solver", load_case="HotCase")
-        
-        # 1 element: E0, connecting N0 and N1
-        eid = model.elements[0].id
-        results.node_results["N0"] = NodeResult(node_id="N0", displacement=np.zeros(6), reaction_force=np.zeros(6))
-        results.node_results["N1"] = NodeResult(node_id="N1", displacement=np.zeros(6), reaction_force=np.zeros(6))
-        
-        # Set some internal forces (N, Vy, Vz, Mx, My, Mz)
-        # Apply pure bending moment at both ends: Mz = 1000 N*m, Mx (torsion) = 500 N*m
-        forces_n1 = np.array([0.0, 0.0, 0.0, 500.0, 0.0, 1000.0])
-        forces_n2 = np.array([0.0, 0.0, 0.0, -500.0, 0.0, -1000.0])
-        results.element_results[eid] = ElementResult(
-            element_id=eid,
-            forces_n1=forces_n1,
-            forces_n2=forces_n2,
-            von_mises_n1=50e6,
-            von_mises_n2=50e6,
-            max_von_mises=50e6
-        )
-        
-        evaluator = ASMEB313Evaluator()
-        report = evaluator.evaluate(model, results)
-        
-        self.assertEqual(len(report.results), 2) # two nodes (n1 and n2)
-        res_n1 = report.results[0]
-        
-        # Verify manual sustained stress: S_L = P*Do/(4*t) + M_resultant / Z_c
-        # P = 1.5e6, Do = 0.1143, t_c = 0.00502
-        pressure_term = 1.5e6 * 0.1143 / (4 * 0.00502)
-        # M_resultant = 1000, Z_c
-        OD = 0.1143
-        t_c = 0.00502
-        ID_c = OD - 2 * t_c
-        I_c = (np.pi / 64) * (OD**4 - ID_c**4)
-        Z_c = I_c / (OD / 2.0)
-        bending_term = 1000.0 / Z_c
-        expected_SL = pressure_term + bending_term
-        
-        self.assertAlmostEqual(res_n1.sustained_stress, expected_SL, delta=1.0)
-        
-        # Allowable sustained stress S_h at 200C is 120 MPa
-        self.assertEqual(res_n1.sustained_allowable, 120.0e6)
-        
-        # Verify detailed calculation string
-        detail = report.get_detailed_calculation(eid)
-        self.assertIn("ASME B31.3 Detailed Calculation — Element `pipe_str_0`", detail)
-        self.assertIn("Node `N0`", detail)
-        self.assertIn("Sustained Stress", detail)
 
 
 class TestVisualizer(unittest.TestCase):

@@ -21,7 +21,7 @@ TEE_VOLUME_MAX_ELEMENT_SIZE = 0.005
 
 
 def build_tee_volume_model() -> Model:
-    model = Model("PipeTeeVolumeReview", standard="ASME_B31.3")
+    model = Model("PipeTeeVolumeReview")
     model.add_material(
         "Steel",
         E=2.1e11,
@@ -100,7 +100,7 @@ def run_example(
             {
                 "id": "tee_volume_scope",
                 "title": "3D tee result basis",
-                "text": "Code_Aster 3D FE VMIS is visualization-only and is not ASME piping-code stress.",
+                "text": "Code_Aster 3D FE VMIS is visualization-only and is not piping-code stress.",
                 "position": [0.0, 0.0, 0.0],
             }
         ],

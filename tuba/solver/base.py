@@ -56,9 +56,7 @@ class FEAResults:
     element_results: Dict[str, ElementResult] = field(default_factory=dict)
     analysis_node_results: Dict[str, NodeResult] = field(default_factory=dict)
     # Detailed per-cross-section FE fibre stress (von Mises) at TUYAU sub-points,
-    # for visualization only. This is NOT the ASME code stress: compliance uses
-    # SIF-amplified end-node moments, a different quantity (see
-    # tuba.compliance.asme_b313.ASMEB313Evaluator.evaluate).
+    # for visualization only; it is not a piping-code compliance result.
     tuyau_subpoints: List[Dict[str, Any]] = field(default_factory=list)
     volume_von_mises: Dict[str, float] = field(default_factory=dict)
     parser_diagnostics: List[str] = field(default_factory=list)

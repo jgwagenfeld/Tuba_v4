@@ -112,3 +112,25 @@ Build one semantic scene, write a portable bundle, and optionally place that sce
     options:
       show_source: false
       members_order: source
+
+## User-owned standards checks
+
+Tuba does not implement piping-standard calculations or choose an applicable code.
+Use the processed Code_Aster forces, displacements, reactions, and stresses as
+inputs to independently verified engineering checks.
+
+For an existing external evaluator, `SolverLoopScorer(compliance_evaluator=...)`
+accepts an object with `evaluate(model, results)`. No evaluator runs by default.
+If routing acceptance criteria require stress ratios and no evaluator supplies
+them, the candidate is rejected with `compliance_unavailable`.
+
+`ComplianceReport` and `ElementComplianceResult` now live in
+`tuba.reporting.compliance`. These are data containers for caller-supplied
+checks, not calculation engines. Pass reports to `build_engineering_review`
+through `compliance_reports`; the builder retains its Code_Aster lineage checks.
+The former `tuba.compliance` evaluators, SIF helpers, detailed formula reports,
+and the example option `include_compliance` have been removed.
+
+IFC exports now carry `MaxVonMisesStress_Pa` from the solver results. The former
+`MaxStress_Pa`, sustained/expansion ratios, and compliance verdict properties
+are no longer generated.

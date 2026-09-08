@@ -7,7 +7,6 @@ from tempfile import TemporaryDirectory
 import numpy as np
 
 from tuba import Model
-from tuba.compliance.asme_b313 import ASMEB313Evaluator
 
 
 @unittest.skipUnless(
@@ -55,7 +54,7 @@ class TestCodeAsterRealSmoke(unittest.TestCase):
         self.assertGreater(results.element_results["pipe_0"].max_von_mises, 0.0)
 
     def test_cantilever_matches_independent_beam_reference(self):
-        """Validate solve/import/compliance against a closed-form cantilever."""
+        """Validate solve/import against a closed-form cantilever."""
         length = 2.0
         force = 1_000.0
         youngs_modulus = 2.0e11
@@ -100,10 +99,8 @@ class TestCodeAsterRealSmoke(unittest.TestCase):
 
         inner_diameter = outer_diameter - 2.0 * wall_thickness
         second_moment = math.pi * (outer_diameter**4 - inner_diameter**4) / 64.0
-        section_modulus = second_moment / (outer_diameter / 2.0)
         expected_tip_displacement = force * length**3 / (3.0 * youngs_modulus * second_moment)
         expected_fixed_moment = force * length
-        expected_code_stress = expected_fixed_moment / section_modulus
 
         self.assertEqual(run.results.solver_name, "Code_Aster")
         displacement = run.results.node_results[loaded_node].displacement
@@ -121,18 +118,6 @@ class TestCodeAsterRealSmoke(unittest.TestCase):
             delta=1.0e-3 * expected_fixed_moment,
         )
 
-        report = ASMEB313Evaluator(edition="2022").evaluate(model, run.results)
-        fixed_end = next(item for item in report.results if item.node_id == fixed_node)
-        self.assertAlmostEqual(
-            fixed_end.sustained_stress,
-            expected_code_stress,
-            delta=0.01 * expected_code_stress,
-        )
-        self.assertAlmostEqual(
-            fixed_end.sustained_ratio,
-            expected_code_stress / 120.0e6,
-            delta=0.01 * expected_code_stress / 120.0e6,
-        )
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ sections, supports, an operating case:
 ```python
 from tuba import Model
 
-model = Model("HotLine", standard="ASME_B31.3")
+model = Model("HotLine")
 model.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0, alpha=1.2e-5)
 model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
 model.define_operation("Operating", gravity=True, pressure=1.5e6, temperature=150.0)
@@ -52,8 +52,8 @@ place. Every example in the gallery is one of those.
   lines.
 - Analyse with beam, `TUYAU` pipe-wall or full 3D solid idealisations.
 - Recover deflection, wall stress, element forces and support reactions.
-- Check operating-state clearances against the deformed line, evaluate ASME
-  B31.3, and apply your own design rules.
+- Check operating-state clearances against the deformed line and apply your own
+  design rules.
 - Publish a shareable review, export to PyVista, glTF, PLY or Blender, and
   exchange with IFC.
 
@@ -84,6 +84,27 @@ is a handoff, not an analysis: until the solver has run and Tuba has imported
 what it produced, a study has no results, and Tuba says so rather than filling
 the gap. Every published review carries the identity of the model it came from,
 so evidence cannot drift from the design it describes.
+
+## Engineering and standards disclaimer
+
+Tuba is an engineering analysis tool, not a substitute for professional
+engineering judgment or independent verification. Before relying on results for
+design, construction, or operation, a qualified engineer should verify the model,
+inputs, solver setup, results, and suitability for the intended application.
+Code_Aster results and passing individual checks do not by themselves establish
+the safety or full code compliance of a piping system.
+
+Users are responsible for selecting the applicable piping standards and editions,
+defining the required checks and acceptance criteria, and establishing compliance
+for their application. Consult the official standards and account for the
+software's documented assumptions and limitations. Tuba's analysis outputs do
+not constitute certification or approval by a standards organization. The
+project's license does not grant rights to third-party standards or material.
+
+The software is provided "as is", without warranty, to the extent permitted by
+applicable law. The warranty disclaimer and limitation of liability in
+[LICENSE](LICENSE) and [LICENSE.GPL](LICENSE.GPL), particularly GPL sections 15
+and 16, apply. This notice does not change the project's open-source license.
 
 ## License
 

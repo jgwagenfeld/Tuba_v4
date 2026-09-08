@@ -140,7 +140,6 @@ def _build_autorouted_review(destination: Path, artifacts: Path | None) -> None:
             scene_id="scene:autorouted_expansion_loop",
             title="Solved autorouted expansion-loop review",
             route_results=[route_result],
-            include_compliance=True,
             clash_clearance_m=_AUTOROUTED_CLEARANCE_M,
             scene_options=SceneBuildOptions(
                 include_physical_envelopes=True,
@@ -165,7 +164,6 @@ def _build_support_rack_review(destination: Path, artifacts: Path | None) -> Non
             scene_id="scene:support_rack_review",
             title="Solved support-rack load-path review",
             include_load_paths=True,
-            include_compliance=True,
             # An engineer-authored project limit, not a code requirement: the
             # 4 m rack span exceeds it, so the review carries a design-rule
             # annotation beside its solver evidence.
