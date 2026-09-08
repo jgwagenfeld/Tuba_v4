@@ -964,15 +964,48 @@ textarea,
   font-size: 0.66rem;
 }
 
-/* Clear of the orientation gizmo, which the renderer parks in the same corner. */
+/* Under its toggle, top-right. It opens on request, so it no longer has to
+   dodge the camera controls - and no longer disappears when the rail opens,
+   which silently withdrew a panel the reader had asked for. */
 .body-legend {
   right: 0.75rem;
-  bottom: 9rem;
+  top: 3.1rem;
+  max-width: min(24rem, 60%);
   gap: 0.25rem;
 }
 
-body[data-rail-open="true"] .body-legend {
+.legend-toggle {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  background: var(--paper-raised);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.legend-toggle[hidden] {
   display: none;
+}
+
+.legend-toggle:hover {
+  border-color: var(--focus-on-light);
+  color: var(--text);
+}
+
+.legend-toggle[aria-expanded="true"] {
+  border-color: var(--focus-on-light);
+  background: rgb(12 16 22 / 94%);
+  color: #dbe4ec;
 }
 
 .body-legend-row {
@@ -1430,13 +1463,16 @@ section {
 }
 
 /* Top-right column of compact chips, out of the way of the model. */
+/* Beside the orientation gizmo the renderer parks bottom-right, not in a
+   second corner of its own: the buttons and the gizmo do one job between them,
+   and the top-right is left to the viewport key. */
 .camera-controls {
   position: absolute;
-  top: 0.6rem;
-  right: 0.6rem;
-  display: grid;
+  bottom: 0.6rem;
+  right: 8.5rem;
+  display: flex;
+  align-items: center;
   gap: 0.15rem;
-  justify-items: stretch;
 }
 
 .camera-controls button {

@@ -101,7 +101,17 @@
           <div class="camera-controls" role="group" aria-label="Standard camera views" data-camera-controls></div>
           <button class="reset-view" type="button" data-reset-view aria-label="Reset 3D view">Reset view</button>
           <div class="viewport-legend" data-viewport-legend></div>
-          <div class="body-legend" aria-label="What each mark in the viewport means" data-body-legend></div>
+          <!-- Reference material, not a readout: it answers "what is that mark"
+               once, so it is asked for rather than parked over the scene. -->
+          <button
+            type="button"
+            class="legend-toggle"
+            aria-expanded="false"
+            aria-controls="viewport-key"
+            data-body-legend-toggle
+            hidden
+          >i</button>
+          <div id="viewport-key" class="body-legend" aria-label="What each mark in the viewport means" data-body-legend hidden></div>
           <p id="viewport-guidance" class="viewport-guidance" data-viewport-guidance>
             Orbit: drag or arrow keys. Zoom: scroll, or + and -. Select: click. Axes: X, Y, Z keys or the labelled controls. Reset: Home fits the full scene.
           </p>

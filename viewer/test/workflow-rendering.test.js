@@ -166,6 +166,22 @@ test("the coloring channel lives in the results panel, and nowhere else", async 
   assert.doesNotMatch(app, /data-coloring-bar/);
 });
 
+test("the viewport key is asked for, and camera controls share the gizmo's corner", async () => {
+  const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
+
+  // Always-on, the key floated a seven-row panel over the scene and grew into
+  // the camera column. It is reference material, so it opens on request.
+  assert.match(app, /dom\.bodyLegend\.hidden = !hasKey \|\| !bodyLegendOpen/);
+  assert.match(app, /dom\.bodyLegendToggle\.setAttribute\("aria-expanded", String\(bodyLegendOpen\)\)/);
+  assert.match(css, /\.legend-toggle\s*\{[^}]*position:\s*absolute[^}]*top:/s);
+
+  // Two corners for one job: the button column sat top-right while the
+  // orientation gizmo the renderer draws sat bottom-right.
+  assert.match(css, /\.camera-controls\s*\{[^}]*bottom:\s*0\.6rem/s);
+  assert.doesNotMatch(css, /body\[data-rail-open="true"\] \.body-legend/);
+});
+
 test("the compliance caveat renders in the viewport, where the colour map is", async () => {
   const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");

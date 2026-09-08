@@ -100,6 +100,7 @@ const dom = {
   discretisationCheck: document.querySelector("[data-discretisation-check]"),
   viewportLegend: document.querySelector("[data-viewport-legend]"),
   bodyLegend: document.querySelector("[data-body-legend]"),
+  bodyLegendToggle: document.querySelector("[data-body-legend-toggle]"),
   layerList: document.querySelector("[data-layer-list]"),
   resultTools: document.querySelector("[data-result-tools]"),
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
@@ -1287,7 +1288,16 @@ function renderViewportLegend() {
   const visibleVectors = (currentState.objects ?? []).filter(
     (object) => visibleIds.has(object.id) && ["applied_load", "reaction_vector"].includes(object.kind)
   );
-  dom.bodyLegend.hidden = bodies.length === 0 && !loadCase && visibleVectors.length === 0;
+  const hasKey = bodies.length > 0 || Boolean(loadCase) || visibleVectors.length > 0;
+  // Always-on, this key floated a seven-row panel over the scene and grew up
+  // into the camera controls. It answers "what is that mark" once, so it is
+  // asked for: the toggle stays, the panel opens on request.
+  dom.bodyLegendToggle.hidden = currentState.embed || !hasKey;
+  dom.bodyLegendToggle.setAttribute("aria-expanded", String(bodyLegendOpen));
+  dom.bodyLegendToggle.title = bodyLegendOpen ? "Hide the viewport key" : "What the marks mean";
+  dom.bodyLegendToggle.setAttribute("aria-label", dom.bodyLegendToggle.title);
+  dom.bodyLegend.hidden = !hasKey || !bodyLegendOpen || currentState.embed;
+  if (dom.bodyLegend.hidden) return;
   if (loadCase) {
     const system = getUnitSystem(currentState);
     const nodalCount = Number(loadCase.nodal_force_count ?? 0);
@@ -1841,6 +1851,7 @@ function renderRailUtility(shown = 0, hidden = 0) {
 }
 
 let openPopoverId = null;
+let bodyLegendOpen = false;
 
 function renderRailPopover() {
   dom.railPopover.hidden = openPopoverId === null || !dom.findPane.hidden;
@@ -2143,6 +2154,10 @@ dom.canvas.addEventListener("click", (event) => {
 });
 
 dom.resetView.addEventListener("click", () => viewportRenderer?.resetView());
+dom.bodyLegendToggle.addEventListener("click", () => {
+  bodyLegendOpen = !bodyLegendOpen;
+  render();
+});
 
 dom.canvas.addEventListener("pointerdown", (event) => {
   orbiting = true;

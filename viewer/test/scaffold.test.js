@@ -73,6 +73,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "discretisation-check",
     "viewport-legend",
     "body-legend",
+    "body-legend-toggle",
     "saved-views",
     "result-controls",
     "result-legend",
