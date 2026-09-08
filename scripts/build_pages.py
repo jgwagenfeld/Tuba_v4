@@ -249,7 +249,7 @@ def copy_gallery_thumbnails(viewer_root: Path) -> None:
 
 def validate_official_bundle(root: Path, profile: str) -> None:
     """Reject a bundle that is not portable and complete for its official profile."""
-    if profile not in {"engineering-review", "mesh-review", "model-review", "volume-engineering-review"}:
+    if profile not in {"engineering-review", "mesh-review", "model-review", "volume-engineering-review", "contact-engineering-review", "beam-engineering-review"}:
         raise ValueError(f"Unknown official profile {profile!r}.")
     scene = _read_json(root / "scene.json")
     _reject_unsafe_references(scene)
@@ -295,15 +295,83 @@ def validate_official_bundle(root: Path, profile: str) -> None:
         raise ValueError(
             "Engineering-review bundles require analysis_status 'solved' or 'compliance_complete'."
         )
-    if {layer.get("category") for layer in scene.get("layers", [])} != {
-        "design", "analysis_mesh", "results", "annotations"
-    }:
+    categories = {layer.get("category") for layer in scene.get("layers", [])}
+    required = {"design", "analysis_mesh", "results"}
+    if profile != "contact-engineering-review":
+        required.add("annotations")
+    if not required <= categories or categories - required - {"annotations"}:
         raise ValueError("Engineering-review bundles require all four layer categories.")
-    _validate_engineering_result_fields(scene, volume=profile == "volume-engineering-review")
-    identity = _validate_engineering_provenance(scene, review)
-    _validate_execution_attestation(root, identity)
+    if profile == "contact-engineering-review":
+        _validate_contact_result_fields(scene)
+        raw_contacts = json.loads(_bundle_path(root, "artifacts/study_contact.json").read_text(encoding="utf-8"))
+        solved_steps = {(row["support_id"], row["instant"]) for row in raw_contacts}
+        displayed_steps = {
+            (support_id, overlay["data"]["metadata"]["pseudo_time"])
+            for overlay in scene["overlays"] if overlay.get("kind") == "result_state"
+            for support_id in overlay["data"]["contact_results"]
+        }
+        if solved_steps != displayed_steps:
+            raise ValueError("Contact review must display every attested shoe increment.")
+    elif profile == "beam-engineering-review":
+        _validate_beam_review(root, scene, review)
+    else:
+        _validate_engineering_result_fields(scene, volume=profile == "volume-engineering-review")
+    if profile != "beam-engineering-review":
+        identity = _validate_engineering_provenance(scene, review)
+        _validate_execution_attestation(root, identity)
+        if profile == "contact-engineering-review":
+            _validate_contact_provenance(scene, review, identity)
     _validate_portable_provenance_files(root, review)
     _validate_embedded_portability(root)
+
+
+def _validate_beam_review(root: Path, scene: dict[str, Any], review: dict[str, Any]) -> None:
+    """Validate every independent beam load case and its own solver evidence."""
+    states = [overlay["data"] for overlay in scene.get("overlays", []) if overlay.get("kind") == "result_state"]
+    state_ids = {state["id"] for state in states}
+    identities = scene.get("solver_input_identities", [])
+    provenance = review.get("provenance", [])
+    if not states or len(state_ids) != len(states) or len(identities) != len(states):
+        raise ValueError("Beam review requires distinct load-case states and identities.")
+    if len(provenance) != 3 * len(states):
+        raise ValueError("Beam review requires study, mesh and result provenance for each load case.")
+    for state in states:
+        identity = state.get("solver_input_identity")
+        if identity not in identities:
+            raise ValueError("Beam result identity must match the scene.")
+        if not isinstance(identity, dict) or state.get("load_case") != identity.get("load_case"):
+            raise ValueError("Beam result load case must match its solver identity.")
+        records = [record for record in provenance if record.get("metadata", {}).get("solver_input_identity") == identity]
+        reference = _validate_engineering_provenance(
+            dict(scene, solver_input_identities=[identity]), dict(review, provenance=records)
+        )
+        by_kind = {record["kind"]: record for record in records}
+        if (by_kind["result_state"]["id"] != state["id"]
+                or by_kind["study"]["id"] != state.get("study_id")
+                or by_kind["analysis_mesh"]["id"] != state.get("mesh_id")):
+            raise ValueError("Beam result must reference its own study and mesh.")
+        fields = [field for field in scene.get("result_fields", []) if field.get("result_state_id") == state["id"]]
+        if any(field.get("load_case") != state.get("load_case") for field in fields):
+            raise ValueError("Beam result fields must match their state load case.")
+        _validate_engineering_result_fields(dict(scene, result_fields=fields),
+                                           families={"displacement", "reaction_force", "reaction_moment"})
+        execution_uri = by_kind["result_state"].get("files", {}).get("execution")
+        if not isinstance(execution_uri, str):
+            raise ValueError("Beam result requires its execution envelope.")
+        artifacts = _bundle_path(root, execution_uri).parent
+        _validate_execution_attestation(root, reference, artifacts_root=artifacts)
+    if any(field.get("result_state_id") not in state_ids for field in scene.get("result_fields", [])):
+        raise ValueError("Beam review contains a field outside its load cases.")
+    states_by_id = {state["id"]: state for state in states}
+    for overlay in scene.get("overlays", []):
+        if overlay.get("kind") != "geometry_state":
+            continue
+        geometry = overlay["data"]
+        if geometry.get("state_type") == "cold" and geometry.get("result_state_id") is None:
+            continue
+        result = states_by_id.get(geometry.get("result_state_id"))
+        if result is None or geometry.get("load_case") != result.get("load_case"):
+            raise ValueError("Beam geometry state must reference its own result load case.")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -345,7 +413,63 @@ def _validate_geometry(root: Path, scene: dict[str, Any]) -> None:
             raise ValueError(f"Geometry hash does not match payload for {asset.get('id', '<unknown>')!r}.")
 
 
-def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool = False) -> None:
+def _validate_contact_provenance(scene: dict[str, Any], review: dict[str, Any], identity: dict[str, Any]) -> None:
+    records = {record["kind"]: record for record in review["provenance"]}
+    states = [overlay["data"] for overlay in scene["overlays"] if overlay.get("kind") == "result_state"]
+    if states[-1]["id"] != records["result_state"]["id"]:
+        raise ValueError("Contact history final state must match its attested result provenance.")
+    for state in states:
+        if (state.get("solver_input_identity") != identity
+                or state.get("solver_name") != "Code_Aster"
+                or state.get("load_case") != identity["load_case"]
+                or state.get("study_id") != records["study"]["id"]
+                or state.get("mesh_id") != records["analysis_mesh"]["id"]):
+            raise ValueError("Contact history state must match its attested study, mesh and solver identity.")
+    states_by_id = {state["id"]: state for state in states}
+    for field in scene["result_fields"]:
+        if field.get("load_case") != states_by_id[field["result_state_id"]]["load_case"]:
+            raise ValueError("Contact result fields must match their state load case.")
+    for overlay in scene["overlays"]:
+        if overlay.get("kind") != "geometry_state":
+            continue
+        geometry = overlay["data"]
+        if geometry.get("state_type") == "cold" and geometry.get("result_state_id") is None:
+            continue
+        state = states_by_id.get(geometry.get("result_state_id"))
+        if state is None or geometry.get("load_case") != state["load_case"]:
+            raise ValueError("Contact geometry state must reference its own result load case.")
+
+
+def _validate_contact_result_fields(scene: dict[str, Any]) -> None:
+    from tuba.solver.base import ContactResult
+
+    states = [overlay["data"] for overlay in scene.get("overlays", []) if overlay.get("kind") == "result_state"]
+    if len(states) < 2 or len({state["id"] for state in states}) != len(states):
+        raise ValueError("Contact review requires a distinct converged state history.")
+    times = [state["metadata"]["pseudo_time"] for state in states]
+    if times != sorted(set(times)) or times[0] != 0:
+        raise ValueError("Contact review requires an ordered history starting at zero.")
+    supports = set(states[0].get("contact_results", {}))
+    if not supports:
+        raise ValueError("Contact review requires solved shoe results.")
+    for state in states:
+        contacts = state.get("contact_results", {})
+        if set(contacts) != supports:
+            raise ValueError("Contact review is missing a shoe increment.")
+        for support_id, data in contacts.items():
+            if ContactResult.from_dict(data).support_id != support_id:
+                raise ValueError("Contact review shoe identity does not match its result.")
+        fields = [field for field in scene["result_fields"] if field["result_state_id"] == state["id"]]
+        families = {"displacement", "reaction_force", "reaction_moment"}
+        # The unloaded reference has no reaction overlays; later states must.
+        if state["metadata"]["pseudo_time"] == 0:
+            families = {"displacement"}
+        _validate_engineering_result_fields(dict(scene, result_fields=fields), families=families)
+    if any(field["result_state_id"] not in {state["id"] for state in states} for field in scene["result_fields"]):
+        raise ValueError("Contact review contains a field outside its history.")
+
+
+def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool = False, families: set[str] | None = None) -> None:
     fields = scene.get("result_fields", [])
     overlays = scene.get("overlays", [])
     expected = {
@@ -356,6 +480,8 @@ def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool =
     }
     if not volume:
         expected["tuyau_subpoints"] = "solver_result"
+    if families is not None:
+        expected = {family: "solver_result" for family in families}
     if not isinstance(fields, list) or len(fields) != len(expected):
         raise ValueError(f"Engineering-review bundles require {len(expected)} result fields.")
     overlays_by_id = {
@@ -426,8 +552,8 @@ def _validate_engineering_provenance(
     return reference
 
 
-def _validate_execution_attestation(root: Path, identity: dict[str, Any]) -> None:
-    artifacts_root = root / "artifacts"
+def _validate_execution_attestation(root: Path, identity: dict[str, Any], *, artifacts_root: Path | None = None) -> None:
+    artifacts_root = root / "artifacts" if artifacts_root is None else artifacts_root
     attestation = load_code_aster_execution_attestation(artifacts_root)
     if attestation is None:
         raise ValueError("Engineering-review bundles require a validated Code_Aster execution attestation.")

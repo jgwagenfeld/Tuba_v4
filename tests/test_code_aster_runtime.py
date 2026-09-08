@@ -105,6 +105,51 @@ class TestCodeAsterRuntime(unittest.TestCase):
             volume,
         )
 
+    def test_contact_history_artifact_is_required_only_for_declared_contact_law(self):
+        legacy = runtime.expected_code_aster_artifact_files({}, compiler_id=CODE_ASTER_COMPILER_ID)
+        contact = runtime.expected_code_aster_artifact_files(
+            {"compiler_inputs": {"contact_law": "DIS_CONTACT"}, "pipe_stress_exported": False},
+            compiler_id=CODE_ASTER_COMPILER_ID,
+        )
+        self.assertNotIn("study_contact.json", legacy)
+        self.assertEqual(set(contact), (set(legacy) - {"study_sieq.csv"}) | {"study_contact.json"})
+        for invalid in (None, "", [], 1):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, "contact_law"):
+                runtime.expected_code_aster_artifact_files(
+                    {"compiler_inputs": {"contact_law": invalid}}, compiler_id=CODE_ASTER_COMPILER_ID,
+                )
+
+    def test_contact_history_attestation_requires_bytes_and_rejects_changed_or_malformed_integrity(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            identity = SolverInputIdentity("f" * 64, "Cold", "tuba.model.v4", CODE_ASTER_COMPILER_ID)
+            metadata = {"compiler_inputs": {"contact_law": "DIS_CONTACT"}, "pipe_stress_exported": False}
+            files = runtime.expected_code_aster_artifact_files(metadata, compiler_id=CODE_ASTER_COMPILER_ID)
+            for name in files:
+                if name != "study_contact.json":
+                    (root / name).write_text(name, encoding="utf-8")
+            (root / "study_manifest.json").write_text(json.dumps({"study": {
+                "metadata": metadata, "solver_input_identity": identity.to_dict(),
+            }}), encoding="utf-8")
+            (root / "study.mess").write_text("Version 18.0.12", encoding="utf-8")
+            execution = CodeAsterExecution(CodeAsterRuntimeCandidate("test", ()), (), 0, "", "")
+            with self.assertRaisesRegex(ValueError, "study_contact.json"):
+                runtime.write_code_aster_execution_attestation(root, execution, identity)
+            contact_path = root / "study_contact.json"
+            contact_path.write_text('{"fixture": "artifact integrity only"}', encoding="utf-8")
+            payload = runtime.write_code_aster_execution_attestation(root, execution, identity)
+            self.assertEqual(runtime.load_code_aster_execution_attestation(root), payload)
+            self.assertEqual(len(payload["artifacts"]["study_contact.json"]["sha256"]), 64)
+            contact_path.write_text('{"fixture": "artifact integrity edit"}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "study_contact.json.*(size|hash)"):
+                runtime.load_code_aster_execution_attestation(root)
+            payload["artifacts"]["study_contact.json"]["sha256"] = "invalid"
+            with self.assertRaisesRegex(ValueError, "study_contact.json.*sha256"):
+                runtime.validate_code_aster_execution_attestation_payload(payload, expected_artifacts=files)
+            del payload["artifacts"]["study_contact.json"]
+            with self.assertRaisesRegex(ValueError, "inventory"):
+                runtime.validate_code_aster_execution_attestation_payload(payload, expected_artifacts=files)
+
     def test_expected_attestation_artifacts_reject_compiler_metadata_contradictions(self):
         contradictions = (
             ({"volume_analysis": True}, CODE_ASTER_COMPILER_ID),

@@ -973,7 +973,9 @@ const scenarios = {
           "code-aster-review",
           "elements-supports-review",
           "imported_component_mixed_demo",
+          "native-friction-review",
           "pipe-tee-volume-review",
+          "profile-orientation-review",
           "support-rack-review"
         ]
       );
@@ -1166,13 +1168,8 @@ const scenarios = {
           renderDiagnostics: viewer.lastRender.diagnostics
         };
       });
-      // 219, not 221: two reaction-moment glyphs are gone. They carried
-      // 4.5e-10 and 7.7e-10 N*m against a 2354 N*m reference - solver round-off,
-      // which the old constant-length glyph drew as a full-size arrow claiming
-      // a moment where there is none. Proportional length shrinks them below
-      // the zero-length guard, so they are no longer published.
-      assert.equal(loaded.objects, 219);
-      assert.equal(loaded.geometryPayloads, 216);
+      assert.equal(loaded.objects, 221);
+      assert.equal(loaded.geometryPayloads, 218);
       assert.equal(loaded.overlays, 11);
       assert.equal(loaded.layers, 40);
       assert.equal(loaded.resultFields, 5);

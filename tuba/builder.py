@@ -333,6 +333,9 @@ class PipingBuilder:
         blocked_dof: Optional[List[Any]] = None,
         mass: float = 0.0,
         friction_coefficient: float = 0.0,
+        gap: float = 0.0,
+        normal_stiffness: Optional[float] = None,
+        tangential_stiffness: Optional[float] = None,
     ) -> "PipingBuilder":
         """Attach a support to the last created node."""
         if type == "spring" and stiffness is not None and stiffness_matrix is None and direction is None:
@@ -350,6 +353,9 @@ class PipingBuilder:
             blocked_dof=blocked_dof,
             mass=mass,
             friction_coefficient=friction_coefficient,
+            gap=gap,
+            normal_stiffness=normal_stiffness,
+            tangential_stiffness=tangential_stiffness,
         )
         self.model.add_support(
             self.last_node_id,
@@ -360,6 +366,9 @@ class PipingBuilder:
             blocked_dof=blocked_dof,
             mass=mass,
             friction_coefficient=friction_coefficient,
+            gap=gap,
+            normal_stiffness=normal_stiffness,
+            tangential_stiffness=tangential_stiffness,
         )
         return self
 

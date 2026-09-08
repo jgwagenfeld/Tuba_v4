@@ -61,6 +61,7 @@ from tuba.analysis.tuyau import (
     DISPLAY_GENERATRICE,
     subpoint_station,
 )
+from tuba.solver.modelisation import PipeModelization
 from tuba.analysis.provenance import (
     SolverInputIdentity,
     build_solver_input_identity,
@@ -68,7 +69,6 @@ from tuba.analysis.provenance import (
 from tuba.refs import EntityRef
 from tuba.solver.aster_comm import _CommWriterMixin
 from tuba.solver.aster_mesh import _MeshWriterMixin
-from tuba.solver.features import reject_unsupported_features
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,19 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         runner_command: Optional[str] = None,
         bridge_python: Optional[str] = None,
         timeout_seconds: int = 7200,
+        pipe_modelization: PipeModelization | str = PipeModelization.TUYAU_3M,
+        load_path=None,
+        load_step: float = 0.1,
     ) -> None:
+        self.pipe_modelization = PipeModelization(pipe_modelization)
+        if isinstance(load_path, str):
+            raise ValueError("load_path must be a sequence of names, not a string.")
+        self.load_path = tuple(load_path) if load_path is not None else None
+        self.load_step = load_step
+        if self.pipe_modelization is PipeModelization.SOLID_3D:
+            raise ValueError("Use export_volume_study for SOLID_3D.")
+        if self.pipe_modelization is PipeModelization.POU_D_T:
+            self._BEND_SEGMENTS = 32
         self.work_dir = Path(work_dir) if work_dir else None
         self.exec_method = exec_method or os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto")
         self.docker_image = docker_image or os.environ.get("TUBA_CODE_ASTER_DOCKER_IMAGE") or "simvia/code_aster:stable"
@@ -195,9 +207,14 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         Path
             The path to the output directory containing the study files.
         """
-        reject_unsupported_features(model)
         self._bend_node_cache.clear()
         # Resolve load case ------------------------------------------------
+        if self.load_path is not None:
+            if not self.load_path or isinstance(self.load_path, str):
+                raise ValueError('load_path must be a nonempty sequence of load-case names.')
+            if load_case_name is not None and load_case_name != self.load_path[-1]:
+                raise ValueError('The compatibility load case must be the final load_path stage.')
+            load_case_name = self.load_path[-1]
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
 
@@ -228,8 +245,13 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         output_dir: Optional[str | Path] = None,
     ) -> AnalysisStudy:
         """Generate Code_Aster input files plus a traceable analysis manifest."""
-        reject_unsupported_features(model)
         self._bend_node_cache.clear()
+        if self.load_path is not None:
+            if not self.load_path or isinstance(self.load_path, str):
+                raise ValueError('load_path must be a nonempty sequence of load-case names.')
+            if load_case_name is not None and load_case_name != self.load_path[-1]:
+                raise ValueError('The compatibility load case must be the final load_path stage.')
+            load_case_name = self.load_path[-1]
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
 
@@ -243,7 +265,22 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             wdir = Path(tempfile.mkdtemp(prefix="tuba_aster_"))
 
         model_revision = int(getattr(model, "revision", 0))
-        solver_input_identity = build_solver_input_identity(model, load_case_name)
+        compiler_inputs = (
+            {"pipe_modelization": self.pipe_modelization.value, "bend_segments": self._BEND_SEGMENTS}
+            if self.pipe_modelization is PipeModelization.POU_D_T else None
+        )
+        from tuba.solver.aster_contact import shoes, validate_path
+        contact_specs = shoes(model, self.pipe_modelization)
+        if self.load_path is not None and not contact_specs:
+            raise ValueError('load_path currently requires a native POU_D_T resting shoe.')
+        if contact_specs:
+            names, cases = validate_path(model, load_case, self.load_path)
+            compiler_inputs = dict(compiler_inputs or {}, load_path=list(names), load_step=self.load_step,
+                                  contact_law='DIS_CHOC', contact_stiffness_defaults=[1e10, 1e8],
+                                  load_path_inputs={name: model.to_dict()['load_cases'][name] for name in names})
+        solver_input_identity = build_solver_input_identity(
+            model, load_case_name, compiler_inputs=compiler_inputs,
+        )
         mail_path = wdir / "study.mail"
         comm_path = wdir / "study.comm"
         export_path = wdir / "study.export"
@@ -311,7 +348,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             mesh_id=analysis_mesh.id,
             metadata={
                 "project_name": model.project_name,
-                "pipe_stress_exported": any(
+                **({"compiler_inputs": compiler_inputs} if compiler_inputs is not None else {}),
+                "pipe_stress_exported": self.pipe_modelization is PipeModelization.TUYAU_3M and any(
                     element.type in {"pipe_straight", "pipe_bend"} for element in model.elements
                 ),
             },
@@ -327,6 +365,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         output_dir: str | Path,
     ) -> AnalysisStudy:
         """Generate a MED-backed mixed Code_Aster study without running the solver."""
+        if self.load_path is not None:
+            raise ValueError('Native contact load paths require POU_D_T; volume/mixed paths are unsupported.')
         from tuba.solver.mixed_study import MixedCodeAsterStudyExporter
 
         return MixedCodeAsterStudyExporter().export_analysis_study(model, load_case_name, output_dir)
@@ -343,7 +383,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         export_tensor_stress: bool = True,
     ) -> AnalysisStudy:
         """Export a native Gmsh pipe-volume study without claiming solver results."""
-        reject_unsupported_features(model)
+        if self.load_path is not None:
+            raise ValueError('Native contact load paths require POU_D_T; volume/mixed paths are unsupported.')
         from tuba.solver.aster_volume import PipeVolumeStudyExporter
 
         return PipeVolumeStudyExporter().export_analysis_study(
@@ -485,6 +526,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             "F depl study_depl.csv R 39",
             "F reac study_reac.csv R 40",
             "F sieq study_sieq.csv R 41",
+            "F libr study_contact.json R 42",
         ]
 
         export_path = work_dir / "study.export"
@@ -554,6 +596,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         self,
         model: TubaModel,
         work_dir: Path,
+        instant: float | None = None,
     ) -> FEAResults:
         """Parse solver outputs into :class:`FEAResults`.
 
@@ -563,6 +606,13 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         explicit visualization/import paths so solver parsing never depends on
         optional mesh readers or their file-handle behavior.
         """
+        self._result_time = instant
+        manifest_path = work_dir / "study_manifest.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            inputs = manifest.get("study", {}).get("metadata", {}).get("compiler_inputs", {})
+            self.pipe_modelization = PipeModelization(inputs.get("pipe_modelization", "TUYAU_3M"))
+            self._BEND_SEGMENTS = int(inputs.get("bend_segments", 16))
         results = FEAResults(solver_name=self.SOLVER_NAME)
         results._model = model
 
@@ -640,13 +690,21 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
                 f"{labels} in {work_dir}. Refusing to substitute zeros."
             )
         self._parse_reac_table(model, work_dir, results, node_label_map)
-        self._parse_sieq_table(model, work_dir, results, node_label_map, element_label_map)
+        if self.pipe_modelization is PipeModelization.TUYAU_3M:
+            self._parse_sieq_table(model, work_dir, results, node_label_map, element_label_map)
 
         return results
 
     # ------------------------------------------------------------------
     # Individual table parsers
     # ------------------------------------------------------------------
+
+    def _parse_result_table(self, path):
+        rows = self._parse_csv_table(path)
+        instant = getattr(self, '_result_time', None)
+        if instant is not None:
+            rows = [row for row in rows if abs(float(row['INST']) - instant) < 1e-12]
+        return rows
 
     @staticmethod
     def _parse_csv_table(path: Path) -> List[Dict[str, str]]:
@@ -771,7 +829,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         analysis_mesh_node_ids: set[str],
     ) -> set[str]:
         """Parse displacement table (unit 39); return covered model-node IDs."""
-        rows = self._parse_csv_table(work_dir / "study_depl.csv")
+        rows = self._parse_result_table(work_dir / "study_depl.csv")
         covered_model_nodes: set[str] = set()
         for row in rows:
             raw_nid = row.get("NOEUD", "").strip()
@@ -842,7 +900,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
         Returns the model element/node endpoints that received parsed forces.
         """
-        rows = self._parse_csv_table(work_dir / "study_effo.csv")
+        rows = self._parse_result_table(work_dir / "study_effo.csv")
         # Build a quick lookup: element_id → Element
         element_lookup = self._result_element_lookup(model)
         covered: set[tuple[str, str]] = set()
@@ -920,7 +978,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         node_label_map: dict[str, str],
     ) -> None:
         """Parse reaction force table (unit 40, ``FORC_NODA``)."""
-        rows = self._parse_csv_table(work_dir / "study_reac.csv")
+        rows = self._parse_result_table(work_dir / "study_reac.csv")
         support_nodes = {s.node for s in model.supports}
 
         for row in rows:
@@ -954,7 +1012,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         """Parse Von Mises stress table (unit 41, ``SIEQ_ELNO``)."""
         if not any(elem.type in {"pipe_straight", "pipe_bend"} for elem in model.elements):
             return
-        rows = self._parse_csv_table(work_dir / "study_sieq.csv")
+        rows = self._parse_result_table(work_dir / "study_sieq.csv")
         element_lookup = self._result_element_lookup(model)
         analysis_tangents = self._read_analysis_element_tangents(work_dir)
 

@@ -18,7 +18,6 @@ from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._helpers import _bounds_for_points, _dedupe, _node_coords, _safe_bounds_for_points
-from tuba.visualization.builders._imported import _mesh_group_layer_ids
 
 
 def _build_geometry_state_record(geometry_state: GeometryState) -> tuple[SceneObject, Overlay]:
@@ -362,6 +361,8 @@ def _build_deformed_mesh_scene(
                     twist_angle_deg=float(getattr(model_element, "twist_angle", 0.0)),
                 )
                 generation_config.update(
+                    section_origins=base_points,
+                    section_deformations=[list(result_state.node_displacements[node_id]) for node_id in node_ids],
                     base_vertices=[list(vertex) for vertex in base_surface.vertices],
                     vertices=[list(vertex) for vertex in deformed_surface.vertices],
                     faces=[list(face) for face in deformed_surface.faces],
@@ -392,7 +393,7 @@ def _build_deformed_mesh_scene(
                 name=f"{element_id} {geometry_state.id} warped mesh",
                 geometry_asset_id=asset_id,
                 group_ids=groups,
-                layer_ids=["deformed:mesh", *_mesh_group_layer_ids(groups)],
+                layer_ids=["deformed:mesh", *(f"deformed:group:{group}" for group in groups)],
                 metadata=metadata,
             )
         )

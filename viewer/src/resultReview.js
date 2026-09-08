@@ -1,5 +1,9 @@
 import { getColoringLegend, getColoringValues } from "./coloring.js";
 
+export function formatPseudoTime(value) {
+  return Number.isFinite(value) ? String(Number(value.toPrecision(8))) : "unavailable";
+}
+
 export function getLoadCaseOptions(state) {
   const byLoadCase = new Map();
   for (const overlay of [...(state.resultStates ?? []), ...(state.geometryStates ?? []), ...solverResultOverlays(state)]) {
@@ -22,7 +26,7 @@ export function getResultStateOptions(state) {
     const data = overlay.data ?? {};
     return {
       id: data.id ?? overlay.id,
-      label: overlay.name || data.load_case || data.id || overlay.id,
+      label: data.metadata?.stage_label ? `${data.metadata.stage_label} / ${formatPseudoTime(data.metadata.pseudo_time)}` : overlay.name || data.load_case || data.id || overlay.id,
       loadCase: data.load_case ?? null,
       overlay
     };
@@ -118,6 +122,7 @@ export function getSolverResultOverlays(state, resultType = null) {
 }
 
 export function getActiveScalarOverlay(state) {
+  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
   // When the scene carries a field catalogue the choice is explicit. The
   // priority chain below is the legacy path for bundles written before it.
   if ((state.resultFields ?? []).length > 0) {
@@ -132,6 +137,7 @@ export function getActiveScalarOverlay(state) {
 }
 
 export function getScalarLegend(state) {
+  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
   if ((state.resultFields ?? []).length > 0) {
     const legend = getColoringLegend(state);
     return legend
@@ -287,9 +293,13 @@ export function setActiveLoadCase(state, loadCase) {
 export function setActiveResultState(state, resultStateId) {
   const option = getResultStateOptions(state).find((candidate) => candidate.id === resultStateId);
   if (option) {
+    const next = setActiveLoadCase(state, option.loadCase);
+    const geometry = getGeometryStateOptions(state, null).filter((item) => item.overlay.data?.result_state_id === option.id);
     return {
-      ...setActiveLoadCase(state, option.loadCase),
-      activeResultStateId: option.id
+      ...next,
+      activeResultStateId: option.id,
+      activeGeometryStateId: (geometry.find((item) => item.purpose === "visualization") ?? geometry[0])?.id ?? next.activeGeometryStateId,
+      visualDeformationScale: state.visualDeformationScale
     };
   }
   return {
@@ -331,7 +341,9 @@ export function setResultVectorScale(state, vectorType, scale) {
 }
 
 export function setVisualDeformationScale(state, scale) {
-  const visualState = getGeometryStateOptions(state).find((option) => option.purpose === "visualization");
+  const visualStates = getGeometryStateOptions(state).filter((option) => option.purpose === "visualization");
+  const visualState = visualStates.find((option) => option.overlay.data?.result_state_id === state.activeResultStateId) ??
+    visualStates.find((option) => option.id === state.activeGeometryStateId) ?? visualStates[0];
   return {
     ...state,
     activeGeometryStateId: visualState?.id ?? state.activeGeometryStateId,

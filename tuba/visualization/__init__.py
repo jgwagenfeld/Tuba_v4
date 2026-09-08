@@ -32,6 +32,7 @@ from tuba.visualization.bcf import export_bcf_topics, import_bcf_topics
 from tuba.visualization.live_preview import LivePreviewResult, preview_json_patch, preview_python_script
 from tuba.visualization.web_export import SceneBundle, write_scene_bundle
 from tuba.visualization.reporting_adapter import write_engineering_review_with_scene
+from tuba.visualization.labels import add_scene_label
 
 
 def viewer_assets_path():
@@ -62,6 +63,7 @@ __all__ = [
     "write_engineering_review_with_scene",
     "viewer_assets_path",
     "SceneValidationError",
+    "add_scene_label",
     "validate_scene_dict",
     "export_bcf_topics",
     "import_bcf_topics",

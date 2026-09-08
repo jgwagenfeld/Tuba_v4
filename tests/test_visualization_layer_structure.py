@@ -39,6 +39,9 @@ class TestModelisationIsNotDuplicated(unittest.TestCase):
 
     def _model_with_every_element_family(self):
         model = build_review_model()
+        # This assignment-only fixture does not request unsupported TUYAU friction.
+        for support in model.supports:
+            support.friction_coefficient = 0.0
         # A discrete spring and a lumped mass both force POI1/DIS_TR entries,
         # which is where the two emitters used to be able to disagree.
         model.supports.append(Support(node="N0", type="spring", stiffness=1.0e6, direction=[0.0, 0.0, 1.0]))

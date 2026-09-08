@@ -2068,3 +2068,14 @@ body[data-view="gallery"] {
 .bundle-picker[hidden] {
   display: none;
 }
+.contact-review { grid-column: 1 / -1; min-width: 0; border-block: 1px solid #cbd5e1; padding-block: 12px; }
+.contact-review p { font-size: 12px; line-height: 1.5; }
+.contact-review label { display: inline-flex; gap: 6px; align-items: center; margin: 6px; }
+.contact-table-scroll { max-width: 100%; overflow-x: auto; }
+.contact-review table { border-collapse: collapse; font-size: 12px; width: 100%; }
+.contact-review th, .contact-review td { padding: 5px; text-align: left; white-space: nowrap; }
+.contact-review tr[data-selected="true"] { background: #e0f2fe; color: #172127; }
+.contact-review .contact-limit-exceeded { color: #b91c1c; }
+.contact-review svg { display: block; width: 100%; max-width: 520px; background: white; border-radius: 3px; }
+
+.cockpit-rail .task-panel:has(.contact-review) { max-height: none; overflow: visible; }

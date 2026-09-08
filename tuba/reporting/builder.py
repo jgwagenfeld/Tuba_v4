@@ -493,7 +493,7 @@ def _compiler_contract(metadata: dict[str, Any]) -> tuple[str, dict[str, Any] | 
         return MIXED_CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
     if metadata.get("volume_analysis"):
         return VOLUME_CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
-    return CODE_ASTER_COMPILER_ID, None
+    return CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
 
 
 def _default_package_id(model: TubaModel) -> str:

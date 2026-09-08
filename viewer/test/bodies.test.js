@@ -339,3 +339,14 @@ test("a legacy bundle with no declared categories still resolves its bodies", ()
     ["geometry", "deformed"]
   );
 });
+
+test("deformed peak displacement follows the active solved increment", () => {
+  const state = sceneState();
+  state.activeResultStateId = "hot";
+  state.overlays = ["reference", "hot"].map((id, index) => ({ kind: "solver_result", data: {
+    result_type: "displacement", result_state_id: id, values: { N1: [0.003*index,0,0] }
+  } }));
+  const deformed = getBodies(state).find((body) => body.id === "deformed");
+  assert.ok(deformed.metrics.some((text) => text.includes("3 mm")), JSON.stringify(deformed.metrics));
+  assert.ok(deformed.metrics.every((text) => !text.includes("0 mm")));
+});

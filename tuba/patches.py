@@ -50,6 +50,9 @@ class AddSupport:
     blocked_dof: list[Any] | None = None
     mass: float = 0.0
     friction_coefficient: float = 0.0
+    gap: float = 0.0
+    normal_stiffness: float | None = None
+    tangential_stiffness: float | None = None
 
 
 @dataclass(frozen=True)
@@ -268,6 +271,9 @@ class ModelTransaction:
             blocked_dof=operation.blocked_dof,
             mass=operation.mass,
             friction_coefficient=operation.friction_coefficient,
+            gap=operation.gap,
+            normal_stiffness=operation.normal_stiffness,
+            tangential_stiffness=operation.tangential_stiffness,
         )
 
     def _apply_add_insulation_spec(self, operation: AddInsulationSpec) -> None:

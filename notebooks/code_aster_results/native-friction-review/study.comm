@@ -1,0 +1,299 @@
+DEBUT(PAR_LOT='NON');
+
+# ----- Read mesh -----
+MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
+                      UNITE=20);
+
+MAIL = MAIL0;
+
+# ----- Model definition -----
+MODELE = AFFE_MODELE(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='AllPipes',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='POU_D_T',
+        ),
+        _F(
+            GROUP_MA='G1CB0E9C',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='GCC48F90',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='GE3D248C',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='G36D7488',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+    ),
+);
+
+# ----- Material definitions -----
+MAT_STEEL = DEFI_MATERIAU(
+    ELAS=_F(
+        E=2.000000E+11,
+        NU=3.000000E-01,
+        RHO=7.850000E+03,
+        ALPHA=1.200000E-05,
+    ),
+);
+
+CM0 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.0,DIST_1=1.0))
+CM1 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.0,DIST_1=1.0))
+CM2 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.3,DIST_1=1.0))
+CM3 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.3,DIST_1=1.0))
+# ----- Material assignment -----
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='G76B55C9',
+            MATER=MAT_STEEL,
+        ),
+_F(GROUP_MA='G1CB0E9C',MATER=CM0),
+_F(GROUP_MA='GCC48F90',MATER=CM1),
+_F(GROUP_MA='GE3D248C',MATER=CM2),
+_F(GROUP_MA='G36D7488',MATER=CM3),
+    ),
+);
+
+# ----- Cross-section properties -----
+CARA = AFFE_CARA_ELEM(
+    MODELE=MODELE,
+    POUTRE=(
+        _F(
+            GROUP_MA='SEC_pipe',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.00000000E-03),
+        ),
+        _F(
+            GROUP_MA='NF_elbow',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.00000000E-03),
+        ),
+        _F(GROUP_MA='NF_elbow', SECTION='COUDE', COEF_FLEX=2.6878706250E+00),
+        _F(
+            GROUP_MA='F_elbow',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.00000000E-03),
+        ),
+        _F(GROUP_MA='F_elbow', SECTION='COUDE', COEF_FLEX=2.6878706250E+00),
+    ),
+    DISCRET=(
+_F(GROUP_MA='G1CB0E9C',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='GCC48F90',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='GE3D248C',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='G36D7488',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+    ),
+    ORIENTATION=(
+_F(GROUP_MA='G1CB0E9C',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='GCC48F90',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='GE3D248C',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='G36D7488',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+        _F(GROUP_MA='G0FCFC16', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='G12CF447', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='G936CAF9', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='GC0A21A1', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='F_pipe_0', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='F_pipe_1', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='F_pipe_3', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='F_pipe_4', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='NF_elbow', CARA='ANGL_VRIL', VALE=0.0),
+        _F(GROUP_MA='F_elbow', CARA='ANGL_VRIL', VALE=0.0),
+    ),
+);
+
+# ----- Boundary conditions -----
+BC_0 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N0',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_3 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N6',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+GRAMP = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=(0.0, 1.0, 2.0, 3.0, 4.0, 5.0), ORDONNEE=(0.0, 1.0, 1.0, 1.0, 1.0, 1.0))
+GRAVITY = AFFE_CHAR_MECA(MODELE=MODELE, PESANTEUR=_F(GRAVITE=9.81,DIRECTION=(0.,0.,-1.)))
+GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='GROUND_1',DX=0.,DY=0.,DZ=0.))
+GROUND1 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='GROUND_2',DX=0.,DY=0.,DZ=0.))
+GROUND2 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='GROUND_4',DX=0.,DY=0.,DZ=0.))
+GROUND3 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='GROUND_5',DX=0.,DY=0.,DZ=0.))
+F0_2 = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=(0.0, 1.0, 2.0, 3.0, 4.0, 5.0), ORDONNEE=(0.0, -10000.0, -10000.0, -10000.0, -10000.0, -10000.0))
+L0_2 = AFFE_CHAR_MECA(MODELE=MODELE, FORCE_NODALE=_F(GROUP_NO='GN_N1',FZ=1.))
+F1_2 = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=(0.0, 1.0, 2.0, 3.0, 4.0, 5.0), ORDONNEE=(0.0, -10000.0, -10000.0, -10000.0, 600.0, -10000.0))
+L1_2 = AFFE_CHAR_MECA(MODELE=MODELE, FORCE_NODALE=_F(GROUP_NO='GN_N10',FZ=1.))
+F2_2 = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=(0.0, 1.0, 2.0, 3.0, 4.0, 5.0), ORDONNEE=(0.0, -10000.0, -10000.0, -10000.0, 600.0, -10000.0))
+L2_2 = AFFE_CHAR_MECA(MODELE=MODELE, FORCE_NODALE=_F(GROUP_NO='GN_N4',FZ=1.))
+F3_2 = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=(0.0, 1.0, 2.0, 3.0, 4.0, 5.0), ORDONNEE=(0.0, -10000.0, -10000.0, -10000.0, -10000.0, -10000.0))
+L3_2 = AFFE_CHAR_MECA(MODELE=MODELE, FORCE_NODALE=_F(GROUP_NO='GN_N7',FZ=1.))
+TFIELDS = []
+TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE=20.0)))
+TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE=20.0)))
+TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE=120.0)))
+TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE=20.0)))
+TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE=20.0)))
+TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE=20.0)))
+THERM = CREA_RESU(OPERATION='AFFE',TYPE_RESU='EVOL_THER',NOM_CHAM='TEMP',AFFE=tuple(_F(CHAM_GD=f,INST=t) for f,t in zip(TFIELDS,(0.0, 1.0, 2.0, 3.0, 4.0, 5.0))))
+CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL,AFFE=(
+        _F(
+            GROUP_MA='G76B55C9',
+            MATER=MAT_STEEL,
+        ),
+_F(GROUP_MA='G1CB0E9C',MATER=CM0),
+_F(GROUP_MA='GCC48F90',MATER=CM1),
+_F(GROUP_MA='GE3D248C',MATER=CM2),
+_F(GROUP_MA='G36D7488',MATER=CM3),
+), AFFE_VARC=_F(TOUT='OUI',NOM_VARC='TEMP',EVOL=THERM,VALE_REF=20.0))
+lst_inst = DEFI_LIST_REEL(DEBUT=0., INTERVALLE=(
+_F(JUSQU_A=1.0,NOMBRE=10),
+_F(JUSQU_A=2.0,NOMBRE=10),
+_F(JUSQU_A=3.0,NOMBRE=10),
+_F(JUSQU_A=4.0,NOMBRE=10),
+_F(JUSQU_A=5.0,NOMBRE=10),
+))
+times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst),ECHEC=_F(EVENEMENT='ERREUR',SUBD_METHODE='MANUEL',SUBD_PAS=4,SUBD_NIVEAU=8))
+RESU = STAT_NON_LINE(MODELE=MODELE,CHAM_MATER=CHMAT,CARA_ELEM=CARA,
+EXCIT=(_F(CHARGE=BC_0),_F(CHARGE=BC_3),_F(CHARGE=GRAVITY,FONC_MULT=GRAMP),_F(CHARGE=GROUND0),_F(CHARGE=GROUND1),_F(CHARGE=GROUND2),_F(CHARGE=GROUND3),_F(CHARGE=L0_2,FONC_MULT=F0_2),_F(CHARGE=L1_2,FONC_MULT=F1_2),_F(CHARGE=L2_2,FONC_MULT=F2_2),_F(CHARGE=L3_2,FONC_MULT=F3_2),), COMPORTEMENT=(
+_F(GROUP_MA=('AllPipes',),RELATION='ELAS'),
+_F(GROUP_MA='G1CB0E9C',RELATION='DIS_CHOC',RESI_INTE=1e-9),
+_F(GROUP_MA='GCC48F90',RELATION='DIS_CHOC',RESI_INTE=1e-9),
+_F(GROUP_MA='GE3D248C',RELATION='DIS_CHOC',RESI_INTE=1e-9),
+_F(GROUP_MA='G36D7488',RELATION='DIS_CHOC',RESI_INTE=1e-9),
+),INCREMENT=_F(LIST_INST=times),NEWTON=_F(MATRICE='TANGENTE',REAC_ITER=1),CONVERGENCE=_F(RESI_GLOB_RELA=1e-8,ITER_GLOB_MAXI=50))
+# ----- Derived fields -----
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+    FORCE='REAC_NODA',
+);
+
+# ----- Write MED results file -----
+IMPR_RESU(
+    FORMAT='MED',
+    UNITE=80,
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM=('DEPL', 'EFGE_ELNO', 'REAC_NODA'),
+    ),
+);
+
+# ----- Text table for EFGE_ELNO -----
+TAB_EFFO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='EFGE_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_EFFO,
+    UNITE=38,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for DEPL -----
+TAB_DEPL = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='DEPL',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_DEPL,
+    UNITE=39,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for REAC_NODA -----
+TAB_REAC = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='REAC_NODA',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_REAC,
+    UNITE=40,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+import json
+contact_rows = []
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G1CB0E9C',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G1CB0E9C',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='NF_S1',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GCC48F90',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GCC48F90',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='NF_S2',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GE3D248C',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GE3D248C',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='F_S1',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G36D7488',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G36D7488',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='F_S2',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+with open('fort.42','w') as stream: json.dump(contact_rows,stream,allow_nan=False)
+FIN();

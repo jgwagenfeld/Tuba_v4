@@ -24,9 +24,15 @@ from tuba.analysis.provenance import SolverInputIdentity, require_matching_solve
 def stage_code_aster_artifact_evidence(
     artifact: AnalysisRun,
     bundle_root: str | Path,
+    *,
+    artifact_subdir: str = "artifacts",
 ) -> AnalysisRun:
     """Copy attested Code_Aster evidence into a portable review bundle."""
-    destination = Path(bundle_root) / "artifacts"
+    root = Path(bundle_root).resolve()
+    destination = (root / artifact_subdir).resolve()
+    if not artifact_subdir or destination == root or not destination.is_relative_to(root):
+        raise ValueError("Artifact subdirectory must stay within the review bundle.")
+    bundle_root = root
     staged: dict[Path, str] = {}
     basename_sources: dict[str, Path] = {}
     portable_sources: dict[str, str] = {}
@@ -49,6 +55,13 @@ def stage_code_aster_artifact_evidence(
             attestation_identity,
             identity,
             context=f"solve attestation and staged {context}",
+        )
+    for state in artifact.result_states:
+        if state.metadata.get("solve_attestation") != attestation:
+            raise ValueError("Official Code_Aster history staging requires the validated solve attestation.")
+        require_matching_solver_input_identities(
+            attestation_identity, state.solver_input_identity,
+            context="solve attestation and staged history state",
         )
     attested = attestation["artifacts"]
 
@@ -90,6 +103,7 @@ def stage_code_aster_artifact_evidence(
         artifact.analysis_mesh.files if artifact.analysis_mesh is not None else {}
     )
     result_files, result_hashes, result_sizes = stage_files(artifact.result_state.files)
+    history_files = [stage_files(state.files) for state in artifact.result_states]
     staged_names = {Path(relative).name for relative in staged.values()}
     required_names = {*attested, "study_execution.json"}
     missing = sorted(required_names - staged_names)
@@ -126,7 +140,23 @@ def stage_code_aster_artifact_evidence(
             "file_sizes": result_sizes,
         },
     )
-    return replace(artifact, study=study, analysis_mesh=mesh, result_state=result_state)
+    result_states = tuple(
+        replace(
+            state,
+            files=files,
+            metadata={
+                **_portable_metadata(state.metadata, portable_sources),
+                "file_sha256": hashes,
+                "file_sizes": sizes,
+            },
+        )
+        for state, (files, hashes, sizes) in zip(artifact.result_states, history_files)
+    )
+    return replace(
+        artifact, study=study, analysis_mesh=mesh,
+        result_state=result_states[-1] if result_states else result_state,
+        result_states=result_states,
+    )
 
 
 def _evidence_root(work_dir: str | None) -> Path | None:
@@ -217,6 +247,11 @@ def import_code_aster_artifacts(
         results = parse_volume_result_artifacts(model, root, analysis_mesh, loaded_study)
     else:
         results = CodeAsterSolver()._parse_result_artifacts_after_validation(model, root, loaded_study.load_case)
+    history_results = []
+    if loaded_study.metadata.get('compiler_inputs', {}).get('contact_law'):
+        from tuba.solver.contact_results import read_contact_history
+        history_results = read_contact_history(model, root, loaded_study, CodeAsterSolver())
+        results = history_results[-1]
     result_state = result_state_from_fea_results(
         model=model,
         study=loaded_study,
@@ -272,12 +307,22 @@ def import_code_aster_artifacts(
             result_state,
             metadata={**result_state.metadata, "parser_diagnostics": combined},
         )
+    history_states = []
+    for index, frame in enumerate(history_results):
+        frame_state = result_state_from_fea_results(model=model, study=loaded_study, results=frame, analysis_mesh=analysis_mesh)
+        frame_state = replace(frame_state, id=f'{result_state.id}:step:{index}', files=result_state.files,
+                              metadata={**result_state.metadata, **frame_state.metadata,
+                                        'runtime_version': attestation.get('solver_version') if attestation else None})
+        history_states.append(frame_state)
+    if history_states:
+        result_state = history_states[-1]
     return AnalysisRun(
         study=loaded_study,
         analysis_mesh=analysis_mesh,
         results=results,
         result_state=result_state,
         diagnostics=diagnostics,
+        result_states=tuple(history_states),
     )
 
 
@@ -285,6 +330,7 @@ def _artifact_files(work_dir: Path, study: AnalysisStudy) -> dict[str, str]:
     files = dict(study.input_files)
     for key, filename in (
         ("execution", "study_execution.json"),
+        ("contact", "study_contact.json"),
         ("manifest", "study_manifest.json"),
         ("depl", "study_depl.csv"),
         ("effo", "study_effo.csv"),
@@ -304,19 +350,10 @@ def _artifact_files(work_dir: Path, study: AnalysisStudy) -> dict[str, str]:
 
 
 def _with_artifact_files(result_state: ResultState, files: dict[str, str]) -> ResultState:
-    return ResultState(
-        id=result_state.id,
-        study_id=result_state.study_id,
-        model_revision=result_state.model_revision,
-        solver_name=result_state.solver_name,
-        load_case=result_state.load_case,
-        mesh_id=result_state.mesh_id,
-        node_displacements=result_state.node_displacements,
-        node_reactions=result_state.node_reactions,
-        element_results=result_state.element_results,
+    return replace(
+        result_state,
         files={**result_state.files, **files},
         metadata={**result_state.metadata, "source": "code_aster_artifact_tables"},
-        solver_input_identity=result_state.solver_input_identity,
     )
 
 

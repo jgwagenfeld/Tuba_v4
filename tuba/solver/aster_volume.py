@@ -35,6 +35,9 @@ class PipeVolumeStudyExporter:
         element_order: int = 2,
         export_tensor_stress: bool = True,
     ) -> AnalysisStudy:
+        from tuba.solver.aster_contact import shoes
+        from tuba.solver.modelisation import PipeModelization
+        shoes(model, PipeModelization.SOLID_3D)
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
         ids = tuple(element_ids)

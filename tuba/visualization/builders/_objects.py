@@ -234,7 +234,7 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         **{
             key: value
             for key, value in asdict(support).items()
-            if key not in {"id", "node", "type"} and value is not None
+            if key not in {"id", "node", "type"} and value is not None and not (key == "gap" and value == 0)
         },
     }
     asset = GeometryAsset(

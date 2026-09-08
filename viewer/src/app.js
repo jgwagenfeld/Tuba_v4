@@ -1,3 +1,4 @@
+import { contactObjectId, contactRecords, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
   filterIssues,
@@ -770,6 +771,11 @@ function renderResultControls() {
   dom.resultLegend.replaceChildren();
   dom.hotspotList.replaceChildren();
 
+  const contactPanel = renderContactReview(currentState, (action) => {
+    dispatch(action);
+    selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
+  }, render);
+  if (contactPanel) dom.resultControls.append(contactPanel);
   const loadCases = getLoadCaseOptions(currentState);
   const resultStates = getResultStateOptions(currentState);
   const geometryStates = getGeometryStateOptions(currentState);
@@ -817,7 +823,7 @@ function renderResultControls() {
 
   // Only offered when the scene carries no field catalogue; with one, the bar's
   // field selector already picks the result state through its load case.
-  if (fieldOptions.length === 0 && resultStates.length > 0) {
+  if ((contactPanel || fieldOptions.length === 0) && resultStates.length > 0) {
     dom.resultControls.append(
       selectControl("Result state", currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
         dispatch({ type: "setActiveResultState", resultStateId: value });
@@ -826,7 +832,7 @@ function renderResultControls() {
     );
   }
 
-  if (geometryStates.length > 0) {
+  if (!contactPanel && geometryStates.length > 0) {
     dom.resultControls.append(
       selectControl("Deformed state", currentState.activeGeometryStateId ?? geometryStates[0].id, geometryStates, (value) => {
         stopDeformationAnimation();
@@ -1268,9 +1274,13 @@ function deformationControl() {
     if (!viewportRenderer?.renderDeformation(currentState)) renderCanvas();
   });
   input.addEventListener("pointerdown", () => viewportRenderer?.setDeformationInteraction(true));
+  input.addEventListener("change", () => {
+    viewportRenderer?.setDeformationInteraction(false);
+    render();
+  });
   for (const eventName of ["pointerup", "pointercancel"]) {
     input.addEventListener(eventName, () => {
-      if (viewportRenderer?.setDeformationInteraction(false)) renderCanvas();
+      if (viewportRenderer?.setDeformationInteraction(false)) render();
     });
   }
   const readout = document.createElement("span");
@@ -1973,7 +1983,12 @@ function renderProperties() {
   dom.propertyActions.replaceChildren();
   dom.properties.replaceChildren();
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
-  dom.inspector.hidden = sections.length === 0 && !issueSummary;
+  // The contact panel already owns shoe details; keep the viewport available
+  // when selecting its row, especially on narrow screens.
+  const contactSelection = currentState.activeTab === "results" && Object.keys(contactRecords(currentState))
+    .some(id => contactObjectId(currentState, id) === selectedObjectId);
+  dom.inspector.hidden = contactSelection || (sections.length === 0 && !issueSummary);
+  if (contactSelection) return;
   if (sections.length === 0) {
     if (issueSummary) {
       dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
@@ -2103,7 +2118,9 @@ function renderCanvas() {
     return;
   }
   try {
-    viewportRenderer ??= createThreeViewport(dom.canvas);
+    viewportRenderer ??= createThreeViewport(dom.canvas, {
+      viewportInsets: () => ({ left: dom.taskRail.hidden ? 0 : dom.taskRail.getBoundingClientRect().width })
+    });
   } catch (error) {
     if (error?.code !== WEBGL2_UNAVAILABLE) throw error;
     viewportUnavailable = true;

@@ -56,7 +56,9 @@ def test_official_gallery_records_own_refresh_metadata():
         "autorouted-expansion-loop",
         "code-aster-review",
         "elements-supports-review",
+        "native-friction-review",
         "pipe-tee-volume-review",
+        "profile-orientation-review",
         "support-rack-review",
     )
     assert all(gallery.artifact_dir is not None for gallery in engineering)
@@ -68,6 +70,37 @@ def test_official_gallery_records_own_refresh_metadata():
     assert [gallery.id for gallery in galleries if gallery.volume_export] == [
         "pipe-tee-volume-review"
     ]
+
+
+def test_contact_gallery_refresh_preserves_beam_history_options(tmp_path, monkeypatch):
+    class StopAfterExport(Exception):
+        pass
+
+    class Solver:
+        def __init__(self, **options):
+            assert options == {"work_dir": tmp_path, "pipe_modelization": "POU_D_T",
+                               "load_path": ["Cold", "Hot", "Cold", "Lift", "Cold"], "load_step": 0.1}
+
+        def export_analysis_study(self, model, load_case, output):
+            assert load_case == "Cold" and output == tmp_path
+            assert [s.friction_coefficient for s in model.supports if s.type == "rest"] == [0.0, 0.0, 0.3, 0.3]
+            raise StopAfterExport
+
+    monkeypatch.setattr(refresh_code_aster_gallery, "CodeAsterSolver", Solver)
+    with pytest.raises(StopAfterExport):
+        refresh_code_aster_gallery.refresh_gallery(tmp_path, gallery="native-friction-review")
+
+
+def test_profile_refresh_solves_both_cases_in_separate_evidence_folders(tmp_path, monkeypatch):
+    calls = []
+    def refresh(model, case, output, record):
+        calls.append((id(model), case, output))
+        return case
+    monkeypatch.setattr(refresh_code_aster_gallery, "_refresh_study", refresh)
+    result = refresh_code_aster_gallery.refresh_gallery(tmp_path, gallery="profile-orientation-review")
+    assert result == {"global": "global", "local": "local"}
+    assert [(case, output) for _, case, output in calls] == [("global", tmp_path / "global"), ("local", tmp_path / "local")]
+    assert calls[0][0] == calls[1][0]
 
 
 def test_refresh_all_galleries_uses_record_owned_artifact_directories(monkeypatch):

@@ -17,4 +17,6 @@ notebooks/code_aster_results/bim_operating/* -text -whitespace
 notebooks/code_aster_results/advanced_operating_hot/* -text -whitespace
 notebooks/code_aster_results/building_profile_end_force/* -text -whitespace
 notebooks/code_aster_results/elements_supports_loadcase1/* -text -whitespace
+notebooks/code_aster_results/native-friction-review/* -text -whitespace
+notebooks/code_aster_results/profile-orientation-review/** -text -whitespace
 viewer/public/code-aster-review/artifacts/* -text -whitespace

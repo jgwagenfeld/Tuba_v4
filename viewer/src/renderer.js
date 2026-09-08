@@ -1,3 +1,4 @@
+import { contactRecords, contactObjectId, contactForceMaxima, CONTACT_COLORS } from "./contactReview.js";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
@@ -13,6 +14,7 @@ import { bodyOpacityForObjectIds } from "./bodies.js";
 export const SUPPORTED_RENDER_FORMATS = new Set([
   "aabb",
   "cuboid",
+  "label",
   "line",
   "marker",
   "mesh",
@@ -54,6 +56,7 @@ export function createThreeSceneGraph(state, options = {}) {
   const visibleIds = new Set(state.visibleObjectIds ?? []);
   const renderState = {
     ...state,
+    canvasFactory: options.canvasFactory ?? (() => globalThis.document?.createElement("canvas")),
     hasVisualDeformedGeometry: hasVisibleVisualDeformedGeometry(state, payloadsByAssetId, visibleIds)
   };
   const objectsByObjectId = new Map();
@@ -79,6 +82,8 @@ export function createThreeSceneGraph(state, options = {}) {
       objectsByObjectId.set(objectId, result.object);
     }
   }
+
+  addContactMarkers(root, state);
 
   // Fit to what was actually drawn, not to what the assets declare. Deformed
   // geometry is baked at its authored visual scale (x50) and rescaled here at
@@ -140,7 +145,9 @@ const SCENE_GRAPH_STATE_KEYS = [
   "resultVectorScales",
   "displacementVectorScale",
   "reactionVectorScale",
-  "bodyOpacity"
+  "bodyOpacity",
+  "contactArrows",
+  "contactNeutral"
 ];
 
 export function createSceneGraphCache(buildGraph, disposeGraph = () => {}) {
@@ -233,23 +240,12 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   const syncCanvasSize = () => {
     const width = Math.max(1, Math.floor(canvas.clientWidth || canvas.width || 1));
     const height = Math.max(1, Math.floor(canvas.clientHeight || canvas.height || 1));
+    resizeCameraViewport(camera, width, height, options.viewportInsets?.() ?? {});
     const size = renderer.getSize(new THREE.Vector2());
     if (size.x === width && size.y === height) {
       return false;
     }
     renderer.setSize(width, height, false);
-    const aspect = width / height;
-    if (camera.isOrthographicCamera) {
-      const halfHeight = camera.userData.fitHalfHeight ?? 1;
-      camera.left = -halfHeight * aspect;
-      camera.right = halfHeight * aspect;
-      camera.top = halfHeight;
-      camera.bottom = -halfHeight;
-      camera.userData.viewportAspect = aspect;
-    } else {
-      camera.aspect = aspect;
-    }
-    camera.updateProjectionMatrix();
     return true;
   };
   const drawFrame = (graph) => {
@@ -333,6 +329,8 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     },
     setDeformationInteraction(active) {
       if (deformationInteractionActive === active || !currentGraph?.deformationPreview) return false;
+      // Section rotation needs its surface and local frames throughout interaction.
+      if (active && currentGraph.renderableObjects.some((object) => object.userData?.sectionDeformation)) return false;
       deformationInteractionActive = active;
       setDeformationPreviewMode(currentGraph, active);
       if (deformationOverlay.canvas) deformationOverlay.canvas.hidden = !active;
@@ -354,11 +352,13 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     },
     resetView() {
       if (!currentGraph) return;
+      syncCanvasSize();
       fitCameraToBounds(camera, currentGraph.bounds, controls);
       drawFrame(currentGraph);
     },
     setStandardView(viewId) {
       if (!currentGraph) return;
+      syncCanvasSize();
       setCameraToStandardView(camera, currentGraph.bounds, controls, viewId);
       drawFrame(currentGraph);
     },
@@ -422,15 +422,17 @@ function drawDeformationOverlay(overlay, preview, camera) {
   context.stroke();
 }
 
-function disposeThreeSceneGraph(graph) {
+export function disposeThreeSceneGraph(graph) {
   const geometries = new Set();
   const materials = new Set();
+  const textures = new Set();
   graph?.scene?.traverse((object) => {
     if (object.geometry) {
       geometries.add(object.geometry);
     }
     for (const material of Array.isArray(object.material) ? object.material : object.material ? [object.material] : []) {
       materials.add(material);
+      if (material.map) textures.add(material.map);
     }
   });
   for (const geometry of geometries) {
@@ -438,6 +440,9 @@ function disposeThreeSceneGraph(graph) {
   }
   for (const material of materials) {
     material.dispose();
+  }
+  for (const texture of textures) {
+    texture.dispose();
   }
 }
 
@@ -513,7 +518,7 @@ export function pickRenderedObject(graph, point, viewport, options = {}) {
   graph.scene?.updateMatrixWorld(true);
   raycaster.setFromCamera(normalized, graph.camera);
   const raycastTargets = graph.renderableObjects.filter(
-    (object) => object.visible !== false && object.userData?.format !== "tuyau_subpoint_glyphs"
+    (object) => object.visible !== false && object.userData?.pickable !== false && object.userData?.format !== "tuyau_subpoint_glyphs"
   );
   const intersections = raycaster.intersectObjects(raycastTargets, true);
   for (const intersection of intersections) {
@@ -706,6 +711,26 @@ export function upVectorForView(viewId = "iso") {
     : new THREE.Vector3(0, 0, 1);
 }
 
+export function resizeCameraViewport(camera, width, height, insets = {}) {
+  camera.userData.viewportSize = { width, height };
+  camera.userData.viewportInsets = insets;
+  camera.userData.viewportAspect = width / height;
+  if (camera.isOrthographicCamera) {
+    const halfHeight = camera.userData.fitHalfHeight ?? 1;
+    camera.left = -halfHeight * width / height;
+    camera.right = halfHeight * width / height;
+    camera.top = halfHeight;
+    camera.bottom = -halfHeight;
+    // Native view offsets remain fixed in screen pixels when zoom changes.
+    const inset = (side) => Math.max(0, Number(insets[side]) || 0);
+    camera.setViewOffset(width, height, (inset("right") - inset("left")) / 2,
+      (inset("bottom") - inset("top")) / 2, width, height);
+  } else {
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  }
+}
+
 export function fitCameraToBounds(camera, bounds, controls = null, viewId = "iso") {
   const normalized = normalizeBounds(bounds) ?? [-1, -1, -1, 1, 1, 1];
   const center = centerOfBounds(normalized);
@@ -723,18 +748,31 @@ export function fitCameraToBounds(camera, bounds, controls = null, viewId = "iso
 
   if (camera.isOrthographicCamera) {
     const aspect = positiveNumber(camera.userData.viewportAspect) ?? 1;
+    const viewport = camera.userData.viewportSize;
+    const insets = camera.userData.viewportInsets ?? {};
+    const leftInset = Math.max(0, Number(insets.left) || 0);
+    const rightInset = Math.max(0, Number(insets.right) || 0);
+    const topInset = Math.max(0, Number(insets.top) || 0);
+    const bottomInset = Math.max(0, Number(insets.bottom) || 0);
+    const availableWidth = Math.max(1, (viewport?.width ?? 1) - leftInset - rightInset);
+    const availableHeight = Math.max(1, (viewport?.height ?? 1) - topInset - bottomInset);
+    const visibleAspect = viewport ? availableWidth / availableHeight : aspect;
     // Whichever axis binds first: a wide viewport is limited by height, a tall
     // one by width.
     const halfHeight = Math.max(
-      Math.max(extents.halfHeight, extents.halfWidth / aspect) * FIT_MARGIN,
+      Math.max(extents.halfHeight, extents.halfWidth / visibleAspect) * FIT_MARGIN,
       1e-4
     );
-    camera.left = -halfHeight * aspect;
-    camera.right = halfHeight * aspect;
-    camera.top = halfHeight;
-    camera.bottom = -halfHeight;
     camera.zoom = 1;
-    camera.userData.fitHalfHeight = halfHeight;
+    camera.userData.fitHalfHeight = viewport ? halfHeight * viewport.height / availableHeight : halfHeight;
+    if (viewport) {
+      resizeCameraViewport(camera, viewport.width, viewport.height, insets);
+    } else {
+      camera.left = -halfHeight * aspect;
+      camera.right = halfHeight * aspect;
+      camera.top = halfHeight;
+      camera.bottom = -halfHeight;
+    }
     // Orthographic projection does not change with distance, so this only has to
     // clear the geometry and leave near/far room around it.
     distance = Math.max(extents.halfDepth * 2 + radius, 1);
@@ -822,12 +860,15 @@ function createRenderableForAsset(asset, payload, state) {
   }
 
   const preparedConfig = prepareAssetRenderConfig(asset, payload, state);
-  const morph = visualDeformationMorphConfigs(asset, payload, preparedConfig);
+  const morph = preparedConfig.section_deformations ? null : visualDeformationMorphConfigs(asset, payload, preparedConfig);
   const config = morph?.sourceConfig ?? preparedConfig;
   try {
     const result = createPreparedRenderable(asset, payload, state, format, config);
     if (result.object) result.object.userData.undeformedReference = isUndeformedReferenceConfig(asset, preparedConfig, state);
-    if (result.object && morph) {
+    if (result.object && preparedConfig.section_deformations && isVisualDeformedConfig(asset, preparedConfig)) {
+      result.object.userData.sectionDeformation = preparedConfig;
+      applyVisualDeformationScale(result.object, state);
+    } else if (result.object && morph) {
       const base = createPreparedRenderable(asset, payload, state, format, morph.baseConfig);
       if (base.object && attachVisualDeformationMorph(result.object, base.object, morph.sourceScale)) {
         applyVisualDeformationScale(result.object, state);
@@ -845,6 +886,9 @@ function createPreparedRenderable(asset, payload, state, format, config) {
   }
   if (format === "polyline" || format === "line") {
     return createPolyline(asset, config, format);
+  }
+  if (format === "label") {
+    return createLabel(asset, config, format, state);
   }
   if (format === "point" || format === "marker") {
     return createPoint(asset, config, format, state);
@@ -976,6 +1020,17 @@ export function applyVisualDeformationScale(root, state, options = {}) {
       attribute.needsUpdate = true;
       return;
     }
+    const section = object.userData?.sectionDeformation;
+    if (section) {
+      const points = scaledSectionPoints(section, displayScale);
+      const attribute = object.geometry.getAttribute("position");
+      points.forEach((point, index) => attribute.setXYZ(index, ...point));
+      attribute.needsUpdate = true;
+      if (object.isMesh) object.geometry.computeVertexNormals();
+      object.geometry.computeBoundingBox();
+      object.geometry.computeBoundingSphere();
+      return;
+    }
     if (options.previewOnly) return;
     const sourceScale = positiveNumber(object.userData?.visualDeformationSourceScale);
     if (!sourceScale) return;
@@ -1069,6 +1124,36 @@ function createPoint(asset, config, format, state) {
   mesh.position.copy(point);
   mesh.name = asset.id;
   return { format, object: mesh };
+}
+
+function createLabel(asset, config, format, state) {
+  const text = typeof config.text === "string" ? config.text : "";
+  const point = readPoint(config.position);
+  const height = positiveNumber(config.height);
+  if (!text || !point || !height) return invalidAsset(asset, "Label assets require text, position, and a positive height.");
+  const canvas = state.canvasFactory?.();
+  const context = canvas?.getContext?.("2d");
+  if (!context) return invalidAsset(asset, "Label rendering requires a 2D canvas context.");
+  const fontSize = 64;
+  const padding = 18;
+  context.font = `600 ${fontSize}px sans-serif`;
+  canvas.width = Math.ceil(context.measureText(text).width + padding * 2);
+  canvas.height = fontSize + padding * 2;
+  context.font = `600 ${fontSize}px sans-serif`;
+  context.fillStyle = "rgba(15, 23, 42, 0.86)";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#ffffff";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+  sprite.position.copy(point);
+  sprite.scale.set(height * canvas.width / canvas.height, height, 1);
+  sprite.renderOrder = 1100;
+  sprite.name = asset.id;
+  sprite.userData.pickable = false;
+  return { format, object: sprite };
 }
 
 function createSupportGlyph(asset, config, format, point, state) {
@@ -1302,7 +1387,7 @@ function createVector(asset, config, format, state) {
       new THREE.ConeGeometry(length * 0.045, arcHeadLength, 16),
       new THREE.MeshBasicMaterial({ color })
     );
-    arcHead.position.copy(arcPoints.at(-1)).addScaledVector(arcTangent, -arcHeadLength / 2);
+    arcHead.position.copy(arcPoints.at(-1)).addScaledVector(arcTangent, arcHeadLength / 2);
     arcHead.quaternion.setFromUnitVectors(localAxis, arcTangent);
     arcHead.name = "moment-rotation-head";
 
@@ -1613,6 +1698,21 @@ function scaleVectorConfig(asset, config, state) {
   };
 }
 
+export function scaledSectionPoints(config, scale) {
+  const base = config.base_vertices ?? config.base_points;
+  const count = base.length / config.section_origins.length;
+  return base.map((point, index) => {
+    const station = Math.floor(index / count);
+    const origin = new THREE.Vector3(...config.section_origins[station]);
+    const dof = config.section_deformations[station];
+    const rotation = new THREE.Vector3(...dof.slice(3)).multiplyScalar(scale);
+    const angle = rotation.length();
+    const offset = new THREE.Vector3(...point).sub(origin);
+    if (angle > 1e-15) offset.applyAxisAngle(rotation.divideScalar(angle), angle);
+    return offset.add(origin).add(new THREE.Vector3(...dof.slice(0, 3)).multiplyScalar(scale)).toArray();
+  });
+}
+
 function scaleVisualDeformationConfig(asset, config, state) {
   if (!isVisualDeformedConfig(asset, config)) {
     return config;
@@ -1818,7 +1918,7 @@ function invalidAsset(asset, message) {
 function pickNearestProjectedObject(graph, point, viewport) {
   let best = null;
   for (const object of graph.renderableObjects ?? []) {
-    if (object.visible === false) {
+    if (object.visible === false || object.userData?.pickable === false) {
       continue;
     }
     const objectId = object.userData?.primaryObjectId || object.userData?.objectId;
@@ -1839,4 +1939,43 @@ function pickNearestProjectedObject(graph, point, viewport) {
     }
   }
   return best?.objectId ?? null;
+}
+
+function addContactMarkers(root, state) {
+  const maxima = contactForceMaxima(state);
+  const span = sizeOfBounds(state.bounds);
+  const size = Math.max(span.x, span.y, span.z, 1) * 0.025;
+  for (const contact of Object.values(contactRecords(state))) {
+    const objectId = contactObjectId(state, contact.support_id);
+    if (!(state.visibleObjectIds ?? []).includes(objectId)) continue;
+    const object = (state.objects ?? []).find((o) => o.id === objectId);
+    const asset = (state.geometryAssets ?? []).find((a) => a.id === object?.geometry_asset_id);
+    if (!asset) continue;
+    const payload = (state.geometryPayloads ?? []).find((p) => p.asset_id === asset.id);
+    const config = { ...asset.generation_config, ...payload?.generation_config };
+    const location = readPoint(config.point ?? config.location) ?? centerOfBounds(asset.bounds);
+    if (!location) continue;
+    const group = new THREE.Group(); group.position.copy(location);
+    group.userData = { objectIds: [objectId], format: "vector", contactStatus: contact.status };
+    const color = contact.utilization > 1.001 ? 0xdc2626 : CONTACT_COLORS[contact.status] ?? CONTACT_COLORS.indeterminate;
+    const material = new THREE.MeshBasicMaterial({ color, depthTest: false });
+    let marker;
+    if (contact.status === "open") marker = new THREE.Mesh(new THREE.TorusGeometry(size * 0.45, size * 0.08, 8, 24), material);
+    else if (contact.status === "sticking") marker = new THREE.Mesh(new THREE.BoxGeometry(size * 0.7, size * 0.7, size * 0.7), material);
+    else if (contact.status === "sliding") marker = new THREE.ArrowHelper(new THREE.Vector3(...contact.tangential_force).normalize(), new THREE.Vector3(), size, color, size * 0.5, size * 0.35);
+    else {
+      marker = new THREE.Group();
+      marker.add(new THREE.Mesh(new THREE.TorusGeometry(size * 0.3, size * 0.07, 8, 16, Math.PI * 1.5), material));
+      const point = new THREE.Mesh(new THREE.SphereGeometry(size * 0.08, 8, 8), material); point.position.y = -size * 0.45; marker.add(point);
+    }
+    group.add(marker);
+    for (const [quantity, vector, color] of [["normal", contact.normal.map((v) => v * contact.normal_force), 0x2563eb], ["tangential", contact.tangential_force, 0x0f766e]]) {
+      const direction = new THREE.Vector3(...vector); const force = direction.length();
+      if (state.contactArrows?.[quantity] === false || !(force > 0) || !(maxima[quantity] > 0)) continue;
+      const arrow = new THREE.ArrowHelper(direction.normalize(), new THREE.Vector3(), size * 8 * force / maxima[quantity], color);
+      arrow.userData.contactForce = quantity; group.add(arrow);
+    }
+    group.traverse((child) => { child.userData.objectIds = [objectId]; child.userData.primaryObjectId = objectId; child.renderOrder = 30; });
+    root.add(group);
+  }
 }

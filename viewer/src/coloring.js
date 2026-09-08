@@ -22,7 +22,7 @@ export function getLoadCaseOptionsFromFields(state) {
 }
 
 export function getFieldOptions(state, loadCase = getActiveLoadCase(state)) {
-  return getResultFields(state)
+  return fieldsForActiveResult(state)
     .filter((field) => !loadCase || !field.load_case || field.load_case === loadCase)
     .map((field) => ({
       id: field.id,
@@ -38,11 +38,29 @@ export function getActiveLoadCase(state) {
 }
 
 export function getActiveField(state) {
-  const fields = getResultFields(state);
-  const byId = fields.find((field) => field.id === state.coloring?.fieldId);
+  const fields = fieldsForActiveResult(state);
+  const requested = getResultFields(state).find((field) => field.id === state.coloring?.fieldId);
+  const byId = fields.find((field) => field.id === requested?.id);
   if (byId) return byId;
+  if (requested) {
+    const quantity = (field) => {
+      const overlay = (state.overlays ?? []).find((item) => item.id === field.overlay_id);
+      return JSON.stringify([overlay?.data?.field ?? overlay?.data?.result_type ?? field.label, field.support, field.unit]);
+    };
+    const matching = fields.find((field) => quantity(field) === quantity(requested));
+    if (matching) return matching;
+  }
   const loadCase = getActiveLoadCase(state);
   return fields.find((field) => field.load_case === loadCase) ?? fields[0] ?? null;
+}
+
+function fieldsForActiveResult(state) {
+  if (!state.activeResultStateId) return getResultFields(state);
+  const overlays = new Map((state.overlays ?? []).map((overlay) => [overlay.id, overlay]));
+  return getResultFields(state).filter((field) => {
+    const owner = overlays.get(field.overlay_id)?.data?.result_state_id ?? field.result_state_id;
+    return !owner || owner === state.activeResultStateId;
+  });
 }
 
 export function getActiveComponent(state) {

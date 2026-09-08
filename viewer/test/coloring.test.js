@@ -249,3 +249,27 @@ test("a scene with no fields yields an empty but valid coloring state", () => {
   assert.equal(getColoringLegend(state), null);
   assert.equal(getComplianceNotice(state), null);
 });
+
+test("history field options and values follow the active result while retaining quantity and component", async () => {
+  const { reduceViewerState } = await import("../src/viewerState.js");
+  const states = [0, 1].map((i) => ({ kind: "result_state", id: `state-${i}`, data: { id: `state-${i}`, load_case: "Cold" } }));
+  const overlays = [0, 1].flatMap((i) => ["displacement", "reaction_force"].map((quantity) => ({
+    id: `overlay:${i}:${quantity}`, kind: "solver_result", data: { result_state_id: `state-${i}`, result_type: quantity,
+      load_case: "Cold", values: { N1: [10 * i, 20 * i, 30 * i] }, unit: quantity === "displacement" ? "m" : "N" }
+  })));
+  const resultFields = overlays.map((overlay) => field(overlay.id.replace("overlay:", "field:"), overlay,
+    { support: "node", components: ["DX", "DY", "DZ", "magnitude"] }));
+  let state = { objects: [], layers: {}, resultStates: states, overlays: [...states, ...overlays], resultFields, geometryStates: [], activeResultStateId: "state-0", activeLoadCase: "Cold" };
+  state = setColoringComponent(setColoringField(state, "field:0:reaction_force"), "DZ");
+  assert.equal(getFieldOptions(state).length, 2);
+  state = reduceViewerState(state, { type: "setActiveResultState", resultStateId: "state-1" });
+  assert.deepEqual(getFieldOptions(state).map((option) => option.id), ["field:1:displacement", "field:1:reaction_force"]);
+  assert.equal(getActiveField(state).id, "field:1:reaction_force");
+  assert.equal(state.coloring.fieldId, "field:1:reaction_force");
+  assert.equal(getActiveComponent(state), "DZ");
+  assert.deepEqual(getColoringValues(state), { N1: 30 });
+  assert.equal(getColoringLegend(state).overlay.data.result_state_id, "state-1");
+  state.activeResultStateId = "missing-state";
+  assert.deepEqual(getFieldOptions(state), []);
+  assert.deepEqual(getColoringValues(state), {});
+});

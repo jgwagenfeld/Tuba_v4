@@ -1,0 +1,59 @@
+{
+  "artifacts": {
+    "study.comm": {
+      "sha256": "b943ae897a88620b76346be22e0b56a507cf980057f0339f16452ea52bbb7be3",
+      "size_bytes": 12806
+    },
+    "study.export": {
+      "sha256": "58c126e2d2bf87bedd28c395e588931203b5a712de6725b633a419f9e2cb2198",
+      "size_bytes": 395
+    },
+    "study.mail": {
+      "sha256": "15d6114868d3cd161c52af7fd7dddee800e139457bafed0725ad41ed3fb421c9",
+      "size_bytes": 12314
+    },
+    "study.mess": {
+      "sha256": "e3ead090f13b7aaaceec1aec5fb27b2b7e5eafcce20534fa0c440f68791cab89",
+      "size_bytes": 215513
+    },
+    "study.rmed": {
+      "sha256": "518ac626fd89da45413458258e52ebe7ebef0c55bb6835eafe18d0618865fed9",
+      "size_bytes": 1111367
+    },
+    "study_contact.json": {
+      "sha256": "4f0e862e0e49053577766cb73fb6f5650265ffd9a3d2d9b92ee3ee03c64cd7dc",
+      "size_bytes": 34022
+    },
+    "study_depl.csv": {
+      "sha256": "4bed8c9a35428668a3134403256a7bcd616522cc56959f8944932e489389726a",
+      "size_bytes": 1309012
+    },
+    "study_effo.csv": {
+      "sha256": "7e952938177620c41eeadc8fd45bf5f0db31111718db180d180952f60be916f8",
+      "size_bytes": 2821994
+    },
+    "study_manifest.json": {
+      "sha256": "da31a1039fb8c2634b0bdff0e310e0f4d2b79bb97e330f36c3db094c66a94b97",
+      "size_bytes": 137573
+    },
+    "study_reac.csv": {
+      "sha256": "aac8a8893ca5322d14a81183ec385902bce18414b3fe7226ea589f7f78f7fd76",
+      "size_bytes": 1309012
+    },
+    "study_tuba_fem.json": {
+      "sha256": "a874bc4a98cdacc0631f5ad17cadeb5e450e164a7ac4e749445bc3b6f8370e75",
+      "size_bytes": 8326
+    }
+  },
+  "execution_method": "wsl",
+  "schema_version": "tuba.code_aster_execution.v1",
+  "solved_at": "2026-09-08T15:15:53.342805Z",
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v1",
+    "fingerprint": "39180f7b72d756f69ed22923f6cb4d4aeb2651c643a62ba2c19512ea1df19959",
+    "load_case": "Cold",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster",
+  "solver_version": "18.0.12"
+}

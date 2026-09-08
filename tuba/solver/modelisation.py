@@ -22,6 +22,7 @@ class PipeModelization(str, Enum):
     """Engineer-selectable pipe idealization."""
 
     TUYAU_3M = "TUYAU_3M"
+    POU_D_T = "POU_D_T"
     SOLID_3D = "3D"
 
 
@@ -38,7 +39,9 @@ def needs_discrete_element(support: "Support") -> bool:
     return is_discrete_spring or support.mass > 0.0
 
 
-def modelisation_assignments(model: "TubaModel") -> dict[str, str]:
+def modelisation_assignments(
+    model: "TubaModel", pipe_modelization: PipeModelization | str = PipeModelization.TUYAU_3M,
+) -> dict[str, str]:
     """Return ``{GROUP_MA name: MODELISATION}`` in ``AFFE_MODELE`` order.
 
     Group names are the raw Tuba names. Callers that write a .comm apply their
@@ -50,7 +53,7 @@ def modelisation_assignments(model: "TubaModel") -> dict[str, str]:
 
     assignments: dict[str, str] = {}
     if by_type.get("pipe_straight") or by_type.get("pipe_bend"):
-        assignments["AllPipes"] = "TUYAU_3M"
+        assignments["AllPipes"] = PipeModelization(pipe_modelization).value
     if by_type.get("beam"):
         assignments["G_TUBE"] = "POU_D_T"
     if by_type.get("bar"):
@@ -60,4 +63,7 @@ def modelisation_assignments(model: "TubaModel") -> dict[str, str]:
     for support in model.supports:
         if needs_discrete_element(support):
             assignments[discrete_support_group(support.node)] = "DIS_TR"
+    from tuba.solver.aster_contact import shoes
+    for shoe in shoes(model, pipe_modelization):
+        assignments[shoe.group] = 'DIS_T'
     return assignments

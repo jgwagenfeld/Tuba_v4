@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "e2e": "node scripts/e2e-smoke.mjs",
-    "e2e:pages": "playwright test --config playwright.config.js e2e/pages-artifact.spec.js"
+    "e2e:pages": "playwright test --config playwright.config.js e2e/pages-artifact.spec.js e2e/friction-gallery.spec.js"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

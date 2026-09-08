@@ -54,7 +54,15 @@ def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -
     output_path.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="tuba-gallery-routing-") as scratch:
         model, load_case = gallery_record.refresh_producer(Path(scratch))
-    solver = CodeAsterSolver(work_dir=output_path)
+    if gallery_record.refresh_load_cases:
+        return {case: _refresh_study(model, case, output_path / case, gallery_record)
+                for case in gallery_record.refresh_load_cases}
+    return _refresh_study(model, load_case, output_path, gallery_record)
+
+
+def _refresh_study(model: Any, load_case: str, output_path: Path, gallery_record: Any) -> Any:
+    output_path.mkdir(parents=True, exist_ok=True)
+    solver = CodeAsterSolver(work_dir=output_path, **gallery_record.solver_options)
     study = (
         solver.export_volume_study(
             model,
@@ -71,7 +79,7 @@ def refresh_gallery(output: str | Path, *, gallery: str = "code-aster-review") -
         (output_path / filename).unlink(missing_ok=True)
     solver.solve_exported_study(model, study)
     artifact = import_code_aster_artifacts(model=model, work_dir=output_path, study=study)
-    _validate_gallery_artifact_chain(output_path, artifact)
+    _validate_gallery_artifact_chain(output_path, artifact, beam=gallery_record.profile == "beam-engineering-review")
     return artifact
 
 
@@ -89,10 +97,14 @@ def refresh_all_galleries() -> dict[str, Any]:
     return refreshed
 
 
-def _validate_gallery_artifact_chain(output: Path, artifact: Any) -> None:
+def _validate_gallery_artifact_chain(output: Path, artifact: Any, *, beam: bool = False) -> None:
     required_outputs = (
         _VOLUME_SOLVER_OUTPUT_FILES
         if getattr(artifact.study, "metadata", {}).get("volume_analysis")
+        else tuple(name for name in _SOLVER_OUTPUT_FILES if name != "study_sieq.csv") + ("study_contact.json",)
+        if getattr(artifact.study, "metadata", {}).get("compiler_inputs", {}).get("load_path")
+        else tuple(name for name in _SOLVER_OUTPUT_FILES if name != "study_sieq.csv")
+        if beam
         else _SOLVER_OUTPUT_FILES
     )
     for filename in required_outputs:
@@ -156,13 +168,16 @@ def main() -> int:
             parser.error(f"Official gallery {gallery_id!r} is not refreshable.")
         refreshed = {gallery_id: refresh_gallery(args.output, gallery=gallery_id)}
     for gallery_id, artifact in refreshed.items():
-        attestation = artifact.result_state.metadata["solve_attestation"]
         output = _gallery_record(gallery_id).artifact_dir if args.all_galleries else args.output
-        print(
-            f"Refreshed Code_Aster gallery at {output} "
-            f"({attestation['execution_method']} Code_Aster {attestation['solver_version']}, "
-            f"{attestation['solved_at']})."
-        )
+        cases = artifact if isinstance(artifact, dict) else {None: artifact}
+        for case, run in cases.items():
+            attestation = run.result_state.metadata["solve_attestation"]
+            path = output / case if case else output
+            print(
+                f"Refreshed Code_Aster gallery at {path} "
+                f"({attestation['execution_method']} Code_Aster {attestation['solver_version']}, "
+                f"{attestation['solved_at']})."
+            )
     return 0
 
 

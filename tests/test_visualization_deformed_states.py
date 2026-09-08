@@ -78,7 +78,9 @@ class TestVisualizationDeformedStates(unittest.TestCase):
         self.assertEqual(warped.metadata["mesh_id"], analysis_mesh.id)
         self.assertEqual(warped.metadata["source_ref"], "element:pipe_0")
         self.assertIn("deformed:mesh", warped.layer_ids)
-        self.assertIn("analysis_mesh:group:AllPipes", warped.layer_ids)
+        self.assertIn("deformed:group:AllPipes", warped.layer_ids)
+        self.assertIn("AllPipes", warped.group_ids)
+        self.assertTrue(all(layer.category == "results" for layer in scene.layers if layer.id in warped.layer_ids))
 
     def test_deformed_ibeam_uses_its_profile_mesh_and_solver_rotations(self):
         model, result_state, analysis_mesh = _ibeam_model_state_and_mesh()

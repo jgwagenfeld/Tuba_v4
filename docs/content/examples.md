@@ -125,3 +125,19 @@ After [Setup](setup.md) succeeds, open:
 ```
 
 Examples that display stress, reaction, displacement, compliance, or operating-state results must either execute Code_Aster or load real preserved Code_Aster artifacts.
+
+## How does friction change the same pipe and load path?
+
+**Pipe-shoe friction comparison.** Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. Compare zero-friction shoes directly with mu = 0.3 through heating, cooling, lift-off and reseating.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review) &middot; Evidence: **Results**
+
+See the [native friction example](examples/native-friction.md) for the contact law, load stages and validation.
+
+## How do section orientation and local axes change bending?
+
+**I-section rotation and local axes.** Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. Compare global and local loading, deformed profiles and solved section rotations beside their original local axes.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) &middot; Evidence: **Results**
+
+See the [profile-orientation example](examples/profile-orientation.md) for the two load cases, local-axis convention and numerical reference checks.

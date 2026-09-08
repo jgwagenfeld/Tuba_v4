@@ -84,6 +84,10 @@ def build_solver_input_identity(
     }
     if compiler_inputs is not None:
         payload["compiler_inputs"] = dict(compiler_inputs)
+        if compiler_inputs.get('load_path'):
+            payload['load_path_cases'] = {
+                name: model_data['load_cases'][name] for name in compiler_inputs['load_path']
+            }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return SolverInputIdentity(
         fingerprint=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
