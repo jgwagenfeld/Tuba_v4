@@ -35,6 +35,12 @@ const BODY_SPECS = Object.freeze([
     supportsOpacity: true
   },
   {
+    id: "insulation",
+    label: "Insulation",
+    description: "Assigned insulation: included in weight, wind diameter and clearance checks.",
+    supportsOpacity: true
+  },
+  {
     id: "analysis_mesh",
     label: "Analysis mesh",
     description: "Elements on the centerline. No surface exists - the tube is swept from section properties.",
@@ -60,6 +66,8 @@ export const BODY_ORDER = Object.freeze(BODY_SPECS.map((spec) => spec.id));
 // because both are "results" and the category alone cannot separate them.
 export function bodyIdForLayerId(layerId, declaredCategory = null) {
   const id = String(layerId);
+  if (id === "physical_envelope:insulation") return "insulation";
+  if (id.startsWith("physical_envelope:") || id === "overlay:physical_envelope") return null;
   if (id.includes("tuyau_subpoint")) return "subpoints";
   if (id.startsWith("deformed:")) return "deformed";
   const category = categoryForLayerId(id, declaredCategory);
@@ -203,6 +211,7 @@ export function getDiscretisationCheck(state) {
 }
 
 function badgeForBody(state, bodyId) {
+  if (bodyId === "insulation") return { text: "physical", tone: "neutral" };
   if (bodyId === "geometry") return { text: "3D solid", tone: "neutral" };
   if (bodyId === "analysis_mesh") {
     const dim = getMeshIdentity(state)?.topological_dim;
@@ -220,6 +229,12 @@ function badgeForBody(state, bodyId) {
 }
 
 function metricsForBody(state, bodyId) {
+  if (bodyId === "insulation") {
+    return [...new Set((state.objects ?? []).flatMap((obj) => {
+      const spec = obj.metadata?.insulation;
+      return spec ? [`${spec.material} · ${formatQuantity(spec.thickness_m, "m", getUnitSystem(state))}`] : [];
+    }))];
+  }
   if (bodyId === "geometry") return geometryMetrics(state);
   if (bodyId === "analysis_mesh") return meshMetrics(state);
   if (bodyId === "subpoints") return subpointMetrics(state);

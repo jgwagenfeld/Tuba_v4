@@ -9,6 +9,19 @@ const VIEWPORTS = {
 
 const DOCUMENTATION_PAGES = ["/index.html", "/setup.html"];
 
+test("published expansion loop contains pipe geometry without legacy envelope skins", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/viewer/?bundle=autorouted-expansion-loop", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("status")).toHaveText("Ready", { timeout: 60_000 });
+  const shells = await page.evaluate(async () => {
+    const scene = await (await fetch("./autorouted-expansion-loop/scene.json")).json();
+    return scene.objects.filter(obj => ["physical_envelope", "deformed_envelope"].includes(obj.kind));
+  });
+  // This example has no assigned insulation, so neither cold nor deformed skins belong here.
+  expect(shells).toEqual([]);
+  await expect(page.locator("[data-canvas]")).toHaveAttribute("data-render-diagnostics", "0");
+});
+
 test("assembled Pages gallery scrolls to the final review", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   await page.goto("/viewer/", { waitUntil: "domcontentloaded" });
@@ -84,6 +97,7 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
 
   for (const [name, viewport] of Object.entries(VIEWPORTS)) {
     await page.setViewportSize(viewport);
+    await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
     await page.waitForFunction(() => {
       const canvas = document.querySelector("[data-canvas]");
       const gl = canvas?.getContext("webgl2") || canvas?.getContext("webgl");

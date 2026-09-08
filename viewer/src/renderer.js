@@ -1060,7 +1060,7 @@ function createTube(asset, config, format) {
   const tubularSegments = Math.max(8, points.length * 12);
   const outer = new THREE.Mesh(
     new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false),
-    materialForAsset(asset, config, { transparent: format === "tube_envelope" })
+    materialForAsset(asset, config, { transparent: format === "tube_envelope" && config.envelope_type !== "insulation" })
   );
   const innerRadius = positiveNumber(config.inner_radius_m);
   if (!innerRadius || innerRadius >= radius) {

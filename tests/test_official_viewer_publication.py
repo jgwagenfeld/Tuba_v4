@@ -121,9 +121,10 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     )
     assert autorouted["route_reviews"]
     _assert_thermal_clearance_clash(autorouted)
-    assert {"physical_envelope", "cost_heatmap", "quantity_summary"} <= {
+    assert {"cost_heatmap", "quantity_summary"} <= {
         overlay["kind"] for overlay in autorouted["overlays"]
     }
+    assert not any(obj["kind"] in {"physical_envelope", "deformed_envelope"} for obj in autorouted["objects"])
     rack = json.loads((tmp_path / "support-rack-review" / "scene.json").read_text(encoding="utf-8"))
     assert any(overlay["kind"] == "rack_assembly" for overlay in rack["overlays"])
     assert any(overlay["kind"] == "load_path" for overlay in rack["overlays"])

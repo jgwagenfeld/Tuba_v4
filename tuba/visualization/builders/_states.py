@@ -188,6 +188,9 @@ def _build_deformed_envelope_scene(
         envelope_type="insulation",
         analysis_mesh=analysis_mesh,
     ):
+        insulation = model.get_insulation(envelope.entity)
+        if insulation is None or insulation.thickness_m <= 0:
+            continue
         points = [[float(value) for value in point] for point in envelope.polyline]
         base_points = _base_points_for_node_ids(model, analysis_mesh, envelope.source_mesh_nodes)
         object_id = f"object:deformed_envelope:{geometry_state.id}:{envelope.entity}:{envelope.envelope_type}"

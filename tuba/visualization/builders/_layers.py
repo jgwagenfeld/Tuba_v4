@@ -150,7 +150,7 @@ def build_layer_registry(
             category=category,
             label=_label_for(layer_id),
             default_visible=not (
-                layer_id.startswith("physical_envelope:")
+                (layer_id.startswith("physical_envelope:") and layer_id != "physical_envelope:insulation")
                 or (layer_id.startswith("deformed:") and layer_id.endswith("_envelope"))
             ),
         )

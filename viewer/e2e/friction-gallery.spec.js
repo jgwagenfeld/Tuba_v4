@@ -15,6 +15,7 @@ test("hot-line gallery glyphs preserve relative reaction magnitudes", async ({ p
   await page.screenshot({ path: "../.build/hot-line-fixed.png" });
   await page.getByRole("button", { name: "Controls", exact: true }).click();
   await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
+  await page.locator("summary").filter({ hasText: "Filters & vectors" }).click();
   const moment = page.getByRole("slider", { name: /^Moment vector scale/ });
   await moment.fill("0.25");
   await moment.dispatchEvent("change");

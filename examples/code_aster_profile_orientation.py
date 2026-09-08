@@ -37,7 +37,8 @@ def build_model() -> Model:
         model.add_support(id=f"anchor{roll}", node=nodes[0], type="anchor")
         global_case.add_nodal_force(nodes[-1], [0, 0, -FORCE])
         _, _, local_z = beam_local_frame([0,0,0], [1,0,0], twist_angle_deg=roll)
-        local_case.add_nodal_force(nodes[-1], (-FORCE * local_z).tolist())
+        # Author forces to 1e-10 N: libm's last bit differs across Windows/Linux.
+        local_case.add_nodal_force(nodes[-1], [round(float(value), 10) for value in -FORCE * local_z])
     return model
 
 
