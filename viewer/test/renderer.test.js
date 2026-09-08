@@ -796,6 +796,13 @@ test("moment vectors render a signed axis and right-hand-rule rotation at the re
   assert.equal(moment.children[1].geometry.type, "TubeGeometry");
   assert.equal(moment.children[2].geometry.type, "ConeGeometry");
 
+  const [, arc, head] = moment.children;
+  const headDirection = new Vector3(0, 1, 0).applyQuaternion(head.quaternion);
+  const headBase = head.position.clone().addScaledVector(headDirection, -head.geometry.parameters.height / 2);
+  const arcEnd = arc.geometry.parameters.path.getPoint(1);
+  assert.ok(headBase.distanceTo(arcEnd) < 1e-12, "The arc must meet the arrowhead base, not protrude through its tip");
+  assert.ok(new Vector3().crossVectors(arcEnd, headDirection).normalize().distanceTo(new Vector3(0, 1, 0)) < 1e-12);
+
   const worldAxis = new Vector3(0, 1, 0).applyQuaternion(moment.quaternion);
   assert.ok(worldAxis.distanceTo(new Vector3(1, 0, 0)) < 1e-12);
 });
@@ -1011,7 +1018,7 @@ test("section box clipping keeps a crossing pipe in the coarse scene graph", () 
   }
 });
 
-test("interaction mode temporarily hides detail geometry and restores visibility", () => {
+test("interaction mode keeps arrows visible while temporarily hiding detail geometry", () => {
   const graph = createThreeSceneGraph(fixtureState());
 
   rendererModule.setSceneGraphInteractionMode?.(graph, true);
@@ -1021,7 +1028,7 @@ test("interaction mode temporarily hides detail geometry and restores visibility
   assert.equal(graph.objectsByObjectId.get("object:box").visible, true);
   assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, false);
   assert.equal(graph.objectsByObjectId.get("object:node").visible, false);
-  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, false);
+  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, true);
 
   rendererModule.setSceneGraphInteractionMode(graph, false);
 

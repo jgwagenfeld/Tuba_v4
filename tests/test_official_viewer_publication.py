@@ -15,7 +15,7 @@ from scripts.build_pages import build_examples, validate_official_bundle, write_
 from tuba.analysis import AnalysisRun
 from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidence
 from tuba.analysis.mesh import AnalysisMesh
-from tuba.analysis.provenance import SolverInputIdentity
+from tuba.analysis.provenance import CODE_ASTER_COMPILER_ID, SolverInputIdentity
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.solver.base import FEAResults
@@ -103,23 +103,18 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
         scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
         review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
         assert len(scene["result_fields"]) == 5
-        # Both galleries carry an optional ASME B31.3 layer, which is what
-        # 'compliance_complete' records. It is not a higher grade of evidence
-        # than 'solved' -- the solver evidence is identical either way.
-        assert review["analysis_status"] == "compliance_complete"
-        compliance = review["tables"]["code_compliance"]
-        assert compliance["rows"]
-        assert all(
-            row["sustained_pass"] is True and row["expansion_pass"] is True
-            for row in compliance["rows"]
-        )
+        assert review["analysis_status"] == "solved"
+        assert "code_compliance" not in review["tables"]
 
     autorouted = json.loads(
         (tmp_path / "autorouted-expansion-loop" / "scene.json").read_text(encoding="utf-8")
     )
     assert autorouted["route_reviews"]
     _assert_thermal_clearance_clash(autorouted)
-    assert {"physical_envelope", "cost_heatmap", "quantity_summary"} <= {
+    # No physical_envelope: an envelope now means declared insulation, not a
+    # bare/clearance/wind shell drawn around every pipe, and this line carries
+    # none. Insulate the gallery model and the overlay comes back.
+    assert {"cost_heatmap", "quantity_summary"} <= {
         overlay["kind"] for overlay in autorouted["overlays"]
     }
     rack = json.loads((tmp_path / "support-rack-review" / "scene.json").read_text(encoding="utf-8"))
@@ -547,7 +542,10 @@ def test_examples_main_does_not_create_or_overwrite_catalog_when_validation_fail
 def _write_engineering_bundle(root: Path, *, evidence: bool = False) -> None:
     identity = {
         "schema_id": "tuba.model.v4",
-        "compiler_id": "tuba.code_aster.v1",
+        # The constant, not a literal: these fixtures exercise bundle
+        # validation, and a hard-coded id turns every compiler bump into an
+        # unrelated failure about an unknown identity.
+        "compiler_id": CODE_ASTER_COMPILER_ID,
         "load_case": "Operating",
         "fingerprint": "a" * 64,
     }
@@ -641,7 +639,7 @@ def _artifact_with_files(
 ) -> AnalysisRun:
     identity = SolverInputIdentity(
         schema_id="tuba.model.v4",
-        compiler_id="tuba.code_aster.v1",
+        compiler_id=CODE_ASTER_COMPILER_ID,
         load_case="Operating",
         fingerprint="a" * 64,
     )

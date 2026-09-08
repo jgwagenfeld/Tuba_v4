@@ -79,11 +79,22 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
 
 export function createViewerState(bundle) {
   const scene = bundle.scene;
-  const objects = scene.objects?.length ? scene.objects : bundle.objects ?? [];
+  const sourceObjects = scene.objects?.length ? scene.objects : bundle.objects ?? [];
+  // Older bundles contain coincident bare/wind skins and clearance shells.
+  // Only assigned physical insulation is a display surface.
+  const objects = sourceObjects.filter((obj) => {
+    if (obj.kind === "physical_envelope") return obj.metadata?.envelope_type === "insulation";
+    if (obj.kind !== "deformed_envelope") return true;
+    const pipe = sourceObjects.find((candidate) => candidate.entity_ref === obj.metadata?.entity_ref);
+    return Number(pipe?.physical?.insulation_thickness_m) > 0;
+  });
   const geometryAssets = scene.geometry_assets?.length ? scene.geometry_assets : bundle.geometryAssets ?? [];
-  const overlays = scene.overlays?.length ? scene.overlays : bundle.overlays ?? [];
+  const overlays = (scene.overlays?.length ? scene.overlays : bundle.overlays ?? [])
+    .filter((overlay) => overlay.kind !== "physical_envelope" ||
+      overlay.object_ids?.some((id) => objects.some((obj) => obj.id === id)));
   const objectLayerIds = Object.fromEntries(objects.map((obj) => [obj.id, layerIdsForObject(obj)]));
-  const sceneLayers = Array.isArray(scene.layers) ? scene.layers : [];
+  const sceneLayers = (Array.isArray(scene.layers) ? scene.layers : []).filter((layer) =>
+    !["physical_envelope:bare_pipe", "physical_envelope:wind", "physical_envelope:clearance", "overlay:physical_envelope"].includes(layer.id));
   const layers = buildLayerRegistry(objects, overlays, objectLayerIds, sceneLayers);
   const resultStates = overlays.filter((overlay) => overlay.kind === "result_state");
   const geometryStates = overlays.filter((overlay) => overlay.kind === "geometry_state");

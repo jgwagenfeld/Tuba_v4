@@ -37,6 +37,8 @@ class PipeVolumeStudyExporter:
     ) -> AnalysisStudy:
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
+        if any(model.get_insulation(f"element:{element.id}") for element in model.elements):
+            raise ValueError("Insulated pipe-volume studies are not supported; use the pipe beam/TUYAU solver so insulation weight is included.")
         ids = tuple(element_ids)
         root = Path(output_dir)
         root.mkdir(parents=True, exist_ok=True)
@@ -213,6 +215,8 @@ def _coupling_groups(
 
 
 def _reject_unimplemented_loads(load_case) -> None:
+    if any(field.quantity == "wind" for field in load_case.fields):
+        raise ValueError("Pipe-volume wind loading is not implemented.")
     if load_case.nodal_forces:
         raise ValueError("Pipe-volume nodal-force coupling is not implemented.")
     if abs(load_case.temperature - load_case.ref_temperature) > 1.0e-10:
@@ -406,7 +410,7 @@ def _write_comm(
                 else "    CONTRAINTE=('SIGM_ELGA', 'SIGM_ELNO'),"
             ),
             "    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),",
-            "    FORCE='FORC_NODA',",
+            "    FORCE='REAC_NODA',",
             ");",
             "IMPR_RESU(",
             "    FORMAT='MED',",
@@ -416,11 +420,11 @@ def _write_comm(
     if mixed:
         lines.append(
             "    RESU=_F(RESULTAT=RESU, CARA_ELEM=CARA, "
-            "NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA')),"
+            "NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA')),"
         )
     else:
         lines.append(
-            "    RESU=_F(RESULTAT=RESU, NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'FORC_NODA')),"
+            "    RESU=_F(RESULTAT=RESU, NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'REAC_NODA')),"
         )
     displacement_components = "('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ')" if mixed else "('DX', 'DY', 'DZ')"
     stress_components = "('VMIS',)" if mixed else "('VMIS', 'TRESCA')"
@@ -433,7 +437,7 @@ def _write_comm(
             ");",
             "IMPR_TABLE(TABLE=TAB_DEPL, FORMAT='TABLEAU', UNITE=39, SEPARATEUR=',');",
             "TAB_REAC = CREA_TABLE(",
-            "    RESU=_F(RESULTAT=RESU, NOM_CHAM='FORC_NODA', TOUT='OUI',",
+            "    RESU=_F(RESULTAT=RESU, NOM_CHAM='REAC_NODA', TOUT='OUI',",
             f"            NOM_CMP={displacement_components}),",
             ");",
             "IMPR_TABLE(TABLE=TAB_REAC, FORMAT='TABLEAU', UNITE=40, SEPARATEUR=',');",

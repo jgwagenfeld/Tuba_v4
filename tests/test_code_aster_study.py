@@ -298,7 +298,7 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         impr_resu = comm[comm.index("IMPR_RESU(") : comm.index("# ----- Text table for EFGE_ELNO -----")]
         self.assertIn("        CARA_ELEM=CARA,", impr_resu)
         self.assertIn(
-            "NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),",
+            "NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),",
             impr_resu,
         )
 

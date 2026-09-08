@@ -33,15 +33,11 @@ class TestVisualizationEnvelopes(unittest.TestCase):
 
         envelope_objects = [obj for obj in scene.objects if obj.kind == "physical_envelope"]
         envelope_types = {obj.metadata["envelope_type"] for obj in envelope_objects}
-        self.assertEqual(envelope_types, {"bare_pipe", "insulation", "clearance", "wind"})
+        self.assertEqual(envelope_types, {"insulation"})
 
         insulation = next(obj for obj in envelope_objects if obj.metadata["envelope_type"] == "insulation")
         self.assertEqual(insulation.metadata["source"]["insulation_id"], "mw_50")
         self.assertAlmostEqual(insulation.metadata["radius_m"], 0.10)
-
-        clearance = next(obj for obj in envelope_objects if obj.metadata["envelope_type"] == "clearance")
-        self.assertAlmostEqual(clearance.metadata["radius_m"], 0.15)
-        self.assertEqual(clearance.metadata["source"]["clearance_m"], 0.05)
 
         asset = next(asset for asset in scene.geometry_assets if asset.id == insulation.geometry_asset_id)
         self.assertEqual(asset.format, "tube_envelope")
@@ -56,8 +52,8 @@ class TestVisualizationEnvelopes(unittest.TestCase):
         )
 
         overlays = [overlay for overlay in scene.overlays if overlay.kind == "physical_envelope"]
-        self.assertEqual({overlay.data["envelope_type"] for overlay in overlays}, {"bare_pipe", "insulation", "clearance", "wind"})
-        self.assertEqual(len({tuple(overlay.object_ids) for overlay in overlays}), 4)
+        self.assertEqual({overlay.data["envelope_type"] for overlay in overlays}, {"insulation"})
+        self.assertEqual(len({tuple(overlay.object_ids) for overlay in overlays}), 1)
 
 
 if __name__ == "__main__":

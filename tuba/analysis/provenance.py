@@ -9,9 +9,9 @@ from typing import Any
 
 
 MODEL_SCHEMA_ID = "tuba.model.v4"
-CODE_ASTER_COMPILER_ID = "tuba.code_aster.v1"
-MIXED_CODE_ASTER_COMPILER_ID = "tuba.code_aster.mixed.v1"
-VOLUME_CODE_ASTER_COMPILER_ID = "tuba.code_aster.volume.v1"
+CODE_ASTER_COMPILER_ID = "tuba.code_aster.v2"
+MIXED_CODE_ASTER_COMPILER_ID = "tuba.code_aster.mixed.v2"
+VOLUME_CODE_ASTER_COMPILER_ID = "tuba.code_aster.volume.v2"
 
 _SOLVER_MODEL_KEYS = (
     "materials",
@@ -84,6 +84,13 @@ def build_solver_input_identity(
     }
     if compiler_inputs is not None:
         payload["compiler_inputs"] = dict(compiler_inputs)
+    insulation = {
+        element.id: {"thickness_m": float(spec.thickness_m), "density_kg_m3": float(spec.density_kg_m3)}
+        for element in model.elements
+        if (spec := model.get_insulation(f"element:{element.id}")) is not None
+    }
+    if insulation:
+        payload["insulation"] = insulation
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return SolverInputIdentity(
         fingerprint=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),

@@ -26,7 +26,7 @@ export const SUPPORTED_RENDER_FORMATS = new Set([
 
 const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
 const REFERENCE_GEOMETRY_OPACITY = 0.32;
-const INTERACTION_DETAIL_FORMATS = new Set(["line", "point", "polyline", "tuyau_subpoint_glyphs", "vector"]);
+const INTERACTION_DETAIL_FORMATS = new Set(["line", "point", "polyline", "tuyau_subpoint_glyphs"]);
 
 export const STANDARD_VIEW_DIRECTIONS = {
   iso: [1, -1, 0.65],
@@ -1005,7 +1005,7 @@ function createTube(asset, config, format) {
   const tubularSegments = Math.max(8, points.length * 12);
   const outer = new THREE.Mesh(
     new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false),
-    materialForAsset(asset, config, { transparent: format === "tube_envelope" })
+    materialForAsset(asset, config, { transparent: format === "tube_envelope" && config.envelope_type !== "insulation" })
   );
   const innerRadius = positiveNumber(config.inner_radius_m);
   if (!innerRadius || innerRadius >= radius) {
@@ -1302,7 +1302,7 @@ function createVector(asset, config, format, state) {
       new THREE.ConeGeometry(length * 0.045, arcHeadLength, 16),
       new THREE.MeshBasicMaterial({ color })
     );
-    arcHead.position.copy(arcPoints.at(-1)).addScaledVector(arcTangent, -arcHeadLength / 2);
+    arcHead.position.copy(arcPoints.at(-1)).addScaledVector(arcTangent, arcHeadLength / 2);
     arcHead.quaternion.setFromUnitVectors(localAxis, arcTangent);
     arcHead.name = "moment-rotation-head";
 

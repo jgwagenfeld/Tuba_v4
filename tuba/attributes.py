@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+import math
 
 from tuba.refs import EntityRef
 
@@ -20,6 +21,9 @@ class InsulationSpec:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        for name in ("thickness_m", "density_kg_m3", "cost_per_m"):
+            if not math.isfinite(getattr(self, name)):
+                raise ValueError(f"InsulationSpec {name} must be finite.")
         if not self.id:
             raise ValueError("InsulationSpec id must not be empty.")
         if not self.material:

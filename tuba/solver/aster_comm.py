@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
+from tuba.physical import physical_properties_for_element
 
 from tuba.model import (
     BarSection,
@@ -241,6 +242,24 @@ class _CommWriterMixin:
                 f"            MATER={var},\n"
                 f"        ),"
             )
+
+        # Carry non-structural insulation mass on the steel section. E, NU,
+        # ALPHA and wall geometry stay unchanged; RHO supplies static gravity.
+        for index, elem in enumerate(model.elements):
+            if model.get_insulation(f"element:{elem.id}") is None:
+                continue
+            props = physical_properties_for_element(model, elem)
+            if load_case.gravity and props.insulation_thickness_m > 0 and props.insulation_mass_kg_per_m <= 0:
+                raise ValueError(f"Insulation on {elem.id!r} requires a positive density for gravity loading.")
+            if props.insulation_mass_kg_per_m <= 0:
+                continue
+            mat = model.materials[elem.material]
+            density = props.mass_kg_per_m / props.metal_area_m2
+            var = f"IM{index}"
+            w(f"# Insulation mass for {elem.id}: {props.insulation_mass_kg_per_m:.12E} kg/m")
+            w(f"{var} = DEFI_MATERIAU(ELAS=_F(E={mat.E:.12E}, NU={mat.nu:.12E}, "
+              f"RHO={density:.12E}, ALPHA={mat.alpha:.12E}));")
+            affe_entries.append(f"        _F(GROUP_MA='{map_name(elem.id)}', MATER={var}),")
 
         w("CHMAT = AFFE_MATERIAU(")
         w("    MAILLAGE=MAIL,")
@@ -774,7 +793,7 @@ class _CommWriterMixin:
         w("    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),")
         if has_pipe_stress:
             w("    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),")
-        w("    FORCE='FORC_NODA',")
+        w("    FORCE='REAC_NODA',")
         w(");")
         w()
 
@@ -789,9 +808,9 @@ class _CommWriterMixin:
         w("        RESULTAT=RESU,")
         if has_pipe_stress:
             w("        CARA_ELEM=CARA,")
-            w("        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),")
+            w("        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),")
         else:
-            w("        NOM_CHAM=('DEPL', 'EFGE_ELNO', 'FORC_NODA'),")
+            w("        NOM_CHAM=('DEPL', 'EFGE_ELNO', 'REAC_NODA'),")
         w("    ),")
         w(");")
         w()
@@ -837,11 +856,11 @@ class _CommWriterMixin:
         w("    SEPARATEUR=',',")
         w(");")
         w()
-        w("# ----- Text table for FORC_NODA -----")
+        w("# ----- Text table for REAC_NODA -----")
         w("TAB_REAC = CREA_TABLE(")
         w("    RESU=_F(")
         w("        RESULTAT=RESU,")
-        w("        NOM_CHAM='FORC_NODA',")
+        w("        NOM_CHAM='REAC_NODA',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),")
         if is_nonlinear:

@@ -146,7 +146,7 @@ def _build_element_object(
     envelope_objects: list[SceneObject] = []
     envelope_assets: list[GeometryAsset] = []
     envelope_overlays: list[Overlay] = []
-    if options.include_physical_envelopes and elem.type.startswith("pipe"):
+    if elem.type.startswith("pipe") and physical.get("insulation_thickness_m", 0) > 0:
         envelope_objects, envelope_assets, envelope_overlays = _build_physical_envelopes(
             elem=elem,
             entity_ref=entity_ref,
@@ -163,7 +163,7 @@ def _build_physical_envelopes(
     physical: dict[str, Any],
     clearance_m: float,
 ) -> tuple[list[SceneObject], list[GeometryAsset], list[Overlay]]:
-    envelope_specs = _physical_envelope_specs(elem, physical, clearance_m)
+    envelope_specs = _physical_envelope_specs(physical)
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
     overlays: list[Overlay] = []
@@ -186,6 +186,9 @@ def _build_physical_envelopes(
                     "points": points,
                     "radius_m": radius,
                     "source_data": spec["source"],
+                    "inner_radius_m": float(physical["bare_radius_m"]),
+                    "color": "#a8b5ad",
+                    "opacity": 1.0,
                 },
             )
         )
@@ -193,7 +196,7 @@ def _build_physical_envelopes(
             SceneObject(
                 id=object_id,
                 kind="physical_envelope",
-                name=f"{elem.id} {envelope_type} envelope",
+                name=f"{elem.id} insulation {physical['insulation_thickness_m'] * 1000:g} mm",
                 geometry_asset_id=asset_id,
                 layer_ids=[f"physical_envelope:{envelope_type}"],
                 metadata={
@@ -278,55 +281,9 @@ def _build_obstacle_object(obstacle: dict[str, Any]) -> tuple[SceneObject, Geome
         metadata=dict(obstacle),
     )
     return scene_object, asset
-def _physical_envelope_specs(elem: Element, physical: dict[str, Any], clearance_m: float) -> list[dict[str, Any]]:
-    bare_radius = float(physical.get("bare_radius_m") or 0.0)
-    effective_radius = float(physical.get("effective_radius_m") or bare_radius)
-    wind_radius = float(physical.get("wind_diameter_m") or effective_radius * 2.0) / 2.0
-    specs: list[dict[str, Any]] = [
-        {
-            "envelope_type": "bare_pipe",
-            "radius_m": bare_radius,
-            "source": {
-                "type": "section",
-                "section": elem.section,
-                "field": "bare_radius_m",
-            },
-        }
-    ]
-    if physical.get("insulation_spec_id"):
-        specs.append(
-            {
-                "envelope_type": "insulation",
-                "radius_m": effective_radius,
-                "source": {
-                    "type": "insulation",
-                    "insulation_id": physical["insulation_spec_id"],
-                    "thickness_m": float(physical.get("insulation_thickness_m") or 0.0),
-                    "field": "effective_radius_m",
-                },
-            }
-        )
-    if clearance_m > 0.0:
-        specs.append(
-            {
-                "envelope_type": "clearance",
-                "radius_m": effective_radius + float(clearance_m),
-                "source": {
-                    "type": "clearance",
-                    "base_radius_m": effective_radius,
-                    "clearance_m": float(clearance_m),
-                },
-            }
-        )
-    specs.append(
-        {
-            "envelope_type": "wind",
-            "radius_m": wind_radius,
-            "source": {
-                "type": "wind",
-                "field": "wind_diameter_m",
-                "wind_diameter_m": float(physical.get("wind_diameter_m") or wind_radius * 2.0),
-            },
-        }
-    )
-    return specs
+def _physical_envelope_specs(physical: dict[str, Any]) -> list[dict[str, Any]]:
+    if not physical.get("insulation_spec_id") or physical.get("insulation_thickness_m", 0) <= 0:
+        return []
+    return [{"envelope_type": "insulation", "radius_m": float(physical["effective_radius_m"]),
+             "source": {"type": "insulation", "insulation_id": physical["insulation_spec_id"],
+                        "thickness_m": float(physical["insulation_thickness_m"]), "field": "effective_radius_m"}}]

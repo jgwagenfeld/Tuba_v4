@@ -80,10 +80,13 @@ async function assertSameCanvas(page) {
 async function openReviewControls(page) {
   const toggle = page.locator("[data-rail-toggle]");
   await toggle.waitFor();
-  assert.equal(await toggle.textContent(), "Controls");
+  assert.equal(await toggle.textContent(), "Close");
+  assert.equal(await toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
+  await toggle.focus();
+  await page.keyboard.press("Enter");
   assert.equal(await toggle.getAttribute("aria-expanded"), "false");
   assert.equal(await page.locator("[data-task-rail]").isHidden(), true);
-  await toggle.focus();
   await page.keyboard.press("Enter");
   assert.equal(await toggle.getAttribute("aria-expanded"), "true");
   assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
@@ -147,9 +150,6 @@ const scenarios = {
     bundle: "/smoke-scene",
     minimumObjects: 3,
     async run(page) {
-      // The task rail starts collapsed; its controls are in the DOM but not
-      // reachable until it is opened. openReviewControls also asserts that
-      // collapsed starting state, so the disclosure stays covered too.
       await openReviewControls(page);
       const canvas = page.locator("[data-canvas]");
       // The section box is a secondary control, folded into a drawer so the
@@ -474,9 +474,6 @@ const scenarios = {
     // object:cold renders on load; the scenario turns them on before exercising toggles.
     minimumObjects: 1,
     async run(page) {
-      // The task rail starts collapsed; its controls are in the DOM but not
-      // reachable until it is opened. openReviewControls also asserts that
-      // collapsed starting state, so the disclosure stays covered too.
       await openReviewControls(page);
       // Secondary tools moved into the rail popover so the bodies panel owns the
       // rail. Open it the way a reviewer would, then expand the tree inside it.
@@ -515,9 +512,6 @@ const scenarios = {
     bundle: "/test/fixtures/inspection_scene",
     minimumObjects: 1,
     async run(page) {
-      // The task rail starts collapsed; its controls are in the DOM but not
-      // reachable until it is opened. openReviewControls also asserts that
-      // collapsed starting state, so the disclosure stays covered too.
       await openReviewControls(page);
       // Analysis mesh is a body; the clash marker is an annotation and lives in
       // the layer tree.
@@ -1397,9 +1391,6 @@ const scenarios = {
       );
     },
     async run(page) {
-      // The task rail starts collapsed; its controls are in the DOM but not
-      // reachable until it is opened. openReviewControls also asserts that
-      // collapsed starting state, so the disclosure stays covered too.
       await openReviewControls(page);
       const modelTask = page.getByRole("button", { name: "Model", exact: true });
       await modelTask.waitFor();
@@ -1506,9 +1497,6 @@ const scenarios = {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 6,
     async run(page) {
-      // The task rail starts collapsed; its controls are in the DOM but not
-      // reachable until it is opened. openReviewControls also asserts that
-      // collapsed starting state, so the disclosure stays covered too.
       await openReviewControls(page);
       await page.getByRole("button", { name: "Issues", exact: true }).click();
       await page.getByLabel(/Operating-only/).check();
@@ -1639,9 +1627,6 @@ const scenarios = {
       return { preview_ws: runtime.url };
     },
     async run(page, runtime) {
-      // The task rail starts collapsed; its controls are in the DOM but not
-      // reachable until it is opened. openReviewControls also asserts that
-      // collapsed starting state, so the disclosure stays covered too.
       await openReviewControls(page);
       await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "viewer_smoke_scene");
       // The object list is no longer a collapsed disclosure. Clicking the always
