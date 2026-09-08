@@ -1,0 +1,1237 @@
+{
+  "analysis_mesh": {
+    "element_sources": {
+      "roll0_0": {
+        "element_id": "roll0_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_0",
+          "kind": "element"
+        }
+      },
+      "roll0_1": {
+        "element_id": "roll0_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_1",
+          "kind": "element"
+        }
+      },
+      "roll0_10": {
+        "element_id": "roll0_10",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_10",
+          "kind": "element"
+        }
+      },
+      "roll0_11": {
+        "element_id": "roll0_11",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_11",
+          "kind": "element"
+        }
+      },
+      "roll0_2": {
+        "element_id": "roll0_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_2",
+          "kind": "element"
+        }
+      },
+      "roll0_3": {
+        "element_id": "roll0_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_3",
+          "kind": "element"
+        }
+      },
+      "roll0_4": {
+        "element_id": "roll0_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_4",
+          "kind": "element"
+        }
+      },
+      "roll0_5": {
+        "element_id": "roll0_5",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_5",
+          "kind": "element"
+        }
+      },
+      "roll0_6": {
+        "element_id": "roll0_6",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_6",
+          "kind": "element"
+        }
+      },
+      "roll0_7": {
+        "element_id": "roll0_7",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_7",
+          "kind": "element"
+        }
+      },
+      "roll0_8": {
+        "element_id": "roll0_8",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_8",
+          "kind": "element"
+        }
+      },
+      "roll0_9": {
+        "element_id": "roll0_9",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll0_9",
+          "kind": "element"
+        }
+      },
+      "roll45_0": {
+        "element_id": "roll45_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_0",
+          "kind": "element"
+        }
+      },
+      "roll45_1": {
+        "element_id": "roll45_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_1",
+          "kind": "element"
+        }
+      },
+      "roll45_10": {
+        "element_id": "roll45_10",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_10",
+          "kind": "element"
+        }
+      },
+      "roll45_11": {
+        "element_id": "roll45_11",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_11",
+          "kind": "element"
+        }
+      },
+      "roll45_2": {
+        "element_id": "roll45_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_2",
+          "kind": "element"
+        }
+      },
+      "roll45_3": {
+        "element_id": "roll45_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_3",
+          "kind": "element"
+        }
+      },
+      "roll45_4": {
+        "element_id": "roll45_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_4",
+          "kind": "element"
+        }
+      },
+      "roll45_5": {
+        "element_id": "roll45_5",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_5",
+          "kind": "element"
+        }
+      },
+      "roll45_6": {
+        "element_id": "roll45_6",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_6",
+          "kind": "element"
+        }
+      },
+      "roll45_7": {
+        "element_id": "roll45_7",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_7",
+          "kind": "element"
+        }
+      },
+      "roll45_8": {
+        "element_id": "roll45_8",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_8",
+          "kind": "element"
+        }
+      },
+      "roll45_9": {
+        "element_id": "roll45_9",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll45_9",
+          "kind": "element"
+        }
+      },
+      "roll90_0": {
+        "element_id": "roll90_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_0",
+          "kind": "element"
+        }
+      },
+      "roll90_1": {
+        "element_id": "roll90_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_1",
+          "kind": "element"
+        }
+      },
+      "roll90_10": {
+        "element_id": "roll90_10",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_10",
+          "kind": "element"
+        }
+      },
+      "roll90_11": {
+        "element_id": "roll90_11",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_11",
+          "kind": "element"
+        }
+      },
+      "roll90_2": {
+        "element_id": "roll90_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_2",
+          "kind": "element"
+        }
+      },
+      "roll90_3": {
+        "element_id": "roll90_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_3",
+          "kind": "element"
+        }
+      },
+      "roll90_4": {
+        "element_id": "roll90_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_4",
+          "kind": "element"
+        }
+      },
+      "roll90_5": {
+        "element_id": "roll90_5",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_5",
+          "kind": "element"
+        }
+      },
+      "roll90_6": {
+        "element_id": "roll90_6",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_6",
+          "kind": "element"
+        }
+      },
+      "roll90_7": {
+        "element_id": "roll90_7",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_7",
+          "kind": "element"
+        }
+      },
+      "roll90_8": {
+        "element_id": "roll90_8",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_8",
+          "kind": "element"
+        }
+      },
+      "roll90_9": {
+        "element_id": "roll90_9",
+        "role": "native_element",
+        "source_ref": {
+          "id": "roll90_9",
+          "kind": "element"
+        }
+      }
+    },
+    "elements": {
+      "roll0_0": [
+        "N0",
+        "N1"
+      ],
+      "roll0_1": [
+        "N1",
+        "N2"
+      ],
+      "roll0_10": [
+        "N10",
+        "N11"
+      ],
+      "roll0_11": [
+        "N11",
+        "N12"
+      ],
+      "roll0_2": [
+        "N2",
+        "N3"
+      ],
+      "roll0_3": [
+        "N3",
+        "N4"
+      ],
+      "roll0_4": [
+        "N4",
+        "N5"
+      ],
+      "roll0_5": [
+        "N5",
+        "N6"
+      ],
+      "roll0_6": [
+        "N6",
+        "N7"
+      ],
+      "roll0_7": [
+        "N7",
+        "N8"
+      ],
+      "roll0_8": [
+        "N8",
+        "N9"
+      ],
+      "roll0_9": [
+        "N9",
+        "N10"
+      ],
+      "roll45_0": [
+        "N13",
+        "N14"
+      ],
+      "roll45_1": [
+        "N14",
+        "N15"
+      ],
+      "roll45_10": [
+        "N23",
+        "N24"
+      ],
+      "roll45_11": [
+        "N24",
+        "N25"
+      ],
+      "roll45_2": [
+        "N15",
+        "N16"
+      ],
+      "roll45_3": [
+        "N16",
+        "N17"
+      ],
+      "roll45_4": [
+        "N17",
+        "N18"
+      ],
+      "roll45_5": [
+        "N18",
+        "N19"
+      ],
+      "roll45_6": [
+        "N19",
+        "N20"
+      ],
+      "roll45_7": [
+        "N20",
+        "N21"
+      ],
+      "roll45_8": [
+        "N21",
+        "N22"
+      ],
+      "roll45_9": [
+        "N22",
+        "N23"
+      ],
+      "roll90_0": [
+        "N26",
+        "N27"
+      ],
+      "roll90_1": [
+        "N27",
+        "N28"
+      ],
+      "roll90_10": [
+        "N36",
+        "N37"
+      ],
+      "roll90_11": [
+        "N37",
+        "N38"
+      ],
+      "roll90_2": [
+        "N28",
+        "N29"
+      ],
+      "roll90_3": [
+        "N29",
+        "N30"
+      ],
+      "roll90_4": [
+        "N30",
+        "N31"
+      ],
+      "roll90_5": [
+        "N31",
+        "N32"
+      ],
+      "roll90_6": [
+        "N32",
+        "N33"
+      ],
+      "roll90_7": [
+        "N33",
+        "N34"
+      ],
+      "roll90_8": [
+        "N34",
+        "N35"
+      ],
+      "roll90_9": [
+        "N35",
+        "N36"
+      ]
+    },
+    "files": {
+      "mail": "study.mail"
+    },
+    "groups": {
+      "AllSupports": [
+        "N0",
+        "N13",
+        "N26"
+      ],
+      "GN_N0": [
+        "N0"
+      ],
+      "GN_N12": [
+        "N12"
+      ],
+      "GN_N13": [
+        "N13"
+      ],
+      "GN_N25": [
+        "N25"
+      ],
+      "GN_N26": [
+        "N26"
+      ],
+      "GN_N38": [
+        "N38"
+      ],
+      "G_TUBE": [
+        "roll0_0",
+        "roll0_1",
+        "roll0_2",
+        "roll0_3",
+        "roll0_4",
+        "roll0_5",
+        "roll0_6",
+        "roll0_7",
+        "roll0_8",
+        "roll0_9",
+        "roll0_10",
+        "roll0_11",
+        "roll45_0",
+        "roll45_1",
+        "roll45_2",
+        "roll45_3",
+        "roll45_4",
+        "roll45_5",
+        "roll45_6",
+        "roll45_7",
+        "roll45_8",
+        "roll45_9",
+        "roll45_10",
+        "roll45_11",
+        "roll90_0",
+        "roll90_1",
+        "roll90_2",
+        "roll90_3",
+        "roll90_4",
+        "roll90_5",
+        "roll90_6",
+        "roll90_7",
+        "roll90_8",
+        "roll90_9",
+        "roll90_10",
+        "roll90_11"
+      ],
+      "MAT_steel": [
+        "roll0_0",
+        "roll0_1",
+        "roll0_2",
+        "roll0_3",
+        "roll0_4",
+        "roll0_5",
+        "roll0_6",
+        "roll0_7",
+        "roll0_8",
+        "roll0_9",
+        "roll0_10",
+        "roll0_11",
+        "roll45_0",
+        "roll45_1",
+        "roll45_2",
+        "roll45_3",
+        "roll45_4",
+        "roll45_5",
+        "roll45_6",
+        "roll45_7",
+        "roll45_8",
+        "roll45_9",
+        "roll45_10",
+        "roll45_11",
+        "roll90_0",
+        "roll90_1",
+        "roll90_2",
+        "roll90_3",
+        "roll90_4",
+        "roll90_5",
+        "roll90_6",
+        "roll90_7",
+        "roll90_8",
+        "roll90_9",
+        "roll90_10",
+        "roll90_11"
+      ],
+      "SEC_IPE100": [
+        "roll0_0",
+        "roll0_1",
+        "roll0_2",
+        "roll0_3",
+        "roll0_4",
+        "roll0_5",
+        "roll0_6",
+        "roll0_7",
+        "roll0_8",
+        "roll0_9",
+        "roll0_10",
+        "roll0_11",
+        "roll45_0",
+        "roll45_1",
+        "roll45_2",
+        "roll45_3",
+        "roll45_4",
+        "roll45_5",
+        "roll45_6",
+        "roll45_7",
+        "roll45_8",
+        "roll45_9",
+        "roll45_10",
+        "roll45_11",
+        "roll90_0",
+        "roll90_1",
+        "roll90_2",
+        "roll90_3",
+        "roll90_4",
+        "roll90_5",
+        "roll90_6",
+        "roll90_7",
+        "roll90_8",
+        "roll90_9",
+        "roll90_10",
+        "roll90_11"
+      ],
+      "roll0_0": [
+        "roll0_0"
+      ],
+      "roll0_1": [
+        "roll0_1"
+      ],
+      "roll0_10": [
+        "roll0_10"
+      ],
+      "roll0_11": [
+        "roll0_11"
+      ],
+      "roll0_2": [
+        "roll0_2"
+      ],
+      "roll0_3": [
+        "roll0_3"
+      ],
+      "roll0_4": [
+        "roll0_4"
+      ],
+      "roll0_5": [
+        "roll0_5"
+      ],
+      "roll0_6": [
+        "roll0_6"
+      ],
+      "roll0_7": [
+        "roll0_7"
+      ],
+      "roll0_8": [
+        "roll0_8"
+      ],
+      "roll0_9": [
+        "roll0_9"
+      ],
+      "roll45_0": [
+        "roll45_0"
+      ],
+      "roll45_1": [
+        "roll45_1"
+      ],
+      "roll45_10": [
+        "roll45_10"
+      ],
+      "roll45_11": [
+        "roll45_11"
+      ],
+      "roll45_2": [
+        "roll45_2"
+      ],
+      "roll45_3": [
+        "roll45_3"
+      ],
+      "roll45_4": [
+        "roll45_4"
+      ],
+      "roll45_5": [
+        "roll45_5"
+      ],
+      "roll45_6": [
+        "roll45_6"
+      ],
+      "roll45_7": [
+        "roll45_7"
+      ],
+      "roll45_8": [
+        "roll45_8"
+      ],
+      "roll45_9": [
+        "roll45_9"
+      ],
+      "roll90_0": [
+        "roll90_0"
+      ],
+      "roll90_1": [
+        "roll90_1"
+      ],
+      "roll90_10": [
+        "roll90_10"
+      ],
+      "roll90_11": [
+        "roll90_11"
+      ],
+      "roll90_2": [
+        "roll90_2"
+      ],
+      "roll90_3": [
+        "roll90_3"
+      ],
+      "roll90_4": [
+        "roll90_4"
+      ],
+      "roll90_5": [
+        "roll90_5"
+      ],
+      "roll90_6": [
+        "roll90_6"
+      ],
+      "roll90_7": [
+        "roll90_7"
+      ],
+      "roll90_8": [
+        "roll90_8"
+      ],
+      "roll90_9": [
+        "roll90_9"
+      ]
+    },
+    "id": "analysis_mesh:global",
+    "model_revision": 0,
+    "modelisations": {
+      "G_TUBE": "POU_D_T"
+    },
+    "node_sources": {
+      "N0": {
+        "node_id": "N0",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N0",
+          "kind": "node"
+        }
+      },
+      "N1": {
+        "node_id": "N1",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N10": {
+        "node_id": "N10",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N10",
+          "kind": "node"
+        }
+      },
+      "N11": {
+        "node_id": "N11",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N11",
+          "kind": "node"
+        }
+      },
+      "N12": {
+        "node_id": "N12",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N12",
+          "kind": "node"
+        }
+      },
+      "N13": {
+        "node_id": "N13",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N13",
+          "kind": "node"
+        }
+      },
+      "N14": {
+        "node_id": "N14",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N14",
+          "kind": "node"
+        }
+      },
+      "N15": {
+        "node_id": "N15",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N15",
+          "kind": "node"
+        }
+      },
+      "N16": {
+        "node_id": "N16",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N16",
+          "kind": "node"
+        }
+      },
+      "N17": {
+        "node_id": "N17",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N17",
+          "kind": "node"
+        }
+      },
+      "N18": {
+        "node_id": "N18",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N18",
+          "kind": "node"
+        }
+      },
+      "N19": {
+        "node_id": "N19",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N19",
+          "kind": "node"
+        }
+      },
+      "N2": {
+        "node_id": "N2",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N2",
+          "kind": "node"
+        }
+      },
+      "N20": {
+        "node_id": "N20",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N20",
+          "kind": "node"
+        }
+      },
+      "N21": {
+        "node_id": "N21",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N21",
+          "kind": "node"
+        }
+      },
+      "N22": {
+        "node_id": "N22",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N22",
+          "kind": "node"
+        }
+      },
+      "N23": {
+        "node_id": "N23",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N23",
+          "kind": "node"
+        }
+      },
+      "N24": {
+        "node_id": "N24",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N24",
+          "kind": "node"
+        }
+      },
+      "N25": {
+        "node_id": "N25",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N25",
+          "kind": "node"
+        }
+      },
+      "N26": {
+        "node_id": "N26",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N26",
+          "kind": "node"
+        }
+      },
+      "N27": {
+        "node_id": "N27",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N27",
+          "kind": "node"
+        }
+      },
+      "N28": {
+        "node_id": "N28",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N28",
+          "kind": "node"
+        }
+      },
+      "N29": {
+        "node_id": "N29",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N29",
+          "kind": "node"
+        }
+      },
+      "N3": {
+        "node_id": "N3",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N3",
+          "kind": "node"
+        }
+      },
+      "N30": {
+        "node_id": "N30",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N30",
+          "kind": "node"
+        }
+      },
+      "N31": {
+        "node_id": "N31",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N31",
+          "kind": "node"
+        }
+      },
+      "N32": {
+        "node_id": "N32",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N32",
+          "kind": "node"
+        }
+      },
+      "N33": {
+        "node_id": "N33",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N33",
+          "kind": "node"
+        }
+      },
+      "N34": {
+        "node_id": "N34",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N34",
+          "kind": "node"
+        }
+      },
+      "N35": {
+        "node_id": "N35",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N35",
+          "kind": "node"
+        }
+      },
+      "N36": {
+        "node_id": "N36",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N36",
+          "kind": "node"
+        }
+      },
+      "N37": {
+        "node_id": "N37",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N37",
+          "kind": "node"
+        }
+      },
+      "N38": {
+        "node_id": "N38",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N38",
+          "kind": "node"
+        }
+      },
+      "N4": {
+        "node_id": "N4",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N4",
+          "kind": "node"
+        }
+      },
+      "N5": {
+        "node_id": "N5",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N5",
+          "kind": "node"
+        }
+      },
+      "N6": {
+        "node_id": "N6",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N6",
+          "kind": "node"
+        }
+      },
+      "N7": {
+        "node_id": "N7",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N7",
+          "kind": "node"
+        }
+      },
+      "N8": {
+        "node_id": "N8",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N8",
+          "kind": "node"
+        }
+      },
+      "N9": {
+        "node_id": "N9",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N9",
+          "kind": "node"
+        }
+      }
+    },
+    "nodes": {
+      "N0": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "N1": [
+        0.25,
+        0.0,
+        0.0
+      ],
+      "N10": [
+        2.5,
+        0.0,
+        0.0
+      ],
+      "N11": [
+        2.75,
+        0.0,
+        0.0
+      ],
+      "N12": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "N13": [
+        0.0,
+        1.2,
+        0.0
+      ],
+      "N14": [
+        0.25,
+        1.2,
+        0.0
+      ],
+      "N15": [
+        0.5,
+        1.2,
+        0.0
+      ],
+      "N16": [
+        0.75,
+        1.2,
+        0.0
+      ],
+      "N17": [
+        1.0,
+        1.2,
+        0.0
+      ],
+      "N18": [
+        1.25,
+        1.2,
+        0.0
+      ],
+      "N19": [
+        1.5,
+        1.2,
+        0.0
+      ],
+      "N2": [
+        0.5,
+        0.0,
+        0.0
+      ],
+      "N20": [
+        1.75,
+        1.2,
+        0.0
+      ],
+      "N21": [
+        2.0,
+        1.2,
+        0.0
+      ],
+      "N22": [
+        2.25,
+        1.2,
+        0.0
+      ],
+      "N23": [
+        2.5,
+        1.2,
+        0.0
+      ],
+      "N24": [
+        2.75,
+        1.2,
+        0.0
+      ],
+      "N25": [
+        3.0,
+        1.2,
+        0.0
+      ],
+      "N26": [
+        0.0,
+        2.4,
+        0.0
+      ],
+      "N27": [
+        0.25,
+        2.4,
+        0.0
+      ],
+      "N28": [
+        0.5,
+        2.4,
+        0.0
+      ],
+      "N29": [
+        0.75,
+        2.4,
+        0.0
+      ],
+      "N3": [
+        0.75,
+        0.0,
+        0.0
+      ],
+      "N30": [
+        1.0,
+        2.4,
+        0.0
+      ],
+      "N31": [
+        1.25,
+        2.4,
+        0.0
+      ],
+      "N32": [
+        1.5,
+        2.4,
+        0.0
+      ],
+      "N33": [
+        1.75,
+        2.4,
+        0.0
+      ],
+      "N34": [
+        2.0,
+        2.4,
+        0.0
+      ],
+      "N35": [
+        2.25,
+        2.4,
+        0.0
+      ],
+      "N36": [
+        2.5,
+        2.4,
+        0.0
+      ],
+      "N37": [
+        2.75,
+        2.4,
+        0.0
+      ],
+      "N38": [
+        3.0,
+        2.4,
+        0.0
+      ],
+      "N4": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "N5": [
+        1.25,
+        0.0,
+        0.0
+      ],
+      "N6": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "N7": [
+        1.75,
+        0.0,
+        0.0
+      ],
+      "N8": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "N9": [
+        2.25,
+        0.0,
+        0.0
+      ]
+    },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "2f385153876ff67720dbe691d666e4d82ba77f0b58d9a0edc7276c9e0078ec04",
+      "load_case": "global",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  },
+  "study": {
+    "id": "analysis_study:global",
+    "input_files": {
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
+    },
+    "load_case": "global",
+    "mesh_id": "analysis_mesh:global",
+    "metadata": {
+      "pipe_stress_exported": false,
+      "project_name": "I-section orientation: global and local loading"
+    },
+    "model_revision": 0,
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "2f385153876ff67720dbe691d666e4d82ba77f0b58d9a0edc7276c9e0078ec04",
+      "load_case": "global",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  }
+}

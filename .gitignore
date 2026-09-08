@@ -93,3 +93,6 @@ notebooks/advanced_piping_rack.ifc
 
 # Agent scratch notes (specs/decisions/todos)
 .agents/
+
+/viewer/public/native-friction-review/
+/viewer/public/profile-orientation-review/

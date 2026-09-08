@@ -298,23 +298,23 @@ class Support:
     mass: float = 0.0  # discrete mass [kg]
     friction_coefficient: float = 0.0
     id: Optional[str] = None
+    gap: float = 0.0
+    normal_stiffness: Optional[float] = None
+    tangential_stiffness: Optional[float] = None
 
-    def __post_init__(self) -> None:
-        # Validate where the value enters, so every construction path is
-        # covered: add_support, patches, fragments and IFC import all build
-        # Support directly.
-        coefficient = float(self.friction_coefficient)
-        if not math.isfinite(coefficient):
-            raise ValueError(
-                f"Support {self.node!r} friction_coefficient must be a finite number, "
-                f"got {self.friction_coefficient!r}."
-            )
-        if coefficient < 0.0:
-            raise ValueError(
-                f"Support {self.node!r} friction_coefficient must not be negative, "
-                f"got {coefficient!r}. Coulomb friction has no sign."
-            )
-        self.friction_coefficient = coefficient
+    def __post_init__(self):
+        for name in ('friction_coefficient', 'gap'):
+            value = getattr(self, name)
+            if not np.isfinite(value) or value < 0:
+                raise ValueError(f'Support {name} must be finite and non-negative.')
+        for name in ('normal_stiffness', 'tangential_stiffness'):
+            value = getattr(self, name)
+            if value is not None and (not np.isfinite(value) or value <= 0):
+                raise ValueError(f'Support {name} must be finite and positive.')
+        if self.direction is not None:
+            direction = np.asarray(self.direction, dtype=float)
+            if direction.shape != (3,) or not np.all(np.isfinite(direction)) or np.linalg.norm(direction) == 0:
+                raise ValueError('Support direction must be a finite nonzero three-vector.')
 
 
 TEE_TYPES = ("welding_tee", "reinforced_tee", "unreinforced_tee")
@@ -791,6 +791,9 @@ class TubaModel:
         mass: float = 0.0,
         friction_coefficient: float = 0.0,
         id: Optional[str] = None,
+        gap: float = 0.0,
+        normal_stiffness: Optional[float] = None,
+        tangential_stiffness: Optional[float] = None,
     ) -> Support:
         support_id = id or self.next_support_id()
         sup = Support(
@@ -804,6 +807,9 @@ class TubaModel:
             mass=mass,
             friction_coefficient=friction_coefficient,
             id=support_id,
+            gap=gap,
+            normal_stiffness=normal_stiffness,
+            tangential_stiffness=tangential_stiffness,
         )
         self.supports.append(sup)
         self._sync_support_counter(support_id)
@@ -1133,6 +1139,8 @@ class TubaModel:
         load_case: Optional[str] = None,
         operation: Optional[str] = None,
         pipe_modelization: PipeModelization | str | None = None,
+        load_path: Optional[Sequence[str]] = None,
+        load_step: float = 0.1,
         volume_element_ids: Optional[Sequence[str]] = None,
         max_element_size: Optional[float] = None,
         force: bool = False,
@@ -1148,6 +1156,16 @@ class TubaModel:
         operation : str, optional
             Name of a uniform operation to solve. Mutually exclusive with
             *load_case*.
+        pipe_modelization : str, optional
+            TUYAU_3M (unchanged default), POU_D_T for beam piping, or 3D.
+            POU_D_T currently rejects pressure and tees/branches.
+        load_path : sequence of str, optional
+            Ordered absolute load-case endpoints for native POU_D_T shoes.
+            Mutually exclusive with load_case and operation. Repeated names
+            retain contact history; the last name is the compatibility load case.
+        load_step : float, default 0.1
+            Maximum requested pseudo-time increment per unit stage, in (0, 1].
+            Code_Aster may subdivide further. This is not a physical time step.
         force : bool, default False
             Re-execute Code_Aster even when the solver work directory already
             holds an attested solve for this exact model and operation.
@@ -1163,9 +1181,21 @@ class TubaModel:
         from tuba.solver.modelisation import PipeModelization
 
         lc_name = operation or load_case
+        if load_path is not None:
+            if load_case is not None or operation is not None or not load_path:
+                raise ValueError('load_path must be nonempty and cannot be combined with load_case or operation.')
+            lc_name = load_path[-1]
         selected_modelization = PipeModelization(pipe_modelization or PipeModelization.TUYAU_3M)
+        if pipe_modelization is not None:
+            kwargs['pipe_modelization'] = (PipeModelization.TUYAU_3M if selected_modelization is PipeModelization.SOLID_3D else selected_modelization)
+        if load_path is not None:
+            kwargs['load_path'] = load_path
+        if load_path is not None or load_step != 0.1:
+            kwargs['load_step'] = load_step
         solver = CodeAsterSolver(**kwargs)
         if selected_modelization is PipeModelization.SOLID_3D:
+            if load_path is not None or any(s.friction_coefficient for s in self.supports):
+                raise ValueError('Native contact load paths require POU_D_T; solid contact is not implemented.')
             if not volume_element_ids or max_element_size is None:
                 raise ValueError("SOLID_3D requires volume_element_ids and max_element_size.")
             return solver.solve_volume_study(
@@ -1278,6 +1308,9 @@ class TubaModel:
                     **({"blocked_dof": s.blocked_dof} if s.blocked_dof is not None else {}),
                     **({"mass": s.mass} if s.mass != 0.0 else {}),
                     **({"friction_coefficient": s.friction_coefficient} if s.friction_coefficient != 0.0 else {}),
+                    **({"gap": s.gap} if s.gap != 0.0 else {}),
+                    **({"normal_stiffness": s.normal_stiffness} if s.normal_stiffness is not None else {}),
+                    **({"tangential_stiffness": s.tangential_stiffness} if s.tangential_stiffness is not None else {}),
                 }
                 for s in self.supports
             ],

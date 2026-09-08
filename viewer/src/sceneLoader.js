@@ -23,11 +23,7 @@ export async function loadSceneBundle(root) {
   const geometryAssets = Array.isArray(scene.geometry_assets)
     ? scene.geometry_assets
     : await readJson("geometry/geometry_assets.json");
-  const geometryPayloads = await Promise.all(
-    (scene.geometry_assets ?? geometryAssets)
-      .filter((asset) => asset.uri)
-      .map((asset) => readJson(asset.uri))
-  );
+  const geometryPayloads = await readGeometryPayloads(scene.geometry_assets ?? geometryAssets, readJson);
 
   return { scene, objects, objectMap, overlays, geometryAssets, geometryPayloads };
 }
@@ -56,11 +52,7 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
   const geometryAssets = Array.isArray(scene.geometry_assets)
     ? scene.geometry_assets
     : await readJson("geometry/geometry_assets.json");
-  const geometryPayloads = await Promise.all(
-    (scene.geometry_assets ?? geometryAssets)
-      .filter((asset) => asset.uri)
-      .map((asset) => readJson(asset.uri))
-  );
+  const geometryPayloads = await readGeometryPayloads(scene.geometry_assets ?? geometryAssets, readJson);
 
   const reviewResult = await loadOptionalReview(normalized, fetcher);
 
@@ -77,16 +69,42 @@ export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis
   };
 }
 
+async function readGeometryPayloads(assets, readJson) {
+  const payloads = assets.map(manifestGeometryPayload);
+  const requested = assets.map((asset, index) => ({ asset, index })).filter(({ asset }, index) => !payloads[index] && asset.uri);
+  // Browser request queues are finite; complete each batch before scheduling another.
+  for (let offset = 0; offset < requested.length; offset += 16) {
+    const batch = requested.slice(offset, offset + 16);
+    const loaded = await Promise.all(batch.map(({ asset }) => readJson(asset.uri)));
+    batch.forEach(({ index }, batchIndex) => { payloads[index] = loaded[batchIndex]; });
+  }
+  return payloads.filter(Boolean);
+}
+
+function manifestGeometryPayload(asset) {
+  if (!asset.format || !asset.generation_config || asset.format === "tuyau_subpoint_glyphs") return null;
+  return {
+    asset_id: asset.id,
+    format: asset.format,
+    bounds: asset.bounds,
+    object_ids: asset.object_ids,
+    generation_config: asset.generation_config,
+    ...(asset.hash ? { hash: asset.hash } : {})
+  };
+}
+
 export function createViewerState(bundle) {
   const scene = bundle.scene;
   const sourceObjects = scene.objects?.length ? scene.objects : bundle.objects ?? [];
+  const insulatedRefs = new Set(sourceObjects
+    .filter((obj) => Number(obj.physical?.insulation_thickness_m) > 0)
+    .map((obj) => obj.entity_ref));
   // Older bundles contain coincident bare/wind skins and clearance shells.
   // Only assigned physical insulation is a display surface.
   const objects = sourceObjects.filter((obj) => {
     if (obj.kind === "physical_envelope") return obj.metadata?.envelope_type === "insulation";
     if (obj.kind !== "deformed_envelope") return true;
-    const pipe = sourceObjects.find((candidate) => candidate.entity_ref === obj.metadata?.entity_ref);
-    return Number(pipe?.physical?.insulation_thickness_m) > 0;
+    return insulatedRefs.has(obj.metadata?.entity_ref);
   });
   const geometryAssets = scene.geometry_assets?.length ? scene.geometry_assets : bundle.geometryAssets ?? [];
   const overlays = (scene.overlays?.length ? scene.overlays : bundle.overlays ?? [])
@@ -188,7 +206,13 @@ export function getVisibleObjectIds(state) {
   const hidden = new Set(state.hiddenObjectIds ?? []);
   const isolated = new Set(state.isolatedObjectIds ?? []);
   const hiddenOverlayObjectIds = overlayHiddenObjectIds(state);
+  const activeResult = (state.resultStates ?? []).find((overlay) => (overlay.data?.id ?? overlay.id) === state.activeResultStateId);
+  const contactReview = state.activeTab !== "model" && state.contactNeutral !== false &&
+    Object.keys(activeResult?.data?.contact_results ?? {}).length > 0;
   return state.objects
+    .filter((obj) => !state.activeResultStateId || !obj.metadata?.result_state_id || obj.metadata.result_state_id === state.activeResultStateId)
+    .filter((obj) => !state.activeGeometryStateId || !obj.metadata?.geometry_state_id || obj.metadata.geometry_state_id === state.activeGeometryStateId)
+    .filter((obj) => !contactReview || !["applied_load", "displacement_vector", "reaction_vector"].includes(obj.kind))
     .filter((obj) => objectLayersVisible(state, obj))
     .filter((obj) => !hidden.has(obj.id))
     .filter((obj) => !hiddenOverlayObjectIds.has(obj.id))

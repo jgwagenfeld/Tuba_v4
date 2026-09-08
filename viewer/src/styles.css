@@ -1435,6 +1435,8 @@ textarea,
    chip and a mono metric line, and at 12rem those wrapped onto four lines each.
    17rem fits them on one. */
 .viewer-workspace {
+  --controls-width: 0px;
+  padding-left: var(--controls-width);
   position: relative;
   display: grid;
   grid-template-columns: minmax(24rem, 1fr) minmax(16rem, 20rem);
@@ -1485,16 +1487,38 @@ section {
   border-right: 1px solid var(--graphite-line);
 }
 
+body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
+  --controls-width: min(18.5rem, 45vw);
+}
+
+.rail-toggle {
+  position: absolute;
+  z-index: 7;
+  top: 0.75rem;
+  left: var(--controls-width);
+  width: 1.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid var(--graphite-line);
+  border-left: 0;
+  border-radius: 0 0.4rem 0.4rem 0;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-size: 1.75rem;
+  cursor: pointer;
+}
+
+.rail-toggle:hover { background: var(--graphite); }
+
 .cockpit-rail {
   position: absolute;
   z-index: 6;
   inset: 0 auto 0 0;
   display: flex;
   flex-direction: column;
-  width: min(18.5rem, calc(100% - 3rem));
+  width: var(--controls-width);
   overflow: hidden;
   border-right: 1px solid var(--graphite-line);
-  box-shadow: 0.65rem 0 1.4rem rgba(8, 12, 15, 0.28);
 }
 
 .cockpit-rail[hidden] {
@@ -1915,8 +1939,7 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
 @media (max-width: 1200px) {
   .viewer-workspace,
-  .viewer-workspace:has(.inspector[hidden]),
-  .viewer-workspace:has(.evidence-dock.expanded) {
+  .viewer-workspace:has(.inspector[hidden]) {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas:
@@ -1932,14 +1955,13 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     box-shadow: -0.5rem 0 1rem rgba(14, 20, 24, 0.35);
   }
 
+  .viewer-workspace:has(.evidence-dock.expanded) {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 50%);
+  }
+
   .evidence-dock.expanded {
-    position: absolute;
-    z-index: 3;
-    inset: auto 0 0 0;
-    height: min(60vh, 32rem);
     max-height: none;
     overflow: auto;
-    box-shadow: 0 -0.5rem 1rem rgba(14, 20, 24, 0.35);
   }
 }
 
@@ -2181,3 +2203,14 @@ body[data-view="gallery"] {
 .bundle-picker[hidden] {
   display: none;
 }
+.contact-review { grid-column: 1 / -1; min-width: 0; border-block: 1px solid #cbd5e1; padding-block: 12px; }
+.contact-review p { font-size: 12px; line-height: 1.5; }
+.contact-review label { display: inline-flex; gap: 6px; align-items: center; margin: 6px; }
+.contact-table-scroll { max-width: 100%; overflow-x: auto; }
+.contact-review table { border-collapse: collapse; font-size: 12px; width: 100%; }
+.contact-review th, .contact-review td { padding: 5px; text-align: left; white-space: nowrap; }
+.contact-review tr[data-selected="true"] { background: #e0f2fe; color: #172127; }
+.contact-review .contact-limit-exceeded { color: #b91c1c; }
+.contact-review svg { display: block; width: 100%; max-width: 520px; background: white; border-radius: 3px; }
+
+.cockpit-rail .task-panel:has(.contact-review) { max-height: none; overflow: visible; }

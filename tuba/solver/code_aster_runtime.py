@@ -334,13 +334,25 @@ def expected_code_aster_artifact_files(
         raise ValueError(
             f"Code_Aster compiler identity {compiler_id!r} contradicts study analysis metadata."
         )
+    compiler_inputs = study_metadata.get("compiler_inputs", {})
+    if not isinstance(compiler_inputs, Mapping):
+        raise ValueError("Code_Aster compiler_inputs metadata must be an object.")
+    contact_files: tuple[str, ...] = ()
+    if "contact_law" in compiler_inputs:
+        contact_law = compiler_inputs["contact_law"]
+        if not isinstance(contact_law, str) or not contact_law.strip():
+            raise ValueError("Code_Aster contact_law metadata must be a nonempty string.")
+        contact_files = ("study_contact.json",)
     if not volume_analysis:
+        files = ATTESTED_CODE_ASTER_FILES
         if study_metadata.get("pipe_stress_exported") is False:
-            return tuple(name for name in ATTESTED_CODE_ASTER_FILES if name != "study_sieq.csv")
-        return ATTESTED_CODE_ASTER_FILES
-    return VOLUME_ATTESTED_CODE_ASTER_FILES + (("study_effo.csv",) if mixed_analysis else ()) + (
-        ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
-    )
+            files = tuple(name for name in files if name != "study_sieq.csv")
+    else:
+        files = VOLUME_ATTESTED_CODE_ASTER_FILES + (("study_effo.csv",) if mixed_analysis else ()) + (
+            ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
+        )
+    return files + contact_files
+
 
 
 def validate_code_aster_execution_attestation_payload(

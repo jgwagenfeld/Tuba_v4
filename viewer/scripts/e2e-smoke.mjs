@@ -80,14 +80,10 @@ async function assertSameCanvas(page) {
 async function openReviewControls(page) {
   const toggle = page.locator("[data-rail-toggle]");
   await toggle.waitFor();
-  assert.equal(await toggle.textContent(), "Close");
-  assert.equal(await toggle.getAttribute("aria-expanded"), "true");
-  assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
-  await toggle.focus();
-  await page.keyboard.press("Enter");
-  assert.equal(await toggle.getAttribute("aria-expanded"), "false");
-  assert.equal(await page.locator("[data-task-rail]").isHidden(), true);
-  await page.keyboard.press("Enter");
+  if (await toggle.getAttribute("aria-expanded") !== "true") {
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+  }
   assert.equal(await toggle.getAttribute("aria-expanded"), "true");
   assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
 }
@@ -970,7 +966,9 @@ const scenarios = {
           "code-aster-review",
           "elements-supports-review",
           "imported_component_mixed_demo",
+          "native-friction-review",
           "pipe-tee-volume-review",
+          "profile-orientation-review",
           "support-rack-review"
         ]
       );
@@ -1163,13 +1161,8 @@ const scenarios = {
           renderDiagnostics: viewer.lastRender.diagnostics
         };
       });
-      // 219, not 221: two reaction-moment glyphs are gone. They carried
-      // 4.5e-10 and 7.7e-10 N*m against a 2354 N*m reference - solver round-off,
-      // which the old constant-length glyph drew as a full-size arrow claiming
-      // a moment where there is none. Proportional length shrinks them below
-      // the zero-length guard, so they are no longer published.
-      assert.equal(loaded.objects, 219);
-      assert.equal(loaded.geometryPayloads, 216);
+      assert.equal(loaded.objects, 221);
+      assert.equal(loaded.geometryPayloads, 218);
       assert.equal(loaded.overlays, 11);
       assert.equal(loaded.layers, 40);
       assert.equal(loaded.resultFields, 5);

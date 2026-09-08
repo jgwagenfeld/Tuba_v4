@@ -11,6 +11,7 @@ from typing import Callable, Dict, List, Optional
 
 import numpy as np
 from tuba.physical import physical_properties_for_element
+from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables
 
 from tuba.model import (
     BarSection,
@@ -24,6 +25,7 @@ from tuba.model import (
 from tuba.solver.modelisation import (
     discrete_support_group,
     modelisation_assignments,
+    PipeModelization,
     needs_discrete_element,
 )
 from tuba.solver.aster_loads import (
@@ -111,11 +113,25 @@ class _CommWriterMixin:
         beam_elems = [e for e in model.elements if e.type == "beam"]
         bar_elems = [e for e in model.elements if e.type == "bar"]
         cable_elems = [e for e in model.elements if e.type == "cable"]
-        has_pipe_stress = bool(pipe_straights or pipe_bends)
+        beam_pipes = self.pipe_modelization is PipeModelization.POU_D_T
+        has_pipe_stress = bool(pipe_straights or pipe_bends) and not beam_pipes
+        if beam_pipes:
+            if load_case.internal_pressure != 0 or any(f.quantity == "pressure" and f.value != 0 for f in load_case.fields):
+                raise ValueError("POU_D_T pipe pressure is unsupported: pressure end thrust and pressure stress require qualification.")
+            pipe_degree = {}
+            for elem in pipe_straights + pipe_bends:
+                for node in (elem.n1, elem.n2):
+                    pipe_degree[node] = pipe_degree.get(node, 0) + 1
+            if getattr(model, "tees", []) or any(degree > 2 for degree in pipe_degree.values()):
+                raise ValueError("POU_D_T pipe tee/branch flexibility is unsupported.")
 
         straight_elems = pipe_straights + beam_elems + bar_elems + cable_elems
         bend_elems = pipe_bends
         map_name = name_map or (lambda value: value)
+        contacts = shoes(model, self.pipe_modelization)
+        native_path = bool(contacts) or self.load_path is not None
+        if native_path and (not beam_pipes or cable_elems):
+            raise ValueError('Native contact load paths require beam piping without cables.')
 
         # Collect unique materials referenced by elements
         used_mat_names = sorted({e.material for e in model.elements})
@@ -171,7 +187,7 @@ class _CommWriterMixin:
         w("MODELE = AFFE_MODELE(")
         w("    MAILLAGE=MAIL,")
         w("    AFFE=(")
-        for group_name, modelisation in modelisation_assignments(model).items():
+        for group_name, modelisation in modelisation_assignments(model, self.pipe_modelization).items():
             w("        _F(")
             w(f"            GROUP_MA='{map_name(group_name)}',")
             w("            PHENOMENE='MECANIQUE',")
@@ -199,6 +215,9 @@ class _CommWriterMixin:
                 w(f"    CABLE=_F(EC_SUR_E=1.0),")
             w(f");")
             w()
+
+        for index, contact in enumerate(contacts):
+            w(f"CM{index} = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR={contact.kn!r},RIGI_TAN={contact.kt!r},COULOMB={contact.support.friction_coefficient!r},DIST_1=1.0))")
 
         # ==============================================================
         # AFFE_MATERIAU
@@ -232,7 +251,7 @@ class _CommWriterMixin:
         }
         for mat_name, element_ids in material_element_groups.items():
             var = f"MAT_{mat_name.upper().replace(' ', '_').replace('-', '_')}"
-            if set(element_ids) == all_material_element_ids:
+            if set(element_ids) == all_material_element_ids and not contacts:
                 group_spec = "TOUT='OUI',"
             else:
                 group_spec = f"GROUP_MA='{map_name(self._material_group_name(mat_name))}',"
@@ -261,6 +280,8 @@ class _CommWriterMixin:
               f"RHO={density:.12E}, ALPHA={mat.alpha:.12E}));")
             affe_entries.append(f"        _F(GROUP_MA='{map_name(elem.id)}', MATER={var}),")
 
+        for index, contact in enumerate(contacts):
+            affe_entries.append(f"_F(GROUP_MA='{map_name(contact.group)}',MATER=CM{index}),")
         w("CHMAT = AFFE_MATERIAU(")
         w("    MAILLAGE=MAIL,")
         w("    AFFE=(")
@@ -346,12 +367,20 @@ class _CommWriterMixin:
                 f"            VALE=({r_ext:.8E}, {ep:.8E}),\n"
                 f"        ),"
             )
-            poutre_entries.append(
-                    f"        _F(\n"
-                    f"            GROUP_MA={bend_group},\n"
-                    f"            SECTION='COUDE',\n"
-                    f"        ),"
-            )
+            if beam_pipes:
+                from tuba.solver.flexibility import elbow_flexibility
+
+                flexibility = elbow_flexibility(elem, model)
+                if flexibility is None:
+                    raise ValueError("POU_D_T requires a qualified isotropic elbow flexibility factor.")
+                # U4.42.01: COEF_FLEX divides I by k. A flexibility factor is
+                # not a stress intensification factor and is never used as one.
+                poutre_entries.append(
+                    f"        _F(GROUP_MA={bend_group}, SECTION='COUDE', "
+                    f"COEF_FLEX={flexibility.k:.10E}),"
+                )
+            else:
+                poutre_entries.append(f"        _F(GROUP_MA={bend_group}, SECTION='COUDE'),")
 
         if poutre_entries:
             w("    POUTRE=(")
@@ -410,6 +439,8 @@ class _CommWriterMixin:
 
         # DISCRET entries for springs/masses
         discret_entries: List[str] = []
+        for contact in contacts:
+            discret_entries.append(f"_F(GROUP_MA='{map_name(contact.group)}',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),")
         for s in model.supports:
             if s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None):
                 if s.stiffness_matrix:
@@ -458,7 +489,9 @@ class _CommWriterMixin:
 
         # Orientation
         orientation_entries: List[str] = []
-        if pipe_straights or pipe_bends:
+        for contact in contacts:
+            orientation_entries.append(f"_F(GROUP_MA='{map_name(contact.group)}',CARA='VECT_Y',VALE={contact.tangent!r}),")
+        if (pipe_straights or pipe_bends) and not beam_pipes:
             orientation = _pipe_orientation_vector(model, pipe_straights, pipe_bends)
             orientation_entries.append(
                 "        _F(\n"
@@ -467,6 +500,11 @@ class _CommWriterMixin:
                 f"            VALE=({orientation[0]:.8E}, {orientation[1]:.8E}, {orientation[2]:.8E}),\n"
                 "        ),"
             )
+        if beam_pipes:
+            for elem in pipe_straights + pipe_bends:
+                orientation_entries.append(
+                    f"        _F(GROUP_MA='{map_name(elem.id)}', CARA='ANGL_VRIL', VALE=0.0),"
+                )
         if beam_elems:
             for elem in beam_elems:
                 angle = getattr(elem, "twist_angle", 0.0)
@@ -494,7 +532,7 @@ class _CommWriterMixin:
         active_bcs = []
         pipe_nodes_with_warping = {
             node_id
-            for elem in pipe_straights + pipe_bends
+            for elem in ([] if beam_pipes else pipe_straights + pipe_bends)
             for node_id in (elem.n1, elem.n2)
         }
 
@@ -607,181 +645,178 @@ class _CommWriterMixin:
                 w()
                 active_bcs.append(char_name)
 
-        # ==============================================================
-        # AFFE_CHAR_MECA — gravity
-        # ==============================================================
-        if load_case.gravity:
-            w("# ----- Gravity -----")
-            w("GRAVITY = AFFE_CHAR_MECA(")
-            w("    MODELE=MODELE,")
-            w("    PESANTEUR=_F(")
-            w("        GRAVITE=9.81,")
-            # Z is up: tuba.reporting and every published scene declare
-            # up_axis "Z", and the assembly builders raise racks along Z. This
-            # said -Y, so self-weight was applied across the structure instead
-            # of down it.
-            w("        DIRECTION=(0.0, 0.0, -1.0),")
-            w("    ),")
-            w(");")
-            w()
-
-        # ==============================================================
-        # AFFE_CHAR_MECA — pressure
-        # ==============================================================
-        if has_pressure:
-            write_pressure_load(
-                w,
-                map_name=map_name,
-                load_case=load_case,
-                pressure_fields=pressure_fields,
-            )
-
-        # ==============================================================
-        # AFFE_CHAR_MECA — wind on beam-modelized pipe
-        # ==============================================================
-        if has_wind:
-            write_wind_load(
-                w,
-                map_name=map_name,
-                wind_fields=wind_fields,
-            )
-
-        # ==============================================================
-        # AFFE_CHAR_MECA - concentrated nodal forces
-        # ==============================================================
-        if has_nodal_forces:
-            component_names = ("FX", "FY", "FZ", "MX", "MY", "MZ")
-            w("# ----- Concentrated nodal forces -----")
-            w("POINT_FORCE = AFFE_CHAR_MECA(")
-            w("    MODELE=MODELE,")
-            w("    FORCE_NODALE=(")
-            for force in nodal_forces:
-                w("        _F(")
-                w(f"            GROUP_NO='{map_name(f'GN_{force.node}')}',")
-                for name, value in zip(component_names, force.components):
-                    w(f"            {name}={float(value):.8E},")
-                w("        ),")
-            w("    ),")
-            w(");")
-            w()
-
-        # ==============================================================
-        # Thermal load (uniform temperature field for expansion)
-        # ==============================================================
-        if has_temperature:
-            write_thermal_load(
-                w,
-                map_name=map_name,
-                load_case=load_case,
-                temperature_fields=temperature_fields,
-                affe_entries=affe_entries,
-                is_nonlinear=is_nonlinear,
-            )
-
-        # ==============================================================
-        # DEFI_CONTACT & Solve
-        # ==============================================================
-        if is_nonlinear:
-            w("# ----- Unilateral contacts -----")
-            w("UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);")
-            w("UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);")
-            w()
-            w("contact = DEFI_CONTACT(")
-            w("    MODELE=MODELE,")
-            w("    FORMULATION='LIAISON_UNIL',")
-            w("    ZONE=(")
-            for sup in model.supports:
-                if sup.type == "rest":
-                    grp_name = map_name(f"GN_{sup.node}")
-                    # A rest support carries weight, so it acts along the
-                    # vertical axis unless the model names a direction.
-                    cmp_name = "DZ"
-                    if sup.direction:
-                        dof_map = {0: "DX", 1: "DY", 2: "DZ"}
-                        for idx, val in enumerate(sup.direction):
-                            if abs(val) > 1e-12:
-                                cmp_name = dof_map[idx]
-                                break
-                    w(
-                        f"        _F(GROUP_NO='{grp_name}', NOM_CMP='{cmp_name}', "
-                        "COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),"
-                    )
-            w("    ),")
-            w(");")
-            w()
-
-        w("# ----- Solve -----")
-
-        # Build EXCIT list
-        excit_entries: List[str] = []
-        for char_name in active_bcs:
-            excit_entries.append(f"        _F(CHARGE={char_name}),")
-        if load_case.gravity:
-            excit_entries.append("        _F(CHARGE=GRAVITY),")
-        if has_pressure:
-            excit_entries.append("        _F(CHARGE=PRESSURE),")
-        if has_wind:
-            excit_entries.append("        _F(CHARGE=WIND),")
-        if has_nodal_forces:
-            excit_entries.append("        _F(CHARGE=POINT_FORCE),")
-
-        if is_nonlinear:
-            w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
-            w("times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));")
-            w()
-            w("RESU = STAT_NON_LINE(")
-            w("    MODELE=MODELE,")
-            w("    CHAM_MATER=CHMAT,")
-            w("    CARA_ELEM=CARA,")
-            w("    EXCIT=(")
-            for entry in excit_entries:
-                w(entry)
-            w("    ),")
-            if cable_elems:
-                elastic_groups: List[str] = []
-                if pipe_straights or pipe_bends:
-                    elastic_groups.append("AllPipes")
-                if beam_elems:
-                    elastic_groups.append("G_TUBE")
-                if bar_elems:
-                    elastic_groups.append("G_BAR")
-                for support in model.supports:
-                    if (support.type == "spring" and (support.stiffness_matrix is not None or support.stiffness is not None)) or support.mass > 0.0:
-                        elastic_groups.append(f"DIS_{support.node}")
-                w("    COMPORTEMENT=(")
-                if elastic_groups:
-                    w("        _F(")
-                    w(f"            GROUP_MA={group_ma_value(elastic_groups, map_name)},")
-                    w("            RELATION='ELAS',")
-                    w("        ),")
-                w("        _F(")
-                w(f"            GROUP_MA='{map_name('G_CABLE')}',")
-                w("            RELATION='CABLE',")
-                w("            DEFORMATION='GROT_GDEP',")
-                w("        ),")
-                w("    ),")
-            else:
-                w("    COMPORTEMENT=_F(")
-                w("        TOUT='OUI',")
-                w("        RELATION='ELAS',")
-                w("    ),")
-            w("    INCREMENT=_F(")
-            w("        LIST_INST=times,")
-            w("    ),")
-            w("    CONTACT=contact,")
-            w("    METHODE='NEWTON',")
-            w(");")
+        if native_path:
+            write_contact_solve(w, model, load_case, self.load_path, contacts, map_name, affe_entries, active_bcs, self.load_step)
         else:
-            w("RESU = MECA_STATIQUE(")
-            w("    MODELE=MODELE,")
-            w("    CHAM_MATER=CHMAT,")
-            w("    CARA_ELEM=CARA,")
-            w("    EXCIT=(")
-            for entry in excit_entries:
-                w(entry)
-            w("    ),")
-            w(");")
-        w()
+            # ==============================================================
+            # AFFE_CHAR_MECA — gravity
+            # ==============================================================
+            if load_case.gravity:
+                w("# ----- Gravity -----")
+                w("GRAVITY = AFFE_CHAR_MECA(")
+                w("    MODELE=MODELE,")
+                w("    PESANTEUR=_F(")
+                w("        GRAVITE=9.81,")
+                w("        DIRECTION=(0.0, 0.0, -1.0),")
+                w("    ),")
+                w(");")
+                w()
+
+            # ==============================================================
+            # AFFE_CHAR_MECA — pressure
+            # ==============================================================
+            if has_pressure:
+                write_pressure_load(
+                    w,
+                    map_name=map_name,
+                    load_case=load_case,
+                    pressure_fields=pressure_fields,
+                )
+
+            # ==============================================================
+            # AFFE_CHAR_MECA — wind on beam-modelized pipe
+            # ==============================================================
+            if has_wind:
+                write_wind_load(
+                    w,
+                    map_name=map_name,
+                    wind_fields=wind_fields,
+                )
+
+            # ==============================================================
+            # AFFE_CHAR_MECA - concentrated nodal forces
+            # ==============================================================
+            if has_nodal_forces:
+                component_names = ("FX", "FY", "FZ", "MX", "MY", "MZ")
+                w("# ----- Concentrated nodal forces -----")
+                w("POINT_FORCE = AFFE_CHAR_MECA(")
+                w("    MODELE=MODELE,")
+                w("    FORCE_NODALE=(")
+                for force in nodal_forces:
+                    w("        _F(")
+                    w(f"            GROUP_NO='{map_name(f'GN_{force.node}')}',")
+                    for name, value in zip(component_names, force.components):
+                        w(f"            {name}={float(value):.8E},")
+                    w("        ),")
+                w("    ),")
+                w(");")
+                w()
+
+            # ==============================================================
+            # Thermal load (uniform temperature field for expansion)
+            # ==============================================================
+            if has_temperature:
+                write_thermal_load(
+                    w,
+                    map_name=map_name,
+                    load_case=load_case,
+                    temperature_fields=temperature_fields,
+                    affe_entries=affe_entries,
+                    is_nonlinear=is_nonlinear,
+                )
+
+            # ==============================================================
+            # DEFI_CONTACT & Solve
+            # ==============================================================
+            if is_nonlinear and not native_path:
+                w("# ----- Unilateral contacts -----")
+                w("UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);")
+                w("UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);")
+                w()
+                w("contact = DEFI_CONTACT(")
+                w("    MODELE=MODELE,")
+                w("    FORMULATION='LIAISON_UNIL',")
+                w("    ZONE=(")
+                for sup in model.supports:
+                    if sup.type == "rest":
+                        grp_name = map_name(f"GN_{sup.node}")
+                        cmp_name = "DZ"
+                        if sup.direction:
+                            dof_map = {0: "DX", 1: "DY", 2: "DZ"}
+                            for idx, val in enumerate(sup.direction):
+                                if abs(val) > 1e-12:
+                                    cmp_name = dof_map[idx]
+                                    break
+                        w(
+                            f"        _F(GROUP_NO='{grp_name}', NOM_CMP='{cmp_name}', "
+                            "COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),"
+                        )
+                w("    ),")
+                w(");")
+                w()
+
+            w("# ----- Solve -----")
+
+            # Build EXCIT list
+            excit_entries: List[str] = []
+            for char_name in active_bcs:
+                excit_entries.append(f"        _F(CHARGE={char_name}),")
+            if load_case.gravity:
+                excit_entries.append("        _F(CHARGE=GRAVITY),")
+            if has_pressure:
+                excit_entries.append("        _F(CHARGE=PRESSURE),")
+            if has_wind:
+                excit_entries.append("        _F(CHARGE=WIND),")
+            if has_nodal_forces:
+                excit_entries.append("        _F(CHARGE=POINT_FORCE),")
+
+            if is_nonlinear:
+                w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
+                w("times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));")
+                w()
+                w("RESU = STAT_NON_LINE(")
+                w("    MODELE=MODELE,")
+                w("    CHAM_MATER=CHMAT,")
+                w("    CARA_ELEM=CARA,")
+                w("    EXCIT=(")
+                for entry in excit_entries:
+                    w(entry)
+                w("    ),")
+                if cable_elems:
+                    elastic_groups: List[str] = []
+                    if pipe_straights or pipe_bends:
+                        elastic_groups.append("AllPipes")
+                    if beam_elems:
+                        elastic_groups.append("G_TUBE")
+                    if bar_elems:
+                        elastic_groups.append("G_BAR")
+                    for support in model.supports:
+                        if (support.type == "spring" and (support.stiffness_matrix is not None or support.stiffness is not None)) or support.mass > 0.0:
+                            elastic_groups.append(f"DIS_{support.node}")
+                    w("    COMPORTEMENT=(")
+                    if elastic_groups:
+                        w("        _F(")
+                        w(f"            GROUP_MA={group_ma_value(elastic_groups, map_name)},")
+                        w("            RELATION='ELAS',")
+                        w("        ),")
+                    w("        _F(")
+                    w(f"            GROUP_MA='{map_name('G_CABLE')}',")
+                    w("            RELATION='CABLE',")
+                    w("            DEFORMATION='GROT_GDEP',")
+                    w("        ),")
+                    w("    ),")
+                else:
+                    w("    COMPORTEMENT=_F(")
+                    w("        TOUT='OUI',")
+                    w("        RELATION='ELAS',")
+                    w("    ),")
+                w("    INCREMENT=_F(")
+                w("        LIST_INST=times,")
+                w("    ),")
+                w("    CONTACT=contact,")
+                w("    METHODE='NEWTON',")
+                w(");")
+            else:
+                w("RESU = MECA_STATIQUE(")
+                w("    MODELE=MODELE,")
+                w("    CHAM_MATER=CHMAT,")
+                w("    CARA_ELEM=CARA,")
+                w("    EXCIT=(")
+                for entry in excit_entries:
+                    w(entry)
+                w("    ),")
+                w(");")
+            w()
 
         # ==============================================================
         # CALC_CHAMP — derived fields
@@ -825,7 +860,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='EFGE_ELNO',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),")
-        if is_nonlinear:
+        if is_nonlinear and not native_path:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -834,6 +869,7 @@ class _CommWriterMixin:
         w("    TABLE=TAB_EFFO,")
         w("    UNITE=38,")
         w("    FORMAT='TABLEAU',")
+        w("    FORMAT_R='1PE24.16',")
         w("    SEPARATEUR=',',")
         w(");")
         w()
@@ -844,7 +880,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='DEPL',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),")
-        if is_nonlinear:
+        if is_nonlinear and not native_path:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -853,6 +889,7 @@ class _CommWriterMixin:
         w("    TABLE=TAB_DEPL,")
         w("    UNITE=39,")
         w("    FORMAT='TABLEAU',")
+        w("    FORMAT_R='1PE24.16',")
         w("    SEPARATEUR=',',")
         w(");")
         w()
@@ -863,7 +900,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='REAC_NODA',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),")
-        if is_nonlinear:
+        if is_nonlinear and not native_path:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -872,6 +909,7 @@ class _CommWriterMixin:
         w("    TABLE=TAB_REAC,")
         w("    UNITE=40,")
         w("    FORMAT='TABLEAU',")
+        w("    FORMAT_R='1PE24.16',")
         w("    SEPARATEUR=',',")
         w(");")
         w()
@@ -892,6 +930,7 @@ class _CommWriterMixin:
             w("    TABLE=TAB_SIEQ,")
             w("    UNITE=41,")
             w("    FORMAT='TABLEAU',")
+            w("    FORMAT_R='1PE24.16',")
             w("    SEPARATEUR=',',")
             w(");")
             w()
@@ -899,6 +938,8 @@ class _CommWriterMixin:
         # ==============================================================
         # FIN
         # ==============================================================
+        if contacts:
+            write_contact_tables(w, contacts, map_name)
         w("FIN();")
 
         path.write_text("\n".join(comm), encoding="utf-8")

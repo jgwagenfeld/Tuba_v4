@@ -84,6 +84,10 @@ def build_solver_input_identity(
     }
     if compiler_inputs is not None:
         payload["compiler_inputs"] = dict(compiler_inputs)
+        if compiler_inputs.get('load_path'):
+            payload['load_path_cases'] = {
+                name: model_data['load_cases'][name] for name in compiler_inputs['load_path']
+            }
     insulation = {
         element.id: {"thickness_m": float(spec.thickness_m), "density_kg_m3": float(spec.density_kg_m3)}
         for element in model.elements

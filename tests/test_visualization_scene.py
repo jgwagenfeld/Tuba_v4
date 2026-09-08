@@ -14,6 +14,7 @@ from tuba.visualization import (
     SceneStyle,
     ViewState,
     VisualizationScene,
+    add_scene_label,
 )
 from tuba.visualization.schema import SceneValidationError, validate_scene_dict
 
@@ -137,6 +138,27 @@ class TestVisualizationScene(unittest.TestCase):
         self.assertEqual(restored.updated_objects[0].entity_ref, EntityRef("element", "pipe_0"))
         self.assertEqual(restored.removed_object_ids, ["object_old"])
         self.assertEqual(restored.to_dict(), diff.to_dict())
+
+    def test_scene_label_adds_accessible_object_asset_and_shared_layer(self):
+        scene = self._minimal_scene()
+        label = add_scene_label(scene, "Low friction", [1, 2, 3], label_id="low", height=0.25)
+        add_scene_label(scene, "High friction", [1, 4, 3], label_id="high")
+        self.assertEqual((label.kind, label.name, label.layer_ids), ("scene_label", "Low friction", ["annotations:labels"]))
+        self.assertEqual(scene.geometry_assets[-2].generation_config, {"text": "Low friction", "position": [1.0, 2.0, 3.0], "height": 0.25})
+        self.assertEqual([layer.id for layer in scene.layers].count("annotations:labels"), 1)
+        scene.validate()
+
+    def test_scene_label_rejects_invalid_boundary_values(self):
+        scene = self._minimal_scene()
+        for text, position, height in [("", [0, 0, 0], 1), ("x", [0, float("nan"), 0], 1), ("x", [0, 0], 1), ("x", [0, 0, 0], 0)]:
+            with self.subTest(text=text, position=position, height=height), self.assertRaises(SceneValidationError):
+                add_scene_label(scene, text, position, label_id="bad", height=height)
+
+        payload = self._minimal_scene().to_dict()
+        payload["objects"].append({"id": "label:bad", "kind": "scene_label", "name": "Bad", "geometry_asset_id": "geometry:label:bad"})
+        payload["geometry_assets"].append({"id": "geometry:label:bad", "format": "label", "object_ids": ["label:bad"], "generation_config": {"text": "Bad", "position": [0, float("inf"), 0], "height": 1}})
+        with self.assertRaisesRegex(SceneValidationError, "finite three-number position"):
+            validate_scene_dict(payload)
 
 
 if __name__ == "__main__":

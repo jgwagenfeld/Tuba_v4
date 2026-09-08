@@ -5,6 +5,7 @@
 // the images are committed, so releasing never needs a browser.
 //
 //   node viewer/scripts/gallery-thumbnails.mjs <out-dir> <id> [<id> ...]
+// Set TUBA_PAGES_SITE_ROOT (relative to viewer/) to capture an assembled site.
 
 import { mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -13,6 +14,7 @@ import { chromium } from "@playwright/test";
 import { createServer } from "vite";
 
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const siteRoot = process.env.TUBA_PAGES_SITE_ROOT?.trim();
 const [outDir, ...bundleIds] = process.argv.slice(2);
 
 if (!outDir || bundleIds.length === 0) {
@@ -25,7 +27,9 @@ let browser;
 try {
   await mkdir(outDir, { recursive: true });
   server = await createServer({
-    root: viewerRoot,
+    root: siteRoot ? resolve(viewerRoot, siteRoot, "viewer") : viewerRoot,
+    configFile: siteRoot ? false : undefined,
+    cacheDir: resolve(viewerRoot, "../.build/gallery-thumbnail-vite"),
     logLevel: "error",
     server: { host: "127.0.0.1", port: 15975, strictPort: false }
   });

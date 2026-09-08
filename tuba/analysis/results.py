@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from tuba.solver.base import ElementResult, FEAResults, NodeResult
+from tuba.solver.base import ContactResult, ElementResult, FEAResults, NodeResult
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.study import AnalysisStudy
 from tuba.analysis.provenance import (
@@ -38,6 +38,7 @@ class ResultState:
     files: dict[str, str] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
     solver_input_identity: SolverInputIdentity | None = None
+    contact_results: dict[str, ContactResult] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "ResultState id")
@@ -63,6 +64,11 @@ class ResultState:
             },
         )
         object.__setattr__(self, "element_results", {key: dict(value) for key, value in self.element_results.items()})
+        contacts = dict(self.contact_results)
+        for support_id, contact in contacts.items():
+            if not isinstance(contact, ContactResult) or contact.support_id != support_id:
+                raise ValueError("ResultState contact_results must be keyed by ContactResult support_id.")
+        object.__setattr__(self, "contact_results", contacts)
         object.__setattr__(self, "files", dict(self.files))
         object.__setattr__(self, "metadata", dict(self.metadata))
 
@@ -77,6 +83,7 @@ class ResultState:
             "node_displacements": {key: list(value) for key, value in self.node_displacements.items()},
             "node_reactions": {key: list(value) for key, value in self.node_reactions.items()},
             "element_results": {key: dict(value) for key, value in self.element_results.items()},
+            "contact_results": {key: value.to_dict() for key, value in self.contact_results.items()},
             "files": dict(self.files),
             "metadata": dict(self.metadata),
         }
@@ -96,6 +103,7 @@ class ResultState:
             node_displacements={key: tuple(value) for key, value in data.get("node_displacements", {}).items()},
             node_reactions={key: tuple(value) for key, value in data.get("node_reactions", {}).items()},
             element_results={key: dict(value) for key, value in data.get("element_results", {}).items()},
+            contact_results={key: ContactResult.from_dict(value) for key, value in data.get("contact_results", {}).items()},
             files=dict(data.get("files", {})),
             metadata=dict(data.get("metadata", {})),
             solver_input_identity=(
@@ -190,7 +198,9 @@ def result_state_from_fea_results(
     if results.result_file is not None:
         files["result"] = str(results.result_file)
 
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = dict(results.metadata)
+    if compiler_inputs is not None:
+        metadata["compiler_inputs"] = dict(compiler_inputs)
     if study.metadata.get("mixed_analysis"):
         metadata["mixed_analysis"] = True
     if analysis_node_ids:
@@ -220,6 +230,7 @@ def result_state_from_fea_results(
         node_displacements=node_displacements,
         node_reactions=node_reactions,
         element_results=element_results,
+        contact_results=results.contact_results,
         files=files,
         metadata=metadata,
         solver_input_identity=(
@@ -300,6 +311,8 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
 
     results = FEAResults(solver_name=result_state.solver_name, load_case=result_state.load_case)
     results._model = model
+    results.contact_results.update(result_state.contact_results)
+    results.metadata.update(result_state.metadata)
     if "result" in result_state.files:
         results.result_file = Path(result_state.files["result"])
     results.parser_diagnostics.extend(result_state.metadata.get("parser_diagnostics", []))

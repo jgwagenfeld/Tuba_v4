@@ -467,6 +467,20 @@ test("full scene reload keeps an absent result context absent", () => {
   assert.equal(preserved.activeLoadCase, null);
 });
 
+test("label layer visibility survives result changes and full reload", () => {
+  const source = bundle();
+  source.scene.objects.push({ id: "label:comparison", kind: "scene_label", name: "Comparison", geometry_asset_id: "asset:label", layer_ids: ["annotations:labels"] });
+  source.scene.geometry_assets.push({ id: "asset:label", format: "label", bounds: [0, 0, 0, 0, 0, 0], object_ids: ["label:comparison"], generation_config: { text: "Comparison", position: [0, 0, 0], height: 0.2 } });
+  source.scene.layers = [{ id: "annotations:labels", category: "annotations", label: "Labels", default_visible: true }];
+  let previous = setLayerVisibility(createViewerState(source), "annotations:labels", false);
+
+  previous = reduceViewerState(previous, { type: "setActiveLoadCase", loadCase: "Hot" });
+  const preserved = preserveViewerStateForReload(previous, createViewerState(source));
+
+  assert.equal(preserved.layers["annotations:labels"].visible, false);
+  assert.equal(preserved.visibleObjectIds.includes("label:comparison"), false);
+});
+
 test("scene diff adds objects and geometry while preserving review state", () => {
   const review = {
     schema_version: "engineering_review.v1",

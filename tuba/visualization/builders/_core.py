@@ -82,7 +82,7 @@ def build_visualization_scene(
             )
         for run in analysis_run_records:
             run.validate_for_publication(model)
-        result_state_records = [run.result_state for run in analysis_run_records]
+        result_state_records = [state for run in analysis_run_records for state in (run.result_states or (run.result_state,))]
         analysis_mesh_records = [
             run.analysis_mesh for run in analysis_run_records if run.analysis_mesh is not None
         ]
@@ -134,7 +134,7 @@ def build_visualization_scene(
             if is_volume
             else CODE_ASTER_COMPILER_ID
         )
-        compiler_inputs = result_state.metadata.get("compiler_inputs") if (is_volume or is_mixed) else None
+        compiler_inputs = result_state.metadata.get("compiler_inputs")
         validate_solver_input_identity(
             model,
             result_state.solver_input_identity,

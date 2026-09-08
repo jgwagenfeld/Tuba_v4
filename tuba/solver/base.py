@@ -6,7 +6,7 @@ These types carry parsed Code_Aster results into compliance and display paths.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -41,6 +41,61 @@ class ElementResult:
     max_von_mises: float = float("nan")
 
 
+@dataclass(frozen=True)
+class ContactResult:
+    """One solved support state, SI units (N, m); global forces act on the pipe.
+
+    ``normal`` is the outward unit normal; ``slip`` is accumulated native
+    tangential slip, distinct from total relative displacement.
+    """
+
+    support_id: str
+    node_id: str
+    status: str
+    normal: tuple[float, float, float]
+    normal_force: float
+    tangential_force: tuple[float, float, float]
+    gap: float
+    relative_displacement: tuple[float, float, float]
+    slip: tuple[float, float, float]
+    friction_limit: float
+    utilization: float | None
+    status_source: str
+
+    def __post_init__(self) -> None:
+        for name in ("support_id", "node_id"):
+            if not isinstance(getattr(self, name), str) or not getattr(self, name).strip():
+                raise ValueError(f"ContactResult {name} must be a nonempty string.")
+        if self.status not in {"open", "sticking", "sliding", "indeterminate"}:
+            raise ValueError("ContactResult status is invalid.")
+        if self.status_source not in {"solver", "derived"}:
+            raise ValueError("ContactResult status_source must be solver or derived.")
+        for name in ("normal", "tangential_force", "relative_displacement", "slip"):
+            values = tuple(float(value) for value in getattr(self, name))
+            if len(values) != 3 or not np.isfinite(values).all():
+                raise ValueError(f"ContactResult {name} must contain three finite values.")
+            object.__setattr__(self, name, values)
+        if not np.isclose(np.linalg.norm(self.normal), 1.0, rtol=0.0, atol=1e-8):
+            raise ValueError("ContactResult normal must be a unit vector.")
+        for name in ("normal_force", "gap", "friction_limit", "utilization"):
+            value = getattr(self, name)
+            if name == "utilization" and value is None:
+                continue
+            value = float(value)
+            if not np.isfinite(value):
+                raise ValueError(f"ContactResult {name} must be finite.")
+            object.__setattr__(self, name, value)
+        if self.friction_limit < 0 or (self.utilization is not None and self.utilization < 0):
+            raise ValueError("ContactResult friction_limit and utilization must be non-negative.")
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ContactResult":
+        return cls(**data)
+
+
 @dataclass
 class FEAResults:
     """Container holding the full set of results from a solver run.
@@ -69,6 +124,9 @@ class FEAResults:
 
     # Reference to original model for visualization, SIFs, etc.
     _model: Optional[Any] = None
+
+    contact_results: dict[str, ContactResult] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # ------------------------------------------------------------------
     # Accessors

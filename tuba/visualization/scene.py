@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any
 
 from tuba.refs import EntityRef
@@ -808,6 +809,16 @@ class VisualizationScene:
             for object_id in asset.object_ids:
                 if object_id not in object_ids:
                     raise SceneValidationError(f"Geometry asset {asset.id!r} references unknown object {object_id!r}.")
+            if asset.format == "label":
+                config = asset.generation_config
+                position = config.get("position")
+                height = config.get("height")
+                if not isinstance(config.get("text"), str) or not config["text"].strip():
+                    raise SceneValidationError(f"Label asset {asset.id!r} requires non-empty text.")
+                if not isinstance(position, (list, tuple)) or len(position) != 3 or any(isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value) for value in position):
+                    raise SceneValidationError(f"Label asset {asset.id!r} requires a finite three-number position.")
+                if isinstance(height, bool) or not isinstance(height, (int, float)) or not isfinite(height) or height <= 0:
+                    raise SceneValidationError(f"Label asset {asset.id!r} requires a positive finite height.")
 
         for style in self.styles:
             if style.material_id and style.material_id not in material_ids:

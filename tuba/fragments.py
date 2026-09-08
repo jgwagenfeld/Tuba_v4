@@ -135,9 +135,12 @@ def build_fragment_patch(
         )
 
     for support in fragment.model.supports:
+        local_direction = support.direction
+        if local_direction is None and support.type == "rest":
+            local_direction = (0.0, 0.0, 1.0)
         direction = (
-            coordinate_system.to_global_vector(support.direction).tolist()
-            if support.direction is not None
+            coordinate_system.to_global_vector(local_direction).tolist()
+            if local_direction is not None
             else None
         )
         operations.append(
@@ -151,6 +154,9 @@ def build_fragment_patch(
                 blocked_dof=support.blocked_dof,
                 mass=support.mass,
                 friction_coefficient=support.friction_coefficient,
+                gap=support.gap,
+                normal_stiffness=support.normal_stiffness,
+                tangential_stiffness=support.tangential_stiffness,
             )
         )
 

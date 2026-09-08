@@ -1,0 +1,6127 @@
+{
+  "analysis_mesh": {
+    "element_sources": {
+      "CONTACT_1": {
+        "element_id": "CONTACT_1",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "NF_S1",
+          "kind": "support"
+        }
+      },
+      "CONTACT_2": {
+        "element_id": "CONTACT_2",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "NF_S2",
+          "kind": "support"
+        }
+      },
+      "CONTACT_4": {
+        "element_id": "CONTACT_4",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "F_S1",
+          "kind": "support"
+        }
+      },
+      "CONTACT_5": {
+        "element_id": "CONTACT_5",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "F_S2",
+          "kind": "support"
+        }
+      },
+      "F_elbow_s0": {
+        "element_id": "F_elbow_s0",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s1": {
+        "element_id": "F_elbow_s1",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s10": {
+        "element_id": "F_elbow_s10",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s11": {
+        "element_id": "F_elbow_s11",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s12": {
+        "element_id": "F_elbow_s12",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s13": {
+        "element_id": "F_elbow_s13",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s14": {
+        "element_id": "F_elbow_s14",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s15": {
+        "element_id": "F_elbow_s15",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s16": {
+        "element_id": "F_elbow_s16",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 16,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s17": {
+        "element_id": "F_elbow_s17",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 17,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s18": {
+        "element_id": "F_elbow_s18",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 18,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s19": {
+        "element_id": "F_elbow_s19",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 19,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s2": {
+        "element_id": "F_elbow_s2",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s20": {
+        "element_id": "F_elbow_s20",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 20,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s21": {
+        "element_id": "F_elbow_s21",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 21,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s22": {
+        "element_id": "F_elbow_s22",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 22,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s23": {
+        "element_id": "F_elbow_s23",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 23,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s24": {
+        "element_id": "F_elbow_s24",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 24,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s25": {
+        "element_id": "F_elbow_s25",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 25,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s26": {
+        "element_id": "F_elbow_s26",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 26,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s27": {
+        "element_id": "F_elbow_s27",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 27,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s28": {
+        "element_id": "F_elbow_s28",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 28,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s29": {
+        "element_id": "F_elbow_s29",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 29,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s3": {
+        "element_id": "F_elbow_s3",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s30": {
+        "element_id": "F_elbow_s30",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 30,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s31": {
+        "element_id": "F_elbow_s31",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 31,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s4": {
+        "element_id": "F_elbow_s4",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s5": {
+        "element_id": "F_elbow_s5",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s6": {
+        "element_id": "F_elbow_s6",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s7": {
+        "element_id": "F_elbow_s7",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s8": {
+        "element_id": "F_elbow_s8",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_s9": {
+        "element_id": "F_elbow_s9",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_pipe_0": {
+        "element_id": "F_pipe_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "F_pipe_0",
+          "kind": "element"
+        }
+      },
+      "F_pipe_1": {
+        "element_id": "F_pipe_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "F_pipe_1",
+          "kind": "element"
+        }
+      },
+      "F_pipe_3": {
+        "element_id": "F_pipe_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "F_pipe_3",
+          "kind": "element"
+        }
+      },
+      "F_pipe_4": {
+        "element_id": "F_pipe_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "F_pipe_4",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s0": {
+        "element_id": "NF_elbow_s0",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s1": {
+        "element_id": "NF_elbow_s1",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s10": {
+        "element_id": "NF_elbow_s10",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s11": {
+        "element_id": "NF_elbow_s11",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s12": {
+        "element_id": "NF_elbow_s12",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s13": {
+        "element_id": "NF_elbow_s13",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s14": {
+        "element_id": "NF_elbow_s14",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s15": {
+        "element_id": "NF_elbow_s15",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s16": {
+        "element_id": "NF_elbow_s16",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 16,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s17": {
+        "element_id": "NF_elbow_s17",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 17,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s18": {
+        "element_id": "NF_elbow_s18",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 18,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s19": {
+        "element_id": "NF_elbow_s19",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 19,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s2": {
+        "element_id": "NF_elbow_s2",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s20": {
+        "element_id": "NF_elbow_s20",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 20,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s21": {
+        "element_id": "NF_elbow_s21",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 21,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s22": {
+        "element_id": "NF_elbow_s22",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 22,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s23": {
+        "element_id": "NF_elbow_s23",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 23,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s24": {
+        "element_id": "NF_elbow_s24",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 24,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s25": {
+        "element_id": "NF_elbow_s25",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 25,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s26": {
+        "element_id": "NF_elbow_s26",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 26,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s27": {
+        "element_id": "NF_elbow_s27",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 27,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s28": {
+        "element_id": "NF_elbow_s28",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 28,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s29": {
+        "element_id": "NF_elbow_s29",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 29,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s3": {
+        "element_id": "NF_elbow_s3",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s30": {
+        "element_id": "NF_elbow_s30",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 30,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s31": {
+        "element_id": "NF_elbow_s31",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 31,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s4": {
+        "element_id": "NF_elbow_s4",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s5": {
+        "element_id": "NF_elbow_s5",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s6": {
+        "element_id": "NF_elbow_s6",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s7": {
+        "element_id": "NF_elbow_s7",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s8": {
+        "element_id": "NF_elbow_s8",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_s9": {
+        "element_id": "NF_elbow_s9",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_pipe_0": {
+        "element_id": "NF_pipe_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "NF_pipe_0",
+          "kind": "element"
+        }
+      },
+      "NF_pipe_1": {
+        "element_id": "NF_pipe_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "NF_pipe_1",
+          "kind": "element"
+        }
+      },
+      "NF_pipe_3": {
+        "element_id": "NF_pipe_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "NF_pipe_3",
+          "kind": "element"
+        }
+      },
+      "NF_pipe_4": {
+        "element_id": "NF_pipe_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "NF_pipe_4",
+          "kind": "element"
+        }
+      }
+    },
+    "elements": {
+      "CONTACT_1": [
+        "GROUND_1",
+        "N1"
+      ],
+      "CONTACT_2": [
+        "GROUND_2",
+        "N4"
+      ],
+      "CONTACT_4": [
+        "GROUND_4",
+        "N7"
+      ],
+      "CONTACT_5": [
+        "GROUND_5",
+        "N10"
+      ],
+      "F_elbow_s0": [
+        "N8",
+        "F_elbow_n1"
+      ],
+      "F_elbow_s1": [
+        "F_elbow_n1",
+        "F_elbow_n2"
+      ],
+      "F_elbow_s10": [
+        "F_elbow_n10",
+        "F_elbow_n11"
+      ],
+      "F_elbow_s11": [
+        "F_elbow_n11",
+        "F_elbow_n12"
+      ],
+      "F_elbow_s12": [
+        "F_elbow_n12",
+        "F_elbow_n13"
+      ],
+      "F_elbow_s13": [
+        "F_elbow_n13",
+        "F_elbow_n14"
+      ],
+      "F_elbow_s14": [
+        "F_elbow_n14",
+        "F_elbow_n15"
+      ],
+      "F_elbow_s15": [
+        "F_elbow_n15",
+        "F_elbow_n16"
+      ],
+      "F_elbow_s16": [
+        "F_elbow_n16",
+        "F_elbow_n17"
+      ],
+      "F_elbow_s17": [
+        "F_elbow_n17",
+        "F_elbow_n18"
+      ],
+      "F_elbow_s18": [
+        "F_elbow_n18",
+        "F_elbow_n19"
+      ],
+      "F_elbow_s19": [
+        "F_elbow_n19",
+        "F_elbow_n20"
+      ],
+      "F_elbow_s2": [
+        "F_elbow_n2",
+        "F_elbow_n3"
+      ],
+      "F_elbow_s20": [
+        "F_elbow_n20",
+        "F_elbow_n21"
+      ],
+      "F_elbow_s21": [
+        "F_elbow_n21",
+        "F_elbow_n22"
+      ],
+      "F_elbow_s22": [
+        "F_elbow_n22",
+        "F_elbow_n23"
+      ],
+      "F_elbow_s23": [
+        "F_elbow_n23",
+        "F_elbow_n24"
+      ],
+      "F_elbow_s24": [
+        "F_elbow_n24",
+        "F_elbow_n25"
+      ],
+      "F_elbow_s25": [
+        "F_elbow_n25",
+        "F_elbow_n26"
+      ],
+      "F_elbow_s26": [
+        "F_elbow_n26",
+        "F_elbow_n27"
+      ],
+      "F_elbow_s27": [
+        "F_elbow_n27",
+        "F_elbow_n28"
+      ],
+      "F_elbow_s28": [
+        "F_elbow_n28",
+        "F_elbow_n29"
+      ],
+      "F_elbow_s29": [
+        "F_elbow_n29",
+        "F_elbow_n30"
+      ],
+      "F_elbow_s3": [
+        "F_elbow_n3",
+        "F_elbow_n4"
+      ],
+      "F_elbow_s30": [
+        "F_elbow_n30",
+        "F_elbow_n31"
+      ],
+      "F_elbow_s31": [
+        "F_elbow_n31",
+        "N9"
+      ],
+      "F_elbow_s4": [
+        "F_elbow_n4",
+        "F_elbow_n5"
+      ],
+      "F_elbow_s5": [
+        "F_elbow_n5",
+        "F_elbow_n6"
+      ],
+      "F_elbow_s6": [
+        "F_elbow_n6",
+        "F_elbow_n7"
+      ],
+      "F_elbow_s7": [
+        "F_elbow_n7",
+        "F_elbow_n8"
+      ],
+      "F_elbow_s8": [
+        "F_elbow_n8",
+        "F_elbow_n9"
+      ],
+      "F_elbow_s9": [
+        "F_elbow_n9",
+        "F_elbow_n10"
+      ],
+      "F_pipe_0": [
+        "N6",
+        "N7"
+      ],
+      "F_pipe_1": [
+        "N7",
+        "N8"
+      ],
+      "F_pipe_3": [
+        "N9",
+        "N10"
+      ],
+      "F_pipe_4": [
+        "N10",
+        "N11"
+      ],
+      "NF_elbow_s0": [
+        "N2",
+        "NF_elbow_n1"
+      ],
+      "NF_elbow_s1": [
+        "NF_elbow_n1",
+        "NF_elbow_n2"
+      ],
+      "NF_elbow_s10": [
+        "NF_elbow_n10",
+        "NF_elbow_n11"
+      ],
+      "NF_elbow_s11": [
+        "NF_elbow_n11",
+        "NF_elbow_n12"
+      ],
+      "NF_elbow_s12": [
+        "NF_elbow_n12",
+        "NF_elbow_n13"
+      ],
+      "NF_elbow_s13": [
+        "NF_elbow_n13",
+        "NF_elbow_n14"
+      ],
+      "NF_elbow_s14": [
+        "NF_elbow_n14",
+        "NF_elbow_n15"
+      ],
+      "NF_elbow_s15": [
+        "NF_elbow_n15",
+        "NF_elbow_n16"
+      ],
+      "NF_elbow_s16": [
+        "NF_elbow_n16",
+        "NF_elbow_n17"
+      ],
+      "NF_elbow_s17": [
+        "NF_elbow_n17",
+        "NF_elbow_n18"
+      ],
+      "NF_elbow_s18": [
+        "NF_elbow_n18",
+        "NF_elbow_n19"
+      ],
+      "NF_elbow_s19": [
+        "NF_elbow_n19",
+        "NF_elbow_n20"
+      ],
+      "NF_elbow_s2": [
+        "NF_elbow_n2",
+        "NF_elbow_n3"
+      ],
+      "NF_elbow_s20": [
+        "NF_elbow_n20",
+        "NF_elbow_n21"
+      ],
+      "NF_elbow_s21": [
+        "NF_elbow_n21",
+        "NF_elbow_n22"
+      ],
+      "NF_elbow_s22": [
+        "NF_elbow_n22",
+        "NF_elbow_n23"
+      ],
+      "NF_elbow_s23": [
+        "NF_elbow_n23",
+        "NF_elbow_n24"
+      ],
+      "NF_elbow_s24": [
+        "NF_elbow_n24",
+        "NF_elbow_n25"
+      ],
+      "NF_elbow_s25": [
+        "NF_elbow_n25",
+        "NF_elbow_n26"
+      ],
+      "NF_elbow_s26": [
+        "NF_elbow_n26",
+        "NF_elbow_n27"
+      ],
+      "NF_elbow_s27": [
+        "NF_elbow_n27",
+        "NF_elbow_n28"
+      ],
+      "NF_elbow_s28": [
+        "NF_elbow_n28",
+        "NF_elbow_n29"
+      ],
+      "NF_elbow_s29": [
+        "NF_elbow_n29",
+        "NF_elbow_n30"
+      ],
+      "NF_elbow_s3": [
+        "NF_elbow_n3",
+        "NF_elbow_n4"
+      ],
+      "NF_elbow_s30": [
+        "NF_elbow_n30",
+        "NF_elbow_n31"
+      ],
+      "NF_elbow_s31": [
+        "NF_elbow_n31",
+        "N3"
+      ],
+      "NF_elbow_s4": [
+        "NF_elbow_n4",
+        "NF_elbow_n5"
+      ],
+      "NF_elbow_s5": [
+        "NF_elbow_n5",
+        "NF_elbow_n6"
+      ],
+      "NF_elbow_s6": [
+        "NF_elbow_n6",
+        "NF_elbow_n7"
+      ],
+      "NF_elbow_s7": [
+        "NF_elbow_n7",
+        "NF_elbow_n8"
+      ],
+      "NF_elbow_s8": [
+        "NF_elbow_n8",
+        "NF_elbow_n9"
+      ],
+      "NF_elbow_s9": [
+        "NF_elbow_n9",
+        "NF_elbow_n10"
+      ],
+      "NF_pipe_0": [
+        "N0",
+        "N1"
+      ],
+      "NF_pipe_1": [
+        "N1",
+        "N2"
+      ],
+      "NF_pipe_3": [
+        "N3",
+        "N4"
+      ],
+      "NF_pipe_4": [
+        "N4",
+        "N5"
+      ]
+    },
+    "files": {
+      "mail": "study.mail"
+    },
+    "groups": {
+      "AllPipes": [
+        "NF_pipe_0",
+        "NF_pipe_1",
+        "NF_pipe_3",
+        "NF_pipe_4",
+        "F_pipe_0",
+        "F_pipe_1",
+        "F_pipe_3",
+        "F_pipe_4",
+        "NF_elbow_s0",
+        "NF_elbow_s1",
+        "NF_elbow_s2",
+        "NF_elbow_s3",
+        "NF_elbow_s4",
+        "NF_elbow_s5",
+        "NF_elbow_s6",
+        "NF_elbow_s7",
+        "NF_elbow_s8",
+        "NF_elbow_s9",
+        "NF_elbow_s10",
+        "NF_elbow_s11",
+        "NF_elbow_s12",
+        "NF_elbow_s13",
+        "NF_elbow_s14",
+        "NF_elbow_s15",
+        "NF_elbow_s16",
+        "NF_elbow_s17",
+        "NF_elbow_s18",
+        "NF_elbow_s19",
+        "NF_elbow_s20",
+        "NF_elbow_s21",
+        "NF_elbow_s22",
+        "NF_elbow_s23",
+        "NF_elbow_s24",
+        "NF_elbow_s25",
+        "NF_elbow_s26",
+        "NF_elbow_s27",
+        "NF_elbow_s28",
+        "NF_elbow_s29",
+        "NF_elbow_s30",
+        "NF_elbow_s31",
+        "F_elbow_s0",
+        "F_elbow_s1",
+        "F_elbow_s2",
+        "F_elbow_s3",
+        "F_elbow_s4",
+        "F_elbow_s5",
+        "F_elbow_s6",
+        "F_elbow_s7",
+        "F_elbow_s8",
+        "F_elbow_s9",
+        "F_elbow_s10",
+        "F_elbow_s11",
+        "F_elbow_s12",
+        "F_elbow_s13",
+        "F_elbow_s14",
+        "F_elbow_s15",
+        "F_elbow_s16",
+        "F_elbow_s17",
+        "F_elbow_s18",
+        "F_elbow_s19",
+        "F_elbow_s20",
+        "F_elbow_s21",
+        "F_elbow_s22",
+        "F_elbow_s23",
+        "F_elbow_s24",
+        "F_elbow_s25",
+        "F_elbow_s26",
+        "F_elbow_s27",
+        "F_elbow_s28",
+        "F_elbow_s29",
+        "F_elbow_s30",
+        "F_elbow_s31"
+      ],
+      "AllSupports": [
+        "N0",
+        "N1",
+        "N4",
+        "N6",
+        "N7",
+        "N10"
+      ],
+      "CONTACT_1": [
+        "CONTACT_1"
+      ],
+      "CONTACT_2": [
+        "CONTACT_2"
+      ],
+      "CONTACT_4": [
+        "CONTACT_4"
+      ],
+      "CONTACT_5": [
+        "CONTACT_5"
+      ],
+      "F_elbow": [
+        "F_elbow_s0",
+        "F_elbow_s1",
+        "F_elbow_s2",
+        "F_elbow_s3",
+        "F_elbow_s4",
+        "F_elbow_s5",
+        "F_elbow_s6",
+        "F_elbow_s7",
+        "F_elbow_s8",
+        "F_elbow_s9",
+        "F_elbow_s10",
+        "F_elbow_s11",
+        "F_elbow_s12",
+        "F_elbow_s13",
+        "F_elbow_s14",
+        "F_elbow_s15",
+        "F_elbow_s16",
+        "F_elbow_s17",
+        "F_elbow_s18",
+        "F_elbow_s19",
+        "F_elbow_s20",
+        "F_elbow_s21",
+        "F_elbow_s22",
+        "F_elbow_s23",
+        "F_elbow_s24",
+        "F_elbow_s25",
+        "F_elbow_s26",
+        "F_elbow_s27",
+        "F_elbow_s28",
+        "F_elbow_s29",
+        "F_elbow_s30",
+        "F_elbow_s31"
+      ],
+      "F_pipe_0": [
+        "F_pipe_0"
+      ],
+      "F_pipe_1": [
+        "F_pipe_1"
+      ],
+      "F_pipe_3": [
+        "F_pipe_3"
+      ],
+      "F_pipe_4": [
+        "F_pipe_4"
+      ],
+      "GN_N0": [
+        "N0"
+      ],
+      "GN_N1": [
+        "N1"
+      ],
+      "GN_N10": [
+        "N10"
+      ],
+      "GN_N4": [
+        "N4"
+      ],
+      "GN_N6": [
+        "N6"
+      ],
+      "GN_N7": [
+        "N7"
+      ],
+      "GROUND_1": [
+        "GROUND_1"
+      ],
+      "GROUND_2": [
+        "GROUND_2"
+      ],
+      "GROUND_4": [
+        "GROUND_4"
+      ],
+      "GROUND_5": [
+        "GROUND_5"
+      ],
+      "MAT_steel": [
+        "NF_pipe_0",
+        "NF_pipe_1",
+        "NF_pipe_3",
+        "NF_pipe_4",
+        "F_pipe_0",
+        "F_pipe_1",
+        "F_pipe_3",
+        "F_pipe_4",
+        "NF_elbow_s0",
+        "NF_elbow_s1",
+        "NF_elbow_s2",
+        "NF_elbow_s3",
+        "NF_elbow_s4",
+        "NF_elbow_s5",
+        "NF_elbow_s6",
+        "NF_elbow_s7",
+        "NF_elbow_s8",
+        "NF_elbow_s9",
+        "NF_elbow_s10",
+        "NF_elbow_s11",
+        "NF_elbow_s12",
+        "NF_elbow_s13",
+        "NF_elbow_s14",
+        "NF_elbow_s15",
+        "NF_elbow_s16",
+        "NF_elbow_s17",
+        "NF_elbow_s18",
+        "NF_elbow_s19",
+        "NF_elbow_s20",
+        "NF_elbow_s21",
+        "NF_elbow_s22",
+        "NF_elbow_s23",
+        "NF_elbow_s24",
+        "NF_elbow_s25",
+        "NF_elbow_s26",
+        "NF_elbow_s27",
+        "NF_elbow_s28",
+        "NF_elbow_s29",
+        "NF_elbow_s30",
+        "NF_elbow_s31",
+        "F_elbow_s0",
+        "F_elbow_s1",
+        "F_elbow_s2",
+        "F_elbow_s3",
+        "F_elbow_s4",
+        "F_elbow_s5",
+        "F_elbow_s6",
+        "F_elbow_s7",
+        "F_elbow_s8",
+        "F_elbow_s9",
+        "F_elbow_s10",
+        "F_elbow_s11",
+        "F_elbow_s12",
+        "F_elbow_s13",
+        "F_elbow_s14",
+        "F_elbow_s15",
+        "F_elbow_s16",
+        "F_elbow_s17",
+        "F_elbow_s18",
+        "F_elbow_s19",
+        "F_elbow_s20",
+        "F_elbow_s21",
+        "F_elbow_s22",
+        "F_elbow_s23",
+        "F_elbow_s24",
+        "F_elbow_s25",
+        "F_elbow_s26",
+        "F_elbow_s27",
+        "F_elbow_s28",
+        "F_elbow_s29",
+        "F_elbow_s30",
+        "F_elbow_s31"
+      ],
+      "NF_elbow": [
+        "NF_elbow_s0",
+        "NF_elbow_s1",
+        "NF_elbow_s2",
+        "NF_elbow_s3",
+        "NF_elbow_s4",
+        "NF_elbow_s5",
+        "NF_elbow_s6",
+        "NF_elbow_s7",
+        "NF_elbow_s8",
+        "NF_elbow_s9",
+        "NF_elbow_s10",
+        "NF_elbow_s11",
+        "NF_elbow_s12",
+        "NF_elbow_s13",
+        "NF_elbow_s14",
+        "NF_elbow_s15",
+        "NF_elbow_s16",
+        "NF_elbow_s17",
+        "NF_elbow_s18",
+        "NF_elbow_s19",
+        "NF_elbow_s20",
+        "NF_elbow_s21",
+        "NF_elbow_s22",
+        "NF_elbow_s23",
+        "NF_elbow_s24",
+        "NF_elbow_s25",
+        "NF_elbow_s26",
+        "NF_elbow_s27",
+        "NF_elbow_s28",
+        "NF_elbow_s29",
+        "NF_elbow_s30",
+        "NF_elbow_s31"
+      ],
+      "NF_pipe_0": [
+        "NF_pipe_0"
+      ],
+      "NF_pipe_1": [
+        "NF_pipe_1"
+      ],
+      "NF_pipe_3": [
+        "NF_pipe_3"
+      ],
+      "NF_pipe_4": [
+        "NF_pipe_4"
+      ],
+      "PipeElbows": [
+        "NF_elbow_s0",
+        "NF_elbow_s1",
+        "NF_elbow_s2",
+        "NF_elbow_s3",
+        "NF_elbow_s4",
+        "NF_elbow_s5",
+        "NF_elbow_s6",
+        "NF_elbow_s7",
+        "NF_elbow_s8",
+        "NF_elbow_s9",
+        "NF_elbow_s10",
+        "NF_elbow_s11",
+        "NF_elbow_s12",
+        "NF_elbow_s13",
+        "NF_elbow_s14",
+        "NF_elbow_s15",
+        "NF_elbow_s16",
+        "NF_elbow_s17",
+        "NF_elbow_s18",
+        "NF_elbow_s19",
+        "NF_elbow_s20",
+        "NF_elbow_s21",
+        "NF_elbow_s22",
+        "NF_elbow_s23",
+        "NF_elbow_s24",
+        "NF_elbow_s25",
+        "NF_elbow_s26",
+        "NF_elbow_s27",
+        "NF_elbow_s28",
+        "NF_elbow_s29",
+        "NF_elbow_s30",
+        "NF_elbow_s31",
+        "F_elbow_s0",
+        "F_elbow_s1",
+        "F_elbow_s2",
+        "F_elbow_s3",
+        "F_elbow_s4",
+        "F_elbow_s5",
+        "F_elbow_s6",
+        "F_elbow_s7",
+        "F_elbow_s8",
+        "F_elbow_s9",
+        "F_elbow_s10",
+        "F_elbow_s11",
+        "F_elbow_s12",
+        "F_elbow_s13",
+        "F_elbow_s14",
+        "F_elbow_s15",
+        "F_elbow_s16",
+        "F_elbow_s17",
+        "F_elbow_s18",
+        "F_elbow_s19",
+        "F_elbow_s20",
+        "F_elbow_s21",
+        "F_elbow_s22",
+        "F_elbow_s23",
+        "F_elbow_s24",
+        "F_elbow_s25",
+        "F_elbow_s26",
+        "F_elbow_s27",
+        "F_elbow_s28",
+        "F_elbow_s29",
+        "F_elbow_s30",
+        "F_elbow_s31"
+      ],
+      "PipeOrientationNodes": [
+        "N0"
+      ],
+      "PipeStraights": [
+        "NF_pipe_0",
+        "NF_pipe_1",
+        "NF_pipe_3",
+        "NF_pipe_4",
+        "F_pipe_0",
+        "F_pipe_1",
+        "F_pipe_3",
+        "F_pipe_4"
+      ],
+      "SEC_pipe": [
+        "NF_pipe_0",
+        "NF_pipe_1",
+        "NF_pipe_3",
+        "NF_pipe_4",
+        "F_pipe_0",
+        "F_pipe_1",
+        "F_pipe_3",
+        "F_pipe_4"
+      ]
+    },
+    "id": "analysis_mesh:Cold",
+    "model_revision": 0,
+    "modelisations": {
+      "AllPipes": "POU_D_T",
+      "CONTACT_1": "DIS_T",
+      "CONTACT_2": "DIS_T",
+      "CONTACT_4": "DIS_T",
+      "CONTACT_5": "DIS_T"
+    },
+    "node_sources": {
+      "F_elbow_n1": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n1",
+        "parametric_t": 0.03125,
+        "role": "generated_bend_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n10": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n10",
+        "parametric_t": 0.3125,
+        "role": "generated_bend_node",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n11": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n11",
+        "parametric_t": 0.34375,
+        "role": "generated_bend_node",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n12": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n12",
+        "parametric_t": 0.375,
+        "role": "generated_bend_node",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n13": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n13",
+        "parametric_t": 0.40625,
+        "role": "generated_bend_node",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n14": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n14",
+        "parametric_t": 0.4375,
+        "role": "generated_bend_node",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n15": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n15",
+        "parametric_t": 0.46875,
+        "role": "generated_bend_node",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n16": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n16",
+        "parametric_t": 0.5,
+        "role": "generated_bend_node",
+        "segment_index": 16,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n17": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n17",
+        "parametric_t": 0.53125,
+        "role": "generated_bend_node",
+        "segment_index": 17,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n18": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n18",
+        "parametric_t": 0.5625,
+        "role": "generated_bend_node",
+        "segment_index": 18,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n19": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n19",
+        "parametric_t": 0.59375,
+        "role": "generated_bend_node",
+        "segment_index": 19,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n2": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n2",
+        "parametric_t": 0.0625,
+        "role": "generated_bend_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n20": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n20",
+        "parametric_t": 0.625,
+        "role": "generated_bend_node",
+        "segment_index": 20,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n21": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n21",
+        "parametric_t": 0.65625,
+        "role": "generated_bend_node",
+        "segment_index": 21,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n22": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n22",
+        "parametric_t": 0.6875,
+        "role": "generated_bend_node",
+        "segment_index": 22,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n23": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n23",
+        "parametric_t": 0.71875,
+        "role": "generated_bend_node",
+        "segment_index": 23,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n24": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n24",
+        "parametric_t": 0.75,
+        "role": "generated_bend_node",
+        "segment_index": 24,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n25": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n25",
+        "parametric_t": 0.78125,
+        "role": "generated_bend_node",
+        "segment_index": 25,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n26": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n26",
+        "parametric_t": 0.8125,
+        "role": "generated_bend_node",
+        "segment_index": 26,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n27": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n27",
+        "parametric_t": 0.84375,
+        "role": "generated_bend_node",
+        "segment_index": 27,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n28": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n28",
+        "parametric_t": 0.875,
+        "role": "generated_bend_node",
+        "segment_index": 28,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n29": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n29",
+        "parametric_t": 0.90625,
+        "role": "generated_bend_node",
+        "segment_index": 29,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n3": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n3",
+        "parametric_t": 0.09375,
+        "role": "generated_bend_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n30": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n30",
+        "parametric_t": 0.9375,
+        "role": "generated_bend_node",
+        "segment_index": 30,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n31": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n31",
+        "parametric_t": 0.96875,
+        "role": "generated_bend_node",
+        "segment_index": 31,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n4": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n4",
+        "parametric_t": 0.125,
+        "role": "generated_bend_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n5": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n5",
+        "parametric_t": 0.15625,
+        "role": "generated_bend_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n6": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n6",
+        "parametric_t": 0.1875,
+        "role": "generated_bend_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n7": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n7",
+        "parametric_t": 0.21875,
+        "role": "generated_bend_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n8": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n8",
+        "parametric_t": 0.25,
+        "role": "generated_bend_node",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "F_elbow_n9": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              5.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "F_elbow_n9",
+        "parametric_t": 0.28125,
+        "role": "generated_bend_node",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "F_elbow",
+          "kind": "element"
+        }
+      },
+      "GROUND_1": {
+        "node_id": "GROUND_1",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "NF_S1",
+          "kind": "support"
+        }
+      },
+      "GROUND_2": {
+        "node_id": "GROUND_2",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "NF_S2",
+          "kind": "support"
+        }
+      },
+      "GROUND_4": {
+        "node_id": "GROUND_4",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "F_S1",
+          "kind": "support"
+        }
+      },
+      "GROUND_5": {
+        "node_id": "GROUND_5",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "F_S2",
+          "kind": "support"
+        }
+      },
+      "N0": {
+        "node_id": "N0",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N0",
+          "kind": "node"
+        }
+      },
+      "N1": {
+        "node_id": "N1",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N10": {
+        "node_id": "N10",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N10",
+          "kind": "node"
+        }
+      },
+      "N11": {
+        "node_id": "N11",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N11",
+          "kind": "node"
+        }
+      },
+      "N2": {
+        "node_id": "N2",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N2",
+          "kind": "node"
+        }
+      },
+      "N3": {
+        "node_id": "N3",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N3",
+          "kind": "node"
+        }
+      },
+      "N4": {
+        "node_id": "N4",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N4",
+          "kind": "node"
+        }
+      },
+      "N5": {
+        "node_id": "N5",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N5",
+          "kind": "node"
+        }
+      },
+      "N6": {
+        "node_id": "N6",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N6",
+          "kind": "node"
+        }
+      },
+      "N7": {
+        "node_id": "N7",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N7",
+          "kind": "node"
+        }
+      },
+      "N8": {
+        "node_id": "N8",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N8",
+          "kind": "node"
+        }
+      },
+      "N9": {
+        "node_id": "N9",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N9",
+          "kind": "node"
+        }
+      },
+      "NF_elbow_n1": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n1",
+        "parametric_t": 0.03125,
+        "role": "generated_bend_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n10": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n10",
+        "parametric_t": 0.3125,
+        "role": "generated_bend_node",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n11": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n11",
+        "parametric_t": 0.34375,
+        "role": "generated_bend_node",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n12": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n12",
+        "parametric_t": 0.375,
+        "role": "generated_bend_node",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n13": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n13",
+        "parametric_t": 0.40625,
+        "role": "generated_bend_node",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n14": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n14",
+        "parametric_t": 0.4375,
+        "role": "generated_bend_node",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n15": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n15",
+        "parametric_t": 0.46875,
+        "role": "generated_bend_node",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n16": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n16",
+        "parametric_t": 0.5,
+        "role": "generated_bend_node",
+        "segment_index": 16,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n17": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n17",
+        "parametric_t": 0.53125,
+        "role": "generated_bend_node",
+        "segment_index": 17,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n18": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n18",
+        "parametric_t": 0.5625,
+        "role": "generated_bend_node",
+        "segment_index": 18,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n19": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n19",
+        "parametric_t": 0.59375,
+        "role": "generated_bend_node",
+        "segment_index": 19,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n2": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n2",
+        "parametric_t": 0.0625,
+        "role": "generated_bend_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n20": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n20",
+        "parametric_t": 0.625,
+        "role": "generated_bend_node",
+        "segment_index": 20,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n21": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n21",
+        "parametric_t": 0.65625,
+        "role": "generated_bend_node",
+        "segment_index": 21,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n22": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n22",
+        "parametric_t": 0.6875,
+        "role": "generated_bend_node",
+        "segment_index": 22,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n23": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n23",
+        "parametric_t": 0.71875,
+        "role": "generated_bend_node",
+        "segment_index": 23,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n24": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n24",
+        "parametric_t": 0.75,
+        "role": "generated_bend_node",
+        "segment_index": 24,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n25": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n25",
+        "parametric_t": 0.78125,
+        "role": "generated_bend_node",
+        "segment_index": 25,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n26": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n26",
+        "parametric_t": 0.8125,
+        "role": "generated_bend_node",
+        "segment_index": 26,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n27": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n27",
+        "parametric_t": 0.84375,
+        "role": "generated_bend_node",
+        "segment_index": 27,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n28": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n28",
+        "parametric_t": 0.875,
+        "role": "generated_bend_node",
+        "segment_index": 28,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n29": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n29",
+        "parametric_t": 0.90625,
+        "role": "generated_bend_node",
+        "segment_index": 29,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n3": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n3",
+        "parametric_t": 0.09375,
+        "role": "generated_bend_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n30": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n30",
+        "parametric_t": 0.9375,
+        "role": "generated_bend_node",
+        "segment_index": 30,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n31": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n31",
+        "parametric_t": 0.96875,
+        "role": "generated_bend_node",
+        "segment_index": 31,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n4": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n4",
+        "parametric_t": 0.125,
+        "role": "generated_bend_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n5": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n5",
+        "parametric_t": 0.15625,
+        "role": "generated_bend_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n6": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n6",
+        "parametric_t": 0.1875,
+        "role": "generated_bend_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n7": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n7",
+        "parametric_t": 0.21875,
+        "role": "generated_bend_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n8": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n8",
+        "parametric_t": 0.25,
+        "role": "generated_bend_node",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      },
+      "NF_elbow_n9": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              4.0,
+              0.3,
+              0.0
+            ],
+            "end_tangent": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "node_id": "NF_elbow_n9",
+        "parametric_t": 0.28125,
+        "role": "generated_bend_node",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "NF_elbow",
+          "kind": "element"
+        }
+      }
+    },
+    "nodes": {
+      "F_elbow_n1": [
+        4.014720302298225,
+        5.000361363138448,
+        0.0
+      ],
+      "F_elbow_n10": [
+        4.141419021047799,
+        5.035423620695494,
+        0.0
+      ],
+      "F_elbow_n11": [
+        4.154230823257967,
+        5.042681416999918,
+        0.0
+      ],
+      "F_elbow_n12": [
+        4.16667106990588,
+        5.050559116309237,
+        0.0
+      ],
+      "F_elbow_n13": [
+        4.17870979134773,
+        5.059037740555807,
+        0.0
+      ],
+      "F_elbow_n14": [
+        4.190317985249093,
+        5.068096863991179,
+        0.0
+      ],
+      "F_elbow_n15": [
+        4.201467686454105,
+        5.077714662393512,
+        0.0
+      ],
+      "F_elbow_n16": [
+        4.212132034355964,
+        5.087867965644036,
+        0.0
+      ],
+      "F_elbow_n17": [
+        4.222285337606488,
+        5.098532313545895,
+        0.0
+      ],
+      "F_elbow_n18": [
+        4.231903136008821,
+        5.1096820147509066,
+        0.0
+      ],
+      "F_elbow_n19": [
+        4.240962259444193,
+        5.12129020865227,
+        0.0
+      ],
+      "F_elbow_n2": [
+        4.029405142098868,
+        5.001444581998341,
+        0.0
+      ],
+      "F_elbow_n20": [
+        4.249440883690763,
+        5.13332893009412,
+        0.0
+      ],
+      "F_elbow_n21": [
+        4.257318583000082,
+        5.145769176742033,
+        0.0
+      ],
+      "F_elbow_n22": [
+        4.264576379304506,
+        5.158580978952201,
+        0.0
+      ],
+      "F_elbow_n23": [
+        4.271196787937033,
+        5.171733471970915,
+        0.0
+      ],
+      "F_elbow_n24": [
+        4.277163859753386,
+        5.185194970290473,
+        0.0
+      ],
+      "F_elbow_n25": [
+        4.282463219554906,
+        5.198933043982334,
+        0.0
+      ],
+      "F_elbow_n26": [
+        4.287082100719663,
+        5.212914596823661,
+        0.0
+      ],
+      "F_elbow_n27": [
+        4.291009375958363,
+        5.22710594602902,
+        0.0
+      ],
+      "F_elbow_n28": [
+        4.294235584120969,
+        5.241472903395161,
+        0.0
+      ],
+      "F_elbow_n29": [
+        4.296752952989434,
+        5.255980857663391,
+        0.0
+      ],
+      "F_elbow_n3": [
+        4.044019142336609,
+        5.003247047010566,
+        0.0
+      ],
+      "F_elbow_n30": [
+        4.2985554180016585,
+        5.2705948579011315,
+        0.0
+      ],
+      "F_elbow_n31": [
+        4.299638636861552,
+        5.285279697701775,
+        0.0
+      ],
+      "F_elbow_n4": [
+        4.058527096604839,
+        5.005764415879031,
+        0.0
+      ],
+      "F_elbow_n5": [
+        4.0728940539709795,
+        5.008990624041637,
+        0.0
+      ],
+      "F_elbow_n6": [
+        4.087085403176339,
+        5.012917899280337,
+        0.0
+      ],
+      "F_elbow_n7": [
+        4.101066956017666,
+        5.017536780445094,
+        0.0
+      ],
+      "F_elbow_n8": [
+        4.114805029709527,
+        5.022836140246614,
+        0.0
+      ],
+      "F_elbow_n9": [
+        4.1282665280290844,
+        5.028803212062967,
+        0.0
+      ],
+      "GROUND_1": [
+        2.0,
+        0.0,
+        -1.0
+      ],
+      "GROUND_2": [
+        4.3,
+        1.8,
+        -1.0
+      ],
+      "GROUND_4": [
+        2.0,
+        5.0,
+        -1.0
+      ],
+      "GROUND_5": [
+        4.3,
+        6.8,
+        -1.0
+      ],
+      "N0": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "N1": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "N10": [
+        4.3,
+        6.8,
+        0.0
+      ],
+      "N11": [
+        4.3,
+        8.3,
+        0.0
+      ],
+      "N2": [
+        4.0,
+        0.0,
+        0.0
+      ],
+      "N3": [
+        4.3,
+        0.3,
+        0.0
+      ],
+      "N4": [
+        4.3,
+        1.8,
+        0.0
+      ],
+      "N5": [
+        4.3,
+        3.3,
+        0.0
+      ],
+      "N6": [
+        0.0,
+        5.0,
+        0.0
+      ],
+      "N7": [
+        2.0,
+        5.0,
+        0.0
+      ],
+      "N8": [
+        4.0,
+        5.0,
+        0.0
+      ],
+      "N9": [
+        4.3,
+        5.3,
+        0.0
+      ],
+      "NF_elbow_n1": [
+        4.014720302298225,
+        0.0003613631384482563,
+        0.0
+      ],
+      "NF_elbow_n10": [
+        4.141419021047799,
+        0.035423620695493485,
+        0.0
+      ],
+      "NF_elbow_n11": [
+        4.154230823257967,
+        0.04268141699991834,
+        0.0
+      ],
+      "NF_elbow_n12": [
+        4.166671069905881,
+        0.05055911630923643,
+        0.0
+      ],
+      "NF_elbow_n13": [
+        4.17870979134773,
+        0.05903774055580652,
+        0.0
+      ],
+      "NF_elbow_n14": [
+        4.190317985249093,
+        0.0680968639911789,
+        0.0
+      ],
+      "NF_elbow_n15": [
+        4.201467686454105,
+        0.07771466239351224,
+        0.0
+      ],
+      "NF_elbow_n16": [
+        4.212132034355964,
+        0.08786796564403573,
+        0.0
+      ],
+      "NF_elbow_n17": [
+        4.222285337606488,
+        0.0985323135458945,
+        0.0
+      ],
+      "NF_elbow_n18": [
+        4.231903136008821,
+        0.10968201475090636,
+        0.0
+      ],
+      "NF_elbow_n19": [
+        4.240962259444194,
+        0.12129020865226994,
+        0.0
+      ],
+      "NF_elbow_n2": [
+        4.029405142098868,
+        0.0014445819983409103,
+        0.0
+      ],
+      "NF_elbow_n20": [
+        4.249440883690763,
+        0.1333289300941193,
+        0.0
+      ],
+      "NF_elbow_n21": [
+        4.257318583000082,
+        0.1457691767420335,
+        0.0
+      ],
+      "NF_elbow_n22": [
+        4.264576379304507,
+        0.15858097895220066,
+        0.0
+      ],
+      "NF_elbow_n23": [
+        4.271196787937033,
+        0.17173347197091535,
+        0.0
+      ],
+      "NF_elbow_n24": [
+        4.277163859753386,
+        0.18519497029047305,
+        0.0
+      ],
+      "NF_elbow_n25": [
+        4.282463219554907,
+        0.19893304398233397,
+        0.0
+      ],
+      "NF_elbow_n26": [
+        4.287082100719663,
+        0.2129145968236613,
+        0.0
+      ],
+      "NF_elbow_n27": [
+        4.291009375958363,
+        0.2271059460290208,
+        0.0
+      ],
+      "NF_elbow_n28": [
+        4.294235584120969,
+        0.24147290339516148,
+        0.0
+      ],
+      "NF_elbow_n29": [
+        4.296752952989435,
+        0.25598085766339146,
+        0.0
+      ],
+      "NF_elbow_n3": [
+        4.044019142336609,
+        0.003247047010565718,
+        0.0
+      ],
+      "NF_elbow_n30": [
+        4.298555418001659,
+        0.27059485790113175,
+        0.0
+      ],
+      "NF_elbow_n31": [
+        4.299638636861552,
+        0.2852796977017745,
+        0.0
+      ],
+      "NF_elbow_n4": [
+        4.058527096604839,
+        0.005764415879030871,
+        0.0
+      ],
+      "NF_elbow_n5": [
+        4.0728940539709795,
+        0.008990624041636808,
+        0.0
+      ],
+      "NF_elbow_n6": [
+        4.087085403176339,
+        0.012917899280337375,
+        0.0
+      ],
+      "NF_elbow_n7": [
+        4.101066956017666,
+        0.01753678044509377,
+        0.0
+      ],
+      "NF_elbow_n8": [
+        4.114805029709527,
+        0.022836140246613956,
+        0.0
+      ],
+      "NF_elbow_n9": [
+        4.1282665280290844,
+        0.028803212062966987,
+        0.0
+      ]
+    },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "3ce48eb9fb116ef219b2d8d96c4be193d3c1a12e588d31521ce1c222d95455fc",
+      "load_case": "Cold",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  },
+  "study": {
+    "id": "analysis_study:Cold",
+    "input_files": {
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
+    },
+    "load_case": "Cold",
+    "mesh_id": "analysis_mesh:Cold",
+    "metadata": {
+      "compiler_inputs": {
+        "bend_segments": 32,
+        "contact_law": "DIS_CHOC",
+        "contact_stiffness_defaults": [
+          10000000000.0,
+          100000000.0
+        ],
+        "load_path": [
+          "Cold",
+          "Hot",
+          "Cold",
+          "Lift",
+          "Cold"
+        ],
+        "load_path_inputs": {
+          "Cold": {
+            "gravity": true,
+            "internal_pressure": 0.0,
+            "nodal_forces": [
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N1"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N4"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N7"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N10"
+              }
+            ],
+            "ref_temperature": 20.0,
+            "temperature": 20.0
+          },
+          "Hot": {
+            "gravity": true,
+            "internal_pressure": 0.0,
+            "nodal_forces": [
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N1"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N4"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N7"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N10"
+              }
+            ],
+            "ref_temperature": 20.0,
+            "temperature": 120.0
+          },
+          "Lift": {
+            "gravity": true,
+            "internal_pressure": 0.0,
+            "nodal_forces": [
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N1"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  600.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N4"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N7"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  600.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N10"
+              }
+            ],
+            "ref_temperature": 20.0,
+            "temperature": 20.0
+          }
+        },
+        "load_step": 0.1,
+        "pipe_modelization": "POU_D_T"
+      },
+      "pipe_stress_exported": false,
+      "project_name": "Native piping friction comparison"
+    },
+    "model_revision": 0,
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "3ce48eb9fb116ef219b2d8d96c4be193d3c1a12e588d31521ce1c222d95455fc",
+      "load_case": "Cold",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  }
+}

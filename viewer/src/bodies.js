@@ -180,7 +180,8 @@ export function getMeshIdentity(state) {
 }
 
 export function getSubpointOverlay(state) {
-  return (state.overlays ?? []).find((overlay) => overlay.data?.result_type === "tuyau_subpoints") ?? null;
+  return (state.overlays ?? []).find((overlay) => overlay.data?.result_type === "tuyau_subpoints" &&
+    (!state.activeResultStateId || !overlay.data?.result_state_id || overlay.data.result_state_id === state.activeResultStateId)) ?? null;
 }
 
 export function getSectionProfile(state) {
@@ -341,7 +342,8 @@ function deformedMetrics(state) {
 }
 
 function peakDisplacement(state) {
-  const overlay = (state.overlays ?? []).find((candidate) => candidate.data?.result_type === "displacement");
+  const overlay = (state.overlays ?? []).find((candidate) => candidate.data?.result_type === "displacement" &&
+    (!state.activeResultStateId || !candidate.data?.result_state_id || candidate.data.result_state_id === state.activeResultStateId));
   const values = overlay?.data?.values ?? {};
   let best = null;
   for (const [nodeId, raw] of Object.entries(values)) {

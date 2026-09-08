@@ -1,3 +1,4 @@
+import { contactObjectId, contactRecords, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
   filterIssues,
@@ -343,7 +344,9 @@ function renderTaskRail() {
   dom.taskRail.hidden = currentState.embed || !railExpanded;
   dom.railToggle.hidden = currentState.embed;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
-  dom.railToggle.textContent = railExpanded ? "Close" : "Controls";
+  dom.railToggle.textContent = railExpanded ? "\u2039" : "\u203a";
+  dom.railToggle.title = railExpanded ? "Hide controls" : "Show controls";
+  dom.railToggle.setAttribute("aria-label", dom.railToggle.title);
   document.body.dataset.railOpen = String(railExpanded);
   dom.appHeader.hidden = currentState.embed;
   for (const id of getVisibleCockpitTaskIds(currentState)) {
@@ -774,6 +777,11 @@ function renderResultControls() {
   dom.resultShape.replaceChildren();
   dom.hotspotList.replaceChildren();
 
+  const contactPanel = renderContactReview(currentState, (action) => {
+    dispatch(action);
+    selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
+  }, render);
+  if (contactPanel) dom.resultControls.append(contactPanel);
   const loadCases = getLoadCaseOptions(currentState);
   const resultStates = getResultStateOptions(currentState);
   const geometryStates = getGeometryStateOptions(currentState);
@@ -824,8 +832,9 @@ function renderResultControls() {
     );
   }
   // Only offered when the scene carries no field catalogue; with one, the field
-  // selector already picks the result state through its load case.
-  if (fieldOptions.length === 0 && resultStates.length > 0) {
+  // selector already picks the result state through its load case. A contact
+  // review names its own result state either way.
+  if ((contactPanel || fieldOptions.length === 0) && resultStates.length > 0) {
     dom.resultControls.append(
       propertyRow(
         "Result state",
@@ -853,7 +862,8 @@ function renderResultControls() {
   dom.resultShape.append(
     railGroup("Deformation", `\u00d7${formatScale(getVisualDeformationDisplayScale(currentState))}`)
   );
-  if (geometryStates.length > 0) {
+  // A contact review draws its own shape and offers no deformed state.
+  if (!contactPanel && geometryStates.length > 0) {
     dom.resultShape.append(
       propertyRow(
         "Deformed state",
@@ -2090,7 +2100,12 @@ function renderProperties() {
   dom.propertyActions.replaceChildren();
   dom.properties.replaceChildren();
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
-  dom.inspector.hidden = sections.length === 0 && !issueSummary;
+  // The contact panel already owns shoe details; keep the viewport available
+  // when selecting its row, especially on narrow screens.
+  const contactSelection = currentState.activeTab === "results" && Object.keys(contactRecords(currentState))
+    .some(id => contactObjectId(currentState, id) === selectedObjectId);
+  dom.inspector.hidden = contactSelection || (sections.length === 0 && !issueSummary);
+  if (contactSelection) return;
   if (sections.length === 0) {
     if (issueSummary) {
       dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
@@ -2705,14 +2720,12 @@ dom.searchInput.addEventListener("keydown", (event) => {
 
 dom.evidenceExpand.addEventListener("click", () => {
   evidenceExpanded = !evidenceExpanded;
-  if (evidenceExpanded) railExpanded = false;
   renderTaskRail();
   renderEvidenceTabs();
 });
 
 dom.railToggle.addEventListener("click", () => {
   railExpanded = !railExpanded;
-  if (railExpanded) evidenceExpanded = false;
   renderEvidenceTabs();
   renderTaskRail();
 });

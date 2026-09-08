@@ -28,7 +28,9 @@ OFFICIAL_BUNDLES = (
     "elements-supports-review",
     "gmsh-tee-mesh-review",
     "imported_component_mixed_demo",
+    "native-friction-review",
     "pipe-tee-volume-review",
+    "profile-orientation-review",
     "support-rack-review",
 )
 PAGES_BUNDLES = tuple(bundle for bundle in OFFICIAL_BUNDLES if bundle != "gmsh-tee-mesh-review")
@@ -117,6 +119,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     assert {"cost_heatmap", "quantity_summary"} <= {
         overlay["kind"] for overlay in autorouted["overlays"]
     }
+    assert not any(obj["kind"] in {"physical_envelope", "deformed_envelope"} for obj in autorouted["objects"])
     rack = json.loads((tmp_path / "support-rack-review" / "scene.json").read_text(encoding="utf-8"))
     assert any(overlay["kind"] == "rack_assembly" for overlay in rack["overlays"])
     assert any(overlay["kind"] == "load_path" for overlay in rack["overlays"])
@@ -156,6 +159,90 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
         ".log" not in path.read_text(encoding="utf-8")
         for path in (tmp_path / "code-aster-review").rglob("*.json")
     )
+
+
+def test_beam_comparison_validates_each_load_case_evidence(tmp_path: Path) -> None:
+    from examples.code_aster_profile_orientation import run_example
+
+    artifacts = Path(__file__).resolve().parents[1] / "notebooks/code_aster_results/profile-orientation-review"
+    run_example(tmp_path, artifact_dir=artifacts)
+    root = tmp_path / "review_scene"
+    validate_official_bundle(root, "beam-engineering-review")
+    scene = json.loads((root / "scene.json").read_text(encoding="utf-8"))
+    review = json.loads((root / "review.json").read_text(encoding="utf-8"))
+    states = [o["data"] for o in scene["overlays"] if o["kind"] == "result_state"]
+    assert {s["load_case"] for s in states} == {"global", "local"}
+    states[1]["study_id"] = states[0]["study_id"]
+    with pytest.raises(ValueError, match="own study and mesh"):
+        build_pages._validate_beam_review(root, scene, review)
+    scene = _scene(root)
+    state = next(o["data"] for o in scene["overlays"] if o["kind"] == "result_state")
+    state["load_case"] = "relabelled"
+    with pytest.raises(ValueError, match="load case must match its solver identity"):
+        build_pages._validate_beam_review(root, scene, review)
+    scene = _scene(root)
+    field = scene["result_fields"][0]
+    field["load_case"] = "relabelled"
+    # Keep the overlay self-consistent: the owning state must still reject this.
+    next(o["data"] for o in scene["overlays"] if o["id"] == field["overlay_id"])["load_case"] = "relabelled"
+    with pytest.raises(ValueError, match="fields must match their state load case"):
+        build_pages._validate_beam_review(root, scene, review)
+    for key, value in (("load_case", "relabelled"), ("result_state_id", "missing"),
+                       ("result_state_id", "result_state:local")):
+        scene = _scene(root)
+        geometry = next(o["data"] for o in scene["overlays"] if o["kind"] == "geometry_state"
+                        and o["data"]["load_case"] == "global")
+        geometry[key] = value
+        with pytest.raises(ValueError, match="geometry state must reference its own result load case"):
+            build_pages._validate_beam_review(root, scene, review)
+    scene = _scene(root)
+    (root / "artifacts/local/study_depl.csv").write_text("corrupt", encoding="utf-8")
+    with pytest.raises(ValueError, match="attestation"):
+        build_pages._validate_beam_review(root, scene, review)
+
+
+def test_contact_history_requires_its_attested_run() -> None:
+    from copy import deepcopy
+
+    # Deterministic gate fixture, not solver evidence. Stage labels differ from
+    # the one nonlinear study's compatibility load case.
+    identity = {"fingerprint": "gate-fixture", "load_case": "Cold"}
+    states = [{"id": f"state:{index}", "solver_input_identity": identity,
+               "solver_name": "Code_Aster", "study_id": "study", "mesh_id": "mesh",
+               "load_case": "Cold", "metadata": {"stage_label": label}}
+              for index, label in enumerate(("Reference", "Hot", "Cold"))]
+    scene = {"overlays": [{"kind": "result_state", "data": state} for state in states],
+             "result_fields": [{"overlay_id": "field-overlay", "result_state_id": "state:1", "load_case": "Cold"}]}
+    scene["overlays"] += [
+        {"id": "field-overlay", "kind": "solver_result", "data": {"load_case": "Cold"}},
+        {"kind": "geometry_state", "data": {"result_state_id": "state:1", "load_case": "Cold"}},
+    ]
+    review = {"provenance": [{"kind": kind, "id": name} for kind, name in
+                            (("study", "study"), ("analysis_mesh", "mesh"), ("result_state", "state:2"))]}
+    build_pages._validate_contact_provenance(scene, review, identity)
+    for key, value in (("solver_input_identity", dict(identity, fingerprint="foreign")),
+                       ("study_id", "foreign"), ("mesh_id", "foreign"),
+                       ("load_case", "Hot"), ("solver_name", "other")):
+        changed = deepcopy(scene)
+        states = [o["data"] for o in changed["overlays"] if o["kind"] == "result_state"]
+        states[1][key] = value
+        with pytest.raises(ValueError, match="history state must match its attested"):
+            build_pages._validate_contact_provenance(changed, review, identity)
+    changed = deepcopy(scene)
+    field = changed["result_fields"][0]
+    field["load_case"] = "Hot"
+    next(o["data"] for o in changed["overlays"] if o.get("id") == field["overlay_id"])["load_case"] = "Hot"
+    with pytest.raises(ValueError, match="fields must match their state load case"):
+        build_pages._validate_contact_provenance(changed, review, identity)
+    changed = deepcopy(scene)
+    geometry = next(o["data"] for o in changed["overlays"] if o["kind"] == "geometry_state")
+    geometry["result_state_id"] = "foreign"
+    with pytest.raises(ValueError, match="geometry state must reference its own result"):
+        build_pages._validate_contact_provenance(changed, review, identity)
+    changed = deepcopy(review)
+    next(r for r in changed["provenance"] if r["kind"] == "result_state")["id"] = "foreign"
+    with pytest.raises(ValueError, match="final state must match its attested result"):
+        build_pages._validate_contact_provenance(scene, changed, identity)
 
 
 def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> None:

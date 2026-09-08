@@ -17,7 +17,8 @@ import numpy as np
 from tuba.model import Element, TubaModel
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
 from tuba.refs import EntityRef
-from tuba.solver.modelisation import modelisation_assignments
+from tuba.solver.modelisation import PipeModelization, modelisation_assignments
+from tuba.solver.aster_contact import shoes
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ class _MeshWriterMixin:
         lines: List[str] = []
         N = self._BEND_SEGMENTS  # shorthand
         map_name = name_map or (lambda value: value)
+        contacts = shoes(model, self.pipe_modelization)
 
         # --- Ordered node / element lists ---------------------------------
         node_ids = list(model.nodes.keys())
@@ -87,8 +89,9 @@ class _MeshWriterMixin:
             bend_intermediate = self._compute_bend_nodes(
                 model, bend_elems, N
             )
-        pipe_midpoints = self._pipe_straight_midpoint_nodes(model, pipe_straights)
-        bend_segment_midpoints = self._pipe_bend_segment_midpoint_nodes(
+        beam_pipes = self.pipe_modelization is PipeModelization.POU_D_T
+        pipe_midpoints = {} if beam_pipes else self._pipe_straight_midpoint_nodes(model, pipe_straights)
+        bend_segment_midpoints = {} if beam_pipes else self._pipe_bend_segment_midpoint_nodes(
             model,
             pipe_bends,
             bend_intermediate,
@@ -116,6 +119,9 @@ class _MeshWriterMixin:
 
         # --- COOR_3D ------------------------------------------------------
         lines.append("COOR_3D")
+        for contact in contacts:
+            xyz = model.nodes[contact.support.node].coords - (1. + contact.support.gap) * np.asarray(contact.normal)
+            lines.append(f"  {map_name(contact.ground)} " + ' '.join(f'{v:+.10E}' for v in xyz))
         for nid in node_ids:
             n = model.nodes[nid]
             x, y, z = n.coords
@@ -142,8 +148,17 @@ class _MeshWriterMixin:
         lines.append("FINSF")
         lines.append("")
 
+        if contacts:
+            lines.append('SEG2')
+            for contact in contacts:
+                lines.append(f' {map_name(contact.group)} {map_name(contact.ground)} {map_name(contact.support.node)}')
+            lines.append('FINSF')
+            for contact in contacts:
+                lines.extend([f'GROUP_MA NOM={map_name(contact.group)}', map_name(contact.group), 'FINSF',
+                              f'GROUP_NO NOM={map_name(contact.ground)}', map_name(contact.ground), 'FINSF'])
+
         # --- SEG3 for pipe straights --------------------------------------
-        if pipe_straights:
+        if pipe_straights and not beam_pipes:
             lines.append("SEG3")
             for elem in pipe_straights:
                 midpoint = pipe_midpoints[elem.id]
@@ -154,7 +169,7 @@ class _MeshWriterMixin:
             lines.append("")
 
         # --- SEG2 for non-pipe line elements ------------------------------
-        non_pipe_straights = beam_elems + bar_elems + cable_elems
+        non_pipe_straights = beam_elems + bar_elems + cable_elems + (pipe_straights if beam_pipes else [])
         if non_pipe_straights:
             lines.append("SEG2")
             for elem in non_pipe_straights:
@@ -164,9 +179,12 @@ class _MeshWriterMixin:
 
         # --- SEG3 for bend subdivisions -----------------------------------
         if bend_elems:
-            lines.append("SEG3")
+            lines.append("SEG2" if beam_pipes else "SEG3")
             for elem in bend_elems:
-                for segment_id, _, _ in self._bend_segment_node_pairs(elem, N):
+                for segment_id, start, end in self._bend_segment_node_pairs(elem, N):
+                    if beam_pipes:
+                        lines.append(f"  {map_name(segment_id)}  {map_name(start)}  {map_name(end)}")
+                        continue
                     midpoint = bend_segment_midpoints[segment_id]
                     lines.append(
                         f"  {map_name(segment_id)}  {map_name(midpoint.start_node_id)}  "
@@ -443,6 +461,13 @@ class _MeshWriterMixin:
         if model.supports:
             groups["AllSupports"] = tuple(support.node for support in model.supports)
 
+        for contact in shoes(model, self.pipe_modelization):
+            nodes[contact.ground] = tuple(model.nodes[contact.support.node].coords - (1. + contact.support.gap) * np.asarray(contact.normal))
+            node_sources[contact.ground] = MeshNodeSource(node_id=contact.ground, source_ref=EntityRef('support', contact.support.id), role='contact_ground')
+            elements[contact.group] = (contact.ground, contact.support.node)
+            element_sources[contact.group] = MeshElementSource(element_id=contact.group, source_ref=EntityRef('support', contact.support.id), role='contact_connector')
+            groups[contact.ground] = (contact.ground,)
+            groups[contact.group] = (contact.group,)
         return AnalysisMesh(
             id=mesh_id,
             model_revision=model_revision,
@@ -453,7 +478,7 @@ class _MeshWriterMixin:
             node_sources=node_sources,
             element_sources=element_sources,
             files={"mail": str(mail_path)},
-            modelisations=modelisation_assignments(model),
+            modelisations=modelisation_assignments(model, self.pipe_modelization),
         )
 
     def _pipe_straight_midpoint_nodes(

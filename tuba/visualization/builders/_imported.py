@@ -281,7 +281,3 @@ def _asset_placement_transform(placement: dict[str, Any]) -> tuple[np.ndarray, n
         dtype=float,
     )
     return origin, rotation
-def _mesh_group_layer_ids(groups: list[str]) -> list[str]:
-    if not groups:
-        return []
-    return ["analysis_mesh:groups", *(f"analysis_mesh:group:{group}" for group in groups)]

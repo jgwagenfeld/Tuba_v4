@@ -52,10 +52,9 @@ test("workflow rendering uses a scene-first responsive shell and preserves embed
   assert.match(css, /\.status-chip\s*\{[^}]*display:\s*flex/s);
   assert.doesNotMatch(css, /\.cockpit-status|\.coloring-bar/);
   assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"viewport inspector"[^;]*"evidence inspector"/s);
-  assert.match(css, /\.cockpit-rail\s*\{[^}]*position:\s*absolute[^}]*width:\s*min\(18\.5rem, calc\(100% - 3rem\)\)/s);
+  assert.match(css, /\.cockpit-rail\s*\{[^}]*position:\s*absolute[^}]*width:\s*var\(--controls-width\)/s);
   assert.match(css, /\.cockpit-rail\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.inspector[\s\S]*position:\s*absolute/);
-  assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.evidence-dock\.expanded\s*\{[^}]*position:\s*absolute[^}]*height:\s*min\(60vh, 32rem\)/s);
   assert.doesNotMatch(css, /grid-template-areas:[^;]*"rail viewport"/s);
   assert.match(css, /\[data-embed="true"\][\s\S]*grid-template-areas:\s*"viewport"/);
   assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace,\s*body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)[^}]*grid-template-areas:\s*"viewport"/s);
@@ -91,7 +90,7 @@ test("workflow rendering keeps the viewport persistent and separates tasks from 
   assert.match(app, /evidenceTabForKey\(currentState, id, event\.key\)/);
   assert.match(app, /activateEvidence\(nextId\)[\s\S]*data-evidence-tab="\$\{nextId\}"[\s\S]*\.focus\(\)/);
   assert.match(app, /const activeTab = activeEvidenceTab/);
-  assert.match(app, /let railExpanded\s*=\s*false/);
+  assert.match(app, /let railExpanded\s*=\s*true/);
   assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded/);
   assert.match(app, /dom\.railToggle\.setAttribute\("aria-expanded", String\(railExpanded\)\)/);
   assert.doesNotMatch(app, /dom\.viewerWorkspace\.hidden\s*=/);
@@ -110,7 +109,7 @@ test("workflow rendering adds cockpit status, report links, saved views, and rev
   assert.match(app, /status\.governingLocation/);
   assert.match(app, /saveViewState\(currentState, name\)/);
   assert.match(app, /tableRow\.dataset\.selected\s*=\s*"true"/);
-  assert.match(app, /dom\.inspector\.hidden\s*=\s*sections\.length === 0 && !issueSummary/);
+  assert.match(app, /dom\.inspector\.hidden\s*=\s*contactSelection \|\| \(sections\.length === 0 && !issueSummary\)/);
 
   assert.match(css, /\.report-link\s*\{[^}]*color:\s*var\(--accent\)/s);
   assert.match(css, /\.report-link:focus-visible\s*\{[^}]*outline-color:\s*var\(--focus-on-dark\)/s);

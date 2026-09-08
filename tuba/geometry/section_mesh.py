@@ -75,6 +75,29 @@ def section_loops(section, *, n_sides: int = 16) -> tuple[tuple[tuple[float, flo
     return tuple(normalized)
 
 
+def beam_local_frame(start, end, *, twist_angle_deg: float = 0.0):
+    """Right-handed beam basis matching Code_Aster ANGL_VRIL."""
+    axis = np.asarray(end, dtype=float) - np.asarray(start, dtype=float)
+    length = float(np.linalg.norm(axis))
+    if axis.shape != (3,) or not np.isfinite(axis).all() or length <= 1e-12:
+        raise ValueError("Beam frame requires distinct finite endpoints.")
+    local_x = axis / length
+    if abs(abs(float(local_x[2])) - 1.0) < 1.0e-6:
+        local_y = np.array([0.0, 1.0, 0.0])
+    else:
+        local_y = np.cross(np.array([0.0, 0.0, 1.0]), local_x)
+        local_y /= np.linalg.norm(local_y)
+    local_z = np.cross(local_x, local_y)
+
+    if twist_angle_deg:
+        angle = math.radians(float(twist_angle_deg))
+        twisted_y = local_y * math.cos(angle) + local_z * math.sin(angle)
+        twisted_z = local_z * math.cos(angle) - local_y * math.sin(angle)
+        local_y, local_z = twisted_y, twisted_z
+
+    return local_x, local_y, local_z
+
+
 def straight_section_surface_mesh(
     section,
     start,
@@ -91,19 +114,7 @@ def straight_section_surface_mesh(
     if start_point.shape != (3,) or end_point.shape != (3,) or not np.isfinite([*start_point, *end_point]).all() or length <= 1.0e-12:
         raise ValueError("Section extrusion requires two distinct finite endpoints.")
 
-    local_x = axis / length
-    if abs(abs(float(local_x[2])) - 1.0) < 1.0e-6:
-        local_y = np.array([0.0, 1.0, 0.0])
-    else:
-        local_y = np.cross(np.array([0.0, 0.0, 1.0]), local_x)
-        local_y /= np.linalg.norm(local_y)
-    local_z = np.cross(local_x, local_y)
-
-    if twist_angle_deg:
-        angle = math.radians(float(twist_angle_deg))
-        twisted_y = local_y * math.cos(angle) + local_z * math.sin(angle)
-        twisted_z = local_z * math.cos(angle) - local_y * math.sin(angle)
-        local_y, local_z = twisted_y, twisted_z
+    local_x, local_y, local_z = beam_local_frame(start_point, end_point, twist_angle_deg=twist_angle_deg)
 
     loops = section_loops(section, n_sides=n_sides)
     if len(loops) > 2:

@@ -35,3 +35,13 @@ test("Geometry cannot resurrect legacy clearance/wind shells; insulation is inde
   assert.deepEqual(toggled.visibleObjectIds.sort(), ["insulation", "pipe"]);
   assert.equal(toggled.layers["physical_envelope:clearance"], undefined);
 });
+
+test("legacy deformed insulation shells require an insulated pipe, regardless of object order", () => {
+  const shell = { id: "shell", kind: "deformed_envelope", entity_ref: "element:p",
+    metadata: { entity_ref: "element:p", envelope_type: "insulation" } };
+  const pipe = { id: "pipe", kind: "pipe", entity_ref: "element:p", physical: { insulation_thickness_m: 0 } };
+  const bundle = { scene: { objects: [shell, pipe] } };
+  assert.deepEqual(createViewerState(bundle).objects.map(obj => obj.id), ["pipe"]);
+  pipe.physical.insulation_thickness_m = 0.05;
+  assert.deepEqual(createViewerState(bundle).objects.map(obj => obj.id), ["shell", "pipe"]);
+});

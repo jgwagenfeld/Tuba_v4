@@ -27,7 +27,9 @@ REQUIRED = {
     "viewer/code-aster-review/scene.json",
     "viewer/elements-supports-review/scene.json",
     "viewer/imported_component_mixed_demo/scene.json",
+    "viewer/native-friction-review/scene.json",
     "viewer/pipe-tee-volume-review/scene.json",
+    "viewer/profile-orientation-review/scene.json",
     "viewer/support-rack-review/scene.json",
     "notebooks/10_interactive_postprocessor.ipynb",
     ".nojekyll",
@@ -38,7 +40,9 @@ OFFICIAL_BUNDLES = [
     "elements-supports-review",
     "gmsh-tee-mesh-review",
     "imported_component_mixed_demo",
+    "native-friction-review",
     "pipe-tee-volume-review",
+    "profile-orientation-review",
     "support-rack-review",
 ]
 PAGES_BUNDLES = [bundle for bundle in OFFICIAL_BUNDLES if bundle != "gmsh-tee-mesh-review"]
@@ -71,6 +75,36 @@ def test_public_gallery_keeps_the_unsolved_tee_as_a_dev_diagnostic():
 
     assert "gmsh-tee-mesh-review" not in pages
     assert "pipe-tee-volume-review" in pages
+
+
+def test_contact_gallery_rejects_a_missing_shoe_increment():
+    from tuba.solver.base import ContactResult
+
+    contact = ContactResult("S1", "N1", "sticking", (0, 1, 0), 0,
+                            (0, 0, 0), 0, (0, 0, 0), (0, 0, 0), 0, None, "solver")
+    overlays, fields = [], []
+    for instant in (0, 1):
+        state_id = f"state:{instant}"
+        overlays.append({"kind": "result_state", "data": {
+            "id": state_id, "metadata": {"pseudo_time": instant},
+            "contact_results": {"S1": contact.to_dict()},
+        }})
+        families = ["displacement"] if instant == 0 else ["displacement", "reaction_force", "reaction_moment"]
+        for family in families:
+            overlay_id = f"overlay:{state_id}:{family}"
+            overlays.append({"id": overlay_id, "kind": "solver_result", "data": {
+                "result_type": family, "result_state_id": state_id, "load_case": "Cold",
+                "values": {"N1": 0},
+            }})
+            fields.append({"id": overlay_id.replace("overlay:", "field:", 1),
+                           "overlay_id": overlay_id, "result_state_id": state_id,
+                           "load_case": "Cold", "components": ["magnitude"]})
+    scene = {"overlays": overlays, "result_fields": fields}
+    build_pages._validate_contact_result_fields(scene)
+    states = [overlay["data"] for overlay in overlays if overlay["kind"] == "result_state"]
+    states[1]["contact_results"].clear()
+    with pytest.raises(ValueError, match="missing a shoe increment"):
+        build_pages._validate_contact_result_fields(scene)
 
 
 def _project_tree(root: Path) -> None:

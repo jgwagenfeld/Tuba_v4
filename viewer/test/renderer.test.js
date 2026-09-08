@@ -12,7 +12,9 @@ import {
   applySelectionHighlight,
   buildRenderableScene,
   createThreeSceneGraph,
+  disposeThreeSceneGraph,
   fitCameraToBounds,
+  resizeCameraViewport,
   setCameraToStandardView,
   zoomCameraBy,
   STANDARD_VIEW_DIRECTIONS,
@@ -87,7 +89,7 @@ function fixtureState() {
 }
 
 test("renderer declares all RV08 asset formats", () => {
-  for (const format of ["tube", "polyline", "point", "vector", "marker", "aabb", "mesh", "tuyau_subpoint_glyphs"]) {
+  for (const format of ["tube", "polyline", "point", "vector", "marker", "aabb", "mesh", "tuyau_subpoint_glyphs", "label"]) {
     assert.ok(SUPPORTED_RENDER_FORMATS.has(format), `${format} is supported`);
   }
 });
@@ -924,6 +926,49 @@ test("a wide viewport is fitted on its binding axis", () => {
   assert.ok(Math.abs(wide.right / wide.top - 3) < 1e-9);
 });
 
+test("camera fit keeps scene bounds clear of an open left controls dock", () => {
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  camera.userData.viewportAspect = 1440 / 852;
+  camera.userData.viewportSize = { width: 1440, height: 852 };
+  camera.userData.viewportInsets = { left: 296 };
+  const bounds = [0, -2, -1, 8, 2, 3];
+
+  fitCameraToBounds(camera, bounds);
+  camera.updateMatrixWorld(true);
+  const screenXs = [];
+  for (const x of [bounds[0], bounds[3]]) for (const y of [bounds[1], bounds[4]]) for (const z of [bounds[2], bounds[5]]) {
+    const projected = new Vector3(x, y, z).project(camera);
+    screenXs.push((projected.x + 1) * 1440 / 2);
+  }
+
+  assert.ok(Math.min(...screenXs) > 296, `left edge ${Math.min(...screenXs)} was behind the controls dock`);
+});
+
+test("dock centering survives orthographic zoom and resize without resetting pan", () => {
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  const bounds = [0, -2, -1, 8, 2, 3];
+  resizeCameraViewport(camera, 1440, 852, { left: 296 });
+  const fit = fitCameraToBounds(camera, bounds);
+  const target = new Vector3(...fit.target);
+  const projectedX = (point, width) => {
+    camera.updateMatrixWorld(true);
+    return (point.clone().project(camera).x + 1) * width / 2;
+  };
+  assert.ok(Math.abs(projectedX(target, 1440) - 868) < 1e-6);
+  zoomCameraBy(camera, 2);
+  assert.ok(Math.abs(projectedX(target, 1440) - 868) < 1e-6);
+  resizeCameraViewport(camera, 1200, 720, { left: 296 });
+  assert.ok(Math.abs(projectedX(target, 1200) - 748) < 1e-6);
+  assert.equal(camera.zoom, 2);
+  camera.position.x += 0.2;
+  const pannedPosition = camera.position.clone();
+  resizeCameraViewport(camera, 1000, 720, { left: 296 });
+  assert.deepEqual(camera.position, pannedPosition);
+  resizeCameraViewport(camera, 1000, 720);
+  const reset = fitCameraToBounds(camera, bounds);
+  assert.ok(Math.abs(projectedX(new Vector3(...reset.target), 1000) - 500) < 1e-6);
+});
+
 test("standard Z camera views use stable up vectors", () => {
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
   camera.userData.viewportAspect = 1;
@@ -1018,7 +1063,7 @@ test("section box clipping keeps a crossing pipe in the coarse scene graph", () 
   }
 });
 
-test("interaction mode keeps arrows visible while temporarily hiding detail geometry", () => {
+test("orbit keeps engineering arrows visible while hiding mesh details", () => {
   const graph = createThreeSceneGraph(fixtureState());
 
   rendererModule.setSceneGraphInteractionMode?.(graph, true);
@@ -1238,4 +1283,53 @@ test("prepareAssetRenderConfig applies vector and visual deformation display sca
   assert.equal(visual.visual_scale_display_only, 80);
   assert.deepEqual(missingBase.points[1], [1, 0.04, 0]);
   assert.equal(missingBase.visual_scale_display_only, 40);
+});
+
+test("label renders as a camera-facing sprite and stays out of picking", () => {
+  const state = fixtureState();
+  state.geometryAssets.push({ id: "geometry:label:low", format: "label", bounds: [1, 1, 1, 1, 1, 1], object_ids: ["label:low"], generation_config: { text: "Low friction", position: [1, 1, 1], height: 0.2 } });
+  state.visibleObjectIds.push("label:low");
+  const canvasFactory = () => ({ width: 0, height: 0, getContext: () => ({ fillRect() {}, fillText() {}, measureText: (text) => ({ width: text.length * 32 }) }) });
+  const graph = createThreeSceneGraph(state, { canvasFactory });
+  const label = graph.objectsByObjectId.get("label:low");
+  assert.equal(label.isSprite, true);
+  assert.deepEqual(label.position.toArray(), [1, 1, 1]);
+  assert.equal(label.scale.y, 0.2);
+  assert.equal(label.userData.pickable, false);
+});
+
+test("label fails visibly when no canvas is available", () => {
+  const state = fixtureState();
+  state.geometryAssets = [{ id: "geometry:label", format: "label", object_ids: ["label"], generation_config: { text: "Label", position: [0, 0, 0], height: 1 } }];
+  state.visibleObjectIds = ["label"];
+  const graph = createThreeSceneGraph(state, { canvasFactory: () => null });
+  assert.equal(graph.renderedObjectCount, 0);
+  assert.match(graph.diagnostics[0].message, /2D canvas context/);
+});
+
+test("scene graph disposal releases each label texture once", () => {
+  const state = fixtureState();
+  const labelAsset = { id: "geometry:label", format: "label", object_ids: ["label"], generation_config: { text: "Label", position: [0, 0, 0], height: 1 } };
+  state.geometryAssets = [labelAsset, { ...labelAsset, id: "geometry:label-copy", object_ids: ["label-copy"] }];
+  state.visibleObjectIds = ["label", "label-copy"];
+  const canvasFactory = () => ({ width: 0, height: 0, getContext: () => ({ fillRect() {}, fillText() {}, measureText: () => ({ width: 100 }) }) });
+  const graph = createThreeSceneGraph(state, { canvasFactory });
+  const texture = graph.objectsByObjectId.get("label").material.map;
+  graph.objectsByObjectId.get("label-copy").material.map = texture;
+  let disposals = 0;
+  texture.dispose = () => { disposals += 1; };
+
+  disposeThreeSceneGraph(graph);
+
+  assert.equal(disposals, 1);
+});
+
+test("moment glyphs use their own scale independently of reaction forces", () => {
+  const state = { resultVectorScales: { reaction: 0.5, moment: 2 } };
+  for (const [type, length] of [["reaction_force", 0.5], ["reaction_moment", 2]]) {
+    const config = prepareAssetRenderConfig({ id: type, format: "vector", generation_config: {
+      result_type: type, start: [0, 0, 0], end: [1, 0, 0]
+    } }, {}, state);
+    assert.deepEqual(config.end, [length, 0, 0]);
+  }
 });

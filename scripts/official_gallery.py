@@ -23,6 +23,8 @@ from examples.elements_supports_review import (
     run_example as run_elements_supports_example,
 )
 from examples.gmsh_tee_mesh_review import run_example as run_gmsh_tee_mesh_example
+from examples.code_aster_friction_review import LOAD_PATH, build_friction_comparison_model, build_friction_review
+from examples.code_aster_profile_orientation import CASES as PROFILE_CASES, build_model as build_profile_model, run_example as run_profile_example
 from examples.imported_component_mixed_system import run_demo
 from tuba.rules import SupportSpacingRule
 from tuba.visualization import SceneBuildOptions
@@ -48,6 +50,8 @@ _AUTOROUTED_CLEARANCE_M = 0.10
 PROFILE_EVIDENCE = {
     "engineering-review": "Results",
     "volume-engineering-review": "Results",
+    "contact-engineering-review": "Results",
+    "beam-engineering-review": "Results",
     "mesh-review": "Mesh only - no results",
     "model-review": "Model only - no results",
 }
@@ -67,6 +71,8 @@ class OfficialGallery:
     title: str = field(kw_only=True)
     question: str = field(kw_only=True)
     summary: str = field(kw_only=True)
+    solver_options: dict[str, Any] = field(default_factory=dict, kw_only=True)
+    refresh_load_cases: tuple[str, ...] = field(default=(), kw_only=True)
 
     @property
     def evidence(self) -> str:
@@ -200,6 +206,28 @@ def _support_rack_refresh(_scratch_root: Path) -> tuple[Any, str]:
     return build_support_rack_model(), "Operating"
 
 
+def _build_friction_review(destination: Path, artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-friction-") as temporary:
+        root = Path(temporary)
+        build_friction_review(root, artifact_dir=artifacts)
+        _replace_tree(root, destination)
+
+
+def _friction_refresh(_scratch_root: Path) -> tuple[Any, str]:
+    return build_friction_comparison_model(), LOAD_PATH[-1]
+
+
+def _build_profile_review(destination: Path, artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-profiles-") as temporary:
+        produced = Path(temporary)
+        run_profile_example(produced, artifact_dir=artifacts)
+        _replace_tree(produced / "review_scene", destination)
+
+
+def _profile_refresh(_scratch_root: Path) -> tuple[Any, str]:
+    return build_profile_model(), PROFILE_CASES[0]
+
+
 OFFICIAL_GALLERIES = (
     OfficialGallery(
         "autorouted-expansion-loop",
@@ -273,6 +301,21 @@ OFFICIAL_GALLERIES = (
         ),
     ),
     OfficialGallery(
+        "native-friction-review",
+        frozenset({"dev", "pages"}),
+        "contact-engineering-review",
+        _build_friction_review,
+        ROOT / "notebooks" / "code_aster_results" / "native-friction-review",
+        _friction_refresh,
+        title="Pipe-shoe friction comparison",
+        question="How does friction change the same pipe and load path?",
+        summary=(
+            "Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. "
+            "Compare zero-friction shoes directly with mu = 0.3 through heating, cooling, lift-off and reseating."
+        ),
+        solver_options={"pipe_modelization": "POU_D_T", "load_path": LOAD_PATH, "load_step": 0.1},
+    ),
+    OfficialGallery(
         "pipe-tee-volume-review",
         frozenset({"dev", "pages"}),
         "volume-engineering-review",
@@ -282,12 +325,26 @@ OFFICIAL_GALLERIES = (
         True,
         title="Solved 3D solid tee",
         question="Does stress concentrate where the branch meets the header?",
-        # Not "the same tee": the mesh-only tee gallery is dev-only now, so a
-        # card referring back to it would point at nothing a reader can open.
         summary=(
             "The tee is meshed as a solid wall and analysed in 3D. Shows the "
             "stress pattern around the junction that a centreline beam model "
             "cannot resolve."
+        ),
+    ),
+    OfficialGallery(
+        "profile-orientation-review",
+        frozenset({"dev", "pages"}),
+        "beam-engineering-review",
+        _build_profile_review,
+        ROOT / "notebooks" / "code_aster_results" / "profile-orientation-review",
+        _profile_refresh,
+        refresh_load_cases=PROFILE_CASES,
+        title="I-section rotation and local axes",
+        question="How do section orientation and local axes change bending?",
+        summary=(
+            "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. "
+            "Compare global and local loading, deformed profiles and solved section rotations "
+            "beside their original local axes."
         ),
     ),
     OfficialGallery(

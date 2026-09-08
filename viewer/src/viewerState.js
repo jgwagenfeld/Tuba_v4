@@ -87,16 +87,22 @@ export function reduceViewerState(state, action) {
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
     case "setWorkflowTab":
       return setWorkflowTab(state, action.tabId);
+    case "setContactNeutral":
+      return withVisibility({ ...state, contactNeutral: action.neutral });
+    case "setContactArrows":
+      return { ...state, contactArrows: { ...state.contactArrows, [action.quantity]: action.visible } };
+    case "setContactHistoryAxis":
+      return { ...state, contactHistoryAxis: action.axis };
     case "setActiveResultState":
-      return setActiveResultState(state, action.resultStateId);
+      return withVisibility(withCoherentColoring(setActiveResultState(state, action.resultStateId)));
     case "setActiveLoadCase":
-      return setColoringLoadCase(setActiveLoadCase(state, action.loadCase), action.loadCase);
+      return withVisibility(setColoringLoadCase(setActiveLoadCase(state, action.loadCase), action.loadCase));
     case "setColoringField":
       return setColoringField(state, action.fieldId);
     case "setColoringComponent":
       return setColoringComponent(state, action.component);
     case "setActiveGeometryState":
-      return setActiveGeometryState(state, action.geometryStateId);
+      return withVisibility(setActiveGeometryState(state, action.geometryStateId));
     case "setResultThreshold":
       return setResultThreshold(state, action.threshold);
     case "setUtilizationThreshold":
@@ -108,7 +114,7 @@ export function reduceViewerState(state, action) {
     case "setMomentVectorScale":
       return setResultVectorScale(state, "moment", action.scale);
     case "setVisualDeformationScale":
-      return setVisualDeformationScale(state, action.scale);
+      return withVisibility(setVisualDeformationScale(state, action.scale));
     case "setIssueReviewStatus":
       return {
         ...state,
