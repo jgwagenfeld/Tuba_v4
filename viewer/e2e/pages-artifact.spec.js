@@ -50,6 +50,35 @@ test("published expansion loop contains pipe geometry without legacy envelope sk
   await expect(page.locator("[data-canvas]")).toHaveAttribute("data-render-diagnostics", "0");
 });
 
+test("left controls toggle reserves space beside viewport and evidence", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/viewer/?bundle=autorouted-expansion-loop");
+  await expect(page.getByRole("status")).toHaveText("Ready", { timeout: 60_000 });
+  for (const width of [1440, 1024, 800]) {
+    await page.setViewportSize({ width, height: 900 });
+    const rail = page.locator("[data-task-rail]");
+    const toggle = page.getByRole("button", { name: "Hide controls", exact: true });
+    await expect(toggle).toHaveAttribute("title", "Hide controls");
+    const r = await rail.boundingBox(), t = await toggle.boundingBox();
+    expect(Math.abs(t.x - (r.x + r.width))).toBeLessThan(2);
+    await page.getByRole("button", { name: "Evidence", exact: true }).click();
+    await expect(rail).toBeVisible();
+    for (const selector of ["[data-canvas]", "[data-evidence-dock]"]) {
+      expect(Math.abs((await page.locator(selector).boundingBox()).x - (r.x + r.width))).toBeLessThan(2);
+    }
+    const viewport = await page.locator("[data-canvas]").boundingBox();
+    expect((await page.locator("[data-evidence-dock]").boundingBox()).y).toBeGreaterThanOrEqual(viewport.y + viewport.height - 1);
+    await toggle.click();
+    const show = page.getByRole("button", { name: "Show controls", exact: true });
+    await expect(rail).toBeHidden();
+    expect((await show.boundingBox()).x).toBeLessThan(2);
+    await show.focus();
+    await page.keyboard.press("Enter");
+    await expect(rail).toBeVisible();
+    await page.getByRole("button", { name: "Close evidence", exact: true }).click();
+  }
+});
+
 test("assembled Pages gallery scrolls to the final review", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   await page.goto("/viewer/", { waitUntil: "domcontentloaded" });

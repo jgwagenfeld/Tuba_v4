@@ -344,7 +344,9 @@ function renderTaskRail() {
   dom.taskRail.hidden = currentState.embed || !railExpanded;
   dom.railToggle.hidden = currentState.embed;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
-  dom.railToggle.textContent = railExpanded ? "Close" : "Controls";
+  dom.railToggle.textContent = railExpanded ? "\u2039" : "\u203a";
+  dom.railToggle.title = railExpanded ? "Hide controls" : "Show controls";
+  dom.railToggle.setAttribute("aria-label", dom.railToggle.title);
   document.body.dataset.railOpen = String(railExpanded);
   dom.appHeader.hidden = currentState.embed;
   for (const id of getVisibleCockpitTaskIds(currentState)) {
@@ -2233,9 +2235,7 @@ function renderCanvas() {
     return;
   }
   try {
-    viewportRenderer ??= createThreeViewport(dom.canvas, {
-      viewportInsets: () => ({ left: dom.taskRail.hidden ? 0 : dom.taskRail.getBoundingClientRect().width })
-    });
+    viewportRenderer ??= createThreeViewport(dom.canvas);
   } catch (error) {
     if (error?.code !== WEBGL2_UNAVAILABLE) throw error;
     viewportUnavailable = true;
@@ -2720,14 +2720,12 @@ dom.searchInput.addEventListener("keydown", (event) => {
 
 dom.evidenceExpand.addEventListener("click", () => {
   evidenceExpanded = !evidenceExpanded;
-  if (evidenceExpanded) railExpanded = false;
   renderTaskRail();
   renderEvidenceTabs();
 });
 
 dom.railToggle.addEventListener("click", () => {
   railExpanded = !railExpanded;
-  if (railExpanded) evidenceExpanded = false;
   renderEvidenceTabs();
   renderTaskRail();
 });

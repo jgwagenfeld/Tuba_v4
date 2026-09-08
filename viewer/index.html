@@ -27,13 +27,6 @@
                that are actually status - solved, and anything demanding
                attention - and routes to the evidence that explains them. -->
           <button type="button" class="status-chip" data-status-chip hidden></button>
-          <button
-            type="button"
-            class="rail-toggle"
-            aria-expanded="false"
-            aria-controls="review-controls"
-            data-rail-toggle
-          >Controls</button>
           <button type="button" aria-expanded="false" data-evidence-expand>Evidence</button>
           <a class="gallery-back" href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
@@ -41,6 +34,15 @@
         </div>
       </header>
       <section class="viewer-workspace" data-viewer-workspace>
+          <button
+            type="button"
+            class="rail-toggle"
+            aria-expanded="true"
+            aria-label="Hide controls"
+            title="Hide controls"
+            aria-controls="review-controls"
+            data-rail-toggle
+          >&#8249;</button>
         <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
           <div class="rail-head">
             <nav aria-label="Engineering review tasks" data-workflow-tabs></nav>
