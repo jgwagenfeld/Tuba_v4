@@ -71,6 +71,41 @@ def centerline_node_ids(
     return (element.n1, element.n2), ("bend_displacement_interpolated",)
 
 
+def displace_polyline(
+    *,
+    element: Element,
+    result_state: ResultState,
+    points: Any,
+    factor: float = 1.0,
+) -> tuple[tuple[float, float, float], ...]:
+    """Move an already-built cold polyline onto its operating position.
+
+    project_deformed_centerline needs the analysis mesh to place a bend's
+    interior nodes on their own solved displacement. A caller that holds a cold
+    polyline it built itself - an IFC swept-disk directrix, say - has no mesh,
+    so interior points follow a linear blend of the two end displacements: the
+    same approximation centerline_node_ids reports as
+    'bend_displacement_interpolated'.
+    """
+    start = _node_displacement(result_state, element.n1) * factor
+    end = _node_displacement(result_state, element.n2) * factor
+    span = max(len(points) - 1, 1)
+    return tuple(
+        tuple(
+            float(value)
+            for value in np.asarray(point, dtype=float) + start + (end - start) * (index / span)
+        )
+        for index, point in enumerate(points)
+    )
+
+
+def _node_displacement(result_state: ResultState, node_id: str) -> np.ndarray:
+    values = result_state.node_displacements.get(node_id)
+    if not values:
+        return np.zeros(3)
+    return np.asarray([float(value or 0.0) for value in values[:3]], dtype=float)
+
+
 def _generated_bend_nodes(element: Element, analysis_mesh: AnalysisMesh | None) -> tuple[str, ...]:
     if analysis_mesh is None:
         return ()

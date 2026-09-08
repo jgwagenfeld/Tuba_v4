@@ -61,6 +61,54 @@ class TestIfcIntegration(unittest.TestCase):
         self.assertEqual(props["ResultStateId"], result_state.id)
         self.assertEqual(props["OperatingClashCount"], 1)
 
+    def test_ifc_export_carries_the_operating_shape_as_its_own_representation(self):
+        # A clash engine downstream intersects geometry, not property sets: the
+        # hot line has to be in the file as a shape, or the growth that reaches
+        # into a tray is invisible to every tool but Tuba.
+        fixture = straight_pipe_hot_clash_fixture()
+        study = AnalysisStudy(
+            id="analysis_study:Hot",
+            model_revision=0,
+            solver_name=fixture.results.solver_name,
+            load_case="Hot",
+            work_dir=None,
+            input_files={},
+            mesh_id="analysis_mesh:Hot",
+        )
+        result_state = result_state_from_fea_results(model=fixture.model, study=study, results=fixture.results)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ifc_path = Path(tmpdir) / "operating_shape.ifc"
+            IfcExporter().export_model(fixture.model, ifc_path, result_state=result_state)
+            ifc_file = ifcopenshell.open(str(ifc_path))
+
+        pipe = next(product for product in ifc_file.by_type("IfcPipeSegment") if product.Name == "pipe_0")
+        by_identifier = {rep.RepresentationIdentifier: rep for rep in pipe.Representation.Representations}
+        self.assertEqual({"Axis", "Body", "OperatingBody"}, set(by_identifier))
+
+        def directrix_points(representation):
+            return [tuple(point.Coordinates) for point in representation.Items[0].Directrix.Points]
+
+        cold = directrix_points(by_identifier["Body"])
+        operating = directrix_points(by_identifier["OperatingBody"])
+        # The fixture lifts both nodes 60 mm in Y, into the obstacle.
+        self.assertEqual([(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)], cold)
+        for cold_point, operating_point in zip(cold, operating):
+            self.assertAlmostEqual(cold_point[1] + 0.06, operating_point[1])
+            self.assertAlmostEqual(cold_point[0], operating_point[0])
+            self.assertAlmostEqual(cold_point[2], operating_point[2])
+
+        # Without a result state there is no operating shape to claim.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cold_path = Path(tmpdir) / "cold_only.ifc"
+            IfcExporter().export_model(fixture.model, cold_path)
+            cold_file = ifcopenshell.open(str(cold_path))
+        cold_pipe = next(product for product in cold_file.by_type("IfcPipeSegment") if product.Name == "pipe_0")
+        self.assertEqual(
+            {"Axis", "Body"},
+            {rep.RepresentationIdentifier for rep in cold_pipe.Representation.Representations},
+        )
+
     def test_ifc_export_and_import_roundtrip(self):
         # 1. Create a model
         model = Model(project_name="TestIfcProject", standard="ASME_B31.3")
@@ -106,12 +154,16 @@ class TestIfcIntegration(unittest.TestCase):
         results.node_results[n2] = NodeResult(node_id=n2, displacement=np.zeros(6), reaction_force=np.array([10.0, 500.0, 0.0, 0.0, 0.0, 0.0]))
         results.node_results[n3] = NodeResult(node_id=n3, displacement=np.zeros(6), reaction_force=np.zeros(6))
 
+        # Only pipes carry wall stress: SIEQ is a TUYAU quantity, so a beam's
+        # ElementResult keeps the NaN default the solver never overwrites. A
+        # fixture that fabricates stress for every element cannot catch an
+        # exporter that hands NaN to ifcopenshell.
         for elem in model.elements:
             results.element_results[elem.id] = ElementResult(
                 element_id=elem.id,
                 forces_n1=np.zeros(6),
                 forces_n2=np.zeros(6),
-                max_von_mises=50e6
+                max_von_mises=50e6 if elem.type in ("pipe_straight", "pipe_bend") else float("nan"),
             )
 
         model.define_load_case("hot", gravity=True, pressure=1.5e6, temperature=200.0)
@@ -127,6 +179,17 @@ class TestIfcIntegration(unittest.TestCase):
             # 3. Check property sets inside the generated IFC file using raw ifcopenshell
             ifc_file = ifcopenshell.open(str(ifc_path))
             
+            stress_sets = [
+                pset for pset in ifc_file.by_type("IfcPropertySet")
+                if pset.Name == "Pset_TubaStressAnalysis"
+            ]
+            # The two beams are unanalysed, so they get no stress set at all -
+            # a zero would claim they are unstressed.
+            self.assertEqual(len(stress_sets), 2)
+            for pset in stress_sets:
+                props = {prop.Name: prop.NominalValue.wrappedValue for prop in pset.HasProperties}
+                self.assertEqual(props, {"MaxVonMisesStress_Pa": 50e6})
+
             # Find supports
             fasteners = ifc_file.by_type("IfcMechanicalFastener")
             self.assertEqual(len(fasteners), 3)

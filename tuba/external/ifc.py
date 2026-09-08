@@ -33,7 +33,7 @@ except ImportError:
     _HAS_IFCOPENSHELL = False
 else:
     from tuba.external.ifc_mapping import IfcGuidRegistry, ifc_property
-    from tuba.external.ifc_pipes import export_pipe_products
+    from tuba.external.ifc_pipes import OPERATING_BODY_IDENTIFIER, export_pipe_products
 
     _HAS_IFCOPENSHELL = True
 
@@ -79,7 +79,9 @@ class IfcExporter:
         # Store product objects created
         created_elements: Dict[str, ifcopenshell.entity_instance] = {}
         registry = IfcGuidRegistry()
-        created_elements.update(export_pipe_products(ifc_file, model, storey, project, registry))
+        created_elements.update(
+            export_pipe_products(ifc_file, model, storey, project, registry, result_state)
+        )
 
         # Default 2D position for profiles
         origin_2d = ifc_file.create_entity("IfcCartesianPoint", Coordinates=[0.0, 0.0])
@@ -130,33 +132,12 @@ class IfcExporter:
                 if sec is None:
                     raise ValueError(f"Element {elem.id!r} references undefined section {elem.section!r}.")
                 solid = None
+                operating_solid = None
                 rep_type = "SweptSolid"
 
                 # For beams, bars, cables, use IfcExtrudedAreaSolid
                 if elem.type in ("beam", "bar", "cable") and sec:
-                    v = p2 - p1
-                    L = np.linalg.norm(v)
-                    if L < 1e-6:
-                        z_dir = np.array([0.0, 0.0, 1.0])
-                    else:
-                        z_dir = v / L
-
-                    if abs(z_dir[1]) < 0.9:
-                        ref_x = np.cross(np.array([0.0, 1.0, 0.0]), z_dir)
-                    else:
-                        ref_x = np.cross(np.array([0.0, 0.0, 1.0]), z_dir)
-                    ref_x = ref_x / np.linalg.norm(ref_x)
-
-                    loc = ifc_file.create_entity("IfcCartesianPoint", Coordinates=p1.tolist())
-                    axis = ifc_file.create_entity("IfcDirection", DirectionRatios=z_dir.tolist())
-                    ref_direction = ifc_file.create_entity("IfcDirection", DirectionRatios=ref_x.tolist())
-
-                    placement = ifc_file.create_entity(
-                        "IfcAxis2Placement3D",
-                        Location=loc,
-                        Axis=axis,
-                        RefDirection=ref_direction
-                    )
+                    placement, L = _extrusion_placement(ifc_file, p1, p2)
                     extruded_dir = ifc_file.create_entity("IfcDirection", DirectionRatios=[0.0, 0.0, 1.0])
 
                     profile = None
@@ -239,6 +220,17 @@ class IfcExporter:
                             Depth=float(L)
                         )
                         rep_type = "SweptSolid"
+                        # Same profile, re-placed on the operating endpoints.
+                        operating_ends = _operating_ends(elem, result_state, p1, p2)
+                        if operating_ends is not None:
+                            hot_placement, hot_length = _extrusion_placement(ifc_file, *operating_ends)
+                            operating_solid = ifc_file.create_entity(
+                                "IfcExtrudedAreaSolid",
+                                SweptArea=profile,
+                                Position=hot_placement,
+                                ExtrudedDirection=extruded_dir,
+                                Depth=float(hot_length),
+                            )
 
                 # For pipe-like sections, create an IfcSweptDiskSolid from explicit section data.
                 if solid is None and sec:
@@ -260,6 +252,14 @@ class IfcExporter:
                         InnerRadius=inner_radius
                     )
                     rep_type = "SweptSolid"
+                    operating_ends = _operating_ends(elem, result_state, p1, p2)
+                    if operating_ends is not None:
+                        operating_solid = ifc_file.create_entity(
+                            "IfcSweptDiskSolid",
+                            Directrix=_polyline(ifc_file, operating_ends),
+                            Radius=radius,
+                            InnerRadius=inner_radius,
+                        )
 
                 if solid is not None:
                     # Shape representation
@@ -270,7 +270,20 @@ class IfcExporter:
                         RepresentationType=rep_type,
                         Items=[solid]
                     )
-                    product_rep = ifc_file.create_entity("IfcProductDefinitionShape", Representations=[rep])
+                    representations = [rep]
+                    if operating_solid is not None:
+                        representations.append(
+                            ifc_file.create_entity(
+                                "IfcShapeRepresentation",
+                                ContextOfItems=project,
+                                RepresentationIdentifier=OPERATING_BODY_IDENTIFIER,
+                                RepresentationType=rep_type,
+                                Items=[operating_solid],
+                            )
+                        )
+                    product_rep = ifc_file.create_entity(
+                        "IfcProductDefinitionShape", Representations=representations
+                    )
                     ifc_elem.Representation = product_rep
             except Exception as exc:
                 raise RuntimeError(f"Failed to create IFC representation for element {elem.id!r}.") from exc
@@ -392,20 +405,19 @@ class IfcExporter:
 
         # 6. Enrich elements with FEA stress property sets
         if results:
-            from tuba.compliance.asme_b313 import ASMEB313Evaluator
-            evaluator = ASMEB313Evaluator()
-            report = evaluator.evaluate(model, results)
-
-            for res in report.results:
+            for res in results.element_results.values():
                 ifc_elem = created_elements.get(res.element_id)
                 if not ifc_elem:
                     continue
+                # ElementResult.max_von_mises defaults to NaN, and stays NaN for
+                # every element the solver reports no wall stress for - beams,
+                # bars, cables. IFC doubles must be finite, so an unanalysed
+                # element gets no stress property rather than a NaN one.
+                if not np.isfinite(res.max_von_mises):
+                    continue
 
                 props = [
-                    ifc_file.create_entity("IfcPropertySingleValue", Name="SustainedStressRatio", NominalValue=ifc_file.create_entity("IfcReal", float(res.sustained_ratio))),
-                    ifc_file.create_entity("IfcPropertySingleValue", Name="ExpansionStressRatio", NominalValue=ifc_file.create_entity("IfcReal", float(res.expansion_ratio))),
-                    ifc_file.create_entity("IfcPropertySingleValue", Name="ComplianceVerdict", NominalValue=ifc_file.create_entity("IfcLabel", "PASS" if (res.sustained_pass and res.expansion_pass) else "FAIL")),
-                    ifc_file.create_entity("IfcPropertySingleValue", Name="MaxStress_Pa", NominalValue=ifc_file.create_entity("IfcReal", float(max(res.sustained_stress, res.expansion_stress)))),
+                    ifc_file.create_entity("IfcPropertySingleValue", Name="MaxVonMisesStress_Pa", NominalValue=ifc_file.create_entity("IfcReal", float(res.max_von_mises))),
                 ]
 
                 pset = ifc_file.create_entity(
@@ -495,6 +507,51 @@ class IfcExporter:
                 RelatedObjects=[ifc_elem],
                 RelatingPropertyDefinition=pset,
             )
+
+
+def _extrusion_placement(ifc_file: Any, start: np.ndarray, end: np.ndarray) -> Tuple[Any, float]:
+    """Axis placement and depth for a profile extruded from start to end."""
+    vector = np.asarray(end, dtype=float) - np.asarray(start, dtype=float)
+    length = float(np.linalg.norm(vector))
+    z_dir = vector / length if length > 1e-6 else np.array([0.0, 0.0, 1.0])
+    if abs(z_dir[1]) < 0.9:
+        ref_x = np.cross(np.array([0.0, 1.0, 0.0]), z_dir)
+    else:
+        ref_x = np.cross(np.array([0.0, 0.0, 1.0]), z_dir)
+    ref_x = ref_x / np.linalg.norm(ref_x)
+    placement = ifc_file.create_entity(
+        "IfcAxis2Placement3D",
+        Location=ifc_file.create_entity(
+            "IfcCartesianPoint", Coordinates=[float(value) for value in np.asarray(start, dtype=float)]
+        ),
+        Axis=ifc_file.create_entity("IfcDirection", DirectionRatios=[float(value) for value in z_dir]),
+        RefDirection=ifc_file.create_entity("IfcDirection", DirectionRatios=[float(value) for value in ref_x]),
+    )
+    return placement, length
+
+
+def _operating_ends(
+    elem: Any, result_state: Optional["ResultState"], p1: np.ndarray, p2: np.ndarray
+) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """The element's two endpoints moved onto their solved operating position."""
+    if result_state is None:
+        return None
+    from tuba.analysis.projection import displace_polyline
+
+    start, end = displace_polyline(element=elem, result_state=result_state, points=[p1, p2])
+    return np.asarray(start, dtype=float), np.asarray(end, dtype=float)
+
+
+def _polyline(ifc_file: Any, points: Any) -> Any:
+    return ifc_file.create_entity(
+        "IfcPolyline",
+        Points=[
+            ifc_file.create_entity(
+                "IfcCartesianPoint", Coordinates=[float(value) for value in np.asarray(point, dtype=float)]
+            )
+            for point in points
+        ],
+    )
 
 
 def _ifc_property(ifc_file: Any, name: str, value: Any) -> Any:

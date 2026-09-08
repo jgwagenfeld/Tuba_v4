@@ -10,8 +10,20 @@ import numpy as np
 from tuba.external.ifc_mapping import IfcGuidRegistry, add_property_set, ifc_property
 from tuba.external.ifc_placements import create_local_placement, placement_for_target
 
+# Second body representation carrying the solved operating shape. "Body" stays
+# the as-built geometry so a viewer that knows only the standard identifier is
+# unaffected; a clash run selects this one.
+OPERATING_BODY_IDENTIFIER = "OperatingBody"
 
-def export_pipe_products(ifc_file: Any, model: Any, storey: Any, project_context: Any, registry: IfcGuidRegistry) -> dict[str, Any]:
+
+def export_pipe_products(
+    ifc_file: Any,
+    model: Any,
+    storey: Any,
+    project_context: Any,
+    registry: IfcGuidRegistry,
+    result_state: Any | None = None,
+) -> dict[str, Any]:
     created: dict[str, Any] = {}
     pipe_elements = [elem for elem in model.elements if elem.type in ("pipe_straight", "pipe_bend")]
     if not pipe_elements:
@@ -19,7 +31,7 @@ def export_pipe_products(ifc_file: Any, model: Any, storey: Any, project_context
 
     products = []
     for elem in pipe_elements:
-        product = _create_pipe_product(ifc_file, model, elem, project_context, registry)
+        product = _create_pipe_product(ifc_file, model, elem, project_context, registry, result_state)
         created[elem.id] = product
         products.append(product)
 
@@ -52,7 +64,14 @@ def export_pipe_products(ifc_file: Any, model: Any, storey: Any, project_context
     return created
 
 
-def _create_pipe_product(ifc_file: Any, model: Any, elem: Any, context: Any, registry: IfcGuidRegistry) -> Any:
+def _create_pipe_product(
+    ifc_file: Any,
+    model: Any,
+    elem: Any,
+    context: Any,
+    registry: IfcGuidRegistry,
+    result_state: Any | None = None,
+) -> Any:
     cls_name = "IfcPipeFitting" if elem.type == "pipe_bend" else "IfcPipeSegment"
     kwargs = {}
     if elem.type == "pipe_bend":
@@ -95,7 +114,23 @@ def _create_pipe_product(ifc_file: Any, model: Any, elem: Any, context: Any, reg
         RepresentationType="SweptSolid",
         Items=[body],
     )
-    product.Representation = ifc_file.create_entity("IfcProductDefinitionShape", Representations=[axis, body_rep])
+    # The cold body is what a viewer draws; the operating body is what a clash
+    # run has to see. A hot line grows into space the as-built shape never
+    # occupies, and a property saying how far it moved is not something a BIM
+    # clash engine can intersect.
+    representations = [axis, body_rep]
+    operating_body = operating_swept_disk(ifc_file, model, elem, axis_points, result_state)
+    if operating_body is not None:
+        representations.append(
+            ifc_file.create_entity(
+                "IfcShapeRepresentation",
+                ContextOfItems=context,
+                RepresentationIdentifier=OPERATING_BODY_IDENTIFIER,
+                RepresentationType="SweptSolid",
+                Items=[operating_body],
+            )
+        )
+    product.Representation = ifc_file.create_entity("IfcProductDefinitionShape", Representations=representations)
     if elem.type == "pipe_bend":
         add_property_set(
             ifc_file,
@@ -107,6 +142,21 @@ def _create_pipe_product(ifc_file: Any, model: Any, elem: Any, context: Any, reg
             ],
         )
     return product
+
+
+def operating_swept_disk(
+    ifc_file: Any, model: Any, elem: Any, cold_points: list[np.ndarray], result_state: Any | None
+) -> Any | None:
+    """Build the pipe's swept disk on its operating centreline, or None."""
+    if result_state is None:
+        return None
+    from tuba.analysis.projection import displace_polyline
+
+    points = [
+        np.asarray(point, dtype=float)
+        for point in displace_polyline(element=elem, result_state=result_state, points=cold_points)
+    ]
+    return _swept_disk_body(ifc_file, model, elem, points)
 
 
 def _pipe_axis_points(model: Any, elem: Any) -> list[np.ndarray]:
