@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-BSN-PHRS.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BoqRz8M6.css">
+    <script type="module" crossorigin src="./assets/index-Bgggqkd0.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DXjF0oI8.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -17,9 +17,17 @@
         <div class="app-identity">
           <span class="app-kicker">TUBA / ENGINEERING REVIEW</span>
           <h1 data-scene-title>Scene</h1>
+          <!-- Switching review is one control, not a round trip through the
+               gallery. The gallery explains the set; this moves within it. -->
+          <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
           <div class="meta" data-scene-meta></div>
         </div>
         <div class="header-actions">
+          <!-- The status band used to be a full row of its own restating what
+               the evidence dock already holds. One chip carries the two facts
+               that are actually status - solved, and anything demanding
+               attention - and routes to the evidence that explains them. -->
+          <button type="button" class="status-chip" data-status-chip hidden></button>
           <button
             type="button"
             class="rail-toggle"
@@ -30,11 +38,9 @@
           <button type="button" aria-expanded="false" data-evidence-expand>Evidence</button>
           <a class="gallery-back" href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
-          <div class="runtime-status" data-status role="status" aria-live="polite">Starting</div>
+          <div class="runtime-status" data-runtime-status role="status" aria-live="polite">Starting</div>
         </div>
       </header>
-      <section class="cockpit-status" aria-label="Engineering review status" data-cockpit-status></section>
-      <section class="coloring-bar" aria-label="Result coloring channel" data-coloring-bar></section>
       <section class="viewer-workspace" data-viewer-workspace>
         <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
           <div class="rail-head">
@@ -99,7 +105,17 @@
           <div class="camera-controls" role="group" aria-label="Standard camera views" data-camera-controls></div>
           <button class="reset-view" type="button" data-reset-view aria-label="Reset 3D view">Reset view</button>
           <div class="viewport-legend" data-viewport-legend></div>
-          <div class="body-legend" aria-label="What each mark in the viewport means" data-body-legend></div>
+          <!-- Reference material, not a readout: it answers "what is that mark"
+               once, so it is asked for rather than parked over the scene. -->
+          <button
+            type="button"
+            class="legend-toggle"
+            aria-expanded="false"
+            aria-controls="viewport-key"
+            data-body-legend-toggle
+            hidden
+          >i</button>
+          <div id="viewport-key" class="body-legend" aria-label="What each mark in the viewport means" data-body-legend hidden></div>
           <p id="viewport-guidance" class="viewport-guidance" data-viewport-guidance>
             Orbit: drag or arrow keys. Zoom: scroll, or + and -. Select: click. Axes: X, Y, Z keys or the labelled controls. Reset: Home fits the full scene.
           </p>

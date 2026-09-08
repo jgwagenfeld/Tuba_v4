@@ -33,15 +33,29 @@ async function openResultsTask(page) {
   );
 }
 
+// review.json is probed, not required: a model-review or legacy scene-only
+// bundle has none, and its absence is how loadReview decides the bundle is
+// review-less. The browser logs that 404 whatever the loader does with it, so
+// it is expected traffic rather than an unexpected event. Matched by URL, so
+// every other 404 still fails the scenario.
+const EXPECTED_MISSING_RESOURCE = /\/review\.json$/;
+
 function captureUnexpectedBrowserEvents(page) {
   page.__tubaUnexpectedBrowserEvents = [];
   page.on("pageerror", (error) => page.__tubaUnexpectedBrowserEvents.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") {
-      page.__tubaUnexpectedBrowserEvents.push(`console: ${message.text()}`);
+    if (message.type() !== "error") {
+      return;
     }
+    if (EXPECTED_MISSING_RESOURCE.test(message.location()?.url ?? "")) {
+      return;
+    }
+    page.__tubaUnexpectedBrowserEvents.push(`console: ${message.text()}`);
   });
   page.on("requestfailed", (request) => {
+    if (EXPECTED_MISSING_RESOURCE.test(request.url())) {
+      return;
+    }
     page.__tubaUnexpectedBrowserEvents.push(
       `requestfailed: ${request.url()} ${request.failure()?.errorText ?? "unknown"}`
     );
@@ -133,6 +147,10 @@ const scenarios = {
     bundle: "/smoke-scene",
     minimumObjects: 3,
     async run(page) {
+      // The task rail starts collapsed; its controls are in the DOM but not
+      // reachable until it is opened. openReviewControls also asserts that
+      // collapsed starting state, so the disclosure stays covered too.
+      await openReviewControls(page);
       const canvas = page.locator("[data-canvas]");
       // The section box is a secondary control, folded into a drawer so the
       // bodies panel owns the rail. Open it before the first framebuffer
@@ -453,6 +471,10 @@ const scenarios = {
     // object:cold renders on load; the scenario turns them on before exercising toggles.
     minimumObjects: 1,
     async run(page) {
+      // The task rail starts collapsed; its controls are in the DOM but not
+      // reachable until it is opened. openReviewControls also asserts that
+      // collapsed starting state, so the disclosure stays covered too.
+      await openReviewControls(page);
       // Secondary tools moved into the rail popover so the bodies panel owns the
       // rail. Open it the way a reviewer would, then expand the tree inside it.
       await page.locator('[data-rail-tool="layers"]').click();
@@ -490,6 +512,10 @@ const scenarios = {
     bundle: "/test/fixtures/inspection_scene",
     minimumObjects: 1,
     async run(page) {
+      // The task rail starts collapsed; its controls are in the DOM but not
+      // reachable until it is opened. openReviewControls also asserts that
+      // collapsed starting state, so the disclosure stays covered too.
+      await openReviewControls(page);
       // Analysis mesh is a body; the clash marker is an annotation and lives in
       // the layer tree.
       await page.locator(".layer-tree").evaluate((details) => {
@@ -617,12 +643,13 @@ const scenarios = {
       // Only one geometry state is drawn at a time - assetMatchesActiveGeometryState
       // filters every asset that names a different one - so the physical and the
       // x50 visual deformed shapes can never be on screen together. A solved
-      // scene opens on the visual state so the deformation control works at once.
+      // scene opens on the *physical* state: the visual one is a display
+      // exaggeration, and the shape a review opens on must be the real one.
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return ids.includes("object:deformed_visual") && !ids.includes("object:deformed_physical");
+        return ids.includes("object:deformed_physical") && !ids.includes("object:deformed_visual");
       });
-      assert.equal(await visualCenterline.isChecked(), true);
+      assert.equal(await physicalCenterline.isChecked(), true);
 
       const deformedState = page.getByRole("combobox", { name: /^Deformed state/ });
       const stateValues = await deformedState.evaluate((select) => [...select.options].map((option) => option.value));
@@ -630,12 +657,13 @@ const scenarios = {
       const visualValue = stateValues.find((value) => /visual/i.test(value));
       assert.ok(physicalValue, "the bundle must offer a physical deformed state");
       assert.ok(visualValue, "the bundle must offer a visual deformed state");
-      await deformedState.selectOption(physicalValue);
+      // Choosing the exaggerated shape is an explicit act, not the default.
+      await deformedState.selectOption(visualValue);
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return ids.includes("object:deformed_physical") && !ids.includes("object:deformed_visual");
+        return ids.includes("object:deformed_visual") && !ids.includes("object:deformed_physical");
       });
-      assert.equal(await physicalCenterline.isChecked(), true);
+      assert.equal(await visualCenterline.isChecked(), true);
 
       await page.getByRole("slider", { name: "Visual deformation scale (display only)" }).evaluate((input) => {
         input.value = "25";
@@ -855,7 +883,19 @@ const scenarios = {
     async run(page) {
       const cards = page.locator("[data-gallery-card]");
       await cards.first().waitFor({ state: "visible" });
-      assert.equal(await cards.count(), 6, "the landing gallery must offer every published review");
+      // Derived, not a literal: which galleries are published is a registry
+      // decision (gmsh-tee-mesh-review is dev-only), and a hardcoded count here
+      // drifts silently the moment that set changes.
+      const published = await page.evaluate(async () => {
+        const response = await fetch("./bundles.json");
+        return response.ok ? await response.json() : [];
+      });
+      assert.ok(published.length > 0, "the published catalog must not be empty");
+      assert.equal(
+        await cards.count(),
+        published.length,
+        "the landing gallery must offer every published review"
+      );
 
       // Every card leads with the question it answers and keeps its evidence
       // badge visible; a blank card is the failure this page exists to prevent.
@@ -901,8 +941,27 @@ const scenarios = {
         await page.locator("[data-canvas]").isVisible(),
         "the review canvas must be visible on a review page"
       );
-      assert.equal(await page.locator("[data-bundle-picker]").count(), 0);
       assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.sceneId), "scene:code_aster_artifact_review");
+
+      // The gallery introduces the set; the header switcher moves within it, so
+      // comparing two reviews is one control rather than a round trip.
+      const picker = page.locator("[data-bundle-picker]");
+      await picker.waitFor({ state: "visible" });
+      const published = await page.evaluate(async () => {
+        const response = await fetch("./bundles.json");
+        return response.ok ? await response.json() : [];
+      });
+      assert.equal(await picker.locator("option").count(), published.length);
+      assert.equal(await picker.inputValue(), "code-aster-review");
+      await picker.selectOption("support-rack-review");
+      await page.waitForFunction(
+        () => window.__tubaViewer?.state?.sceneId === "scene:support_rack_review"
+      );
+      assert.equal(new URL(page.url()).searchParams.get("bundle"), "support-rack-review");
+      await picker.selectOption("code-aster-review");
+      await page.waitForFunction(
+        () => window.__tubaViewer?.state?.sceneId === "scene:code_aster_artifact_review"
+      );
 
       await page.locator("[data-gallery-link]").click();
       const cards = page.locator("[data-gallery-card]");
@@ -1293,16 +1352,32 @@ const scenarios = {
       assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
     }
   },
-  "default-public-review": {
+  // Arriving without ?bundle= no longer guesses a review: it offers the set.
+  // pages-gallery covers the published catalog, which needs a built site; this
+  // covers the same default against the examples the dev server discovers, so
+  // the landing behaviour is gated without a Pages build.
+  "default-landing-gallery": {
     bundle: null,
-    minimumObjects: 1,
+    canvasFree: true,
     async run(page) {
-      const loaded = await page.evaluate(() => ({
-        sceneId: window.__tubaViewer?.state?.sceneId,
-        analysisStatus: window.__tubaViewer?.state?.review?.analysis_status
-      }));
-      assert.equal(loaded.sceneId, "scene:code_aster_artifact_review");
-      assert.equal(loaded.analysisStatus, "solved");
+      const cards = page.locator("[data-gallery-card]");
+      await cards.first().waitFor({ state: "visible" });
+      assert.ok(await cards.count() >= 2, "the landing gallery must offer a choice");
+      // The canvas element is in the shell markup; what must not happen is a
+      // Three viewport being built for a page that shows no scene.
+      assert.equal(await page.locator("[data-canvas]").isVisible(), false);
+      assert.equal(
+        await page.locator("[data-canvas]").getAttribute("data-renderer"),
+        null,
+        "the gallery must not construct a renderer"
+      );
+
+      // A card is a link into the ordinary review path.
+      const first = await cards.first().getAttribute("data-gallery-card");
+      await cards.first().click();
+      await page.waitForFunction(() => Boolean(window.__tubaViewer?.state?.sceneId));
+      assert.equal(new URL(page.url()).searchParams.get("bundle"), first);
+      assert.equal(await page.locator("[data-gallery]").isVisible(), false);
     }
   },
   "legacy-workflow": {
@@ -1314,12 +1389,22 @@ const scenarios = {
       );
     },
     async run(page) {
+      // The task rail starts collapsed; its controls are in the DOM but not
+      // reachable until it is opened. openReviewControls also asserts that
+      // collapsed starting state, so the disclosure stays covered too.
+      await openReviewControls(page);
       const modelTask = page.getByRole("button", { name: "Model", exact: true });
       await modelTask.waitFor();
       assert.equal(await modelTask.getAttribute("aria-current"), "page");
       assert.equal(await page.getByRole("button", { name: "Issues", exact: true }).count(), 1);
       assert.equal(await page.getByRole("button", { name: "Review", exact: true }).count(), 0);
       assert.equal(await page.getByRole("button", { name: "Display", exact: true }).count(), 0);
+      // Evidence starts collapsed, and a collapsed dock renders no tabs, so
+      // the tab assertions below need it open first.
+      const legacyEvidenceExpand = page.locator("[data-evidence-expand]");
+      if ((await legacyEvidenceExpand.getAttribute("aria-expanded")) === "false") {
+        await legacyEvidenceExpand.click();
+      }
       assert.equal(await page.getByRole("tab", { name: "Warnings", exact: true }).count(), 1);
       assert.equal(await page.getByRole("tab", { name: "Governing Results", exact: true }).count(), 0);
       assert.equal(await page.getByRole("tab", { name: "Reports", exact: true }).count(), 0);
@@ -1413,6 +1498,10 @@ const scenarios = {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 6,
     async run(page) {
+      // The task rail starts collapsed; its controls are in the DOM but not
+      // reachable until it is opened. openReviewControls also asserts that
+      // collapsed starting state, so the disclosure stays covered too.
+      await openReviewControls(page);
       await page.getByRole("button", { name: "Issues", exact: true }).click();
       await page.getByLabel(/Operating-only/).check();
       await page.waitForFunction(() => /ERROR - Hot - open/.test(document.querySelector("[data-issue-list]")?.textContent ?? ""));
@@ -1542,6 +1631,10 @@ const scenarios = {
       return { preview_ws: runtime.url };
     },
     async run(page, runtime) {
+      // The task rail starts collapsed; its controls are in the DOM but not
+      // reachable until it is opened. openReviewControls also asserts that
+      // collapsed starting state, so the disclosure stays covered too.
+      await openReviewControls(page);
       await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "viewer_smoke_scene");
       // The object list is no longer a collapsed disclosure. Clicking the always
       // visible search field opens the finder that owns it.
@@ -1608,7 +1701,10 @@ if (!selected) {
   throw new Error(`Unknown e2e scenario '${scenario}'. Expected one of: ${Object.keys(scenarios).join(", ")}`);
 }
 
-const staticSiteRoot = scenario === "pages-catalog" ? parseSiteRoot(process.argv.slice(3)) : null;
+// Both pages-* scenarios exercise the published tree, so both need its root.
+const staticSiteRoot = scenario.startsWith("pages-")
+  ? parseSiteRoot(scenario, process.argv.slice(3))
+  : null;
 
 let browser;
 let server;
@@ -1735,11 +1831,11 @@ async function boundedClose(label, close) {
   }
 }
 
-function parseSiteRoot(args) {
+function parseSiteRoot(scenario, args) {
   const flagIndex = args.indexOf("--site-root");
   const value = flagIndex >= 0 ? args[flagIndex + 1] : null;
   if (!value || value.startsWith("--")) {
-    throw new Error("pages-catalog requires --site-root PATH");
+    throw new Error(`${scenario} requires --site-root PATH`);
   }
   const siteRoot = resolve(process.cwd(), value);
   if (!existsSync(resolve(siteRoot, "viewer", "index.html"))) {

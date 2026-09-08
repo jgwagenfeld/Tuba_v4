@@ -106,6 +106,10 @@ jobs:
         working-directory: viewer
         env:
           TUBA_PAGES_SITE_ROOT: ../.build/pages-check
+      - run: npm run e2e -- pages-gallery --site-root ../.build/pages-check
+        working-directory: viewer
+        env:
+          TUBA_PAGES_SITE_ROOT: ../.build/pages-check
       - run: npm run e2e:pages
         working-directory: viewer
         env:

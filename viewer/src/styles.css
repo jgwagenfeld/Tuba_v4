@@ -2046,3 +2046,25 @@ body[data-view="gallery"] {
     transform: none;
   }
 }
+
+/* Example switcher in the header identity block. The gallery is the landing
+   page; this is how you move between reviews once inside one. */
+.bundle-picker {
+  margin-top: 0.2rem;
+  align-self: start;
+  width: auto;
+  max-width: 100%;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.35rem;
+}
+
+/* Explicit, because an author rule on this element would otherwise beat the
+   user-agent [hidden] rule - the mistake that once left an empty gallery
+   panel covering every review. */
+.bundle-picker[hidden] {
+  display: none;
+}

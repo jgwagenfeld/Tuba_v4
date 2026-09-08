@@ -7,7 +7,7 @@ import {
   sectionBoxDefaults,
   rankObjectMatches
 } from "./controls.js";
-import { bundleIdsOf, renderGallery, shouldShowGallery } from "./gallery.js";
+import { bundleIdsOf, normalizeCatalog, renderGallery, shouldShowGallery } from "./gallery.js";
 import {
   WEBGL2_UNAVAILABLE,
   applyHoverHighlight,
@@ -121,7 +121,8 @@ const dom = {
   canvas: document.querySelector("[data-canvas]"),
   viewport: document.querySelector(".viewport"),
   gallery: document.querySelector("[data-gallery]"),
-  galleryLink: document.querySelector("[data-gallery-link]")
+  galleryLink: document.querySelector("[data-gallery-link]"),
+  bundlePicker: document.querySelector("[data-bundle-picker]")
 };
 
 const startupParams = new URLSearchParams(window.location.search);
@@ -189,6 +190,7 @@ async function main() {
     await loadBundle(currentBundleUrl, { preserve: false });
     setStatus("Ready");
     render();
+    initBundlePicker(catalog);
     if (startupConfig.previewWebSocketUrl) {
       connectLivePreview(startupConfig.previewWebSocketUrl);
     }
@@ -210,6 +212,47 @@ async function loadBundleCatalog() {
   }
   return [];
 }
+
+// Moving between reviews is one control. The gallery introduces the set and is
+// the right landing page; once inside, a round trip through it to compare two
+// models is friction, so the header keeps a direct switch.
+function initBundlePicker(catalog) {
+  if (startupConfig.embed || !dom.bundlePicker) {
+    return;
+  }
+  const entries = normalizeCatalog(catalog);
+  if (entries.length <= 1) {
+    dom.bundlePicker.hidden = true;
+    return;
+  }
+  dom.bundlePicker.replaceChildren(
+    ...entries.map((entry) => {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      option.textContent = entry.title;
+      option.selected = entry.id === currentBundleUrl;
+      return option;
+    })
+  );
+  dom.bundlePicker.hidden = false;
+  dom.bundlePicker.addEventListener("change", () => switchBundle(dom.bundlePicker.value));
+}
+
+async function switchBundle(bundleId) {
+  currentBundleUrl = bundleId;
+  const url = new URL(window.location.href);
+  url.searchParams.set("bundle", bundleId);
+  window.history.replaceState({}, "", url);
+  setStatus(`Loading ${bundleId}`);
+  try {
+    await loadBundle(bundleId, { preserve: false });
+    setStatus("Ready");
+    render();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
 
 async function loadBundle(bundleUrl, options = {}) {
   currentBundle = await loadSceneBundleFromUrl(bundleUrl);
