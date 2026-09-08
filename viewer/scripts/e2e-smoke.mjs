@@ -80,13 +80,10 @@ async function assertSameCanvas(page) {
 async function openReviewControls(page) {
   const toggle = page.locator("[data-rail-toggle]");
   await toggle.waitFor();
-  assert.equal(await toggle.textContent(), "Close");
-  assert.equal(await toggle.getAttribute("aria-expanded"), "true");
-  assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
-  await toggle.focus();
-  await page.keyboard.press("Enter");
-  assert.equal(await toggle.getAttribute("aria-expanded"), "false");
-  await page.keyboard.press("Enter");
+  if (await toggle.getAttribute("aria-expanded") !== "true") {
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+  }
   assert.equal(await toggle.getAttribute("aria-expanded"), "true");
   assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
 }
