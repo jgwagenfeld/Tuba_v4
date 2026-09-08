@@ -1063,7 +1063,7 @@ test("section box clipping keeps a crossing pipe in the coarse scene graph", () 
   }
 });
 
-test("interaction mode temporarily hides detail geometry and restores visibility", () => {
+test("orbit keeps engineering arrows visible while hiding mesh details", () => {
   const graph = createThreeSceneGraph(fixtureState());
 
   rendererModule.setSceneGraphInteractionMode?.(graph, true);
@@ -1073,7 +1073,7 @@ test("interaction mode temporarily hides detail geometry and restores visibility
   assert.equal(graph.objectsByObjectId.get("object:box").visible, true);
   assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, false);
   assert.equal(graph.objectsByObjectId.get("object:node").visible, false);
-  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, false);
+  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, true);
 
   rendererModule.setSceneGraphInteractionMode(graph, false);
 

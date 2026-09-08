@@ -91,7 +91,7 @@ test("workflow rendering keeps the viewport persistent and separates tasks from 
   assert.match(app, /evidenceTabForKey\(currentState, id, event\.key\)/);
   assert.match(app, /activateEvidence\(nextId\)[\s\S]*data-evidence-tab="\$\{nextId\}"[\s\S]*\.focus\(\)/);
   assert.match(app, /const activeTab = activeEvidenceTab/);
-  assert.match(app, /let railExpanded\s*=\s*false/);
+  assert.match(app, /let railExpanded\s*=\s*true/);
   assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded/);
   assert.match(app, /dom\.railToggle\.setAttribute\("aria-expanded", String\(railExpanded\)\)/);
   assert.doesNotMatch(app, /dom\.viewerWorkspace\.hidden\s*=/);

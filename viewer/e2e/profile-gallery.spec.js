@@ -8,7 +8,7 @@ test("profile comparison keeps labels and solved local frames through load and d
   const labels = ["label:roll-0", "label:roll-45", "label:roll-90"];
   const rendered = () => page.evaluate(() => window.__tubaViewer.lastRender.objectIds);
   expect(await rendered()).toEqual(expect.arrayContaining(labels));
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await expect(page.locator("[data-task-rail]")).toBeVisible();
   await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
   const canvas = page.locator("[data-canvas]");

@@ -7,7 +7,7 @@ test("real contact history preserves forces through selection and display scalin
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/viewer/?bundle=native-friction-review");
   await expect(page.getByRole("status")).toContainText("Ready");
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await expect(page.locator("[data-task-rail]")).toBeVisible();
   await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   const panel = page.getByRole("region", { name: "Contact review", exact: true });
   await expect(panel).toBeVisible();
@@ -64,7 +64,7 @@ test("a missing contact increment displays unavailable, never an invented state"
   });
   await page.goto("/viewer/?bundle=native-friction-review");
   await expect(page.getByRole("status")).toContainText("Ready");
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await expect(page.locator("[data-task-rail]")).toBeVisible();
   await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   const panel = page.getByRole("region", { name: "Contact review", exact: true });
   await expect(panel).toContainText("Contact results unavailable for this state.");
@@ -74,7 +74,7 @@ test("a missing contact increment displays unavailable, never an invented state"
 test("frictionless copy displays zero force and no utilization in the shared solve", async ({ page }) => {
   await page.goto("/viewer/?bundle=native-friction-review");
   await expect(page.getByRole("status")).toContainText("Ready");
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await expect(page.locator("[data-task-rail]")).toBeVisible();
   await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   const panel = page.getByRole("region", { name: "Contact review", exact: true });
   await expect(panel.locator("tbody tr").first()).toContainText("n/a");

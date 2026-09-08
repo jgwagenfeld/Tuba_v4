@@ -28,7 +28,7 @@ export const SUPPORTED_RENDER_FORMATS = new Set([
 
 const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
 const REFERENCE_GEOMETRY_OPACITY = 0.32;
-const INTERACTION_DETAIL_FORMATS = new Set(["line", "point", "polyline", "tuyau_subpoint_glyphs", "vector"]);
+const INTERACTION_DETAIL_FORMATS = new Set(["line", "point", "polyline", "tuyau_subpoint_glyphs"]);
 
 export const STANDARD_VIEW_DIRECTIONS = {
   iso: [1, -1, 0.65],

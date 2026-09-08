@@ -13,7 +13,7 @@ test("hot-line gallery glyphs preserve relative reaction magnitudes", async ({ p
     expect(lengths[i] / lengths[0]).toBeCloseTo(magnitudes[i] / magnitudes[0], 8);
   }
   await page.screenshot({ path: "../.build/hot-line-fixed.png" });
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await expect(page.locator("[data-task-rail]")).toBeVisible();
   await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   await page.locator("summary").filter({ hasText: "Filters & vectors" }).click();
   const moment = page.getByRole("slider", { name: /^Moment vector scale/ });
@@ -33,7 +33,7 @@ test("gallery opens the combined attested pipe-shoe comparison", async ({ page }
   await expect(page.getByRole("status")).toContainText("Ready", { timeout: 45_000 });
   expect(await page.evaluate(() => window.__tubaViewer.state.sceneId)).toBe("scene:native-friction:comparison");
   expect(await page.evaluate(() => window.__tubaViewer.state.resultStates.length)).toBe(51);
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await expect(page.locator("[data-task-rail]")).toBeVisible();
   await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   await page.getByRole("combobox", { name: "Result state", exact: true }).selectOption({ label: "Hot / 2" });
   const panel = page.getByRole("region", { name: "Contact review", exact: true });

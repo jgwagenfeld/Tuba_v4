@@ -147,7 +147,7 @@ function dispatch(action) {
 let selectedObjectId = null;
 let currentSearch = "";
 let issueFilters = { operatingOnly: false };
-let railExpanded = false;
+let railExpanded = true;
 let evidenceExpanded = false;
 let activeEvidenceTab = "summary";
 const savedViews = [];
