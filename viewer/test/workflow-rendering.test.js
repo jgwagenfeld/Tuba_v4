@@ -219,9 +219,15 @@ test("the bodies panel is the rail's primary content, not a window onto it", asy
   const css = await readViewerFile("src/styles.css");
   // Rail is a flex column: lookup tools on top, what-is-drawn below.
   assert.match(css, /\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
-  // The task panel keeps its natural height and does not shrink; letting it
-  // shrink squeezed Tree/Search/Objects into an unusable sliver.
-  assert.match(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*flex:\s*0 0 auto[^}]*overflow-y:\s*auto/s);
+  // The task panel keeps its natural height and does not shrink. It must not
+  // scroll either: capping it at 30% with an overflow of its own put thirteen
+  // result controls behind a 200px window nested inside the pane's scrollbar.
+  assert.match(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*flex:\s*0 0 auto[^}]*\}/s);
+  assert.doesNotMatch(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*(max-height|overflow)/s);
+  // Nothing shares the pane with the result controls any more: the layer list
+  // is the Model task's, and Results hides it.
+  const app = await readViewerFile("src/app.js");
+  assert.match(app, /dom\.layersBlock\.hidden = currentState\.activeTab === "results"/);
   // The strip takes the remaining height. A fixed cap here showed a third of
   // the bodies list through a 395px window.
   assert.match(css, /^\.display-strip\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0/ms);
