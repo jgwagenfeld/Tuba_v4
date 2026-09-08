@@ -48,6 +48,27 @@ test("cockpit tasks are the four focused destinations in review mode", () => {
 
 test("legacy mode keeps model and issues tasks and defaults to model", () => {
   assert.deepEqual(getVisibleCockpitTaskIds({ review: null }), ["model", "diagnostics"]);
+  // Without a review the Results task is still the only home of the coloring
+  // channel, so a scene that carries fields must keep it.
+  assert.deepEqual(
+    getVisibleCockpitTaskIds({ review: null, resultFields: [{ id: "field:stress" }] }),
+    ["model", "results", "diagnostics"]
+  );
+  assert.deepEqual(
+    getVisibleCockpitTaskIds({ review: null, resultStates: [{ id: "state:Operating" }] }),
+    ["model", "results", "diagnostics"]
+  );
+  // The rail must never offer a task setWorkflowTab would reject.
+  for (const state of [
+    { review: null },
+    { review: null, resultFields: [{ id: "field:stress" }] },
+    { review: reviewFixture }
+  ]) {
+    const visible = getVisibleWorkflowTabs(state);
+    for (const id of getVisibleCockpitTaskIds(state)) {
+      assert.ok(visible.includes(id), `cockpit task ${id} must be a visible workflow tab`);
+    }
+  }
   assert.deepEqual(getVisibleWorkflowTabs({ review: null }), ["model", "diagnostics"]);
   assert.equal(defaultWorkflowTab({ review: null, embed: false }), "model");
   assert.equal(createWorkflowState({ review: null, embed: false }).activeTab, "model");

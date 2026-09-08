@@ -87,7 +87,7 @@ textarea,
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   min-height: 0;
   overflow: hidden;
@@ -192,6 +192,40 @@ textarea,
 
 .header-actions > [hidden] {
   display: none;
+}
+
+/* Replaces the status band. It is a control, not a readout: clicking it opens
+   the evidence that explains the verdict. */
+.status-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.9rem;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.2rem 0.6rem 0.2rem 0.35rem;
+  white-space: nowrap;
+}
+
+.status-chip[hidden] {
+  display: none;
+}
+
+.status-chip:hover {
+  border-color: var(--focus-on-dark);
+}
+
+.status-chip:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.status-chip-alert {
+  border-left: 1px solid var(--graphite-line);
+  color: #f0b429;
+  font-size: 0.75rem;
+  padding-left: 0.45rem;
 }
 
 .report-link {
@@ -789,21 +823,6 @@ textarea,
 
 /* The coloring channel: what tints the scene, kept out of the panel that says
    what is drawn. */
-.coloring-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.9rem;
-  border-bottom: 1px solid var(--graphite-line);
-  background: var(--graphite-raised);
-  color: var(--chrome-text);
-  padding: 0.4rem 1rem;
-}
-
-.coloring-bar[hidden] {
-  display: none;
-}
-
 .bar-control {
   display: flex;
   align-items: center;
@@ -811,10 +830,14 @@ textarea,
   min-width: 0;
 }
 
+.bar-control {
+  display: grid;
+  gap: 0.25rem;
+}
+
 .bar-label {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: grid;
+  gap: 0.25rem;
   color: #9aa7ad;
   font-size: 0.66rem;
   font-weight: 650;
@@ -824,8 +847,8 @@ textarea,
 }
 
 .bar-control select {
-  width: auto;
-  max-width: 16rem;
+  width: 100%;
+  max-width: none;
   border: 1px solid var(--graphite-line);
   border-radius: 0.2rem;
   background: var(--sidebar-control);
@@ -841,8 +864,18 @@ textarea,
   cursor: not-allowed;
 }
 
+.bar-deform {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bar-deform .bar-label {
+  grid-column: 1 / -1;
+}
+
 .bar-deform input[type="range"] {
-  width: 6rem;
+  width: 100%;
 }
 
 .bar-readout {
@@ -869,10 +902,11 @@ textarea,
   cursor: not-allowed;
 }
 
-/* Pushed to the end of the bar: it governs every readout on screen rather than
-   belonging to any one selector beside it. */
+/* Pushed to the end of the rail foot: it governs every readout on screen
+   rather than belonging to any one selector beside it. */
 .bar-units {
   margin-left: auto;
+  padding-block: 0.15rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
 }
@@ -1043,54 +1077,11 @@ body[data-rail-open="true"] .body-legend {
 
 .review-overview {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 1px;
   margin-bottom: 1rem;
   border: 1px solid var(--line);
   background: var(--line);
-}
-
-.cockpit-status {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--graphite-line);
-  background: var(--graphite-raised);
-  color: var(--chrome-text);
-  padding: 0.25rem 0.85rem;
-}
-
-.cockpit-status[hidden] {
-  display: none;
-}
-
-.cockpit-status .review-overview-card {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 0;
-  border-right: 1px solid var(--graphite-line);
-  background: transparent;
-  padding: 0 0.75rem;
-}
-
-.cockpit-status .review-overview-card:first-child {
-  padding-left: 0;
-}
-
-.cockpit-status .review-overview-card:last-child {
-  border-right: 0;
-}
-
-.cockpit-status .review-overview-label {
-  color: #9aa7ad;
-  font-size: 0.62rem;
-}
-
-.cockpit-status .review-overview-card strong:not(.status-badge) {
-  color: var(--chrome-text);
-  font-size: 0.72rem;
 }
 
 .review-overview-card {
@@ -1750,7 +1741,6 @@ pre {
 
 [data-embed="true"] .app-header,
 [data-embed="true"] .sidebar,
-[data-embed="true"] .cockpit-status,
 [data-embed="true"] .cockpit-rail,
 [data-embed="true"] .evidence-dock,
 [data-embed="true"] .inspector {

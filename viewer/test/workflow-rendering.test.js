@@ -45,11 +45,12 @@ test("workflow rendering styles real task buttons, horizontal tables, and visibl
 test("workflow rendering uses a scene-first responsive shell and preserves embed mode", async () => {
   const css = await readViewerFile("src/styles.css");
 
-  // header / cockpit status / coloring bar / workspace
-  assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto auto auto minmax\(0, 1fr\)/s);
+  // header / workspace. The status band and the coloring bar are gone: the
+  // header chip carries the verdict and the Results task owns field choice.
+  assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\)/s);
   assert.match(css, /\.app-header\s*\{[^}]*display:\s*flex/s);
-  assert.match(css, /\.cockpit-status\s*\{[^}]*display:\s*flex/s);
-  assert.match(css, /\.cockpit-status\s+\.review-overview-card\s*\{[^}]*min-height:\s*0/s);
+  assert.match(css, /\.status-chip\s*\{[^}]*display:\s*flex/s);
+  assert.doesNotMatch(css, /\.cockpit-status|\.coloring-bar/);
   assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"viewport inspector"[^;]*"evidence inspector"/s);
   assert.match(css, /\.cockpit-rail\s*\{[^}]*position:\s*absolute[^}]*width:\s*min\(18\.5rem, calc\(100% - 3rem\)\)/s);
   assert.match(css, /\.cockpit-rail\[hidden\]\s*\{[^}]*display:\s*none/s);
@@ -101,6 +102,7 @@ test("workflow rendering adds cockpit status, report links, saved views, and rev
   const css = await readViewerFile("src/styles.css");
 
   assert.match(app, /cockpitStatusViewModel\(currentState\.review\)/);
+  assert.match(app, /dom\.statusChip\.dataset\.statusTarget/);
   assert.match(app, /dom\.reportLink\.href\s*=\s*`\$\{currentBundleUrl\}\/index\.html`/);
   assert.match(app, /dom\.reportLink\.hidden\s*=\s*!currentState\.review/);
   assert.match(app, /dataset\.evidenceReportLink/);
@@ -146,20 +148,22 @@ test("app renders a pinned display strip of bodies and applies presets", async (
   assert.doesNotMatch(app, /\["Explore", \[/);
 });
 
-test("the coloring channel lives in the bar, not also in the results panel", async () => {
+test("the coloring channel lives in the results panel, and nowhere else", async () => {
   const app = await readViewerFile("src/app.js");
   const resultControls = app.slice(
     app.indexOf("function renderResultControls()"),
-    app.indexOf("function renderHeader()")
+    app.indexOf("function thresholdControl()")
   );
   assert.ok(resultControls.length > 0);
+  // The permanent bar above the viewport is gone: case, field, component and
+  // the deformation scale are result controls and belong to the Results task.
+  assert.match(resultControls, /setColoringField/);
+  assert.match(resultControls, /setColoringComponent/);
+  assert.match(resultControls, /setActiveLoadCase/);
+  assert.match(resultControls, /deformationControl\(\)/);
   // Two controls for one selection is how they drift out of sync.
-  for (const owned of ["setColoringField", "setColoringComponent", "setColoringLoadCase", "setVisualDeformationScale"]) {
-    assert.doesNotMatch(resultControls, new RegExp(owned));
-  }
-  const bar = app.slice(app.indexOf("function renderColoringBar()"), app.indexOf("function deformationControl()"));
-  assert.match(bar, /setColoringField/);
-  assert.match(bar, /setColoringComponent/);
+  assert.doesNotMatch(app, /function renderColoringBar\(\)/);
+  assert.doesNotMatch(app, /data-coloring-bar/);
 });
 
 test("the compliance caveat renders in the viewport, where the colour map is", async () => {
@@ -217,13 +221,21 @@ test("collapsed evidence reserves no viewport space", async () => {
   assert.match(css, /\.evidence-dock:not\(\.expanded\)\s*\{[^}]*display:\s*none/s);
 });
 
-test("cockpit status omits unavailable facts instead of printing placeholders", async () => {
+test("the status chip carries exceptions only, and the rest moves to Governing Results", async () => {
   const app = await readViewerFile("src/app.js");
-  const status = app.slice(app.indexOf("function renderCockpitStatus()"), app.indexOf("function renderOverviewCard("));
-  assert.match(status, /status\.complianceStatus === "Not available" \? null/);
-  assert.match(status, /status\.governingLoadCase === "Not available" \? null/);
-  assert.match(status, /status\.governingRatio === "Not available"/);
-  assert.match(status, /status\.warningCount > 0/);
+  const chip = app.slice(app.indexOf("function renderStatusChip()"), app.indexOf("function renderOverviewCard("));
+  // A passing or unavailable compliance verdict is not news; a failing one
+  // must never be something you have to open a tab to discover.
+  assert.match(chip, /status\.complianceStatus === "Fail"/);
+  assert.match(chip, /status\.warningCount > 0/);
+  assert.doesNotMatch(chip, /governingLoadCase|governingRatio/);
+
+  // Nothing the band used to state was dropped - governing case and ratio
+  // joined the card built from the same compliance table.
+  const overview = app.slice(app.indexOf("function renderReviewOverview("), app.indexOf("function renderStatusChip()"));
+  assert.match(overview, /status\.governingLoadCase/);
+  assert.match(overview, /status\.governingRatio/);
+  assert.match(overview, /status\.governingLocation/);
 });
 
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {

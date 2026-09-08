@@ -50,11 +50,11 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   const html = await readViewerFile("index.html");
   const hooks = [
     "app-header",
-    "status",
+    "runtime-status",
     "scene-title",
     "scene-meta",
     "report-link",
-    "cockpit-status",
+    "status-chip",
     "task-rail",
     "rail-toggle",
     "task-panel",
@@ -71,7 +71,6 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "projection-note",
     "section-profile",
     "discretisation-check",
-    "coloring-bar",
     "viewport-legend",
     "body-legend",
     "saved-views",
@@ -94,7 +93,7 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   ];
 
   assert.match(html, /<main[^>]*class="app-shell"[^>]*data-embed="false"/);
-  assert.match(html, /<section[^>]*class="cockpit-status"[^>]*aria-label="Engineering review status"[^>]*data-cockpit-status/);
+  assert.match(html, /<button[^>]*type="button"[^>]*class="status-chip"[^>]*data-status-chip[^>]*hidden/);
   assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace/);
   assert.match(html, /<aside[^>]*class="cockpit-rail"[^>]*data-task-rail/);
   assert.match(html, /<button[^>]*aria-expanded="false"[^>]*aria-controls="review-controls"[^>]*data-rail-toggle/);

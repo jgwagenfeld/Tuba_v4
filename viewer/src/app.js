@@ -71,11 +71,11 @@ import {
 const dom = {
   appShell: document.querySelector("[data-embed]"),
   appHeader: document.querySelector("[data-app-header]"),
-  status: document.querySelector("[data-status]"),
+  status: document.querySelector("[data-runtime-status]"),
   sceneTitle: document.querySelector("[data-scene-title]"),
   sceneMeta: document.querySelector("[data-scene-meta]"),
   reportLink: document.querySelector("[data-report-link]"),
-  cockpitStatus: document.querySelector("[data-cockpit-status]"),
+  statusChip: document.querySelector("[data-status-chip]"),
   taskRail: document.querySelector("[data-task-rail]"),
   taskPanel: document.querySelector("[data-task-panel]"),
   workflowTabs: document.querySelector("[data-workflow-tabs]"),
@@ -94,7 +94,6 @@ const dom = {
   railPopover: document.querySelector("[data-rail-popover]"),
   displayStrip: document.querySelector("[data-display-strip]"),
   sectionBoxControls: document.querySelector("[data-section-box-controls]"),
-  coloringBar: document.querySelector("[data-coloring-bar]"),
   bodyList: document.querySelector("[data-body-list]"),
   projectionNote: document.querySelector("[data-projection-note]"),
   sectionProfile: document.querySelector("[data-section-profile]"),
@@ -239,8 +238,7 @@ function render() {
   // document.
   const focus = captureFocus();
   renderHeader();
-  renderCockpitStatus();
-  renderColoringBar();
+  renderStatusChip();
   renderTaskRail();
   renderEvidenceTabs();
   renderDisplayStrip();
@@ -489,8 +487,17 @@ function renderReviewOverview(review) {
   const overview = document.createElement("section");
   overview.className = "review-overview";
   overview.setAttribute("aria-label", "Review status and provenance");
+  const status = cockpitStatusViewModel(review);
   overview.append(
     renderOverviewCard("Analysis status", review.analysis_status, "status"),
+    renderOverviewCard("Compliance", status.complianceStatus),
+    renderOverviewCard("Governing case", status.governingLoadCase),
+    renderOverviewCard(
+      "Governing ratio",
+      status.governingRatio === "Not available"
+        ? status.governingRatio
+        : `${status.governingRatio} at ${status.governingLocation}`
+    ),
     renderOverviewCard("Package", review.package_id ?? "Not identified"),
     renderOverviewCard("Model revision", review.model_revision ?? "Not stated"),
     renderOverviewCard("Provenance records", String(review.provenance?.length ?? 0))
@@ -498,24 +505,47 @@ function renderReviewOverview(review) {
   return overview;
 }
 
-function renderCockpitStatus() {
-  dom.cockpitStatus.replaceChildren();
-  dom.cockpitStatus.hidden = currentState.embed || !currentState.review;
-  if (!currentState.review) return;
+// One chip in the header replaces the status band. It carries only what is
+// genuinely status - the analysis verdict, and anything demanding attention -
+// and is a route to the evidence rather than a restatement of it. Governing
+// case and ratio moved into the Governing Results card, where the compliance
+// table they are read from already lives.
+function renderStatusChip() {
+  dom.statusChip.replaceChildren();
+  dom.statusChip.hidden = currentState.embed || !currentState.review;
+  if (dom.statusChip.hidden) return;
   const status = cockpitStatusViewModel(currentState.review);
-  const available = [
-    ["Analysis", status.analysisStatus, "status"],
-    status.complianceStatus === "Not available" ? null : ["Compliance", status.complianceStatus],
-    status.governingLoadCase === "Not available" ? null : ["Governing case", status.governingLoadCase],
-    status.warningCount > 0 ? ["Attention", `${status.warningCount} warning(s)`] : null,
-    status.governingRatio === "Not available"
-      ? null
-      : ["Governing ratio", `${status.governingRatio} at ${status.governingLocation}`]
+
+  const verdict = document.createElement("span");
+  verdict.className = "status-badge";
+  verdict.dataset.status = String(status.analysisStatus);
+  verdict.textContent = String(status.analysisStatus).replaceAll("_", " ");
+  dom.statusChip.append(verdict);
+
+  // Exceptions only. A passing or unavailable compliance verdict is not news;
+  // a failing one must never be something you have to open a tab to discover.
+  const alerts = [
+    status.complianceStatus === "Fail" ? ["compliance", "Compliance fail"] : null,
+    status.warningCount > 0 ? ["diagnostics", `${status.warningCount} warning(s)`] : null
   ].filter(Boolean);
-  dom.cockpitStatus.hidden = currentState.embed || available.length === 0;
-  for (const [label, value, kind] of available) {
-    dom.cockpitStatus.append(renderOverviewCard(label, value, kind));
+  for (const [, label] of alerts) {
+    const alert = document.createElement("span");
+    alert.className = "status-chip-alert";
+    alert.textContent = label;
+    dom.statusChip.append(alert);
   }
+
+  const target = alerts[0]?.[0] ?? "summary";
+  dom.statusChip.dataset.statusTarget = target;
+  dom.statusChip.setAttribute(
+    "aria-label",
+    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show evidence`
+  );
+  dom.statusChip.onclick = () => {
+    evidenceExpanded = true;
+    const visible = getVisibleEvidenceTabIds(currentState);
+    activateEvidence(visible.includes(target) ? target : visible[0]);
+  };
 }
 
 function renderOverviewCard(labelText, valueText, kind = "text") {
@@ -699,14 +729,51 @@ function renderResultControls() {
   const loadCases = getLoadCaseOptions(currentState);
   const resultStates = getResultStateOptions(currentState);
   const geometryStates = getGeometryStateOptions(currentState);
-  if (loadCases.length === 0 && resultStates.length === 0 && geometryStates.length === 0) {
+  const fieldOptions = getFieldOptions(currentState);
+  if (
+    loadCases.length === 0 &&
+    resultStates.length === 0 &&
+    geometryStates.length === 0 &&
+    fieldOptions.length === 0
+  ) {
     dom.resultControls.append(metaLine("No Code_Aster result overlays."));
     return;
   }
 
+  // Case, field and component came down from a permanent bar above the
+  // viewport. They are result controls, so they belong to the Results task -
+  // the model tasks no longer pay for a band they cannot use.
+  if (loadCases.length > 0) {
+    dom.resultControls.append(
+      barControl("Case", currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
+        dispatch({ type: "setActiveLoadCase", loadCase: value });
+        render();
+      })
+    );
+  }
+
+  if (fieldOptions.length > 0) {
+    const field = getActiveField(currentState);
+    dom.resultControls.append(
+      barControl("Field", field?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
+        dispatch({ type: "setColoringField", fieldId: value });
+        render();
+      })
+    );
+    if (componentIsSelectable(currentState)) {
+      const components = (field?.components ?? ["magnitude"]).map((id) => ({ id, label: id }));
+      dom.resultControls.append(
+        barControl("Component", getActiveComponent(currentState), components, (value) => {
+          dispatch({ type: "setColoringComponent", component: value });
+          render();
+        })
+      );
+    }
+  }
+
   // Only offered when the scene carries no field catalogue; with one, the bar's
   // field selector already picks the result state through its load case.
-  if (getFieldOptions(currentState).length === 0 && resultStates.length > 0) {
+  if (fieldOptions.length === 0 && resultStates.length > 0) {
     dom.resultControls.append(
       selectControl("Result state", currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
         dispatch({ type: "setActiveResultState", resultStateId: value });
@@ -725,6 +792,7 @@ function renderResultControls() {
     );
   }
 
+  dom.resultControls.append(deformationControl());
   dom.resultControls.append(thresholdControl());
   dom.resultControls.append(
     numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
@@ -1096,48 +1164,6 @@ function checkRow(labelText, valueText, verdict = null) {
 
 // The coloring channel: one field, one component, one scale, plus the display
 // deformation the deformed body is drawn at.
-function renderColoringBar() {
-  dom.coloringBar.replaceChildren();
-  dom.coloringBar.hidden = currentState.embed;
-  const fieldOptions = getFieldOptions(currentState);
-  const loadCases = getLoadCaseOptions(currentState);
-  if (fieldOptions.length === 0 && loadCases.length === 0) {
-    dom.coloringBar.hidden = true;
-    return;
-  }
-
-  if (loadCases.length > 0) {
-    dom.coloringBar.append(
-      barControl("Case", currentState.activeLoadCase ?? loadCases[0].id, loadCases, (value) => {
-        dispatch({ type: "setActiveLoadCase", loadCase: value });
-        render();
-      })
-    );
-  }
-
-  if (fieldOptions.length > 0) {
-    const field = getActiveField(currentState);
-    dom.coloringBar.append(
-      barControl("Field", field?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
-        dispatch({ type: "setColoringField", fieldId: value });
-        render();
-      })
-    );
-    const selectable = componentIsSelectable(currentState);
-    if (selectable) {
-      const components = (field?.components ?? ["magnitude"]).map((id) => ({ id, label: id }));
-      dom.coloringBar.append(
-        barControl("Component", getActiveComponent(currentState), components, (value) => {
-          dispatch({ type: "setColoringComponent", component: value });
-          render();
-        })
-      );
-    }
-  }
-
-  dom.coloringBar.append(deformationControl(), unitSystemChip());
-}
-
 // One chip for the whole readout. Stored values never move; this only changes
 // how they are stated, and every quantity on screen follows it together so the
 // legend, the hotspots and the threshold can never disagree.
@@ -1802,13 +1828,16 @@ function renderRailUtility(shown = 0, hidden = 0) {
       });
       dom.railUtility.append(button);
     }
-    return;
+  } else {
+    const tally = document.createElement("span");
+    tally.className = "find-tally";
+    tally.dataset.findTally = "";
+    tally.textContent = hidden > 0 ? `${shown} drawn · ${hidden} hidden` : `${shown} of ${currentState.objects.length}`;
+    dom.railUtility.append(tally);
   }
-  const tally = document.createElement("span");
-  tally.className = "find-tally";
-  tally.dataset.findTally = "";
-  tally.textContent = hidden > 0 ? `${shown} drawn · ${hidden} hidden` : `${shown} of ${currentState.objects.length}`;
-  dom.railUtility.append(tally);
+  // Pinned in the rail foot rather than a band: it restates every quantity on
+  // screen at once, so it belongs to the whole rail, not to the results task.
+  if (!currentState.embed) dom.railUtility.append(unitSystemChip());
 }
 
 let openPopoverId = null;
@@ -2172,7 +2201,7 @@ dom.canvas.addEventListener("mousemove", (event) => {
 
 function setStatus(message, error = false) {
   const flag = error ? "true" : "false";
-  // [data-status] is role="status" aria-live="polite": rewriting it announces.
+  // [data-runtime-status] is role="status" aria-live="polite": rewriting announces.
   // renderCanvas ends with setStatus("Ready") on every render, so without this
   // guard a screen reader said "Ready" after every checkbox, tab, slider nudge
   // and opacity click.

@@ -19,6 +19,11 @@
           <div class="meta" data-scene-meta></div>
         </div>
         <div class="header-actions">
+          <!-- The status band used to be a full row of its own restating what
+               the evidence dock already holds. One chip carries the two facts
+               that are actually status - solved, and anything demanding
+               attention - and routes to the evidence that explains them. -->
+          <button type="button" class="status-chip" data-status-chip hidden></button>
           <button
             type="button"
             class="rail-toggle"
@@ -29,11 +34,9 @@
           <button type="button" aria-expanded="false" data-evidence-expand>Evidence</button>
           <a class="gallery-back" href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
-          <div class="runtime-status" data-status role="status" aria-live="polite">Starting</div>
+          <div class="runtime-status" data-runtime-status role="status" aria-live="polite">Starting</div>
         </div>
       </header>
-      <section class="cockpit-status" aria-label="Engineering review status" data-cockpit-status></section>
-      <section class="coloring-bar" aria-label="Result coloring channel" data-coloring-bar></section>
       <section class="viewer-workspace" data-viewer-workspace>
         <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
           <div class="rail-head">

@@ -33,12 +33,23 @@ const EVIDENCE_TAB_ORDER = Object.freeze([
   "reports"
 ]);
 
-export function getVisibleWorkflowTabs({ review } = {}) {
-  return review ? WORKFLOW_TABS.map((tab) => tab.id) : ["model", "diagnostics"];
+// The Results task owns the coloring channel now that the permanent bar above
+// the viewport is gone, so a scene carrying fields or result states must offer
+// it even without a review - otherwise there is no way left to pick what
+// colours the model. Both visibility lists read this: the rail must never
+// offer a task setWorkflowTab will reject.
+function hasResultContent({ resultFields, resultStates } = {}) {
+  return (resultFields ?? []).length > 0 || (resultStates ?? []).length > 0;
 }
 
-export function getVisibleCockpitTaskIds({ review } = {}) {
-  return review ? ["summary", "model", "results", "diagnostics"] : ["model", "diagnostics"];
+export function getVisibleWorkflowTabs(state = {}) {
+  if (state.review) return WORKFLOW_TABS.map((tab) => tab.id);
+  return hasResultContent(state) ? ["model", "results", "diagnostics"] : ["model", "diagnostics"];
+}
+
+export function getVisibleCockpitTaskIds(state = {}) {
+  if (state.review) return ["summary", "model", "results", "diagnostics"];
+  return hasResultContent(state) ? ["model", "results", "diagnostics"] : ["model", "diagnostics"];
 }
 
 export function getVisibleEvidenceTabIds({ review } = {}) {

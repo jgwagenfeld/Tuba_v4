@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("layer-state toggles deformed and clash layers independently", async ({ page }) => {
   await page.goto("/?bundle=/test/fixtures/layer_state_scene");
-  await expect(page.locator("[data-status]")).toContainText("Ready");
+  await expect(page.locator("[data-runtime-status]")).toContainText("Ready");
   await page.waitForFunction(() => window.__tubaViewer?.lastRender?.renderableCount === 3);
 
   await page.getByLabel(/Deformed Visual Centerline/).uncheck();
