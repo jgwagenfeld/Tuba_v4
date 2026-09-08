@@ -40,8 +40,8 @@
   },
   "schema_version": 1,
   "solver_input_identity": {
-    "compiler_id": "tuba.code_aster.v1",
-    "fingerprint": "2767f1f9471c76002d69fd839118972041e375c1455061f64f33344534a48bd1",
+    "compiler_id": "tuba.code_aster.v2",
+    "fingerprint": "1039c49150e4465d126f21957dc506693def0aa9d7467a914c764996db20cf40",
     "load_case": "Operating_Hot",
     "schema_id": "tuba.model.v4"
   },

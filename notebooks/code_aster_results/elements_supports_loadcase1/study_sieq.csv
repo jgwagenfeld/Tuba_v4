@@ -1,6 +1,6 @@
 #
 #--------------------------------------------------------------------------------
-##ASTER 18.00.12 CONCEPT 00000019 CALCULE LE 08/09/2026 A 13:53:22 DE TYPE        
+##ASTER 18.00.12 CONCEPT 00000019 CALCULE LE 08/09/2026 A 22:44:43 DE TYPE        
 RESULTAT,NOM_CHAM,INST,NUME_ORDRE,MAILLE,NOEUD,SOUS_POINT,COOR_X,COOR_Y,COOR_Z,VMIS
 RESU            ,SIEQ_ELNO       , 1.00000E+00,           1,1       ,1       ,           1, 0.00000E+00, 0.00000E+00, 0.00000E+00, 1.23592E+08
 RESU            ,SIEQ_ELNO       , 1.00000E+00,           1,1       ,1       ,           2, 0.00000E+00, 0.00000E+00, 0.00000E+00, 1.07565E+08

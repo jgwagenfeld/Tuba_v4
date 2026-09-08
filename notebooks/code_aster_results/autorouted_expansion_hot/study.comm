@@ -230,7 +230,7 @@ RESU = CALC_CHAMP(
     RESULTAT=RESU,
     CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
     CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
-    FORCE='FORC_NODA',
+    FORCE='REAC_NODA',
 );
 
 # ----- Write MED results file -----
@@ -240,7 +240,7 @@ IMPR_RESU(
     RESU=_F(
         RESULTAT=RESU,
         CARA_ELEM=CARA,
-        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'FORC_NODA'),
+        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),
     ),
 );
 
@@ -280,11 +280,11 @@ IMPR_TABLE(
     SEPARATEUR=',',
 );
 
-# ----- Text table for FORC_NODA -----
+# ----- Text table for REAC_NODA -----
 TAB_REAC = CREA_TABLE(
     RESU=_F(
         RESULTAT=RESU,
-        NOM_CHAM='FORC_NODA',
+        NOM_CHAM='REAC_NODA',
         TOUT='OUI',
         NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
         INST=1.0,
