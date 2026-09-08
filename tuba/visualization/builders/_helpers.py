@@ -236,12 +236,47 @@ def _reaction_for_association(report: LoadPathReport, association: SupportRackAs
         float(rack_load.get("force_y_n", 0.0)),
         float(rack_load.get("force_z_n", 0.0)),
     ]
-def _vector_endpoint(start: list[float], vector: list[float]) -> list[float]:
-    max_component = max((abs(value) for value in vector), default=0.0)
-    if max_component <= 0.0:
+#: The longest glyph in a family spans this fraction of the model. Relative to
+#: the model rather than an absolute length, so a 1 m tee and an 8 m rack are
+#: annotated at the same visual weight.
+LARGEST_VECTOR_GLYPH_FRACTION = 0.15
+
+
+def model_span(model: TubaModel) -> float:
+    """The largest extent of the authored model, used to size annotations."""
+    coords = [node.coords for node in model.nodes.values()]
+    if not coords:
+        return 1.0
+    array = np.asarray(coords, dtype=float)
+    span = float(np.max(array.max(axis=0) - array.min(axis=0)))
+    return span if span > 1e-9 else 1.0
+
+
+def _vector_endpoint(
+    start: list[float],
+    vector: list[float],
+    *,
+    reference: float,
+    span: float,
+    fraction: float = LARGEST_VECTOR_GLYPH_FRACTION,
+) -> list[float]:
+    """Point a glyph along ``vector``, its length proportional to magnitude.
+
+    ``reference`` is the largest magnitude in the same family, so length says
+    how big this value is *among its own kind*: forces are never sized against
+    moments, which are a different physical quantity.
+
+    This used to divide each vector by its own largest component, which made
+    every glyph one metre long whatever it represented - a 368 N reaction was
+    drawn the same size as a 1 MN one, and on a model smaller than a metre the
+    arrows swallowed the geometry.
+    """
+    magnitude = float(np.linalg.norm(np.asarray(vector, dtype=float)))
+    if magnitude <= 0.0 or reference <= 0.0 or span <= 0.0:
         return list(start)
-    scale = 1.0 / max_component
-    return [float(start[index] + vector[index] * scale) for index in range(3)]
+    length = span * fraction * (magnitude / reference)
+    unit = np.asarray(vector, dtype=float) / magnitude
+    return [float(start[index] + unit[index] * length) for index in range(3)]
 def _clash_envelope_source(model: TubaModel, clash: ClashResult) -> dict[str, Any]:
     for ref in (clash.left, clash.right):
         if ref.kind != "element":

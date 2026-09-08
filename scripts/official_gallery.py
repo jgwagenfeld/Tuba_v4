@@ -284,8 +284,10 @@ OFFICIAL_GALLERIES = (
         True,
         title="Solved 3D solid tee",
         question="Does stress concentrate where the branch meets the header?",
+        # Not "the same tee": the mesh-only tee gallery is dev-only now, so a
+        # card referring back to it would point at nothing a reader can open.
         summary=(
-            "The same tee, meshed as a solid wall and analysed in 3D. Shows the "
+            "The tee is meshed as a solid wall and analysed in 3D. Shows the "
             "stress pattern around the junction that a centreline beam model "
             "cannot resolve."
         ),

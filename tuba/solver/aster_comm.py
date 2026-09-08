@@ -597,7 +597,11 @@ class _CommWriterMixin:
             w("    MODELE=MODELE,")
             w("    PESANTEUR=_F(")
             w("        GRAVITE=9.81,")
-            w("        DIRECTION=(0.0, -1.0, 0.0),")
+            # Z is up: tuba.reporting and every published scene declare
+            # up_axis "Z", and the assembly builders raise racks along Z. This
+            # said -Y, so self-weight was applied across the structure instead
+            # of down it.
+            w("        DIRECTION=(0.0, 0.0, -1.0),")
             w("    ),")
             w(");")
             w()
@@ -670,7 +674,9 @@ class _CommWriterMixin:
             for sup in model.supports:
                 if sup.type == "rest":
                     grp_name = map_name(f"GN_{sup.node}")
-                    cmp_name = "DY"
+                    # A rest support carries weight, so it acts along the
+                    # vertical axis unless the model names a direction.
+                    cmp_name = "DZ"
                     if sup.direction:
                         dof_map = {0: "DX", 1: "DY", 2: "DZ"}
                         for idx, val in enumerate(sup.direction):

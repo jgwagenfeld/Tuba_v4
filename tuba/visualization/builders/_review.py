@@ -3,6 +3,8 @@
 from __future__ import annotations
 from typing import Any
 from typing import Iterable
+import numpy as np
+
 from tuba.model import TubaModel
 from tuba.quantities import quantity_takeoff
 from tuba.refs import EntityRef
@@ -21,7 +23,7 @@ from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneDiff
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.scene import ViewState
-from tuba.visualization.builders._helpers import SceneBuildOptions, _asset_id, _bounds_for_points, _candidate_length, _clash_envelope_source, _clash_issue_id, _clash_location, _dedupe, _find_element, _issue_severity_for_clash, _object_id, _point_for_refs, _proposal_patch, _reaction_for_association, _route_candidate_entity_id, _route_candidate_ref, _route_candidate_summary, _route_cost_terms, _route_points, _route_segment_to_dict, _rule_issue_id, _safe_bounds_for_points, _safe_id, _support_point, _transform_bounds, _vector_endpoint
+from tuba.visualization.builders._helpers import SceneBuildOptions, _asset_id, _bounds_for_points, _candidate_length, _clash_envelope_source, _clash_issue_id, _clash_location, _dedupe, _find_element, _issue_severity_for_clash, _object_id, _point_for_refs, _proposal_patch, _reaction_for_association, _route_candidate_entity_id, _route_candidate_ref, _route_candidate_summary, _route_cost_terms, _route_points, _route_segment_to_dict, _rule_issue_id, _safe_bounds_for_points, _safe_id, _support_point, _transform_bounds, _vector_endpoint, model_span
 from tuba.visualization.builders._objects import _build_element_object
 
 
@@ -652,6 +654,15 @@ def _build_rack_assembly_overlays(model: TubaModel) -> list[Overlay]:
             )
         )
     return overlays
+def _load_path_reference(report: LoadPathReport) -> float:
+    """Largest support reaction in the report, so paths scale against each other."""
+    magnitudes = [
+        float(np.linalg.norm(np.asarray(_reaction_for_association(report, association), dtype=float)))
+        for association in report.associations
+    ]
+    return max([value for value in magnitudes if value > 0.0], default=0.0)
+
+
 def _build_load_path_vector(
     model: TubaModel,
     report: LoadPathReport,
@@ -659,7 +670,12 @@ def _build_load_path_vector(
 ) -> tuple[SceneObject, GeometryAsset]:
     reaction = _reaction_for_association(report, association)
     start = _support_point(model, association.support.id)
-    end = _vector_endpoint(start, reaction)
+    end = _vector_endpoint(
+        start,
+        reaction,
+        reference=_load_path_reference(report),
+        span=model_span(model),
+    )
     object_id = f"object:load_path:{association.support.id}:{association.rack.id}"
     asset_id = f"geometry:load_path:{association.support.id}:{association.rack.id}"
     asset = GeometryAsset(

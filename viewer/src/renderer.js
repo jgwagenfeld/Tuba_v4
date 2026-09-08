@@ -1643,6 +1643,12 @@ function scaleVisualDeformationConfig(asset, config, state) {
 
 function vectorTypeForConfig(asset, config) {
   const source = `${asset.id ?? ""} ${config.source ?? ""} ${config.result_type ?? ""} ${config.resultType ?? ""}`.toLowerCase();
+  // Moments scale against other moments, never against forces: they are a
+  // different physical quantity, and sharing one slider meant a model whose
+  // moments are numerically large drew arcs that swallowed the geometry.
+  if (config.vector_kind === "moment" || source.includes("moment")) {
+    return "moment";
+  }
   if (source.includes("reaction") || source.includes("forc_noda")) {
     return "reaction";
   }

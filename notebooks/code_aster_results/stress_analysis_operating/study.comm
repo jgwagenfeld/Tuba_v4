@@ -104,7 +104,7 @@ GRAVITY = AFFE_CHAR_MECA(
     MODELE=MODELE,
     PESANTEUR=_F(
         GRAVITE=9.81,
-        DIRECTION=(0.0, -1.0, 0.0),
+        DIRECTION=(0.0, 0.0, -1.0),
     ),
 );
 

@@ -105,6 +105,8 @@ export function reduceViewerState(state, action) {
       return setResultVectorScale(state, "displacement", action.scale);
     case "setReactionVectorScale":
       return setResultVectorScale(state, "reaction", action.scale);
+    case "setMomentVectorScale":
+      return setResultVectorScale(state, "moment", action.scale);
     case "setVisualDeformationScale":
       return setVisualDeformationScale(state, action.scale);
     case "setIssueReviewStatus":

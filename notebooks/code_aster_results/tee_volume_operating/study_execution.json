@@ -9,41 +9,41 @@
       "size_bytes": 295
     },
     "study.med": {
-      "sha256": "de38874f7b7bcfca9847c7310dc4a36351e69e736cdb33028a2bf8a8493f1fb5",
-      "size_bytes": 2969481
+      "sha256": "7e2ed9204ec44f5bad4231e4495b77f897443a511ebe11228d4d685490a91865",
+      "size_bytes": 4408505
     },
     "study.mess": {
-      "sha256": "38c4ecaa7c034734f71e688679ca385c9d375b04fdddc0c539b570c8c5b9e5f8",
+      "sha256": "7b31b2fda79958932213a9ef7edf8f17d3a326c4d847111f9f4889d24787cc06",
       "size_bytes": 30232
     },
     "study.rmed": {
-      "sha256": "24f6feb388387513aac6f7976a5bb4dee6e0241c7998c7e8da4ab5705b8c7be6",
-      "size_bytes": 51796568
+      "sha256": "95a6369a4b87544e1746453f43db16125ab5cdedd2a2ff7d10824dc2fb24efbb",
+      "size_bytes": 69862104
     },
     "study_depl.csv": {
-      "sha256": "08019017cebba1860dd1f90ca0a5cad1ce112ebc4e1e13129f1ffc247d443bd5",
-      "size_bytes": 6484114
+      "sha256": "38bf4290071e05e161991629915c6667b17b7dee14dcb87654e0e8360f480d5e",
+      "size_bytes": 11963686
     },
     "study_manifest.json": {
-      "sha256": "b13315152ba7034f21a4044019092c7c275a39f2bd93dcfbd1615bb06e2f229b",
-      "size_bytes": 26831265
+      "sha256": "8044184505dc5bdb8d546b92a68e5976a0583f9f79f7011b6094b868e5f653df",
+      "size_bytes": 55350161
     },
     "study_reac.csv": {
-      "sha256": "170762063e32fe3cbc2b425150f5dc1e4b494d5a11083bb71cb4cc997a7e6a05",
-      "size_bytes": 6484114
+      "sha256": "44dc5f0d59940efd0af9df100aeddb2720bd58b8c12f9f6399ea29e77da01962",
+      "size_bytes": 11963686
     },
     "study_sieq.csv": {
-      "sha256": "9446295e81faeb8cd68769e4ede90588b18c94e91fec1610b217f336e2ea1cbe",
-      "size_bytes": 38582179
+      "sha256": "f13dc851e8c081743c14bf18111e84ddb374acb5dd35507481e14a933152445e",
+      "size_bytes": 51205699
     },
     "study_tuba_fem.json": {
-      "sha256": "4abed1726b00ab6197126e9e3b315fb72d31fc4c26902239b31e24b0063bdb00",
+      "sha256": "c6bf855de7f82687291b2a9ab4a640efc5ba74d13942b749eb8598f07e70ef2a",
       "size_bytes": 956
     }
   },
   "execution_method": "wsl",
   "schema_version": "tuba.code_aster_execution.v1",
-  "solved_at": "2026-08-27T13:09:31.715952Z",
+  "solved_at": "2026-09-08T11:55:09.680567Z",
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.volume.v1",
     "fingerprint": "9badcbd974f468610dc1d5391a9fde38a423e0c631361014f97fa0b7d3882ecf",

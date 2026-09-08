@@ -36,14 +36,17 @@ def test_load_rmed_preserves_quadratic_lines_and_normalizes_latest_results(monke
     assert grid.n_cells == 35
     assert set(grid.celltypes) == {21}  # VTK_QUADRATIC_EDGE
     assert list(grid.get_cell(0).point_ids) == [0, 1, 36]
+    # Reference values from the artifacts re-solved with gravity along -Z. The
+    # previous values were computed with gravity along -Y, which loaded this
+    # line across itself rather than down it.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][-1],
-        [0.009019349189621575, 0.0005639853912629695, -0.0031077549605935005],
+        [0.000396264522, 0.00357104759, -0.003109002647],
         rtol=0,
         atol=5e-8,
     )
-    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.011344451925541246)
-    assert np.isclose(grid.point_data["VMIS"].max(), 405088265.6852071)
+    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.0051846816136452475)
+    assert np.isclose(grid.point_data["VMIS"].max(), 333033617.25262654)
 
 
 def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():
@@ -51,11 +54,14 @@ def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():
 
     n5_matches = np.flatnonzero(np.all(np.isclose(grid.points, [4.7, 1.7, 0.0]), axis=1))
     assert n5_matches.size == 1
+    # The free cable end sags along -Z now, not +Y: this assertion pinned the
+    # gravity-direction defect in place, so it is the value that had to move.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][n5_matches[0]],
-        [-0.00336501, 0.0290351, 0.0],
+        [-0.002867512969, 0.0, 0.056817038551],
         rtol=2e-6,
     )
+    assert abs(grid.point_data["DEPL"][n5_matches[0]][1]) < 1e-9, "no sag across the model"
     assert np.isfinite(grid.point_data["VMIS"]).any()
 
 

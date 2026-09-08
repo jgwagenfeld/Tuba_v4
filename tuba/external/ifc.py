@@ -95,10 +95,11 @@ class IfcExporter:
 
             # Determine IFC entity class
             if elem.type == "beam":
-                # Classify based on verticality (Y is vertical in Tuba)
+                # Classify by verticality. Z is up in Tuba: up_axis "Z" is
+                # what the reporting model and every scene declare.
                 v = p2 - p1
                 L = np.linalg.norm(v)
-                is_vertical = L > 1e-6 and abs(v[1]) / L > 0.8
+                is_vertical = L > 1e-6 and abs(v[2]) / L > 0.8
                 elem_type = "IfcColumn" if is_vertical else "IfcBeam"
             else:
                 elem_type = "IfcPipeSegment"
@@ -327,8 +328,8 @@ class IfcExporter:
             friction_coeff = getattr(sup, "friction_coefficient", 0.0)
 
             props = [
-                ifc_file.create_entity("IfcPropertySingleValue", Name="VerticalReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[1]))),
-                ifc_file.create_entity("IfcPropertySingleValue", Name="LateralReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[2]))),
+                ifc_file.create_entity("IfcPropertySingleValue", Name="VerticalReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[2]))),
+                ifc_file.create_entity("IfcPropertySingleValue", Name="LateralReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[1]))),
                 ifc_file.create_entity("IfcPropertySingleValue", Name="AxialReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[0]))),
                 ifc_file.create_entity("IfcPropertySingleValue", Name="TorsionalMoment_Nm", NominalValue=ifc_file.create_entity("IfcReal", float(r_moment[0]))),
                 ifc_file.create_entity("IfcPropertySingleValue", Name="SupportType", NominalValue=ifc_file.create_entity("IfcLabel", sup.type)),

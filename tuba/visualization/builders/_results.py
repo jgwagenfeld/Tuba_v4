@@ -17,7 +17,7 @@ from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
-from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint
+from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint, model_span
 def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, Overlay]:
     object_id = f"object:result_state:{result_state.id}"
     payload = _compact_result_state_payload(result_state)
@@ -554,7 +554,6 @@ def _result_state_reaction_overlays(
             }
             if node_id in model.nodes:
                 entry["start"] = _node_coords(model, node_id)
-                entry["end"] = _vector_endpoint(entry["start"], vector)
             elif analysis_mesh is not None and node_id in analysis_mesh.nodes:
                 mesh_object_id = f"object:analysis_mesh:{analysis_mesh.id}:node:{node_id}"
                 entry["object_ids"] = [mesh_object_id]
@@ -562,11 +561,20 @@ def _result_state_reaction_overlays(
                 entry["analysis_mesh_node_object_id"] = mesh_object_id
                 entry["coordinate_source"] = "analysis_mesh"
                 entry["start"] = [float(value) for value in analysis_mesh.nodes[node_id]]
-                entry["end"] = _vector_endpoint(entry["start"], vector)
                 object_ids.append(mesh_object_id)
             vectors.append(entry)
         if not vectors:
             continue
+        # Second pass: a glyph's length says how large this value is among its
+        # own family, so it cannot be set until every magnitude is known.
+        reference = max(float(entry[magnitude_key]) for entry in vectors)
+        span = model_span(model)
+        for entry in vectors:
+            if "start" not in entry:
+                continue
+            entry["end"] = _vector_endpoint(
+                entry["start"], entry[value_key], reference=reference, span=span
+            )
         numeric_values = [float(np.linalg.norm(vector)) for vector in values.values()]
         overlays.append(
             Overlay(
@@ -661,12 +669,17 @@ def _result_state_volume_reaction_overlays(
                     magnitude_key: magnitude,
                     "object_ids": node_object_ids,
                     "start": start,
-                    "end": _vector_endpoint(start, vector),
                     "derivation": "sum of Code_Aster FORC_NODA over the anchored terminal",
                 }
             )
         if not vectors:
             continue
+        reference = max(float(np.linalg.norm(value)) for value in values.values())
+        span = model_span(model)
+        for entry in vectors:
+            entry["end"] = _vector_endpoint(
+                entry["start"], entry[value_key], reference=reference, span=span
+            )
         magnitudes = [float(np.linalg.norm(value)) for value in values.values()]
         overlays.append(
             Overlay(

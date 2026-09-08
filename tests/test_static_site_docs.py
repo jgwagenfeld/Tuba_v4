@@ -229,6 +229,16 @@ class TestStaticSiteDocs(unittest.TestCase):
                 text,
                 f"docs/content/examples.md does not link the {gallery.id!r} gallery",
             )
+            # The link alone is not enough. The registry is what the gallery
+            # cards render, so a page edited without it leaves the card saying
+            # something else -- which is how a card came to describe "the same
+            # tee" as another gallery that had since been unpublished.
+            for field in ("title", "question", "summary"):
+                self.assertIn(
+                    getattr(gallery, field),
+                    text,
+                    f"examples.md {field} for {gallery.id!r} has drifted from the registry",
+                )
 
     def test_viewer_e2e_catalog_expectation_matches_the_gallery_registry(self):
         """The e2e card assertion is a hand-maintained mirror of the registry.

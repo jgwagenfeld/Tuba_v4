@@ -8,6 +8,8 @@ inspectable record per load case.
 
 from __future__ import annotations
 
+import numpy as np
+
 from tuba.model import LoadCase, NodalForce, TubaModel
 from tuba.refs import EntityRef
 from tuba.solver.aster_loads import resolve_operation_field_groups
@@ -15,6 +17,7 @@ from tuba.visualization.builders._helpers import (
     _bounds_for_points,
     _node_coords,
     _vector_endpoint,
+    model_span,
 )
 from tuba.visualization.scene import GeometryAsset, Overlay, SceneObject
 
@@ -64,7 +67,12 @@ def _force_glyphs(
         vector = [float(value) for value in components]
         if max((abs(value) for value in vector), default=0.0) <= 0.0:
             continue
-        end = _vector_endpoint(start, vector)
+        # An authored load has no family to compare against, so the glyph is
+        # drawn at the family maximum: it states direction and kind, and the
+        # component values live on the object.
+        end = _vector_endpoint(
+            start, vector, reference=float(np.linalg.norm(vector)), span=model_span(model)
+        )
         key = f"{case_name}:{nodal_force.node}:{index}:{vector_kind}"
         object_id = f"object:applied_load:{key}"
         asset_id = f"geometry:applied_load:{key}"

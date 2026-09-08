@@ -73,10 +73,14 @@ class TestIfcIntegration(unittest.TestCase):
         model.sections["SolidBar"] = BarSection(name="SolidBar", OD=0.05, WT=0.0)
 
         # Add nodes
+        # A portal frame in the XZ plane: Z is up in Tuba, so a column has to
+        # rise along Z for IfcColumn classification to mean anything. This
+        # frame used to lie in XY, which only read as vertical under the
+        # solver's old Y-up assumption.
         n0 = model.add_node(np.array([0.0, 0.0, 0.0]))
         n1 = model.add_node(np.array([5.0, 0.0, 0.0]))
-        n2 = model.add_node(np.array([5.0, 3.0, 0.0]))
-        n3 = model.add_node(np.array([0.0, 3.0, 0.0]))
+        n2 = model.add_node(np.array([5.0, 0.0, 3.0]))
+        n3 = model.add_node(np.array([0.0, 0.0, 3.0]))
 
         # Add elements
         # Pipe straight
@@ -169,8 +173,8 @@ class TestIfcIntegration(unittest.TestCase):
                 return None
 
             n0_imported = find_imported_node_near([0.0, 0.0, 0.0])
-            n2_imported = find_imported_node_near([5.0, 3.0, 0.0])
-            n3_imported = find_imported_node_near([0.0, 3.0, 0.0])
+            n2_imported = find_imported_node_near([5.0, 0.0, 3.0])
+            n3_imported = find_imported_node_near([0.0, 0.0, 3.0])
 
             self.assertIsNotNone(n0_imported)
             self.assertIsNotNone(n2_imported)

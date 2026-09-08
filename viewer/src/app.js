@@ -859,6 +859,21 @@ function renderResultControls() {
   );
   dom.resultControls.append(
     rangeControl(
+      // Its own control on purpose: a moment is not a force, and one shared
+      // scale let whichever family had the larger numbers hide the other.
+      `Moment vector scale ${formatScale(currentState.resultVectorScales?.moment ?? 1)}x`,
+      currentState.resultVectorScales?.moment ?? 1,
+      0,
+      5,
+      0.25,
+      (value) => {
+        dispatch({ type: "setMomentVectorScale", scale: value });
+        render();
+      }
+    )
+  );
+  dom.resultControls.append(
+    rangeControl(
       `Reaction vector scale ${formatScale(currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1)}x`,
       currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1,
       0,

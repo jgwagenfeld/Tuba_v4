@@ -291,6 +291,7 @@
     "load_case": "Operating_Hot",
     "mesh_id": "analysis_mesh:Operating_Hot",
     "metadata": {
+      "pipe_stress_exported": true,
       "project_name": "Advanced_Industrial_Loop"
     },
     "model_revision": 0,
