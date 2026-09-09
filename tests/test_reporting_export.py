@@ -161,7 +161,14 @@ def test_custom_mapping_values_are_aligned_across_json_csv_and_html(
     )
     assert payload["tables"]["custom_mapping"]["rows"][0]["value"] == expected
     assert csv_rows == [["value"], [expected_compact]]
-    assert expected_compact.replace('"', "&quot;") in html
+    # JSON and CSV stay byte-comparable; the HTML shows the same mapping as a
+    # named list, because a page a person signs should not carry a JSON blob in
+    # a cell. Every key and every leaf still has to be on the page.
+    assert '<ul class="kv">' in html
+    assert '<span class="k">a</span>' in html
+    assert '<span class="k">z</span>' in html
+    assert "{&quot;enabled&quot;:true}" in html
+    assert "[{&quot;a&quot;:1,&quot;b&quot;:2}]" in html
     assert "CustomMapping" not in html
     assert "CustomMapping" not in csv_rows[1][0]
 

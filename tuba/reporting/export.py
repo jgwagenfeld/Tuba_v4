@@ -254,27 +254,91 @@ def _render_html(
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{escape(page_title)}</title>",
         "<style>",
-        ":root { color-scheme: light; font-family: Arial, sans-serif; }",
-        "body { color: #18202a; margin: 2rem auto; max-width: 110rem; padding: 0 1rem; }",
-        "h1, h2, h3 { break-after: avoid; }",
-        ".meta { color: #44505f; }",
+        # No web font: this document has to open from a zip in ten years with no
+        # network. The faces are stacks, but the roles are chosen - a sans for
+        # prose, a tabular mono for the columns you read down.
+        ":root { color-scheme: light;",
+        '  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;',
+        '  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace; }',
+        "body { color: #18202a; margin: 2rem auto; max-width: 110rem; padding: 0 1rem;",
+        "  line-height: 1.5; }",
+        # Tables want the full width; sentences do not. Prose was set to 110rem
+        # along with everything else, which is a line nobody can track back from.
+        "h1, h2, h3, p { max-width: 68ch; }",
+        "h1 { font-size: 1.75rem; letter-spacing: -.01em; margin: 0 0 .25rem; }",
+        "h2 { font-size: 1.25rem; margin: 2.25rem 0 .5rem; }",
+        "h3 { font-size: 1rem; margin: 1.5rem 0 .35rem; }",
+        "h1, h2, h3 { break-after: avoid; line-height: 1.25; }",
+        ".meta { color: #44505f; margin: 0 0 .35rem; }",
+        ".units { color: #44505f; font-size: .85rem; margin: 0 0 1.75rem; }",
         ".unavailable { border-left: .25rem solid #a66b00; padding: .5rem .75rem; }",
-        ".table-wrap { margin: 1rem 0 2rem; overflow-x: auto; }",
-        "table { border-collapse: collapse; font-size: .85rem; width: 100%; }",
-        "th, td { border: 1px solid #aeb7c2; padding: .35rem .45rem; text-align: left; vertical-align: top; }",
+        ".csv-link { font-size: .85rem; margin: 0 0 .4rem; }",
+        ".table-wrap { margin: .4rem 0 2rem; overflow-x: auto; }",
+        # The region is focusable so its off-screen columns are reachable from
+        # the keyboard; a focusable thing must show that it has focus.
+        ".table-wrap:focus-visible { outline: 2px solid #1c5f6b; outline-offset: 2px; }",
+        # width:auto, not 100%: a four-column node table forced to full width
+        # spread three coordinates across the page, which put every value an
+        # inch from the row it belongs to. Capped instead, so narrow tables stay
+        # compact and wide ones still compress to fit rather than overflow.
+        "table { border-collapse: collapse; font-size: .85rem;",
+        "  width: auto; max-width: 100%; }",
+        "th, td { border: 1px solid #aeb7c2; padding: .35rem .45rem; text-align: left;",
+        # Long identifiers and nested-value blobs are what made these tables
+        # three times the width of a page. They break now instead.
+        "  vertical-align: top; overflow-wrap: anywhere; }",
         "th { background: #eef1f5; }",
+        # A column of magnitudes is read down, not across: mono, tabular, and
+        # right-aligned so the decimal points line up.
+        "th.num, td.num { text-align: right; font-family: var(--mono);",
+        "  font-variant-numeric: tabular-nums; }",
+        # Values must not break across lines; headings are prose and should.
+        # "Corrosion allowance [m]" held on one line was 182px of a 1047px page.
+        "td.num { white-space: nowrap; }",
+        "th.num { font-family: inherit; }",
+        # A floor as well as a cap: auto layout squeezed this column to 74px,
+        # which broke the key names themselves down the middle - IYR2 over two
+        # lines. Neither half of an entry may break.
+        "td.nested { min-width: 9rem; max-width: 22rem; }",
+        # One named quantity per line, name and value in their own columns, so a
+        # twenty-key section mapping reads like the schedule it is.
+        ".kv { list-style: none; margin: 0; padding: 0; font-size: .92em; }",
+        ".kv li { display: flex; gap: .5rem; justify-content: space-between; }",
+        ".kv li + li { border-top: 1px solid #e3e8ee; }",
+        ".kv .k { color: #44505f; white-space: nowrap; }",
+        ".kv li > span:last-child { font-family: var(--mono);",
+        "  font-variant-numeric: tabular-nums; text-align: right;",
+        "  white-space: nowrap; overflow-wrap: normal; }",
         "@media print {",
+        # Landscape, because these are 10-to-17-column result tables. Portrait
+        # dropped 41 of 147 columns off the right-hand edge of the page - every
+        # displacement component, every moment - with nothing on the paper to
+        # say anything was missing.
+        "  @page { size: A4 landscape; margin: 10mm; }",
         "  body { margin: 0; max-width: none; padding: 0; }",
         "  a { color: inherit; text-decoration: none; }",
+        # The scroll container cannot scroll on paper. Visible is right only
+        # because the table now fits the page; it is what hid the loss before.
         "  .table-wrap { overflow: visible; }",
-        "  table { font-size: 7pt; }",
+        # A link is dead on paper, so print where the file actually is.",
+        '  .csv-link a::after { content: " (" attr(href) ")"; color: #44505f; }',
+        "  th, td { padding: .2rem .25rem; }",
+        "  td.nested { min-width: 8.5rem; max-width: 12rem; }",
+        "  table { font-size: 7.5pt; }",
         "  tr { break-inside: avoid; }",
+        "  thead { display: table-header-group; }",
         "}",
         "</style>",
         "</head>",
         "<body>",
+        "<main>",
         f"<h1>{escape(page_title)}</h1>",
         f'<p class="meta">Project: {escape(review.project_name)} | Status: {escape(review.analysis_status)}</p>',
+        # Said once, at the top, because this page is rounded and the viewer that
+        # links to it converts. Neither was stated anywhere before, so the same
+        # quantity appeared in two unit systems across two surfaces of one
+        # product with nothing to reconcile them.
+        f'<p class="units">{escape(_units_note(review))}</p>',
     ]
 
     reports = manifest["reports"]
@@ -289,8 +353,26 @@ def _render_html(
             content.extend(_render_table(table, csv_uri=reports.get(table.id)))
         content.append("</section>")
 
-    content.extend(("</body>", "</html>", ""))
+    content.extend(("</main>", "</body>", "</html>", ""))
     return "\n".join(content)
+
+
+def _units_note(review: EngineeringReviewPackage) -> str:
+    """State the units this document is in, and that it rounds.
+
+    Values are left exactly as the model and solver hold them - the CSVs and
+    review.json beside this file are the same numbers unrounded, and stay
+    byte-comparable with it. The viewer converts for display; this does not.
+    """
+    units = sorted(
+        {column.unit for table in review.tables for column in table.columns if column.unit}
+    )
+    named = f" ({', '.join(units)})" if units else ""
+    return (
+        f"Values are unconverted, in the units named in each column heading{named}. "
+        "Shown to six significant figures; the CSV files in reports/ carry the "
+        "same values at full precision."
+    )
 
 
 def _section_for_table(table: ReportTable) -> str:
@@ -307,37 +389,169 @@ def _section_for_table(table: ReportTable) -> str:
     return "Model"
 
 
+def _numeric_column_ids(table: ReportTable) -> set[str]:
+    """Columns whose every populated cell is a number.
+
+    Decided from the data rather than from the presence of a unit: node and
+    element counts carry no unit and are still columns you read down.
+    """
+    numeric: set[str] = set()
+    for column in table.columns:
+        values = [row.get(column.id) for row in table.rows]
+        populated = [value for value in values if value is not None]
+        if populated and all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            for value in populated
+        ):
+            numeric.add(column.id)
+    return numeric
+
+
+def _leaf_text(value: Any) -> str:
+    """One nested entry as text. Deeper structure keeps its compact JSON."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, float):
+        return _display_number(value)
+    return str(value)
+
+
+def _render_cell_html(value: Any) -> str:
+    """Escaped cell content: a list for nested values, plain text otherwise.
+
+    A section-property mapping is twenty named quantities. As one JSON blob it
+    was technically complete and unreadable; as a list it is the same twenty
+    quantities with their names next to them. The CSV cell keeps the compact
+    JSON, so the machine-readable form is unchanged.
+    """
+    normalized = _rounded_for_display(_json_value(value))
+    if isinstance(normalized, dict):
+        entries = "".join(
+            f'<li><span class="k">{escape(key)}</span>'
+            f"<span>{escape(_leaf_text(item))}</span></li>"
+            for key, item in normalized.items()
+        )
+        return f'<ul class="kv">{entries}</ul>' if entries else ""
+    if isinstance(normalized, list):
+        entries = "".join(
+            f"<li><span>{escape(_leaf_text(item))}</span></li>" for item in normalized
+        )
+        return f'<ul class="kv">{entries}</ul>' if entries else ""
+    return escape(_display_value(value))
+
+
 def _render_table(table: ReportTable, *, csv_uri: str | None) -> list[str]:
-    content = [f"<article><h3>{escape(table.title)}</h3>"]
+    # The heading names the table, the scroll region and the table itself, so a
+    # screen reader entering any of the three is told which one it is - and the
+    # visible text is written once.
+    heading_id = f"table-{table.id}"
+    content = [f'<article><h3 id="{heading_id}">{escape(table.title)}</h3>']
     if table.unavailable_reason:
         content.append(f'<p class="unavailable">{escape(table.unavailable_reason)}</p>')
     if table.rows:
         if csv_uri is not None:
+            # Named, because a report carries a dozen of these and "Download CSV"
+            # a dozen times is indistinguishable read aloud or read on paper.
             content.append(
-                f'<p><a href="{escape(csv_uri, quote=True)}">Download CSV</a></p>'
+                f'<p class="csv-link"><a href="{escape(csv_uri, quote=True)}">'
+                f"Download {escape(table.title)} as CSV</a></p>"
             )
-        content.extend(('<div class="table-wrap">', "<table>", "<thead><tr>"))
+        # tabindex, because the region scrolls: without it the columns past the
+        # right edge could not be reached by keyboard at all.
+        content.extend((
+            f'<div class="table-wrap" role="region" tabindex="0"'
+            f' aria-labelledby="{heading_id}">',
+            f'<table aria-labelledby="{heading_id}">',
+            "<thead><tr>",
+        ))
+        numeric = _numeric_column_ids(table)
         for column in table.columns:
             heading = column.label
             if column.unit:
                 heading = f"{heading} [{column.unit}]"
-            content.append(f"<th>{escape(heading)}</th>")
+            css = ' class="num"' if column.id in numeric else ""
+            content.append(f'<th scope="col"{css}>{escape(heading)}</th>')
         content.extend(("</tr></thead>", "<tbody>"))
         for row in table.rows:
             content.append("<tr>")
             for column in table.columns:
-                content.append(f"<td>{escape(_display_value(row.get(column.id)))}</td>")
+                value = row.get(column.id)
+                # A nested value is one unbroken blob, and auto table layout hands
+                # the widest content the most width - so a 20-key section-property
+                # mapping in one cell decided the width of the whole table and
+                # pushed a column off the printed page. Capped, it wraps instead.
+                if isinstance(_json_value(value), (dict, list)):
+                    css = ' class="nested"'
+                elif column.id in numeric:
+                    css = ' class="num"'
+                else:
+                    css = ""
+                content.append(f"<td{css}>{_render_cell_html(value)}</td>")
             content.append("</tr>")
         content.extend(("</tbody>", "</table>", "</div>"))
     content.append("</article>")
     return content
 
 
+def _display_number(value: float) -> str:
+    """Format one float for a person rather than for a round trip.
+
+    ``str()`` on a float is ``repr``, which printed node coordinates as
+    ``3.3000000000000003`` and an 11 mm displacement as
+    ``0.011344418952524629`` - IEEE-754 artifacts quoted to eighteen
+    significant figures in a document an engineer signs. Six significant
+    figures is past any input precision a piping model carries. The CSV and
+    ``review.json`` are unchanged and stay the full-precision record; this
+    formatter is only ever reached by the HTML.
+    """
+    if value == int(value) and abs(value) < 1e16:
+        return str(int(value))
+    text = f"{value:.6g}"
+    if "e" not in text:
+        return text
+    # Six significant figures pushes ordinary magnitudes into exponent form: a
+    # 1 054 503 N support reaction printed as 1.0545e+06. Plain decimal wherever
+    # a reader can still count the digits; exponent only past that.
+    if 1e-4 <= abs(value) < 1e9:
+        return f"{float(text):f}".rstrip("0").rstrip(".")
+    return text
+
+
+def _rounded_for_display(value: Any) -> Any:
+    """Round every float in a nested value, keeping the structure intact.
+
+    A section-property mapping reaches the page as one JSON blob in one cell.
+    Left at full repr it carried both problems at once: the last of the float
+    noise (``0.009000000000000001``) and enough width to push the section
+    schedule off the printed page on its own. Rounding to a real float first
+    lets ``json.dumps`` print it cleanly - the structure, the keys and the
+    ordering are untouched, and the CSV and review.json still hold the
+    unrounded record.
+    """
+    if isinstance(value, dict):
+        return {key: _rounded_for_display(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_rounded_for_display(item) for item in value]
+    if isinstance(value, float):
+        return float(f"{value:.6g}")
+    return value
+
+
 def _display_value(value: Any) -> str:
     normalized = _json_value(value)
     if isinstance(normalized, (dict, list)):
         return json.dumps(
-            normalized,
+            _rounded_for_display(normalized),
             allow_nan=False,
             ensure_ascii=False,
             sort_keys=True,
@@ -347,6 +561,8 @@ def _display_value(value: Any) -> str:
         return ""
     if isinstance(normalized, bool):
         return "true" if normalized else "false"
+    if isinstance(normalized, float):
+        return _display_number(normalized)
     return str(normalized)
 
 
