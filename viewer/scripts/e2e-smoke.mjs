@@ -135,11 +135,11 @@ async function framebufferSnapshot(canvas) {
 
 const scenarios = {
   smoke: {
-    bundle: "/smoke-scene",
+    bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3
   },
   "section-camera": {
-    bundle: "/smoke-scene",
+    bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3,
     async run(page) {
       await openReviewControls(page);
@@ -218,7 +218,7 @@ const scenarios = {
     }
   },
   "view-gizmo": {
-    bundle: "/smoke-scene",
+    bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3,
     async run(page) {
       const canvas = page.locator("[data-canvas]");
@@ -245,29 +245,31 @@ const scenarios = {
     }
   },
   "bundle-picker": {
-    bundle: "smoke-scene",
-    minimumObjects: 3,
+    bundle: "code-aster-review",
+    // A review draws only what its visibility preset allows, which is fewer
+    // objects than the all-kinds fixture this scenario used to open.
+    minimumObjects: 1,
     async run(page) {
       const picker = page.locator("[data-bundle-picker]");
       await picker.waitFor({ state: "visible" });
 
       // The dropdown lists every public/ example the vite plugin discovered.
       const options = await picker.locator("option").evaluateAll((nodes) => nodes.map((node) => node.value));
-      assert.ok(options.includes("smoke-scene"), `picker must list smoke-scene: ${options}`);
       assert.ok(options.includes("code-aster-review"), `picker must list code-aster-review: ${options}`);
+      assert.ok(options.includes("gmsh-tee-mesh-review"), `picker must list gmsh-tee-mesh-review: ${options}`);
       assert.ok(options.length >= 3, `picker must list every example: ${options}`);
-      assert.equal(await picker.inputValue(), "smoke-scene");
+      assert.equal(await picker.inputValue(), "code-aster-review");
 
       const sceneBefore = await page.evaluate(() => window.__tubaViewer?.state?.sceneId);
 
       // Selecting another example loads it and rewrites the ?bundle= query.
-      await picker.selectOption("code-aster-review");
+      await picker.selectOption("gmsh-tee-mesh-review");
       await page.waitForFunction(
         (previous) => window.__tubaViewer?.state?.sceneId && window.__tubaViewer.state.sceneId !== previous,
         sceneBefore
       );
-      assert.match(new URL(page.url()).searchParams.get("bundle") ?? "", /code-aster-review/);
-      assert.equal(await picker.inputValue(), "code-aster-review");
+      assert.match(new URL(page.url()).searchParams.get("bundle") ?? "", /gmsh-tee-mesh-review/);
+      assert.equal(await picker.inputValue(), "gmsh-tee-mesh-review");
     }
   },
   units: {
@@ -1263,10 +1265,10 @@ const scenarios = {
     }
   },
   "legacy-workflow": {
-    bundle: "/smoke-scene",
+    bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3,
     async beforeNavigate(page) {
-      await page.route("**/smoke-scene/review.json", (route) =>
+      await page.route("**/smoke_scene/review.json", (route) =>
         route.fulfill({ status: 404, contentType: "application/json", body: "" })
       );
     },
@@ -1409,7 +1411,7 @@ const scenarios = {
     }
   },
   "live-preview": {
-    bundle: "/smoke-scene",
+    bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3,
     async setup() {
       return startTestWebSocketServer();
@@ -1441,7 +1443,7 @@ const scenarios = {
     }
   },
   "patch-preview": {
-    bundle: "/smoke-scene",
+    bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3,
     async setup() {
       return startTestWebSocketServer();
@@ -1492,7 +1494,7 @@ const scenarios = {
     }
   },
   "scene-diff": {
-    bundle: "/smoke-scene",
+    bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3,
     async setup() {
       return startTestWebSocketServer();

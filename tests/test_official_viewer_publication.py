@@ -262,7 +262,7 @@ def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> 
 
 
 def test_official_bundles_are_generated_from_source_only() -> None:
-    """Keep generated examples out of Git while retaining the smoke fixture."""
+    """Every served bundle is generated; Git tracks none of them."""
     root = Path(__file__).resolve().parents[1]
     official = OFFICIAL_BUNDLES
     tracked = set(
@@ -277,7 +277,11 @@ def test_official_bundles_are_generated_from_source_only() -> None:
         for path in tracked
     )
     assert "viewer/public/bundles.json" not in tracked
-    assert "viewer/public/smoke-scene/scene.json" in tracked
+    # The viewer's e2e fixture used to live here too, which made a test
+    # scene show up in the gallery as an example. It is a fixture, so it
+    # sits with the others under viewer/test/fixtures/ and public/ now holds
+    # nothing but generated bundles and static assets.
+    assert not any(path.endswith("/scene.json") for path in tracked)
     for bundle_id in official:
         assert subprocess.run(
             ["git", "check-ignore", "--no-index", f"viewer/public/{bundle_id}/scene.json"],
@@ -289,11 +293,6 @@ def test_official_bundles_are_generated_from_source_only() -> None:
         cwd=root,
         capture_output=True,
     ).returncode == 0
-    assert subprocess.run(
-        ["git", "check-ignore", "--no-index", "viewer/public/smoke-scene/scene.json"],
-        cwd=root,
-        capture_output=True,
-    ).returncode == 1
 
     # This test is about what Git tracks, and every assertion above is a Git
     # query. It used to end by solving all ten Code_Aster models so it could

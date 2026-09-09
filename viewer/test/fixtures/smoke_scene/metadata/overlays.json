@@ -1,3 +1,13 @@
 [
-  { "id": "overlay:clash", "kind": "clash", "name": "Clash", "object_ids": ["object:clash"], "visible": true }
+  {
+    "id": "overlay:clash:smoke",
+    "kind": "clash",
+    "name": "Smoke clash",
+    "object_ids": [
+      "object:element:pipe_smoke",
+      "object:obstacle:rack_member_smoke",
+      "object:issue:clash:pipe_smoke:rack_member_smoke"
+    ],
+    "data": { "severity": "operating_only_hard" }
+  }
 ]

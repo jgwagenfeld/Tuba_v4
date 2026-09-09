@@ -19,7 +19,7 @@ import {
 test("startup falls back to the first available bundle when the preferred review is absent", () => {
   assert.equal(typeof sceneLoaderModule.resolveBundleId, "function");
   assert.equal(
-    sceneLoaderModule.resolveBundleId(null, ["gmsh-tee-mesh-review", "smoke-scene"]),
+    sceneLoaderModule.resolveBundleId(null, ["gmsh-tee-mesh-review", "hot-case"]),
     "gmsh-tee-mesh-review"
   );
 });

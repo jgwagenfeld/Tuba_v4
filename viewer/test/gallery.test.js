@@ -41,11 +41,11 @@ test("gallery accepts the published catalog untouched", () => {
 
 test("gallery accepts the bare id list the dev server discovers", () => {
   // vite.config.js serves ids only; a recipe bundle has no registry entry.
-  const entries = normalizeCatalog(["my-recipe", "smoke-scene"]);
+  const entries = normalizeCatalog(["my-recipe", "hot-case"]);
 
   assert.deepEqual(entries, [
     { id: "my-recipe", title: "My Recipe" },
-    { id: "smoke-scene", title: "Smoke Scene" }
+    { id: "hot-case", title: "Hot Case" }
   ]);
 });
 
