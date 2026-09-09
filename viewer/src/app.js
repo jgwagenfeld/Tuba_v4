@@ -68,6 +68,7 @@ import {
 import { cockpitStatusViewModel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { getPropertySections, pickObjectAt } from "./selection.js";
+import { getSelectionSummary } from "./selectionSummary.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
   WORKFLOW_TABS,
@@ -1944,7 +1945,7 @@ function renderIssues() {
 
 
 function renderProperties() {
-  const sections = getPropertySections(currentState, selectedObjectId);
+  const summary = getSelectionSummary(currentState, selectedObjectId);
   dom.propertyActions.replaceChildren();
   dom.properties.replaceChildren();
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
@@ -1952,9 +1953,9 @@ function renderProperties() {
   // when selecting its row, especially on narrow screens.
   const contactSelection = currentState.activeTab === "results" && Object.keys(contactRecords(currentState))
     .some(id => contactObjectId(currentState, id) === selectedObjectId);
-  dom.inspector.hidden = contactSelection || (sections.length === 0 && !issueSummary);
+  dom.inspector.hidden = contactSelection || (!summary && !issueSummary);
   if (contactSelection) return;
-  if (sections.length === 0) {
+  if (!summary) {
     if (issueSummary) {
       dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
     } else {
@@ -1965,6 +1966,7 @@ function renderProperties() {
     }
     return;
   }
+  const sections = summary.sections;
   const selectedObject = currentState.objects.find((obj) => obj.id === selectedObjectId);
   if (selectedObject?.entity_ref) {
     const copyButton = document.createElement("button");
@@ -2008,13 +2010,152 @@ function renderProperties() {
     render();
   });
   dom.propertyActions.append(fitButton, hideButton, isolateButton);
+  dom.properties.append(renderEvidenceHead(summary));
+  if (summary.dofs) {
+    dom.properties.append(renderRestraintStrip(summary.dofs));
+  }
   for (const section of sections) {
-    dom.properties.append(renderPropertySection(section));
+    dom.properties.append(renderEvidenceSection(section));
   }
   if (issueSummary) {
     dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
     appendIssueReviewActions(issueSummary);
   }
+  if (Object.keys(summary.reference).length > 0) {
+    dom.properties.append(renderReference(summary.reference));
+  }
+}
+
+// What was selected, in words, before any number. The lede is the panel's one
+// sentence of prose; the meta line carries the name, node and position that
+// used to arrive as four separate id rows.
+function renderEvidenceHead(summary) {
+  const head = document.createElement("div");
+  head.className = "evidence-head";
+  const titleRow = document.createElement("div");
+  titleRow.className = "evidence-title-row";
+  const title = document.createElement("div");
+  title.className = "evidence-title";
+  title.textContent = summary.title;
+  titleRow.append(title);
+  if (summary.badge) {
+    const badge = document.createElement("span");
+    badge.className = "evidence-badge";
+    badge.textContent = summary.badge;
+    titleRow.append(badge);
+  }
+  head.append(titleRow);
+  if (summary.lede) {
+    const lede = document.createElement("p");
+    lede.className = "evidence-lede";
+    lede.textContent = summary.lede;
+    head.append(lede);
+  }
+  if (summary.meta) {
+    const meta = document.createElement("div");
+    meta.className = "evidence-meta";
+    meta.textContent = summary.meta;
+    head.append(meta);
+  }
+  return head;
+}
+
+// Option A from the design canvas: one cell per degree of freedom, so the
+// filled cells make a shape you can compare across supports without reading.
+// A cell is too narrow for a word longer than "one-way", so spring and one-way
+// carry a glyph as well - and the state word underneath is the glyph's key.
+const DOF_GLYPHS = Object.freeze({
+  spring: "M1 5h1.6l1.6-3.4 2.4 6.8 2.4-6.8L10.6 5H13",
+  "one-way": "M6 1.5l4 6H2z M0.5 9.5h11"
+});
+
+function renderRestraintStrip(dofs) {
+  const section = document.createElement("section");
+  section.className = "property-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Restraint";
+  const strip = document.createElement("div");
+  strip.className = "restraint-strip";
+  for (const dof of dofs) {
+    const column = document.createElement("div");
+    column.className = "restraint-dof";
+    const cell = document.createElement("div");
+    cell.className = `restraint-cell is-${dof.state.replace(/\s+/g, "-")}`;
+    const axis = document.createElement("span");
+    axis.textContent = dof.axis;
+    cell.append(axis);
+    const path = DOF_GLYPHS[dof.state];
+    if (path) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 14 11");
+      svg.setAttribute("width", "14");
+      svg.setAttribute("height", "11");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "1.3");
+      svg.setAttribute("stroke-linejoin", "round");
+      svg.setAttribute("aria-hidden", "true");
+      const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      shape.setAttribute("d", path);
+      svg.append(shape);
+      cell.append(svg);
+    }
+    const word = document.createElement("div");
+    word.className = `restraint-word is-${dof.state.replace(/\s+/g, "-")}`;
+    word.textContent = dof.state;
+    // The cell is decorative once the word is read out with it, so the pair
+    // announces as one thing rather than as "X" then "one-way".
+    column.setAttribute("role", "group");
+    column.setAttribute("aria-label", `${dof.axis} ${dof.state}`);
+    column.append(cell, word);
+    strip.append(column);
+  }
+  section.append(heading, strip);
+  return section;
+}
+
+function renderEvidenceSection(section) {
+  const wrapper = document.createElement("section");
+  wrapper.className = "property-section";
+  const heading = document.createElement("h3");
+  heading.textContent = section.title;
+  wrapper.append(heading);
+  const table = document.createElement("table");
+  table.className = "property-table";
+  const body = document.createElement("tbody");
+  for (const line of section.lines) {
+    if (line.kind === "note") {
+      continue;
+    }
+    const row = document.createElement("tr");
+    const label = document.createElement("th");
+    label.scope = "row";
+    label.textContent = line.label;
+    const cell = document.createElement("td");
+    cell.textContent = formatPropertyValue(line.value);
+    row.append(label, cell);
+    body.append(row);
+  }
+  table.append(body);
+  wrapper.append(table);
+  for (const line of section.lines.filter((entry) => entry.kind === "note")) {
+    const note = document.createElement("p");
+    note.className = "evidence-note";
+    note.textContent = line.label;
+    wrapper.append(note);
+  }
+  return wrapper;
+}
+
+// The ids, folded away, and only the ones nothing else derives.
+function renderReference(reference) {
+  const details = document.createElement("details");
+  details.className = "evidence-reference";
+  const summary = document.createElement("summary");
+  summary.textContent = "Reference";
+  details.append(summary);
+  details.append(renderPropertySection({ title: "", rows: reference }));
+  return details;
 }
 
 function renderPropertySection(section) {
@@ -2022,6 +2163,8 @@ function renderPropertySection(section) {
   wrapper.className = "property-section";
   const heading = document.createElement("h3");
   heading.textContent = section.title;
+  // A titleless section is the Reference well: its <summary> is the heading.
+  heading.hidden = !section.title;
   const table = document.createElement("table");
   table.className = "property-table";
   const body = document.createElement("tbody");

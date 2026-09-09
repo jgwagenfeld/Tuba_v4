@@ -148,8 +148,10 @@
         </section>
         <aside class="inspector" data-inspector hidden>
           <h2>Selected Evidence</h2>
-          <div class="property-actions" data-property-actions></div>
+          <!-- Actions sit after the evidence, not in front of it: the first
+               thing the panel owes a reviewer is what they selected. -->
           <div class="property-sections" data-properties></div>
+          <div class="property-actions" data-property-actions></div>
         </aside>
       </section>
     </main>

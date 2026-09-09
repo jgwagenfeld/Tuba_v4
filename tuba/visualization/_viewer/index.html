@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-ZgJ-Y5H5.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BmxZ6thr.css">
+    <script type="module" crossorigin src="./assets/index-DF-XKMuZ.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Dj3U0rXQ.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -149,8 +149,10 @@
         </section>
         <aside class="inspector" data-inspector hidden>
           <h2>Selected Evidence</h2>
-          <div class="property-actions" data-property-actions></div>
+          <!-- Actions sit after the evidence, not in front of it: the first
+               thing the panel owes a reviewer is what they selected. -->
           <div class="property-sections" data-properties></div>
+          <div class="property-actions" data-property-actions></div>
         </aside>
       </section>
     </main>

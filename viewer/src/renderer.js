@@ -10,6 +10,7 @@ import {
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
 import { bodyOpacityForObjectIds } from "./bodies.js";
+import { isSupportConfig, supportBlockedDofs } from "./supports.js";
 
 export const SUPPORTED_RENDER_FORMATS = new Set([
   "aabb",
@@ -1103,7 +1104,7 @@ function createPoint(asset, config, format, state) {
   if (!point) {
     return invalidAsset(asset, "Point assets require a point or valid bounds.");
   }
-  const isSupport = String(config.source ?? "").toLowerCase() === "tuba.support";
+  const isSupport = isSupportConfig(config);
   if (isSupport) {
     return createSupportGlyph(asset, config, format, point, state);
   }
@@ -1180,7 +1181,7 @@ function createSupportGlyph(asset, config, format, point, state) {
   };
 
   const axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
-  const blocked = supportBlockedDofs(config, supportType);
+  const blocked = supportBlockedDofs(config);
   if (blocked.every(Boolean)) {
     mesh(new THREE.BoxGeometry(size * 2, size * 2, size * 2), "fixed-block", restraintMaterial);
   } else {
@@ -1259,36 +1260,6 @@ function supportMaterial(color) {
     transparent: true,
     wireframe: false
   });
-}
-
-function supportBlockedDofs(config, supportType) {
-  if (Array.isArray(config.blocked_dof)) {
-    return Array.from({ length: 6 }, (_unused, index) => isBlockedDof(config.blocked_dof[index]));
-  }
-  if (supportType === "anchor") return [true, true, true, true, true, true];
-  if (supportType === "spring") return [false, false, false, false, false, false];
-  const direction = readPoint(config.direction);
-  if (direction?.lengthSq() > 1e-12) {
-    const axes = [direction.x, direction.y, direction.z].map((value) => Math.abs(value) > 1e-12);
-    // A guide blocks every component of its direction; a rest is a LIAISON_UNIL
-    // zone, and DEFI_CONTACT takes one NOM_CMP - aster_comm.py breaks after the
-    // first nonzero component. Drawing cones on all three would claim restraint
-    // the solver never applied.
-    if (supportType === "rest") {
-      const first = axes.indexOf(true);
-      return [axes[0] && first === 0, axes[1] && first === 1, axes[2] && first === 2, false, false, false];
-    }
-    return [...axes, false, false, false];
-  }
-  // Z, not Y: Tuba is Z-up, gravity is (0, 0, -1), and a rest with no direction
-  // becomes NOM_CMP='DZ' in aster_comm.py. This said Y, so every rest support in
-  // every bundle drew its cones horizontally - across the pipe it holds up.
-  if (supportType === "rest") return [false, false, true, false, false, false];
-  return [true, true, true, false, false, false];
-}
-
-function isBlockedDof(value) {
-  return ![false, 0, "0", "x", "X", null, undefined].includes(value);
 }
 
 function addSupportSpringRings(mesh, axis, size, material, supportAxis) {

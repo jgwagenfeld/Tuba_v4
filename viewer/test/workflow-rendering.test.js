@@ -79,7 +79,7 @@ test("workflow rendering adds cockpit status, report links, saved views, and rev
   assert.match(app, /dom\.reportLink\.href\s*=\s*`\$\{currentBundleUrl\}\/index\.html`/);
   assert.match(app, /dom\.reportLink\.hidden\s*=\s*!currentState\.review/);
   assert.match(app, /saveViewState\(currentState, name\)/);
-  assert.match(app, /dom\.inspector\.hidden\s*=\s*contactSelection \|\| \(sections\.length === 0 && !issueSummary\)/);
+  assert.match(app, /dom\.inspector\.hidden\s*=\s*contactSelection \|\| \(!summary && !issueSummary\)/);
 
   assert.match(css, /\.report-link\s*\{[^}]*color:\s*var\(--accent\)/s);
   assert.match(css, /\.report-link:focus-visible\s*\{[^}]*outline-color:\s*var\(--focus-on-dark\)/s);

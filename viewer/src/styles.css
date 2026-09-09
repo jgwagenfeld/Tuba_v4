@@ -1818,7 +1818,136 @@ pre {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.45rem;
-  margin-bottom: 0.8rem;
+  /* The actions moved below the evidence, so the gap belongs above them. */
+  margin-top: 0.9rem;
+}
+
+/* What was selected, in words, before any number. */
+.evidence-head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.evidence-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.evidence-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--chrome-text);
+}
+
+.evidence-badge {
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  background: var(--sidebar-control);
+  color: #d9e0e2;
+  padding: 1px 6px;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.evidence-lede {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #b9c5c9;
+  text-wrap: pretty;
+}
+
+.evidence-meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #8895a0;
+  overflow-wrap: anywhere;
+}
+
+.evidence-note {
+  margin: 0;
+  border-top: 1px solid var(--graphite-line);
+  padding-top: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #8895a0;
+  text-wrap: pretty;
+}
+
+/* One cell per degree of freedom: the filled cells make a shape a reviewer can
+   compare between two supports without reading either. */
+.restraint-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.restraint-dof {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.restraint-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  height: 30px;
+  border: 1px solid var(--graphite-line);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+/* Held solid, released hollow. Spring and one-way are held too, but
+   conditionally, so they take the outline and carry a glyph. */
+.restraint-cell.is-fixed {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--graphite);
+}
+
+.restraint-cell.is-free {
+  border-color: #77858c;
+  background: transparent;
+  color: #8895a0;
+}
+
+.restraint-cell.is-spring,
+.restraint-cell.is-one-way {
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+
+.restraint-word {
+  font-size: 0.68rem;
+  color: #b9c5c9;
+}
+
+.restraint-word.is-free {
+  color: #8895a0;
+}
+
+/* The ids, folded away. */
+.evidence-reference > summary {
+  border-top: 1px solid var(--graphite-line);
+  padding-top: 0.7rem;
+  color: #b9c5c9;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.evidence-reference .property-section {
+  border-top: 0;
+  padding-top: 0.4rem;
 }
 
 .property-sections {

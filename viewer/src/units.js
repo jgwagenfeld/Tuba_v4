@@ -23,7 +23,9 @@ const QUANTITIES = Object.freeze({
   length: { si: { unit: "m", factor: 1 }, engineering: { unit: "mm", factor: 1e3 } },
   stress: { si: { unit: "Pa", factor: 1 }, engineering: { unit: "MPa", factor: 1e-6 } },
   force: { si: { unit: "N", factor: 1 }, engineering: { unit: "kN", factor: 1e-3 } },
-  moment: { si: { unit: "N*m", factor: 1 }, engineering: { unit: "kN*m", factor: 1e-3 } }
+  // Displayed with a middot: "N*m" is the string Tuba stores and the key this
+  // table is looked up by, but a readout is for a reader, not for a parser.
+  moment: { si: { unit: "N·m", factor: 1 }, engineering: { unit: "kN·m", factor: 1e-3 } }
 });
 
 // The stored unit strings Tuba emits, mapped onto a quantity.

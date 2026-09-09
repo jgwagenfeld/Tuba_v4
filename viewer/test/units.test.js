@@ -41,7 +41,7 @@ test("stored SI restates as engineering units", () => {
   assert.equal(formatQuantity(0.1143, "m", "engineering"), "114.3 mm");
   assert.equal(formatQuantity(1.6075e8, "Pa", "engineering"), "160.8 MPa");
   assert.equal(formatQuantity(3605.55, "N", "engineering"), "3.606 kN");
-  assert.equal(formatQuantity(2400, "N*m", "engineering"), "2.4 kN*m");
+  assert.equal(formatQuantity(2400, "N*m", "engineering"), "2.4 kN·m");
 });
 
 test("SI base leaves stored values exactly as the scene holds them", () => {
