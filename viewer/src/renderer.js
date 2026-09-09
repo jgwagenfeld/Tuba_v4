@@ -325,11 +325,9 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       redrawScene();
     },
     setDeformationInteraction(active) {
-      if (deformationInteractionActive === active || !currentGraph?.deformationPreview) return false;
-      // Section rotation needs its surface and local frames throughout interaction.
-      if (active && currentGraph.renderableObjects.some((object) => object.userData?.sectionDeformation)) return false;
+      if (deformationInteractionActive === active || !canSetDeformationPreview(currentGraph, active)) return false;
       deformationInteractionActive = active;
-      setDeformationPreviewMode(currentGraph, active);
+      if (currentGraph) setDeformationPreviewMode(currentGraph, active);
       if (deformationOverlay.canvas) deformationOverlay.canvas.hidden = !active;
       if (active) drawFrame(currentGraph);
       else deformationOverlay.context?.clearRect(0, 0, deformationOverlay.canvas.width, deformationOverlay.canvas.height);
@@ -566,6 +564,20 @@ export function applySectionBoxClipping(graph, sectionBox) {
       material.needsUpdate = true;
     }
   });
+}
+
+// Whether the deformation preview may flip to `active`. Entering needs a preview
+// to draw, and is refused while a section rotation is on screen - that one needs
+// its surface and local frames throughout the drag. Leaving is unconditional: a
+// graph rebuilt between pointerdown and pointerup carries no preview, and making
+// the exit depend on one stranded the flag set, so every later render re-hid the
+// undeformed reference geometry for good.
+export function canSetDeformationPreview(graph, active) {
+  if (!active) return true;
+  return (
+    Boolean(graph?.deformationPreview) &&
+    !(graph.renderableObjects ?? []).some((object) => object.userData?.sectionDeformation)
+  );
 }
 
 export function setDeformationPreviewMode(graph, active) {

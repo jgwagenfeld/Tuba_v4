@@ -1063,6 +1063,26 @@ test("section box clipping keeps a crossing pipe in the coarse scene graph", () 
   }
 });
 
+test("leaving deformation preview is allowed even when the graph lost its preview", () => {
+  const { canSetDeformationPreview } = rendererModule;
+  const withPreview = { deformationPreview: {}, renderableObjects: [] };
+
+  assert.equal(canSetDeformationPreview(withPreview, true), true);
+  assert.equal(canSetDeformationPreview({ renderableObjects: [] }, true), false, "nothing to preview");
+  assert.equal(
+    canSetDeformationPreview({ deformationPreview: {}, renderableObjects: [{ userData: { sectionDeformation: {} } }] }, true),
+    false,
+    "a section rotation needs its frames left alone"
+  );
+
+  // A graph rebuilt between pointerdown and pointerup carries no preview. The
+  // exit must not depend on one, or the flag stays set and every later render
+  // re-hides the undeformed reference geometry.
+  for (const graph of [withPreview, { renderableObjects: [] }, null, undefined]) {
+    assert.equal(canSetDeformationPreview(graph, false), true);
+  }
+});
+
 test("pickRenderedObject uses Three.js raycasting metadata", () => {
   const graph = createThreeSceneGraph({
     bounds: [-1, -1, -1, 1, 1, 1],
