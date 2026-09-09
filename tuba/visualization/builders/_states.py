@@ -436,9 +436,25 @@ def _deformed_metadata(geometry_state: GeometryState, result_state: ResultState)
         "safety_factor": geometry_state.safety_factor,
         "visual_scale": geometry_state.displacement_scale,
     }
+def _mesh_node_radius(model: TubaModel | None) -> float:
+    """Radius for the node balls, small enough to read as markers on the pipe.
+
+    The viewer's fallback for a radius-less point is 35 mm, which is wider than
+    a DN50 run: the balls swallowed the pipe they annotate. Size them off the
+    thinnest section in the model instead.
+    """
+    radii = [
+        profile_for_section(section).collision_radius_m
+        for section in (model.sections.values() if model is not None else ())
+    ]
+    smallest = min((radius for radius in radii if radius > 0.0), default=0.0)
+    # ponytail: one radius for the whole mesh; go per-node if mixed DNs ever read wrong.
+    return smallest * 0.25 if smallest > 0.0 else 0.01
 def _build_analysis_mesh_scene(
     analysis_mesh: AnalysisMesh,
+    model: TubaModel | None = None,
 ) -> tuple[list[SceneObject], list[GeometryAsset], list[SceneDiagnostic]]:
+    node_radius = _mesh_node_radius(model)
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
     diagnostics: list[SceneDiagnostic] = []
@@ -556,13 +572,14 @@ def _build_analysis_mesh_scene(
             GeometryAsset(
                 id=asset_id,
                 format="point",
-                bounds=_bounds_for_points([point], 0.0),
+                bounds=_bounds_for_points([point], node_radius),
                 object_ids=[object_id],
                 generation_config={
                     "source": "tuba.analysis_mesh.node",
                     "mesh_id": analysis_mesh.id,
                     "node_id": node_id,
                     "point": point,
+                    "radius_m": node_radius,
                     "role": role,
                     "groups": groups,
                     "source_ref": str(source.source_ref) if source is not None else None,

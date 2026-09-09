@@ -259,7 +259,7 @@ def build_visualization_scene(
         overlays.append(state_overlay)
 
     for analysis_mesh in analysis_mesh_records:
-        mesh_objects, mesh_assets, mesh_diagnostics = _build_analysis_mesh_scene(analysis_mesh)
+        mesh_objects, mesh_assets, mesh_diagnostics = _build_analysis_mesh_scene(analysis_mesh, model)
         objects.extend(mesh_objects)
         assets.extend(mesh_assets)
         diagnostics.extend(mesh_diagnostics)

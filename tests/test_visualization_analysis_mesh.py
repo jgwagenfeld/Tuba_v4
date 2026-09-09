@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 
 from tuba import Model
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
+from tuba.geometry.profiles import profile_for_section
 from tuba.refs import EntityRef
 from tuba.routing.adapter import apply_candidate_to_model
 from tuba.routing.postprocess import build_segments
@@ -210,6 +211,12 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
         self.assertEqual(element_asset.format, "polyline")
         self.assertEqual(node_asset.generation_config["source"], "tuba.analysis_mesh.node")
         self.assertEqual(element_asset.generation_config["source"], "tuba.analysis_mesh.element")
+        # Node balls annotate the pipe; they must not be as fat as it.
+        pipe_radius = min(
+            profile_for_section(section).collision_radius_m for section in model.sections.values()
+        )
+        self.assertLess(node_asset.generation_config["radius_m"], pipe_radius / 2.0)
+        self.assertGreater(node_asset.generation_config["radius_m"], 0.0)
 
     def test_build_scene_reports_analysis_mesh_missing_provenance(self):
         model = Model(project_name="AnalysisMeshDiagnostics")
