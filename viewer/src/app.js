@@ -8,7 +8,7 @@ import {
   sectionBoxDefaults,
   rankObjectMatches
 } from "./controls.js";
-import { bundleIdsOf, normalizeCatalog, renderGallery, shouldShowGallery } from "./gallery.js";
+import { bundleIdsOf, bundleKey, normalizeCatalog, renderGallery, shouldShowGallery } from "./gallery.js";
 import {
   WEBGL2_UNAVAILABLE,
   applyHoverHighlight,
@@ -218,15 +218,24 @@ function initBundlePicker(catalog) {
     dom.bundlePicker.hidden = true;
     return;
   }
-  dom.bundlePicker.replaceChildren(
-    ...entries.map((entry) => {
-      const option = document.createElement("option");
-      option.value = entry.id;
-      option.textContent = entry.title;
-      option.selected = entry.id === currentBundleUrl;
-      return option;
-    })
-  );
+  const activeKey = bundleKey(currentBundleUrl);
+  const options = entries.map((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.id;
+    option.textContent = entry.title;
+    option.selected = bundleKey(entry.id) === activeKey;
+    return option;
+  });
+  // A scene the catalog does not list - a fixture, a preview - still has to be
+  // the one the control names, or the switcher reports the wrong model.
+  if (activeKey && !options.some((option) => option.selected)) {
+    const active = document.createElement("option");
+    active.value = currentBundleUrl;
+    active.textContent = activeKey;
+    active.selected = true;
+    options.unshift(active);
+  }
+  dom.bundlePicker.replaceChildren(...options);
   dom.bundlePicker.hidden = false;
   dom.bundlePicker.addEventListener("change", () => switchBundle(dom.bundlePicker.value));
 }

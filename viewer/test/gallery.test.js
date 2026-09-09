@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   bundleIdsOf,
+  bundleKey,
   normalizeCatalog,
   shouldShowGallery,
   titleFromId
@@ -82,4 +83,14 @@ test("gallery yields to a shared single-bundle folder", () => {
     false
   );
   assert.equal(shouldShowGallery({ requestedBundle: null, embed: false, catalog: [] }), false);
+});
+
+test("bundle keys compare ids, paths and trailing slashes as the same bundle", () => {
+  // The header switcher matched a catalog id against whatever form the bundle
+  // was requested in, so a bundle asked for by path selected no option and the
+  // control silently named the first model in the list instead.
+  assert.equal(bundleKey("/code-aster-review"), "code-aster-review");
+  assert.equal(bundleKey("./code-aster-review/"), "code-aster-review");
+  assert.equal(bundleKey("code-aster-review"), "code-aster-review");
+  assert.equal(bundleKey(null), "");
 });

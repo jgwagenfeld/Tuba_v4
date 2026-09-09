@@ -18,6 +18,17 @@ export function titleFromId(bundleId) {
  * pages build, the bare id list its dev server discovers from public/, and the
  * empty list emitted into the packaged shell.
  */
+// A bundle reaches the viewer as a catalog id ("code-aster-review"), as a path
+// ("/code-aster-review"), or with a trailing slash. The header switcher used to
+// compare those forms directly, so a bundle requested by path matched no option
+// and the browser fell back to showing the first one - the control named a
+// model you were not looking at.
+export function bundleKey(value) {
+  return String(value ?? "")
+    .replace(/^\.?\/+/, "")
+    .replace(/\/+$/, "");
+}
+
 export function normalizeCatalog(catalog) {
   if (!Array.isArray(catalog)) {
     return [];

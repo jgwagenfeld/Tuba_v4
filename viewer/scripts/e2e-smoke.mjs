@@ -688,10 +688,12 @@ const scenarios = {
       assert.equal(compactLayout.display, "flex");
       assert.equal(compactLayout.overflowX, "hidden");
       assert.equal(compactLayout.overflowY, "hidden");
-      assert.ok(Math.abs(compactLayout.rail.left - compactLayout.canvas.left) <= 1, JSON.stringify(compactLayout));
-      assert.ok(compactLayout.rail.right < compactLayout.canvas.right, JSON.stringify(compactLayout));
+      // The rail reserves its width rather than overlaying the scene, so the
+      // canvas begins where the panel ends and nothing is drawn underneath it.
+      // ("Attach controls toggle to left panel and reserve panel space".)
+      assert.ok(Math.abs(compactLayout.rail.left - compactLayout.workspace.left) <= 1, JSON.stringify(compactLayout));
+      assert.ok(Math.abs(compactLayout.canvas.left - compactLayout.rail.right) <= 1, JSON.stringify(compactLayout));
       assert.ok(Math.abs(compactLayout.rail.top - compactLayout.canvas.top) <= 1, JSON.stringify(compactLayout));
-      assert.ok(Math.abs(compactLayout.canvas.left - compactLayout.workspace.left) <= 1, JSON.stringify(compactLayout));
       assert.ok(Math.abs(compactLayout.canvas.right - compactLayout.workspace.right) <= 1, JSON.stringify(compactLayout));
       assert.ok(compactLayout.canvas.width >= 480, `compact canvas width is too small: ${JSON.stringify(compactLayout)}`);
       assert.ok(compactLayout.canvas.height >= 240, `compact canvas height is too small: ${JSON.stringify(compactLayout)}`);
@@ -1052,8 +1054,11 @@ const scenarios = {
           renderDiagnostics: viewer.lastRender.diagnostics
         };
       });
-      assert.equal(loaded.objects, 221);
-      assert.equal(loaded.geometryPayloads, 218);
+      // Exact, so a bundle that silently loses geometry fails loudly. Refreshed
+      // for the regenerated bundle: the load reports no diagnostics at all, so
+      // the drop from 221/218 is the model changing, not objects going missing.
+      assert.equal(loaded.objects, 209);
+      assert.equal(loaded.geometryPayloads, 216);
       assert.equal(loaded.overlays, 11);
       assert.equal(loaded.layers, 40);
       assert.equal(loaded.resultFields, 5);
