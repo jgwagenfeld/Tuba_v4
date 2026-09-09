@@ -10,7 +10,7 @@ import hashlib
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 
@@ -55,10 +55,9 @@ class _MeshWriterMixin:
     ) -> AnalysisMesh | None:
         """Generate the Code_Aster plain-text mesh file.
 
-        Uses the **Gmsh OCC kernel** to construct proper circular arcs
-        for pipe bends and discretise them into quadratic SEG3 pipe elements.
-        Straight pipes are represented as single SEG3 elements.  Non-pipe
-        beams, bars, and cables remain SEG2 line elements.
+        Bends are discretised into circular-arc segments. Straight TUYAU
+        pipes use SEG3; beams, beam-modelled pipes and cables use subdivided
+        SEG2 spans so the solver can resolve curvature and cable sag.
 
         The mesh is written in the Aster native format
         (``FORMAT='ASTER'``) so that ``LIRE_MAILLAGE`` can read it
@@ -117,6 +116,8 @@ class _MeshWriterMixin:
                 n_segments=N,
             )
 
+        straight_pairs = {elem.id: self._straight_segment_node_pairs(elem) for elem in straight_elems}
+
         # --- COOR_3D ------------------------------------------------------
         lines.append("COOR_3D")
         for contact in contacts:
@@ -126,6 +127,13 @@ class _MeshWriterMixin:
             n = model.nodes[nid]
             x, y, z = n.coords
             lines.append(f"  {map_name(nid)}  {x:+.10E}  {y:+.10E}  {z:+.10E}")
+
+        for elem in straight_elems:
+            pairs = straight_pairs[elem.id]
+            start, end = (model.nodes[nid].coords for nid in (elem.n1, elem.n2))
+            for index, (_, _, node_id) in enumerate(pairs[:-1], start=1):
+                coord = start + (end - start) * index / len(pairs)
+                lines.append(f"  {map_name(node_id)} " + " ".join(f"{v:+.10E}" for v in coord))
 
         for elem in bend_elems:
             for name, coord in bend_intermediate[elem.id]:
@@ -173,7 +181,8 @@ class _MeshWriterMixin:
         if non_pipe_straights:
             lines.append("SEG2")
             for elem in non_pipe_straights:
-                lines.append(f"  {map_name(elem.id)}  {map_name(elem.n1)}  {map_name(elem.n2)}")
+                for segment_id, start, end in straight_pairs[elem.id]:
+                    lines.append(f"  {map_name(segment_id)}  {map_name(start)}  {map_name(end)}")
             lines.append("FINSF")
             lines.append("")
 
@@ -197,7 +206,7 @@ class _MeshWriterMixin:
         if pipe_straights:
             lines.append(f"GROUP_MA NOM={map_name('PipeStraights')}")
             for elem in pipe_straights:
-                lines.append(f"  {map_name(elem.id)}")
+                lines.extend(f"  {map_name(sid)}" for sid, _, _ in straight_pairs[elem.id])
             lines.append("FINSF")
             lines.append("")
 
@@ -213,7 +222,7 @@ class _MeshWriterMixin:
         # --- GROUP_MA NOM=AllPipes ----------------------------------------
         all_pipe_ids: List[str] = []
         for e in pipe_straights:
-            all_pipe_ids.append(e.id)
+            all_pipe_ids.extend(sid for sid, _, _ in straight_pairs[e.id])
         for e in bend_elems:
             all_pipe_ids.extend([f"{e.id}_s{i}" for i in range(N)])
 
@@ -226,7 +235,7 @@ class _MeshWriterMixin:
 
         for elem in straight_elems:
             lines.append(f"GROUP_MA NOM={map_name(elem.id)}")
-            lines.append(f"  {map_name(elem.id)}")
+            lines.extend(f"  {map_name(sid)}" for sid, _, _ in straight_pairs[elem.id])
             lines.append("FINSF")
             lines.append("")
 
@@ -245,7 +254,7 @@ class _MeshWriterMixin:
         poutre_line_elems = pipe_straights + beam_elems
         section_group_members: dict[str, list[str]] = {}
         for elem in poutre_line_elems:
-            section_group_members.setdefault(elem.section, []).append(elem.id)
+            section_group_members.setdefault(elem.section, []).extend(sid for sid, _, _ in self._straight_segment_node_pairs(elem))
         for section_name, element_ids in section_group_members.items():
             lines.append(f"GROUP_MA NOM={map_name(self._section_group_name(section_name))}")
             for element_id in element_ids:
@@ -255,7 +264,7 @@ class _MeshWriterMixin:
 
         material_group_members: dict[str, list[str]] = {}
         for elem in pipe_straights + beam_elems + bar_elems + cable_elems:
-            material_group_members.setdefault(elem.material, []).append(elem.id)
+            material_group_members.setdefault(elem.material, []).extend(sid for sid, _, _ in self._straight_segment_node_pairs(elem))
         for elem in bend_elems:
             material_group_members.setdefault(elem.material, []).extend(
                 f"{elem.id}_s{i}" for i in range(N)
@@ -271,7 +280,7 @@ class _MeshWriterMixin:
         if beam_elems:
             lines.append(f"GROUP_MA NOM={map_name('G_TUBE')}")
             for elem in beam_elems:
-                lines.append(f"  {map_name(elem.id)}")
+                lines.extend(f"  {map_name(sid)}" for sid, _, _ in straight_pairs[elem.id])
             lines.append("FINSF")
             lines.append("")
 
@@ -279,7 +288,7 @@ class _MeshWriterMixin:
         if bar_elems:
             lines.append(f"GROUP_MA NOM={map_name('G_BAR')}")
             for elem in bar_elems:
-                lines.append(f"  {map_name(elem.id)}")
+                lines.extend(f"  {map_name(sid)}" for sid, _, _ in straight_pairs[elem.id])
             lines.append("FINSF")
             lines.append("")
 
@@ -287,7 +296,7 @@ class _MeshWriterMixin:
         if cable_elems:
             lines.append(f"GROUP_MA NOM={map_name('G_CABLE')}")
             for elem in cable_elems:
-                lines.append(f"  {map_name(elem.id)}")
+                lines.extend(f"  {map_name(sid)}" for sid, _, _ in straight_pairs[elem.id])
             lines.append("FINSF")
             lines.append("")
 
@@ -391,12 +400,23 @@ class _MeshWriterMixin:
         element_sources: dict[str, MeshElementSource] = {}
         straight_elems = pipe_straights + beam_elems + bar_elems + cable_elems
         for elem in straight_elems:
-            elements[elem.id] = (elem.n1, elem.n2)
-            element_sources[elem.id] = MeshElementSource(
-                element_id=elem.id,
-                source_ref=EntityRef("element", elem.id),
-                role="native_element",
-            )
+            pairs = self._straight_segment_node_pairs(elem)
+            start, end = (model.nodes[nid].coords for nid in (elem.n1, elem.n2))
+            for index, (segment_id, n1, n2) in enumerate(pairs):
+                elements[segment_id] = (n1, n2)
+                element_sources[segment_id] = MeshElementSource(
+                    element_id=segment_id,
+                    source_ref=EntityRef("element", elem.id),
+                    role="straight_segment" if len(pairs) > 1 else "native_element",
+                    segment_index=index if len(pairs) > 1 else None,
+                )
+                if n2 != elem.n2:
+                    t = (index + 1) / len(pairs)
+                    nodes[n2] = tuple(float(v) for v in start + (end - start) * t)
+                    node_sources[n2] = MeshNodeSource(
+                        node_id=n2, source_ref=EntityRef("element", elem.id),
+                        role="generated_straight_node", parametric_t=t, segment_index=index + 1,
+                    )
 
         for elem in pipe_bends:
             segment_ids = []
@@ -421,27 +441,27 @@ class _MeshWriterMixin:
 
         groups: dict[str, tuple[str, ...]] = {}
         if pipe_straights:
-            groups["PipeStraights"] = tuple(elem.id for elem in pipe_straights)
+            groups["PipeStraights"] = tuple(sid for elem in pipe_straights for sid, _, _ in self._straight_segment_node_pairs(elem))
         if pipe_bends:
             groups["PipeElbows"] = tuple(f"{elem.id}_s{index}" for elem in pipe_bends for index in range(n_segments))
-        all_pipe_ids = [elem.id for elem in pipe_straights]
+        all_pipe_ids = [sid for elem in pipe_straights for sid, _, _ in self._straight_segment_node_pairs(elem)]
         all_pipe_ids.extend(f"{elem.id}_s{index}" for elem in pipe_bends for index in range(n_segments))
         if all_pipe_ids:
             groups["AllPipes"] = tuple(all_pipe_ids)
         for elem in straight_elems:
-            groups[elem.id] = (elem.id,)
+            groups[elem.id] = tuple(sid for sid, _, _ in self._straight_segment_node_pairs(elem))
         pipe_orientation_nodes = [elem.n1 for elem in pipe_straights]
         pipe_orientation_nodes.extend(elem.n1 for elem in pipe_bends)
         if pipe_orientation_nodes:
             groups["PipeOrientationNodes"] = (next(iter(dict.fromkeys(pipe_orientation_nodes))),)
         section_group_members: dict[str, list[str]] = {}
         for elem in pipe_straights + beam_elems:
-            section_group_members.setdefault(elem.section, []).append(elem.id)
+            section_group_members.setdefault(elem.section, []).extend(sid for sid, _, _ in self._straight_segment_node_pairs(elem))
         for section_name, element_ids in section_group_members.items():
             groups[self._section_group_name(section_name)] = tuple(element_ids)
         material_group_members: dict[str, list[str]] = {}
         for elem in straight_elems:
-            material_group_members.setdefault(elem.material, []).append(elem.id)
+            material_group_members.setdefault(elem.material, []).extend(sid for sid, _, _ in self._straight_segment_node_pairs(elem))
         for elem in pipe_bends:
             material_group_members.setdefault(elem.material, []).extend(
                 f"{elem.id}_s{index}" for index in range(n_segments)
@@ -449,11 +469,11 @@ class _MeshWriterMixin:
         for material_name, element_ids in material_group_members.items():
             groups[self._material_group_name(material_name)] = tuple(element_ids)
         if beam_elems:
-            groups["G_TUBE"] = tuple(elem.id for elem in beam_elems)
+            groups["G_TUBE"] = tuple(sid for elem in beam_elems for sid, _, _ in self._straight_segment_node_pairs(elem))
         if bar_elems:
-            groups["G_BAR"] = tuple(elem.id for elem in bar_elems)
+            groups["G_BAR"] = tuple(sid for elem in bar_elems for sid, _, _ in self._straight_segment_node_pairs(elem))
         if cable_elems:
-            groups["G_CABLE"] = tuple(elem.id for elem in cable_elems)
+            groups["G_CABLE"] = tuple(sid for elem in cable_elems for sid, _, _ in self._straight_segment_node_pairs(elem))
         for elem in pipe_bends:
             groups[elem.id] = tuple(f"{elem.id}_s{index}" for index in range(n_segments))
         for node_id in sorted({support.node for support in model.supports} | _nodal_force_node_ids(model)):
@@ -523,6 +543,14 @@ class _MeshWriterMixin:
                     coords=(start + end) / 2.0,
                 )
         return midpoints
+
+    def _straight_segment_node_pairs(self, elem: Element) -> list[tuple[str, str, str]]:
+        subdivide = elem.type in ("beam", "cable") or (
+            elem.type == "pipe_straight" and self.pipe_modelization is PipeModelization.POU_D_T
+        )
+        if not subdivide or self.line_segments == 1:
+            return [(elem.id, elem.n1, elem.n2)]
+        return self._bend_segment_node_pairs(elem, self.line_segments)
 
     @staticmethod
     def _bend_segment_node_pairs(elem: Element, n_segments: int) -> list[tuple[str, str, str]]:

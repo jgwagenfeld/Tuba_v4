@@ -101,6 +101,9 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         Docker image name, e.g. ``'simvia/code_aster:stable'``.
         Required when *exec_method* is ``'docker'`` or the auto Docker fallback
         is used.
+    line_segments : int, optional
+        Solver segments per straight beam, beam-modelled pipe or cable (default 8).
+        Increase to check mesh convergence; 1 explicitly requests a single span.
     runner_command : str, optional
         Shell command used inside WSL or the container before ``study.export``.
         When omitted, Tuba tries ``as_run``, ``aster``, and the documented
@@ -122,7 +125,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         pipe_modelization: PipeModelization | str = PipeModelization.TUYAU_3M,
         load_path=None,
         load_step: float = 0.1,
+        line_segments: int = 8,
     ) -> None:
+        if isinstance(line_segments, bool) or not isinstance(line_segments, int) or line_segments < 1:
+            raise ValueError("line_segments must be a positive integer.")
+        self.line_segments = line_segments
         self.pipe_modelization = PipeModelization(pipe_modelization)
         if isinstance(load_path, str):
             raise ValueError("load_path must be a sequence of names, not a string.")
@@ -269,6 +276,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             {"pipe_modelization": self.pipe_modelization.value, "bend_segments": self._BEND_SEGMENTS}
             if self.pipe_modelization is PipeModelization.POU_D_T else None
         )
+        if any(len(self._straight_segment_node_pairs(e)) > 1 for e in model.elements if e.type != "pipe_bend"):
+            compiler_inputs = dict(compiler_inputs or {}, line_segments=self.line_segments)
         from tuba.solver.aster_contact import shoes, validate_path
         contact_specs = shoes(model, self.pipe_modelization)
         if self.load_path is not None and not contact_specs:
@@ -613,6 +622,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             inputs = manifest.get("study", {}).get("metadata", {}).get("compiler_inputs", {})
             self.pipe_modelization = PipeModelization(inputs.get("pipe_modelization", "TUYAU_3M"))
             self._BEND_SEGMENTS = int(inputs.get("bend_segments", 16))
+            self.line_segments = int(inputs.get("line_segments", 1))
         results = FEAResults(solver_name=self.SOLVER_NAME)
         results._model = model
 
@@ -877,9 +887,9 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     def _result_element_lookup(self, model: TubaModel) -> dict[str, Element]:
         lookup = {element.id: element for element in model.elements}
         for element in model.elements:
-            if element.type != "pipe_bend":
-                continue
-            for segment_id, _, _ in self._bend_segment_node_pairs(element, self._BEND_SEGMENTS):
+            pairs = (self._bend_segment_node_pairs(element, self._BEND_SEGMENTS)
+                     if element.type == "pipe_bend" else self._straight_segment_node_pairs(element))
+            for segment_id, _, _ in pairs:
                 lookup[segment_id] = element
         return lookup
 
@@ -911,7 +921,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             eid = element_label_map.get(raw_eid, raw_eid)
             nid = node_label_map.get(raw_nid, raw_nid)
             
-            # The mesh subdivides each elbow into sub-elements (pipe_bend_0_s0, _s1, …)
+            # The mesh subdivides members into sub-elements (pipe_bend_0_s0, _s1, …)
             # for FE accuracy. Fold them back to the single model bend element. Forces
             # attach only at the elbow's own end nodes (n1/n2) below — exactly the input
             # external end-node checks consume; interior sub-node moments feed FE

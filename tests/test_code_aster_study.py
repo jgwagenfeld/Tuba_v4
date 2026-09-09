@@ -87,7 +87,7 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertEqual(mesh.node_sources[f"{bend.id}_n1"].role, "generated_bend_node")
         self.assertEqual(str(mesh.node_sources[f"{bend.id}_n1"].source_ref), f"element:{bend.id}")
         self.assertEqual(mesh.element_sources[f"{bend.id}_s0"].role, "bend_segment")
-        self.assertEqual(str(mesh.element_sources["rack_beam_0"].source_ref), "element:rack_beam_0")
+        self.assertEqual(str(mesh.element_sources["rack_beam_0_s0"].source_ref), "element:rack_beam_0")
         self.assertIn("PipeElbows", mesh.groups)
 
     def test_bend_discretisation_is_memoized_within_an_export(self):

@@ -8,6 +8,9 @@ members actually carry.
 Cables are the reason this study is nonlinear. A cable takes no compression, so
 the leeward guy sheds its load as the mast leans downwind and the two windward
 guys pick it up - a redistribution ``MECA_STATIQUE`` cannot express.
+The solver subdivides each guy and mast span; gravity produces sag in the
+lightly loaded guy, which still carries tension from its own weight.
+Increase ``CodeAsterSolver(line_segments=...)`` to check mesh convergence.
 """
 
 from __future__ import annotations
@@ -102,7 +105,7 @@ def run_example(
         artifact_dir=artifact_dir if artifact_dir is not None else ARTIFACT_DIR,
         model=build_guyed_mast_model(),
         scene_id="scene:guyed_mast_review",
-        title="Solved guyed-mast cable review",
+        title="Cable",
         source=__file__,
     )
 

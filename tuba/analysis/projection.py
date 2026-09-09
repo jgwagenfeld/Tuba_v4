@@ -58,17 +58,19 @@ def centerline_node_ids(
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """The nodes an element's centreline runs through, and any diagnostics.
 
-    A bend is a chord between its end nodes until the analysis mesh supplies
+    A member is a chord between its end nodes until the analysis mesh supplies
     the generated interior nodes. Every consumer must ask for the same node
     set: comparing a chord against a refined arc measures the discretisation,
     not the movement.
     """
-    if element.type != "pipe_bend":
-        return (element.n1, element.n2), ()
-    generated = _generated_bend_nodes(element, analysis_mesh)
+    generated = _generated_centerline_nodes(element, analysis_mesh)
     if generated and all(node_id in result_state.node_displacements for node_id in generated):
         return (element.n1, *generated, element.n2), ()
-    return (element.n1, element.n2), ("bend_displacement_interpolated",)
+    if element.type == "pipe_bend":
+        return (element.n1, element.n2), ("bend_displacement_interpolated",)
+    if generated:
+        raise ValueError(f"Missing solved interior displacements for {element.id!r}.")
+    return (element.n1, element.n2), ()
 
 
 def displace_polyline(
@@ -106,13 +108,13 @@ def _node_displacement(result_state: ResultState, node_id: str) -> np.ndarray:
     return np.asarray([float(value or 0.0) for value in values[:3]], dtype=float)
 
 
-def _generated_bend_nodes(element: Element, analysis_mesh: AnalysisMesh | None) -> tuple[str, ...]:
+def _generated_centerline_nodes(element: Element, analysis_mesh: AnalysisMesh | None) -> tuple[str, ...]:
     if analysis_mesh is None:
         return ()
     generated: list[tuple[float, int, str]] = []
     element_ref = EntityRef("element", element.id)
     for node_id, source in analysis_mesh.node_sources.items():
-        if source.source_ref != element_ref or source.role != "generated_bend_node":
+        if source.source_ref != element_ref or source.role not in {"generated_bend_node", "generated_straight_node"}:
             continue
         parametric_t = source.parametric_t if source.parametric_t is not None else 0.0
         segment_index = source.segment_index if source.segment_index is not None else 0

@@ -836,6 +836,9 @@ class _CommWriterMixin:
                 w("    ),")
                 if has_unilateral:
                     w("    CONTACT=contact,")
+                if cable_elems:
+                    w("    CONVERGENCE=_F(ITER_GLOB_MAXI=100),")
+                    w("    RECH_LINEAIRE=_F(METHODE='CORDE'),")
                 w("    METHODE='NEWTON',")
                 w(");")
             else:
