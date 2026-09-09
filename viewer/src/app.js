@@ -826,14 +826,41 @@ function bodyRow(body) {
     head.append(opacityChip(body));
   }
 
-  row.append(head);
+  // The sublines are what a layer is made of - element counts, wall thickness,
+  // sub-point grids. Useful when you ask, noise when you do not: four layers
+  // put eight lines of mono under four checkboxes, and nothing outranked
+  // anything. The row says what it is; the caret says what it is made of.
+  if (body.metrics.length > 0) {
+    const metrics = document.createElement("div");
+    metrics.className = "body-metrics";
+    metrics.id = `body-metrics-${body.id}`;
+    metrics.hidden = !expandedBodies.has(body.id);
+    for (const metric of body.metrics) {
+      const line = document.createElement("p");
+      line.className = "body-metric";
+      line.textContent = metric;
+      metrics.append(line);
+    }
 
-  for (const metric of body.metrics) {
-    const line = document.createElement("p");
-    line.className = "body-metric";
-    line.textContent = metric;
-    row.append(line);
+    const caret = document.createElement("button");
+    caret.type = "button";
+    caret.className = "body-caret";
+    caret.dataset.focusKey = `metrics:${body.id}`;
+    caret.setAttribute("aria-expanded", String(!metrics.hidden));
+    caret.setAttribute("aria-controls", metrics.id);
+    caret.setAttribute("aria-label", `${body.label} details`);
+    caret.textContent = metrics.hidden ? "▸" : "▾";
+    caret.addEventListener("click", () => {
+      if (expandedBodies.has(body.id)) expandedBodies.delete(body.id);
+      else expandedBodies.add(body.id);
+      render();
+    });
+    head.append(caret);
+    row.append(head, metrics);
+    return row;
   }
+
+  row.append(head);
   return row;
 }
 
@@ -882,7 +909,20 @@ function renderSectionProfile() {
   // is tinting the scene, so it must not read as the active legend.
   // "Wall section", not "Section": the strip already has a Section box, and that
   // one clips the scene rather than describing the pipe wall.
-  dom.sectionProfile.append(stripHeading(`Wall section · ${getSubpointLegend(currentState)?.field ?? "sub-points"}`));
+  // A 104px rosette plus four fact lines, permanently open, for a question
+  // asked once per session: what the sub-point grid looks like.
+  const heading = document.createElement("button");
+  heading.type = "button";
+  heading.className = "strip-heading strip-toggle";
+  heading.dataset.focusKey = "section:wall";
+  heading.setAttribute("aria-expanded", String(wallSectionOpen));
+  heading.textContent = `${wallSectionOpen ? "▾" : "▸"} Wall section · ${getSubpointLegend(currentState)?.field ?? "sub-points"}`;
+  heading.addEventListener("click", () => {
+    wallSectionOpen = !wallSectionOpen;
+    render();
+  });
+  dom.sectionProfile.append(heading);
+  if (!wallSectionOpen) return;
   const body = document.createElement("div");
   body.className = "section-profile-body";
   body.append(sectionRosette(profile));
@@ -1713,6 +1753,8 @@ function renderRailUtility(shown = 0, hidden = 0) {
 }
 
 let openPopoverId = null;
+const expandedBodies = new Set();
+let wallSectionOpen = false;
 let bodyLegendOpen = false;
 
 function renderRailPopover() {

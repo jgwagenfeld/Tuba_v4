@@ -284,11 +284,16 @@ const scenarios = {
       const chip = page.locator("[data-unit-system]");
       const legend = page.locator("[data-viewport-legend]");
       const section = page.locator("[data-section-profile]");
+      // The wall-section rosette and its facts fold away by default; this
+      // scenario reads the peak out of them, so open it once - the state
+      // survives the re-renders the unit switches below cause.
+      await section.locator(".strip-toggle").click();
 
       // Engineering by default: stored pascals read as MPa, stored metres as mm.
       assert.equal(await chip.getAttribute("data-unit-system"), "engineering");
       assert.match(await legend.textContent(), /MPa/);
       assert.match(await section.textContent(), /peak 160\.8 MPa/);
+      // Folded away, not removed: the sublines stay in the row's text.
       assert.match(
         await page.locator('.body-row[data-body="geometry"]').textContent(),
         /OD 114\.3 · WT 6\.02 · R 342\.9 mm/
