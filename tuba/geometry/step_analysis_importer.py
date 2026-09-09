@@ -132,9 +132,24 @@ class StepAnalysisImporter:
                 faces = gmsh.model.getBoundary([(dim, tag)], oriented=False, recursive=False)
             except Exception:
                 continue
+            try:
+                solid_center = gmsh.model.occ.getCenterOfMass(dim, tag)
+            except Exception:
+                solid_center = None
 
-            for boundary_dim, face_tag in faces:
+            for boundary_dim, raw_face_tag in faces:
+                face_tag = abs(int(raw_face_tag))
                 if boundary_dim != 2 or face_tag in seen_face_tags:
+                    continue
+                # A pipe lands on a flat face. On a curved one the bounding box
+                # is not a radius - on a cylinder lateral it is half the face
+                # length - and a normal sampled at the parametric midpoint is an
+                # arbitrary point on the surface. A confident wrong number is
+                # worse than no candidate.
+                try:
+                    if gmsh.model.getType(boundary_dim, face_tag) != "Plane":
+                        continue
+                except Exception:
                     continue
                 try:
                     x_min, y_min, z_min, x_max, y_max, z_max = gmsh.model.getBoundingBox(
@@ -148,18 +163,19 @@ class StepAnalysisImporter:
                 radius = max(x_max - x_min, y_max - y_min, z_max - z_min) / 2.0
                 if radius <= 0.0:
                     radius = 1e-6
+                position = [
+                    (x_min + x_max) / 2.0,
+                    (y_min + y_max) / 2.0,
+                    (z_min + z_max) / 2.0,
+                ]
 
                 index = len(candidates)
                 candidates.append(
                     {
                         "id": f"port_candidate_{index}",
                         "kind": "circular_face",
-                        "position": [
-                            (x_min + x_max) / 2.0,
-                            (y_min + y_max) / 2.0,
-                            (z_min + z_max) / 2.0,
-                        ],
-                        "axis": [1.0, 0.0, 0.0],
+                        "position": position,
+                        "axis": self._outward_face_axis(face_tag, position, solid_center),
                         "radius": float(radius),
                         "face_group": f"G_PORT_CANDIDATE_{index}",
                         "metadata": {"gmsh_face_tag": face_tag},
@@ -167,6 +183,41 @@ class StepAnalysisImporter:
                 )
 
         return candidates
+
+    @staticmethod
+    def _outward_face_axis(
+        face_tag: int,
+        face_center: list[float],
+        solid_center: Any,
+    ) -> list[float]:
+        """The face normal, flipped to point away from the solid it bounds.
+
+        OCC orients a face however the modelling history left it, so the raw
+        normal's sign says nothing about which side the material is on. A port
+        axis has to point away from the equipment and back down the pipe.
+        """
+        default = [1.0, 0.0, 0.0]
+        if gmsh is None:
+            return default
+        try:
+            parametric_min, parametric_max = gmsh.model.getParametrizationBounds(2, face_tag)
+            u = (float(parametric_min[0]) + float(parametric_max[0])) / 2.0
+            v = (float(parametric_min[1]) + float(parametric_max[1])) / 2.0
+            normal = [float(value) for value in gmsh.model.getNormal(face_tag, [u, v])]
+        except Exception:
+            return default
+        length = sum(value * value for value in normal) ** 0.5
+        if length <= 1e-12:
+            return default
+        normal = [value / length for value in normal]
+        if solid_center is None:
+            return normal
+        # ponytail: centroid heuristic; use a ray cast if a concave solid ever
+        # puts its centre of mass on the wrong side of one of its own faces.
+        outward = [float(face_center[index]) - float(solid_center[index]) for index in range(3)]
+        if sum(a * b for a, b in zip(normal, outward)) < 0.0:
+            normal = [-value for value in normal]
+        return normal
 
     @staticmethod
     def _normalize_port_candidate(candidate: dict[str, Any]) -> dict[str, Any]:

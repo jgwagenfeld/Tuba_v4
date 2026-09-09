@@ -2,10 +2,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import gmsh as gmsh_module
 import pytest
 
 from tuba import Model
 from tuba.geometry.step_analysis_importer import StepAnalysisImporter, StepImportError
+from tuba.meshing._gmsh import gmsh_model
+
+
+def _write_nozzle_step(path: Path) -> Path:
+    """A vessel with a bored nozzle stub; the stub end face is the port."""
+    with gmsh_model(gmsh_module, "test_nozzle"):
+        outer = gmsh_module.model.occ.addCylinder(0, 0, 0, 0.16, 0, 0, 0.05)
+        bore = gmsh_module.model.occ.addCylinder(-0.01, 0, 0, 0.18, 0, 0, 0.042)
+        vessel = gmsh_module.model.occ.addCylinder(0.16, 0, 0, 0.24, 0, 0, 0.15)
+        fused, _ = gmsh_module.model.occ.fuse([(3, outer)], [(3, vessel)])
+        gmsh_module.model.occ.cut(fused, [(3, bore)])
+        gmsh_module.model.occ.synchronize()
+        gmsh_module.write(str(path))
+    return path
 
 
 def test_missing_step_file_raises_clear_error(tmp_path):
@@ -146,6 +161,10 @@ def test_import_component_preserves_existing_gmsh_session(tmp_path: Path, monkey
         def synchronize():
             calls.append("synchronize")
 
+        @staticmethod
+        def getCenterOfMass(dim, tag):
+            return (0.05, -0.05, 0.05)
+
     class FakeModel:
         occ = FakeOcc()
         current = "caller_model"
@@ -177,6 +196,19 @@ def test_import_component_preserves_existing_gmsh_session(tmp_path: Path, monkey
         def getBoundingBox(dim, tag):
             return (0.0, 0.0, 0.0, 0.1, 0.0, 0.1)
 
+        @staticmethod
+        def getType(dim, tag):
+            return "Plane"
+
+        @staticmethod
+        def getParametrizationBounds(dim, tag):
+            return ([0.0, 0.0], [1.0, 1.0])
+
+        @staticmethod
+        def getNormal(tag, parametric_coord):
+            # The fake face is flat in y, so its normal is the y axis.
+            return [0.0, 1.0, 0.0]
+
     class FakeGmsh:
         model = FakeModel()
 
@@ -198,8 +230,61 @@ def test_import_component_preserves_existing_gmsh_session(tmp_path: Path, monkey
     component = StepAnalysisImporter().import_component(model, step_file, id="component_fake")
 
     assert component.id == "component_fake"
-    assert "port_candidate_0" in model.ports
+    assert model.ports["port_candidate_0"].axis == (0.0, 1.0, 0.0)
     assert "initialize" not in calls
     assert "finalize" not in calls
     assert "remove" in calls
     assert FakeModel.current == "caller_model"
+
+
+def test_detection_proposes_only_planar_faces_with_outward_axes(tmp_path: Path):
+    step_path = _write_nozzle_step(tmp_path / "nozzle.step")
+    model = Model(project_name="Nozzle detection")
+
+    StepAnalysisImporter().import_component(
+        model,
+        step_path,
+        id="component_nozzle",
+        asset_id="cad_asset_nozzle",
+    )
+
+    # Seven faces, four of them planar. The three cylinder laterals must not be
+    # proposed: a pipe cannot land on one, and their bbox "radius" is half a
+    # face length.
+    assert len(model.ports) == 4
+
+    ports = list(model.ports.values())
+    stub_end = [port for port in ports if abs(port.radius - 0.05) < 1e-6]
+    assert len(stub_end) == 1, "the stub end annulus is the only 0.05 m face"
+
+    port = stub_end[0]
+    assert port.position == pytest.approx((0.0, 0.0, 0.0), abs=1e-9)
+    # Outward from a solid that lies at +x, so the axis points back down the pipe.
+    assert port.axis == pytest.approx((-1.0, 0.0, 0.0), abs=1e-9)
+    assert isinstance(port.metadata["gmsh_face_tag"], int)
+
+    # Every axis is a unit vector, and none is the old hardcoded default on a
+    # face whose true normal is -x.
+    for candidate in ports:
+        assert sum(value * value for value in candidate.axis) == pytest.approx(1.0, abs=1e-9)
+
+
+def test_outward_face_axis_flips_a_normal_that_points_into_the_solid():
+    """One real face, solid on either side of it, yields exactly opposite axes."""
+    with gmsh_model(gmsh_module, "test_flip"):
+        box = gmsh_module.model.occ.addBox(0, 0, 0, 1, 1, 1)
+        gmsh_module.model.occ.synchronize()
+        face_tag = abs(int(gmsh_module.model.getBoundary([(3, box)], oriented=False)[0][1]))
+        bounds = gmsh_module.model.getBoundingBox(2, face_tag)
+        centre = [(bounds[index] + bounds[index + 3]) / 2.0 for index in range(3)]
+        behind = StepAnalysisImporter._outward_face_axis(
+            face_tag, centre, [value - 1.0 for value in centre]
+        )
+        ahead = StepAnalysisImporter._outward_face_axis(
+            face_tag, centre, [value + 1.0 for value in centre]
+        )
+
+    # A silent fall back to the [1, 0, 0] default would return the same vector
+    # twice, so this also pins that the real normal was read.
+    assert behind == pytest.approx([-value for value in ahead], abs=1e-12)
+    assert sum(value * value for value in behind) == pytest.approx(1.0, abs=1e-12)
