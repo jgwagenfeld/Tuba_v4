@@ -192,10 +192,23 @@ test("the bodies panel is the rail's primary content, not a window onto it", asy
   // result controls behind a 200px window nested inside the pane's scrollbar.
   assert.match(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*flex:\s*0 0 auto[^}]*\}/s);
   assert.doesNotMatch(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*(max-height|overflow)/s);
-  // Nothing shares the pane with the result controls any more: the layer list
-  // is the Model task's, and Results hides it.
+  // With no cap on the task panel, nothing needs to be hidden to make room:
+  // what is drawn stays on screen whatever the task is. Hiding it on Results
+  // took the Deformed toggle away exactly while its own scale control was on
+  // screen.
   const app = await readViewerFile("src/app.js");
-  assert.match(app, /dom\.layersBlock\.hidden = currentState\.activeTab === "results"/);
+  assert.doesNotMatch(app, /dom\.layersBlock\.hidden/);
+  // Two bands, not one list: bodies have extent and carry an opacity, overlays
+  // are marks on the model and carry a scale.
+  const markup = await readViewerFile("index.html");
+  assert.match(markup, /data-layers-block[\s\S]*data-body-list[\s\S]*data-overlays-block[\s\S]*data-overlay-list/);
+  assert.match(app, /function renderOverlayList\(\)[\s\S]*getOverlays\(currentState\)/);
+  // The layer tree is the last row of that same list, not a popover pinned to
+  // the rail foot. Reaching supports or reaction forces used to mean opening
+  // the popover, opening All layers, then finding the right category.
+  assert.match(markup, /data-overlay-list[\s\S]*class="strip-drawer layer-tree"[\s\S]*data-layer-list/);
+  assert.doesNotMatch(markup, /rail-popover[\s\S]*data-layer-list/);
+  assert.doesNotMatch(app, /\["layers", "All layers"\]/);
   // The strip takes the remaining height. A fixed cap here showed a third of
   // the bodies list through a 395px window.
   assert.match(css, /^\.display-strip\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0/ms);

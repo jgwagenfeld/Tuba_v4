@@ -482,9 +482,47 @@ test("categorizeLayers orders categories and collapses mesh groups", () => {
   assert.equal(mesh.groups.length, 1);
   assert.equal(mesh.groups[0].label, "Groups");
   assert.deepEqual(mesh.groups[0].leaves, [
-    { layerId: "analysis_mesh:group:GN_N0", label: "GN N0", count: 1 },
-    { layerId: "analysis_mesh:group:MAT_Steel", label: "MAT Steel", count: 105 }
+    { layerId: "analysis_mesh:group:GN_N0", label: "Nodes: N0", count: 1 },
+    { layerId: "analysis_mesh:group:MAT_Steel", label: "Material: Steel", count: 105 }
   ]);
+});
+
+// The tree used to read as a list of solver identifiers with their capitals
+// filed off - "Allsupports", "Sec ibeamsec", "Gn n0". Every case below is a
+// real layer id from elements-supports-review.
+//
+// tuba/visualization/builders/_layers.py::_label_for must produce the same
+// strings; it is the copy of this rule that writes SceneLayer.label.
+test("categorizeLayers names mesh groups for a reader, not for the solver", () => {
+  const ids = [
+    "analysis_mesh:group:AllSupports",
+    "analysis_mesh:group:PipeOrientationNodes",
+    "analysis_mesh:group:GN_N0",
+    "analysis_mesh:group:G_TUBE",
+    "analysis_mesh:group:MAT_Steel",
+    "analysis_mesh:group:SEC_IBeamSec",
+    "analysis_mesh:group:pipe_str_0"
+  ];
+  const layers = Object.fromEntries(
+    ids.map((id) => [id, { id, visible: true, count: 1, source: "object" }])
+  );
+  const groups = categorizeLayers(layers).find((category) => category.id === "analysis_mesh").groups[0];
+  assert.deepEqual(
+    groups.leaves.map((leaf) => leaf.label),
+    [
+      // Camel case is a word boundary, so the capitals survive as spaces.
+      "All supports",
+      "Pipe orientation nodes",
+      // Code_Aster kind prefixes are spelled out rather than shouted.
+      "Nodes: N0",
+      "Elements: Tube",
+      "Material: Steel",
+      // "Sec" twice in one name says nothing the first one did not.
+      "Section: I beam",
+      // A solver tag keeps the digits it was written with.
+      "Pipe str 0"
+    ]
+  );
 });
 
 test("categorizeLayers gives the support layer its engineering label", () => {

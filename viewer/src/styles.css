@@ -1241,8 +1241,27 @@ textarea,
   color: var(--chrome-text);
 }
 
+/* The last row of the Display list, so it takes the same rule that separates
+   the body and overlay rows above it rather than floating free underneath. */
+.layer-tree {
+  border-top: 1px solid var(--graphite-line);
+  margin-top: 0.35rem;
+}
+
 .layer-tree > summary {
   cursor: pointer;
+}
+
+/* Floated rather than flexed: `display: flex` on a summary drops the native
+   disclosure triangle, and the triangle is what says the row opens. */
+.layer-tally {
+  float: right;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .layer-tree section {

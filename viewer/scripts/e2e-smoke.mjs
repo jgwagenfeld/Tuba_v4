@@ -474,9 +474,8 @@ const scenarios = {
     minimumObjects: 1,
     async run(page) {
       await openReviewControls(page);
-      // Secondary tools moved into the rail popover so the bodies panel owns the
-      // rail. Open it the way a reviewer would, then expand the tree inside it.
-      await page.locator('[data-rail-tool="layers"]').click();
+      // The tree is the last row of the Display strip now, not a popover tool,
+      // so there is nothing to open before expanding it.
       const layers = page.locator(".layer-tree");
       await layers.evaluate((details) => {
         details.open = true;

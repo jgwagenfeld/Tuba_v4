@@ -488,11 +488,54 @@ export function applyTaskVisibilityPreset(state, taskId) {
   return next;
 }
 
+// Code_Aster names its mesh groups by kind: SEC_ a section, MAT_ a material,
+// G_ an element group, GN_ a node group. Spelling the prefix out is most of
+// what turns one of these ids into a name.
+const GROUP_KIND_LABELS = Object.freeze({
+  G: "Elements",
+  GN: "Nodes",
+  MAT: "Material",
+  SEC: "Section"
+});
+
+// Layer ids arrive as solver identifiers - "AllSupports", "SEC_IBeamSec",
+// "GN_N0" - and used to reach the tree as "Allsupports", "Sec ibeamsec" and
+// "Gn n0": an id with its capitals filed off rather than a label. Split on the
+// separators the solver actually uses, camel-case boundaries included.
+//
+// tuba/visualization/builders/_layers.py::_label_for applies the same rule when
+// it writes SceneLayer.label. The two have to agree: bundles built before that
+// fix still carry the old labels, and this is what the reviewer reads.
 function leafLabel(layerId) {
   if (layerId === "support") return "Supports / constraints";
-  const last = String(layerId).split(":").at(-1);
-  return last
-    .split(/[_-]+/)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
+  const words = identifierWords(String(layerId).split(":").at(-1));
+  if (words.length === 0) return layerId;
+  const kind = GROUP_KIND_LABELS[words[0]];
+  // A bare prefix names nothing, so only expand it when a remainder is left to
+  // name.
+  if (kind && words.length > 1) {
+    const rest = words.slice(1);
+    // "SEC_IBeamSec" is "Section: I beam", not "Section: I beam sec".
+    if (rest.at(-1).toLowerCase() === words[0].toLowerCase()) rest.pop();
+    return `${kind}: ${sentenceCase(rest)}`;
+  }
+  return sentenceCase(words);
+}
+
+function identifierWords(tail) {
+  return tail
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .split(/[\s_-]+/)
+    .filter(Boolean);
+}
+
+// Sentence case, not title case: "Pipe orientation nodes" reads as a name,
+// "Pipe Orientation Nodes" reads as a heading. A word carrying a digit is a
+// solver tag ("N0", "bar_0") and keeps the case it was written in.
+function sentenceCase(words) {
+  const spelled = words.map((word) => (/\d/.test(word) ? word : word.toLowerCase()));
+  const [first, ...rest] = spelled;
+  if (!first) return "";
+  return [`${first.slice(0, 1).toUpperCase()}${first.slice(1)}`, ...rest].join(" ");
 }

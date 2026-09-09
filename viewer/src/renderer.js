@@ -93,7 +93,7 @@ export function createThreeSceneGraph(state, options = {}) {
   const renderableObjects = [...root.children];
   const deformationPreview = createVisualDeformationPreview(root);
   if (deformationPreview) root.add(deformationPreview);
-  addReferenceHelpers(scene, bounds);
+  addReferenceHelpers(scene, bounds, state.referenceGridVisible !== false);
 
   return {
     bounds,
@@ -1502,7 +1502,7 @@ function meshEdgeMaterial(asset, config, opacity = opacityForConfig(config, 1)) 
   });
 }
 
-function addReferenceHelpers(scene, bounds) {
+function addReferenceHelpers(scene, bounds, gridVisible = true) {
   const size = sizeOfBounds(bounds);
   const span = Math.max(size.x, size.y, size.z, 1);
   const center = centerOfBounds(bounds);
@@ -1515,10 +1515,15 @@ function addReferenceHelpers(scene, bounds) {
   // Sized to the model, not half again as large. At 1.5x the grid filled the
   // frame that the camera had fitted to the geometry, so the subject read as
   // small even when it was framed correctly.
-  const grid = new THREE.GridHelper(span * 1.05, 10, 0xb8c2d0, 0xe1e7ef);
-  grid.rotation.x = Math.PI / 2;
-  grid.position.set(center.x, center.y, bounds[2] - span * 0.03);
-  scene.add(grid);
+  // Toggled from the Ground grid row in the Overlays band. The lights above
+  // are not optional - they are how anything is visible at all - so only the
+  // grid answers to it.
+  if (gridVisible) {
+    const grid = new THREE.GridHelper(span * 1.05, 10, 0xb8c2d0, 0xe1e7ef);
+    grid.rotation.x = Math.PI / 2;
+    grid.position.set(center.x, center.y, bounds[2] - span * 0.03);
+    scene.add(grid);
+  }
 
   // No axes helper. It drew a second orientation indicator floating at the
   // centre of the bounds - in mid-air, since the bounds centre is rarely on the
@@ -1636,7 +1641,10 @@ function colorForAsset(asset, config) {
     return 0xf59e0b;
   }
   if (asset.format === "vector") {
-    return 0xd97706;
+    // Off the cividis ramp on purpose. An arrow is not a value: amber sat in
+    // the ramp's warm end, so a glyph read as "high", and it collided with both
+    // the support colour and the selection highlight.
+    return 0xc026d3;
   }
   if (source.includes("analysis_mesh")) {
     return 0x059669;

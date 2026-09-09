@@ -82,18 +82,15 @@ function card(entry) {
   const body = document.createElement("div");
   body.className = "gallery-card-body";
 
-  // The question leads; the title is the name you refer to it by afterwards.
-  // A catalog without narrative (the dev server's discovered id list) has only
-  // the title, so it becomes the heading rather than being printed twice.
   const heading = document.createElement("h2");
   heading.className = "gallery-card-question";
-  heading.textContent = entry.question || entry.title;
+  heading.textContent = entry.title;
   body.append(heading);
 
   if (entry.question) {
     const title = document.createElement("p");
     title.className = "gallery-card-title";
-    title.textContent = entry.title;
+    title.textContent = entry.question;
     body.append(title);
   }
 

@@ -62,6 +62,134 @@ const BODY_SPECS = Object.freeze([
 
 export const BODY_ORDER = Object.freeze(BODY_SPECS.map((spec) => spec.id));
 
+// Overlays are the marks drawn on the model rather than bodies with extent, so
+// a scale factor is meaningful for them and an opacity is not - the same line
+// supportsOpacity already draws through BODY_SPECS. They are listed here
+// because every one of them used to be reachable only as a checkbox in the
+// layer tree, inside the rail-foot popover, filed under whichever category its
+// layer id happened to start with.
+//
+// Supports carry no layer_ids of their own; layerIdsForObject falls back to the
+// object kind, which is why "support" is both the fallback id and the id the
+// bundle declares.
+const OVERLAY_SPECS = Object.freeze([
+  {
+    id: "support",
+    label: "Supports & BCs",
+    description: "Restraints and boundary conditions as the solver received them.",
+    layerIds: ["support"]
+  },
+  {
+    id: "applied_load",
+    label: "Applied loads",
+    description: "The load case as applied to the model.",
+    layerIds: ["design:loads"]
+  },
+  {
+    id: "reaction_force",
+    label: "Reaction forces",
+    description: "Reaction forces at the restrained degrees of freedom.",
+    layerIds: ["result:reaction_force"],
+    vectorType: "reaction"
+  },
+  {
+    id: "reaction_moment",
+    label: "Reaction moments",
+    description: "Reaction moments, right-hand rule.",
+    layerIds: ["result:reaction_moment"],
+    vectorType: "moment"
+  },
+  {
+    id: "displacement",
+    label: "Displacements",
+    description: "Nodal displacement vectors.",
+    layerIds: ["result:displacement"],
+    vectorType: "displacement"
+  },
+  // The one mark the scene does not carry a layer for: the renderer draws the
+  // grid from the model bounds, so there is nothing to gate it with. It is
+  // still a thing on screen the reviewer wants off, so it gets a row and a
+  // state flag of its own.
+  //
+  // Named for the grid alone. The design called this row "Global axes & grid",
+  // but renderer.js draws no axes helper - deliberately, the corner view gizmo
+  // is the orientation indicator - and a row must not promise a mark that is
+  // never drawn.
+  {
+    id: "ground_grid",
+    label: "Ground grid",
+    description: "The reference plane under the model. Orientation is on the corner gizmo.",
+    stateKey: "referenceGridVisible"
+  }
+]);
+
+export const OVERLAY_ORDER = Object.freeze(OVERLAY_SPECS.map((spec) => spec.id));
+
+// The steps the scale chip cycles. Inside the 0-5 range the vector sliders
+// already used, so a chip and a slider can never disagree about what is legal.
+export const VECTOR_SCALE_STEPS = Object.freeze([0.5, 1, 2, 5]);
+
+export function vectorScale(state, vectorType) {
+  const stored = Number(state.resultVectorScales?.[vectorType]);
+  return Number.isFinite(stored) ? stored : 1;
+}
+
+// Mirrors getBodies: an overlay the scene does not populate is omitted rather
+// than shown empty.
+export function getOverlays(state) {
+  const overlays = [];
+  for (const spec of OVERLAY_SPECS) {
+    // Viewer chrome rather than scene content: always offered, because the
+    // renderer always draws it. It has no layer to count, so it carries no
+    // badge.
+    if (spec.stateKey) {
+      overlays.push({
+        ...spec,
+        layerIds: [],
+        count: null,
+        visible: state[spec.stateKey] !== false,
+        partiallyVisible: false,
+        scale: null
+      });
+      continue;
+    }
+    const gates = spec.layerIds
+      .map((layerId) => state.layers?.[layerId])
+      .filter((layer) => layer && layer.count > 0);
+    if (gates.length === 0) continue;
+    const visibles = gates.map((layer) => layer.visible !== false);
+    overlays.push({
+      ...spec,
+      layerIds: gates.map((layer) => layer.id),
+      count: gates.reduce((total, layer) => total + layer.count, 0),
+      visible: visibles.every(Boolean),
+      partiallyVisible: !visibles.every(Boolean) && visibles.some(Boolean),
+      scale: spec.vectorType ? vectorScale(state, spec.vectorType) : null
+    });
+  }
+  return overlays;
+}
+
+export function setOverlayVisibility(state, overlayId, visible) {
+  const overlay = getOverlays(state).find((candidate) => candidate.id === overlayId);
+  if (!overlay) return state;
+  if (overlay.stateKey) return { ...state, [overlay.stateKey]: visible };
+  return setLayersVisible(state, overlay.layerIds, visible);
+}
+
+export function cycleVectorScale(scale) {
+  const index = VECTOR_SCALE_STEPS.findIndex((step) => Math.abs(step - scale) < 1e-9);
+  return VECTOR_SCALE_STEPS[(index + 1) % VECTOR_SCALE_STEPS.length];
+}
+
+function setLayersVisible(state, layerIds, visible) {
+  let next = state;
+  for (const layerId of layerIds) {
+    next = setLayerVisibility(next, layerId, visible);
+  }
+  return next;
+}
+
 // Sub-points and deformed are picked out by name before the category rule runs,
 // because both are "results" and the category alone cannot separate them.
 export function bodyIdForLayerId(layerId, declaredCategory = null) {
@@ -74,7 +202,8 @@ export function bodyIdForLayerId(layerId, declaredCategory = null) {
   if (category === "design") return "geometry";
   if (category === "analysis_mesh") return "analysis_mesh";
   // Vectors, clashes, proposals and the rest are drawn, but they are not one of
-  // the composited bodies. They stay reachable in the full layer tree.
+  // the composited bodies. The marks a reviewer actually reaches for are in
+  // OVERLAY_SPECS above; everything else stays reachable in the full layer tree.
   return null;
 }
 
@@ -108,11 +237,7 @@ export function getBodies(state) {
 export function setBodyVisibility(state, bodyId, visible) {
   const body = getBodies(state).find((candidate) => candidate.id === bodyId);
   if (!body) return state;
-  let next = state;
-  for (const layerId of body.layerIds) {
-    next = setLayerVisibility(next, layerId, visible);
-  }
-  return next;
+  return setLayersVisible(state, body.layerIds, visible);
 }
 
 export function setBodyOpacity(state, bodyId, opacity) {

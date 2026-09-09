@@ -17,14 +17,25 @@ import {
 } from "./renderer.js";
 import {
   OPACITY_STEPS,
+  VECTOR_SCALE_STEPS,
+  cycleVectorScale,
   getBodies,
   getDiscretisationCheck,
+  getOverlays,
   getSectionProfile,
   getSubpointLegend,
   getSubpointPeak,
   getSubpointStations,
   withDefaultBodyOpacity
 } from "./bodies.js";
+
+// One reducer action per vector family already exists; the chip picks the one
+// its row belongs to rather than adding a fourth.
+const VECTOR_SCALE_ACTIONS = Object.freeze({
+  displacement: "setDisplacementVectorScale",
+  moment: "setMomentVectorScale",
+  reaction: "setReactionVectorScale"
+});
 import {
   componentIsSelectable,
   getActiveComponent,
@@ -95,12 +106,15 @@ const dom = {
   bodyLegend: document.querySelector("[data-body-legend]"),
   bodyLegendToggle: document.querySelector("[data-body-legend-toggle]"),
   layerList: document.querySelector("[data-layer-list]"),
+  layerTally: document.querySelector("[data-layer-tally]"),
   resultTools: document.querySelector("[data-result-tools]"),
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
   resultControls: document.querySelector("[data-result-controls]"),
   resultLegend: document.querySelector("[data-result-legend]"),
   resultShape: document.querySelector("[data-result-shape]"),
   layersBlock: document.querySelector("[data-layers-block]"),
+  overlaysBlock: document.querySelector("[data-overlays-block]"),
+  overlayList: document.querySelector("[data-overlay-list]"),
   hotspotList: document.querySelector("[data-hotspot-list]"),
   diagnosticList: document.querySelector("[data-diagnostic-list]"),
   searchInput: document.querySelector("[data-search]"),
@@ -776,11 +790,13 @@ function renderHeader() {
 
 function renderDisplayStrip() {
   dom.displayStrip.hidden = currentState.embed;
-  // Results owns the field; the full layer list is what Model is for. Sharing
-  // one scroll zone between them is what squeezed the result controls into a
-  // 30%-tall window with a scrollbar of their own.
-  dom.layersBlock.hidden = currentState.activeTab === "results";
+  // What is drawn stays on screen whatever the task is. Hiding it on Results
+  // was a workaround for the result controls being capped at 30% of the rail;
+  // the cap is gone (.task-panel is flex: 0 0 auto and the strip scrolls), and
+  // the cost was that the Deformed toggle vanished exactly while its own scale
+  // control was on screen.
   renderBodyList();
+  renderOverlayList();
   renderProjectionNote();
   renderSectionProfile();
   renderDiscretisationCheck();
@@ -882,6 +898,89 @@ function bodyRow(body) {
 
   row.append(head);
   return row;
+}
+
+// Overlays share the body-row grammar - same checkbox, same badge slot, same
+// chip position - because they answer the same question. What differs is the
+// chip: a mark on the model has a scale, not an opacity.
+function renderOverlayList() {
+  const overlays = getOverlays(currentState);
+  dom.overlaysBlock.hidden = overlays.length === 0;
+  dom.overlayList.replaceChildren();
+  for (const overlay of overlays) {
+    dom.overlayList.append(overlayRow(overlay));
+  }
+}
+
+function overlayRow(overlay) {
+  const row = document.createElement("div");
+  row.className = "body-row";
+  row.dataset.overlay = overlay.id;
+  row.dataset.bodyVisible = String(overlay.visible);
+
+  const head = document.createElement("div");
+  head.className = "body-head";
+
+  const toggle = document.createElement("label");
+  toggle.className = "body-toggle";
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = overlay.visible;
+  input.indeterminate = overlay.partiallyVisible;
+  input.setAttribute("aria-label", overlay.label);
+  input.dataset.focusKey = `overlay:${overlay.id}`;
+  input.addEventListener("change", () => {
+    dispatch({
+      type: "setOverlayVisibility",
+      overlayId: overlay.id,
+      visible: input.checked
+    });
+    render();
+  });
+  const name = document.createElement("span");
+  name.className = "body-name";
+  name.textContent = overlay.label;
+  name.title = overlay.description;
+  toggle.append(input, name);
+
+  head.append(toggle);
+  // Chrome rows (the grid) gate no layer, so there is no count to state and an
+  // empty badge would read as zero.
+  if (overlay.count !== null) {
+    const badge = document.createElement("span");
+    badge.className = "body-badge body-badge-neutral";
+    badge.textContent = String(overlay.count);
+    head.append(badge);
+  }
+  if (overlay.vectorType) {
+    head.append(scaleChip(overlay));
+  }
+  row.append(head);
+  return row;
+}
+
+// The scale a vector family is drawn at belongs on the row that draws it. It
+// used to be a slider in the result controls, one band away from the checkbox
+// that decided whether the vectors were on the screen at all.
+function scaleChip(overlay) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "body-scale";
+  button.dataset.overlayScale = overlay.id;
+  button.dataset.focusKey = `scale:${overlay.id}`;
+  button.textContent = `${formatScale(overlay.scale)}x`;
+  button.setAttribute(
+    "aria-label",
+    `${overlay.label} scale ${formatScale(overlay.scale)}x, cycles through ${VECTOR_SCALE_STEPS.map((step) => `${formatScale(step)}x`).join(", ")}`
+  );
+  button.addEventListener("click", () => {
+    dispatch({
+      type: VECTOR_SCALE_ACTIONS[overlay.vectorType],
+      scale: cycleVectorScale(overlay.scale)
+    });
+    render();
+  });
+  return button;
 }
 
 function opacityChip(body) {
@@ -1430,6 +1529,11 @@ function renderCameraControls() {
 
 function renderLayerTree(categories) {
   dom.layerList.replaceChildren();
+  // Both numbers on the closed row: how many layers there are, and how many are
+  // drawn. The second is the one that answers "why can I not see it".
+  const layerIds = categories.flatMap((category) => category.layerIds);
+  const shown = layerIds.filter((layerId) => currentState.layers[layerId]?.visible !== false).length;
+  dom.layerTally.textContent = layerIds.length > 0 ? `${shown} of ${layerIds.length}` : "";
   for (const category of categories) {
     const group = document.createElement("section");
     const heading = document.createElement("h3");
@@ -1746,7 +1850,9 @@ function refLabel(ref) {
 function renderRailUtility(shown = 0, hidden = 0) {
   dom.railUtility.replaceChildren();
   if (dom.findPane.hidden) {
-    for (const [id, label] of [["section", "Section box"], ["layers", "All layers"], ["views", "Saved views"]]) {
+    // "All layers" is not here any more - the tree moved into the Display
+    // strip, as the last row of the list whose curated rows it backs up.
+    for (const [id, label] of [["section", "Section box"], ["views", "Saved views"]]) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "utility-button";
@@ -1782,7 +1888,6 @@ function renderRailPopover() {
   if (dom.railPopover.hidden) return;
   for (const [id, node] of [
     ["section", dom.sectionBoxControls],
-    ["layers", dom.railPopover.querySelector(".layer-tree")],
     ["views", dom.savedViews]
   ]) {
     if (node) node.hidden = id !== openPopoverId;

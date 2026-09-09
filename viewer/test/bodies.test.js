@@ -4,17 +4,21 @@ import test from "node:test";
 import {
   OPACITY_STEPS,
   bodyIdForLayerId,
+  VECTOR_SCALE_STEPS,
   bodyOpacity,
   bodyOpacityForObjectIds,
   createBodyOpacityState,
   cycleBodyOpacity,
+  cycleVectorScale,
   getBodies,
+  getOverlays,
   getDiscretisationCheck,
   getMeshIdentity,
   getSectionProfile,
   getSubpointPeak,
   getSubpointStations,
   setBodyVisibility,
+  setOverlayVisibility,
   withDefaultBodyOpacity
 } from "../src/bodies.js";
 
@@ -349,4 +353,108 @@ test("deformed peak displacement follows the active solved increment", () => {
   const deformed = getBodies(state).find((body) => body.id === "deformed");
   assert.ok(deformed.metrics.some((text) => text.includes("3 mm")), JSON.stringify(deformed.metrics));
   assert.ok(deformed.metrics.every((text) => !text.includes("0 mm")));
+});
+
+// The Overlays band. Every row here was previously reachable only as a leaf of
+// the layer tree inside the rail-foot popover.
+function overlayState(overrides = {}) {
+  return {
+    layers: {
+      support: { id: "support", category: "design", count: 6, visible: true, objectIds: [], source: "object" },
+      "design:loads": { id: "design:loads", category: "design", count: 4, visible: true, objectIds: [], source: "object" },
+      "result:reaction_force": {
+        id: "result:reaction_force",
+        category: "results",
+        count: 6,
+        visible: true,
+        objectIds: [],
+        source: "object"
+      },
+      "result:reaction_moment": {
+        id: "result:reaction_moment",
+        category: "results",
+        count: 6,
+        visible: false,
+        objectIds: [],
+        source: "object"
+      },
+      // Declared but populated by nothing: an absent overlay, not an empty one.
+      "result:displacement": {
+        id: "result:displacement",
+        category: "results",
+        count: 0,
+        visible: true,
+        source: "scene"
+      }
+    },
+    // setLayerVisibility reprojects both of these; a loaded state always
+    // carries them.
+    objects: [],
+    overlays: [],
+    resultVectorScales: { displacement: 1, reaction: 2, moment: 1 },
+    ...overrides
+  };
+}
+
+test("getOverlays lists the marks the scene actually draws, in spec order", () => {
+  const overlays = getOverlays(overlayState());
+  assert.deepEqual(
+    overlays.map((overlay) => overlay.id),
+    ["support", "applied_load", "reaction_force", "reaction_moment", "ground_grid"]
+  );
+  // Displacement is declared but gates nothing, so it is omitted rather than
+  // rendered as a row that toggles an empty layer.
+  assert.equal(overlays.some((overlay) => overlay.id === "displacement"), false);
+});
+
+test("getOverlays reports count, visibility and the scale its vectors are drawn at", () => {
+  const overlays = getOverlays(overlayState());
+  const reaction = overlays.find((overlay) => overlay.id === "reaction_force");
+  assert.equal(reaction.count, 6);
+  assert.equal(reaction.visible, true);
+  assert.equal(reaction.scale, 2);
+
+  const moment = overlays.find((overlay) => overlay.id === "reaction_moment");
+  assert.equal(moment.visible, false);
+  assert.equal(moment.scale, 1);
+
+  // Supports are not a vector family, so they carry no scale.
+  assert.equal(overlays.find((overlay) => overlay.id === "support").scale, null);
+});
+
+test("setOverlayVisibility drives the layers behind the row", () => {
+  const state = overlayState();
+  const hidden = setOverlayVisibility(state, "reaction_force", false);
+  assert.equal(hidden.layers["result:reaction_force"].visible, false);
+  assert.equal(hidden.layers["result:reaction_moment"].visible, false, "unrelated layers stay put");
+  assert.equal(getOverlays(hidden).find((overlay) => overlay.id === "reaction_force").visible, false);
+
+  // An overlay the scene does not draw cannot be toggled into existence.
+  assert.equal(setOverlayVisibility(state, "displacement", false), state);
+});
+
+// The renderer draws the grid from the model bounds, so no layer gates it and
+// the row cannot be layer-driven like the others. It is still a mark on screen
+// the reviewer wants off.
+test("the ground grid is offered whatever the scene carries, and answers to its own flag", () => {
+  const bare = { layers: {}, objects: [], overlays: [], resultVectorScales: {} };
+  const grid = getOverlays(bare).find((overlay) => overlay.id === "ground_grid");
+  assert.ok(grid, "offered even by a scene with no layers at all");
+  assert.equal(grid.visible, true, "drawn until it is turned off");
+  // No layer behind it means nothing to count, and a badge reading 0 would be a
+  // lie rather than a blank.
+  assert.equal(grid.count, null);
+  assert.equal(grid.scale, null);
+
+  const off = setOverlayVisibility(bare, "ground_grid", false);
+  assert.equal(off.referenceGridVisible, false);
+  assert.equal(getOverlays(off).find((overlay) => overlay.id === "ground_grid").visible, false);
+  assert.deepEqual(off.layers, {}, "toggling chrome touches no layer");
+});
+
+test("cycleVectorScale walks the steps and wraps", () => {
+  assert.deepEqual(VECTOR_SCALE_STEPS.map((step) => cycleVectorScale(step)), [1, 2, 5, 0.5]);
+  // A scale set by the slider that is not one of the steps starts the cycle
+  // over rather than sticking.
+  assert.equal(cycleVectorScale(1.75), VECTOR_SCALE_STEPS[0]);
 });

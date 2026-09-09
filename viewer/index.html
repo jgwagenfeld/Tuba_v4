@@ -72,13 +72,34 @@
                   <section hidden data-diagnostic-list></section>
                 </section>
               </div>
-              <!-- What is drawn. The Results task owns the field and hides
-                   this; the full layer list is what the Model task is for. -->
+              <!-- What is drawn, in two bands. Bodies have extent, so they
+                   carry an opacity; overlays are marks on the model, so they
+                   carry a scale. Both stay on screen whatever the task is. -->
               <div data-layers-block>
                 <div class="strip-heading">
-                  <h2>Layers</h2>
+                  <h2>Bodies</h2>
                 </div>
                 <div class="body-list" data-body-list></div>
+                <!-- Supports, the load case and the result vectors. Every row
+                     here used to be a checkbox in the layer tree, two clicks
+                     down inside the rail-foot popover. -->
+                <div data-overlays-block hidden>
+                  <div class="strip-heading">
+                    <h2>Overlays</h2>
+                  </div>
+                  <div class="body-list" data-overlay-list></div>
+                </div>
+                <!-- The escape hatch, as the last row of the same list rather
+                     than a popover pinned to the rail foot. Everything above is
+                     a curated row; this is every layer the bundle declares, for
+                     the times the curation does not cover what you need. -->
+                <details class="strip-drawer layer-tree">
+                  <summary>
+                    All layers
+                    <span class="layer-tally" data-layer-tally></span>
+                  </summary>
+                  <div data-layer-list></div>
+                </details>
               </div>
               <p class="projection-note" data-projection-note></p>
               <section class="section-profile" aria-label="TUYAU section sub-point grid" data-section-profile></section>
@@ -92,10 +113,6 @@
           <div class="rail-foot">
             <div class="rail-popover" data-rail-popover hidden>
               <div data-section-box-controls></div>
-              <details class="strip-drawer layer-tree">
-                <summary>All layers</summary>
-                <div data-layer-list></div>
-              </details>
               <div class="saved-views-block" data-saved-views></div>
             </div>
             <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>

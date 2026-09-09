@@ -1,5 +1,5 @@
 import { applyTaskVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
-import { cycleBodyOpacity, setBodyVisibility, withDefaultBodyOpacity } from "./bodies.js";
+import { cycleBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { applySceneDiffToState } from "./sceneDiff.js";
 import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
@@ -50,6 +50,8 @@ export function reduceViewerState(state, action) {
       return showReviewEntityIn3d(state, action.entityRef);
     case "setLayerVisibility":
       return setLayerVisibility(state, action.layerId, action.visible);
+    case "setOverlayVisibility":
+      return setOverlayVisibility(state, action.overlayId, action.visible);
     case "setBodyVisibility":
       return setBodyVisibility(state, action.bodyId, action.visible);
     case "cycleBodyOpacity":
@@ -188,6 +190,7 @@ export function preserveViewerStateForReload(previousState, nextState) {
     issueReviewState: previousState.issueReviewState ?? nextState.issueReviewState,
     visualDeformationScale: previousState.visualDeformationScale ?? nextState.visualDeformationScale,
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
+    referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
     unitSystem: previousState.unitSystem ?? nextState.unitSystem,
     activeTab: getVisibleWorkflowTabs(nextState).includes(previousState.activeTab)
       ? previousState.activeTab

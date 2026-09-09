@@ -303,7 +303,7 @@ OFFICIAL_GALLERIES = (
         _build_autorouted_review,
         ROOT / "notebooks" / "code_aster_results" / "autorouted_expansion_hot",
         _autorouted_refresh,
-        title="Hot line expansion loop",
+        title="Thermal expansion",
         elements=("TUYAU_3M",),
         question="Where does a hot line move, and what does it reach?",
         summary=(
@@ -318,7 +318,7 @@ OFFICIAL_GALLERIES = (
         _build_code_aster_review,
         ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating",
         _code_aster_refresh,
-        title="Anchored line with two bends",
+        title="Pipe bends",
         elements=("TUYAU_3M",),
         question="What happens to a pressurised line held at both ends?",
         summary=(
@@ -333,7 +333,7 @@ OFFICIAL_GALLERIES = (
         _build_elements_supports_review,
         ROOT / "notebooks" / "code_aster_results" / "elements_supports_loadcase1",
         _elements_supports_refresh,
-        title="Mixed elements and supports",
+        title="Elements and supports",
         elements=("TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR"),
         question="Do bars, cables and spring supports survive the trip to the solver?",
         summary=(
@@ -347,7 +347,7 @@ OFFICIAL_GALLERIES = (
         frozenset({"dev"}),
         "mesh-review",
         _build_gmsh_tee_mesh_review,
-        title="Tee junction mesh",
+        title="Mesh discretisation",
         elements=("3D",),
         question="What does the analysis actually discretise at a branch?",
         summary=(
@@ -362,7 +362,7 @@ OFFICIAL_GALLERIES = (
         _build_guyed_mast_review,
         ROOT / "notebooks" / "code_aster_results" / "guyed_mast_wind",
         _guyed_mast_refresh,
-        title="Guyed flagpole mast",
+        title="Cable",
         question="Which guys hold a mast in the wind, and which one goes slack?",
         elements=("POU_D_T", "CABLE"),
         summary=(
@@ -376,7 +376,7 @@ OFFICIAL_GALLERIES = (
         frozenset({"dev", "pages"}),
         "model-review",
         _build_model_review,
-        title="Imported equipment connection",
+        title="Imported components",
         elements=("TUYAU_3M",),
         question="How does a supplied component join an authored line?",
         summary=(
@@ -391,7 +391,7 @@ OFFICIAL_GALLERIES = (
         _build_friction_review,
         ROOT / "notebooks" / "code_aster_results" / "native-friction-review",
         _friction_refresh,
-        title="Pipe-shoe friction comparison",
+        title="Nonlinear friction",
         elements=("POU_D_T", "DIS_T"),
         question="How does friction change the same pipe and load path?",
         summary=(
@@ -408,7 +408,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "tee_volume_operating",
         _tee_volume_refresh,
         True,
-        title="3D solid tee",
+        title="3D solid",
         elements=("3D",),
         question="Does stress concentrate where the branch meets the header?",
         summary=(
@@ -423,7 +423,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "profile-orientation-review",
         _profile_refresh,
         refresh_load_cases=PROFILE_CASES,
-        title="I-section orientation and local axes",
+        title="Beam orientation",
         elements=("POU_D_T",),
         question="How do section orientation and local axes change bending?",
         summary=(
@@ -439,7 +439,7 @@ OFFICIAL_GALLERIES = (
         _build_support_rack_review,
         ROOT / "notebooks" / "code_aster_results" / "support_rack_operating",
         _support_rack_refresh,
-        title="Pipe on a support rack",
+        title="Load transfer",
         elements=("TUYAU_3M", "POU_D_T"),
         question="What do the supports and the steel underneath actually carry?",
         summary=(
