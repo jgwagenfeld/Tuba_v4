@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { loadOptionalReview, normalizeReview } from "../src/reviewLoader.js";
-import { workflowViewModel } from "../src/reviewTables.js";
+import { cockpitStatusViewModel } from "../src/reviewTables.js";
 
 const reviewFixture = JSON.parse(
   await readFile(new URL("./fixtures/code_aster_results/review.json", import.meta.url), "utf8")
@@ -144,7 +144,7 @@ test("rejects malformed nested table contracts and keeps review rendering usable
 
       assert.equal(result.review, null);
       assert.equal(result.diagnostics[0].code, "viewer.review.invalid_contract");
-      assert.doesNotThrow(() => workflowViewModel(result.review, "results"));
+      assert.doesNotThrow(() => cockpitStatusViewModel(result.review));
     });
   }
 });
@@ -155,7 +155,7 @@ test("accepts the tracked engineering review parser fixture", () => {
   assert.equal(normalized.tables.project_summary.id, "project_summary");
   assert.ok(normalized.tables.project_summary.columns.length > 0);
   assert.ok(normalized.tables.project_summary.rows.length > 0);
-  assert.doesNotThrow(() => workflowViewModel(normalized, "results"));
+  assert.doesNotThrow(() => cockpitStatusViewModel(normalized));
 });
 
 test("normalizes stable review table order and lookup while preserving row values as data", () => {

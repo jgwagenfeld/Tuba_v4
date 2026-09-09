@@ -95,7 +95,6 @@ textarea,
 
 .app-header,
 [data-workflow-tabs],
-.workflow-panel,
 .viewer-workspace {
   min-width: 0;
   width: 100%;
@@ -127,8 +126,7 @@ textarea,
 }
 
 /* The document's one h1: what you are looking at. It used to be a <strong>,
-   which left the page's only h1 inside the evidence panel - invisible, and
-   absent entirely once collapsed evidence stopped rendering that panel. */
+   which left the page's only h1 inside a panel that could be closed. */
 .app-identity h1 {
   margin: 0;
   overflow: hidden;
@@ -139,8 +137,7 @@ textarea,
   white-space: nowrap;
 }
 
-.app-kicker,
-.review-overview-label {
+.app-kicker {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
@@ -195,7 +192,7 @@ textarea,
 }
 
 /* Replaces the status band. It is a control, not a readout: clicking it opens
-   the evidence that explains the verdict. */
+   the task that explains the verdict. */
 .status-chip {
   display: flex;
   align-items: center;
@@ -591,7 +588,6 @@ textarea,
 .rail-popover[hidden] {
   display: none;
 }
-
 
 .strip-heading {
   display: flex;
@@ -1194,156 +1190,7 @@ textarea,
   margin-left: 0.5rem;
 }
 
-.workflow-panel {
-  min-height: 0;
-  overflow: auto;
-  background-color: var(--paper);
-  background-image: linear-gradient(rgba(23, 33, 39, 0.035) 1px, transparent 1px);
-  background-size: 100% 1.75rem;
-  padding: clamp(1rem, 2vw, 1.75rem);
-}
-
-.workflow-panel > h1 {
-  max-width: 92rem;
-  margin: 0 auto 1rem;
-  border-bottom: 2px solid var(--text);
-  padding-bottom: 0.55rem;
-  font-size: clamp(1.25rem, 1.8vw, 1.75rem);
-  letter-spacing: 0.02em;
-}
-
-.review-overview,
-.review-summary-card,
-.review-table-section,
-.diagnostics-workflow,
-.workflow-unavailable,
-.workflow-panel > [data-result-tools] {
-  width: min(100%, 92rem);
-  margin-inline: auto;
-}
-
-.review-overview {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 1px;
-  margin-bottom: 1rem;
-  border: 1px solid var(--line);
-  background: var(--line);
-}
-
-.review-overview-card {
-  display: grid;
-  align-content: space-between;
-  min-height: 5.6rem;
-  gap: 0.75rem;
-  background: var(--paper-raised);
-  padding: 0.8rem 0.9rem;
-}
-
-.review-overview-card strong {
-  overflow-wrap: anywhere;
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.review-summary-card,
-.review-table-section,
-.diagnostic-group,
-.workflow-panel > [data-result-tools] {
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 0.25rem 0.8rem rgba(21, 28, 34, 0.08);
-}
-
-.review-summary-card,
-.review-table-section,
-.workflow-panel > [data-result-tools] {
-  margin-bottom: 1rem;
-  padding: 1rem;
-}
-
-.review-summary-card > h2,
-.review-table-section > h2,
-.diagnostic-group > h2 {
-  margin: 0;
-  font-size: 0.95rem;
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
-}
-
-.review-summary-card dl {
-  display: grid;
-  grid-template-columns: minmax(10rem, 0.75fr) minmax(12rem, 1.25fr);
-  margin: 0.75rem 0;
-  border-top: 1px solid var(--line);
-  font-size: 0.875rem;
-}
-
-.review-summary-card dt,
-.review-summary-card dd {
-  margin: 0;
-  border-bottom: 1px solid var(--paper-inset);
-  padding: 0.42rem 0.3rem;
-}
-
-.review-summary-card dt {
-  color: var(--muted);
-}
-
-.review-summary-card dd {
-  font-family: var(--font-mono);
-  overflow-wrap: anywhere;
-}
-
-.review-table-scroll {
-  max-width: 100%;
-  margin-top: 0.75rem;
-  overflow-x: auto;
-  border: 1px solid var(--line);
-  background: var(--paper-raised);
-  scrollbar-width: thin;
-}
-
-.review-table-scroll table {
-  width: 100%;
-  min-width: max-content;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-}
-
-.review-table-scroll th,
-.review-table-scroll td {
-  max-width: 28rem;
-  border-right: 1px solid var(--paper-inset);
-  border-bottom: 1px solid var(--paper-inset);
-  padding: 0.55rem 0.65rem;
-  text-align: left;
-  vertical-align: top;
-  white-space: nowrap;
-}
-
-.review-table-scroll th {
-  position: sticky;
-  z-index: 1;
-  top: 0;
-  background: var(--graphite-raised);
-  color: var(--chrome-text);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.035em;
-}
-
-.review-table-scroll tbody tr:nth-child(even) {
-  background: #eef0ef;
-}
-
-.review-table-scroll td[data-tone] {
-  font-weight: 650;
-}
-
 .status-badge,
-.verdict,
 .severity-badge {
   display: inline-block;
   border: 1px solid currentColor;
@@ -1359,8 +1206,7 @@ textarea,
 }
 
 .status-badge[data-status="solved"],
-.status-badge[data-status="compliance_complete"],
-.verdict[data-pass="true"] {
+.status-badge[data-status="compliance_complete"] {
   background: var(--success-surface);
   color: var(--success);
 }
@@ -1372,7 +1218,6 @@ textarea,
   color: var(--warning);
 }
 
-.verdict[data-pass="false"],
 .severity-badge[data-severity="error"] {
   background: var(--danger-surface);
   color: var(--danger);
@@ -1442,8 +1287,7 @@ textarea,
   grid-template-columns: minmax(24rem, 1fr) minmax(16rem, 20rem);
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
-    "viewport inspector"
-    "evidence inspector";
+    "viewport inspector";
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -1452,13 +1296,7 @@ textarea,
 
 .viewer-workspace:has(.inspector[hidden]) {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "viewport"
-    "evidence";
-}
-
-.viewer-workspace:has(.evidence-dock.expanded) {
-  grid-template-rows: minmax(0, 1fr) minmax(16rem, 50vh);
+  grid-template-areas: "viewport";
 }
 
 .viewer-workspace[hidden] {
@@ -1661,44 +1499,6 @@ body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
   padding: 0.1rem;
   font-size: 0.85rem;
   line-height: 1;
-}
-
-.evidence-dock {
-  grid-area: evidence;
-  min-width: 0;
-  overflow: auto;
-  background: var(--paper);
-}
-
-.evidence-dock:not(.expanded) {
-  display: none;
-}
-
-.evidence-tabs {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0 0.5rem 0.5rem;
-}
-
-.evidence-tabs button {
-  width: auto;
-}
-
-.evidence-tabs button[aria-selected="true"] {
-  border-color: var(--accent-ink);
-  color: var(--accent-ink);
-  font-weight: 650;
-}
-
-.evidence-report-link {
-  display: inline-block;
-  margin: 0 auto;
-  border: 1px solid var(--graphite-line);
-  border-radius: 0.15rem;
-  background: var(--graphite);
-  color: var(--accent);
-  padding: 0.5rem 0.65rem;
-  text-decoration: none;
 }
 
 h1,
@@ -1915,12 +1715,7 @@ pre {
 [data-embed="true"] .app-header,
 [data-embed="true"] .sidebar,
 [data-embed="true"] .cockpit-rail,
-[data-embed="true"] .evidence-dock,
-[data-embed="true"] .inspector {
-  display: none;
-}
-
-body[data-embed="true"] .app-shell {
+[data-embed="true"]body[data-embed="true"] .app-shell {
   grid-template-rows: minmax(0, 1fr);
 }
 
@@ -1941,10 +1736,8 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   .viewer-workspace,
   .viewer-workspace:has(.inspector[hidden]) {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "viewport"
-      "evidence";
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "viewport";
   }
 
   .inspector {
@@ -1955,23 +1748,11 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     box-shadow: -0.5rem 0 1rem rgba(14, 20, 24, 0.35);
   }
 
-  .viewer-workspace:has(.evidence-dock.expanded) {
-    grid-template-rows: minmax(0, 1fr) minmax(0, 50%);
-  }
-
-  .evidence-dock.expanded {
-    max-height: none;
-    overflow: auto;
-  }
 }
 
 @media (max-width: 900px) {
   .app-header .meta {
     display: none;
-  }
-
-  .review-overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .diagnostic-item {
@@ -2023,14 +1804,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     padding-inline: 0.65rem;
   }
 
-  .review-overview,
-  .review-summary-card dl {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .review-summary-card dd {
-    padding-top: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

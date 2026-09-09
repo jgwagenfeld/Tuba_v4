@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as workflowState from "../src/workflowState.js";
-import { tableIdsForWorkflow } from "../src/reviewTables.js";
 
 import {
   WORKFLOW_TABS,
@@ -35,14 +34,16 @@ test("workflow tabs follow the engineering review order", () => {
   );
 });
 
-test("full review workflow defaults to summary", () => {
-  assert.equal(createWorkflowState({ review: reviewFixture, embed: false }).activeTab, "summary");
+test("full review workflow defaults to the model task", () => {
+  // The review's tables live in the generated report now, so the rail opens on
+  // what you can actually do to the scene.
+  assert.equal(createWorkflowState({ review: reviewFixture, embed: false }).activeTab, "model");
 });
 
-test("cockpit tasks are the four focused destinations in review mode", () => {
+test("cockpit tasks are the three focused destinations in review mode", () => {
   assert.deepEqual(
     getVisibleCockpitTaskIds({ review: reviewFixture }),
-    ["summary", "model", "results", "diagnostics"]
+    ["model", "results", "diagnostics"]
   );
 });
 
@@ -109,9 +110,9 @@ test("workflow tab changes reject hidden and unknown tabs", () => {
 test("workflow keyboard navigation wraps across visible tabs", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
 
-  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
-  assert.equal(workflowTabForKey(state, "summary", "ArrowRight"), "model");
-  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
+  assert.equal(workflowTabForKey(state, "model", "ArrowLeft"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "model", "ArrowRight"), "results");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "model");
 });
 
 test("workflow keyboard navigation supports Home and End in legacy mode", () => {
@@ -122,65 +123,3 @@ test("workflow keyboard navigation supports Home and End in legacy mode", () => 
   assert.equal(workflowTabForKey(state, "model", "Enter"), null);
 });
 
-test("evidence keyboard navigation wraps and supports Home and End", () => {
-  assert.equal(typeof workflowState.getVisibleEvidenceTabIds, "function");
-  assert.equal(typeof workflowState.evidenceTabForKey, "function");
-  const getVisibleEvidenceTabIds = workflowState.getVisibleEvidenceTabIds;
-  const evidenceTabForKey = workflowState.evidenceTabForKey;
-  const reviewState = { review: reviewFixture };
-
-  assert.deepEqual(getVisibleEvidenceTabIds(reviewState), ["summary", "diagnostics", "compliance", "reports"]);
-  assert.deepEqual(getVisibleEvidenceTabIds({ review: null }), ["diagnostics"]);
-  assert.equal(evidenceTabForKey(reviewState, "summary", "ArrowLeft"), "reports");
-  assert.equal(evidenceTabForKey(reviewState, "summary", "ArrowRight"), "diagnostics");
-  assert.equal(evidenceTabForKey(reviewState, "reports", "ArrowRight"), "summary");
-  assert.equal(evidenceTabForKey(reviewState, "diagnostics", "Home"), "summary");
-  assert.equal(evidenceTabForKey(reviewState, "summary", "End"), "reports");
-  assert.equal(evidenceTabForKey(reviewState, "summary", "Enter"), null);
-  assert.equal(evidenceTabForKey(reviewState, "model", "ArrowRight"), null);
-  assert.equal(evidenceTabForKey({ review: null }, "diagnostics", "ArrowRight"), "diagnostics");
-});
-
-test("every table the review carries has a tab to render it in", () => {
-  // A real review carries line_list, load_cases, studies and fe_stress. Those
-  // route to model / load-cases / results, and the dock used to expose none of
-  // them - so four of six tables were parsed, view-modelled and then had
-  // nowhere to go.
-  const review = {
-    tables: {
-      project_summary: { id: "project_summary" },
-      line_list: { id: "line_list" },
-      load_cases: { id: "load_cases" },
-      studies: { id: "studies" },
-      result_summary: { id: "result_summary" },
-      fe_stress: { id: "fe_stress" }
-    }
-  };
-  const tabs = workflowState.getVisibleEvidenceTabIds({ review });
-  for (const tableId of Object.keys(review.tables)) {
-    assert.ok(
-      tabs.some((tab) => tableIdsForWorkflow(tab).includes(tableId)),
-      `${tableId} has no evidence tab to render it in`
-    );
-  }
-});
-
-test("a tab is not offered when the review has nothing to put in it", () => {
-  // The four that were always there keep their order, so a review carrying only
-  // the original tables sees exactly the dock it saw before.
-  assert.deepEqual(
-    workflowState.getVisibleEvidenceTabIds({ review: { tables: { project_summary: {}, result_summary: {} } } }),
-    ["summary", "diagnostics", "compliance", "reports"]
-  );
-  assert.deepEqual(workflowState.getVisibleEvidenceTabIds({ review: null }), ["diagnostics"]);
-});
-
-test("evidence reload preserves visible tabs and falls back when a destination disappears", () => {
-  assert.equal(typeof workflowState.evidenceTabForReload, "function");
-  const evidenceTabForReload = workflowState.evidenceTabForReload;
-
-  assert.equal(evidenceTabForReload({ review: reviewFixture }, "reports"), "reports");
-  assert.equal(evidenceTabForReload({ review: reviewFixture }, "compliance"), "compliance");
-  assert.equal(evidenceTabForReload({ review: null }, "reports"), "diagnostics");
-  assert.equal(evidenceTabForReload({ review: reviewFixture }, "unknown"), "summary");
-});

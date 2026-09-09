@@ -59,12 +59,8 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "rail-toggle",
     "task-panel",
     "workflow-tabs",
-    "workflow-panel",
     "viewer-workspace",
     "inspector",
-    "evidence-dock",
-    "evidence-expand",
-    "evidence-tabs",
     "layer-list",
     "display-strip",
     "body-list",
@@ -101,8 +97,6 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<nav[^>]*aria-label="Engineering review tasks"[^>]*data-workflow-tabs/);
   assert.match(html, /<div[^>]*class="task-panel"[^>]*data-task-panel/);
   assert.match(html, /<aside[^>]*class="inspector"[^>]*data-inspector[^>]*hidden/);
-  assert.match(html, /<section[^>]*class="evidence-dock"[^>]*aria-label="Engineering evidence"[^>]*data-evidence-dock/);
-  assert.match(html, /<button[^>]*type="button"[^>]*aria-expanded="false"[^>]*data-evidence-expand/);
   assert.doesNotMatch(html, /class="[^"]*\bworkflow-tabs\b/);
   // All layers stays a disclosure; it is a secondary tool inside the rail popover.
   assert.match(html, /<details[^>]*>[\s\S]*?data-layer-list(?:=|[\s>])[\s\S]*?<\/details>/);
@@ -126,17 +120,6 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   for (const hook of hooks) {
     assert.equal((html.match(new RegExp(`data-${hook}(?:=|[\\s>])`, "g")) ?? []).length, 1, `data-${hook} must occur once`);
   }
-});
-
-test("browser table orchestration uses text content and the workflow reducer", async () => {
-  const app = await readViewerFile("src/app.js");
-
-  assert.match(app, /workflowViewModel/);
-  assert.match(app, /setAttribute\(["']aria-current["']/);
-  assert.match(app, /addEventListener\(["']keydown["']/);
-  assert.match(app, /workflowTabForKey/);
-  assert.match(app, /\.textContent\s*=/);
-  assert.doesNotMatch(app, /\.innerHTML\s*=/);
 });
 
 test("browser entry modules avoid literal Node imports", async () => {

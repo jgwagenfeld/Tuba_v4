@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { getReviewEntityAction, resolveEntityObjectId, showReviewEntityIn3d } from "../src/reviewSelection.js";
+import { resolveEntityObjectId, showReviewEntityIn3d } from "../src/reviewSelection.js";
 
 function reviewState() {
   const review = { schema_version: "engineering_review.v1", analysis_status: "solved" };
@@ -180,17 +180,6 @@ test("returns null for unresolved report entity refs", () => {
   assert.equal(resolveEntityObjectId(reviewState(), null), null);
 });
 
-test("describes accessible actions only for resolvable report rows", () => {
-  const state = reviewState();
-
-  assert.deepEqual(getReviewEntityAction(state, "element:pipe_0"), {
-    entityRef: "element:pipe_0",
-    objectId: "object:pipe",
-    accessibleName: "Show element:pipe_0 in 3D"
-  });
-  assert.equal(getReviewEntityAction(state, "element:missing"), null);
-});
-
 test("show in 3d selects, fits, and preserves the active cockpit task and review context", () => {
   const state = reviewState();
 
@@ -229,11 +218,3 @@ test("show in 3d returns the identical state for unresolved refs", () => {
   assert.equal(showReviewEntityIn3d(state, "element:missing"), state);
 });
 
-test("browser review rows wire resolvable actions through the selection bridge", async () => {
-  const app = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
-
-  assert.match(app, /from ["']\.\/reviewSelection\.js["']/);
-  assert.match(app, /getReviewEntityAction\(currentState, row\.entityRef\)/);
-  assert.match(app, /setAttribute\(["']aria-label["'], action\.accessibleName\)/);
-  assert.match(app, /No 3D object is available for/);
-});

@@ -36,18 +36,6 @@ export function resolveEntityObjectId(state, entityRef) {
   return candidates[0]?.id ?? null;
 }
 
-export function getReviewEntityAction(state, entityRef) {
-  const objectId = resolveEntityObjectId(state, entityRef);
-  if (!objectId) {
-    return null;
-  }
-  return {
-    entityRef,
-    objectId,
-    accessibleName: `Show ${entityRef} in 3D`
-  };
-}
-
 export function showReviewEntityIn3d(state, entityRef) {
   const objectId = resolveEntityObjectId(state, entityRef);
   if (!objectId) {

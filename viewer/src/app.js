@@ -54,18 +54,14 @@ import {
   toDisplay,
   toStored
 } from "./units.js";
-import { cockpitStatusViewModel, workflowViewModel } from "./reviewTables.js";
-import { getReviewEntityAction } from "./reviewSelection.js";
+import { cockpitStatusViewModel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { getPropertySections, pickObjectAt } from "./selection.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
   WORKFLOW_TABS,
   createWorkflowState,
-  evidenceTabForKey,
-  evidenceTabForReload,
   getVisibleCockpitTaskIds,
-  getVisibleEvidenceTabIds,
   workflowTabForKey
 } from "./workflowState.js";
 
@@ -80,11 +76,7 @@ const dom = {
   taskRail: document.querySelector("[data-task-rail]"),
   taskPanel: document.querySelector("[data-task-panel]"),
   workflowTabs: document.querySelector("[data-workflow-tabs]"),
-  workflowPanel: document.querySelector("[data-workflow-panel]"),
   viewerWorkspace: document.querySelector("[data-viewer-workspace]"),
-  evidenceDock: document.querySelector("[data-evidence-dock]"),
-  evidenceExpand: document.querySelector("[data-evidence-expand]"),
-  evidenceTabs: document.querySelector("[data-evidence-tabs]"),
   inspector: document.querySelector("[data-inspector]"),
   issueToolsHome: document.querySelector("[data-issue-tools-home]"),
   bodiesPane: document.querySelector("[data-bodies-pane]"),
@@ -148,8 +140,6 @@ let selectedObjectId = null;
 let currentSearch = "";
 let issueFilters = { operatingOnly: false };
 let railExpanded = true;
-let evidenceExpanded = false;
-let activeEvidenceTab = "summary";
 const savedViews = [];
 // ponytail: dense-scene hover stays off until picking has a spatial index/BVH.
 const MAX_HOVER_PICK_OBJECTS = 50;
@@ -275,7 +265,6 @@ async function loadBundle(bundleUrl, options = {}) {
   // lands on "model" (which hides analysis_mesh and results), the composited
   // geometry/mesh/sub-point/deformed view opened with three of its four bodies
   // switched off on the very screen built to show them overlaid.
-  activeEvidenceTab = evidenceTabForReload(currentState, activeEvidenceTab);
 }
 
 function render() {
@@ -287,7 +276,6 @@ function render() {
   renderHeader();
   renderStatusChip();
   renderTaskRail();
-  renderEvidenceTabs();
   renderDisplayStrip();
   renderViewportLegend();
   renderResultControls();
@@ -295,7 +283,6 @@ function render() {
   renderIssues();
   renderTaskPanel();
   renderProperties();
-  renderWorkflow();
   renderCanvas();
   restoreFocus(focus);
 }
@@ -376,50 +363,7 @@ function activateTask(id) {
   render();
 }
 
-function renderEvidenceTabs() {
-  dom.evidenceTabs.replaceChildren();
-  dom.evidenceDock.hidden = currentState.embed;
-  const labels = new Map([
-    ["summary", "Governing Results"],
-    ["model", "Model"],
-    ["load-cases", "Load Cases"],
-    ["results", "Results"],
-    ["diagnostics", "Warnings"],
-    ["compliance", "Compliance"],
-    ["reports", "Reports"]
-  ]);
-  const tabs = getVisibleEvidenceTabIds(currentState).map((id) => [id, labels.get(id)]);
-  for (const [id, label] of tabs) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.id = `evidence-tab-${id}`;
-    button.setAttribute("role", "tab");
-    button.setAttribute("aria-controls", dom.workflowPanel.id);
-    button.setAttribute("aria-selected", String(id === activeEvidenceTab));
-    button.tabIndex = id === activeEvidenceTab ? 0 : -1;
-    button.textContent = label;
-    button.addEventListener("click", () => activateEvidence(id));
-    button.dataset.evidenceTab = id;
-    button.dataset.focusKey = `evidence:${id}`;
-    button.addEventListener("keydown", (event) => {
-      const nextId = evidenceTabForKey(currentState, id, event.key);
-      if (!nextId || !dom.evidenceTabs.querySelector(`[data-evidence-tab="${nextId}"]`)) return;
-      event.preventDefault();
-      activateEvidence(nextId);
-      dom.evidenceTabs.querySelector(`[data-evidence-tab="${nextId}"]`)?.focus();
-    });
-    dom.evidenceTabs.append(button);
-  }
-  dom.evidenceDock.classList.toggle("expanded", evidenceExpanded);
-  dom.evidenceExpand.setAttribute("aria-expanded", String(evidenceExpanded));
-  dom.evidenceExpand.textContent = evidenceExpanded ? "Close evidence" : "Evidence";
-}
 
-function activateEvidence(id) {
-  if (!getVisibleEvidenceTabIds(currentState).includes(id)) return;
-  activeEvidenceTab = id;
-  render();
-}
 
 function renderTaskPanel() {
   dom.taskPanel.replaceChildren();
@@ -456,109 +400,7 @@ function renderSavedViews() {
   }
 }
 
-function renderWorkflow() {
-  dom.workflowPanel.replaceChildren();
-  const activeTab = activeEvidenceTab;
-  dom.workflowPanel.setAttribute("aria-labelledby", `evidence-tab-${activeTab}`);
-  const headingLabels = {
-    summary: "Governing Results",
-    model: "Model",
-    "load-cases": "Load Cases",
-    results: "Results",
-    diagnostics: "Warnings",
-    compliance: "Compliance",
-    reports: "Reports"
-  };
-  // h2: the scene title in the header is the page's h1, and this names a panel
-  // within it.
-  const heading = document.createElement("h2");
-  heading.textContent = headingLabels[activeTab] ?? "Engineering review";
-  dom.workflowPanel.append(heading);
 
-  if (activeTab === "diagnostics") {
-    dom.diagnosticList.hidden = false;
-    dom.workflowPanel.append(dom.diagnosticList);
-    return;
-  }
-
-  if (activeTab === "reports") {
-    const link = document.createElement("a");
-    link.className = "report-link evidence-report-link";
-    link.dataset.evidenceReportLink = "";
-    link.href = `${currentBundleUrl}/index.html`;
-    link.textContent = "Open printable engineering report";
-    dom.workflowPanel.append(link);
-    // The authoring script is provenance, not solver evidence: it says how the
-    // geometry was written, and deliberately does not claim to reproduce the
-    // solve. Downloaded rather than opened, because host mime tables disagree
-    // about .py.
-    if (typeof currentState.sourceUri === "string" && currentState.sourceUri) {
-      const source = document.createElement("a");
-      // Shares .evidence-report-link so it renders as a sibling button rather
-      // than falling back to the bare header-grid .report-link style.
-      source.className = "report-link evidence-report-link evidence-source-link";
-      source.dataset.evidenceSourceLink = "";
-      source.href = `${currentBundleUrl}/${encodeURIComponent(currentState.sourceUri)}`;
-      source.download = currentState.sourceUri;
-      // Deliberately "authoring script", not "the script that reproduces this":
-      // it records how the model was written, not how the solve was run.
-      source.textContent = "Download the authoring Tuba script for this model";
-      dom.workflowPanel.append(source);
-    }
-    return;
-  }
-
-  if (!currentState.review) {
-    return;
-  }
-  const model = workflowViewModel(currentState.review, activeTab);
-  if (model.unavailableReason) {
-    const unavailable = document.createElement("p");
-    unavailable.className = "workflow-unavailable";
-    unavailable.textContent = model.unavailableReason;
-    dom.workflowPanel.append(unavailable);
-    return;
-  }
-
-  if (activeTab === "summary") {
-    dom.workflowPanel.append(renderReviewOverview(currentState.review));
-    for (const table of model.tables) {
-      dom.workflowPanel.append(table.id === "result_summary" ? renderReviewTable(table) : renderSummaryTable(table));
-    }
-    return;
-  }
-  for (const table of model.tables) {
-    dom.workflowPanel.append(renderReviewTable(table));
-  }
-}
-
-function renderReviewOverview(review) {
-  const overview = document.createElement("section");
-  overview.className = "review-overview";
-  overview.setAttribute("aria-label", "Review status and provenance");
-  const status = cockpitStatusViewModel(review);
-  overview.append(
-    renderOverviewCard("Analysis status", review.analysis_status, "status"),
-    renderOverviewCard("Compliance", status.complianceStatus),
-    renderOverviewCard("Governing case", status.governingLoadCase),
-    renderOverviewCard(
-      "Governing ratio",
-      status.governingRatio === "Not available"
-        ? status.governingRatio
-        : `${status.governingRatio} at ${status.governingLocation}`
-    ),
-    renderOverviewCard("Package", review.package_id ?? "Not identified"),
-    renderOverviewCard("Model revision", review.model_revision ?? "Not stated"),
-    renderOverviewCard("Provenance records", String(review.provenance?.length ?? 0))
-  );
-  return overview;
-}
-
-// One chip in the header replaces the status band. It carries only what is
-// genuinely status - the analysis verdict, and anything demanding attention -
-// and is a route to the evidence rather than a restatement of it. Governing
-// case and ratio moved into the Governing Results card, where the compliance
-// table they are read from already lives.
 function renderStatusChip() {
   dom.statusChip.replaceChildren();
   dom.statusChip.hidden = currentState.embed || !currentState.review;
@@ -584,193 +426,25 @@ function renderStatusChip() {
     dom.statusChip.append(alert);
   }
 
-  const target = alerts[0]?.[0] ?? "summary";
+  const target = alerts.length > 0 ? "diagnostics" : "summary";
   dom.statusChip.dataset.statusTarget = target;
   dom.statusChip.setAttribute(
     "aria-label",
-    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show evidence`
+    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review tasks`
   );
   dom.statusChip.onclick = () => {
-    evidenceExpanded = true;
-    const visible = getVisibleEvidenceTabIds(currentState);
-    activateEvidence(visible.includes(target) ? target : visible[0]);
+    railExpanded = true;
+    const visible = getVisibleCockpitTaskIds(currentState);
+    activateTask(visible.includes(target) ? target : visible[0]);
   };
 }
 
-function renderOverviewCard(labelText, valueText, kind = "text") {
-  const card = document.createElement("article");
-  card.className = "review-overview-card";
-  const label = document.createElement("span");
-  label.className = "review-overview-label";
-  label.textContent = labelText;
-  const value = document.createElement("strong");
-  value.textContent = String(valueText).replaceAll("_", " ");
-  if (kind === "status") {
-    value.className = "status-badge";
-    value.dataset.status = String(valueText);
-  }
-  card.append(label, value);
-  return card;
-}
 
-function renderSummaryTable(model) {
-  const section = document.createElement("section");
-  section.className = "review-summary-card";
-  const heading = document.createElement("h2");
-  heading.textContent = model.title;
-  section.append(heading);
-  appendTableSource(section, model.source);
 
-  if (model.rows.length === 0) {
-    const empty = document.createElement("p");
-    empty.textContent = model.unavailableReason ?? "No rows.";
-    section.append(empty);
-    return section;
-  }
-  for (const row of model.rows) {
-    const action = getReviewEntityAction(currentState, row.entityRef);
-    const values = document.createElement("dl");
-    for (let index = 0; index < model.columns.length; index += 1) {
-      const term = document.createElement("dt");
-      term.textContent = model.columns[index].label;
-      const value = document.createElement("dd");
-      value.append(renderCellValue(row.cells[index]));
-      values.append(term, value);
-    }
-    section.append(values);
-    if (action) {
-      section.append(createShowIn3dButton(action));
-    }
-  }
-  return section;
-}
 
-function renderReviewTable(model) {
-  const section = document.createElement("section");
-  section.className = "review-table-section";
-  const heading = document.createElement("h2");
-  heading.textContent = model.title;
-  section.append(heading);
-  appendTableSource(section, model.source);
 
-  if (model.rows.length === 0) {
-    const empty = document.createElement("p");
-    empty.textContent = model.unavailableReason ?? "No rows.";
-    section.append(empty);
-    return section;
-  }
 
-  const tableScroll = document.createElement("div");
-  tableScroll.className = "review-table-scroll";
-  tableScroll.tabIndex = 0;
-  tableScroll.setAttribute("role", "region");
-  tableScroll.setAttribute("aria-label", `${model.title} table`);
-  const table = document.createElement("table");
-  const head = document.createElement("thead");
-  const headerRow = document.createElement("tr");
-  const rowActions = model.rows.map((row) => getReviewEntityAction(currentState, row.entityRef));
-  const hasActions = rowActions.some(Boolean);
-  for (const column of model.columns) {
-    const cell = document.createElement("th");
-    cell.scope = "col";
-    cell.textContent = column.label;
-    if (column.description) {
-      cell.title = column.description;
-    }
-    headerRow.append(cell);
-  }
-  if (hasActions) {
-    const actionsHeader = document.createElement("th");
-    actionsHeader.scope = "col";
-    actionsHeader.textContent = "Actions";
-    headerRow.append(actionsHeader);
-  }
-  head.append(headerRow);
 
-  const body = document.createElement("tbody");
-  for (let rowIndex = 0; rowIndex < model.rows.length; rowIndex += 1) {
-    const row = model.rows[rowIndex];
-    const tableRow = document.createElement("tr");
-    const action = rowActions[rowIndex];
-    if (action && currentState.selectedObjectIds.includes(action.objectId)) {
-      tableRow.dataset.selected = "true";
-    }
-    if (row.entityRef) {
-      tableRow.dataset.entityRef = row.entityRef;
-    }
-    for (const cellModel of row.cells) {
-      const cell = document.createElement("td");
-      cell.append(renderCellValue(cellModel));
-      if (cellModel.tone) {
-        cell.dataset.tone = cellModel.tone;
-      }
-      tableRow.append(cell);
-    }
-    if (hasActions) {
-      const actionCell = document.createElement("td");
-      if (action) {
-        actionCell.append(createShowIn3dButton(action));
-      }
-      tableRow.append(actionCell);
-    }
-    body.append(tableRow);
-  }
-  table.append(head, body);
-  tableScroll.append(table);
-  section.append(tableScroll);
-  return section;
-}
-
-function renderCellValue(cellModel) {
-  const value = document.createElement("span");
-  value.textContent = cellModel.text;
-  if (cellModel.tone === "pass" || cellModel.tone === "fail") {
-    value.className = "verdict";
-    value.dataset.pass = String(cellModel.tone === "pass");
-  } else if (["error", "warning", "info"].includes(cellModel.tone)) {
-    value.className = "severity-badge";
-    value.dataset.severity = cellModel.tone;
-  } else if (cellModel.columnId === "analysis_status") {
-    value.className = "status-badge";
-    value.dataset.status = cellModel.text;
-  }
-  return value;
-}
-
-function createShowIn3dButton(action) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = "Show in 3D";
-  button.setAttribute("aria-label", action.accessibleName);
-  button.addEventListener("click", () => showReviewEntity(action.entityRef));
-  return button;
-}
-
-function showReviewEntity(entityRef) {
-  const previousState = currentState;
-  dispatch({ type: "showReviewEntityIn3d", entityRef });
-  if (currentState === previousState) {
-    setStatus(`No 3D object is available for ${entityRef}.`);
-    return;
-  }
-  selectedObjectId = currentState.selectedObjectIds[0] ?? null;
-  render();
-}
-
-function appendTableSource(parent, source) {
-  if (!source) {
-    return;
-  }
-  const provenance = document.createElement("p");
-  provenance.className = "meta";
-  provenance.textContent = `Source: ${source}`;
-  parent.append(provenance);
-}
-
-// Four bands in reading order: what colours the scene, what that colour means,
-// what shape it is drawn in, and where it peaks. Each band states what it is set
-// to in its own heading, so a band scrolled half off still answers for itself -
-// and nothing here toggles a body the Model task owns.
 function renderResultControls() {
   dom.resultControls.replaceChildren();
   dom.resultLegend.replaceChildren();
@@ -1760,6 +1434,9 @@ function renderDiagnostics() {
   renderDiagnosticGroup("Scene diagnostics", sceneDiagnostics);
   renderDiagnosticGroup("Scene issues", issues);
   renderDiagnosticGroup("Load and preview diagnostics", loadDiagnostics);
+  // The evidence dock used to decide this; the list now lives in the Issues
+  // task and shows itself whenever it has something to say.
+  dom.diagnosticList.hidden = dom.diagnosticList.childElementCount === 0;
 }
 
 function isLoadOrPreviewDiagnostic(diagnostic) {
@@ -2278,7 +1955,7 @@ function renderViewportUnavailable() {
   const heading = document.createElement("h2");
   heading.textContent = "3D view unavailable";
   const explanation = document.createElement("p");
-  explanation.textContent = "This browser could not start WebGL2. Processed result tables and evidence remain available below.";
+  explanation.textContent = "This browser could not start WebGL2. The review report carries the processed result tables.";
   const action = document.createElement("p");
   action.textContent = "Try a current browser with graphics acceleration enabled, then reload this review.";
   panel.append(heading, explanation, action);
@@ -2718,15 +2395,8 @@ dom.searchInput.addEventListener("keydown", (event) => {
   closeFind();
 });
 
-dom.evidenceExpand.addEventListener("click", () => {
-  evidenceExpanded = !evidenceExpanded;
-  renderTaskRail();
-  renderEvidenceTabs();
-});
-
 dom.railToggle.addEventListener("click", () => {
   railExpanded = !railExpanded;
-  renderEvidenceTabs();
   renderTaskRail();
 });
 

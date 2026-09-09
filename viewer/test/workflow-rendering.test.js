@@ -21,9 +21,9 @@ test("workflow rendering exposes the seven engineer review tabs", () => {
 test("workflow rendering keyboard navigation wraps and supports Home and End", () => {
   const state = createWorkflowState({ review: { tables: {} } });
 
-  assert.equal(workflowTabForKey(state, "summary", "ArrowLeft"), "diagnostics");
-  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "summary");
-  assert.equal(workflowTabForKey(state, "results", "Home"), "summary");
+  assert.equal(workflowTabForKey(state, "model", "ArrowLeft"), "diagnostics");
+  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "model");
+  assert.equal(workflowTabForKey(state, "results", "Home"), "model");
   assert.equal(workflowTabForKey(state, "results", "End"), "diagnostics");
   assert.equal(workflowTabForKey(state, "results", "Enter"), null);
 });
@@ -32,7 +32,6 @@ test("workflow rendering styles real task buttons, horizontal tables, and visibl
   const css = await readViewerFile("src/styles.css");
 
   assert.match(css, /\[data-workflow-tabs\]\s*\{/s);
-  assert.match(css, /\.review-table-scroll\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /\.task-button\[aria-current="page"\]/);
   assert.doesNotMatch(css, /\.workflow-tab\b/);
   assert.match(css, /:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus-on-light\)/s);
@@ -51,7 +50,7 @@ test("workflow rendering uses a scene-first responsive shell and preserves embed
   assert.match(css, /\.app-header\s*\{[^}]*display:\s*flex/s);
   assert.match(css, /\.status-chip\s*\{[^}]*display:\s*flex/s);
   assert.doesNotMatch(css, /\.cockpit-status|\.coloring-bar/);
-  assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"viewport inspector"[^;]*"evidence inspector"/s);
+  assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-areas:[^;]*"viewport inspector"/s);
   assert.match(css, /\.cockpit-rail\s*\{[^}]*position:\s*absolute[^}]*width:\s*var\(--controls-width\)/s);
   assert.match(css, /\.cockpit-rail\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media\s*\(max-width:\s*1200px\)[\s\S]*\.inspector[\s\S]*position:\s*absolute/);
@@ -66,34 +65,9 @@ test("workflow rendering uses explicit labeled status, verdict, and severity bad
 
   assert.match(app, /className\s*=\s*"task-button"/);
   assert.match(app, /className\s*=\s*"status-badge"/);
-  assert.match(app, /className\s*=\s*"verdict"/);
   assert.match(app, /className\s*=\s*"severity-badge"/);
   assert.match(css, /\.status-badge\[data-status="solved"\]/);
-  assert.match(css, /\.verdict\[data-pass="true"\]/);
   assert.match(css, /\.severity-badge\[data-severity="error"\]/);
-});
-
-test("workflow rendering keeps the viewport persistent and separates tasks from evidence tabs", async () => {
-  const app = await readViewerFile("src/app.js");
-
-  assert.match(app, /function renderTaskRail\(\)/);
-  assert.match(app, /setAttribute\("aria-current", id === currentState\.activeTab \? "page" : "false"\)/);
-  assert.match(app, /function renderEvidenceTabs\(\)/);
-  assert.match(app, /\["summary", "Governing Results"\]/);
-  assert.match(app, /\["diagnostics", "Warnings"\]/);
-  assert.match(app, /\["compliance", "Compliance"\]/);
-  assert.match(app, /\["reports", "Reports"\]/);
-  assert.match(app, /let activeEvidenceTab\s*=\s*"summary"/);
-  assert.match(app, /activeEvidenceTab\s*=\s*evidenceTabForReload\(currentState, activeEvidenceTab\)/);
-  assert.match(app, /button\.setAttribute\("aria-selected", String\(id === activeEvidenceTab\)\)/);
-  assert.match(app, /button\.tabIndex = id === activeEvidenceTab \? 0 : -1/);
-  assert.match(app, /evidenceTabForKey\(currentState, id, event\.key\)/);
-  assert.match(app, /activateEvidence\(nextId\)[\s\S]*data-evidence-tab="\$\{nextId\}"[\s\S]*\.focus\(\)/);
-  assert.match(app, /const activeTab = activeEvidenceTab/);
-  assert.match(app, /let railExpanded\s*=\s*true/);
-  assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded/);
-  assert.match(app, /dom\.railToggle\.setAttribute\("aria-expanded", String\(railExpanded\)\)/);
-  assert.doesNotMatch(app, /dom\.viewerWorkspace\.hidden\s*=/);
 });
 
 test("workflow rendering adds cockpit status, report links, saved views, and reverse selection highlighting", async () => {
@@ -104,11 +78,7 @@ test("workflow rendering adds cockpit status, report links, saved views, and rev
   assert.match(app, /dom\.statusChip\.dataset\.statusTarget/);
   assert.match(app, /dom\.reportLink\.href\s*=\s*`\$\{currentBundleUrl\}\/index\.html`/);
   assert.match(app, /dom\.reportLink\.hidden\s*=\s*!currentState\.review/);
-  assert.match(app, /dataset\.evidenceReportLink/);
-  assert.match(app, /setAttribute\("aria-expanded", String\(evidenceExpanded\)\)/);
-  assert.match(app, /status\.governingLocation/);
   assert.match(app, /saveViewState\(currentState, name\)/);
-  assert.match(app, /tableRow\.dataset\.selected\s*=\s*"true"/);
   assert.match(app, /dom\.inspector\.hidden\s*=\s*contactSelection \|\| \(sections\.length === 0 && !issueSummary\)/);
 
   assert.match(css, /\.report-link\s*\{[^}]*color:\s*var\(--accent\)/s);
@@ -124,7 +94,6 @@ test("workflow rendering consolidates diagnostics, provenance, issues, and load 
   for (const field of ["source", "code", "target"]) {
     assert.match(app, new RegExp(`diagnostic\\.${field}`));
   }
-  assert.match(app, /if \(activeTab === "diagnostics"\)[\s\S]*return;/);
 });
 
 test("workflow rendering parses embed once and pins reloads to the display workflow", async () => {
@@ -235,28 +204,20 @@ test("the bodies panel is the rail's primary content, not a window onto it", asy
   assert.doesNotMatch(css, /^\.display-strip\s*\{[^}]*max-height/ms);
 });
 
-test("collapsed evidence reserves no viewport space", async () => {
-  const css = await readViewerFile("src/styles.css");
-  // Reserving space for a panel nobody opened cost the viewport 235px.
-  assert.match(css, /\.viewer-workspace\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto/s);
-  assert.match(css, /\.evidence-dock:not\(\.expanded\)\s*\{[^}]*display:\s*none/s);
-});
-
-test("the status chip carries exceptions only, and the rest moves to Governing Results", async () => {
+test("the status chip carries exceptions only, and routes into the rail", async () => {
   const app = await readViewerFile("src/app.js");
-  const chip = app.slice(app.indexOf("function renderStatusChip()"), app.indexOf("function renderOverviewCard("));
+  const chip = app.slice(app.indexOf("function renderStatusChip()"), app.indexOf("function renderResultControls("));
   // A passing or unavailable compliance verdict is not news; a failing one
   // must never be something you have to open a tab to discover.
   assert.match(chip, /status\.complianceStatus === "Fail"/);
   assert.match(chip, /status\.warningCount > 0/);
   assert.doesNotMatch(chip, /governingLoadCase|governingRatio/);
 
-  // Nothing the band used to state was dropped - governing case and ratio
-  // joined the card built from the same compliance table.
-  const overview = app.slice(app.indexOf("function renderReviewOverview("), app.indexOf("function renderStatusChip()"));
-  assert.match(overview, /status\.governingLoadCase/);
-  assert.match(overview, /status\.governingRatio/);
-  assert.match(overview, /status\.governingLocation/);
+  // With the evidence dock gone the chip routes into the rail task that owns
+  // warnings, never into a tab list that no longer exists.
+  assert.match(chip, /getVisibleCockpitTaskIds\(currentState\)/);
+  assert.match(chip, /activateTask\(/);
+  assert.doesNotMatch(app, /activateEvidence|evidenceExpanded/);
 });
 
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {
@@ -303,7 +264,7 @@ test("controls rebuilt on every render carry a stable focus key", async () => {
   // element; these keys are how it is put back.
   assert.match(app, /function captureFocus\(\)/);
   assert.match(app, /function restoreFocus\(focus\)/);
-  for (const key of ["body:", "opacity:", "scope:", "object:", "task:", "evidence:", "bar:", "camera:"]) {
+  for (const key of ["body:", "opacity:", "scope:", "object:", "task:", "bar:", "camera:"]) {
     assert.ok(app.includes(`focusKey = \`${key}`), `no focus key for ${key}`);
   }
 });
@@ -326,21 +287,6 @@ test("the viewport canvas has a keyboard path to the camera", async () => {
   for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home"]) {
     assert.ok(app.includes(`${key}:`), `no canvas binding for ${key}`);
   }
-});
-
-test("reports tab offers the authoring script as a download, not a page to open", async () => {
-  const app = await readViewerFile("src/app.js");
-
-  // A .py served by GitHub Pages, vite and the local preview server resolves to
-  // three different content types; the download attribute is what makes the
-  // link behave the same in all three.
-  assert.match(app, /typeof currentState\.sourceUri === "string"/);
-  assert.match(app, /source\.download = currentState\.sourceUri/);
-  assert.match(app, /encodeURIComponent\(currentState\.sourceUri\)/);
-  assert.match(app, /dataset\.evidenceSourceLink/);
-  // Shares the sibling's class so it is actually styled; .evidence-source-link
-  // alone has no rule in styles.css.
-  assert.match(app, /"report-link evidence-report-link evidence-source-link"/);
 });
 
 test("gallery panel never overrides the hidden attribute", async () => {

@@ -22,6 +22,11 @@ async function setLayerLeaves(page, label, visible) {
   }
 }
 
+async function openIssuesTask(page) {
+  await openReviewControls(page);
+  await page.getByRole("button", { name: "Issues", exact: true }).click();
+}
+
 async function openResultsTask(page) {
   await openReviewControls(page);
   await page.getByRole("button", { name: "Results", exact: true }).click();
@@ -96,15 +101,6 @@ async function assertInspectorIdentity(page, objectId, entityRef) {
   const text = await identity.textContent();
   assert.ok(text.includes(objectId), `inspector identity must include ${objectId}: ${text}`);
   assert.ok(text.includes(entityRef), `inspector identity must include ${entityRef}: ${text}`);
-}
-
-async function assertSelectedEvidenceTab(page, label) {
-  const selected = page.locator('[data-evidence-tabs] [role="tab"][aria-selected="true"]');
-  const focusable = page.locator('[data-evidence-tabs] [role="tab"][tabindex="0"]');
-  assert.equal(await selected.count(), 1);
-  assert.equal(await focusable.count(), 1);
-  assert.equal(await selected.textContent(), label);
-  assert.equal(await focusable.textContent(), label);
 }
 
 async function framebufferFingerprint(canvas) {
@@ -551,7 +547,7 @@ const scenarios = {
     minimumObjects: 6,
     async run(page) {
       await openReviewControls(page);
-      const reviewTask = page.getByRole("button", { name: "Review", exact: true });
+      const reviewTask = page.getByRole("button", { name: "Model", exact: true });
       await reviewTask.waitFor();
       assert.equal(await reviewTask.getAttribute("aria-current"), "page");
       await reviewTask.focus();
@@ -562,15 +558,9 @@ const scenarios = {
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-status-chip]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
-      assert.equal(
-        await page.locator('[data-evidence-tab="summary"]').getAttribute("aria-selected"),
-        "true"
-      );
-      await assertSelectedEvidenceTab(page, "Governing Results");
-      // Collapsed evidence is a bar, not a strip of a panel nobody opened, so
-      // the table behind the tabs appears once it is expanded.
-      await page.locator("[data-evidence-expand]").click();
-      await page.getByRole("heading", { level: 2, name: "Governing Results", exact: true }).waitFor();
+      // No evidence dock: the review's tables live in the generated report the
+      // header links to, and the shell keeps only what acts on the scene.
+      assert.equal(await page.locator("[data-evidence-dock]").count(), 0);
       assert.equal(await page.locator("[data-report-link]").isVisible(), true);
       const headerLayout = await page.locator("[data-app-header]").evaluate((header) => ({
         display: getComputedStyle(header).display,
@@ -585,20 +575,13 @@ const scenarios = {
         JSON.stringify(headerLayout)
       );
 
-      await page.getByRole("tab", { name: "Reports", exact: true }).click();
-      await assertSelectedEvidenceTab(page, "Reports");
-      await page.getByRole("heading", { level: 2, name: "Reports", exact: true }).waitFor();
-      assert.match(await page.locator("[data-evidence-report-link]").getAttribute("href"), /code_aster_results\/index\.html$/);
-      await page.getByRole("tab", { name: "Governing Results", exact: true }).click();
+      assert.match(await page.locator("[data-report-link]").getAttribute("href"), /code_aster_results\/index\.html$/);
       await rememberCanvas(page);
 
       await openReviewControls(page);
       await page.getByRole("button", { name: "Model", exact: true }).click();
-      await assertSelectedEvidenceTab(page, "Governing Results");
-      assert.equal(await page.locator("[data-evidence-dock]").evaluate((dock) => dock.classList.contains("expanded")), false);
       await assertSameCanvas(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
-      await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
 
       // The coloring channel lives in the bar now, not duplicated in this panel:
@@ -711,25 +694,12 @@ const scenarios = {
       assert.match(compactStatus, /solved/i);
       // The chip states exceptions, never placeholders for facts it lacks.
       assert.doesNotMatch(compactStatus, /Not available/i);
-      const compactExpand = page.locator("[data-evidence-expand]");
-      // This block exercises the toggle itself, so start from collapsed: the
-      // dock was expanded earlier to read Governing Results.
-      if ((await compactExpand.getAttribute("aria-expanded")) === "true") {
-        await compactExpand.click();
-      }
-      assert.equal(await compactExpand.getAttribute("aria-expanded"), "false");
-      await compactExpand.click();
-      assert.equal(await compactExpand.getAttribute("aria-expanded"), "true");
-      await page.getByRole("tab", { name: "Warnings", exact: true }).click();
-      await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
-      await assertSelectedEvidenceTab(page, "Warnings");
+      await openIssuesTask(page);
+      assert.equal(await page.getByRole("button", { name: "Issues", exact: true }).getAttribute("aria-current"), "page");
       await assertSameCanvas(page);
-      await openReviewControls(page);
       await page.getByRole("button", { name: "Results", exact: true }).click();
       assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
-      await assertSelectedEvidenceTab(page, "Warnings");
       await assertSameCanvas(page);
-      assert.equal(await compactExpand.getAttribute("aria-expanded"), "false");
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.innerWidth), 1440);
@@ -754,85 +724,9 @@ const scenarios = {
       });
       assert.deepEqual(railLayout.overlaps, [], JSON.stringify(railLayout));
       assert.ok(railLayout.scrollWidth <= railLayout.clientWidth + 1, JSON.stringify(railLayout));
-      const expandEvidence = page.locator("[data-evidence-expand]");
-      assert.equal(await expandEvidence.getAttribute("aria-expanded"), "false");
-      const collapsedDock = await page.locator("[data-evidence-dock]").evaluate((dock) => ({
-        height: dock.getBoundingClientRect().height,
-        position: getComputedStyle(dock).position
-      }));
-      await expandEvidence.click();
-      assert.equal(await expandEvidence.getAttribute("aria-expanded"), "true");
-      const expandedDock = await page.locator("[data-evidence-dock]").evaluate((dock) => ({
-        height: dock.getBoundingClientRect().height,
-        position: getComputedStyle(dock).position
-      }));
-      assert.equal(expandedDock.position, "absolute");
-      assert.ok(expandedDock.height > collapsedDock.height + 100, JSON.stringify({ collapsedDock, expandedDock }));
-      await page.getByRole("tab", { name: "Governing Results", exact: true }).click();
-      await assertSelectedEvidenceTab(page, "Governing Results");
-      const expandedCanvasHeight = await page.locator("[data-canvas]").evaluate((canvas) => canvas.getBoundingClientRect().height);
-      await page.getByRole("button", { name: "Show element:pipe_hot in 3D", exact: true }).first().click();
-      await page.waitForFunction(() => {
-        const state = window.__tubaViewer?.state;
-        return (
-          state?.activeTab === "results" &&
-          state?.selectedObjectIds?.includes("object:pipe:hot") &&
-          state?.activeLoadCase === "Hot" &&
-          state?.activeResultStateId === "result_state:Hot"
-        );
-      });
-      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
-      assert.equal(await page.locator("[data-inspector]").isVisible(), true);
-      assert.ok(
-        Math.abs(await page.locator("[data-canvas]").evaluate((canvas) => canvas.getBoundingClientRect().height) - expandedCanvasHeight) <= 1,
-        "opening the inspector must not make the expanded evidence overlay shrink the canvas"
-      );
-      await assertInspectorIdentity(page, "object:pipe:hot", "element:pipe_hot");
-      assert.equal(
-        await page.locator('[data-workflow-panel] tr[data-entity-ref="element:pipe_hot"][data-selected="true"]').first().isVisible(),
-        true
-      );
-      await expandEvidence.click();
-      const narrowLayout = await page.evaluate(() => {
-        const canvas = document.querySelector("[data-canvas]").getBoundingClientRect();
-        const inspector = document.querySelector("[data-inspector]");
-        const drawer = inspector.getBoundingClientRect();
-        return {
-          canvas: { left: canvas.left, right: canvas.right, top: canvas.top, bottom: canvas.bottom, width: canvas.width },
-          drawer: { left: drawer.left, right: drawer.right, top: drawer.top, bottom: drawer.bottom },
-          drawerPosition: getComputedStyle(inspector).position
-        };
-      });
-      assert.equal(narrowLayout.drawerPosition, "absolute");
-      assert.ok(
-        narrowLayout.drawer.left < narrowLayout.canvas.right &&
-          narrowLayout.drawer.right > narrowLayout.canvas.left &&
-          narrowLayout.drawer.top < narrowLayout.canvas.bottom &&
-          narrowLayout.drawer.bottom > narrowLayout.canvas.top,
-        `inspector must overlap the canvas as a drawer: ${JSON.stringify(narrowLayout)}`
-      );
-      assert.ok(narrowLayout.canvas.width >= 480, `canvas width is too small: ${JSON.stringify(narrowLayout)}`);
-      await page.setViewportSize({ width: 800, height: 900 });
-      await expandEvidence.click();
-      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const compactExpandedLayout = await page.evaluate(() => {
-        const workspace = document.querySelector("[data-viewer-workspace]");
-        const workspaceRect = workspace.getBoundingClientRect();
-        const canvasRect = document.querySelector("[data-canvas]").getBoundingClientRect();
-        return {
-          columns: getComputedStyle(workspace).gridTemplateColumns.split(" ").length,
-          workspace: { left: workspaceRect.left, right: workspaceRect.right },
-          canvas: { left: canvasRect.left, right: canvasRect.right, width: canvasRect.width }
-        };
-      });
-      assert.equal(compactExpandedLayout.columns, 1, JSON.stringify(compactExpandedLayout));
-      assert.ok(
-        Math.abs(compactExpandedLayout.canvas.left - compactExpandedLayout.workspace.left) <= 1 &&
-          Math.abs(compactExpandedLayout.canvas.right - compactExpandedLayout.workspace.right) <= 1,
-        JSON.stringify(compactExpandedLayout)
-      );
-      assert.ok(compactExpandedLayout.canvas.width >= 480, JSON.stringify(compactExpandedLayout));
-      await expandEvidence.click();
+      // The evidence dock's geometry, its row-level "Show in 3D" actions and
+      // the canvas-vs-overlay checks around it all went with the dock. The
+      // inspector drawer keeps its own overlay assertions below.
       await page.setViewportSize({ width: 1440, height: 900 });
       await openReviewControls(page);
 
@@ -979,14 +873,8 @@ const scenarios = {
       );
       assert.equal(new URL(page.url()).pathname, "/viewer/");
       assert.equal(new URL(page.url()).searchParams.get("bundle"), "imported_component_mixed_demo");
-      // Evidence is launched from the header, so diagnostics appear only once
-      // the overlay is requested.
-      const pagesEvidenceExpand = page.locator("[data-evidence-expand]");
-      if ((await pagesEvidenceExpand.getAttribute("aria-expanded")) === "false") {
-        await pagesEvidenceExpand.click();
-      }
-      await page.getByRole("tab", { name: "Warnings", exact: true }).click();
-      await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
+      // Diagnostics live in the rail's Issues task.
+      await openIssuesTask(page);
       assert.match(await page.locator("[data-diagnostic-list]").textContent(), /publication\.model_review\.no_solver_results/);
       assert.match(await page.locator("[data-diagnostic-list]").textContent(), /Code_Aster has not been run/);
 
@@ -1086,9 +974,7 @@ const scenarios = {
       assert.ok(!objectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
       assert.ok(objectIds.includes("object:element:pipe_str_0"), "undeformed reference must remain visible");
 
-      await page.locator("[data-evidence-expand]").click();
-      await page.getByRole("tab", { name: "Warnings", exact: true }).click();
-      await page.getByRole("heading", { level: 2, name: "Warnings", exact: true }).waitFor();
+      await openIssuesTask(page);
       const warnings = await page.locator("[data-diagnostic-list]").textContent();
       assert.match(warnings, /visualization\.code_aster_artifacts\.rmed_read_failed/);
       assert.match(warnings, /Unable to synchronously open object/);
@@ -1128,7 +1014,7 @@ const scenarios = {
         () => window.__tubaViewer?.state?.review?.schema_version === "engineering_review.v1"
       );
       await openReviewControls(page);
-      const reviewTask = page.getByRole("button", { name: "Review", exact: true });
+      const reviewTask = page.getByRole("button", { name: "Model", exact: true });
       await reviewTask.waitFor();
       assert.equal(await reviewTask.getAttribute("aria-current"), "page");
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
@@ -1276,9 +1162,8 @@ const scenarios = {
 
       await page.getByRole("button", { name: "Results", exact: true }).click();
       assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
-      await assertSelectedEvidenceTab(page, "Governing Results");
       await assertSameCanvas(page);
-      // The coloring channel lives in the bar; its case selector is "Case".
+      // The coloring channel lives in the Results task; its selector is "Case".
       assert.equal(await page.getByRole("combobox", { name: /^Case/ }).inputValue(), "Operating");
       assert.equal(
         await page.getByRole("combobox", { name: "Field", exact: true }).inputValue(),
@@ -1320,30 +1205,9 @@ const scenarios = {
       assert.ok(!visualObjectIds.includes("object:deformed_centerline:geometry_state:Operating:physical:pipe_str_0"));
       assert.ok(visualObjectIds.includes("object:element:pipe_str_0"));
 
-      // The review tables live behind the evidence tabs, and collapsed evidence
-      // is now a bar rather than a strip of an unopened panel.
-      const evidenceExpand = page.locator("[data-evidence-expand]");
-      if ((await evidenceExpand.getAttribute("aria-expanded")) === "false") {
-        await evidenceExpand.click();
-      }
-      await page.getByRole("button", { name: "Show element:pipe_str_0 in 3D", exact: true }).first().click();
-      await page.waitForFunction(() => {
-        const state = window.__tubaViewer?.state;
-        return (
-          state?.activeTab === "results" &&
-          state?.selectedObjectIds?.includes("object:element:pipe_str_0") &&
-          state?.activeLoadCase === "Operating" &&
-          state?.activeResultStateId === "result_state:Operating"
-        );
-      });
-      assert.equal(await page.locator("[data-canvas]").isVisible(), true);
-      assert.equal(await page.locator("[data-inspector]").isVisible(), true);
-      await assertInspectorIdentity(page, "object:element:pipe_str_0", "element:pipe_str_0");
-      assert.equal(
-        await page.locator('[data-workflow-panel] tr[data-entity-ref="element:pipe_str_0"][data-selected="true"]').first().isVisible(),
-        true
-      );
-
+      // Selecting from a review table and mirroring the selection back into it
+      // were the evidence dock's; the rail's finder and the inspector carry
+      // object selection now.
       assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
     }
   },
@@ -1391,15 +1255,10 @@ const scenarios = {
       assert.equal(await page.getByRole("button", { name: "Issues", exact: true }).count(), 1);
       assert.equal(await page.getByRole("button", { name: "Review", exact: true }).count(), 0);
       assert.equal(await page.getByRole("button", { name: "Display", exact: true }).count(), 0);
-      // Evidence starts collapsed, and a collapsed dock renders no tabs, so
-      // the tab assertions below need it open first.
-      const legacyEvidenceExpand = page.locator("[data-evidence-expand]");
-      if ((await legacyEvidenceExpand.getAttribute("aria-expanded")) === "false") {
-        await legacyEvidenceExpand.click();
-      }
-      assert.equal(await page.getByRole("tab", { name: "Warnings", exact: true }).count(), 1);
-      assert.equal(await page.getByRole("tab", { name: "Governing Results", exact: true }).count(), 0);
-      assert.equal(await page.getByRole("tab", { name: "Reports", exact: true }).count(), 0);
+      // There is no evidence dock any more: warnings live in the Issues task
+      // and the review's tables live in the generated report.
+      assert.equal(await page.locator("[data-evidence-dock]").count(), 0);
+      assert.equal(await page.getByRole("tab", { name: "Warnings", exact: true }).count(), 0);
       assert.equal(await page.locator("[data-report-link]").isVisible(), false);
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-canvas]").isVisible(), true);
@@ -1460,13 +1319,11 @@ const scenarios = {
       const chip = await page.locator("[data-status-chip]").textContent();
       assert.doesNotMatch(chip, /Partial Operating|pipe_partial|0\.86|Compliance fail/i);
 
-      await page.locator("[data-status-chip]").click();
-      await page.getByRole("tab", { name: "Governing Results", exact: true }).click();
-      const overview = await page.locator(".review-overview").textContent();
-      assert.match(overview, /Compliance\s*Not available/i);
-      assert.match(overview, /Governing case\s*Not available/i);
-      assert.match(overview, /Governing ratio\s*Not available/i);
-      assert.doesNotMatch(overview, /Partial Operating|pipe_partial|0\.86/);
+      // Nothing anywhere in the shell may restate the partial rows as a
+      // verdict; cockpitStatusViewModel's own tests hold the neutrality rule.
+      await openIssuesTask(page);
+      const shell = await page.locator(".app-shell").textContent();
+      assert.doesNotMatch(shell, /Partial Operating|pipe_partial|0\.86/);
     }
   },
   "embedded-review": {
@@ -1603,6 +1460,7 @@ const scenarios = {
         }
       });
       await page.waitForFunction(() => /patch schema failed/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
+      await openIssuesTask(page);
       const diagnostics = await page.locator("[data-diagnostic-list]").textContent();
       assert.match(diagnostics, /visualization.patch_preview.invalid_patch/);
 
@@ -1662,6 +1520,7 @@ const scenarios = {
       assert.equal(state.sceneId, "viewer_smoke_scene");
       assert.deepEqual(state.selectedObjectIds, ["object:element:pipe_smoke"]);
       assert.match(await page.locator("[data-object-list]").textContent(), /Diff support/);
+      await openIssuesTask(page);
       assert.match(await page.locator("[data-diagnostic-list]").textContent(), /visualization.scene_diff.partial/);
       assert.equal(await page.evaluate(() => performance.getEntriesByType("navigation").length), 1);
 
