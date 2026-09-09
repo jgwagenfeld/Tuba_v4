@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any
@@ -200,14 +201,28 @@ def build_examples(
     output: Path,
     *,
     audience: str,
+    only: Sequence[str] | None = None,
 ) -> tuple[str, ...]:
-    """Materialize only catalog entries allowed for ``audience`` and validate them."""
+    """Materialize only catalog entries allowed for ``audience`` and validate them.
+
+    ``only`` narrows that to named reviews. Each one solves a Code_Aster model,
+    so rebuilding a single example while working on it - or proving a code path
+    runs at all - has no reason to pay for the other nine.
+    """
     if audience not in {"dev", "pages"}:
         raise ValueError("audience must be 'dev' or 'pages'.")
+    requested = None if only is None else set(only)
+    if requested is not None:
+        known = {gallery.id for gallery in OFFICIAL_GALLERIES}
+        unknown = sorted(requested - known)
+        if unknown:
+            raise ValueError(f"Unknown review(s) {unknown}; known reviews are {sorted(known)}.")
     output.mkdir(parents=True, exist_ok=True)
     bundle_ids: list[str] = []
     for gallery in OFFICIAL_GALLERIES:
         if audience not in gallery.audiences:
+            continue
+        if requested is not None and gallery.id not in requested:
             continue
         destination = output / gallery.id
         gallery.bundle_producer(destination, gallery.artifact_dir)
@@ -686,13 +701,20 @@ def main() -> int:
     examples = subcommands.add_parser("examples")
     examples.add_argument("--output", type=Path, required=True)
     examples.add_argument("--audience", choices=("dev", "pages"), default="dev")
+    examples.add_argument(
+        "--only",
+        action="append",
+        metavar="REVIEW",
+        help="Build just this review; repeatable. Each review solves a model, so "
+        "rebuilding one while working on it need not solve the rest.",
+    )
     pages = subcommands.add_parser("pages")
     pages.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "pages":
         assemble_pages(args.output)
         return 0
-    bundle_ids = build_examples(args.output, audience=args.audience)
+    bundle_ids = build_examples(args.output, audience=args.audience, only=args.only)
     write_bundle_catalog(args.output, bundle_ids)
     return 0
 

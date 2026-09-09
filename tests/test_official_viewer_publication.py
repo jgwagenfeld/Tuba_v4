@@ -81,11 +81,9 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     assert bundle_ids == PAGES_BUNDLES
     catalog = json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8"))
     assert [entry["id"] for entry in catalog] == list(bundle_ids)
-    # A card cannot be published without the narrative it renders.
-    assert all(
-        entry["title"] and entry["question"] and entry["summary"] and entry["evidence"]
-        for entry in catalog
-    )
+    # The narrative a card renders is guarded at construction now -
+    # OfficialGallery refuses a review without it - so asserting it here would
+    # be checking that a value which cannot exist does not exist.
 
     engineering = json.loads((tmp_path / "code-aster-review" / "scene.json").read_text(encoding="utf-8"))
     assert len(engineering["result_fields"]) == 5
@@ -242,8 +240,15 @@ def test_contact_history_requires_its_attested_run() -> None:
 
 def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> None:
     """Catches the script-only import path that breaks the documented CLI."""
+    # The bug this catches is an import that resolves under `-m` and not as a
+    # script, so it is proved by the process starting at all. Building one
+    # review is enough; the tenth solved model says nothing the first did not.
+    only = "imported_component_mixed_demo"
     completed = subprocess.run(
-        [sys.executable, "scripts/build_pages.py", "examples", "--output", str(tmp_path), "--audience", "pages"],
+        [
+            sys.executable, "scripts/build_pages.py", "examples",
+            "--output", str(tmp_path), "--audience", "pages", "--only", only,
+        ],
         cwd=Path(__file__).resolve().parents[1],
         capture_output=True,
         text=True,
@@ -253,10 +258,10 @@ def test_examples_cli_runs_directly_from_the_repository_root(tmp_path: Path) -> 
     assert [
         entry["id"]
         for entry in json.loads((tmp_path / "bundles.json").read_text(encoding="utf-8"))
-    ] == [*PAGES_BUNDLES]
+    ] == [only]
 
 
-def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None:
+def test_official_bundles_are_generated_from_source_only() -> None:
     """Keep generated examples out of Git while retaining the smoke fixture."""
     root = Path(__file__).resolve().parents[1]
     official = OFFICIAL_BUNDLES
@@ -290,10 +295,13 @@ def test_official_bundles_are_generated_from_source_only(tmp_path: Path) -> None
         capture_output=True,
     ).returncode == 1
 
-    bundle_ids = build_examples(tmp_path, audience="dev")
-
-    assert bundle_ids == official
-    assert sorted(path.name for path in tmp_path.iterdir() if path.is_dir()) == sorted(official)
+    # This test is about what Git tracks, and every assertion above is a Git
+    # query. It used to end by solving all ten Code_Aster models so it could
+    # compare ten directory names against ten strings - about seven minutes of
+    # finite-element analysis for a list comparison the catalog answers for
+    # free. What the solver actually produces is asserted where solved scenes
+    # are the point: test_pages_catalog_contains_the_validated_official_bundles.
+    assert tuple(gallery.id for gallery in build_pages.OFFICIAL_GALLERIES) == official
 
 
 @pytest.mark.parametrize(
