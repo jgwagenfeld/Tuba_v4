@@ -253,10 +253,14 @@ In `renderViewportLegend()`:
 
 ### 7. Republication
 
-Regenerate `viewer/public/imported_component_mixed_demo/` and `viewer/dist/`,
-then rebuild the packaged viewer under `tuba/visualization/_viewer/`. On
-Windows the page build needs `UV_NO_SYNC=1` — a nested `uv run` swaps numpy
-while its DLL is loaded.
+`viewer/public/<bundle>/` and `viewer/dist/` are gitignored (`.gitignore:44,52`)
+— they are local build artifacts, regenerated on demand and never committed.
+The committed output is the packaged viewer under `tuba/visualization/_viewer/`,
+which CI keeps in sync with `npm run build` followed by `git diff --exit-code`.
+
+So republication is: rebuild the bundle locally to look at it, rebuild the
+packaged viewer, and commit only the latter. On Windows the page build needs
+`UV_NO_SYNC=1` — a nested `uv run` swaps numpy while its DLL is loaded.
 
 Docs to update: `docs/content/examples.md` (the row) and
 `docs/content/modeling.md` (the iframe copy currently reads "geometry and model
