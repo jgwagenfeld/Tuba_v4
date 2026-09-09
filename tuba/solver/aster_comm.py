@@ -143,8 +143,20 @@ class _CommWriterMixin:
         # Check for POI1 requirements (discrete springs or masses)
         has_poi1 = any(needs_discrete_element(s) for s in model.supports)
 
-        # Check if the model requires non-linear simulation (contact, friction, rests)
-        is_nonlinear = any(s.type == "rest" or s.friction_coefficient > 0.0 for s in model.supports)
+        # Supports that need a unilateral contact zone. Kept apart from
+        # is_nonlinear because DEFI_CONTACT needs at least one ZONE to declare,
+        # and a nonlinear run does not imply there is one.
+        unilateral_supports = [s for s in model.supports if s.type == "rest"]
+
+        # Check if the model requires non-linear simulation (contact, friction,
+        # rests, cables). A cable carries no compression and starts from N_INIT,
+        # so CABLE elements are nonlinear by construction: MECA_STATIQUE would
+        # solve them as bars that push back and drop the pretension entirely.
+        # The nonlinear branch has always written their COMPORTEMENT; nothing
+        # but this flag reached it unless the model also had a rest or friction.
+        is_nonlinear = bool(unilateral_supports) or bool(cable_elems) or any(
+            s.friction_coefficient > 0.0 for s in model.supports
+        )
 
         comm: List[str] = []
 
@@ -212,7 +224,26 @@ class _CommWriterMixin:
             w(f"        ALPHA={mat.alpha:.6E},")
             w(f"    ),")
             if mat_name in cable_mats:
-                w(f"    CABLE=_F(EC_SUR_E=1.0),")
+                # EC_SUR_E is a material property in Code_Aster but a
+                # per-cable modelling choice here, so a material shared by two
+                # idealisations has no single answer and must say so.
+                ratios = {
+                    section.compression_modulus_ratio
+                    for section in model.sections.values()
+                    if isinstance(section, CableSection)
+                    and any(
+                        e.section == section.name and e.material == mat_name
+                        for e in model.elements
+                        if e.type == "cable"
+                    )
+                }
+                if len(ratios) > 1:
+                    raise ValueError(
+                        f"Material {mat_name!r} carries cable sections with different "
+                        f"compression modulus ratios {sorted(ratios)}; EC_SUR_E is a "
+                        "material property, so give each idealisation its own material."
+                    )
+                w(f"    CABLE=_F(EC_SUR_E={ratios.pop() if ratios else 1.0}),")
             w(f");")
             w()
 
@@ -718,7 +749,8 @@ class _CommWriterMixin:
             # ==============================================================
             # DEFI_CONTACT & Solve
             # ==============================================================
-            if is_nonlinear and not native_path:
+            has_unilateral = bool(unilateral_supports) and not native_path
+            if has_unilateral:
                 w("# ----- Unilateral contacts -----")
                 w("UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);")
                 w("UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);")
@@ -727,20 +759,19 @@ class _CommWriterMixin:
                 w("    MODELE=MODELE,")
                 w("    FORMULATION='LIAISON_UNIL',")
                 w("    ZONE=(")
-                for sup in model.supports:
-                    if sup.type == "rest":
-                        grp_name = map_name(f"GN_{sup.node}")
-                        cmp_name = "DZ"
-                        if sup.direction:
-                            dof_map = {0: "DX", 1: "DY", 2: "DZ"}
-                            for idx, val in enumerate(sup.direction):
-                                if abs(val) > 1e-12:
-                                    cmp_name = dof_map[idx]
-                                    break
-                        w(
-                            f"        _F(GROUP_NO='{grp_name}', NOM_CMP='{cmp_name}', "
-                            "COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),"
-                        )
+                for sup in unilateral_supports:
+                    grp_name = map_name(f"GN_{sup.node}")
+                    cmp_name = "DZ"
+                    if sup.direction:
+                        dof_map = {0: "DX", 1: "DY", 2: "DZ"}
+                        for idx, val in enumerate(sup.direction):
+                            if abs(val) > 1e-12:
+                                cmp_name = dof_map[idx]
+                                break
+                    w(
+                        f"        _F(GROUP_NO='{grp_name}', NOM_CMP='{cmp_name}', "
+                        "COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),"
+                    )
                 w("    ),")
                 w(");")
                 w()
@@ -803,7 +834,8 @@ class _CommWriterMixin:
                 w("    INCREMENT=_F(")
                 w("        LIST_INST=times,")
                 w("    ),")
-                w("    CONTACT=contact,")
+                if has_unilateral:
+                    w("    CONTACT=contact,")
                 w("    METHODE='NEWTON',")
                 w(");")
             else:

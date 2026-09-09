@@ -982,6 +982,17 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         # increment to this table and only the requested instant is the result.
         rows = self._parse_result_table(work_dir / "study_reac.csv")
         support_nodes = {s.node for s in model.supports}
+        # CABLE and BARRE elements carry three translational degrees of freedom
+        # and no rotations, so Code_Aster prints "-" for DRX/DRY/DRZ at a node
+        # attached only to them - the same "-" the element-force parser above
+        # already accepts for those two types. A guy anchor is a pin: there is
+        # no rotational restraint to react against, which is a reaction moment
+        # of zero rather than a number the solver failed to produce.
+        rotation_free_supports = set()
+        for node in support_nodes:
+            touching = [e for e in model.elements if node in (e.n1, e.n2)]
+            if touching and all(e.type in ("bar", "cable") for e in touching):
+                rotation_free_supports.add(node)
 
         for row in rows:
             raw_nid = row.get("NOEUD", "").strip()
@@ -989,6 +1000,10 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             if nid not in support_nodes or nid not in results.node_results:
                 continue
             raw_values = [row.get(key, "").strip() for key in ("DX", "DY", "DZ", "DRX", "DRY", "DRZ")]
+            if nid in rotation_free_supports:
+                # Translations are never optional, so the guard below still
+                # rejects a "-" anywhere in the first three components.
+                raw_values[3:] = ["0.0" if value == "-" else value for value in raw_values[3:]]
             try:
                 reaction = np.asarray(raw_values, dtype=float)
             except (ValueError, TypeError) as exc:

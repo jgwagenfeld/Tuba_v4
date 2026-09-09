@@ -90,7 +90,7 @@ def assemble_pages(output: Path) -> Path:
         shutil.copytree(ROOT / "tuba" / "visualization" / "_viewer", viewer_root)
         bundle_ids = build_examples(viewer_root, audience="pages")
         write_bundle_catalog(viewer_root, bundle_ids)
-        copy_gallery_thumbnails(viewer_root)
+        shoot_gallery_thumbnails(staged, viewer_root)
 
         notebooks = staged / "notebooks"
         notebooks.mkdir()
@@ -230,21 +230,38 @@ def write_bundle_catalog(viewer_root: Path, bundle_ids: tuple[str, ...]) -> Path
     return target
 
 
-GALLERY_THUMBNAIL_DIR = ROOT / "docs" / "content" / "assets" / "gallery"
+GALLERY_SHOOTER = ROOT / "viewer" / "scripts" / "gallery-thumbnails.mjs"
 
 
-def copy_gallery_thumbnails(viewer_root: Path) -> None:
-    """Place the committed gallery card images beside the published bundles."""
+def shoot_gallery_thumbnails(site_root: Path, viewer_root: Path) -> None:
+    """Photograph the bundles this build just produced.
+
+    The cards used to show committed images refreshed by hand, which bought a
+    release path that could not fail on a headless browser and paid for it in
+    staleness nobody could see: the published pictures and the published
+    bundles drifted six weeks apart, and the only way to notice was to open
+    both and compare.
+
+    Shooting the assembled site closes that by construction - the image is a
+    photograph of the data shipping beside it, so the two cannot disagree. The
+    cost is that the build now needs a browser, and fails loudly without one.
+    """
+    destination = viewer_root / "gallery"
+    destination.mkdir(parents=True, exist_ok=True)
+    node = shutil.which("node") or "node"
+    subprocess.run(
+        [node, str(GALLERY_SHOOTER), str(destination), *(g.id for g in PAGES_GALLERIES)],
+        cwd=ROOT / "viewer",
+        env={**os.environ, "TUBA_PAGES_SITE_ROOT": str(site_root)},
+        check=True,
+    )
     for gallery in PAGES_GALLERIES:
-        source = GALLERY_THUMBNAIL_DIR / f"{gallery.id}.png"
-        if not source.is_file():
+        shot = viewer_root / gallery.thumbnail
+        if not shot.is_file() or shot.stat().st_size < 5_000:
             raise ValueError(
-                f"Gallery {gallery.id!r} has no thumbnail at {source}. "
-                "Run scripts/docs/generate_gallery_thumbnails.py."
+                f"Gallery {gallery.id!r} produced no usable thumbnail at {shot}. "
+                "A card without its image is a broken card."
             )
-        destination = viewer_root / gallery.thumbnail
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
 
 
 def validate_official_bundle(root: Path, profile: str) -> None:

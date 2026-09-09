@@ -610,9 +610,12 @@ const scenarios = {
       const thresholdHotspots = await page.locator("[data-hotspot-list]").textContent();
       assert.match(thresholdHotspots, /Hot pipe/);
       assert.doesNotMatch(thresholdHotspots, /Warm pipe/);
+      // change, not input: the vector sliders commit on change now. Firing per
+      // input event re-rendered the pane mid-drag, which destroyed the element
+      // under the pointer at the drag's first step.
       await page.getByLabel(/Displacement vector scale/i).evaluate((input) => {
         input.value = "10";
-        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
       });
       await page.waitForFunction(() => window.__tubaViewer?.state?.resultVectorScales?.displacement === 10);
       // The layer tree is a secondary tool in the rail popover now, so the
@@ -866,12 +869,22 @@ const scenarios = {
           "autorouted-expansion-loop",
           "code-aster-review",
           "elements-supports-review",
+          "guyed-mast-review",
           "imported_component_mixed_demo",
           "native-friction-review",
           "pipe-tee-volume-review",
           "profile-orientation-review",
           "support-rack-review"
         ]
+      );
+
+      // The card says which elements the review solved. Without this the chips
+      // can silently stop rendering and every card still looks complete.
+      assert.deepEqual(
+        await page
+          .locator('[data-gallery-card="elements-supports-review"] [data-gallery-elements] li')
+          .allTextContents(),
+        ["TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR"]
       );
 
       await page.locator('[data-gallery-card="imported_component_mixed_demo"]').click();
@@ -1582,6 +1595,11 @@ try {
 
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { height: 800, width: 1280 } });
+  // "Copy Entity Ref" now waits for the clipboard write to resolve before it
+  // reports success, so the scenario needs the permission the browser would
+  // otherwise refuse. Without it the button correctly reports a failure, which
+  // is the point - it used to announce "Copied" whether or not anything was.
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   page.setDefaultTimeout(15_000);
   await selected.beforeNavigate?.(page, runtime);
 

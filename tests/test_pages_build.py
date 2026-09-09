@@ -39,6 +39,7 @@ OFFICIAL_BUNDLES = [
     "code-aster-review",
     "elements-supports-review",
     "gmsh-tee-mesh-review",
+    "guyed-mast-review",
     "imported_component_mixed_demo",
     "native-friction-review",
     "pipe-tee-volume-review",
@@ -129,7 +130,17 @@ def _stub_builders(monkeypatch, root: Path, *, complete: bool = True) -> list[st
         events.append("prepare")
         return 0
 
-    def zensical(command, *, cwd, check):
+    def zensical(command, *, cwd, check, env=None):
+        # The build photographs the assembled site rather than copying
+        # committed images, so the shooter is one of the subprocesses now.
+        if command[1].endswith("gallery-thumbnails.mjs"):
+            assert env is not None and "TUBA_PAGES_SITE_ROOT" in env
+            events.append("thumbnails")
+            for gallery in build_pages.PAGES_GALLERIES:
+                shot = Path(command[2]) / f"{gallery.id}.png"
+                shot.parent.mkdir(parents=True, exist_ok=True)
+                shot.write_bytes(bytes.fromhex("89504e470d0a1a0a") + b"0" * 6_000)
+            return SimpleNamespace(returncode=0)
         assert command[1:] == [
             "run",
             "--locked",
@@ -213,7 +224,7 @@ def test_pages_build_assembles_exact_validated_tree_in_order(tmp_path, monkeypat
         html = (output / redirect).read_text(encoding="utf-8")
         assert f'http-equiv="refresh" content="0; url={target}"' in html
         assert f'rel="canonical" href="{target}"' in html
-    assert events == ["prepare", "zensical", "examples", "catalog"]
+    assert events == ["prepare", "zensical", "examples", "catalog", "thumbnails"]
 
 
 def test_pages_build_keeps_existing_output_when_complete_tree_validation_fails(tmp_path, monkeypatch):
@@ -375,6 +386,7 @@ def _publishable_card(**overrides):
         title="Hot line expansion loop",
         question="Where does a hot line move, and what does it reach?",
         summary=" ".join(["a"] * 12),
+        elements=("TUYAU_3M",),
     )
     return OfficialGallery(
         "demo",
@@ -404,29 +416,3 @@ def test_a_card_that_cannot_introduce_its_review_is_rejected_where_it_is_written
 
     with pytest.raises(ValueError, match="needs a title"):
         _publishable_card(title="   ")
-
-
-def test_every_published_gallery_has_a_committed_thumbnail():
-    for gallery in build_pages.PAGES_GALLERIES:
-        thumbnail = build_pages.GALLERY_THUMBNAIL_DIR / f"{gallery.id}.png"
-        assert thumbnail.is_file(), (
-            f"{gallery.id} has no thumbnail; "
-            "run scripts/docs/generate_gallery_thumbnails.py"
-        )
-        assert thumbnail.stat().st_size > 5_000, f"{gallery.id} thumbnail looks empty"
-
-
-def test_solved_3d_tee_thumbnail_shows_result_coloring_at_a_useful_scale():
-    from PIL import Image
-
-    thumbnail = build_pages.GALLERY_THUMBNAIL_DIR / "pipe-tee-volume-review.png"
-    with Image.open(thumbnail) as image:
-        rgb = image.convert("RGB")
-        pixels = list(rgb.get_flattened_data() if hasattr(rgb, "get_flattened_data") else rgb.getdata())
-
-    result_colored = sum(
-        (green > red * 1.15 and green > blue * 0.8 and max(red, green, blue) - min(red, green, blue) > 25)
-        or (blue > red * 1.15 and blue > green * 0.8 and max(red, green, blue) - min(red, green, blue) > 25)
-        for red, green, blue in pixels
-    )
-    assert result_colored / len(pixels) > 0.04

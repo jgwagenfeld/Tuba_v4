@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +24,11 @@ from examples.elements_supports_review import (
     run_example as run_elements_supports_example,
 )
 from examples.gmsh_tee_mesh_review import run_example as run_gmsh_tee_mesh_example
+from examples.guyed_mast_review import (
+    LOAD_CASE as GUYED_MAST_LOAD_CASE,
+    build_guyed_mast_model,
+    run_example as run_guyed_mast_example,
+)
 from examples.code_aster_friction_review import LOAD_PATH, build_friction_comparison_model, build_friction_review
 from examples.code_aster_profile_orientation import CASES as PROFILE_CASES, build_model as build_profile_model, run_example as run_profile_example
 from examples.imported_component_mixed_system import run_demo
@@ -47,6 +53,12 @@ _AUTOROUTED_CLEARANCE_M = 0.10
 #: How much evidence a profile actually carries, in the reviewer's words rather
 #: than the solver's. This is the honest half of hiding the solver: the badge
 #: never disappears, it just stops being the headline.
+#: Every ``MODELISATION`` a card may declare, as produced by
+#: :func:`tuba.solver.modelisation.modelisation_assignments`. A typo here would
+#: otherwise ship as a chip nobody can look up.
+ELEMENT_MODELISATIONS = frozenset({"TUYAU_3M", "POU_D_T", "3D", "BARRE", "CABLE", "DIS_TR", "DIS_T"})
+
+
 PROFILE_EVIDENCE = {
     "engineering-review": "Results",
     "volume-engineering-review": "Results",
@@ -71,6 +83,12 @@ class OfficialGallery:
     title: str = field(kw_only=True)
     question: str = field(kw_only=True)
     summary: str = field(kw_only=True)
+    #: The Code_Aster ``MODELISATION`` names this review actually solves.
+    #: Declared rather than derived: deriving would rebuild every gallery model
+    #: on every catalog read, including the dev server's. The declaration is
+    #: checked against the real models in
+    #: ``test_declared_gallery_elements_match_the_models_they_publish``.
+    elements: tuple[str, ...] = field(kw_only=True)
     solver_options: dict[str, Any] = field(default_factory=dict, kw_only=True)
     refresh_load_cases: tuple[str, ...] = field(default=(), kw_only=True)
 
@@ -99,6 +117,13 @@ class OfficialGallery:
                 f"{self.id}: the summary is too thin to explain the review "
                 f"({len(self.summary.split())} words)"
             )
+        if not self.elements:
+            raise ValueError(
+                f"{self.id}: a card must say which elements the review used"
+            )
+        unknown = sorted(set(self.elements) - ELEMENT_MODELISATIONS)
+        if unknown:
+            raise ValueError(f"{self.id}: unknown element modelisation(s) {unknown}")
         if self.profile not in PROFILE_EVIDENCE:
             raise ValueError(
                 f"{self.id}: no evidence badge is defined for profile {self.profile!r}"
@@ -112,7 +137,7 @@ class OfficialGallery:
     def thumbnail(self) -> str:
         return f"gallery/{self.id}.png"
 
-    def to_catalog_entry(self) -> dict[str, str]:
+    def to_catalog_entry(self) -> dict[str, Any]:
         """The record the viewer renders a gallery card from."""
         return {
             "id": self.id,
@@ -120,6 +145,7 @@ class OfficialGallery:
             "question": self.question,
             "summary": self.summary,
             "evidence": self.evidence,
+            "elements": list(self.elements),
             "thumbnail": self.thumbnail,
         }
 
@@ -162,6 +188,17 @@ def _build_gmsh_tee_mesh_review(destination: Path, _artifacts: Path | None) -> N
         produced = Path(temporary) / "gmsh-tee-mesh"
         run_gmsh_tee_mesh_example(produced)
         _replace_tree(produced / "review_scene", destination)
+
+
+def _build_guyed_mast_review(destination: Path, artifacts: Path | None) -> None:
+    with TemporaryDirectory(prefix="tuba-official-guyed-mast-") as temporary:
+        produced = Path(temporary) / "review"
+        run_guyed_mast_example(produced, artifact_dir=artifacts)
+        _replace_tree(produced / "review_scene", destination)
+
+
+def _guyed_mast_refresh(_scratch_root: Path) -> tuple[Any, str]:
+    return build_guyed_mast_model(), GUYED_MAST_LOAD_CASE
 
 
 def _build_autorouted_review(destination: Path, artifacts: Path | None) -> None:
@@ -267,6 +304,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "autorouted_expansion_hot",
         _autorouted_refresh,
         title="Hot line expansion loop",
+        elements=("TUYAU_3M",),
         question="Where does a hot line move, and what does it reach?",
         summary=(
             "A 180 C line routed around equipment with an automatically selected expansion loop. "
@@ -281,6 +319,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating",
         _code_aster_refresh,
         title="Anchored line with two bends",
+        elements=("TUYAU_3M",),
         question="What happens to a pressurised line held at both ends?",
         summary=(
             "A pressurised line with two anchors and two bends. The review shows displacement, "
@@ -295,6 +334,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "elements_supports_loadcase1",
         _elements_supports_refresh,
         title="Mixed elements and supports",
+        elements=("TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR"),
         question="Do bars, cables and spring supports survive the trip to the solver?",
         summary=(
             "Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, "
@@ -308,10 +348,27 @@ OFFICIAL_GALLERIES = (
         "mesh-review",
         _build_gmsh_tee_mesh_review,
         title="Tee junction mesh",
+        elements=("3D",),
         question="What does the analysis actually discretise at a branch?",
         summary=(
             "A conformal quadratic-hexahedral wall mesh for a header and branch. "
             "This example shows mesh geometry only, with no solver results."
+        ),
+    ),
+    OfficialGallery(
+        "guyed-mast-review",
+        frozenset({"dev", "pages"}),
+        "beam-engineering-review",
+        _build_guyed_mast_review,
+        ROOT / "notebooks" / "code_aster_results" / "guyed_mast_wind",
+        _guyed_mast_refresh,
+        title="Guyed flagpole mast",
+        question="Which guys hold a mast in the wind, and which one goes slack?",
+        elements=("POU_D_T", "CABLE"),
+        summary=(
+            "A 12 m tubular mast held by three pretensioned guy cables under a 3 kN side load. "
+            "The leeward cable goes slack and the two windward ones carry it, which is the "
+            "redistribution a tension-only member exists to show."
         ),
     ),
     OfficialGallery(
@@ -320,6 +377,7 @@ OFFICIAL_GALLERIES = (
         "model-review",
         _build_model_review,
         title="Imported equipment connection",
+        elements=("TUYAU_3M",),
         question="How does a supplied component join an authored line?",
         summary=(
             "A STEP/STL component placed beside Tuba pipework, showing connection ports, "
@@ -334,6 +392,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "native-friction-review",
         _friction_refresh,
         title="Pipe-shoe friction comparison",
+        elements=("POU_D_T", "DIS_T"),
         question="How does friction change the same pipe and load path?",
         summary=(
             "Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. "
@@ -350,6 +409,7 @@ OFFICIAL_GALLERIES = (
         _tee_volume_refresh,
         True,
         title="3D solid tee",
+        elements=("3D",),
         question="Does stress concentrate where the branch meets the header?",
         summary=(
             "A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction."
@@ -364,6 +424,7 @@ OFFICIAL_GALLERIES = (
         _profile_refresh,
         refresh_load_cases=PROFILE_CASES,
         title="I-section orientation and local axes",
+        elements=("POU_D_T",),
         question="How do section orientation and local axes change bending?",
         summary=(
             "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. "
@@ -379,6 +440,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "support_rack_operating",
         _support_rack_refresh,
         title="Pipe on a support rack",
+        elements=("TUYAU_3M", "POU_D_T"),
         question="What do the supports and the steel underneath actually carry?",
         summary=(
             "An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, "
@@ -387,3 +449,19 @@ OFFICIAL_GALLERIES = (
         ),
     ),
 )
+
+
+def catalog_json(indent: int | None = 2) -> str:
+    """The gallery catalog the viewer renders cards from, as JSON.
+
+    The dev server reads this so the gallery you develop against is the gallery
+    you ship. Without it the dev catalog is a list of directory names, the cards
+    degrade to bare titles, and the question, summary, evidence badge and
+    thumbnail - everything a reader actually sees - are invisible to everyone
+    working locally. Copy nobody can see is copy that drifts.
+    """
+    return json.dumps([gallery.to_catalog_entry() for gallery in OFFICIAL_GALLERIES], indent=indent)
+
+
+if __name__ == "__main__":  # pragma: no cover - a dev-server helper
+    print(catalog_json())

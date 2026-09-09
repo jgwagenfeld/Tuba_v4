@@ -106,10 +106,7 @@ CARA = AFFE_CARA_ELEM(
             CARA=('R', 'EP'),
             VALE=(5.71500000E-02, 6.00000000E-03),
         ),
-        _F(
-            GROUP_MA='G8652C19',
-            SECTION='COUDE',
-        ),
+        _F(GROUP_MA='G8652C19', SECTION='COUDE'),
     ),
     BARRE=(
         _F(
@@ -356,6 +353,7 @@ IMPR_TABLE(
     TABLE=TAB_EFFO,
     UNITE=38,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -374,6 +372,7 @@ IMPR_TABLE(
     TABLE=TAB_DEPL,
     UNITE=39,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -392,6 +391,7 @@ IMPR_TABLE(
     TABLE=TAB_REAC,
     UNITE=40,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -410,6 +410,7 @@ IMPR_TABLE(
     TABLE=TAB_SIEQ,
     UNITE=41,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 

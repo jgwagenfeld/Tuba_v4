@@ -1,0 +1,42 @@
+{
+  "analysis_mesh_id": "analysis_mesh:Wind",
+  "lineage": {
+    "beam_0": "element:beam_0",
+    "beam_1": "element:beam_1",
+    "cable_0": "element:cable_0",
+    "cable_1": "element:cable_1",
+    "cable_2": "element:cable_2"
+  },
+  "load_case": "Wind",
+  "name_map": {
+    "AllSupports": "G2F28381",
+    "GN_N0": "GN_N0",
+    "GN_N2": "GN_N2",
+    "GN_N3": "GN_N3",
+    "GN_N4": "GN_N4",
+    "GN_N5": "GN_N5",
+    "G_CABLE": "G_CABLE",
+    "G_TUBE": "G_TUBE",
+    "MAT_Steel": "G5AF7883",
+    "N0": "N0",
+    "N1": "N1",
+    "N2": "N2",
+    "N3": "N3",
+    "N4": "N4",
+    "N5": "N5",
+    "SEC_MastSec": "GEAC3852",
+    "beam_0": "beam_0",
+    "beam_1": "beam_1",
+    "cable_0": "cable_0",
+    "cable_1": "cable_1",
+    "cable_2": "cable_2"
+  },
+  "schema_version": 1,
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v2",
+    "fingerprint": "07bfc6232746c739093a60fbf6be2f0aafce5f34b6ed7fc0a6afe9f12d60dbf5",
+    "load_case": "Wind",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster"
+}

@@ -99,6 +99,24 @@ function card(entry) {
     body.append(summary);
   }
 
+  if (Array.isArray(entry.elements) && entry.elements.length > 0) {
+    // Which elements a review actually solved is the first thing an engineer
+    // asks of an example, and it is not guessable from the picture: the
+    // friction review idealises its pipes as POU_D_T beams, not as TUYAU_3M.
+    // Solver names rather than friendly labels, because "Beam" on a pipe
+    // review would be the lie the raw name avoids.
+    const elements = document.createElement("ul");
+    elements.className = "gallery-card-elements";
+    elements.dataset.galleryElements = "";
+    for (const element of entry.elements) {
+      const chip = document.createElement("li");
+      chip.className = "gallery-card-element";
+      chip.textContent = element;
+      elements.append(chip);
+    }
+    body.append(elements);
+  }
+
   if (entry.evidence) {
     // Never dropped: what a review is backed by stays visible on the card even
     // though it is no longer the headline.
@@ -119,13 +137,14 @@ export function renderGallery(container, catalog) {
 
   const heading = document.createElement("h1");
   heading.className = "gallery-heading";
-  heading.textContent = "Piping reviews";
+  heading.textContent = "Structural and piping reviews";
   container.append(heading);
 
   const intro = document.createElement("p");
   intro.className = "gallery-intro";
   intro.textContent =
-    "Each review below is a piping model that was analysed and kept together with its evidence. " +
+    "Each review below is a model that was analysed and kept together with its evidence - beams, " +
+    "pipes, bars, cables and solids, in whatever mix the study needed. " +
     "Open one to inspect the geometry, the deformed shape, the stresses and the support loads.";
   container.append(intro);
 

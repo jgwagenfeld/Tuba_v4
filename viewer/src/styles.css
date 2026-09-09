@@ -3,7 +3,12 @@
   --graphite-raised: #202a31;
   --graphite-line: #3a4851;
   --chrome-text: #f3f5f5;
-  --paper: #f3f4f2;
+  /* The two greys the rail was already using as tokens without naming them:
+     -2 labels a control or a band, -3 is mono metadata under one. Between them
+     they were 19 of the 80 colour literals in this file. Both clear AA on
+     --graphite-raised (5.92:1 and 4.77:1); do not darken either. */
+  --chrome-text-2: #9aa7ad;
+  --chrome-text-3: #8895a0;
   --paper-raised: #ffffff;
   --paper-inset: #e6e9e8;
   --text: #172127;
@@ -18,6 +23,9 @@
   --success-surface: #dff4e8;
   --danger: #8f241d;
   --danger-surface: #fde9e7;
+  /* --danger is a light-theme value, for use on --danger-surface. This is the
+     one to reach for on a dark panel: 6.20:1 on --graphite-raised. */
+  --danger-on-dark: #ff857d;
   --warning: #6c4c00;
   --warning-surface: #fff1c2;
   --font-ui: "Roboto Condensed", sans-serif;
@@ -60,16 +68,22 @@ textarea,
   outline-offset: 3px;
 }
 
+/* The shell is dark, so the dark ring is the default and the light one is scoped
+   to the only light surface in the app - the renderer's own canvas, which paints
+   #f8fafc over the viewport's CSS background. This used to be the other way
+   round, and the exceptions were listed rather than derived: `.viewer-workspace`
+   was written without a descendant space, so the rail toggle sitting inside it
+   was never covered, and neither were the header's bundle picker nor the gallery
+   card - the landing page's only control. All three drew a 2.74:1 ring. */
 :focus-visible {
-  outline: 3px solid var(--focus-on-light);
+  outline: 3px solid var(--focus-on-dark);
   outline-offset: 3px;
 }
 
-[data-workflow-tabs] :focus-visible,
-.sidebar :focus-visible,
-.cockpit-rail :focus-visible,
-.inspector :focus-visible,
-.viewer-workspace:focus-visible,
+.viewport :focus-visible {
+  outline-color: var(--focus-on-light);
+}
+
 [data-canvas]:focus-visible {
   outline-color: var(--focus-on-dark);
 }
@@ -129,6 +143,7 @@ textarea,
    which left the page's only h1 inside a panel that could be closed. */
 .app-identity h1 {
   margin: 0;
+  min-width: 4rem;
   overflow: hidden;
   font-size: 0.9rem;
   font-weight: 600;
@@ -265,7 +280,7 @@ textarea,
 }
 
 .runtime-status[data-error="true"]::before {
-  color: #ff857d;
+  color: var(--danger-on-dark);
 }
 
 /* The primary panel in the rail: it takes the height that is left and scrolls
@@ -376,10 +391,15 @@ textarea,
 
 /* Exactly one pane occupies the scroll zone. A swap rather than an overlay, so
    nothing focusable is ever left behind an opaque surface. */
+/* min-width too, not just min-height: this is a grid item, so it defaults to a
+   min-content floor, and one nowrap descendant then sets a width the rail cannot
+   honour - the whole pane stretched to 223px inside a 187px column and every
+   panel in it was clipped at the rail's edge. */
 .rail-pane {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -401,11 +421,12 @@ textarea,
 
 .scope-chip {
   flex: 0 0 auto;
+  min-height: 1.5rem;
   width: auto;
   border: 1px solid var(--graphite-line);
   border-radius: 0.9rem;
   background: transparent;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   cursor: pointer;
   font-size: 0.66rem;
   padding: 0.15rem 0.5rem;
@@ -436,7 +457,7 @@ textarea,
   border: 0;
   border-radius: 0;
   background: var(--graphite);
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   cursor: pointer;
   font-size: 0.66rem;
   font-weight: 650;
@@ -493,7 +514,7 @@ textarea,
 }
 
 .object-meta {
-  color: #8895a0;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-size: 0.63rem;
   overflow: hidden;
@@ -505,7 +526,7 @@ textarea,
   justify-self: start;
   border-radius: 0.2rem;
   background: var(--graphite-raised);
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   font-size: 0.6rem;
   padding: 0 0.25rem;
 }
@@ -515,7 +536,7 @@ textarea,
   border: 1px dashed var(--graphite-line);
   border-radius: 0.2rem;
   background: transparent;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   cursor: pointer;
   font-size: 0.66rem;
   padding: 0.2rem 0.35rem;
@@ -548,7 +569,7 @@ textarea,
   border: 1px solid transparent;
   border-radius: 0.2rem;
   background: transparent;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   cursor: pointer;
   font-size: 0.62rem;
   font-weight: 650;
@@ -565,7 +586,7 @@ textarea,
 }
 
 .find-tally {
-  color: #8895a0;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-size: 0.66rem;
 }
@@ -602,7 +623,7 @@ textarea,
   font-weight: 650;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
 }
 
 .strip-subheading {
@@ -611,7 +632,7 @@ textarea,
   font-weight: 650;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
 }
 
 .body-list {
@@ -634,6 +655,7 @@ textarea,
 
 .body-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
 }
@@ -643,13 +665,13 @@ textarea,
   align-items: center;
   gap: 0.35rem;
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: 7rem;
 }
 
 .body-name {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -682,6 +704,7 @@ textarea,
   flex: 0 0 auto;
   width: auto;
   min-width: 2.6rem;
+  min-height: 1.5rem;
   border: 1px solid var(--graphite-line);
   border-radius: 0.2rem;
   background: #2a353d;
@@ -697,7 +720,8 @@ textarea,
 }
 
 .body-caret {
-  width: auto;
+  width: 1.5rem;
+  height: 1.5rem;
   flex: 0 0 auto;
   border: 1px solid transparent;
   border-radius: 0.2rem;
@@ -706,7 +730,7 @@ textarea,
   cursor: pointer;
   font-size: 0.6rem;
   line-height: 1;
-  padding: 0.2rem 0.25rem;
+  padding: 0;
 }
 
 .body-caret:hover,
@@ -737,7 +761,7 @@ textarea,
 .body-metric {
   margin: 0;
   padding-left: 1.35rem;
-  color: #8895a0;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-size: 0.66rem;
   line-height: 1.4;
@@ -748,7 +772,7 @@ textarea,
   border: 1px solid var(--graphite-line);
   border-radius: 0.3rem;
   background: var(--graphite-raised);
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   font-size: 0.68rem;
   line-height: 1.5;
   padding: 0.5rem 0.55rem;
@@ -805,7 +829,7 @@ textarea,
 .section-facts .meta {
   font-family: var(--font-mono);
   font-size: 0.66rem;
-  color: #8895a0;
+  color: var(--chrome-text-3);
 }
 
 .section-facts .section-peak {
@@ -839,6 +863,7 @@ textarea,
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(243 245 245 / 55%);
   background: #3f4d57;
 }
 
@@ -860,7 +885,7 @@ textarea,
 .hotspot-util {
   flex: 0 0 auto;
   min-width: 2.6rem;
-  color: #8895a0;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-size: 0.64rem;
   text-align: right;
@@ -879,7 +904,7 @@ textarea,
 
 .check-label {
   flex: 1 1 auto;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   font-size: 0.72rem;
 }
 
@@ -926,14 +951,14 @@ textarea,
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.09em;
 }
 
 .rail-group-state {
-  color: #8895a0;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-size: 0.66rem;
   white-space: nowrap;
@@ -944,7 +969,7 @@ textarea,
    the rail. Scoped to the rail so it outranks `.result-controls label`. */
 .cockpit-rail .prow {
   display: grid;
-  grid-template-columns: 5.75rem minmax(0, 1fr);
+  grid-template-columns: 4.75rem minmax(0, 1fr);
   align-items: center;
   gap: 0.5rem;
   min-height: 1.625rem;
@@ -965,7 +990,7 @@ textarea,
 .cockpit-rail .prow input[type="number"],
 .cockpit-rail .field-select select {
   width: 100%;
-  min-height: 1.375rem;
+  min-height: 1.5rem;
   border: 1px solid var(--graphite-line);
   border-radius: 0.2rem;
   background: var(--sidebar-control);
@@ -1019,7 +1044,7 @@ textarea,
 }
 
 .drawer-state {
-  color: #8895a0;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-weight: 400;
   letter-spacing: normal;
@@ -1035,6 +1060,7 @@ textarea,
 
 .bar-button {
   width: auto;
+  min-height: 1.5rem;
   border: 1px solid var(--graphite-line);
   border-radius: 0.2rem;
   background: var(--sidebar-control);
@@ -1053,6 +1079,7 @@ textarea,
 /* Pushed to the end of the rail foot: it governs every readout on screen
    rather than belonging to any one selector beside it. */
 .bar-units {
+  min-height: 1.5rem;
   margin-left: auto;
   padding-block: 0.15rem;
   font-family: var(--font-mono);
@@ -1101,6 +1128,7 @@ textarea,
 
 .legend-ramp {
   height: 0.55rem;
+  border: 1px solid rgb(243 245 245 / 35%);
   border-radius: 0.15rem;
 }
 
@@ -1131,7 +1159,7 @@ textarea,
   justify-content: center;
   width: 1.9rem;
   height: 1.9rem;
-  border: 1px solid var(--line);
+  border: 1px solid #77858c;
   border-radius: 0.25rem;
   background: var(--paper-raised);
   color: var(--muted);
@@ -1196,7 +1224,7 @@ textarea,
    are the app's extras and must not push those off the panel. */
 .strip-drawer > summary {
   cursor: pointer;
-  color: #9aa7ad;
+  color: var(--chrome-text-2);
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.09em;
@@ -1275,17 +1303,40 @@ textarea,
   display: none;
 }
 
-.diagnostic-group {
-  padding: 1rem;
+.diagnostics-workflow,
+.diagnostic-group,
+.diagnostic-item,
+.diagnostic-item dl,
+.diagnostic-item dd {
+  min-width: 0;
 }
 
+.diagnostic-group {
+  padding: 0;
+}
+
+/* Two columns - a severity badge and everything else - because that is what fits
+   the rail this now lives in. The three-column grid it replaces was written for
+   the evidence dock deleted in 66815d4, and its 12rem/20rem minimums resolved to
+   602px of content inside a 268px pane: the Source/Code/Target list began past
+   the rail's right edge and every message lost its last line-width. The narrow
+   media query already collapsed this; the rail is narrow at every width, so the
+   collapse is the default. */
 .diagnostic-item {
   display: grid;
-  grid-template-columns: auto minmax(12rem, 1fr) minmax(20rem, 1.2fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
-  gap: 0.75rem;
-  border-top: 1px solid var(--paper-inset);
+  gap: 0.5rem 0.75rem;
+  border-top: 1px solid var(--graphite-line);
   padding: 0.75rem 0;
+}
+
+.diagnostic-item dl {
+  grid-column: 1 / -1;
+}
+
+.diagnostic-item p {
+  overflow-wrap: anywhere;
 }
 
 .diagnostic-item:first-of-type {
@@ -1306,7 +1357,7 @@ textarea,
 }
 
 .diagnostic-item dt {
-  color: var(--muted);
+  color: var(--chrome-text-2);
 }
 
 .diagnostic-item dd {
@@ -1364,7 +1415,7 @@ section {
 }
 
 body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
-  --controls-width: min(18.5rem, 45vw);
+  --controls-width: min(18.5rem, max(45vw, 15rem));
 }
 
 .rail-toggle {
@@ -1464,7 +1515,7 @@ body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
   max-width: 60%;
   margin: 0;
   padding: 0;
-  color: #7c8894;
+  color: var(--muted);
   font-size: 0.68rem;
   text-align: center;
   opacity: 0;
@@ -1560,9 +1611,16 @@ h3 {
   margin-top: 0;
 }
 
-.meta,
-.status-badge {
+.meta {
   color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Its own colour, not --meta's. Every [data-status] below repaints it, but an
+   unmapped status - "Not available", which is exactly what the header shows when
+   the review carries no analysis_status - fell through to --muted on dark. */
+.status-badge {
+  color: var(--chrome-text);
   font-size: 0.75rem;
 }
 
@@ -1609,6 +1667,7 @@ textarea {
 
 input[type="range"] {
   width: 100%;
+  height: 1.5rem;
   accent-color: var(--accent-ink);
 }
 
@@ -1797,14 +1856,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     display: none;
   }
 
-  .diagnostic-item {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .diagnostic-item dl {
-    grid-column: 1 / -1;
-  }
-
   body[data-embed="true"] .viewport {
     min-height: 100vh;
   }
@@ -1849,13 +1900,8 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
   }
 }
 
@@ -1964,6 +2010,25 @@ body[data-view="gallery"] {
   line-height: 1.45;
 }
 
+.gallery-card-elements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery-card-element {
+  border: 1px solid var(--graphite-line);
+  border-radius: 2px;
+  padding: 0.12rem 0.4rem;
+  color: #8ea0a8;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
 .gallery-card-evidence {
   margin: 0.35rem 0 0;
   padding-top: 0.6rem;
@@ -2009,6 +2074,7 @@ body[data-view="gallery"] {
   background: var(--graphite-raised);
   color: var(--chrome-text);
   font-size: 0.72rem;
+  min-height: 1.5rem;
   padding: 0.15rem 0.35rem;
 }
 
@@ -2018,14 +2084,71 @@ body[data-view="gallery"] {
 .bundle-picker[hidden] {
   display: none;
 }
-.contact-review { grid-column: 1 / -1; min-width: 0; border-block: 1px solid #cbd5e1; padding-block: 12px; }
-.contact-review p { font-size: 12px; line-height: 1.5; }
-.contact-review label { display: inline-flex; gap: 6px; align-items: center; margin: 6px; }
-.contact-table-scroll { max-width: 100%; overflow-x: auto; }
-.contact-review table { border-collapse: collapse; font-size: 12px; width: 100%; }
-.contact-review th, .contact-review td { padding: 5px; text-align: left; white-space: nowrap; }
-.contact-review tr[data-selected="true"] { background: #e0f2fe; color: #172127; }
-.contact-review .contact-limit-exceeded { color: #b91c1c; }
-.contact-review svg { display: block; width: 100%; max-width: 520px; background: white; border-radius: 3px; }
+/* The contact panel arrived with a palette of its own - slate borders, a sky-blue
+   selected row, a #b91c1c limit warning that measured 2.26:1 on this rail - and
+   px type against the rem the rest of the file sets. It is the same rail as every
+   other band, so it uses the same tokens. The plot keeps a light ground on
+   purpose: data surfaces in this app are light (the renderer paints #f8fafc), and
+   the chart's own strokes are AA against it. */
+.contact-review {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border-block: 1px solid var(--graphite-line);
+  padding-block: 0.75rem;
+}
+
+.contact-review p {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.contact-review label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.375rem;
+}
+
+.contact-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.contact-review table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.contact-review th,
+.contact-review td {
+  padding: 0.3125rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.contact-review th {
+  color: var(--chrome-text-2);
+  font-weight: 650;
+}
+
+/* The same selected surface every other list in the rail uses. */
+.contact-review tr[data-selected="true"] {
+  background: #153b43;
+  color: var(--chrome-text);
+}
+
+.contact-review .contact-limit-exceeded {
+  color: var(--danger-on-dark);
+  font-weight: 600;
+}
+
+.contact-review svg {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 0.2rem;
+  background: var(--paper-raised);
+}
 
 .cockpit-rail .task-panel:has(.contact-review) { max-height: none; overflow: visible; }

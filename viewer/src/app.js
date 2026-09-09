@@ -426,7 +426,9 @@ function renderStatusChip() {
   // a failing one must never be something you have to open a tab to discover.
   const alerts = [
     status.complianceStatus === "Fail" ? ["compliance", "Compliance fail"] : null,
-    status.warningCount > 0 ? ["diagnostics", `${status.warningCount} warning(s)`] : null
+    status.warningCount > 0
+      ? ["diagnostics", `${status.warningCount} warning${status.warningCount === 1 ? "" : "s"}`]
+      : null
   ].filter(Boolean);
   for (const [, label] of alerts) {
     const alert = document.createElement("span");
@@ -686,7 +688,8 @@ function filtersDrawer() {
       (value) => {
         dispatch({ type: "setDisplacementVectorScale", scale: value });
         render();
-      }
+      },
+      "Displacement vector scale"
     ),
     rangeControl(
       // Its own control on purpose: a moment is not a force, and one shared
@@ -699,7 +702,8 @@ function filtersDrawer() {
       (value) => {
         dispatch({ type: "setMomentVectorScale", scale: value });
         render();
-      }
+      },
+      "Moment vector scale"
     ),
     rangeControl(
       `Reaction vector scale ${formatScale(currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1)}x`,
@@ -710,7 +714,8 @@ function filtersDrawer() {
       (value) => {
         dispatch({ type: "setReactionVectorScale", scale: value });
         render();
-      }
+      },
+      "Reaction vector scale"
     )
   );
   return drawer;
@@ -736,11 +741,17 @@ function thresholdControl() {
   const stored = currentState.resultThreshold;
   const shown = Number.isFinite(Number(stored)) && stored !== null ? toDisplay(stored, unit, system) : "";
   const step = toDisplay(STORED_THRESHOLD_STEP_PA, unit === "Pa" ? unit : "", system) || 1;
-  return numericControl(`Stress threshold${suffix}`, shown, String(step), (value) => {
-    const typed = String(value).trim();
-    dispatch({ type: "setResultThreshold", threshold: typed === "" ? 0 : toStored(typed, unit, system) });
-    render();
-  });
+  return numericControl(
+    `Stress threshold${suffix}`,
+    shown,
+    String(step),
+    (value) => {
+      const typed = String(value).trim();
+      dispatch({ type: "setResultThreshold", threshold: typed === "" ? 0 : toStored(typed, unit, system) });
+      render();
+    },
+    "Stress threshold"
+  );
 }
 
 // One megapascal, the granularity an engineer nudges a stress cut-off by.
@@ -1851,8 +1862,18 @@ function renderProperties() {
     copyButton.type = "button";
     copyButton.textContent = "Copy Entity Ref";
     copyButton.addEventListener("click", () => {
-      void navigator.clipboard?.writeText(selectedObject.entity_ref).catch(() => {});
-      setStatus(`Copied ${selectedObject.entity_ref}`);
+      // Announced only once the write resolved. This used to swallow the
+      // rejection and report "Copied" regardless, so on a non-secure origin the
+      // reviewer was told the ref was on the clipboard when it was not.
+      const write = navigator.clipboard?.writeText(selectedObject.entity_ref);
+      if (!write) {
+        setStatus("Clipboard unavailable in this browser - select the value to copy it", true);
+        return;
+      }
+      void write.then(
+        () => setStatus(`Copied ${selectedObject.entity_ref}`),
+        () => setStatus("Could not copy - select the value to copy it", true)
+      );
     });
     dom.propertyActions.append(copyButton);
   }
@@ -2292,6 +2313,7 @@ function plainSelect(value, options, onChange) {
     element.selected = normalized.id === value;
     select.append(element);
   }
+  select.title = select.options[select.selectedIndex]?.textContent ?? "";
   select.addEventListener("change", () => onChange(select.value));
   return select;
 }
@@ -2387,19 +2409,30 @@ function stepDeformationAnimation(timestamp = 0) {
 
 globalThis.addEventListener("beforeunload", stopDeformationAnimation);
 
-function numericControl(labelText, value, step, onChange) {
+// The focus key is passed rather than taken from the label, because these labels
+// carry their own value ("Displacement vector scale 1.5x") and the unit they are
+// denominated in. A key derived from that text changes on the very edit whose
+// render it has to survive, so restoreFocus could never find the control again.
+function numericControl(labelText, value, step, onChange, key = labelText) {
   const label = document.createElement("label");
   const input = document.createElement("input");
   input.type = "number";
   input.min = "0";
   input.step = step;
   input.value = String(value);
+  focusKeyFor(input, key);
   input.addEventListener("change", () => onChange(input.value));
   label.append(labelText, input);
   return label;
 }
 
-function rangeControl(labelText, value, min, max, step, onChange) {
+// On change, not input. onChange re-renders, and a render replaceChildren()s the
+// pane this lives in - so firing per input event destroyed the element under the
+// pointer at the drag's first step, and dropped keyboard focus to <body> after
+// one arrow press, because these were the only rebuilt controls without a focus
+// key. The thumb still tracks the pointer during the drag; the scene catches up
+// on release, and the focus key puts the caret back after the render.
+function rangeControl(labelText, value, min, max, step, onChange, key = labelText) {
   const label = document.createElement("label");
   const input = document.createElement("input");
   input.type = "range";
@@ -2407,7 +2440,8 @@ function rangeControl(labelText, value, min, max, step, onChange) {
   input.max = String(max);
   input.step = String(step);
   input.value = String(value);
-  input.addEventListener("input", () => onChange(input.value));
+  focusKeyFor(input, key);
+  input.addEventListener("change", () => onChange(input.value));
   label.append(labelText, input);
   return label;
 }

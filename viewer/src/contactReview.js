@@ -77,7 +77,7 @@ export function renderContactReview(state, dispatch, rerender) {
   panel.setAttribute("aria-label", "Contact review");
   const add = (tag, text, parent = panel) => { const el = document.createElement(tag); el.textContent = text; parent.append(el); return el; };
   const update = (action) => { dispatch(action); rerender(); };
-  add("h3", "Contact review — forces on the pipe");
+  add("h2", "Contact review — forces on the pipe");
   const states = contactStates(state);
   const activeIndex = states.findIndex((s) => s.id === state.activeResultStateId);
   const navigation = add("div", "");
@@ -128,7 +128,7 @@ export function renderContactReview(state, dispatch, rerender) {
     const value = active?.metadata?.[key];
     if (value != null) add("p", `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`, provenance);
   }
-  add("h4", `Selected shoe ${selected.support_id}`);
+  add("h3", `Selected shoe ${selected.support_id}`);
   add("p", `Relative displacement: ${selected.relative_displacement.map((v) => quantity(v, "m")).join(", ")} (global X, Y, Z).`);
   const axisLabel = add("label", "History axis ");
   const axis = add("select", "", axisLabel);

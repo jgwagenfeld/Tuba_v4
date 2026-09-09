@@ -1,8 +1,9 @@
 // Screenshot each published review for its gallery card.
 //
-// Driven by scripts/docs/generate_gallery_thumbnails.py, which builds the dev
-// bundles into viewer/public/ first. Kept out of the Pages build on purpose:
-// the images are committed, so releasing never needs a browser.
+// Run by scripts/build_pages.py against the assembled site, so every card is a
+// photograph of the bundle shipping beside it. The images used to be committed
+// and refreshed by hand, which kept the browser out of the release path and let
+// the pictures drift six weeks behind the data they claimed to show.
 //
 //   node viewer/scripts/gallery-thumbnails.mjs <out-dir> <id> [<id> ...]
 // Set TUBA_PAGES_SITE_ROOT (relative to viewer/) to capture an assembled site.

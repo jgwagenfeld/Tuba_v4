@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  colorForScalarValue,
   getActiveLoadCaseDefinition,
   getGeometryStateOptions,
   getHotspots,
@@ -296,4 +297,24 @@ test("load case selection uses the target case's first geometry state when the c
   const next = setActiveLoadCase(setActiveGeometryState(state, "geometry_state:Hot"), "Cold");
 
   assert.equal(next.activeGeometryStateId, "geometry_state:Cold:physical");
+});
+
+// The ramp is the product's primary encoding, so the property that makes it
+// readable is pinned rather than the specific colours: lightness must rise from
+// end to end, or a greyscale print and a colour-blind reader lose the ordering.
+// The sRGB blue -> yellow -> red lerp this replaced peaked in the middle and put
+// its two ends 1.07:1 apart.
+test("the scalar ramp rises monotonically in perceived lightness", () => {
+  const legend = { range: { min: 0, max: 100 } };
+  const channel = (value) => (value / 255 <= 0.03928 ? value / 255 / 12.92 : ((value / 255 + 0.055) / 1.055) ** 2.4);
+  const luminance = (hex) =>
+    0.2126 * channel((hex >> 16) & 0xff) + 0.7152 * channel((hex >> 8) & 0xff) + 0.0722 * channel(hex & 0xff);
+
+  const steps = Array.from({ length: 21 }, (_, index) => luminance(colorForScalarValue(index * 5, legend)));
+  for (let index = 1; index < steps.length; index += 1) {
+    assert.ok(steps[index] > steps[index - 1], `lightness must increase at step ${index}`);
+  }
+
+  const contrast = (steps.at(-1) + 0.05) / (steps[0] + 0.05);
+  assert.ok(contrast > 10, `ends of the scale must be separable in greyscale, got ${contrast.toFixed(2)}:1`);
 });

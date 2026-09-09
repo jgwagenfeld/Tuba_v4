@@ -504,6 +504,95 @@ class TestCodeAsterSolver(unittest.TestCase):
             self.assertIn("DY=0.0", comm)
             self.assertIn("DRZ=0.0", comm)
 
+    def test_a_cable_section_chooses_whether_it_can_take_compression(self):
+        """``EC_SUR_E`` is the knob that makes a cable a cable rather than a bar.
+
+        It is the ratio of the compression modulus to the tension modulus, and
+        it was pinned at 1.0, so every CABLE element carried compression exactly
+        like a bar and no guy ever went slack. The default stays 1.0 because a
+        cable that cannot slacken converges where a tension-only one becomes a
+        mechanism - a free-hanging stub, for one. Slackening is opt-in per
+        section, and it changes the model dict, so it changes the solver
+        fingerprint and cannot silently reuse another idealisation's results.
+        """
+        from tuba.solver.aster import CodeAsterSolver
+
+        def comm_for(ratio):
+            model = Model("Cable_Compression_Ratio")
+            model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5, rho=7850)
+            model.add_pipe_section("MastSec", OD=0.2, WT=0.008)
+            kwargs = {} if ratio is None else {"compression_modulus_ratio": ratio}
+            model.add_cable_section("GuySec", radius=0.006, pretension=5000.0, **kwargs)
+            with model.pipe(section="MastSec", material="Steel") as mast:
+                mast.start([0.0, 0.0, 0.0], support="anchor")
+                mast.set_direction([0.0, 0.0, 1.0])
+                mast.beam(5.0)
+            with model.pipe(section="GuySec", material="Steel") as guy:
+                guy.start([0.0, 0.0, 5.0])
+                guy.set_direction([3.0, 0.0, -5.0])
+                guy.cable(5.830951894845301)
+                model.add_support(node=guy.last_node_id, type="anchor")
+            model.define_load_case("Wind", gravity=True)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out_dir = Path(tmpdir)
+                CodeAsterSolver().export_study(model, "Wind", out_dir)
+                return model, (out_dir / "study.comm").read_text(encoding="utf-8")
+
+        _default_model, default_comm = comm_for(None)
+        self.assertIn("CABLE=_F(EC_SUR_E=1.0)", default_comm)
+
+        tension_only_model, tension_only_comm = comm_for(1.0e-4)
+        self.assertIn("CABLE=_F(EC_SUR_E=0.0001)", tension_only_comm)
+
+        # The idealisation has to survive a round trip, or a reloaded model
+        # solves as a different structure than the one that was authored.
+        reloaded = Model.from_dict(tension_only_model.to_dict())
+        self.assertEqual(reloaded.sections["GuySec"].compression_modulus_ratio, 1.0e-4)
+
+    def test_cables_alone_are_solved_nonlinearly_without_a_contact_definition(self):
+        """A cable is nonlinear by itself, with or without a resting support.
+
+        ``MECA_STATIQUE`` solves CABLE elements as bars that carry compression
+        and it ignores ``N_INIT`` entirely, so a guyed structure comes back with
+        pretension nowhere and a leeward guy pushing the mast upright. The
+        nonlinear branch already wrote the cable ``COMPORTEMENT``; until this it
+        was reachable only when the model happened to also carry a ``rest``
+        support or friction, which every committed cable study did.
+
+        The contact block must stay behind its own condition: a model with no
+        unilateral support has no ``DEFI_CONTACT`` zones to declare.
+        """
+        model = Model("Cable_Only_Nonlinear")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5, rho=7850)
+        model.add_pipe_section("MastSec", OD=0.2, WT=0.008)
+        model.add_cable_section("GuySec", radius=0.006, pretension=5000.0)
+
+        with model.pipe(section="MastSec", material="Steel") as mast:
+            mast.start([0.0, 0.0, 0.0], support="anchor")
+            mast.set_direction([0.0, 0.0, 1.0])
+            mast.beam(5.0)
+
+        with model.pipe(section="GuySec", material="Steel") as guy:
+            guy.start([0.0, 0.0, 5.0])
+            guy.set_direction([3.0, 0.0, -5.0])
+            guy.cable(5.830951894845301)
+            model.add_support(node=guy.last_node_id, type="anchor")
+
+        model.define_load_case("Wind", gravity=True)
+
+        from tuba.solver.aster import CodeAsterSolver
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = Path(tmpdir)
+            CodeAsterSolver().export_study(model, "Wind", out_dir)
+            comm = (out_dir / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("RESU = STAT_NON_LINE(", comm)
+        self.assertNotIn("MECA_STATIQUE", comm)
+        self.assertIn("RELATION='CABLE'", comm)
+        self.assertNotIn("DEFI_CONTACT", comm)
+        self.assertNotIn("CONTACT=contact", comm)
+
 
 if __name__ == "__main__":
     unittest.main()

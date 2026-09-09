@@ -34,8 +34,8 @@ test("workflow rendering styles real task buttons, horizontal tables, and visibl
   assert.match(css, /\[data-workflow-tabs\]\s*\{/s);
   assert.match(css, /\.task-button\[aria-current="page"\]/);
   assert.doesNotMatch(css, /\.workflow-tab\b/);
-  assert.match(css, /:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus-on-light\)/s);
-  assert.match(css, /\[data-workflow-tabs\]\s+:focus-visible,[\s\S]*outline-color:\s*var\(--focus-on-dark\)/s);
+  assert.match(css, /:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus-on-dark\)/s);
+  assert.match(css, /\.viewport\s+:focus-visible\s*\{[^}]*outline-color:\s*var\(--focus-on-light\)/s);
   assert.match(css, /\.visually-hidden\s*\{[^}]*position:\s*absolute[^}]*clip:/s);
   assert.match(css, /\[data-diagnostic-list\]\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
@@ -223,19 +223,27 @@ test("the status chip carries exceptions only, and routes into the rail", async 
 test("workflow rendering core palette meets WCAG AA text contrast", async () => {
   const css = await readViewerFile("src/styles.css");
   const tokens = Object.fromEntries(
-    [...css.matchAll(/--([a-z-]+):\s*(#[0-9a-f]{6})\s*;/gi)].map((match) => [match[1], match[2]])
+    [...css.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\s*;/gi)].map((match) => [match[1], match[2]])
   );
 
   for (const [foreground, background, minimum] of [
-    ["text", "paper", 4.5],
-    ["muted", "paper", 4.5],
+    // --paper-raised is the app's real light ground: the buttons, inputs and
+    // viewport chips that sit on the renderer's light canvas. --paper was the
+    // nominal one and was never used by a single rule.
+    ["text", "paper-raised", 4.5],
+    ["muted", "paper-raised", 4.5],
     ["chrome-text", "graphite", 4.5],
     ["accent", "graphite", 3],
-    ["focus-on-light", "paper", 3],
+    ["focus-on-light", "paper-raised", 3],
     ["focus-on-dark", "graphite-raised", 3],
     ["focus-on-dark", "sidebar-control", 3],
     ["danger", "danger-surface", 4.5],
-    ["success", "success-surface", 4.5]
+    ["success", "success-surface", 4.5],
+    // The rail's own text roles, and the danger that reads on it. --danger is a
+    // light-theme value and measured 2.26:1 where the contact table used it.
+    ["chrome-text-2", "graphite-raised", 4.5],
+    ["chrome-text-3", "graphite-raised", 4.5],
+    ["danger-on-dark", "graphite-raised", 4.5]
   ]) {
     assert.ok(tokens[foreground], `missing --${foreground}`);
     assert.ok(tokens[background], `missing --${background}`);

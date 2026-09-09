@@ -234,6 +234,19 @@ export function getObjectScalarColor(state, objectIds, valueIds = []) {
   return colorForScalarValue(Math.max(...found), getScalarLegend(state));
 }
 
+// Cividis. Lightness rises monotonically end to end, so ranking two values never
+// depends on hue: a greyscale print and a colour-blind reader both still read the
+// scale. The sRGB blue -> yellow -> red lerp this replaces peaked in lightness at
+// mid-range instead, which left its two ends 1.07:1 apart in luminance - the
+// lowest and the highest stress were the same shade on paper - and collapsed to
+// a near-neutral grey (chroma 27/255) around 20% of range, where tens of MPa
+// looked identical. "Blue is low" survives; the top end is now the brightest
+// rather than the reddest.
+const SCALAR_RAMP = Object.freeze([
+  0x00204c, 0x00306f, 0x39486b, 0x575d6d, 0x707173,
+  0x8a8779, 0xa69d75, 0xc4b56c, 0xffea46
+]);
+
 export function colorForScalarValue(value, legend) {
   if (!legend || !Number.isFinite(value)) {
     return null;
@@ -241,10 +254,9 @@ export function colorForScalarValue(value, legend) {
   const min = Number(legend.range?.min ?? value);
   const max = Number(legend.range?.max ?? value);
   const ratio = clamp((value - min) / Math.max(max - min, 1e-12), 0, 1);
-  if (ratio < 0.5) {
-    return interpolateHex(0x2563eb, 0xfacc15, ratio / 0.5);
-  }
-  return interpolateHex(0xfacc15, 0xdc2626, (ratio - 0.5) / 0.5);
+  const span = ratio * (SCALAR_RAMP.length - 1);
+  const index = Math.min(Math.floor(span), SCALAR_RAMP.length - 2);
+  return interpolateHex(SCALAR_RAMP[index], SCALAR_RAMP[index + 1], span - index);
 }
 
 export function getResultVectorScale(state, vectorType) {

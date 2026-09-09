@@ -172,6 +172,13 @@ class CableSection:
     name: str
     radius: float  # [m]
     pretension: float = 0.0  # [N]
+    #: Compression modulus as a fraction of the tension modulus - Code_Aster's
+    #: ``EC_SUR_E``. At the default 1.0 the cable resists compression exactly
+    #: like a bar and never goes slack, which is what a permanently taut stay
+    #: does and what converges for a cable nothing holds taut. Drop it (1e-4 is
+    #: the usual value) when slackening is the point, as it is for a guy that
+    #: sheds its load to the windward side.
+    compression_modulus_ratio: float = 1.0
 
     @property
     def area(self) -> float:
@@ -575,8 +582,19 @@ class TubaModel:
         self.sections[name] = sec
         return sec
 
-    def add_cable_section(self, name: str, radius: float, pretension: float = 0.0) -> CableSection:
-        sec = CableSection(name=name, radius=radius, pretension=pretension)
+    def add_cable_section(
+        self,
+        name: str,
+        radius: float,
+        pretension: float = 0.0,
+        compression_modulus_ratio: float = 1.0,
+    ) -> CableSection:
+        sec = CableSection(
+            name=name,
+            radius=radius,
+            pretension=pretension,
+            compression_modulus_ratio=compression_modulus_ratio,
+        )
         self.sections[name] = sec
         return sec
 
@@ -1254,6 +1272,7 @@ class TubaModel:
                         "type": "cable",
                         "radius": s.radius,
                         "pretension": s.pretension,
+                        "compression_modulus_ratio": s.compression_modulus_ratio,
                     }
                     if isinstance(s, CableSection)
                     else {
@@ -1424,6 +1443,7 @@ class TubaModel:
                     name=name,
                     radius=s["radius"],
                     pretension=s.get("pretension", 0.0),
+                    compression_modulus_ratio=s.get("compression_modulus_ratio", 1.0),
                 )
             elif t == "rectangular":
                 model.add_rectangular_section(

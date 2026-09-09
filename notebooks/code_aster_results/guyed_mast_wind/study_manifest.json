@@ -1,0 +1,248 @@
+{
+  "analysis_mesh": {
+    "element_sources": {
+      "beam_0": {
+        "element_id": "beam_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_1": {
+        "element_id": "beam_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "cable_0": {
+        "element_id": "cable_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "cable_0",
+          "kind": "element"
+        }
+      },
+      "cable_1": {
+        "element_id": "cable_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "cable_1",
+          "kind": "element"
+        }
+      },
+      "cable_2": {
+        "element_id": "cable_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "cable_2",
+          "kind": "element"
+        }
+      }
+    },
+    "elements": {
+      "beam_0": [
+        "N0",
+        "N1"
+      ],
+      "beam_1": [
+        "N1",
+        "N2"
+      ],
+      "cable_0": [
+        "N1",
+        "N3"
+      ],
+      "cable_1": [
+        "N1",
+        "N4"
+      ],
+      "cable_2": [
+        "N1",
+        "N5"
+      ]
+    },
+    "files": {
+      "mail": "study.mail"
+    },
+    "groups": {
+      "AllSupports": [
+        "N0",
+        "N3",
+        "N4",
+        "N5"
+      ],
+      "GN_N0": [
+        "N0"
+      ],
+      "GN_N2": [
+        "N2"
+      ],
+      "GN_N3": [
+        "N3"
+      ],
+      "GN_N4": [
+        "N4"
+      ],
+      "GN_N5": [
+        "N5"
+      ],
+      "G_CABLE": [
+        "cable_0",
+        "cable_1",
+        "cable_2"
+      ],
+      "G_TUBE": [
+        "beam_0",
+        "beam_1"
+      ],
+      "MAT_Steel": [
+        "beam_0",
+        "beam_1",
+        "cable_0",
+        "cable_1",
+        "cable_2"
+      ],
+      "SEC_MastSec": [
+        "beam_0",
+        "beam_1"
+      ],
+      "beam_0": [
+        "beam_0"
+      ],
+      "beam_1": [
+        "beam_1"
+      ],
+      "cable_0": [
+        "cable_0"
+      ],
+      "cable_1": [
+        "cable_1"
+      ],
+      "cable_2": [
+        "cable_2"
+      ]
+    },
+    "id": "analysis_mesh:Wind",
+    "model_revision": 0,
+    "modelisations": {
+      "G_CABLE": "CABLE",
+      "G_TUBE": "POU_D_T"
+    },
+    "node_sources": {
+      "N0": {
+        "node_id": "N0",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N0",
+          "kind": "node"
+        }
+      },
+      "N1": {
+        "node_id": "N1",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N2": {
+        "node_id": "N2",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N2",
+          "kind": "node"
+        }
+      },
+      "N3": {
+        "node_id": "N3",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N3",
+          "kind": "node"
+        }
+      },
+      "N4": {
+        "node_id": "N4",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N4",
+          "kind": "node"
+        }
+      },
+      "N5": {
+        "node_id": "N5",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N5",
+          "kind": "node"
+        }
+      }
+    },
+    "nodes": {
+      "N0": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "N1": [
+        0.0,
+        0.0,
+        8.0
+      ],
+      "N2": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "N3": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "N4": [
+        -2.9999999999999987,
+        5.196152422706632,
+        0.0
+      ],
+      "N5": [
+        -3.0000000000000027,
+        -5.196152422706631,
+        0.0
+      ]
+    },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "07bfc6232746c739093a60fbf6be2f0aafce5f34b6ed7fc0a6afe9f12d60dbf5",
+      "load_case": "Wind",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  },
+  "study": {
+    "id": "analysis_study:Wind",
+    "input_files": {
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
+    },
+    "load_case": "Wind",
+    "mesh_id": "analysis_mesh:Wind",
+    "metadata": {
+      "pipe_stress_exported": false,
+      "project_name": "Guyed_Mast_Review"
+    },
+    "model_revision": 0,
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "07bfc6232746c739093a60fbf6be2f0aafce5f34b6ed7fc0a6afe9f12d60dbf5",
+      "load_case": "Wind",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  }
+}

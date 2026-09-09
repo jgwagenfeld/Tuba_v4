@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 from types import SimpleNamespace
 
 import pytest
@@ -56,6 +57,7 @@ def test_official_gallery_records_own_refresh_metadata():
         "autorouted-expansion-loop",
         "code-aster-review",
         "elements-supports-review",
+        "guyed-mast-review",
         "native-friction-review",
         "pipe-tee-volume-review",
         "profile-orientation-review",
@@ -449,3 +451,32 @@ def test_bend_export_preserves_windows_executable_search(tmp_path):
     completed = subprocess.run(["git", "--version"], capture_output=True, text=True)
 
     assert completed.returncode == 0, completed.stderr
+
+
+def test_declared_gallery_elements_match_the_models_they_publish():
+    """The element chips on a card are declared copy; this is what keeps them true.
+
+    Deriving the chips at catalog time would rebuild every gallery model on
+    every dev-server catalog read, so the registry declares them instead. A
+    declaration that drifts from the model fails here rather than shipping a
+    card that names elements the review never solved.
+    """
+    from tuba.solver.modelisation import PipeModelization, modelisation_assignments
+
+    galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+
+    for gallery in galleries:
+        if gallery.refresh_producer is None:
+            continue
+        with tempfile.TemporaryDirectory(prefix="tuba-elements-check-") as scratch:
+            model, _case = gallery.refresh_producer(Path(scratch))
+        pipe_modelization = (
+            PipeModelization.SOLID_3D
+            if gallery.volume_export
+            else gallery.solver_options.get("pipe_modelization", PipeModelization.TUYAU_3M)
+        )
+        solved = set(modelisation_assignments(model, pipe_modelization).values())
+        assert set(gallery.elements) == solved, (
+            f"{gallery.id}: card declares {sorted(gallery.elements)} but the model solves "
+            f"{sorted(solved)}"
+        )
