@@ -17,6 +17,7 @@ from tuba.visualization import build_visualization_scene
 from tuba.visualization.builders._layers import (
     OBJECT_KIND_CATEGORY,
     OVERLAY_KIND_CATEGORY,
+    _label_for,
     build_layer_registry,
     build_result_fields,
     mesh_identity,
@@ -348,6 +349,40 @@ class TestSceneValidation(unittest.TestCase):
         restored.validate()
         self.assertEqual(restored.layers, [])
         self.assertEqual(restored.result_fields, [])
+
+
+class LayerLabelTests(unittest.TestCase):
+    """A layer label names the thing for a reader, not for the solver.
+
+    ``str.capitalize`` lower-cased everything after the first letter, so these
+    shipped as ``Allsupports``, ``Sec ibeamsec`` and ``Gn n0`` - an id with its
+    capitals filed off. Every id below is a real one from
+    ``elements-supports-review``.
+
+    ``viewer/src/sceneLoader.js::leafLabel`` must produce the same strings: it
+    is the copy of this rule that relabels bundles built before this fix.
+    """
+
+    def test_camel_case_is_a_word_boundary(self):
+        self.assertEqual(_label_for("analysis_mesh:group:AllSupports"), "All supports")
+        self.assertEqual(
+            _label_for("analysis_mesh:group:PipeOrientationNodes"), "Pipe orientation nodes"
+        )
+
+    def test_code_aster_kind_prefixes_are_spelled_out(self):
+        self.assertEqual(_label_for("analysis_mesh:group:GN_N0"), "Nodes: N0")
+        self.assertEqual(_label_for("analysis_mesh:group:G_TUBE"), "Elements: Tube")
+        self.assertEqual(_label_for("analysis_mesh:group:MAT_Steel"), "Material: Steel")
+        # "Sec" twice in one name says nothing the first one did not.
+        self.assertEqual(_label_for("analysis_mesh:group:SEC_IBeamSec"), "Section: I beam")
+
+    def test_solver_tags_and_plain_ids_keep_their_shape(self):
+        # A word carrying a digit is a tag, not prose.
+        self.assertEqual(_label_for("analysis_mesh:group:pipe_str_0"), "Pipe str 0")
+        self.assertEqual(_label_for("rack_member"), "Rack member")
+        self.assertEqual(_label_for("overlay:load_case"), "Load case")
+        # The one id that has always carried an engineering name of its own.
+        self.assertEqual(_label_for("support"), "Supports / constraints")
 
 
 def _code_aster_solver():

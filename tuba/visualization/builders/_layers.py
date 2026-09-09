@@ -22,6 +22,8 @@ exists to remove.
 
 from __future__ import annotations
 
+import re
+
 from tuba.analysis.mesh import AnalysisMesh, modelisation_info
 from tuba.analysis.mesh_quality import discretisation_summary
 from tuba.visualization.scene import (
@@ -312,8 +314,60 @@ def _mesh_badge(analysis_mesh: AnalysisMesh) -> str:
     return " · ".join(parts)
 
 
+# Code_Aster names its mesh groups by kind: ``SEC_`` a section, ``MAT_`` a
+# material, ``G_`` an element group, ``GN_`` a node group. Spelling the prefix
+# out is most of what turns one of these ids into a name.
+_GROUP_KIND_LABELS = {
+    "G": "Elements",
+    "GN": "Nodes",
+    "MAT": "Material",
+    "SEC": "Section",
+}
+
+
 def _label_for(layer_id: str) -> str:
+    """Name a layer for a reader rather than for the solver that wrote it.
+
+    ``str.capitalize`` lower-cased everything after the first letter, so
+    ``AllSupports`` shipped as ``Allsupports`` and ``SEC_IBeamSec`` as
+    ``Sec ibeamsec`` — an id with its capitals filed off. Split on the
+    separators the solver actually uses, camel-case boundaries included.
+
+    ``viewer/src/sceneLoader.js::leafLabel`` applies the same rule. The two have
+    to agree: bundles built before this fix still carry the old labels, and the
+    viewer relabels them on load.
+    """
     if layer_id == "support":
         return "Supports / constraints"
-    tail = layer_id.split(":")[-1]
-    return tail.replace("_", " ").replace("-", " ").strip().capitalize() or layer_id
+    words = _identifier_words(layer_id.split(":")[-1])
+    if not words:
+        return layer_id
+    kind = _GROUP_KIND_LABELS.get(words[0])
+    # A bare prefix names nothing, so only expand it when a remainder is left
+    # to name.
+    if kind and len(words) > 1:
+        rest = words[1:]
+        # "SEC_IBeamSec" is "Section: I beam", not "Section: I beam sec".
+        if rest[-1].lower() == words[0].lower():
+            rest = rest[:-1]
+        return f"{kind}: {_sentence_case(rest)}"
+    return _sentence_case(words)
+
+
+def _identifier_words(tail: str) -> list[str]:
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\g<1> \g<2>", tail)
+    spaced = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\g<1> \g<2>", spaced)
+    return [word for word in re.split(r"[\s_-]+", spaced) if word]
+
+
+def _sentence_case(words: list[str]) -> str:
+    """Sentence case, not title case.
+
+    "Pipe orientation nodes" reads as a name; "Pipe Orientation Nodes" reads as
+    a heading. A word carrying a digit is a solver tag ("N0", "bar_0") and keeps
+    the case it was written in.
+    """
+    spelled = [word if any(char.isdigit() for char in word) else word.lower() for word in words]
+    if not spelled:
+        return ""
+    return " ".join([spelled[0][:1].upper() + spelled[0][1:], *spelled[1:]])
