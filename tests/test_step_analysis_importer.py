@@ -284,7 +284,52 @@ def test_outward_face_axis_flips_a_normal_that_points_into_the_solid():
             face_tag, centre, [value + 1.0 for value in centre]
         )
 
-    # A silent fall back to the [1, 0, 0] default would return the same vector
-    # twice, so this also pins that the real normal was read.
+    # Opposite vectors, so this cannot pass on a normal the helper failed to
+    # read: an unreadable normal is None, which the negation below would raise on.
     assert behind == pytest.approx([-value for value in ahead], abs=1e-12)
     assert sum(value * value for value in behind) == pytest.approx(1.0, abs=1e-12)
+
+
+def test_face_with_an_unreadable_normal_yields_no_candidate(monkeypatch):
+    """A face we cannot orient is dropped, not handed a guessed axis."""
+
+    class FakeOcc:
+        @staticmethod
+        def getCenterOfMass(dim, tag):
+            return (0.0, 0.0, -1.0)
+
+    class FakeModel:
+        occ = FakeOcc()
+
+        @staticmethod
+        def getBoundary(entities, oriented=False, recursive=False):
+            return [(2, 7), (2, 8)]
+
+        @staticmethod
+        def getType(dim, tag):
+            return "Plane"
+
+        @staticmethod
+        def getBoundingBox(dim, tag):
+            return (0.0, 0.0, 0.0, 0.1, 0.1, 0.0)
+
+        @staticmethod
+        def getParametrizationBounds(dim, tag):
+            return ([0.0, 0.0], [1.0, 1.0])
+
+        @staticmethod
+        def getNormal(tag, parametric_coord):
+            if tag == 8:
+                raise RuntimeError("gmsh cannot evaluate this normal")
+            return [0.0, 0.0, 1.0]
+
+    class FakeGmsh:
+        model = FakeModel()
+
+    monkeypatch.setattr("tuba.geometry.step_analysis_importer.gmsh", FakeGmsh)
+
+    candidates = StepAnalysisImporter()._detect_port_candidates([(3, 1)])
+
+    assert [candidate["metadata"]["gmsh_face_tag"] for candidate in candidates] == [7]
+    assert candidates[0]["id"] == "port_candidate_0"
+    assert candidates[0]["axis"] == [0.0, 0.0, 1.0]

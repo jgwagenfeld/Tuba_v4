@@ -169,13 +169,17 @@ class StepAnalysisImporter:
                     (z_min + z_max) / 2.0,
                 ]
 
+                axis = self._outward_face_axis(face_tag, position, solid_center)
+                if axis is None:
+                    continue
+
                 index = len(candidates)
                 candidates.append(
                     {
                         "id": f"port_candidate_{index}",
                         "kind": "circular_face",
                         "position": position,
-                        "axis": self._outward_face_axis(face_tag, position, solid_center),
+                        "axis": axis,
                         "radius": float(radius),
                         "face_group": f"G_PORT_CANDIDATE_{index}",
                         "metadata": {"gmsh_face_tag": face_tag},
@@ -189,26 +193,30 @@ class StepAnalysisImporter:
         face_tag: int,
         face_center: list[float],
         solid_center: Any,
-    ) -> list[float]:
+    ) -> list[float] | None:
         """The face normal, flipped to point away from the solid it bounds.
 
         OCC orients a face however the modelling history left it, so the raw
         normal's sign says nothing about which side the material is on. A port
         axis has to point away from the equipment and back down the pipe.
+
+        Returns None when the normal cannot be determined - gmsh is absent, the
+        query raised, or the normal is degenerate. The caller drops the face
+        rather than proposing one: a guessed axis is the confident wrong number
+        this detection exists to stop reporting.
         """
-        default = [1.0, 0.0, 0.0]
         if gmsh is None:
-            return default
+            return None
         try:
             parametric_min, parametric_max = gmsh.model.getParametrizationBounds(2, face_tag)
             u = (float(parametric_min[0]) + float(parametric_max[0])) / 2.0
             v = (float(parametric_min[1]) + float(parametric_max[1])) / 2.0
             normal = [float(value) for value in gmsh.model.getNormal(face_tag, [u, v])]
         except Exception:
-            return default
+            return None
         length = sum(value * value for value in normal) ** 0.5
         if length <= 1e-12:
-            return default
+            return None
         normal = [value / length for value in normal]
         if solid_center is None:
             return normal
