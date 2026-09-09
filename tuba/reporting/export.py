@@ -304,7 +304,10 @@ def _render_html(
         # twenty-key section mapping reads like the schedule it is.
         ".kv { list-style: none; margin: 0; padding: 0; font-size: .92em; }",
         ".kv li { display: flex; gap: .5rem; justify-content: space-between; }",
-        ".kv li + li { border-top: 1px solid #e3e8ee; }",
+        # No rule between entries: at twenty rows in a 145px cell the hairlines
+        # were noise, and text sat flush against every one of them. The two-column
+        # alignment is what makes the list scannable.
+        ".kv li { padding-block: .05rem; }",
         ".kv .k { color: #44505f; white-space: nowrap; }",
         ".kv li > span:last-child { font-family: var(--mono);",
         "  font-variant-numeric: tabular-nums; text-align: right;",
