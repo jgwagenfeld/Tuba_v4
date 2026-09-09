@@ -27,6 +27,7 @@ OFFICIAL_BUNDLES = (
     "code-aster-review",
     "elements-supports-review",
     "gmsh-tee-mesh-review",
+    "guyed-mast-review",
     "imported_component_mixed_demo",
     "native-friction-review",
     "pipe-tee-volume-review",
@@ -609,6 +610,7 @@ def test_examples_main_does_not_create_or_overwrite_catalog_when_validation_fail
                 title="Invalid",
                 question="Does a broken bundle stop the publisher?",
                 summary="A deliberately invalid bundle used to prove the gate holds.",
+                elements=("TUYAU_3M",),
             ),
         ),
     )
