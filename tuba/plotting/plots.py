@@ -217,13 +217,15 @@ def _add_supports_to_plotter(plotter: "pv.Plotter", model: "TubaModel", scale: f
             plotter.add_mesh(guide_mesh, color="green", label=label, metallic=0.7, roughness=0.4)
             
         elif sup.type == "rest":
-            # Vertical support rib plate
+            # A rest hangs below the pipe, and below is -lz: _get_element_local_frame
+            # builds ly as cross((0,0,1), lx), so ly is always horizontal and lz is
+            # the up-ish axis. Authored on -ly this rib stuck out sideways.
             h_rib = scale * 0.8
-            rib = pv.Cube(center=(0.0, -(r + h_rib/2.0), 0.0), x_length=scale*1.6, y_length=h_rib, z_length=scale*0.08)
+            rib = pv.Cube(center=(0.0, 0.0, -(r + h_rib/2.0)), x_length=scale*1.6, y_length=scale*0.08, z_length=h_rib)
             
             # Horizontal base sliding plate
             t_plate = scale * 0.06
-            plate = pv.Cube(center=(0.0, -(r + h_rib + t_plate/2.0), 0.0), x_length=scale*1.6, y_length=t_plate, z_length=scale*1.4)
+            plate = pv.Cube(center=(0.0, 0.0, -(r + h_rib + t_plate/2.0)), x_length=scale*1.6, y_length=scale*1.4, z_length=t_plate)
             
             rest_mesh = rib.merge(plate)
             rest_mesh = _transform_mesh(rest_mesh, R, coords)

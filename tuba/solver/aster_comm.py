@@ -628,33 +628,29 @@ class _CommWriterMixin:
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
                 elif sup.type == "rest":
-                    if is_nonlinear:
-                        if sup.node not in pipe_nodes_with_warping:
-                            continue
-                        write_bc = True
-                        lines_bc.append(f"{char_name} = AFFE_CHAR_MECA(")
-                        lines_bc.append(f"    MODELE=MODELE,")
-                        lines_bc.append(f"    DDL_IMPO=_F(")
-                        lines_bc.append(f"        GROUP_NO='{grp_name}',")
-                        append_pipe_warping_bc(lines_bc, sup.node)
-                        lines_bc.append(f"    ),")
-                        lines_bc.append(f");")
+                    # A rest never gets a bilateral DDL_IMPO. Its restraint is
+                    # unilateral - a LIAISON_UNIL zone, or a native contact shoe -
+                    # and any rest at all sets is_nonlinear, so the bilateral
+                    # branch that used to sit here could never run. It defaulted
+                    # to DY, which read as if a directionless rest held the pipe
+                    # sideways; the zone actually written is NOM_CMP='DZ'.
+                    if sup.node not in pipe_nodes_with_warping:
                         continue
                     write_bc = True
                     lines_bc.append(f"{char_name} = AFFE_CHAR_MECA(")
                     lines_bc.append(f"    MODELE=MODELE,")
                     lines_bc.append(f"    DDL_IMPO=_F(")
                     lines_bc.append(f"        GROUP_NO='{grp_name}',")
-                    if sup.direction:
-                        dof_map = {0: "DX", 1: "DY", 2: "DZ"}
-                        for idx, val in enumerate(sup.direction):
-                            if abs(val) > 1e-12:
-                                lines_bc.append(f"        {dof_map[idx]}=0.0,")
-                    else:
-                        lines_bc.append(f"        DY=0.0,")
                     append_pipe_warping_bc(lines_bc, sup.node)
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
+                    # ponytail: this continue drops the warping restraint just
+                    # built - it skips the `if write_bc:` emit below. Preserved
+                    # deliberately so removing the dead branch above changes no
+                    # solver output. test_..._restrains_pipe_warping_at_nonlinear_rest
+                    # only passes because the anchor in its model also emits WO=0.0.
+                    # Dropping the continue emits the BC and needs a re-solve.
+                    continue
                 elif sup.type == "spring":
                     pass
                 else:

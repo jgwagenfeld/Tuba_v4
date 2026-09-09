@@ -303,7 +303,7 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
   const supports = [
     { id: "anchor", support_type: "anchor" },
     { id: "guide-z", support_type: "guide", direction: [0, 0, 1] },
-    { id: "rest-y", support_type: "rest" },
+    { id: "rest-z", support_type: "rest" },
     { id: "joint", support_type: "custom", blocked_dof: [1, 1, 1, 0, 0, 0] },
     { id: "custom", support_type: "custom", blocked_dof: [1, 1, 0, 0, 0, 1] }
   ];
@@ -325,6 +325,11 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
   });
 
   const glyphs = supports.map(({ id }) => graph.objectsByObjectId.get(`object:support:${id}`));
+  // A directionless rest is NOM_CMP='DZ' in the solver, so its cones ride Z.
+  const restCones = graph.objectsByObjectId
+    .get("object:support:rest-z")
+    .children.filter((part) => part.userData.supportPart === "restraint-cone");
+  assert.deepEqual(restCones.map((cone) => cone.userData.supportAxis), [2, 2]);
   assert.deepEqual(glyphs.map((glyph) => glyph.userData.supportGlyph), ["dof", "dof", "dof", "dof", "dof"]);
   assert.deepEqual(
     glyphs.map((glyph) => glyph.children.map((child) => child.userData.supportPart).filter(Boolean).sort().join(",")),
@@ -344,6 +349,38 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
       assert.equal(part.material.color.getHex(), 0xdaa520);
     }
   }
+});
+
+test("a support glyph clears the pipe radius the asset carries", () => {
+  // Real bundles carry radius_m - the radius of the pipe the support clamps.
+  // Read as a glyph size it drew the mark flush with the wall, invisible.
+  const radius = 0.04445;
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 8, 1, 1],
+    geometryAssets: [
+      {
+        id: "geometry:support:anchor",
+        format: "point",
+        bounds: [2, 0, 0, 2, 0, 0],
+        object_ids: ["object:support:anchor"],
+        generation_config: {
+          point: [2, 0, 0],
+          source: "tuba.support",
+          support_type: "anchor",
+          radius_m: radius
+        }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:anchor"]
+  });
+
+  const glyph = graph.objectsByObjectId.get("object:support:anchor");
+  const size = new Box3().setFromObject(glyph).getSize(new Vector3());
+  assert.ok(
+    Math.min(size.x, size.y, size.z) > radius * 2,
+    `glyph ${size.x} must clear the ${radius * 2} pipe it marks`
+  );
 });
 
 test("support anchors stay on the constrained node without hiding the pipe", () => {
@@ -372,7 +409,7 @@ test("support anchors stay on the constrained node without hiding the pipe", () 
   const blockSize = blockBounds.getSize(new Vector3());
 
   assert.ok(glyph.position.distanceTo(new Vector3(-0.08, 0, 0)) < 1e-12, `glyph is offset to ${glyph.position.toArray()}`);
-  assert.ok(Math.abs(blockSize.x - 0.1) < 1e-8, `fixed block width was ${blockSize.x}`);
+  assert.ok(blockSize.x > 0.1, `fixed block width ${blockSize.x} must clear the 0.1 pipe`);
   assert.equal(block.material.depthTest, true);
   assert.equal(block.material.depthWrite, false);
   assert.equal(block.material.transparent, true);

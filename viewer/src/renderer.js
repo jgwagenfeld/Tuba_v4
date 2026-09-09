@@ -1152,7 +1152,15 @@ function createSupportGlyph(asset, config, format, point, state) {
   const supportType = requestedType === "fixed" ? "anchor" : requestedType;
   const sceneSize = sizeOfBounds(state?.bounds ?? asset.bounds);
   const span = Math.max(sceneSize.x, sceneSize.y, sceneSize.z);
-  const size = positiveNumber(config.radius_m) ?? THREE.MathUtils.clamp(span * 0.018, 0.08, 0.3);
+  // radius_m on a support asset is the radius of the pipe the support clamps
+  // (builders/_objects.py writes max(attached_radii)), not a glyph size. Taking
+  // it as the size drew every restraint flush with the pipe wall, where a 50%
+  // opaque mark is invisible. It is a floor now - the glyph must clear the pipe
+  // it marks - and the scene span sets the size, as it always did without one.
+  const size = Math.max(
+    (positiveNumber(config.radius_m) ?? 0) * 1.5,
+    THREE.MathUtils.clamp(span * 0.018, 0.08, 0.3)
+  );
   const restraintMaterial = supportMaterial(0xdaa520);
   const springMaterial = supportMaterial(0x2563eb);
   const displacementMaterial = supportMaterial(0xf97316);
@@ -1261,9 +1269,21 @@ function supportBlockedDofs(config, supportType) {
   if (supportType === "spring") return [false, false, false, false, false, false];
   const direction = readPoint(config.direction);
   if (direction?.lengthSq() > 1e-12) {
-    return [Math.abs(direction.x) > 1e-12, Math.abs(direction.y) > 1e-12, Math.abs(direction.z) > 1e-12, false, false, false];
+    const axes = [direction.x, direction.y, direction.z].map((value) => Math.abs(value) > 1e-12);
+    // A guide blocks every component of its direction; a rest is a LIAISON_UNIL
+    // zone, and DEFI_CONTACT takes one NOM_CMP - aster_comm.py breaks after the
+    // first nonzero component. Drawing cones on all three would claim restraint
+    // the solver never applied.
+    if (supportType === "rest") {
+      const first = axes.indexOf(true);
+      return [axes[0] && first === 0, axes[1] && first === 1, axes[2] && first === 2, false, false, false];
+    }
+    return [...axes, false, false, false];
   }
-  if (supportType === "rest") return [false, true, false, false, false, false];
+  // Z, not Y: Tuba is Z-up, gravity is (0, 0, -1), and a rest with no direction
+  // becomes NOM_CMP='DZ' in aster_comm.py. This said Y, so every rest support in
+  // every bundle drew its cones horizontally - across the pipe it holds up.
+  if (supportType === "rest") return [false, false, true, false, false, false];
   return [true, true, true, false, false, false];
 }
 

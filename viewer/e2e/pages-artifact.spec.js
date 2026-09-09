@@ -15,6 +15,9 @@ test("published expansion loop contains pipe geometry without legacy envelope sk
   await expect(page.getByRole("status")).toHaveText("Ready", { timeout: 60_000 });
   await expect(page.locator("[data-task-rail]")).toBeVisible();
   await expect(page.locator("[data-rail-toggle]")).toHaveAttribute("aria-expanded", "true");
+  // Reviews ship without a design standard now that the code checks are gone,
+  // so the header must not lead with the separator for the missing half.
+  await expect(page.locator("[data-scene-meta]")).not.toHaveText(/^\s*·/);
   const shells = await page.evaluate(async () => {
     const scene = await (await fetch("./autorouted-expansion-loop/scene.json")).json();
     return scene.objects.filter(obj => ["physical_envelope", "deformed_envelope"].includes(obj.kind));
@@ -50,7 +53,7 @@ test("published expansion loop contains pipe geometry without legacy envelope sk
   await expect(page.locator("[data-canvas]")).toHaveAttribute("data-render-diagnostics", "0");
 });
 
-test("left controls toggle reserves space beside viewport and evidence", async ({ page }) => {
+test("left controls toggle reserves space beside the viewport", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/viewer/?bundle=autorouted-expansion-loop");
   await expect(page.getByRole("status")).toHaveText("Ready", { timeout: 60_000 });
@@ -61,13 +64,9 @@ test("left controls toggle reserves space beside viewport and evidence", async (
     await expect(toggle).toHaveAttribute("title", "Hide controls");
     const r = await rail.boundingBox(), t = await toggle.boundingBox();
     expect(Math.abs(t.x - (r.x + r.width))).toBeLessThan(2);
-    await page.getByRole("button", { name: "Evidence", exact: true }).click();
-    await expect(rail).toBeVisible();
-    for (const selector of ["[data-canvas]", "[data-evidence-dock]"]) {
-      expect(Math.abs((await page.locator(selector).boundingBox()).x - (r.x + r.width))).toBeLessThan(2);
-    }
-    const viewport = await page.locator("[data-canvas]").boundingBox();
-    expect((await page.locator("[data-evidence-dock]").boundingBox()).y).toBeGreaterThanOrEqual(viewport.y + viewport.height - 1);
+    // The rail reserves its width rather than floating over the scene: the
+    // canvas starts where the rail ends, at every width.
+    expect(Math.abs((await page.locator("[data-canvas]").boundingBox()).x - (r.x + r.width))).toBeLessThan(2);
     await toggle.click();
     const show = page.getByRole("button", { name: "Show controls", exact: true });
     await expect(rail).toBeHidden();
@@ -75,7 +74,6 @@ test("left controls toggle reserves space beside viewport and evidence", async (
     await show.focus();
     await page.keyboard.press("Enter");
     await expect(rail).toBeVisible();
-    await page.getByRole("button", { name: "Close evidence", exact: true }).click();
   }
 });
 
@@ -83,7 +81,11 @@ test("assembled Pages gallery scrolls to the final review", async ({ page }) => 
   await page.setViewportSize({ width: 800, height: 600 });
   await page.goto("/viewer/", { waitUntil: "domcontentloaded" });
   const cards = page.locator("[data-gallery-card]");
-  await expect(cards).toHaveCount(8);
+  // The published catalog decides how many reviews ship; the gallery has to
+  // render all of them, so count against it rather than a number that rots.
+  const published = await page.evaluate(async () => (await (await fetch("./bundles.json")).json()).length);
+  expect(published).toBeGreaterThan(1);
+  await expect(cards).toHaveCount(published);
   expect(await page.evaluate(() => getComputedStyle(document.body).overflowY)).toBe("auto");
 
   await page.mouse.wheel(0, 800);
@@ -110,9 +112,8 @@ test("assembled Pages keeps results accessible when WebGL2 is unavailable", asyn
   await expect(page.getByRole("status")).toHaveText("Results ready · 3D unavailable");
   await expect(page.locator("[data-canvas]")).toBeHidden();
 
-  await page.getByRole("button", { name: "Evidence", exact: true }).click();
-  await page.getByRole("tab", { name: "Results", exact: true }).click();
-  await expect(page.locator("[data-workflow-panel]")).toContainText("Finite-element Von Mises stress");
+  await page.getByRole("button", { name: "Results", exact: true }).click();
+  await expect(page.locator("[data-task-panel]")).toContainText("FE VMIS (not code stress)");
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
   expect(browserErrors).toEqual([]);

@@ -26,6 +26,35 @@ class TestVisualizerScenes(unittest.TestCase):
         self.assertAlmostEqual(rect_profile.collision_radius_m, 0.1)
         self.assertEqual(rect_profile.dimensions["height_y"], 0.2)
 
+    def test_rest_support_glyph_hangs_below_a_horizontal_pipe(self):
+        """A rest holds the pipe up against gravity, so its rib sits at -Z."""
+        from tuba.plotting.plots import _add_supports_to_plotter
+
+        model = Model(project_name="RestGlyph")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        with model.pipe(section="PipeSec", material="Steel") as b:
+            b.start([0.0, 0.0, 0.0]).run(1.0)
+        node = next(name for name, n in model.nodes.items() if np.allclose(n.coords, [1.0, 0.0, 0.0]))
+        model.add_support(node, type="rest")
+
+        drawn = []
+
+        class Recorder:
+            legend_labels = []
+
+            def add_mesh(self, mesh, **_kwargs):
+                drawn.append(mesh)
+
+        _add_supports_to_plotter(Recorder(), model)
+
+        self.assertEqual(len(drawn), 1)
+        low = drawn[0].points.min(axis=0)
+        self.assertLess(low[2], -0.05, f"rest glyph never reaches below the pipe: {low}")
+        # The base plate is legitimately wide across the pipe, so -Y is not empty.
+        # What must hold is that the glyph reaches further down than sideways.
+        self.assertLess(low[2], low[1], f"rest glyph juts sideways instead of down: {low}")
+
     def test_build_model_scene_returns_plotter(self):
         model = Model(project_name="Scene")
         model.add_material("Steel", E=2.0e11, nu=0.3)

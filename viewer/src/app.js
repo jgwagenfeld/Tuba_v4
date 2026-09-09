@@ -777,8 +777,12 @@ function renderHeader() {
   // (m / N / Pa) while every readout on screen follows the unit chip, which
   // defaults to mm / MPa - so the header asserted Pa in the same eyeful as the
   // legend's MPa. The chip is the one place display units are stated.
+  // A review without a design standard is the normal case now that code checks
+  // are gone; printing the separator regardless left a dangling "· Revision 0".
   dom.sceneMeta.textContent = currentState.review
-    ? `${currentState.review.model_standard} · Revision ${currentState.review.model_revision}`
+    ? [currentState.review.model_standard, `Revision ${currentState.review.model_revision}`]
+        .filter(Boolean)
+        .join(" · ")
     : `${currentState.objects.length} objects | ${currentState.issues.length} issues`;
   dom.reportLink.hidden = !currentState.review;
   if (currentState.review) {
