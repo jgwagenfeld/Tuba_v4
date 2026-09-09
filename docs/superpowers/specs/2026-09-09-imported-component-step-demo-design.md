@@ -40,6 +40,14 @@ port carries a `face_group` string. `connect_pipe_to_port`
 that the port position lies on, or anywhere near, the asset that owns it. Port
 position is user-asserted metadata against a placement nobody cross-checks.
 
+And the detector that would otherwise supply it is not trustworthy either:
+`_detect_port_candidates` proposes a candidate for *every* boundary face,
+derives radius from a bounding box, and hardcodes `axis = [1.0, 0.0, 0.0]`
+(`step_analysis_importer.py:150,161`). On a cylinder lateral that radius is half
+the face length. This is why the demo hand-writes the whole port and labels the
+importer `manual-port-metadata` — the automatic path cannot be relied on, so the
+example quietly stopped using it.
+
 **3. The viewer names none of it.** The builder emits four layer families —
 `imported_components`, `mixed_ports`, `mixed_couplings`,
 `local_coordinate_axes` (`tuba/visualization/builders/_imported.py:96,140,171,216`).
@@ -80,17 +88,23 @@ a genuine port face carrying a gmsh face tag, and a `LIAISON_ELEM` whose
    end face 0.10 across, giving a detected radius of exactly pipe `OD/2`. The
    check passes on genuinely detected metadata rather than a hand-asserted
    number.
-3. **Display tessellation belongs in the library.** `mesh_vertices_local` is a
+3. **Detection derives port geometry instead of asserting it.** The axis stops
+   being hardcoded and comes from the face normal, and candidates are filtered
+   to planar faces — without that filter the bbox radius on a cylinder lateral
+   is half a face length, not a radius. A detector that reports a confident
+   wrong number is worse than one that reports nothing.
+4. **Display tessellation belongs in the library.** `mesh_vertices_local` is a
    library seam (`_imported.py:222`) that only an example fills today, so every
    STEP component in every scene renders as a featureless box from
    `local_bounds`. Fixing it in the example would leave every other caller
    broken.
-4. **The port gains a geometric anchor in validation.** This is a trust
+5. **The port gains a geometric anchor in validation.** This is a trust
    boundary: a port that does not touch its asset is silently wrong geometry,
-   the same failure class the OD check already guards.
-5. **The viewport key gains the scene's own question, and a row for every layer
+   the same failure class the OD check already guards. It breaks existing
+   models, and that is accepted.
+6. **The viewport key gains the scene's own question, and a row for every layer
    it draws.** No new popup. The surface already exists and is under-fed.
-6. **The STL tetrahedron is deleted, not kept as a fixture.** Its only consumer
+7. **The STL tetrahedron is deleted, not kept as a fixture.** Its only consumer
    is the gallery; the tests write their own via `_write_tiny_stl`
    (`tests/test_imported_component_mixed_example.py:11`).
 
@@ -157,15 +171,54 @@ example must:
    the local origin — the stub end annulus.
 2. Rename it to `port_equipment_nozzle_a` with face group `G_EQUIP_PORT_A`, the
    names the analysis region and coupling already use.
-3. Correct the axis to `[-1, 0, 0]`; detection hardcodes `[1, 0, 0]`.
-4. Promote `status` to `confirmed`.
+3. Promote `status` to `confirmed`.
 
-Steps 1 and 2 are the part worth getting right: selection by matched radius and
+Step 1 is the part worth getting right: selection by matched radius and
 position is the demonstrable rule, and if no candidate matches, the example
-should fail loudly rather than fall back to a hand-written port. The remaining
+must fail loudly rather than fall back to a hand-written port. The remaining
 candidates are discarded, not recorded.
 
-### 4. Port-on-asset validation — `tuba/validation.py`
+Position, radius and axis all come from detection — see section 4. The example
+asserts nothing geometric.
+
+### 4. Port axis and face detection — `_detect_port_candidates`
+
+Detection today walks every boundary face, derives radius from a bounding box,
+and hardcodes `axis = [1.0, 0.0, 0.0]` (`step_analysis_importer.py:161`). Both
+are wrong on curved faces. Probed against the section 1 geometry:
+
+```
+tag= 10 type=Plane     r=0.0500  ctr=(0.000,0.000,0.000)  n=[-1.0, 0.0, 0.0]
+tag=  8 type=Plane     r=0.1500  ctr=(0.160,0.000,0.000)  n=[-1.0, 0.0, 0.0]
+tag=  7 type=Plane     r=0.1500  ctr=(0.400,0.000,0.000)  n=[ 1.0, 0.0, 0.0]
+tag=  5 type=Plane     r=0.0420  ctr=(0.170,0.000,0.000)  n=[ 1.0, 0.0, 0.0]
+tag=  9 type=Cylinder  r=0.0800  ctr=(0.080,0.000,0.000)  n=[ 0.0, 0.0,-1.0]
+tag=  6 type=Cylinder  r=0.1500  ctr=(0.280,0.000,0.000)  n=[ 0.0, 0.0,-1.0]
+tag= 11 type=Cylinder  r=0.0850  ctr=(0.085,0.000,0.000)  n=[ 0.0, 0.0, 1.0]
+```
+
+On the cylinder laterals the bbox radius is not a radius at all — tag 9's
+`0.0800` is half the face *length* — and the normal sampled at the parametric
+midpoint is an arbitrary point on the surface. A pipe cannot land on a cylinder
+lateral, so these are not port candidates in the first place.
+
+Two changes:
+
+- **Filter to planar faces.** `gmsh.model.getType(2, tag) == "Plane"`. This is
+  what makes the bbox radius meaningful: on a disc or annulus, max extent / 2
+  *is* the radius (tag 10 gives 0.0500 against a required 0.05).
+- **Derive the axis from the face normal.** Take the parametric midpoint from
+  `gmsh.model.getParametrizationBounds(2, tag)` and call
+  `gmsh.model.getNormal(tag, [u, v])`. Orient it outward: flip if it points
+  toward the solid's `occ.getCenterOfMass(3, volume)`, so a port axis always
+  points away from the equipment and back down the pipe, independent of how OCC
+  happened to orient the face.
+
+With both, detection on the demo asset yields a fully correct port — radius,
+position and axis — and the example confirms status only. Candidate count drops
+from 7 to 4.
+
+### 5. Port-on-asset validation — `tuba/validation.py`
 
 `_validate_ports` gains: resolve the port's owning component to its cad asset;
 if that asset carries `local_bounds`, transform the eight corners by the
@@ -177,11 +230,14 @@ The AABB of a rotated box is looser than the box, so this is deliberately a
 coarse check. It catches the failure that matters: a port nowhere near the
 asset it claims to belong to.
 
-**This is a behaviour change.** Models that validate today and have off-asset
-ports will now fail. The full suite must be run, and any fixture this exposes
-must be assessed as a real defect before it is adjusted.
+**This is a breaking change, and that is accepted.** Models that validate today
+with off-asset ports will now fail. Backward compatibility is explicitly not a
+constraint here: a port that does not touch its asset is wrong, and keeping it
+loadable preserves nothing worth preserving. Any fixture the suite exposes is
+assessed as a real defect and its geometry corrected — not the check loosened
+to admit it.
 
-### 5. Viewport key — `viewer/src/app.js`
+### 6. Viewport key — `viewer/src/app.js`
 
 In `renderViewportLegend()`:
 
@@ -195,7 +251,7 @@ In `renderViewportLegend()`:
   `localStorage` so it stays shut once dismissed.
 - Embed mode keeps hiding the key, unchanged, so the docs iframes stay clean.
 
-### 6. Republication
+### 7. Republication
 
 Regenerate `viewer/public/imported_component_mixed_demo/` and `viewer/dist/`,
 then rebuild the packaged viewer under `tuba/visualization/_viewer/`. On
@@ -214,6 +270,10 @@ there are none.
 - **Candidate selection**: detection yields more than one candidate, and the
   example picks the stub end annulus by matched radius and position. A STEP
   whose faces match nothing must raise rather than silently hand-write a port.
+- **Detection geometry**: on the shipped asset, the selected candidate carries
+  radius `0.05`, position `[0, 0, 0]` and axis `[-1, 0, 0]`, all from gmsh; no
+  cylinder lateral is proposed; the outward-orientation guard survives a face
+  whose OCC normal points inward.
 - **Coupling**: `run_demo(..., export_study=True)` writes a study whose `.comm`
   names the port face group in `GROUP_MA_1`, and whose MED carries a
   **non-empty** group for it. This is the assertion the whole design exists to
@@ -228,10 +288,9 @@ there are none.
 
 ## Out of scope
 
-- **Port axis detection.** `_detect_port_candidates` hardcodes `[1, 0, 0]`
-  (`step_analysis_importer.py:161`). The example confirms the axis by hand.
-  Deriving it from the face normal is a real improvement and a separate change.
 - **Making the mixed study solve-ready.** `RUNTIME_BLOCKER` stands; this design
   does not claim a solve.
+- **Non-planar port faces.** Detection filters to planes. A port on a conical or
+  spherical seat is real geometry this will not propose, and is a later change.
 - **An overlay toggle for the imported layers.** The key names them; a toggle is
   a different request.
