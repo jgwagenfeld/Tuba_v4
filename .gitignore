@@ -96,3 +96,7 @@ notebooks/advanced_piping_rack.ifc
 
 /viewer/public/native-friction-review/
 /viewer/public/profile-orientation-review/
+
+# Vite build scratch output and a stray from a mangled pip install
+/.tmp/
+/=2.2
