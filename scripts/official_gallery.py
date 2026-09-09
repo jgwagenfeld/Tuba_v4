@@ -237,11 +237,10 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "autorouted_expansion_hot",
         _autorouted_refresh,
         title="Hot line expansion loop",
-        question="Where does a hot line move, and what does it reach?",
+        question="Thermal displacement and clearances",
         summary=(
-            "A 180 C line routed around equipment, with the expansion loop chosen "
-            "automatically. Shows how far it grows when hot and where it infringes "
-            "the clearance it was given around a cable tray."
+            "A 180 C line routed around equipment with an automatically selected expansion loop. "
+            "The review shows thermal displacement and clearance violations around a cable tray."
         ),
     ),
     OfficialGallery(
@@ -252,11 +251,10 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating",
         _code_aster_refresh,
         title="Anchored line with two bends",
-        question="What happens to a pressurised line held at both ends?",
+        question="Displacement, pipe-wall stress, and anchor reactions",
         summary=(
-            "The starting point for reading a Tuba review. One line, two anchors, "
-            "two bends: deflection, wall stress through the pipe section, and the "
-            "loads arriving at each anchor, all from the same run."
+            "A pressurised line with two anchors and two bends. The review shows displacement, "
+            "pipe-wall stress, and anchor reactions from one Code_Aster run."
         ),
     ),
     OfficialGallery(
@@ -267,11 +265,11 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "elements_supports_loadcase1",
         _elements_supports_refresh,
         title="Mixed elements and supports",
-        question="Do bars, cables and spring supports survive the trip to the solver?",
+        question="Element types and support conditions",
         summary=(
-            "Pipe, beam, bar, cable and rectangular members in one model, held by "
-            "spring, rest, anchor and partly-released supports. Evidence that each "
-            "element and support type is translated and analysed as authored."
+            "Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, "
+            "anchor and partly released supports. The review shows the element and support "
+            "definitions alongside the imported Code_Aster results."
         ),
     ),
     OfficialGallery(
@@ -280,11 +278,10 @@ OFFICIAL_GALLERIES = (
         "mesh-review",
         _build_gmsh_tee_mesh_review,
         title="Tee junction mesh",
-        question="What does the analysis actually discretise at a branch?",
+        question="3D tee mesh before analysis",
         summary=(
-            "The conformal quadratic-hexahedral wall mesh generated for a header and its "
-            "branch, before anything is solved. Useful for judging mesh quality at "
-            "the junction where a beam idealisation stops being enough."
+            "A conformal quadratic-hexahedral wall mesh for a header and branch. "
+            "This example shows mesh geometry only, with no solver results."
         ),
     ),
     OfficialGallery(
@@ -293,11 +290,10 @@ OFFICIAL_GALLERIES = (
         "model-review",
         _build_model_review,
         title="Imported equipment connection",
-        question="How does a supplied component join an authored line?",
+        question="Component ports, frames, and coupling",
         summary=(
-            "A STEP/STL component brought in beside Tuba-authored pipework, with "
-            "its connection ports, local frames and coupling shown. Geometry "
-            "review only - nothing here has been analysed."
+            "A STEP/STL component placed beside Tuba pipework, showing connection ports, "
+            "local frames and coupling. This example contains geometry only, with no solver results."
         ),
     ),
     OfficialGallery(
@@ -308,10 +304,10 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "native-friction-review",
         _friction_refresh,
         title="Pipe-shoe friction comparison",
-        question="How does friction change the same pipe and load path?",
+        question="Frictionless and Coulomb pipe shoes",
         summary=(
             "Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. "
-            "Compare zero-friction shoes directly with mu = 0.3 through heating, cooling, lift-off and reseating."
+            "The review compares friction coefficients of 0 and 0.3 through heating, cooling, lift-off and reseating."
         ),
         solver_options={"pipe_modelization": "POU_D_T", "load_path": LOAD_PATH, "load_step": 0.1},
     ),
@@ -323,12 +319,10 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "tee_volume_operating",
         _tee_volume_refresh,
         True,
-        title="Solved 3D solid tee",
-        question="Does stress concentrate where the branch meets the header?",
+        title="3D solid tee",
+        question="Stress distribution at the branch junction",
         summary=(
-            "The tee is meshed as a solid wall and analysed in 3D. Shows the "
-            "stress pattern around the junction that a centreline beam model "
-            "cannot resolve."
+            "A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction."
         ),
     ),
     OfficialGallery(
@@ -339,12 +333,12 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "profile-orientation-review",
         _profile_refresh,
         refresh_load_cases=PROFILE_CASES,
-        title="I-section rotation and local axes",
-        question="How do section orientation and local axes change bending?",
+        title="I-section orientation and local axes",
+        question="Section orientation under global and local loads",
         summary=(
             "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. "
-            "Compare global and local loading, deformed profiles and solved section rotations "
-            "beside their original local axes."
+            "The review compares global and local loading, deformed profiles, and section rotations "
+            "relative to the original local axes."
         ),
     ),
     OfficialGallery(
@@ -355,12 +349,11 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "support_rack_operating",
         _support_rack_refresh,
         title="Pipe on a support rack",
-        question="What do the supports and the steel underneath actually carry?",
+        question="Rack reactions and support spacing",
         summary=(
-            "An all-I-beam rack and its pipe analysed together under gravity, "
-            "1.5 MPa internal pressure, and 180 C operation from 20 C, with no "
-            "imposed nodal forces. Traces the resulting support reactions through "
-            "the rack and flags an overlong span."
+            "An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, "
+            "and a temperature increase from 20 C to 180 C, with no imposed nodal forces. "
+            "The review shows support reactions and a support-spacing check."
         ),
     ),
 )

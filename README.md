@@ -1,17 +1,16 @@
 # Tuba v4
 
-Piping engineering in Python: define a piping system, analyse it, and review
-the results as traceable engineering evidence.
+Tuba is an open-source Python library for modeling piping systems, running
+Code_Aster analyses, and displaying the results.
 
 [![A solved Tuba review showing pipe geometry, the analysis mesh, wall stress, deformation and support reactions together.](docs/content/assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
-**[Open the review gallery →](https://jgwagenfeld.github.io/Tuba_v4/viewer/)**
-Real analysed piping models in your browser. Nothing to install.
+[Example gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
-## What you do with it
+## Example
 
-Describe a line the way a piping engineer thinks about it — runs, bends,
-sections, supports, an operating case:
+Define a pipe with two straight runs, a bend, anchored ends, and an operating
+load case, then solve it with Code_Aster:
 
 ```python
 from tuba import Model
@@ -32,29 +31,25 @@ model.validate()
 run = model.solve("Operating")
 ```
 
-Then read the answers back — where it moves, what the wall carries, what
-arrives at each support — and keep them together with the model that produced
-them:
+Display the imported stress and displacement results with PyVista:
 
 ```python
-run.results.plot_deformed_stress(model=model)          # look at it now
-write_scene_bundle(build_visualization_scene(model, analysis_runs=[run]), "review")
+run.results.plot_deformed_stress(model=model)
 ```
 
-The second form writes a self-contained review anyone can open in a browser,
-with the geometry, the analysis mesh, the results and their provenance in one
-place. Every example in the gallery is one of those.
+For browser display, see the [web-scene workflow](docs/content/workflow.md#reviewable-web-scene).
+Scene bundles contain model geometry, analysis meshes, results, and run metadata.
 
-## What it can do today
+## Features
 
-- Author pipe runs, bends, supports, racks and imported components in Python.
+- Define pipe runs, bends, supports, racks and imported components in Python.
 - Route lines automatically around obstacles, including expansion loops for hot
   lines.
 - Analyse with beam, `TUYAU` pipe-wall or full 3D solid idealisations.
 - Recover deflection, wall stress, element forces and support reactions.
 - Check operating-state clearances against the deformed line and apply your own
   design rules.
-- Publish a shareable review, export to PyVista, glTF, PLY or Blender, and
+- Display results in PyVista or the web viewer, export glTF, PLY or Blender files, and
   exchange with IFC.
 
 ## Getting started
@@ -68,22 +63,21 @@ python -m venv .venv
 .venv/bin/python -m pip install .        # Windows: .\.venv\Scripts\python.exe
 ```
 
-Analysis runs on [Code_Aster](https://code-aster.org), a separate open-source
-solver. Authoring, routing, geometry and review work without it; computing
-results does not. On Windows it installs into WSL2 Ubuntu.
+Analysis requires [Code_Aster](https://code-aster.org), installed separately.
+Modeling, geometric routing, and viewing existing results do not require a local
+solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
 
 **[Setup →](https://jgwagenfeld.github.io/Tuba_v4/setup.html)** ·
 **[Tutorial →](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html)** ·
 **[Examples →](https://jgwagenfeld.github.io/Tuba_v4/examples.html)** ·
 **[Documentation →](https://jgwagenfeld.github.io/Tuba_v4/)**
 
-## Results are earned, never assumed
+## Solver results
 
-Tuba will not show you a number it did not compute. Writing solver input files
-is a handoff, not an analysis: until the solver has run and Tuba has imported
-what it produced, a study has no results, and Tuba says so rather than filling
-the gap. Every published review carries the identity of the model it came from,
-so evidence cannot drift from the design it describes.
+Stress, displacement, and reaction results require a completed Code_Aster run
+and imported result files. Exporting `.comm`, `.mail`, and `.export` input files
+does not run an analysis. Imported results retain model and study identifiers
+for checking which model was analysed.
 
 ## Engineering and standards disclaimer
 

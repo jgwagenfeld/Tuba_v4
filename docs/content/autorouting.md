@@ -1,4 +1,4 @@
-# Route candidates, not magic signoff
+# Autorouting
 
 Autorouting generates and reviews pipe-centerline candidates. It can apply a selected candidate to a model, export Code_Aster studies, and write route reports. Engineering acceptance still requires a real Code_Aster solve and imported result artifacts.
 

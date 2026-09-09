@@ -5,6 +5,7 @@ Outputs committed PNGs under docs/content/assets/figures/. No solver required.
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -18,6 +19,8 @@ from tuba.plotting.plots import add_local_axes_to_plotter, _add_supports_to_plot
 from tuba.plotting.export import export_screenshot
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:  # figures import from examples/, which is not installed
+    sys.path.insert(0, str(REPO_ROOT))
 FIG_DIR = REPO_ROOT / "docs" / "content" / "assets" / "figures"
 RES = (1600, 1000)
 
@@ -55,7 +58,7 @@ def _steel(model: Model) -> None:
 def _render(model, path: Path, *, results=None, deform_scale=None,
             local_axes=False, local_axes_scale=0.45,
             supports=False, supports_scale=0.085, body_opacity=None,
-            res=RES, zoom=1.5, post: Optional[Callable[["pv.Plotter"], None]] = None) -> Path:
+            res=RES, post: Optional[Callable[["pv.Plotter"], None]] = None) -> Path:
     plotter = build_model_scene(model, results, off_screen=True, title="",
                                 deform_scale=deform_scale)
     if body_opacity is not None:
@@ -73,7 +76,6 @@ def _render(model, path: Path, *, results=None, deform_scale=None,
     if post is not None:
         post(plotter)
     plotter.reset_camera()
-    plotter.camera.zoom(zoom)
     export_screenshot(plotter, str(path), resolution=res)
     plotter.close()
     _autocrop(path)
@@ -127,7 +129,7 @@ def fig_element_triad(out_dir: Path) -> Path:
             always_visible=True)
 
     return _render(m, out_dir / "element_triad.png", local_axes=True,
-                   local_axes_scale=scale, body_opacity=0.4, zoom=1.4, post=label_axes)
+                   local_axes_scale=scale, body_opacity=0.4, post=label_axes)
 
 
 def fig_placement_frame(out_dir: Path) -> Path:
@@ -150,7 +152,7 @@ def fig_placement_frame(out_dir: Path) -> Path:
     _triad(plotter, cs.origin, cs, 1.0, ["local X", "local Y", "local Z"])
     plotter.hide_axes()  # redundant with the drawn world triad; its corner widget only skews the crop
     plotter.reset_camera()
-    plotter.camera.zoom(1.2)
+
     export_screenshot(plotter, str(out_dir / "placement_frame.png"), resolution=RES)
     plotter.close()
     _autocrop(out_dir / "placement_frame.png")
@@ -171,7 +173,7 @@ def fig_builder_route(out_dir: Path) -> Path:
         p.run(1.2)
         p.end(support="anchor")
     return _render(m, out_dir / "builder_route.png", local_axes=True,
-                   local_axes_scale=0.45, supports=True, supports_scale=0.085, zoom=1.5)
+                   local_axes_scale=0.45, supports=True, supports_scale=0.085)
 
 
 def fig_supports(out_dir: Path) -> Path:
@@ -189,7 +191,7 @@ def fig_supports(out_dir: Path) -> Path:
         p.add_support(type="spring")
         p.run(1.5)
         p.end(support="anchor")
-    return _render(m, out_dir / "supports.png", supports=True, supports_scale=0.1, zoom=1.4)
+    return _render(m, out_dir / "supports.png", supports=True, supports_scale=0.1)
 
 
 def fig_bend_chord_arc(out_dir: Path) -> Path:
@@ -224,7 +226,7 @@ def fig_bend_chord_arc(out_dir: Path) -> Path:
         ["FE node (tangent point)", "true arc"],
         font_size=15, text_color="white", shape=None, show_points=False, always_visible=True)
     plotter.reset_camera()
-    plotter.camera.zoom(1.6)
+
     export_screenshot(plotter, str(out_dir / "bend_chord_arc.png"), resolution=RES)
     plotter.close()
     _autocrop(out_dir / "bend_chord_arc.png")
@@ -241,7 +243,7 @@ def _viz_gallery_model() -> Model:
 def fig_tutorial_model(out_dir: Path) -> Path:
     """The review model as pure geometry — 'just data until it is solved'."""
     return _render(_viz_gallery_model(), out_dir / "tutorial_model.png",
-                   supports=True, supports_scale=0.09, zoom=1.4)
+                   supports=True, supports_scale=0.09)
 
 
 def _vmis_legend(plotter) -> None:
@@ -280,7 +282,7 @@ def fig_pyvista_deformed_stress(out_dir: Path) -> Path:
     work_dir = REPO_ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating"
     run = load_or_run_code_aster_results(model, "Operating", work_dir, run_solver=False)
     return _render(model, out_dir / "pyvista_deformed_stress.png", results=run.results,
-                   deform_scale=35.0, zoom=1.35, res=(1280, 1000), post=_vmis_legend)
+                   deform_scale=35.0, res=(1280, 1000), post=_vmis_legend)
 
 
 def _route_model_and_request():
@@ -311,7 +313,7 @@ def fig_route_preroute(out_dir: Path) -> Path:
     m, request = _route_model_and_request()
     plotter = build_route_plotter(m, request=request, off_screen=True)
     plotter.reset_camera()
-    plotter.camera.zoom(1.3)
+
     export_screenshot(plotter, str(out_dir / "route_preroute.png"), resolution=RES)
     plotter.close()
     _autocrop(out_dir / "route_preroute.png")
@@ -329,7 +331,7 @@ def fig_route_candidates(out_dir: Path) -> Path:
     result = GridRouter(RoutingGridSpec(cell_size=0.25, margin=1.0), candidate_count=3).route(m, request)
     plotter = build_route_plotter(m, request=request, result=result, off_screen=True)
     plotter.reset_camera()
-    plotter.camera.zoom(1.3)
+
     export_screenshot(plotter, str(out_dir / "route_candidates.png"), resolution=RES)
     plotter.close()
     _autocrop(out_dir / "route_candidates.png")

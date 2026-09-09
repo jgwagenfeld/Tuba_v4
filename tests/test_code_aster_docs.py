@@ -45,13 +45,13 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("python -m tuba.solver.code_aster_doctor --check", source)
 
     def test_readme_states_that_results_require_the_solver(self):
-        """The README no longer teaches runtime setup, but it must still be
-        honest that results are computed, never assumed."""
+        """The README states the solver and result-import requirements."""
         text = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("Code_Aster", text)
-        self.assertIn("Tuba will not show you a number it did not compute", text)
-        self.assertIn("a study has no results", text)
+        self.assertIn("results require a completed Code_Aster run", text)
+        self.assertIn("and imported result files", text)
+        self.assertIn("does not run an analysis", text)
         self.assertIn("git clone --branch v4.0.1", text)
 
     def test_setup_documents_required_runtime_and_doctor(self):

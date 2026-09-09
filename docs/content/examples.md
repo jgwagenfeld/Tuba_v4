@@ -1,63 +1,57 @@
 # Examples
 
-Every review below is a piping model that was analysed and kept together with
-its evidence. Open one to inspect the geometry, the deformed shape, the
-stresses and the support loads.
+The examples below show piping geometry and Code_Aster analyses. Each entry
+states whether it contains solver results or model geometry only.
 
-**[Browse them all in the gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)** - no install required.
+[Example gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
-What a review is backed by is stated on each entry. Anything calculated on top
-of that evidence - a piping-code evaluation, a clearance check, a design rule -
-is an optional layer a review may or may not carry. None of them is the
-reference the review is measured against, and a review without them is not a
-lesser review.
+Piping-code evaluations, clearance checks, and project-specific design rules
+are included only where stated.
 
-## Where does a hot line move, and what does it reach?
+## Hot line expansion loop
 
-**Hot line expansion loop.** A 180 C line routed around equipment, with the expansion loop chosen automatically. Shows how far it grows when hot and where it infringes the clearance it was given around a cable tray.
+A 180 C line routed around equipment with an automatically selected expansion loop. The review shows thermal displacement and clearance violations around a cable tray.
 
-The line clears the tray cold and reaches it hot: the gap is 150.0 mm cold and
-137.6 mm once it expands. What it infringes is the authored 100 mm clearance
-band around it, by 6.8 mm, so the markers are warnings flagged
-`introduced_by_deformation` - an infringement that exists only in the operating
-state. The tray and the band are authored design inputs; the displacement that
-closes the gap is imported solver evidence. The band is not the router's
-reserved corridor, which additionally reserves the declared insulation.
+The reported gap decreases from 150.0 mm cold to 137.6 mm in the operating
+state. The clearance check reports a 6.8 mm violation of the configured 100 mm
+clearance band, flagged `introduced_by_deformation`. The tray and clearance
+band are model inputs; displacement comes from imported Code_Aster results.
+The router's reserved corridor also includes the declared insulation.
 
 Piping-standard checks are the responsibility of the user.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop) &middot; Evidence: **Results**
 
-## What happens to a pressurised line held at both ends?
+## Anchored line with two bends
 
-**Anchored line with two bends.** The starting point for reading a Tuba review. One line, two anchors, two bends: deflection, wall stress through the pipe section, and the loads arriving at each anchor, all from the same run.
+A pressurised line with two anchors and two bends. The review shows displacement, pipe-wall stress, and anchor reactions from one Code_Aster run.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review) &middot; Evidence: **Results**
 
-## Do bars, cables and spring supports survive the trip to the solver?
+## Mixed elements and supports
 
-**Mixed elements and supports.** Pipe, beam, bar, cable and rectangular members in one model, held by spring, rest, anchor and partly-released supports. Evidence that each element and support type is translated and analysed as authored.
+Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, anchor and partly released supports. The review shows the element and support definitions alongside the imported Code_Aster results.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review) &middot; Evidence: **Results**
 
-## How does a supplied component join an authored line?
+## Imported equipment connection
 
-**Imported equipment connection.** A STEP/STL component brought in beside Tuba-authored pipework, with its connection ports, local frames and coupling shown. Geometry review only - nothing here has been analysed.
+A STEP/STL component placed beside Tuba pipework, showing connection ports, local frames and coupling. This example contains geometry only, with no solver results.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo) &middot; Evidence: **Model only - no results**
 
-## Does stress concentrate where the branch meets the header?
+## 3D solid tee
 
-**Solved 3D solid tee.** The tee is meshed as a solid wall and analysed in 3D. Shows the stress pattern around the junction that a centreline beam model cannot resolve.
+A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction.
 
 FE von Mises is not piping-code stress. The design tubes, analysis skin,
 displacement, terminal resultants and stress field stay separately inspectable.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review) &middot; Evidence: **Results**
 
-## What do the supports and the steel underneath actually carry?
+## Pipe on a support rack
 
-**Pipe on a support rack.** An all-I-beam rack and its pipe analysed together under gravity, 1.5 MPa internal pressure, and 180 C operation from 20 C, with no imposed nodal forces. Traces the resulting support reactions through the rack and flags an overlong span.
+An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, and a temperature increase from 20 C to 180 C, with no imposed nodal forces. The review shows support reactions and a support-spacing check.
 
 An engineer-authored 3.5 m support-spacing rule flags the 4 m rack span.
 This project rule annotates the solver evidence; it does not establish
@@ -123,17 +117,17 @@ After [Setup](setup.md) succeeds, open:
 
 Examples that display stress, reaction, displacement, compliance, or operating-state results must either execute Code_Aster or load real preserved Code_Aster artifacts.
 
-## How does friction change the same pipe and load path?
+## Pipe-shoe friction comparison
 
-**Pipe-shoe friction comparison.** Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. Compare zero-friction shoes directly with mu = 0.3 through heating, cooling, lift-off and reseating.
+Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. The review compares friction coefficients of 0 and 0.3 through heating, cooling, lift-off and reseating.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review) &middot; Evidence: **Results**
 
 See the [native friction example](examples/native-friction.md) for the contact law, load stages and validation.
 
-## How do section orientation and local axes change bending?
+## I-section orientation and local axes
 
-**I-section rotation and local axes.** Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. Compare global and local loading, deformed profiles and solved section rotations beside their original local axes.
+Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. The review compares global and local loading, deformed profiles, and section rotations relative to the original local axes.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) &middot; Evidence: **Results**
 

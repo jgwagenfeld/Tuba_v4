@@ -24,22 +24,17 @@ The four layer categories answer what is drawn:
 
 ### Bodies: the composited result view
 
-Categories answer where content came from. The pinned display strip answers a
-different question - which of the overlaid things on screen you are looking at -
-and groups the scene into four **bodies**: geometry, analysis mesh, sub-points,
-and the deformed shape. The split is not a re-cut of the categories: sub-points
-and the deformed shape are both results, but a reviewer dims them separately.
+The display strip groups the scene into four **bodies**: geometry, analysis
+mesh, sub-points, and deformed shape. These groups have separate display
+controls. Sub-points and deformed shape both belong to the Results category.
 
-Each body carries visibility and, except the deformed shape, an opacity that
-lets the reviewer see the mesh and its sub-points through the authored surface.
-Deformed is a transform of the mesh drawn over the undeformed geometry, not a
-fourth solid, so it has nothing behind it to see through to. Per-body opacity is
-a ceiling rather than a multiplier, so dimming geometry never compounds with the
-ghosting an undeformed reference already carries.
+Each body has a visibility control. Geometry, analysis mesh, and sub-points
+also have opacity controls. Deformed shape applies a transform to the mesh.
+Body opacity caps the layer opacity rather than multiplying it, preserving
+the transparency of the undeformed reference.
 
-Content no category-to-body rule claims - result vectors and every annotation -
-stays reachable through the full layer tree. A body the scene does not populate
-is omitted rather than shown empty.
+Result vectors and annotations remain accessible through the layer tree.
+Empty bodies are omitted from the display strip.
 
 ### Mesh identity and the discretisation check
 
@@ -49,12 +44,10 @@ element families the connectivity actually has (`SEG2`, `SEG3`), which
 `MODELISATION` alone cannot state.
 
 When the mesh was built from bends it also carries a **bend-chord discretisation
-check** (`tuba/analysis/mesh_quality.py`): how many elements span each arc, and
-how far the straight chord falls inside it. That verdict is **geometric, not a
-code check** - it is reported against a declared fraction of the bend radius, and
-the criterion is displayed next to the verdict so a bare "OK" is never read as a
-code acceptance. A mesh with no bends omits the check entirely rather than
-reporting a pass it did not earn.
+check** (`tuba/analysis/mesh_quality.py`): the number of elements per arc and
+the deviation of each straight chord from the arc. The criterion is a declared
+fraction of the bend radius, displayed beside the result. This is a geometric
+check, not a piping-code check. It is omitted for meshes without bends.
 
 ### TUYAU sub-points
 
@@ -94,9 +87,9 @@ These are four independent evidence destinations, not aliases for the four task 
 
 The coloring channel is load case × result field × component. A scalar field exposes only `magnitude`; vector fields expose their available components plus `magnitude`. Selecting a load case keeps the result field and geometry state coherent with that case. Field selection changes coloring and its legend, not layer ownership.
 
-The channel is owned by one control: the bar above the viewport. The results panel owns thresholds, vector scales, and hotspots, and deliberately does not repeat the case, field, or component selectors - two controls for one selection is how they drift out of sync. The legend and its compliance caveat are pinned in the viewport rather than the results panel, because that panel detaches under the Review, Model, and Issues tasks while the scene stays colour-mapped. The legend ramp is sampled from the same function that tints the scene, so it cannot drift from the pixels it explains.
+The bar above the viewport controls load case, field, and component. The results panel controls thresholds, vector scales, and hotspots. The legend and compliance caveat remain visible in the viewport when the results panel is closed. The legend and scene use the same color function.
 
-Deformation has two truthful meanings:
+There are two deformation settings:
 
 - **Physical deformation** is the engineering geometry state at 1× displacement. Its scale is not a display control.
 - **Visual deformation** is explicitly display-only and may use an exaggerated scale to make small movement visible.
@@ -105,28 +98,23 @@ Only the matching geometry assets render for the active physical or visual defor
 
 ## Display units
 
-The scene stores SI base throughout - metres, pascals, newtons - and the unit
-chip in the coloring bar never changes that. It is a presentation layer
-(`viewer/src/units.js`): values convert on the way to the screen and back on the
-way in from an input, so a threshold typed in MPa reaches state in pascals and
-is compared against pascals. Two systems ship today, engineering
-(`mm · MPa · kN`) and SI base (`m · Pa · N`), and engineering is the default
-because that is how a piping review reads.
+The scene stores values in SI base units: metres, pascals, and newtons.
+`viewer/src/units.js` converts displayed values and user inputs. For example,
+a threshold entered in MPa is stored and compared in pascals. The unit selector
+offers engineering units (`mm · MPa · kN`, the default) and SI base units
+(`m · Pa · N`).
 
-One chip governs every readout together - legend, ticks, hotspots, body metrics,
-the sub-point peak, the bend-chord deviation - so they cannot disagree with each
-other. Two rules keep it honest:
+The selection applies to the legend, ticks, hotspots, body metrics, sub-point
+peak, and bend-chord deviation. Conversion follows two rules:
 
-- **Only known units convert.** A unit the table does not recognise passes
-  through with its stored label. Rescaling on a guess would invent a reading,
-  and a temperature or a ratio has no second one to offer.
+- **Only known units convert.** Unrecognised units retain their stored values
+  and labels. Temperatures and ratios are unchanged.
 - **Raw scene data is shown as stored.** The inspector prints object metadata
   verbatim, where a key like `radius_m` names its own unit. Converting there
   would make the property panel disagree with the bundle it came from.
 
-An absent value renders empty rather than as `0`: `Number(null)` is zero, and a
-missing measurement displayed as a measurement of zero is the failure this
-layer's `numeric()` guard exists to prevent.
+The `numeric()` guard displays missing values as empty, preventing JavaScript's
+`Number(null)` conversion from displaying them as zero.
 
 ## True clipping
 

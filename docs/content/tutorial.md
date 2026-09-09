@@ -1,6 +1,6 @@
 # Build and solve a first pipe
 
-This tutorial follows the complete engineering boundary:
+This tutorial builds a pipe model, runs Code_Aster, and displays the imported results:
 
 ```text
 model -> validate -> export -> Code_Aster solve -> import -> processed result review
@@ -117,7 +117,7 @@ Tuba model values use SI units.
 | `study.rmed` | Successful solve when requested | Yes: MED result artifact |
 | `review_scene/` | After artifact import | Review surface for the imported state |
 
-Missing or empty required result rows are a failed or incomplete run, never a confident zero.
+Missing or empty required result rows indicate a failed or incomplete run.
 
 ## Review controls
 
@@ -159,7 +159,7 @@ results = run.results
 
 With `run_solver=False`, the directory must already contain real Code_Aster artifacts.
 
-## Done when
+## Completion criteria
 
 The tutorial is complete only when Code_Aster has produced result artifacts and Tuba has imported them as an `AnalysisRun` with a persistent `ResultState`. Export-only output is useful for diagnostics and handoff review, but it is not an engineering evaluation.
 

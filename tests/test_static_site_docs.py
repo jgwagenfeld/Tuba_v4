@@ -91,10 +91,10 @@ class TestStaticSiteDocs(unittest.TestCase):
     def test_canonical_manual_pages_own_the_public_topics(self):
         required = {
             "setup.md": ["pip installs Tuba, not Code_Aster", "code_aster_doctor", "Run the real solver smoke test"],
-            "tutorial.md": ["Build and solve a first pipe", "Expected files", "Done when"],
+            "tutorial.md": ["Build and solve a first pipe", "Expected files", "Completion criteria"],
             "modeling.md": ["Cross-sections", "Local coordinate systems", "Schemas and serialized models", "How errors work"],
             "workflow.md": ["model.pipe", "export_analysis_study", "write_scene_bundle"],
-            "autorouting.md": ["Route candidates, not magic signoff", "SolverAcceptanceCriteria", "Current limitations"],
+            "autorouting.md": ["# Autorouting", "SolverAcceptanceCriteria", "Current limitations"],
             "examples.md": ["Local examples", "Evidence:", "Autorouting example outputs"],
             "developer.md": ["Module map", "Solver file map", "How to extend autorouting", "CONTRIBUTING.md"],
         }
@@ -233,7 +233,8 @@ class TestStaticSiteDocs(unittest.TestCase):
             # cards render, so a page edited without it leaves the card saying
             # something else -- which is how a card came to describe "the same
             # tee" as another gallery that had since been unpublished.
-            for field in ("title", "question", "summary"):
+            # Docs use example titles as headings; card subtitles are separate.
+            for field in ("title", "summary"):
                 self.assertIn(
                     getattr(gallery, field),
                     text,
