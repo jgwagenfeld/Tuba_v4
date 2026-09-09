@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-YMq4YqGH.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DY-DZMvI.css">
+    <script type="module" crossorigin src="./assets/index-BvQR4lci.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-B_iqUe5c.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -24,11 +24,10 @@
         </div>
         <div class="header-actions">
           <!-- The status band used to be a full row of its own restating what
-               the evidence dock already holds. One chip carries the two facts
+               the review tables already hold. One chip carries the two facts
                that are actually status - solved, and anything demanding
-               attention - and routes to the evidence that explains them. -->
+               attention - and routes to the task that explains them. -->
           <button type="button" class="status-chip" data-status-chip hidden></button>
-          <button type="button" aria-expanded="false" data-evidence-expand>Evidence</button>
           <a class="gallery-back" href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
           <div class="runtime-status" data-runtime-status role="status" aria-live="polite">Starting</div>
@@ -71,6 +70,7 @@
                 <section data-issue-tools-home>
                   <h2>Issues</h2>
                   <div data-issue-list></div>
+                  <section hidden data-diagnostic-list></section>
                 </section>
               </div>
               <!-- What is drawn. The Results task owns the field and hides
@@ -135,12 +135,6 @@
           <div class="property-actions" data-property-actions></div>
           <div class="property-sections" data-properties></div>
         </aside>
-        <section class="evidence-dock" aria-label="Engineering evidence" data-evidence-dock>
-          <nav class="evidence-tabs" role="tablist" aria-label="Evidence views" data-evidence-tabs></nav>
-          <div id="engineering-workflow-panel" class="workflow-panel" role="tabpanel" tabindex="0" data-workflow-panel>
-            <section hidden data-diagnostic-list></section>
-          </div>
-        </section>
       </section>
     </main>
   </body>

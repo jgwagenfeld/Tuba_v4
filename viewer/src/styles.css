@@ -1753,7 +1753,11 @@ pre {
 [data-embed="true"] .app-header,
 [data-embed="true"] .sidebar,
 [data-embed="true"] .cockpit-rail,
-[data-embed="true"]body[data-embed="true"] .app-shell {
+[data-embed="true"] .inspector {
+  display: none;
+}
+
+body[data-embed="true"] .app-shell {
   grid-template-rows: minmax(0, 1fr);
 }
 
