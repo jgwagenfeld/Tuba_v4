@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-B9ZHI0lU.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DDGnUKCz.css">
+    <script type="module" crossorigin src="./assets/index-CkKB6grm.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BmxZ6thr.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -90,6 +90,17 @@
                   </div>
                   <div class="body-list" data-overlay-list></div>
                 </div>
+                <!-- The escape hatch, as the last row of the same list rather
+                     than a popover pinned to the rail foot. Everything above is
+                     a curated row; this is every layer the bundle declares, for
+                     the times the curation does not cover what you need. -->
+                <details class="strip-drawer layer-tree">
+                  <summary>
+                    All layers
+                    <span class="layer-tally" data-layer-tally></span>
+                  </summary>
+                  <div data-layer-list></div>
+                </details>
               </div>
               <p class="projection-note" data-projection-note></p>
               <section class="section-profile" aria-label="TUYAU section sub-point grid" data-section-profile></section>
@@ -103,10 +114,6 @@
           <div class="rail-foot">
             <div class="rail-popover" data-rail-popover hidden>
               <div data-section-box-controls></div>
-              <details class="strip-drawer layer-tree">
-                <summary>All layers</summary>
-                <div data-layer-list></div>
-              </details>
               <div class="saved-views-block" data-saved-views></div>
             </div>
             <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>

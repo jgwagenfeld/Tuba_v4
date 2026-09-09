@@ -28,7 +28,6 @@ export const SUPPORTED_RENDER_FORMATS = new Set([
 
 const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
 const REFERENCE_GEOMETRY_OPACITY = 0.32;
-const INTERACTION_DETAIL_FORMATS = new Set(["line", "point", "polyline", "tuyau_subpoint_glyphs"]);
 
 export const STANDARD_VIEW_DIRECTIONS = {
   iso: [1, -1, 0.65],
@@ -274,17 +273,15 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     if (currentGraph) drawFrame(currentGraph);
     if (viewHelper.animating) requestAnimationFrame(animateGizmo);
   };
-  const startInteraction = () => {
-    if (currentGraph) setSceneGraphInteractionMode(currentGraph, true);
-    redrawScene();
-  };
-  const endInteraction = () => {
-    if (currentGraph) setSceneGraphInteractionMode(currentGraph, false);
-    redrawScene();
-  };
+  // Nothing is dropped while the camera moves. A detail LOD used to hide the
+  // line/point formats here, which took supports, coupling lines and the whole
+  // analysis mesh off screen on every drag - a beam model is those lines, so
+  // orbiting emptied the viewport. Measured before removing it: the heaviest
+  // bundle is 2224 draw calls / 139k triangles and the LOD spared 154 of them,
+  // while the one scene it did thin (1.62M triangles) is a single InstancedMesh
+  // costing one draw call. If orbit ever does judder, measure first and thin
+  // the thing that is actually slow.
   controls.addEventListener("change", redrawScene);
-  controls.addEventListener("start", startInteraction);
-  controls.addEventListener("end", endInteraction);
   // Guarded: the node test environment has no ResizeObserver.
   const resizeObserver =
     typeof ResizeObserver === "undefined"
@@ -569,24 +566,6 @@ export function applySectionBoxClipping(graph, sectionBox) {
       material.needsUpdate = true;
     }
   });
-}
-
-export function setSceneGraphInteractionMode(graph, active) {
-  let renderedObjectCount = 0;
-  for (const object of graph.renderableObjects ?? []) {
-    if (active) {
-      if (!Object.hasOwn(object.userData, "visibleBeforeInteraction")) {
-        object.userData.visibleBeforeInteraction = object.visible;
-      }
-      if (INTERACTION_DETAIL_FORMATS.has(object.userData?.format)) object.visible = false;
-    } else if (Object.hasOwn(object.userData, "visibleBeforeInteraction")) {
-      object.visible = object.userData.visibleBeforeInteraction;
-      delete object.userData.visibleBeforeInteraction;
-    }
-    if (object.visible) renderedObjectCount += 1;
-  }
-  graph.renderedObjectCount = renderedObjectCount;
-  return graph;
 }
 
 export function setDeformationPreviewMode(graph, active) {

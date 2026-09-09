@@ -1063,25 +1063,6 @@ test("section box clipping keeps a crossing pipe in the coarse scene graph", () 
   }
 });
 
-test("orbit keeps engineering arrows visible while hiding mesh details", () => {
-  const graph = createThreeSceneGraph(fixtureState());
-
-  rendererModule.setSceneGraphInteractionMode?.(graph, true);
-
-  assert.equal(typeof rendererModule.setSceneGraphInteractionMode, "function");
-  assert.equal(graph.objectsByObjectId.get("object:pipe").visible, true);
-  assert.equal(graph.objectsByObjectId.get("object:box").visible, true);
-  assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, false);
-  assert.equal(graph.objectsByObjectId.get("object:node").visible, false);
-  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, true);
-
-  rendererModule.setSceneGraphInteractionMode(graph, false);
-
-  assert.equal(graph.objectsByObjectId.get("object:mesh-line").visible, true);
-  assert.equal(graph.objectsByObjectId.get("object:node").visible, true);
-  assert.equal(graph.objectsByObjectId.get("object:reaction").visible, true);
-});
-
 test("pickRenderedObject uses Three.js raycasting metadata", () => {
   const graph = createThreeSceneGraph({
     bounds: [-1, -1, -1, 1, 1, 1],
