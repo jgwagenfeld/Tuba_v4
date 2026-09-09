@@ -55,40 +55,28 @@ CARA = AFFE_CARA_ELEM(
             CARA=('R', 'EP'),
             VALE=(4.44500000E-02, 5.49000000E-03),
         ),
-        _F(
-            GROUP_MA='G8652C19',
-            SECTION='COUDE',
-        ),
+        _F(GROUP_MA='G8652C19', SECTION='COUDE'),
         _F(
             GROUP_MA='G21F400B',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(4.44500000E-02, 5.49000000E-03),
         ),
-        _F(
-            GROUP_MA='G21F400B',
-            SECTION='COUDE',
-        ),
+        _F(GROUP_MA='G21F400B', SECTION='COUDE'),
         _F(
             GROUP_MA='GD57111F',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(4.44500000E-02, 5.49000000E-03),
         ),
-        _F(
-            GROUP_MA='GD57111F',
-            SECTION='COUDE',
-        ),
+        _F(GROUP_MA='GD57111F', SECTION='COUDE'),
         _F(
             GROUP_MA='G95148D5',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(4.44500000E-02, 5.49000000E-03),
         ),
-        _F(
-            GROUP_MA='G95148D5',
-            SECTION='COUDE',
-        ),
+        _F(GROUP_MA='G95148D5', SECTION='COUDE'),
     ),
     ORIENTATION=(
         _F(
@@ -100,6 +88,22 @@ CARA = AFFE_CARA_ELEM(
 );
 
 # ----- Boundary conditions -----
+BC_0 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N1',
+        WO=0.0,
+    ),
+);
+
+BC_1 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N10',
+        WO=0.0,
+    ),
+);
+
 BC_2 = AFFE_CHAR_MECA(
     MODELE=MODELE,
     DDL_IMPO=_F(
@@ -208,6 +212,8 @@ RESU = STAT_NON_LINE(
     CHAM_MATER=CHMAT,
     CARA_ELEM=CARA,
     EXCIT=(
+        _F(CHARGE=BC_0),
+        _F(CHARGE=BC_1),
         _F(CHARGE=BC_2),
         _F(CHARGE=BC_3),
         _F(CHARGE=GRAVITY),
@@ -259,6 +265,7 @@ IMPR_TABLE(
     TABLE=TAB_EFFO,
     UNITE=38,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -277,6 +284,7 @@ IMPR_TABLE(
     TABLE=TAB_DEPL,
     UNITE=39,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -295,6 +303,7 @@ IMPR_TABLE(
     TABLE=TAB_REAC,
     UNITE=40,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -313,6 +322,7 @@ IMPR_TABLE(
     TABLE=TAB_SIEQ,
     UNITE=41,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 

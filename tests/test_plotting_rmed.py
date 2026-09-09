@@ -37,16 +37,22 @@ def test_load_rmed_preserves_quadratic_lines_and_normalizes_latest_results(monke
     assert set(grid.celltypes) == {21}  # VTK_QUADRATIC_EDGE
     assert list(grid.get_cell(0).point_ids) == [0, 1, 36]
     # Reference values from the artifacts re-solved with gravity along -Z. The
-    # previous values were computed with gravity along -Y, which loaded this
+    # values before that were computed with gravity along -Y, which loaded this
     # line across itself rather than down it.
+    #
+    # Re-solved again once a rest support started emitting the warping restraint
+    # every other support type already got. The two in-plane components moved by
+    # about 0.16%; DZ is unchanged to eight decimals, which is what a secondary
+    # section effect should look like.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][-1],
-        [0.000396264522, 0.00357104759, -0.003109002647],
+        [0.000396651017, 0.003576675405, -0.003109000793],
         rtol=0,
         atol=5e-8,
     )
-    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.0051846816136452475)
-    assert np.isclose(grid.point_data["VMIS"].max(), 333033617.25262654)
+    # Same re-solve: peak displacement moved 0.09%, peak von Mises 0.001%.
+    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.005189447911793496)
+    assert np.isclose(grid.point_data["VMIS"].max(), 333037411.25683635)
 
 
 def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():

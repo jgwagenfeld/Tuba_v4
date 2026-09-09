@@ -93,16 +93,6 @@ async function openReviewControls(page) {
   assert.equal(await page.locator("[data-task-rail]").isVisible(), true);
 }
 
-async function assertInspectorIdentity(page, objectId, entityRef) {
-  const identity = page.locator("[data-properties] .property-section").filter({
-    has: page.getByRole("heading", { level: 3, name: "Identity", exact: true })
-  });
-  assert.equal(await identity.isVisible(), true);
-  const text = await identity.textContent();
-  assert.ok(text.includes(objectId), `inspector identity must include ${objectId}: ${text}`);
-  assert.ok(text.includes(entityRef), `inspector identity must include ${entityRef}: ${text}`);
-}
-
 async function framebufferFingerprint(canvas) {
   return canvas.evaluate((target) => {
     const gl = target.getContext("webgl2") || target.getContext("webgl");

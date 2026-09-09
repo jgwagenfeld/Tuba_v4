@@ -373,8 +373,18 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
             study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
             comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
 
-        self.assertIn("WO=0.0", comm)
         self.assertIn("CONTACT=contact", comm)
+        # Asserting "WO=0.0" in comm passed whatever the rest support did: the
+        # anchor at n0 emits one too. Pin the rest node's own block instead.
+        # Cut each AFFE_CHAR_MECA at its own closing ");" - the tail of a plain
+        # split also carries the LIAISON_UNIL zone, which names the same node.
+        bodies = [chunk.split(");")[0] for chunk in comm.split("= AFFE_CHAR_MECA(")[1:]]
+        blocks = [body for body in bodies if f"GROUP_NO='GN_{n1}'" in body]
+        self.assertEqual(len(blocks), 1, f"expected one BC block for {n1}: {len(blocks)}")
+        self.assertIn("WO=0.0", blocks[0])
+        # A rest is unilateral; the warping restraint is all it may write.
+        for dof in ("DX=", "DY=", "DZ=", "DRX=", "DRY=", "DRZ="):
+            self.assertNotIn(dof, blocks[0], f"a rest must not bilaterally block {dof}")
 
     def test_export_analysis_study_creates_poi1_with_code_aster_node_selector(self):
         model = Model(project_name="SpringPoi1")

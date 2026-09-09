@@ -55,20 +55,14 @@ CARA = AFFE_CARA_ELEM(
             CARA=('R', 'EP'),
             VALE=(5.71500000E-02, 6.02000000E-03),
         ),
-        _F(
-            GROUP_MA='G8652C19',
-            SECTION='COUDE',
-        ),
+        _F(GROUP_MA='G8652C19', SECTION='COUDE'),
         _F(
             GROUP_MA='G21F400B',
             SECTION='CERCLE',
             CARA=('R', 'EP'),
             VALE=(5.71500000E-02, 6.02000000E-03),
         ),
-        _F(
-            GROUP_MA='G21F400B',
-            SECTION='COUDE',
-        ),
+        _F(GROUP_MA='G21F400B', SECTION='COUDE'),
     ),
     ORIENTATION=(
         _F(
@@ -96,6 +90,14 @@ BC_1 = AFFE_CHAR_MECA(
         DX=0.0,
         DY=0.0,
         DZ=0.0,
+        WO=0.0,
+    ),
+);
+
+BC_2 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N3',
         WO=0.0,
     ),
 );
@@ -200,6 +202,7 @@ RESU = STAT_NON_LINE(
     EXCIT=(
         _F(CHARGE=BC_0),
         _F(CHARGE=BC_1),
+        _F(CHARGE=BC_2),
         _F(CHARGE=BC_3),
         _F(CHARGE=GRAVITY),
         _F(CHARGE=PRESSURE),
@@ -250,6 +253,7 @@ IMPR_TABLE(
     TABLE=TAB_EFFO,
     UNITE=38,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -268,6 +272,7 @@ IMPR_TABLE(
     TABLE=TAB_DEPL,
     UNITE=39,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -286,6 +291,7 @@ IMPR_TABLE(
     TABLE=TAB_REAC,
     UNITE=40,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -304,6 +310,7 @@ IMPR_TABLE(
     TABLE=TAB_SIEQ,
     UNITE=41,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 

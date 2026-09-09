@@ -634,6 +634,12 @@ class _CommWriterMixin:
                     # branch that used to sit here could never run. It defaulted
                     # to DY, which read as if a directionless rest held the pipe
                     # sideways; the zone actually written is NOM_CMP='DZ'.
+                    #
+                    # What it does still owe is the warping restraint every other
+                    # support type gets through append_pipe_warping_bc. A TUYAU
+                    # node needs WO fixed or the section is free to warp there;
+                    # a node on a beam formulation has no warping DOF to fix, so
+                    # there is nothing to write and the support is skipped.
                     if sup.node not in pipe_nodes_with_warping:
                         continue
                     write_bc = True
@@ -644,13 +650,6 @@ class _CommWriterMixin:
                     append_pipe_warping_bc(lines_bc, sup.node)
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
-                    # ponytail: this continue drops the warping restraint just
-                    # built - it skips the `if write_bc:` emit below. Preserved
-                    # deliberately so removing the dead branch above changes no
-                    # solver output. test_..._restrains_pipe_warping_at_nonlinear_rest
-                    # only passes because the anchor in its model also emits WO=0.0.
-                    # Dropping the continue emits the BC and needs a re-solve.
-                    continue
                 elif sup.type == "spring":
                     pass
                 else:

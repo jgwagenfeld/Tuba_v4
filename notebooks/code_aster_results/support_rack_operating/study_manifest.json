@@ -25,65 +25,577 @@
           "kind": "element"
         }
       },
-      "rack_A_beam_0": {
-        "element_id": "rack_A_beam_0",
-        "role": "native_element",
+      "rack_A_beam_0_s0": {
+        "element_id": "rack_A_beam_0_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
         "source_ref": {
           "id": "rack_A_beam_0",
           "kind": "element"
         }
       },
-      "rack_A_beam_1": {
-        "element_id": "rack_A_beam_1",
-        "role": "native_element",
+      "rack_A_beam_0_s1": {
+        "element_id": "rack_A_beam_0_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_s2": {
+        "element_id": "rack_A_beam_0_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_s3": {
+        "element_id": "rack_A_beam_0_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_s4": {
+        "element_id": "rack_A_beam_0_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_s5": {
+        "element_id": "rack_A_beam_0_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_s6": {
+        "element_id": "rack_A_beam_0_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_s7": {
+        "element_id": "rack_A_beam_0_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_s0": {
+        "element_id": "rack_A_beam_1_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
         "source_ref": {
           "id": "rack_A_beam_1",
           "kind": "element"
         }
       },
-      "rack_A_beam_2": {
-        "element_id": "rack_A_beam_2",
-        "role": "native_element",
+      "rack_A_beam_1_s1": {
+        "element_id": "rack_A_beam_1_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_s2": {
+        "element_id": "rack_A_beam_1_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_s3": {
+        "element_id": "rack_A_beam_1_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_s4": {
+        "element_id": "rack_A_beam_1_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_s5": {
+        "element_id": "rack_A_beam_1_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_s6": {
+        "element_id": "rack_A_beam_1_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_s7": {
+        "element_id": "rack_A_beam_1_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_s0": {
+        "element_id": "rack_A_beam_2_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
         "source_ref": {
           "id": "rack_A_beam_2",
           "kind": "element"
         }
       },
-      "rack_A_beam_3": {
-        "element_id": "rack_A_beam_3",
-        "role": "native_element",
+      "rack_A_beam_2_s1": {
+        "element_id": "rack_A_beam_2_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_s2": {
+        "element_id": "rack_A_beam_2_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_s3": {
+        "element_id": "rack_A_beam_2_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_s4": {
+        "element_id": "rack_A_beam_2_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_s5": {
+        "element_id": "rack_A_beam_2_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_s6": {
+        "element_id": "rack_A_beam_2_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_s7": {
+        "element_id": "rack_A_beam_2_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_s0": {
+        "element_id": "rack_A_beam_3_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
         "source_ref": {
           "id": "rack_A_beam_3",
           "kind": "element"
         }
       },
-      "rack_A_beam_4": {
-        "element_id": "rack_A_beam_4",
-        "role": "native_element",
+      "rack_A_beam_3_s1": {
+        "element_id": "rack_A_beam_3_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_s2": {
+        "element_id": "rack_A_beam_3_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_s3": {
+        "element_id": "rack_A_beam_3_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_s4": {
+        "element_id": "rack_A_beam_3_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_s5": {
+        "element_id": "rack_A_beam_3_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_s6": {
+        "element_id": "rack_A_beam_3_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_s7": {
+        "element_id": "rack_A_beam_3_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_s0": {
+        "element_id": "rack_A_beam_4_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
         "source_ref": {
           "id": "rack_A_beam_4",
           "kind": "element"
         }
       },
-      "rack_A_beam_5": {
-        "element_id": "rack_A_beam_5",
-        "role": "native_element",
+      "rack_A_beam_4_s1": {
+        "element_id": "rack_A_beam_4_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_s2": {
+        "element_id": "rack_A_beam_4_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_s3": {
+        "element_id": "rack_A_beam_4_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_s4": {
+        "element_id": "rack_A_beam_4_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_s5": {
+        "element_id": "rack_A_beam_4_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_s6": {
+        "element_id": "rack_A_beam_4_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_s7": {
+        "element_id": "rack_A_beam_4_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_s0": {
+        "element_id": "rack_A_beam_5_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
         "source_ref": {
           "id": "rack_A_beam_5",
           "kind": "element"
         }
       },
-      "rack_A_beam_6": {
-        "element_id": "rack_A_beam_6",
-        "role": "native_element",
+      "rack_A_beam_5_s1": {
+        "element_id": "rack_A_beam_5_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_s2": {
+        "element_id": "rack_A_beam_5_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_s3": {
+        "element_id": "rack_A_beam_5_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_s4": {
+        "element_id": "rack_A_beam_5_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_s5": {
+        "element_id": "rack_A_beam_5_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_s6": {
+        "element_id": "rack_A_beam_5_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_s7": {
+        "element_id": "rack_A_beam_5_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_s0": {
+        "element_id": "rack_A_beam_6_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
         "source_ref": {
           "id": "rack_A_beam_6",
           "kind": "element"
         }
       },
-      "rack_A_beam_7": {
-        "element_id": "rack_A_beam_7",
-        "role": "native_element",
+      "rack_A_beam_6_s1": {
+        "element_id": "rack_A_beam_6_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_s2": {
+        "element_id": "rack_A_beam_6_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_s3": {
+        "element_id": "rack_A_beam_6_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_s4": {
+        "element_id": "rack_A_beam_6_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_s5": {
+        "element_id": "rack_A_beam_6_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_s6": {
+        "element_id": "rack_A_beam_6_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_s7": {
+        "element_id": "rack_A_beam_6_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s0": {
+        "element_id": "rack_A_beam_7_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s1": {
+        "element_id": "rack_A_beam_7_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s2": {
+        "element_id": "rack_A_beam_7_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s3": {
+        "element_id": "rack_A_beam_7_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s4": {
+        "element_id": "rack_A_beam_7_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s5": {
+        "element_id": "rack_A_beam_7_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s6": {
+        "element_id": "rack_A_beam_7_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_s7": {
+        "element_id": "rack_A_beam_7_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
         "source_ref": {
           "id": "rack_A_beam_7",
           "kind": "element"
@@ -103,36 +615,260 @@
         "N4",
         "N6"
       ],
-      "rack_A_beam_0": [
+      "rack_A_beam_0_s0": [
         "N0",
+        "rack_A_beam_0_n1"
+      ],
+      "rack_A_beam_0_s1": [
+        "rack_A_beam_0_n1",
+        "rack_A_beam_0_n2"
+      ],
+      "rack_A_beam_0_s2": [
+        "rack_A_beam_0_n2",
+        "rack_A_beam_0_n3"
+      ],
+      "rack_A_beam_0_s3": [
+        "rack_A_beam_0_n3",
+        "rack_A_beam_0_n4"
+      ],
+      "rack_A_beam_0_s4": [
+        "rack_A_beam_0_n4",
+        "rack_A_beam_0_n5"
+      ],
+      "rack_A_beam_0_s5": [
+        "rack_A_beam_0_n5",
+        "rack_A_beam_0_n6"
+      ],
+      "rack_A_beam_0_s6": [
+        "rack_A_beam_0_n6",
+        "rack_A_beam_0_n7"
+      ],
+      "rack_A_beam_0_s7": [
+        "rack_A_beam_0_n7",
         "N4"
       ],
-      "rack_A_beam_1": [
+      "rack_A_beam_1_s0": [
         "N1",
+        "rack_A_beam_1_n1"
+      ],
+      "rack_A_beam_1_s1": [
+        "rack_A_beam_1_n1",
+        "rack_A_beam_1_n2"
+      ],
+      "rack_A_beam_1_s2": [
+        "rack_A_beam_1_n2",
+        "rack_A_beam_1_n3"
+      ],
+      "rack_A_beam_1_s3": [
+        "rack_A_beam_1_n3",
+        "rack_A_beam_1_n4"
+      ],
+      "rack_A_beam_1_s4": [
+        "rack_A_beam_1_n4",
+        "rack_A_beam_1_n5"
+      ],
+      "rack_A_beam_1_s5": [
+        "rack_A_beam_1_n5",
+        "rack_A_beam_1_n6"
+      ],
+      "rack_A_beam_1_s6": [
+        "rack_A_beam_1_n6",
+        "rack_A_beam_1_n7"
+      ],
+      "rack_A_beam_1_s7": [
+        "rack_A_beam_1_n7",
         "N5"
       ],
-      "rack_A_beam_2": [
+      "rack_A_beam_2_s0": [
         "N2",
+        "rack_A_beam_2_n1"
+      ],
+      "rack_A_beam_2_s1": [
+        "rack_A_beam_2_n1",
+        "rack_A_beam_2_n2"
+      ],
+      "rack_A_beam_2_s2": [
+        "rack_A_beam_2_n2",
+        "rack_A_beam_2_n3"
+      ],
+      "rack_A_beam_2_s3": [
+        "rack_A_beam_2_n3",
+        "rack_A_beam_2_n4"
+      ],
+      "rack_A_beam_2_s4": [
+        "rack_A_beam_2_n4",
+        "rack_A_beam_2_n5"
+      ],
+      "rack_A_beam_2_s5": [
+        "rack_A_beam_2_n5",
+        "rack_A_beam_2_n6"
+      ],
+      "rack_A_beam_2_s6": [
+        "rack_A_beam_2_n6",
+        "rack_A_beam_2_n7"
+      ],
+      "rack_A_beam_2_s7": [
+        "rack_A_beam_2_n7",
         "N6"
       ],
-      "rack_A_beam_3": [
+      "rack_A_beam_3_s0": [
         "N3",
+        "rack_A_beam_3_n1"
+      ],
+      "rack_A_beam_3_s1": [
+        "rack_A_beam_3_n1",
+        "rack_A_beam_3_n2"
+      ],
+      "rack_A_beam_3_s2": [
+        "rack_A_beam_3_n2",
+        "rack_A_beam_3_n3"
+      ],
+      "rack_A_beam_3_s3": [
+        "rack_A_beam_3_n3",
+        "rack_A_beam_3_n4"
+      ],
+      "rack_A_beam_3_s4": [
+        "rack_A_beam_3_n4",
+        "rack_A_beam_3_n5"
+      ],
+      "rack_A_beam_3_s5": [
+        "rack_A_beam_3_n5",
+        "rack_A_beam_3_n6"
+      ],
+      "rack_A_beam_3_s6": [
+        "rack_A_beam_3_n6",
+        "rack_A_beam_3_n7"
+      ],
+      "rack_A_beam_3_s7": [
+        "rack_A_beam_3_n7",
         "N7"
       ],
-      "rack_A_beam_4": [
+      "rack_A_beam_4_s0": [
         "N4",
+        "rack_A_beam_4_n1"
+      ],
+      "rack_A_beam_4_s1": [
+        "rack_A_beam_4_n1",
+        "rack_A_beam_4_n2"
+      ],
+      "rack_A_beam_4_s2": [
+        "rack_A_beam_4_n2",
+        "rack_A_beam_4_n3"
+      ],
+      "rack_A_beam_4_s3": [
+        "rack_A_beam_4_n3",
+        "rack_A_beam_4_n4"
+      ],
+      "rack_A_beam_4_s4": [
+        "rack_A_beam_4_n4",
+        "rack_A_beam_4_n5"
+      ],
+      "rack_A_beam_4_s5": [
+        "rack_A_beam_4_n5",
+        "rack_A_beam_4_n6"
+      ],
+      "rack_A_beam_4_s6": [
+        "rack_A_beam_4_n6",
+        "rack_A_beam_4_n7"
+      ],
+      "rack_A_beam_4_s7": [
+        "rack_A_beam_4_n7",
         "N6"
       ],
-      "rack_A_beam_5": [
+      "rack_A_beam_5_s0": [
         "N5",
+        "rack_A_beam_5_n1"
+      ],
+      "rack_A_beam_5_s1": [
+        "rack_A_beam_5_n1",
+        "rack_A_beam_5_n2"
+      ],
+      "rack_A_beam_5_s2": [
+        "rack_A_beam_5_n2",
+        "rack_A_beam_5_n3"
+      ],
+      "rack_A_beam_5_s3": [
+        "rack_A_beam_5_n3",
+        "rack_A_beam_5_n4"
+      ],
+      "rack_A_beam_5_s4": [
+        "rack_A_beam_5_n4",
+        "rack_A_beam_5_n5"
+      ],
+      "rack_A_beam_5_s5": [
+        "rack_A_beam_5_n5",
+        "rack_A_beam_5_n6"
+      ],
+      "rack_A_beam_5_s6": [
+        "rack_A_beam_5_n6",
+        "rack_A_beam_5_n7"
+      ],
+      "rack_A_beam_5_s7": [
+        "rack_A_beam_5_n7",
         "N7"
       ],
-      "rack_A_beam_6": [
+      "rack_A_beam_6_s0": [
         "N4",
+        "rack_A_beam_6_n1"
+      ],
+      "rack_A_beam_6_s1": [
+        "rack_A_beam_6_n1",
+        "rack_A_beam_6_n2"
+      ],
+      "rack_A_beam_6_s2": [
+        "rack_A_beam_6_n2",
+        "rack_A_beam_6_n3"
+      ],
+      "rack_A_beam_6_s3": [
+        "rack_A_beam_6_n3",
+        "rack_A_beam_6_n4"
+      ],
+      "rack_A_beam_6_s4": [
+        "rack_A_beam_6_n4",
+        "rack_A_beam_6_n5"
+      ],
+      "rack_A_beam_6_s5": [
+        "rack_A_beam_6_n5",
+        "rack_A_beam_6_n6"
+      ],
+      "rack_A_beam_6_s6": [
+        "rack_A_beam_6_n6",
+        "rack_A_beam_6_n7"
+      ],
+      "rack_A_beam_6_s7": [
+        "rack_A_beam_6_n7",
         "N5"
       ],
-      "rack_A_beam_7": [
+      "rack_A_beam_7_s0": [
         "N6",
+        "rack_A_beam_7_n1"
+      ],
+      "rack_A_beam_7_s1": [
+        "rack_A_beam_7_n1",
+        "rack_A_beam_7_n2"
+      ],
+      "rack_A_beam_7_s2": [
+        "rack_A_beam_7_n2",
+        "rack_A_beam_7_n3"
+      ],
+      "rack_A_beam_7_s3": [
+        "rack_A_beam_7_n3",
+        "rack_A_beam_7_n4"
+      ],
+      "rack_A_beam_7_s4": [
+        "rack_A_beam_7_n4",
+        "rack_A_beam_7_n5"
+      ],
+      "rack_A_beam_7_s5": [
+        "rack_A_beam_7_n5",
+        "rack_A_beam_7_n6"
+      ],
+      "rack_A_beam_7_s6": [
+        "rack_A_beam_7_n6",
+        "rack_A_beam_7_n7"
+      ],
+      "rack_A_beam_7_s7": [
+        "rack_A_beam_7_n7",
         "N7"
       ]
     },
@@ -180,27 +916,139 @@
         "N9"
       ],
       "G_TUBE": [
-        "rack_A_beam_0",
-        "rack_A_beam_1",
-        "rack_A_beam_2",
-        "rack_A_beam_3",
-        "rack_A_beam_4",
-        "rack_A_beam_5",
-        "rack_A_beam_6",
-        "rack_A_beam_7"
+        "rack_A_beam_0_s0",
+        "rack_A_beam_0_s1",
+        "rack_A_beam_0_s2",
+        "rack_A_beam_0_s3",
+        "rack_A_beam_0_s4",
+        "rack_A_beam_0_s5",
+        "rack_A_beam_0_s6",
+        "rack_A_beam_0_s7",
+        "rack_A_beam_1_s0",
+        "rack_A_beam_1_s1",
+        "rack_A_beam_1_s2",
+        "rack_A_beam_1_s3",
+        "rack_A_beam_1_s4",
+        "rack_A_beam_1_s5",
+        "rack_A_beam_1_s6",
+        "rack_A_beam_1_s7",
+        "rack_A_beam_2_s0",
+        "rack_A_beam_2_s1",
+        "rack_A_beam_2_s2",
+        "rack_A_beam_2_s3",
+        "rack_A_beam_2_s4",
+        "rack_A_beam_2_s5",
+        "rack_A_beam_2_s6",
+        "rack_A_beam_2_s7",
+        "rack_A_beam_3_s0",
+        "rack_A_beam_3_s1",
+        "rack_A_beam_3_s2",
+        "rack_A_beam_3_s3",
+        "rack_A_beam_3_s4",
+        "rack_A_beam_3_s5",
+        "rack_A_beam_3_s6",
+        "rack_A_beam_3_s7",
+        "rack_A_beam_4_s0",
+        "rack_A_beam_4_s1",
+        "rack_A_beam_4_s2",
+        "rack_A_beam_4_s3",
+        "rack_A_beam_4_s4",
+        "rack_A_beam_4_s5",
+        "rack_A_beam_4_s6",
+        "rack_A_beam_4_s7",
+        "rack_A_beam_5_s0",
+        "rack_A_beam_5_s1",
+        "rack_A_beam_5_s2",
+        "rack_A_beam_5_s3",
+        "rack_A_beam_5_s4",
+        "rack_A_beam_5_s5",
+        "rack_A_beam_5_s6",
+        "rack_A_beam_5_s7",
+        "rack_A_beam_6_s0",
+        "rack_A_beam_6_s1",
+        "rack_A_beam_6_s2",
+        "rack_A_beam_6_s3",
+        "rack_A_beam_6_s4",
+        "rack_A_beam_6_s5",
+        "rack_A_beam_6_s6",
+        "rack_A_beam_6_s7",
+        "rack_A_beam_7_s0",
+        "rack_A_beam_7_s1",
+        "rack_A_beam_7_s2",
+        "rack_A_beam_7_s3",
+        "rack_A_beam_7_s4",
+        "rack_A_beam_7_s5",
+        "rack_A_beam_7_s6",
+        "rack_A_beam_7_s7"
       ],
       "MAT_Steel": [
         "pipe_inlet",
         "pipe_rack_span",
         "pipe_outlet",
-        "rack_A_beam_0",
-        "rack_A_beam_1",
-        "rack_A_beam_2",
-        "rack_A_beam_3",
-        "rack_A_beam_4",
-        "rack_A_beam_5",
-        "rack_A_beam_6",
-        "rack_A_beam_7"
+        "rack_A_beam_0_s0",
+        "rack_A_beam_0_s1",
+        "rack_A_beam_0_s2",
+        "rack_A_beam_0_s3",
+        "rack_A_beam_0_s4",
+        "rack_A_beam_0_s5",
+        "rack_A_beam_0_s6",
+        "rack_A_beam_0_s7",
+        "rack_A_beam_1_s0",
+        "rack_A_beam_1_s1",
+        "rack_A_beam_1_s2",
+        "rack_A_beam_1_s3",
+        "rack_A_beam_1_s4",
+        "rack_A_beam_1_s5",
+        "rack_A_beam_1_s6",
+        "rack_A_beam_1_s7",
+        "rack_A_beam_2_s0",
+        "rack_A_beam_2_s1",
+        "rack_A_beam_2_s2",
+        "rack_A_beam_2_s3",
+        "rack_A_beam_2_s4",
+        "rack_A_beam_2_s5",
+        "rack_A_beam_2_s6",
+        "rack_A_beam_2_s7",
+        "rack_A_beam_3_s0",
+        "rack_A_beam_3_s1",
+        "rack_A_beam_3_s2",
+        "rack_A_beam_3_s3",
+        "rack_A_beam_3_s4",
+        "rack_A_beam_3_s5",
+        "rack_A_beam_3_s6",
+        "rack_A_beam_3_s7",
+        "rack_A_beam_4_s0",
+        "rack_A_beam_4_s1",
+        "rack_A_beam_4_s2",
+        "rack_A_beam_4_s3",
+        "rack_A_beam_4_s4",
+        "rack_A_beam_4_s5",
+        "rack_A_beam_4_s6",
+        "rack_A_beam_4_s7",
+        "rack_A_beam_5_s0",
+        "rack_A_beam_5_s1",
+        "rack_A_beam_5_s2",
+        "rack_A_beam_5_s3",
+        "rack_A_beam_5_s4",
+        "rack_A_beam_5_s5",
+        "rack_A_beam_5_s6",
+        "rack_A_beam_5_s7",
+        "rack_A_beam_6_s0",
+        "rack_A_beam_6_s1",
+        "rack_A_beam_6_s2",
+        "rack_A_beam_6_s3",
+        "rack_A_beam_6_s4",
+        "rack_A_beam_6_s5",
+        "rack_A_beam_6_s6",
+        "rack_A_beam_6_s7",
+        "rack_A_beam_7_s0",
+        "rack_A_beam_7_s1",
+        "rack_A_beam_7_s2",
+        "rack_A_beam_7_s3",
+        "rack_A_beam_7_s4",
+        "rack_A_beam_7_s5",
+        "rack_A_beam_7_s6",
+        "rack_A_beam_7_s7"
       ],
       "PipeOrientationNodes": [
         "N8"
@@ -216,18 +1064,74 @@
         "pipe_outlet"
       ],
       "SEC_RackColumnIPE": [
-        "rack_A_beam_0",
-        "rack_A_beam_1",
-        "rack_A_beam_2",
-        "rack_A_beam_3"
+        "rack_A_beam_0_s0",
+        "rack_A_beam_0_s1",
+        "rack_A_beam_0_s2",
+        "rack_A_beam_0_s3",
+        "rack_A_beam_0_s4",
+        "rack_A_beam_0_s5",
+        "rack_A_beam_0_s6",
+        "rack_A_beam_0_s7",
+        "rack_A_beam_1_s0",
+        "rack_A_beam_1_s1",
+        "rack_A_beam_1_s2",
+        "rack_A_beam_1_s3",
+        "rack_A_beam_1_s4",
+        "rack_A_beam_1_s5",
+        "rack_A_beam_1_s6",
+        "rack_A_beam_1_s7",
+        "rack_A_beam_2_s0",
+        "rack_A_beam_2_s1",
+        "rack_A_beam_2_s2",
+        "rack_A_beam_2_s3",
+        "rack_A_beam_2_s4",
+        "rack_A_beam_2_s5",
+        "rack_A_beam_2_s6",
+        "rack_A_beam_2_s7",
+        "rack_A_beam_3_s0",
+        "rack_A_beam_3_s1",
+        "rack_A_beam_3_s2",
+        "rack_A_beam_3_s3",
+        "rack_A_beam_3_s4",
+        "rack_A_beam_3_s5",
+        "rack_A_beam_3_s6",
+        "rack_A_beam_3_s7"
       ],
       "SEC_RackCrossIPE": [
-        "rack_A_beam_6",
-        "rack_A_beam_7"
+        "rack_A_beam_6_s0",
+        "rack_A_beam_6_s1",
+        "rack_A_beam_6_s2",
+        "rack_A_beam_6_s3",
+        "rack_A_beam_6_s4",
+        "rack_A_beam_6_s5",
+        "rack_A_beam_6_s6",
+        "rack_A_beam_6_s7",
+        "rack_A_beam_7_s0",
+        "rack_A_beam_7_s1",
+        "rack_A_beam_7_s2",
+        "rack_A_beam_7_s3",
+        "rack_A_beam_7_s4",
+        "rack_A_beam_7_s5",
+        "rack_A_beam_7_s6",
+        "rack_A_beam_7_s7"
       ],
       "SEC_RackLongIPE": [
-        "rack_A_beam_4",
-        "rack_A_beam_5"
+        "rack_A_beam_4_s0",
+        "rack_A_beam_4_s1",
+        "rack_A_beam_4_s2",
+        "rack_A_beam_4_s3",
+        "rack_A_beam_4_s4",
+        "rack_A_beam_4_s5",
+        "rack_A_beam_4_s6",
+        "rack_A_beam_4_s7",
+        "rack_A_beam_5_s0",
+        "rack_A_beam_5_s1",
+        "rack_A_beam_5_s2",
+        "rack_A_beam_5_s3",
+        "rack_A_beam_5_s4",
+        "rack_A_beam_5_s5",
+        "rack_A_beam_5_s6",
+        "rack_A_beam_5_s7"
       ],
       "pipe_inlet": [
         "pipe_inlet"
@@ -239,28 +1143,84 @@
         "pipe_rack_span"
       ],
       "rack_A_beam_0": [
-        "rack_A_beam_0"
+        "rack_A_beam_0_s0",
+        "rack_A_beam_0_s1",
+        "rack_A_beam_0_s2",
+        "rack_A_beam_0_s3",
+        "rack_A_beam_0_s4",
+        "rack_A_beam_0_s5",
+        "rack_A_beam_0_s6",
+        "rack_A_beam_0_s7"
       ],
       "rack_A_beam_1": [
-        "rack_A_beam_1"
+        "rack_A_beam_1_s0",
+        "rack_A_beam_1_s1",
+        "rack_A_beam_1_s2",
+        "rack_A_beam_1_s3",
+        "rack_A_beam_1_s4",
+        "rack_A_beam_1_s5",
+        "rack_A_beam_1_s6",
+        "rack_A_beam_1_s7"
       ],
       "rack_A_beam_2": [
-        "rack_A_beam_2"
+        "rack_A_beam_2_s0",
+        "rack_A_beam_2_s1",
+        "rack_A_beam_2_s2",
+        "rack_A_beam_2_s3",
+        "rack_A_beam_2_s4",
+        "rack_A_beam_2_s5",
+        "rack_A_beam_2_s6",
+        "rack_A_beam_2_s7"
       ],
       "rack_A_beam_3": [
-        "rack_A_beam_3"
+        "rack_A_beam_3_s0",
+        "rack_A_beam_3_s1",
+        "rack_A_beam_3_s2",
+        "rack_A_beam_3_s3",
+        "rack_A_beam_3_s4",
+        "rack_A_beam_3_s5",
+        "rack_A_beam_3_s6",
+        "rack_A_beam_3_s7"
       ],
       "rack_A_beam_4": [
-        "rack_A_beam_4"
+        "rack_A_beam_4_s0",
+        "rack_A_beam_4_s1",
+        "rack_A_beam_4_s2",
+        "rack_A_beam_4_s3",
+        "rack_A_beam_4_s4",
+        "rack_A_beam_4_s5",
+        "rack_A_beam_4_s6",
+        "rack_A_beam_4_s7"
       ],
       "rack_A_beam_5": [
-        "rack_A_beam_5"
+        "rack_A_beam_5_s0",
+        "rack_A_beam_5_s1",
+        "rack_A_beam_5_s2",
+        "rack_A_beam_5_s3",
+        "rack_A_beam_5_s4",
+        "rack_A_beam_5_s5",
+        "rack_A_beam_5_s6",
+        "rack_A_beam_5_s7"
       ],
       "rack_A_beam_6": [
-        "rack_A_beam_6"
+        "rack_A_beam_6_s0",
+        "rack_A_beam_6_s1",
+        "rack_A_beam_6_s2",
+        "rack_A_beam_6_s3",
+        "rack_A_beam_6_s4",
+        "rack_A_beam_6_s5",
+        "rack_A_beam_6_s6",
+        "rack_A_beam_6_s7"
       ],
       "rack_A_beam_7": [
-        "rack_A_beam_7"
+        "rack_A_beam_7_s0",
+        "rack_A_beam_7_s1",
+        "rack_A_beam_7_s2",
+        "rack_A_beam_7_s3",
+        "rack_A_beam_7_s4",
+        "rack_A_beam_7_s5",
+        "rack_A_beam_7_s6",
+        "rack_A_beam_7_s7"
       ]
     },
     "id": "analysis_mesh:Operating",
@@ -379,6 +1339,566 @@
           "id": "pipe_rack_span",
           "kind": "element"
         }
+      },
+      "rack_A_beam_0_n1": {
+        "node_id": "rack_A_beam_0_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_n2": {
+        "node_id": "rack_A_beam_0_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_n3": {
+        "node_id": "rack_A_beam_0_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_n4": {
+        "node_id": "rack_A_beam_0_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_n5": {
+        "node_id": "rack_A_beam_0_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_n6": {
+        "node_id": "rack_A_beam_0_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_0_n7": {
+        "node_id": "rack_A_beam_0_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_0",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_n1": {
+        "node_id": "rack_A_beam_1_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_n2": {
+        "node_id": "rack_A_beam_1_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_n3": {
+        "node_id": "rack_A_beam_1_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_n4": {
+        "node_id": "rack_A_beam_1_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_n5": {
+        "node_id": "rack_A_beam_1_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_n6": {
+        "node_id": "rack_A_beam_1_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_1_n7": {
+        "node_id": "rack_A_beam_1_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_1",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_n1": {
+        "node_id": "rack_A_beam_2_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_n2": {
+        "node_id": "rack_A_beam_2_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_n3": {
+        "node_id": "rack_A_beam_2_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_n4": {
+        "node_id": "rack_A_beam_2_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_n5": {
+        "node_id": "rack_A_beam_2_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_n6": {
+        "node_id": "rack_A_beam_2_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_2_n7": {
+        "node_id": "rack_A_beam_2_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_2",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_n1": {
+        "node_id": "rack_A_beam_3_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_n2": {
+        "node_id": "rack_A_beam_3_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_n3": {
+        "node_id": "rack_A_beam_3_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_n4": {
+        "node_id": "rack_A_beam_3_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_n5": {
+        "node_id": "rack_A_beam_3_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_n6": {
+        "node_id": "rack_A_beam_3_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_3_n7": {
+        "node_id": "rack_A_beam_3_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_3",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_n1": {
+        "node_id": "rack_A_beam_4_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_n2": {
+        "node_id": "rack_A_beam_4_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_n3": {
+        "node_id": "rack_A_beam_4_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_n4": {
+        "node_id": "rack_A_beam_4_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_n5": {
+        "node_id": "rack_A_beam_4_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_n6": {
+        "node_id": "rack_A_beam_4_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_4_n7": {
+        "node_id": "rack_A_beam_4_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_4",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_n1": {
+        "node_id": "rack_A_beam_5_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_n2": {
+        "node_id": "rack_A_beam_5_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_n3": {
+        "node_id": "rack_A_beam_5_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_n4": {
+        "node_id": "rack_A_beam_5_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_n5": {
+        "node_id": "rack_A_beam_5_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_n6": {
+        "node_id": "rack_A_beam_5_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_5_n7": {
+        "node_id": "rack_A_beam_5_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_5",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_n1": {
+        "node_id": "rack_A_beam_6_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_n2": {
+        "node_id": "rack_A_beam_6_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_n3": {
+        "node_id": "rack_A_beam_6_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_n4": {
+        "node_id": "rack_A_beam_6_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_n5": {
+        "node_id": "rack_A_beam_6_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_n6": {
+        "node_id": "rack_A_beam_6_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_6_n7": {
+        "node_id": "rack_A_beam_6_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_6",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_n1": {
+        "node_id": "rack_A_beam_7_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_n2": {
+        "node_id": "rack_A_beam_7_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_n3": {
+        "node_id": "rack_A_beam_7_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_n4": {
+        "node_id": "rack_A_beam_7_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_n5": {
+        "node_id": "rack_A_beam_7_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_n6": {
+        "node_id": "rack_A_beam_7_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_7_n7": {
+        "node_id": "rack_A_beam_7_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_7",
+          "kind": "element"
+        }
       }
     },
     "nodes": {
@@ -446,11 +1966,291 @@
         2.0,
         -1.0,
         3.0
+      ],
+      "rack_A_beam_0_n1": [
+        0.0,
+        -1.0,
+        0.375
+      ],
+      "rack_A_beam_0_n2": [
+        0.0,
+        -1.0,
+        0.75
+      ],
+      "rack_A_beam_0_n3": [
+        0.0,
+        -1.0,
+        1.125
+      ],
+      "rack_A_beam_0_n4": [
+        0.0,
+        -1.0,
+        1.5
+      ],
+      "rack_A_beam_0_n5": [
+        0.0,
+        -1.0,
+        1.875
+      ],
+      "rack_A_beam_0_n6": [
+        0.0,
+        -1.0,
+        2.25
+      ],
+      "rack_A_beam_0_n7": [
+        0.0,
+        -1.0,
+        2.625
+      ],
+      "rack_A_beam_1_n1": [
+        0.0,
+        1.0,
+        0.375
+      ],
+      "rack_A_beam_1_n2": [
+        0.0,
+        1.0,
+        0.75
+      ],
+      "rack_A_beam_1_n3": [
+        0.0,
+        1.0,
+        1.125
+      ],
+      "rack_A_beam_1_n4": [
+        0.0,
+        1.0,
+        1.5
+      ],
+      "rack_A_beam_1_n5": [
+        0.0,
+        1.0,
+        1.875
+      ],
+      "rack_A_beam_1_n6": [
+        0.0,
+        1.0,
+        2.25
+      ],
+      "rack_A_beam_1_n7": [
+        0.0,
+        1.0,
+        2.625
+      ],
+      "rack_A_beam_2_n1": [
+        4.0,
+        -1.0,
+        0.375
+      ],
+      "rack_A_beam_2_n2": [
+        4.0,
+        -1.0,
+        0.75
+      ],
+      "rack_A_beam_2_n3": [
+        4.0,
+        -1.0,
+        1.125
+      ],
+      "rack_A_beam_2_n4": [
+        4.0,
+        -1.0,
+        1.5
+      ],
+      "rack_A_beam_2_n5": [
+        4.0,
+        -1.0,
+        1.875
+      ],
+      "rack_A_beam_2_n6": [
+        4.0,
+        -1.0,
+        2.25
+      ],
+      "rack_A_beam_2_n7": [
+        4.0,
+        -1.0,
+        2.625
+      ],
+      "rack_A_beam_3_n1": [
+        4.0,
+        1.0,
+        0.375
+      ],
+      "rack_A_beam_3_n2": [
+        4.0,
+        1.0,
+        0.75
+      ],
+      "rack_A_beam_3_n3": [
+        4.0,
+        1.0,
+        1.125
+      ],
+      "rack_A_beam_3_n4": [
+        4.0,
+        1.0,
+        1.5
+      ],
+      "rack_A_beam_3_n5": [
+        4.0,
+        1.0,
+        1.875
+      ],
+      "rack_A_beam_3_n6": [
+        4.0,
+        1.0,
+        2.25
+      ],
+      "rack_A_beam_3_n7": [
+        4.0,
+        1.0,
+        2.625
+      ],
+      "rack_A_beam_4_n1": [
+        0.5,
+        -1.0,
+        3.0
+      ],
+      "rack_A_beam_4_n2": [
+        1.0,
+        -1.0,
+        3.0
+      ],
+      "rack_A_beam_4_n3": [
+        1.5,
+        -1.0,
+        3.0
+      ],
+      "rack_A_beam_4_n4": [
+        2.0,
+        -1.0,
+        3.0
+      ],
+      "rack_A_beam_4_n5": [
+        2.5,
+        -1.0,
+        3.0
+      ],
+      "rack_A_beam_4_n6": [
+        3.0,
+        -1.0,
+        3.0
+      ],
+      "rack_A_beam_4_n7": [
+        3.5,
+        -1.0,
+        3.0
+      ],
+      "rack_A_beam_5_n1": [
+        0.5,
+        1.0,
+        3.0
+      ],
+      "rack_A_beam_5_n2": [
+        1.0,
+        1.0,
+        3.0
+      ],
+      "rack_A_beam_5_n3": [
+        1.5,
+        1.0,
+        3.0
+      ],
+      "rack_A_beam_5_n4": [
+        2.0,
+        1.0,
+        3.0
+      ],
+      "rack_A_beam_5_n5": [
+        2.5,
+        1.0,
+        3.0
+      ],
+      "rack_A_beam_5_n6": [
+        3.0,
+        1.0,
+        3.0
+      ],
+      "rack_A_beam_5_n7": [
+        3.5,
+        1.0,
+        3.0
+      ],
+      "rack_A_beam_6_n1": [
+        0.0,
+        -0.75,
+        3.0
+      ],
+      "rack_A_beam_6_n2": [
+        0.0,
+        -0.5,
+        3.0
+      ],
+      "rack_A_beam_6_n3": [
+        0.0,
+        -0.25,
+        3.0
+      ],
+      "rack_A_beam_6_n4": [
+        0.0,
+        0.0,
+        3.0
+      ],
+      "rack_A_beam_6_n5": [
+        0.0,
+        0.25,
+        3.0
+      ],
+      "rack_A_beam_6_n6": [
+        0.0,
+        0.5,
+        3.0
+      ],
+      "rack_A_beam_6_n7": [
+        0.0,
+        0.75,
+        3.0
+      ],
+      "rack_A_beam_7_n1": [
+        4.0,
+        -0.75,
+        3.0
+      ],
+      "rack_A_beam_7_n2": [
+        4.0,
+        -0.5,
+        3.0
+      ],
+      "rack_A_beam_7_n3": [
+        4.0,
+        -0.25,
+        3.0
+      ],
+      "rack_A_beam_7_n4": [
+        4.0,
+        0.0,
+        3.0
+      ],
+      "rack_A_beam_7_n5": [
+        4.0,
+        0.25,
+        3.0
+      ],
+      "rack_A_beam_7_n6": [
+        4.0,
+        0.5,
+        3.0
+      ],
+      "rack_A_beam_7_n7": [
+        4.0,
+        0.75,
+        3.0
       ]
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "ca32efa9c88edf56539c236338503a0ca52665814983e76ce170ef821514a4e7",
+      "fingerprint": "b5376bbb6b75a76b6b7002b9fbb8f9c8f909a10e7867c558e467aeefc7b9898a",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -468,13 +2268,16 @@
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "metadata": {
+      "compiler_inputs": {
+        "line_segments": 8
+      },
       "pipe_stress_exported": true,
       "project_name": "SupportRackReview"
     },
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "ca32efa9c88edf56539c236338503a0ca52665814983e76ce170ef821514a4e7",
+      "fingerprint": "b5376bbb6b75a76b6b7002b9fbb8f9c8f909a10e7867c558e467aeefc7b9898a",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
