@@ -17,7 +17,7 @@ import { contactRecords } from "./contactReview.js";
 import { getActiveResultState } from "./resultReview.js";
 import { getPropertySections } from "./selection.js";
 import { DOF_AXES, supportDofStates } from "./supports.js";
-import { displayUnit, formatNumber, formatQuantity, getUnitSystem } from "./units.js";
+import { displayUnit, formatNumber, formatQuantity, getUnitSystem, toDisplay } from "./units.js";
 
 const SUPPORT_TITLES = Object.freeze({
   anchor: "Anchor",
@@ -157,6 +157,35 @@ function definitionSection(config, state, system) {
   return lines.length > 0 ? [{ title: "Definition", lines }] : [];
 }
 
+// The vector results a node can carry, and how each one reads. Shared by the
+// support panel, which pulls the reaction at its node, and by selecting the
+// vector itself - moment-glyph-conventions.md requires that a selected moment
+// expose Mx, My, Mz, magnitude, load case and node.
+const RESULT_VECTORS = Object.freeze([
+  { resultType: "reaction_force", key: "reaction_force_n", unit: "N", label: "Force", axes: ["Fx", "Fy", "Fz"] },
+  { resultType: "reaction_moment", key: "reaction_moment_nm", unit: "N*m", label: "Moment", axes: ["Mx", "My", "Mz"] },
+  { resultType: "displacement", key: "displacement_m", unit: "m", label: "Displacement", axes: ["Ux", "Uy", "Uz"] }
+]);
+
+// A result vector selected in its own right, rather than through its support.
+function resultVectorSection(obj, asset, system) {
+  const config = asset?.generation_config ?? {};
+  const spec = RESULT_VECTORS.find((entry) => entry.resultType === config.result_type);
+  const components = spec ? componentsOf(config, spec.key) : null;
+  if (!spec || !components) return [];
+  const lines = [
+    { kind: "row", label: "Magnitude", value: formatQuantity(Math.hypot(...components), spec.unit, system) },
+    {
+      kind: "row",
+      label: spec.axes.join(" / "),
+      value: `${components.map((value) => formatNumber(toDisplay(value, spec.unit, system))).join(" / ")} ${displayUnit(spec.unit, system)}`
+    }
+  ];
+  if (config.node_id) lines.push({ kind: "row", label: "Node", value: config.node_id });
+  if (config.load_case) lines.push({ kind: "row", label: "Load case", value: config.load_case });
+  return [{ title: spec.label, lines }];
+}
+
 // What the solver reported at this node, for the result state currently on
 // screen. The asset carries the components in stored SI; the panel converts
 // once, through the same unit chip every other readout follows.
@@ -166,10 +195,7 @@ function reactionSection(state, node, system) {
   const stateId = active?.overlay?.data?.result_state_id;
   const lines = [];
 
-  for (const [resultType, key, unit, label, axes] of [
-    ["reaction_force", "reaction_force_n", "N", "Force", ["Fx", "Fy", "Fz"]],
-    ["reaction_moment", "reaction_moment_nm", "N*m", "Moment", ["Mx", "My", "Mz"]]
-  ]) {
+  for (const { resultType, key, unit, label, axes } of RESULT_VECTORS) {
     const asset = (state.geometryAssets ?? []).find((candidate) => {
       const config = candidate.generation_config ?? {};
       return config.source === "tuba.result_state" && config.result_type === resultType &&
@@ -181,7 +207,7 @@ function reactionSection(state, node, system) {
     lines.push({
       kind: "row",
       label: axes.join(" / "),
-      value: `${components.map((value) => formatNumber(value * (system === "si" ? 1 : 1e-3))).join(" / ")} ${displayUnit(unit, system)}`
+      value: `${components.map((value) => formatNumber(toDisplay(value, unit, system))).join(" / ")} ${displayUnit(unit, system)}`
     });
   }
   if (lines.length === 0) return [];
@@ -284,7 +310,7 @@ export function getSelectionSummary(state, objectId) {
           ...(contact.section ? [contact.section] : []),
           ...generic
         ]
-      : generic,
+      : [...resultVectorSection(obj, asset, system), ...generic],
     reference: compact({
       entity_ref: obj.entity_ref,
       geometry: asset?.format,

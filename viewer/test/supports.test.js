@@ -141,3 +141,33 @@ test("a support the scene says nothing extra about gets no empty sections", () =
     assert.ok(section.lines.length > 0, `${section.title} is empty and should have been omitted`);
   }
 });
+
+test("a selected moment vector exposes Mx, My, Mz, magnitude, node and load case", () => {
+  // moment-glyph-conventions.md requires exactly this of a moment selection.
+  const objects = [{
+    id: "object:solver_result:reaction_moment:result_state_Hot:N0",
+    kind: "reaction_vector",
+    name: "N0 reaction moment Hot",
+    geometry_asset_id: "geometry:rm",
+    metadata: { result_type: "reaction_moment", node_id: "N0", load_case: "Hot" }
+  }];
+  const assets = [{
+    id: "geometry:rm",
+    format: "vector",
+    bounds: [0, 0, 0, 0, 0, 0],
+    object_ids: [objects[0].id],
+    generation_config: {
+      source: "tuba.result_state",
+      result_type: "reaction_moment",
+      node_id: "N0",
+      load_case: "Hot",
+      reaction_moment_nm: [3000, 0, 4000]
+    }
+  }];
+  const summary = getSelectionSummary(stateWith(objects, assets), objects[0].id);
+  const moment = summary.sections.find((section) => section.title === "Moment");
+  assert.ok(moment, "a moment vector gets its own section");
+  assert.deepEqual(moment.lines.map((line) => line.label), ["Magnitude", "Mx / My / Mz", "Node", "Load case"]);
+  assert.equal(moment.lines[0].value, "5 kN·m");
+  assert.equal(moment.lines[1].value, "3 / 0 / 4 kN·m");
+});

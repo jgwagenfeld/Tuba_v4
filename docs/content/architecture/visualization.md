@@ -112,6 +112,12 @@ peak, and bend-chord deviation. Conversion follows two rules:
 - **Raw scene data is shown as stored.** The inspector prints object metadata
   verbatim, where a key like `radius_m` names its own unit. Converting there
   would make the property panel disagree with the bundle it came from.
+- **Derived readouts convert.** The evidence panel's own sections - the
+  restraint strip, Definition, Reactions and Contact - are not metadata rows.
+  They are computed for the reader, name no stored key, and follow the unit
+  chip like every other readout, so a reaction reads `3.989 kN` rather than
+  `3988.7852930479976`. The distinction is the presence of a key: a row
+  labelled with a scene key is verbatim, a row labelled in words is derived.
 
 The `numeric()` guard displays missing values as empty, preventing JavaScript's
 `Number(null)` conversion from displaying them as zero.

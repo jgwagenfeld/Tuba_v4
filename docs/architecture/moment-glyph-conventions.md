@@ -50,7 +50,8 @@ For each nonzero moment vector `M` at point `P`:
 2. arc sense follows the right-hand rule about that signed axis;
 3. glyph length is computed only against other moments in the active result
    family, never against force magnitudes;
-4. the legend reports `Reaction moment`, `N*m`, the active scale mode, and the
+4. the legend reports `Reaction moment`, `N·m` (`kN·m` under the engineering
+   unit chip; `N*m` remains the stored spelling), the active scale mode, and the
    reference magnitude; and
 5. selection exposes `Mx`, `My`, `Mz`, magnitude, coordinate system, load case,
    node, and Code_Aster result provenance.
