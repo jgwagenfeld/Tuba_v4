@@ -8,7 +8,7 @@ states whether it contains solver results or model geometry only.
 Piping-code evaluations, clearance checks, and project-specific design rules
 are included only where stated.
 
-## Hot line expansion loop
+## Thermal expansion
 
 A 180 C line routed around equipment with an automatically selected expansion loop. The review shows thermal displacement and clearance violations around a cable tray.
 
@@ -22,31 +22,31 @@ Piping-standard checks are the responsibility of the user.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop) &middot; Evidence: **Results**
 
-## Anchored line with two bends
+## Pipe bends
 
 A pressurised line with two anchors and two bends. The review shows displacement, pipe-wall stress, and anchor reactions from one Code_Aster run.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review) &middot; Evidence: **Results**
 
-## Mixed elements and supports
+## Elements and supports
 
 Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, anchor and partly released supports. The review shows the element and support definitions alongside the imported Code_Aster results.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review) &middot; Evidence: **Results**
 
-## Guyed flagpole mast
+## Cable
 
 A 12 m tubular mast held by three pretensioned guy cables under a 3 kN side load. The leeward cable goes slack and the two windward ones carry it, which is the redistribution a tension-only member exists to show.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review) &middot; Evidence: **Results**
 
-## Imported equipment connection
+## Imported components
 
 A STEP/STL component placed beside Tuba pipework, showing connection ports, local frames and coupling. This example contains geometry only, with no solver results.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo) &middot; Evidence: **Model only - no results**
 
-## 3D solid tee
+## 3D solid
 
 A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction.
 
@@ -55,7 +55,7 @@ displacement, terminal resultants and stress field stay separately inspectable.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review) &middot; Evidence: **Results**
 
-## Pipe on a support rack
+## Load transfer
 
 An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, and a temperature increase from 20 C to 180 C, with no imposed nodal forces. The review shows support reactions and a support-spacing check.
 
@@ -123,7 +123,7 @@ After [Setup](setup.md) succeeds, open:
 
 Examples that display stress, reaction, displacement, compliance, or operating-state results must either execute Code_Aster or load real preserved Code_Aster artifacts.
 
-## Pipe-shoe friction comparison
+## Nonlinear friction
 
 Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. The review compares friction coefficients of 0 and 0.3 through heating, cooling, lift-off and reseating.
 
@@ -131,7 +131,7 @@ Two disconnected, identical pipes share one nonlinear Code_Aster run and load hi
 
 See the [native friction example](examples/native-friction.md) for the contact law, load stages and validation.
 
-## I-section orientation and local axes
+## Beam orientation
 
 Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. The review compares global and local loading, deformed profiles, and section rotations relative to the original local axes.
 
