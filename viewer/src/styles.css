@@ -665,7 +665,10 @@ textarea,
   align-items: center;
   gap: 0.35rem;
   flex: 1 1 auto;
-  min-width: 7rem;
+  /* Enough that the layer name never ellipsizes to nothing before the row wraps,
+     and not so much that it forces a wrap at full rail width: the badge, the
+     opacity chip and the caret need ~140px of the 244px row between them. */
+  min-width: 6rem;
 }
 
 .body-name {
