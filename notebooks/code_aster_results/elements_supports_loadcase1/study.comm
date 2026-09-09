@@ -315,6 +315,8 @@ RESU = STAT_NON_LINE(
         LIST_INST=times,
     ),
     CONTACT=contact,
+    CONVERGENCE=_F(ITER_GLOB_MAXI=100),
+    RECH_LINEAIRE=_F(METHODE='CORDE'),
     METHODE='NEWTON',
 );
 

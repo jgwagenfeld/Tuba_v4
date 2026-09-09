@@ -60,11 +60,18 @@ def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():
 
     n5_matches = np.flatnonzero(np.all(np.isclose(grid.points, [4.7, 1.7, 0.0]), axis=1))
     assert n5_matches.size == 1
-    # The free cable end sags along -Z now, not +Y: this assertion pinned the
-    # gravity-direction defect in place, so it is the value that had to move.
+    # The free cable end sags along -Z, not +Y: an earlier assertion here pinned
+    # a gravity-direction defect in place.
+    #
+    # The value moved again, and hard, when line_segments=8 became the default:
+    # Uz went +0.0568 -> -0.1885 and Ux -0.00287 -> +0.00502. A cable meshed as
+    # one span cannot sag - it carries self-weight as pure axial stretch, and
+    # the old number was that artifact. With interior nodes the cable hangs, so
+    # the displacement is downward and roughly three times larger. Uy stays at
+    # zero either way, which is the invariant this test is really guarding.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][n5_matches[0]],
-        [-0.002867512969, 0.0, 0.056817038551],
+        [0.005018335600, 0.0, -0.188512031613],
         rtol=2e-6,
     )
     assert abs(grid.point_data["DEPL"][n5_matches[0]][1]) < 1e-9, "no sag across the model"

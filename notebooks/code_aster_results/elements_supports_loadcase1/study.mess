@@ -9,7 +9,7 @@ Ouverture en écriture du fichier ./vola.1
                                     révision n/a - branche 'n/a'                                    
                                      Copyright EDF 1991 - 2026                                      
                                                                                                     
-                              Exécution du : Wed Sep  9 10:12:05 2026                               
+                              Exécution du : Thu Sep 10 00:55:24 2026                               
                                 Nom de la machine : DESKTOP-QH6C3T8                                 
                                         Architecture : 64bit                                        
                                     Type de processeur : x86_64                                     
@@ -65,21 +65,21 @@ Nom de la base                          :  ELEMBASE
 
 Relecture des catalogues des éléments faite.
 
-Fin de lecture (durée  0.031927  s.) 
+Fin de lecture (durée  0.047800  s.) 
 
                       Mémoire limite pour l'allocation dynamique : 4198.46 Mo                       
-                         ajouté à l'initialisation du processus : 558.82 Mo                         
-                               Limite cible du processus : 4757.28 Mo                               
+                         ajouté à l'initialisation du processus : 558.87 Mo                         
+                               Limite cible du processus : 4757.32 Mo                               
                          Taille limite des fichiers d'échange : 2048.00 Go                          
-/tmp/run_aster_3gvcov0_/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
+/tmp/run_aster_zt1mf5mi/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
   DEBUT(PAR_LOT='NON');
-# Mémoire (Mo) :   558.82 /   549.73 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0001   user+syst:        0.06s (syst:        0.18s, elaps:        0.22s)
+# Mémoire (Mo) :   558.87 /   549.77 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0001   user+syst:        0.04s (syst:        0.30s, elaps:        0.35s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt16
 # ----------------------------------------------------------------------------------------------
-# Commande #0002 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 16
+# Commande #0002 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 16
 MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
                       INFO=1,
                       UNITE=20,
@@ -91,12 +91,12 @@ Vérification du maillage.
 
 ------------ MAILLAGE 00000001 - IMPRESSIONS NIVEAU  1 ------------
 
-ME-09-SEPT-2026 10:12:05                                                        
+JE-10-SEPT-2026 00:55:24                                                        
 
-NOMBRE DE NOEUDS                          41
+NOMBRE DE NOEUDS                          62
 
-NOMBRE DE MAILLES                         22
-                              SEG2                    4
+NOMBRE DE MAILLES                         43
+                              SEG2                   25
                               SEG3                   18
 
 NOMBRE DE GROUPES DE NOEUDS                8
@@ -106,13 +106,13 @@ NOMBRE DE GROUPES DE MAILLES              17
 --------------------------------------------------------------------------------
 
 # Résultat commande #0002 (LIRE_MAILLAGE): MAIL0 ('<00000001>') de type <Mesh>
-# Mémoire (Mo) :   558.82 /   550.51 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   558.87 /   550.61 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0002   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt20
 # ----------------------------------------------------------------------------------------------
-# Commande #0003 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 20
+# Commande #0003 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 20
 MAIL = CREA_MAILLAGE(CREA_POI1=(_F(NOEUD='N1',
                                    NOM_GROUP_MA='DIS_N1'),
                                 _F(NOEUD='N3',
@@ -125,14 +125,14 @@ MAIL = CREA_MAILLAGE(CREA_POI1=(_F(NOEUD='N1',
 
 ------------ MAILLAGE 00000002 - IMPRESSIONS NIVEAU  1 ------------
 
-ASTER 18.00.12 CONCEPT 00000002 CALCULE LE 09/09/2026 A 10:12:05 DE TYPE        
+ASTER 18.00.12 CONCEPT 00000002 CALCULE LE 10/09/2026 A 00:55:24 DE TYPE        
 MAILLAGE_SDASTER                                                                
 
-NOMBRE DE NOEUDS                          41
+NOMBRE DE NOEUDS                          62
 
-NOMBRE DE MAILLES                         25
+NOMBRE DE MAILLES                         46
                               POI1                    3
-                              SEG2                    4
+                              SEG2                   25
                               SEG3                   18
 
 NOMBRE DE GROUPES DE NOEUDS                8
@@ -142,13 +142,13 @@ NOMBRE DE GROUPES DE MAILLES              20
 --------------------------------------------------------------------------------
 
 # Résultat commande #0003 (CREA_MAILLAGE): MAIL ('<00000002>') de type <Mesh>
-# Mémoire (Mo) :   558.82 /   550.51 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0003   user+syst:        0.00s (syst:        0.01s, elaps:        0.01s)
+# Mémoire (Mo) :   558.87 /   550.61 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0003   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt30
 # ----------------------------------------------------------------------------------------------
-# Commande #0004 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 30
+# Commande #0004 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 30
 MODELE = AFFE_MODELE(AFFE=(_F(GROUP_MA='AllPipes',
                               MODELISATION='TUYAU_3M',
                               PHENOMENE='MECANIQUE'),
@@ -179,22 +179,22 @@ MODELE = AFFE_MODELE(AFFE=(_F(GROUP_MA='AllPipes',
                      VERI_NORM_IFS='OUI',
                      VERI_PLAN='OUI')
 
-Sur les 25 mailles du maillage 00000002, on a demandé l'affectation de 25, on a pu en affecter 25.
+Sur les 46 mailles du maillage 00000002, on a demandé l'affectation de 46, on a pu en affecter 46.
 Modélisation     Formulation      Type maille  Élément fini     Nombre
-CABLE            _                SEG2         MECABL2          1
+CABLE            _                SEG2         MECABL2          8
 BARRE            _                SEG2         MECA_BARRE       1
 DIS_TR           _                POI1         MECA_DIS_TR_N    3
-POU_D_T          _                SEG2         MECA_POU_D_T     2
+POU_D_T          _                SEG2         MECA_POU_D_T     16
 TUYAU_3M         _                SEG3         MET3SEG3         18
 #2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
 # Résultat commande #0004 (AFFE_MODELE): MODELE ('<00000003>') de type <Model>
-# Mémoire (Mo) :   679.58 /   679.58 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0004   user+syst:        0.02s (syst:        0.00s, elaps:        0.02s)
+# Mémoire (Mo) :   680.68 /   680.68 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0004   user+syst:        0.01s (syst:        0.01s, elaps:        0.03s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt72
 # ----------------------------------------------------------------------------------------------
-# Commande #0005 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 72
+# Commande #0005 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 72
 MAT_STEEL = DEFI_MATERIAU(CABLE=_F(EC_SUR_E=1.0),
                           ELAS=_F(ALPHA=1.2e-05,
                                   B_ENDOGE=0.0,
@@ -206,28 +206,28 @@ MAT_STEEL = DEFI_MATERIAU(CABLE=_F(EC_SUR_E=1.0),
                           INFO=1)
 
 # Résultat commande #0005 (DEFI_MATERIAU): MAT_STEEL ('<00000004>') de type <Material>
-# Mémoire (Mo) :   679.58 /   679.58 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0005   user+syst:        0.08s (syst:        0.00s, elaps:        0.08s)
+# Mémoire (Mo) :   680.68 /   680.68 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0005   user+syst:        0.08s (syst:        0.00s, elaps:        0.09s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt83
 # ----------------------------------------------------------------------------------------------
-# Commande #0006 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 83
+# Commande #0006 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 83
 CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT_STEEL,
                               TOUT='OUI'),
                       INFO=1,
                       MAILLAGE=MAIL)
 
 # Résultat commande #0006 (AFFE_MATERIAU): CHMAT ('<00000005>') de type <MaterialField>
-# Mémoire (Mo) :   679.58 /   679.58 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0006   user+syst:        0.07s (syst:        0.00s, elaps:        0.06s)
+# Mémoire (Mo) :   680.68 /   680.68 /   212.13 /   200.09 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0006   user+syst:        0.08s (syst:        0.00s, elaps:        0.07s)
 # ----------------------------------------------------------------------------------------------
-/tmp/run_aster_3gvcov0_/study.comm.changed.py:94: DeprecationWarning: This feature has a new implementation, 'SECTION' will be removed in the future. Use 'AIRE' instead
+/tmp/run_aster_zt1mf5mi/study.comm.changed.py:94: DeprecationWarning: This feature has a new implementation, 'SECTION' will be removed in the future. Use 'AIRE' instead
   CARA = AFFE_CARA_ELEM(
 
 .. _stg1_txt94
 # ----------------------------------------------------------------------------------------------
-# Commande #0007 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 94
+# Commande #0007 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 94
 CARA = AFFE_CARA_ELEM(BARRE=_F(CARA=('R', 'EP'),
                                GROUP_MA='bar_0',
                                SECTION='CERCLE',
@@ -306,9 +306,9 @@ CARA = AFFE_CARA_ELEM(BARRE=_F(CARA=('R', 'EP'),
 
 
      LE MODELE 00000003 CONTIENT : 
-                                       20 ELEMENT(S) POUTRE          
+                                       34 ELEMENT(S) POUTRE          
                                         3 ELEMENT(S) DISCRET         
-                                        1 ELEMENT(S) CABLE           
+                                        8 ELEMENT(S) CABLE           
                                         1 ELEMENT(S) BARRE           
    NOMBRE TOTAL D ELEMENTS TUYAU DROITS      18
    NOMBRE TOTAL D ELEMENTS TUYAU COUDES       0
@@ -316,13 +316,13 @@ CARA = AFFE_CARA_ELEM(BARRE=_F(CARA=('R', 'EP'),
 # Résultat commande #0007 (AFFE_CARA_ELEM): CARA ('<00000006>') de type <ElementaryCharacteristics>
 # Dépend de :
 # - MODELE ('<00000003>') de type <Model>
-# Mémoire (Mo) :   680.71 /   680.71 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0007   user+syst:        0.04s (syst:        0.00s, elaps:        0.04s)
+# Mémoire (Mo) :   680.80 /   680.80 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0007   user+syst:        0.07s (syst:        0.00s, elaps:        0.07s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt187
 # ----------------------------------------------------------------------------------------------
-# Commande #0008 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 187
+# Commande #0008 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 187
 BC_0 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                                   GROUP_NO='GN_N0',
                                   WO=0.0),
@@ -334,13 +334,13 @@ BC_0 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
                       VERI_NORM='OUI')
 
 # Résultat commande #0008 (AFFE_CHAR_MECA): BC_0 ('<00000007>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   680.94 /   680.71 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0008   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   681.10 /   680.93 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0008   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt196
 # ----------------------------------------------------------------------------------------------
-# Commande #0009 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 196
+# Commande #0009 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 196
 BC_2 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRZ=0.0,
                                   DX=0.0,
                                   DY=0.0,
@@ -354,13 +354,13 @@ BC_2 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRZ=0.0,
                       VERI_NORM='OUI')
 
 # Résultat commande #0009 (AFFE_CHAR_MECA): BC_2 ('<00000008>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   681.01 /   680.84 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0009   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Mémoire (Mo) :   681.10 /   680.93 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0009   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt207
 # ----------------------------------------------------------------------------------------------
-# Commande #0010 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 207
+# Commande #0010 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 207
 BC_5 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRX=0.0,
                                   DRY=0.0,
                                   DRZ=0.0,
@@ -376,13 +376,13 @@ BC_5 = AFFE_CHAR_MECA(DDL_IMPO=_F(DRX=0.0,
                       VERI_NORM='OUI')
 
 # Résultat commande #0010 (AFFE_CHAR_MECA): BC_5 ('<00000009>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   681.07 /   680.84 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   681.23 /   681.06 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0010   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt221
 # ----------------------------------------------------------------------------------------------
-# Commande #0011 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 221
+# Commande #0011 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 221
 GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          INFO=1,
                          MODELE=MODELE,
@@ -393,13 +393,13 @@ GRAVITY = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                          VERI_NORM='OUI')
 
 # Résultat commande #0011 (AFFE_CHAR_MECA): GRAVITY ('<0000000a>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   681.07 /   680.96 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0011   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   681.23 /   681.06 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0011   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt230
 # ----------------------------------------------------------------------------------------------
-# Commande #0012 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 230
+# Commande #0012 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 230
 PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           FORCE_TUYAU=_F(GROUP_MA='AllPipes',
                                          PRES=1000000.0),
@@ -410,13 +410,13 @@ PRESSURE = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
                           VERI_NORM='OUI')
 
 # Résultat commande #0012 (AFFE_CHAR_MECA): PRESSURE ('<0000000b>') de type <MechanicalLoadReal>
-# Mémoire (Mo) :   681.07 /   680.96 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0012   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Mémoire (Mo) :   681.23 /   681.06 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0012   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt239
 # ----------------------------------------------------------------------------------------------
-# Commande #0013 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 239
+# Commande #0013 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 239
 TEMP_REF_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                                     TOUT='OUI',
                                     VALE=20.0),
@@ -426,13 +426,13 @@ TEMP_REF_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                             TYPE_CHAM='NOEU_TEMP_R')
 
 # Résultat commande #0013 (CREA_CHAMP): TEMP_REF_FIELD ('<0000000c>') de type <FieldOnNodesReal>
-# Mémoire (Mo) :   681.09 /   681.09 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0013   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0013   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt250
 # ----------------------------------------------------------------------------------------------
-# Commande #0014 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 250
+# Commande #0014 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 250
 TEMP_HOT_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                                     TOUT='OUI',
                                     VALE=120.0),
@@ -442,15 +442,15 @@ TEMP_HOT_FIELD = CREA_CHAMP(AFFE=_F(NOM_CMP='TEMP',
                             TYPE_CHAM='NOEU_TEMP_R')
 
 # Résultat commande #0014 (CREA_CHAMP): TEMP_HOT_FIELD ('<0000000d>') de type <FieldOnNodesReal>
-# Mémoire (Mo) :   681.09 /   681.09 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0014   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0014   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 /home/jan/miniforge3/envs/tuba-code-aster/lib/python3.14/site-packages/code_aster/Supervis/ExecuteCommand.py:183: DeprecationWarning: This feature is obsolete, 'CREA_RESU/NOM_CHAM' will be removed in the future.
   return cmd.run_(**kwargs)
 
 .. _stg1_txt261
 # ----------------------------------------------------------------------------------------------
-# Commande #0015 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 261
+# Commande #0015 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 261
 TEMP_EVOL = CREA_RESU(AFFE=(_F(CHAM_GD=TEMP_REF_FIELD,
                                CRITERE='RELATIF',
                                INST=0.0,
@@ -465,13 +465,13 @@ TEMP_EVOL = CREA_RESU(AFFE=(_F(CHAM_GD=TEMP_REF_FIELD,
                       TYPE_RESU='EVOL_THER')
 
 # Résultat commande #0015 (CREA_RESU): TEMP_EVOL ('<0000000e>') de type <ThermalResult>
-# Mémoire (Mo) :   681.09 /   681.09 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0015   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt271
 # ----------------------------------------------------------------------------------------------
-# Commande #0016 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 271
+# Commande #0016 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 271
 CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT_STEEL,
                               TOUT='OUI'),
                       AFFE_VARC=_F(EVOL=TEMP_EVOL,
@@ -485,35 +485,35 @@ CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT_STEEL,
                       MAILLAGE=MAIL)
 
 # Résultat commande #0016 (AFFE_MATERIAU): CHMAT ('<0000000f>') de type <MaterialField>
-# Mémoire (Mo) :   681.22 /   681.22 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0016   user+syst:        0.06s (syst:        0.00s, elaps:        0.05s)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0016   user+syst:        0.09s (syst:        0.00s, elaps:        0.09s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt289
 # ----------------------------------------------------------------------------------------------
-# Commande #0017 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 289
+# Commande #0017 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 289
 UNIL_ZERO = DEFI_CONSTANTE(NOM_RESU='TOUTRESU',
                            VALE=0.0)
 
 # Résultat commande #0017 (DEFI_CONSTANTE): UNIL_ZERO ('<00000010>') de type <Function>
-# Mémoire (Mo) :   681.22 /   681.22 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0017   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0017   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt290
 # ----------------------------------------------------------------------------------------------
-# Commande #0018 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 290
+# Commande #0018 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 290
 UNIL_ONE = DEFI_CONSTANTE(NOM_RESU='TOUTRESU',
                           VALE=1.0)
 
 # Résultat commande #0018 (DEFI_CONSTANTE): UNIL_ONE ('<00000011>') de type <Function>
-# Mémoire (Mo) :   681.22 /   681.22 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0018   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt292
 # ----------------------------------------------------------------------------------------------
-# Commande #0019 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 292
+# Commande #0019 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 292
 contact = DEFI_CONTACT(FORMULATION='LIAISON_UNIL',
                        FROTTEMENT='SANS',
                        MODELE=MODELE,
@@ -528,24 +528,24 @@ contact = DEFI_CONTACT(FORMULATION='LIAISON_UNIL',
 # - MODELE ('<00000003>') de type <Model>
 # - UNIL_ZERO ('<00000010>') de type <Function>
 # - UNIL_ONE ('<00000011>') de type <Function>
-# Mémoire (Mo) :   681.22 /   681.22 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0019   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0019   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt301
 # ----------------------------------------------------------------------------------------------
-# Commande #0020 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 301
+# Commande #0020 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 301
 lst_inst = DEFI_LIST_REEL(INFO=1,
                           VALE=(0.0, 1.0))
 
 # Résultat commande #0020 (DEFI_LIST_REEL): lst_inst ('<00000013>') de type <ListOfFloats>
-# Mémoire (Mo) :   681.22 /   681.22 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   681.23 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0020   user+syst:        0.00s (syst:        0.00s, elaps:        0.00s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt302
 # ----------------------------------------------------------------------------------------------
-# Commande #0021 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 302
+# Commande #0021 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 302
 times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst),
                        ECHEC=_F(ACTION='DECOUPE',
                                 EVENEMENT='ERREUR',
@@ -566,13 +566,13 @@ On découpe le pas de temps en 4 incréments jusqu'à ce que le niveau atteigne 
 # Résultat commande #0021 (DEFI_LIST_INST): times ('<00000014>') de type <TimesList>
 # Dépend de :
 # - lst_inst ('<00000013>') de type <ListOfFloats>
-# Mémoire (Mo) :   681.22 /   681.22 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
+# Mémoire (Mo) :   681.32 /   681.19 /   212.13 /   200.21 (VmPeak / VmSize / Optimum / Minimum)
 # Fin commande #0021   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt304
 # ----------------------------------------------------------------------------------------------
-# Commande #0022 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 304
+# Commande #0022 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 304
 RESU = STAT_NON_LINE(AFFICHAGE=_F(INFO_RESIDU='NON',
                                   INFO_TEMPS='NON'),
                      ARCHIVAGE=_F(CHAM_EXCLU=('RESI_NOEU', 'RESI_RELA_NOEU'),
@@ -602,7 +602,7 @@ RESU = STAT_NON_LINE(AFFICHAGE=_F(INFO_RESIDU='NON',
                      CONTACT=contact,
                      CONVERGENCE=_F(ARRET='OUI',
                                     ITER_GLOB_ELAS=25,
-                                    ITER_GLOB_MAXI=10,
+                                    ITER_GLOB_MAXI=100,
                                     RESI_GLOB_RELA=1e-06,
                                     VERIF='TOUT'),
                      EXCIT=(_F(CHARGE=BC_0,
@@ -625,6 +625,12 @@ RESU = STAT_NON_LINE(AFFICHAGE=_F(INFO_RESIDU='NON',
                                REAC_INCR=1,
                                REAC_ITER=1,
                                REAC_ITER_ELAS=0),
+                     RECH_LINEAIRE=_F(ITER_LINE_MAXI=3,
+                                      METHODE='CORDE',
+                                      RESI_LINE_RELA=0.1,
+                                      RHO_EXCL=0.009,
+                                      RHO_MAX=10.0,
+                                      RHO_MIN=0.01),
                      SOLVEUR=_F(ACCELERATION='AUTO',
                                 ELIM_LAGR='LAGR2',
                                 FILTRAGE_MATRICE=-1.0,
@@ -646,29 +652,41 @@ RESU = STAT_NON_LINE(AFFICHAGE=_F(INFO_RESIDU='NON',
 
 Liste des comportements
 
-Affecté sur 24 éléments
+Affecté sur 38 éléments
 Relation                             : ELAS
 Déformation                          : PETIT
 Pas de régularisation visqueuse
 Pas de post-traitement à la fin du pas de temps
 Nombre total de variables internes   : 1
 V1 : VIDE
-Affecté sur 1 éléments
+Affecté sur 8 éléments
 Relation                             : CABLE
 Déformation                          : GROT_GDEP
 Pas de régularisation visqueuse
 Pas de post-traitement à la fin du pas de temps
 Nombre total de variables internes   : 1
 V1 : VIDE
-Le système linéaire à résoudre a 832 degrés de liberté:
-   - 798 sont des degrés de liberté physiques
-     (ils sont portés par 41 noeuds du maillage)
+Le système linéaire à résoudre a 937 degrés de liberté:
+   - 903 sont des degrés de liberté physiques
+     (ils sont portés par 62 noeuds du maillage)
    - 34 sont les couples de paramètres de Lagrange associés
      aux 17 relations linéaires dualisées.
-La matrice est de taille 832 équations.
-  Elle contient 33213 termes non nuls si elle est symétrique et 65594 termes non nuls si elle n'est
+La matrice est de taille 937 équations.
+  Elle contient 34116 termes non nuls si elle est symétrique et 67295 termes non nuls si elle n'est
 pas symétrique.
-  Soit un taux de remplissage de   9.476 %.
+  Soit un taux de remplissage de   7.665 %.
+
+ ╔════════════════════════════════════════════════════════════════════════════════════════════════╗
+ ║ <A> <MECANONLINE3_95>                                                                          ║
+ ║                                                                                                ║
+ ║ Le contact de type liaison unilatérale (sans appariement) et la recherche linéaire peuvent     ║
+ ║ poser des problèmes de convergence                                                             ║
+ ║                                                                                                ║
+ ║                                                                                                ║
+ ║ Ceci est une alarme. Si vous ne comprenez pas le sens de cette                                 ║
+ ║ alarme, vous pouvez obtenir des résultats inattendus !                                         ║
+ ╚════════════════════════════════════════════════════════════════════════════════════════════════╝
+
 Il n'y a pas d'état initial défini. On prend un état initial nul.
 Le champ <DEPL> est initialisé a zéro
 Le champ <SIEF_ELGA> est initialisé a zéro
@@ -684,60 +702,936 @@ Champ stocké <VARI_ELGA> à l'instant  0.000000000000e+00 pour le numéro d'ord
 Champ stocké <COMPORTEMENT> à l'instant  0.000000000000e+00 pour le numéro d'ordre 0
 Champ stocké <STRX_ELGA> à l'instant  0.000000000000e+00 pour le numéro d'ordre 0
  CELD: TEMP                        0
----------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
 Instant de calcul:  1.000000000000e+00 - Niveau de découpe: 1
 
----------------------------------------------------------------------
-|     NEWTON     |     RESIDU     |     RESIDU     |     OPTION     |
-|    ITERATION   |     RELATIF    |     ABSOLU     |   ASSEMBLAGE   |
-|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |(+ TYPE MATRICE)|
----------------------------------------------------------------------
-|     0        X | 4.26573E-03  X | 7.53431E+04    |TANGENTE   (SYM)|
-|     1        X | 1.01103E-05  X | 1.78572E+02    |TANGENTE   (SYM)|
-|     2        X | 1.31254E-03  X | 2.31827E+04    |TANGENTE   (SYM)|
-|     3          | 9.83423E-07    | 1.73696E+01    |TANGENTE   (SYM)|
----------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 4.26692E-03  X | 7.53639E+04    |                |                |TANGENTE   (SYM)|
+|     1        X | 1.13587E-05  X | 2.00622E+02    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|     2        X | 1.14405E-05  X | 2.02067E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     3        X | 1.15179E-05  X | 2.03433E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     4        X | 1.15908E-05  X | 2.04722E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     5        X | 1.16595E-05  X | 2.05935E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     6        X | 1.17241E-05  X | 2.07076E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     7        X | 1.17847E-05  X | 2.08145E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     8        X | 1.18413E-05  X | 2.09146E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     9        X | 1.18942E-05  X | 2.10080E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    10        X | 1.19434E-05  X | 2.10948E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    11        X | 1.19890E-05  X | 2.11754E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    12        X | 1.20311E-05  X | 2.12498E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    13        X | 1.20698E-05  X | 2.13182E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    14        X | 1.21053E-05  X | 2.13808E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    15        X | 1.21376E-05  X | 2.14378E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    16        X | 1.21667E-05  X | 2.14894E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    17        X | 1.21929E-05  X | 2.15356E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    18        X | 1.22161E-05  X | 2.15766E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    19        X | 1.22366E-05  X | 2.16127E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    20        X | 1.22542E-05  X | 2.16439E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    21        X | 1.22692E-05  X | 2.16703E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    22        X | 1.22815E-05  X | 2.16922E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    23        X | 1.22914E-05  X | 2.17096E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    24        X | 1.22988E-05  X | 2.17226E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    25        X | 1.23038E-05  X | 2.17315E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    26        X | 1.23065E-05  X | 2.17363E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    27        X | 1.23070E-05  X | 2.17371E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    28        X | 1.23053E-05  X | 2.17341E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    29        X | 1.23015E-05  X | 2.17274E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    30        X | 1.22956E-05  X | 2.17170E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    31        X | 1.22878E-05  X | 2.17032E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    32        X | 1.22780E-05  X | 2.16859E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    33        X | 1.22664E-05  X | 2.16654E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    34        X | 1.22529E-05  X | 2.16416E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    35        X | 1.22377E-05  X | 2.16148E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    36        X | 1.22208E-05  X | 2.15849E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    37        X | 1.22023E-05  X | 2.15521E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    38        X | 1.21821E-05  X | 2.15165E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    39        X | 1.21604E-05  X | 2.14782E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    40        X | 1.21372E-05  X | 2.14372E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    41        X | 1.21125E-05  X | 2.13936E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    42        X | 1.20865E-05  X | 2.13476E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    43        X | 1.20590E-05  X | 2.12992E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    44        X | 1.20303E-05  X | 2.12484E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    45        X | 1.20003E-05  X | 2.11954E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    46        X | 1.19690E-05  X | 2.11401E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    47        X | 1.19366E-05  X | 2.10828E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    48        X | 1.19030E-05  X | 2.10235E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    49        X | 1.18682E-05  X | 2.09622E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    50        X | 1.18325E-05  X | 2.08989E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    51        X | 1.17956E-05  X | 2.08339E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    52        X | 1.17578E-05  X | 2.07670E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    53        X | 1.17190E-05  X | 2.06985E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    54        X | 1.16792E-05  X | 2.06283E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    55        X | 1.16386E-05  X | 2.05565E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    56        X | 1.15971E-05  X | 2.04832E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    57        X | 1.15547E-05  X | 2.04084E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    58        X | 1.15115E-05  X | 2.03321E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    59        X | 1.14676E-05  X | 2.02545E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    60        X | 1.14229E-05  X | 2.01756E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    61        X | 1.13775E-05  X | 2.00954E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    62        X | 1.13314E-05  X | 2.00140E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    63        X | 1.12846E-05  X | 1.99314E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    64        X | 1.12372E-05  X | 1.98477E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    65        X | 1.11892E-05  X | 1.97629E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    66        X | 1.11406E-05  X | 1.96770E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    67        X | 1.10915E-05  X | 1.95902E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    68        X | 1.10418E-05  X | 1.95024E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    69        X | 1.09915E-05  X | 1.94137E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    70        X | 1.09408E-05  X | 1.93241E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    71        X | 1.08897E-05  X | 1.92337E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    72        X | 1.08380E-05  X | 1.91426E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    73        X | 1.07860E-05  X | 1.90506E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    74        X | 1.07335E-05  X | 1.89580E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    75        X | 1.06807E-05  X | 1.88646E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    76        X | 1.06274E-05  X | 1.87706E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    77        X | 1.05739E-05  X | 1.86760E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    78        X | 1.05200E-05  X | 1.85808E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    79        X | 1.04658E-05  X | 1.84851E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    80        X | 1.04113E-05  X | 1.83888E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    81        X | 1.03565E-05  X | 1.82920E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    82        X | 1.03015E-05  X | 1.81948E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    83        X | 1.02462E-05  X | 1.80972E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    84        X | 1.01907E-05  X | 1.79991E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    85        X | 1.01349E-05  X | 1.79007E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    86        X | 1.00790E-05  X | 1.78019E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    87        X | 1.00229E-05  X | 1.77029E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    88        X | 9.96663E-06  X | 1.76035E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    89        X | 9.91021E-06  X | 1.75038E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    90        X | 9.85364E-06  X | 1.74039E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    91        X | 9.79694E-06  X | 1.73037E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    92        X | 9.74013E-06  X | 1.72034E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    93        X | 9.68321E-06  X | 1.71029E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    94        X | 9.62621E-06  X | 1.70022E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    95        X | 9.56912E-06  X | 1.69014E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    96        X | 9.51197E-06  X | 1.68004E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    97        X | 9.45477E-06  X | 1.66994E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    98        X | 9.39751E-06  X | 1.65983E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    99        E | 9.34023E-06  X | 1.64971E+02    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+<Erreur> Le nombre maximum d'itérations de Newton est atteint
+
+<Action> On essaie de découper le pas de temps.
+
+On utilise la découpe manuelle.
+Découpe uniforme à partir de l'instant  0.000000000000e+00 en 4 pas de temps.
+(soit un incrément constant de  2.500000000000e-01)
+<Action> On découpe le pas de temps.
+Temps CPU consommé dans ce pas de temps    : 48.965 s
+
+* Nombre d'itérations de Newton                     : 100
+* Temps total intégration comportement              : 46.176 s (494 intégrations)
+* Temps total factorisation matrice                 : 0.710 s (100 factorisations)
+* Temps construction second membre                  : 1.302 s
+* Temps total résolution K.U=F                      : 0.089 s (100 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 294
+* Temps autres opérations                           : 0.689 s
+Mémoire (Mo) :   692.27 /   689.98 /   212.13 /   203.56 (VmPeak / VmSize / Optimum / Minimum)
+
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  2.500000000000e-01 - Niveau de découpe: 2
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 3.86384E-03  X | 1.83029E+04    |                |                |TANGENTE   (SYM)|
+|     1        X | 4.66410E-04  X | 2.20938E+03    |     1          | 8.58927E-01    |TANGENTE   (SYM)|
+|     2        X | 4.61333E-04  X | 2.18533E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     3        X | 4.56298E-04  X | 2.16148E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     4        X | 4.51305E-04  X | 2.13783E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     5        X | 4.46353E-04  X | 2.11437E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     6        X | 4.41441E-04  X | 2.09110E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     7        X | 4.36567E-04  X | 2.06801E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     8        X | 4.31732E-04  X | 2.04511E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     9        X | 4.26933E-04  X | 2.02238E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    10        X | 4.22170E-04  X | 1.99981E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    11        X | 4.17442E-04  X | 1.97741E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    12        X | 4.12747E-04  X | 1.95517E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    13        X | 4.08083E-04  X | 1.93308E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    14        X | 4.03451E-04  X | 1.91114E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    15        X | 3.98847E-04  X | 1.88933E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    16        X | 3.94270E-04  X | 1.86765E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    17        X | 3.89718E-04  X | 1.84609E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    18        X | 3.85190E-04  X | 1.82464E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    19        X | 3.80682E-04  X | 1.80328E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    20        X | 3.76191E-04  X | 1.78201E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    21        X | 3.71715E-04  X | 1.76081E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    22        X | 3.67250E-04  X | 1.73966E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    23        X | 3.62791E-04  X | 1.71854E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    24        X | 3.58333E-04  X | 1.69742E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    25        X | 3.53869E-04  X | 1.67627E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    26        X | 3.49391E-04  X | 1.65506E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    27        X | 3.44888E-04  X | 1.63373E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    28        X | 3.40345E-04  X | 1.61221E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    29        X | 3.35744E-04  X | 1.59041E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    30        X | 3.31055E-04  X | 1.56820E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    31        X | 3.26235E-04  X | 1.54537E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    32        X | 3.21208E-04  X | 1.52155E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    33        X | 3.15827E-04  X | 1.49607E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    34        X | 3.09722E-04  X | 1.46715E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    35        X | 3.01143E-04  X | 1.42651E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    36        X | 9.87124E-04  X | 4.67599E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    37        X | 9.50660E-04  X | 4.50326E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    38        X | 4.62625E-03  X | 2.19144E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    39        X | 4.64989E-03  X | 2.20265E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    40        X | 4.58680E-03  X | 2.17276E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    41        X | 4.52538E-03  X | 2.14367E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    42        X | 4.55228E-03  X | 2.15641E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    43        X | 4.50484E-03  X | 2.13393E+04    |     3          | 1.04165E-02    |TANGENTE   (SYM)|
+|    44        X | 4.44920E-03  X | 2.10758E+04    |     3          | 1.02179E-02    |TANGENTE   (SYM)|
+|    45        X | 4.39460E-03  X | 2.08172E+04    |     3          | 1.01957E-02    |TANGENTE   (SYM)|
+|    46        X | 4.34111E-03  X | 2.05638E+04    |     3          | 1.01534E-02    |TANGENTE   (SYM)|
+|    47        X | 4.28880E-03  X | 2.03160E+04    |     3          | 1.00901E-02    |TANGENTE   (SYM)|
+|    48        X | 4.23773E-03  X | 2.00741E+04    |     3          | 1.00056E-02    |TANGENTE   (SYM)|
+|    49        X | 4.18739E-03  X | 1.98356E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    50        X | 4.13774E-03  X | 1.96004E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    51        X | 4.08873E-03  X | 1.93683E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    52        X | 4.04037E-03  X | 1.91392E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    53        X | 3.99262E-03  X | 1.89130E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    54        X | 3.94545E-03  X | 1.86895E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    55        X | 3.97516E-03  X | 1.88303E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    56        X | 4.00550E-03  X | 1.89740E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    57        X | 4.03642E-03  X | 1.91204E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    58        X | 3.99002E-03  X | 1.89007E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    59        X | 4.02061E-03  X | 1.90456E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    60        X | 4.04979E-03  X | 1.91838E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    61        X | 3.98686E-03  X | 1.88857E+04    |     3          | 1.37280E-02    |TANGENTE   (SYM)|
+|    62        X | 3.92546E-03  X | 1.85948E+04    |     3          | 1.35687E-02    |TANGENTE   (SYM)|
+|    63        X | 3.86565E-03  X | 1.83115E+04    |     3          | 1.33916E-02    |TANGENTE   (SYM)|
+|    64        X | 3.80752E-03  X | 1.80361E+04    |     3          | 1.31920E-02    |TANGENTE   (SYM)|
+|    65        X | 3.75118E-03  X | 1.77693E+04    |     3          | 1.29640E-02    |TANGENTE   (SYM)|
+|    66        X | 3.69677E-03  X | 1.75115E+04    |     3          | 1.27007E-02    |TANGENTE   (SYM)|
+|    67        X | 3.64444E-03  X | 1.72637E+04    |     3          | 1.23943E-02    |TANGENTE   (SYM)|
+|    68        X | 3.59439E-03  X | 1.70266E+04    |     3          | 1.20381E-02    |TANGENTE   (SYM)|
+|    69        X | 3.54680E-03  X | 1.68012E+04    |     3          | 1.16273E-02    |TANGENTE   (SYM)|
+|    70        X | 3.50184E-03  X | 1.65882E+04    |     3          | 1.11636E-02    |TANGENTE   (SYM)|
+|    71        X | 3.45961E-03  X | 1.63881E+04    |     3          | 1.06589E-02    |TANGENTE   (SYM)|
+|    72        X | 3.42008E-03  X | 1.62009E+04    |     3          | 1.01403E-02    |TANGENTE   (SYM)|
+|    73        X | 3.38155E-03  X | 1.60183E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    74        X | 3.34340E-03  X | 1.58376E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    75        X | 3.30562E-03  X | 1.56587E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    76        X | 1.00540E-01  X | 4.76257E+05    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    77        X | 7.05176E-02  X | 3.34040E+05    |     3          | 2.72743E-01    |TANGENTE   (SYM)|
+|    78        X | 4.70660E-03  X | 2.22951E+04    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    79        X | 1.98733E-01  X | 9.41396E+05    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    80        X | 2.13381E-02  X | 1.01078E+05    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    81        X | 5.37250E-03  X | 2.54494E+04    |     1          | 8.50501E-01    |TANGENTE   (SYM)|
+|    82        X | 3.64509E-03  X | 1.72667E+04    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    83        X | 1.79407E-03  X | 8.49849E+03    |     2          | 6.93225E-01    |TANGENTE   (SYM)|
+|    84        X | 2.22446E-03  X | 1.05372E+04    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    85        X | 1.61355E-03  X | 7.64334E+03    |     1          | 1.43994E+00    |TANGENTE   (SYM)|
+|    86        X | 1.64073E-03  X | 7.77209E+03    |     3          | 7.14967E-01    |TANGENTE   (SYM)|
+|    87        X | 7.87489E-04  X | 3.73032E+03    |     3          | 2.50633E+00    |TANGENTE   (SYM)|
+|    88        X | 5.51217E-04  X | 2.61111E+03    |     3          | 2.78830E-01    |TANGENTE   (SYM)|
+|    89        X | 5.28646E-04  X | 2.50419E+03    |     3          | 3.38819E-02    |TANGENTE   (SYM)|
+|    90        X | 5.22722E-04  X | 2.47613E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    91        X | 5.16718E-04  X | 2.44769E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    92        X | 5.10595E-04  X | 2.41868E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    93        X | 5.04296E-04  X | 2.38884E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    94        X | 4.97736E-04  X | 2.35777E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    95        X | 4.90789E-04  X | 2.32486E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    96        X | 4.83242E-04  X | 2.28911E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    97        X | 4.74707E-04  X | 2.24868E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    98        X | 4.64356E-04  X | 2.19965E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    99        E | 4.49858E-04  X | 2.13097E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+<Erreur> Le nombre maximum d'itérations de Newton est atteint
+
+<Action> On essaie de découper le pas de temps.
+
+On utilise la découpe manuelle.
+Découpe uniforme à partir de l'instant  0.000000000000e+00 en 4 pas de temps.
+(soit un incrément constant de  6.250000000000e-02)
+<Action> On découpe le pas de temps.
+Temps CPU consommé dans ce pas de temps    : 54.300 s
+
+* Nombre d'itérations de Newton                     : 100
+* Temps total intégration comportement              : 51.271 s (478 intégrations)
+* Temps total factorisation matrice                 : 0.764 s (100 factorisations)
+* Temps construction second membre                  : 1.431 s
+* Temps total résolution K.U=F                      : 0.087 s (100 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 281
+* Temps autres opérations                           : 0.748 s
+Mémoire (Mo) :   692.30 /   690.01 /   212.13 /   203.56 (VmPeak / VmSize / Optimum / Minimum)
+
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  6.250000000000e-02 - Niveau de découpe: 3
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 1.06190E-02  X | 1.59882E+04    |                |                |TANGENTE   (SYM)|
+|     1        X | 1.19704E-02  X | 1.80230E+04    |     1          | 1.28327E+00    |TANGENTE   (SYM)|
+|     2        X | 1.18507E-02  X | 1.78428E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     3        X | 1.17323E-02  X | 1.76645E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     4        X | 1.16150E-02  X | 1.74879E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     5        X | 1.14989E-02  X | 1.73131E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     6        X | 1.13839E-02  X | 1.71400E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     7        X | 1.12701E-02  X | 1.69687E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     8        X | 1.13716E-02  X | 1.71214E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|     9        X | 1.14740E-02  X | 1.72756E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    10        X | 1.13593E-02  X | 1.71029E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    11        X | 1.12305E-02  X | 1.69089E+04    |     3          | 1.13468E-02    |TANGENTE   (SYM)|
+|    12        X | 1.10984E-02  X | 1.67101E+04    |     3          | 1.17621E-02    |TANGENTE   (SYM)|
+|    13        X | 1.09636E-02  X | 1.65071E+04    |     3          | 1.21570E-02    |TANGENTE   (SYM)|
+|    14        X | 1.08263E-02  X | 1.63004E+04    |     3          | 1.25278E-02    |TANGENTE   (SYM)|
+|    15        X | 1.06871E-02  X | 1.60908E+04    |     3          | 1.28657E-02    |TANGENTE   (SYM)|
+|    16        X | 1.05466E-02  X | 1.58793E+04    |     3          | 1.31557E-02    |TANGENTE   (SYM)|
+|    17        X | 1.04056E-02  X | 1.56670E+04    |     3          | 1.33755E-02    |TANGENTE   (SYM)|
+|    18        X | 1.02653E-02  X | 1.54557E+04    |     3          | 1.34955E-02    |TANGENTE   (SYM)|
+|    19        X | 1.01270E-02  X | 1.52475E+04    |     3          | 1.34809E-02    |TANGENTE   (SYM)|
+|    20        X | 9.99243E-03  X | 1.50449E+04    |     3          | 1.32984E-02    |TANGENTE   (SYM)|
+|    21        X | 9.86333E-03  X | 1.48505E+04    |     3          | 1.29297E-02    |TANGENTE   (SYM)|
+|    22        X | 9.74123E-03  X | 1.46667E+04    |     3          | 1.23877E-02    |TANGENTE   (SYM)|
+|    23        X | 9.62709E-03  X | 1.44948E+04    |     3          | 1.17246E-02    |TANGENTE   (SYM)|
+|    24        X | 9.52106E-03  X | 1.43352E+04    |     3          | 1.10210E-02    |TANGENTE   (SYM)|
+|    25        X | 9.42248E-03  X | 1.41868E+04    |     3          | 1.03595E-02    |TANGENTE   (SYM)|
+|    26        X | 9.32831E-03  X | 1.40450E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    27        X | 9.23508E-03  X | 1.39046E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    28        X | 9.14278E-03  X | 1.37657E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    29        X | 9.22510E-03  X | 1.38896E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    30        X | 9.30814E-03  X | 1.40146E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    31        X | 9.13113E-03  X | 1.37481E+04    |     3          | 1.90449E-02    |TANGENTE   (SYM)|
+|    32        X | 8.94818E-03  X | 1.34727E+04    |     3          | 2.00675E-02    |TANGENTE   (SYM)|
+|    33        X | 8.75039E-03  X | 1.31749E+04    |     3          | 2.21453E-02    |TANGENTE   (SYM)|
+|    34        X | 8.53307E-03  X | 1.28476E+04    |     3          | 2.48899E-02    |TANGENTE   (SYM)|
+|    35        X | 8.28942E-03  X | 1.24808E+04    |     3          | 2.86295E-02    |TANGENTE   (SYM)|
+|    36        X | 8.00906E-03  X | 1.20587E+04    |     3          | 3.39363E-02    |TANGENTE   (SYM)|
+|    37        X | 7.67510E-03  X | 1.15559E+04    |     3          | 4.18862E-02    |TANGENTE   (SYM)|
+|    38        X | 7.25798E-03  X | 1.09278E+04    |     3          | 5.47052E-02    |TANGENTE   (SYM)|
+|    39        X | 6.70062E-03  X | 1.00887E+04    |     3          | 7.76186E-02    |TANGENTE   (SYM)|
+|    40        X | 5.87962E-03  X | 8.85254E+03    |     3          | 1.25154E-01    |TANGENTE   (SYM)|
+|    41        X | 4.50768E-03  X | 6.78690E+03    |     3          | 2.47744E-01    |TANGENTE   (SYM)|
+|    42        X | 6.86743E-03  X | 1.03398E+04    |     3          | 7.49628E-01    |TANGENTE   (SYM)|
+|    43        X | 7.29405E-03  X | 1.09822E+04    |     1          | 1.37111E+00    |TANGENTE   (SYM)|
+|    44        X | 5.64133E-03  X | 8.49377E+03    |     3          | 2.26717E-01    |TANGENTE   (SYM)|
+|    45        X | 3.53048E-03  X | 5.31561E+03    |     2          | 7.97398E-01    |TANGENTE   (SYM)|
+|    46        X | 5.26582E-04  X | 7.92838E+02    |     1          | 1.31222E+00    |TANGENTE   (SYM)|
+|    47        X | 3.92166E-04  X | 5.90457E+02    |     3          | 2.49520E-01    |TANGENTE   (SYM)|
+|    48        X | 5.64226E-04  X | 8.49516E+02    |     2          | 7.20824E-01    |TANGENTE   (SYM)|
+|    49        X | 3.33106E-05  X | 5.01534E+01    |     1          | 1.19007E+00    |TANGENTE   (SYM)|
+|    50        X | 3.64791E-06  X | 5.49241E+00    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    51          | 2.29506E-09    | 3.45552E-03    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
 Critère(s) de convergence atteint(s)
 
-Le résidu de type <RESI_GLOB_RELA> vaut  9.834231801250e-07 au noeud et degré de liberté <7      
+Le résidu de type <RESI_GLOB_RELA> vaut  2.295063495431e-09 au noeud et degré de liberté <7      
 DX>
-Temps CPU consommé dans ce pas de temps    : 0.385 s
+Temps CPU consommé dans ce pas de temps    : 28.014 s
 
-* Nombre d'itérations de Newton                     : 4
-* Temps total intégration comportement              : 0.326 s (5 intégrations)
-* Temps total factorisation matrice                 : 0.014 s (4 factorisations)
-* Temps construction second membre                  : 0.018 s
-* Temps total résolution K.U=F                      : 0.002 s (4 résolutions)
+* Nombre d'itérations de Newton                     : 52
+* Temps total intégration comportement              : 26.406 s (241 intégrations)
+* Temps total factorisation matrice                 : 0.352 s (52 factorisations)
+* Temps construction second membre                  : 0.797 s
+* Temps total résolution K.U=F                      : 0.046 s (52 résolutions)
 * Temps assemblage matrice                          : 0.000 s
-* Temps autres opérations                           : 0.026 s
-Mémoire (Mo) :   691.45 /   689.29 /   212.13 /   203.51 (VmPeak / VmSize / Optimum / Minimum)
+* Nombre d'itérations de recherche linéaire         : 140
+* Temps autres opérations                           : 0.413 s
+Mémoire (Mo) :   692.47 /   690.60 /   212.13 /   203.56 (VmPeak / VmSize / Optimum / Minimum)
 
 Archivage des champs
 
-Champ stocké <DEPL> à l'instant  1.000000000000e+00 pour le numéro d'ordre 1
-Champ stocké <SIEF_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 1
-Champ stocké <VARI_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 1
-Champ stocké <COMPORTEMENT> à l'instant  1.000000000000e+00 pour le numéro d'ordre 1
-Champ stocké <STRX_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 1
-[100%] Instant calculé : 1.00000e+00, dernier instant archivé : 1.00000e+00, au numéro d'ordre :    
+Champ stocké <DEPL> à l'instant  6.250000000000e-02 pour le numéro d'ordre 1
+Champ stocké <SIEF_ELGA> à l'instant  6.250000000000e-02 pour le numéro d'ordre 1
+Champ stocké <VARI_ELGA> à l'instant  6.250000000000e-02 pour le numéro d'ordre 1
+Champ stocké <COMPORTEMENT> à l'instant  6.250000000000e-02 pour le numéro d'ordre 1
+Champ stocké <STRX_ELGA> à l'instant  6.250000000000e-02 pour le numéro d'ordre 1
+[  6%] Instant calculé : 6.25000e-02, dernier instant archivé : 6.25000e-02, au numéro d'ordre :    
 1
-Temps CPU consommé dans le calcul          : 0.388 s
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  1.250000000000e-01 - Niveau de découpe: 3
 
-dont temps CPU "perdu" dans les découpes            : 0.000 s
-* Nombre de pas de temps                            : 1
-* Nombre d'itérations de Newton                     : 4
-* Temps dans l'archivage                            : 0.001 s
-* Temps dans le post-traitement                     : 0.000 s
-* Temps total intégration comportement              : 0.326 s (5 intégrations)
-* Temps total factorisation matrice                 : 0.014 s (4 factorisations)
-* Temps construction second membre                  : 0.018 s
-* Temps total résolution K.U=F                      : 0.002 s (4 résolutions)
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 7.68326E-04  X | 1.98439E+03    |                |                |TANGENTE   (SYM)|
+|     1        X | 5.59252E-04  X | 1.44441E+03    |     3          | 1.68772E-01    |TANGENTE   (SYM)|
+|     2        X | 7.61887E-04  X | 1.96776E+03    |     2          | 8.27849E-01    |TANGENTE   (SYM)|
+|     3        X | 2.51907E-04  X | 6.50612E+02    |     1          | 1.13302E+00    |TANGENTE   (SYM)|
+|     4        X | 4.42460E-05  X | 1.14276E+02    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|     5          | 8.44392E-07    | 2.18085E+00    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  8.443919342080e-07 au noeud et degré de liberté <7      
+DX>
+Temps CPU consommé dans ce pas de temps    : 2.495 s
+
+* Nombre d'itérations de Newton                     : 6
+* Temps total intégration comportement              : 2.299 s (18 intégrations)
+* Temps total factorisation matrice                 : 0.042 s (6 factorisations)
+* Temps construction second membre                  : 0.091 s
+* Temps total résolution K.U=F                      : 0.008 s (6 résolutions)
 * Temps assemblage matrice                          : 0.000 s
-#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):      0.03      0.01      0.02
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.39      0.00      0.37
+* Nombre d'itérations de recherche linéaire         : 6
+* Temps autres opérations                           : 0.055 s
+Mémoire (Mo) :   693.04 /   690.88 /   212.13 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  1.250000000000e-01 pour le numéro d'ordre 2
+Champ stocké <SIEF_ELGA> à l'instant  1.250000000000e-01 pour le numéro d'ordre 2
+Champ stocké <VARI_ELGA> à l'instant  1.250000000000e-01 pour le numéro d'ordre 2
+Champ stocké <COMPORTEMENT> à l'instant  1.250000000000e-01 pour le numéro d'ordre 2
+Champ stocké <STRX_ELGA> à l'instant  1.250000000000e-01 pour le numéro d'ordre 2
+[ 12%] Instant calculé : 1.25000e-01, dernier instant archivé : 1.25000e-01, au numéro d'ordre :    
+2
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  1.875000000000e-01 - Niveau de découpe: 3
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 8.38555E-04  X | 3.06900E+03    |                |                |TANGENTE   (SYM)|
+|     1        X | 8.30059E-04  X | 3.03790E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     2        X | 8.30549E-04  X | 3.03970E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|     3        X | 7.58016E-04  X | 2.77424E+03    |     3          | 8.08482E-02    |TANGENTE   (SYM)|
+|     4        X | 7.46600E-04  X | 2.73246E+03    |     3          | 1.50479E-02    |TANGENTE   (SYM)|
+|     5        X | 7.24880E-04  X | 2.65296E+03    |     3          | 2.87501E-02    |TANGENTE   (SYM)|
+|     6        X | 6.72568E-04  X | 2.46151E+03    |     3          | 6.44103E-02    |TANGENTE   (SYM)|
+|     7        X | 6.75607E-04  X | 2.47263E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|     8        X | 6.53045E-04  X | 2.39006E+03    |     3          | 1.26298E-02    |TANGENTE   (SYM)|
+|     9        X | 2.82926E-04  X | 1.03547E+03    |     3          | 5.85283E-01    |TANGENTE   (SYM)|
+|    10        X | 4.89291E-04  X | 1.79074E+03    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    11        X | 4.08617E-05  X | 1.49548E+02    |     1          | 1.21970E+00    |TANGENTE   (SYM)|
+|    12        X | 2.18386E-05  X | 7.99265E+01    |     1          | 8.18141E-01    |TANGENTE   (SYM)|
+|    13          | 3.92698E-07    | 1.43722E+00    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  3.926977080359e-07 au noeud et degré de liberté <6      
+DX>
+Temps CPU consommé dans ce pas de temps    : 6.391 s
+
+* Nombre d'itérations de Newton                     : 14
+* Temps total intégration comportement              : 6.000 s (57 intégrations)
+* Temps total factorisation matrice                 : 0.085 s (14 factorisations)
+* Temps construction second membre                  : 0.175 s
+* Temps total résolution K.U=F                      : 0.010 s (14 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 29
+* Temps autres opérations                           : 0.122 s
+Mémoire (Mo) :   693.30 /   691.32 /   212.13 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  1.875000000000e-01 pour le numéro d'ordre 3
+Champ stocké <SIEF_ELGA> à l'instant  1.875000000000e-01 pour le numéro d'ordre 3
+Champ stocké <VARI_ELGA> à l'instant  1.875000000000e-01 pour le numéro d'ordre 3
+Champ stocké <COMPORTEMENT> à l'instant  1.875000000000e-01 pour le numéro d'ordre 3
+Champ stocké <STRX_ELGA> à l'instant  1.875000000000e-01 pour le numéro d'ordre 3
+[ 18%] Instant calculé : 1.87500e-01, dernier instant archivé : 1.87500e-01, au numéro d'ordre :    
+3
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  2.500000000000e-01 - Niveau de découpe: 3
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 7.60789E-04  X | 3.60385E+03    |                |                |TANGENTE   (SYM)|
+|     1        X | 9.27602E-04  X | 4.39403E+03    |     3          | 5.70613E-01    |TANGENTE   (SYM)|
+|     2        X | 7.00084E-04  X | 3.31629E+03    |     3          | 2.44690E-01    |TANGENTE   (SYM)|
+|     3        X | 1.22103E-04  X | 5.78400E+02    |     1          | 8.62575E-01    |TANGENTE   (SYM)|
+|     4        X | 6.60221E-05  X | 3.12746E+02    |     1          | 1.18901E+00    |TANGENTE   (SYM)|
+|     5          | 7.65944E-07    | 3.62827E+00    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  7.659442572580e-07 au noeud et degré de liberté <7      
+DX>
+Temps CPU consommé dans ce pas de temps    : 2.367 s
+
+* Nombre d'itérations de Newton                     : 6
+* Temps total intégration comportement              : 2.157 s (20 intégrations)
+* Temps total factorisation matrice                 : 0.042 s (6 factorisations)
+* Temps construction second membre                  : 0.089 s
+* Temps total résolution K.U=F                      : 0.005 s (6 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 8
+* Temps autres opérations                           : 0.074 s
+Mémoire (Mo) :   693.74 /   691.45 /   212.13 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  2.500000000000e-01 pour le numéro d'ordre 4
+Champ stocké <SIEF_ELGA> à l'instant  2.500000000000e-01 pour le numéro d'ordre 4
+Champ stocké <VARI_ELGA> à l'instant  2.500000000000e-01 pour le numéro d'ordre 4
+Champ stocké <COMPORTEMENT> à l'instant  2.500000000000e-01 pour le numéro d'ordre 4
+Champ stocké <STRX_ELGA> à l'instant  2.500000000000e-01 pour le numéro d'ordre 4
+[ 25%] Instant calculé : 2.50000e-01, dernier instant archivé : 2.50000e-01, au numéro d'ordre :    
+4
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  5.000000000000e-01 - Niveau de découpe: 2
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 2.06165E-03  X | 1.86486E+04    |                |                |TANGENTE   (SYM)|
+|     1        X | 2.57418E-04  X | 2.32846E+03    |     1          | 8.51969E-01    |TANGENTE   (SYM)|
+|     2        X | 2.44767E-04  X | 2.21403E+03    |     3          | 3.31471E-02    |TANGENTE   (SYM)|
+|     3        X | 2.21587E-04  X | 2.00435E+03    |     3          | 6.49878E-02    |TANGENTE   (SYM)|
+|     4        X | 1.98185E-04  X | 1.79267E+03    |     3          | 9.22797E-02    |TANGENTE   (SYM)|
+|     5        X | 1.96104E-04  X | 1.77385E+03    |     3          | 1.01133E-02    |TANGENTE   (SYM)|
+|     6        X | 1.93753E-04  X | 1.75258E+03    |     3          | 1.18557E-02    |TANGENTE   (SYM)|
+|     7        X | 1.91413E-04  X | 1.73141E+03    |     3          | 1.20584E-02    |TANGENTE   (SYM)|
+|     8        X | 1.89247E-04  X | 1.71182E+03    |     3          | 1.13106E-02    |TANGENTE   (SYM)|
+|     9        X | 1.87266E-04  X | 1.69391E+03    |     3          | 1.04132E-02    |TANGENTE   (SYM)|
+|    10        X | 1.85362E-04  X | 1.67668E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    11        X | 1.83421E-04  X | 1.65913E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    12        X | 1.81563E-04  X | 1.64232E+03    |     3          | 9.00000E-03    |TANGENTE   (SYM)|
+|    13        X | 1.82355E-04  X | 1.64948E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    14        X | 1.79904E-04  X | 1.62731E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    15        X | 1.78047E-04  X | 1.61051E+03    |     3          | 1.02991E-02    |TANGENTE   (SYM)|
+|    16        X | 1.76207E-04  X | 1.59387E+03    |     3          | 1.01810E-02    |TANGENTE   (SYM)|
+|    17        X | 1.74380E-04  X | 1.57734E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    18        X | 1.72510E-04  X | 1.56043E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    19        X | 1.70556E-04  X | 1.54276E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    20        X | 1.71752E-04  X | 1.55357E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    21        X | 1.72874E-04  X | 1.56372E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    22        X | 1.73744E-04  X | 1.57159E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    23        X | 2.41277E-03  X | 2.18246E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    24        X | 1.62601E-03  X | 1.47080E+04    |     3          | 6.03102E-01    |TANGENTE   (SYM)|
+|    25        X | 2.55043E-04  X | 2.30698E+03    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    26        X | 2.83230E-04  X | 2.56195E+03    |     3          | 6.64101E-01    |TANGENTE   (SYM)|
+|    27        X | 8.08673E-05  X | 7.31482E+02    |     1          | 1.35406E+00    |TANGENTE   (SYM)|
+|    28        X | 4.77796E-05  X | 4.32188E+02    |     3          | 6.60773E-01    |TANGENTE   (SYM)|
+|    29        X | 6.03956E-06  X | 5.46306E+01    |     1          | 1.12740E+00    |TANGENTE   (SYM)|
+|    30          | 1.29980E-07    | 1.17572E+00    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  1.299796404766e-07 au noeud et degré de liberté <28     
+DX>
+Temps CPU consommé dans ce pas de temps    : 13.834 s
+
+* Nombre d'itérations de Newton                     : 31
+* Temps total intégration comportement              : 12.988 s (140 intégrations)
+* Temps total factorisation matrice                 : 0.206 s (31 factorisations)
+* Temps construction second membre                  : 0.392 s
+* Temps total résolution K.U=F                      : 0.028 s (31 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 78
+* Temps autres opérations                           : 0.219 s
+Mémoire (Mo) :   694.10 /   692.21 /   212.13 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  5.000000000000e-01 pour le numéro d'ordre 5
+Champ stocké <SIEF_ELGA> à l'instant  5.000000000000e-01 pour le numéro d'ordre 5
+Champ stocké <VARI_ELGA> à l'instant  5.000000000000e-01 pour le numéro d'ordre 5
+Champ stocké <COMPORTEMENT> à l'instant  5.000000000000e-01 pour le numéro d'ordre 5
+Champ stocké <STRX_ELGA> à l'instant  5.000000000000e-01 pour le numéro d'ordre 5
+[ 50%] Instant calculé : 5.00000e-01, dernier instant archivé : 5.00000e-01, au numéro d'ordre :    
+5
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  7.500000000000e-01 - Niveau de découpe: 2
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 1.38838E-03  X | 1.85403E+04    |                |                |TANGENTE   (SYM)|
+|     1        X | 3.03833E-04  X | 4.05737E+03    |     1          | 7.49729E-01    |TANGENTE   (SYM)|
+|     2        X | 2.98738E-04  X | 3.98932E+03    |     3          | 1.07415E-02    |TANGENTE   (SYM)|
+|     3        X | 2.93199E-04  X | 3.91536E+03    |     3          | 1.38588E-02    |TANGENTE   (SYM)|
+|     4        X | 2.85511E-04  X | 3.81269E+03    |     3          | 2.04546E-02    |TANGENTE   (SYM)|
+|     5        X | 2.70037E-04  X | 3.60606E+03    |     3          | 4.11823E-02    |TANGENTE   (SYM)|
+|     6        X | 2.34417E-04  X | 3.13039E+03    |     3          | 1.00348E-01    |TANGENTE   (SYM)|
+|     7        X | 1.79797E-04  X | 2.40100E+03    |     3          | 2.12978E-01    |TANGENTE   (SYM)|
+|     8        X | 1.76633E-04  X | 2.35875E+03    |     3          | 1.75923E-02    |TANGENTE   (SYM)|
+|     9        X | 1.74204E-04  X | 2.32630E+03    |     3          | 1.37375E-02    |TANGENTE   (SYM)|
+|    10        X | 1.72177E-04  X | 2.29924E+03    |     3          | 1.15980E-02    |TANGENTE   (SYM)|
+|    11        X | 1.70386E-04  X | 2.27532E+03    |     3          | 1.03493E-02    |TANGENTE   (SYM)|
+|    12        X | 1.68667E-04  X | 2.25236E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    13        X | 1.66953E-04  X | 2.22948E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    14        X | 1.68413E-04  X | 2.24898E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    15        X | 1.69874E-04  X | 2.26848E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    16        X | 1.71314E-04  X | 2.28772E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    17        X | 1.72547E-04  X | 2.30418E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    18        X | 1.70742E-04  X | 2.28008E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    19        X | 1.68544E-04  X | 2.25072E+03    |     3          | 1.27141E-02    |TANGENTE   (SYM)|
+|    20        X | 1.65660E-04  X | 2.21221E+03    |     3          | 1.70218E-02    |TANGENTE   (SYM)|
+|    21        X | 1.61243E-04  X | 2.15322E+03    |     3          | 2.66387E-02    |TANGENTE   (SYM)|
+|    22        X | 1.55684E-04  X | 2.07899E+03    |     3          | 3.44231E-02    |TANGENTE   (SYM)|
+|    23        X | 1.51735E-04  X | 2.02626E+03    |     3          | 2.50963E-02    |TANGENTE   (SYM)|
+|    24        X | 1.49366E-04  X | 1.99462E+03    |     3          | 1.53869E-02    |TANGENTE   (SYM)|
+|    25        X | 1.47476E-04  X | 1.96938E+03    |     3          | 1.24308E-02    |TANGENTE   (SYM)|
+|    26        X | 1.45867E-04  X | 1.94789E+03    |     3          | 1.06884E-02    |TANGENTE   (SYM)|
+|    27        X | 1.44370E-04  X | 1.92791E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    28        X | 1.41654E-04  X | 1.89163E+03    |     3          | 1.77681E-02    |TANGENTE   (SYM)|
+|    29        X | 1.40152E-04  X | 1.87158E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    30        X | 1.38633E-04  X | 1.85130E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    31        X | 1.37075E-04  X | 1.83049E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    32        X | 1.35421E-04  X | 1.80840E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    33        X | 1.36082E-04  X | 1.81723E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    34        X | 1.33980E-04  X | 1.78916E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    35        X | 1.32533E-04  X | 1.76984E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    36        X | 1.31076E-04  X | 1.75038E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    37        X | 1.29603E-04  X | 1.73071E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    38        X | 1.28101E-04  X | 1.71065E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    39        X | 1.26550E-04  X | 1.68994E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    40        X | 1.24904E-04  X | 1.66796E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    41        X | 1.22984E-04  X | 1.64231E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    42        X | 7.47682E-01  X | 9.98448E+06    |     3          | 9.00000E-03    |TANGENTE   (SYM)|
+|    43        X | 3.55403E-02  X | 4.74602E+05    |     1          | 1.16867E+00    |TANGENTE   (SYM)|
+|    44        X | 3.51853E-02  X | 4.69862E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    45        X | 2.84442E-02  X | 3.79841E+05    |     3          | 1.92931E-01    |TANGENTE   (SYM)|
+|    46        X | 2.71569E-02  X | 3.62652E+05    |     3          | 4.53048E-02    |TANGENTE   (SYM)|
+|    47        X | 2.65462E-02  X | 3.54496E+05    |     3          | 2.25054E-02    |TANGENTE   (SYM)|
+|    48        X | 2.62808E-02  X | 3.50952E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    49        X | 2.35190E-02  X | 3.14071E+05    |     3          | 1.05467E-01    |TANGENTE   (SYM)|
+|    50        X | 2.17290E-02  X | 2.90167E+05    |     3          | 7.63886E-02    |TANGENTE   (SYM)|
+|    51        X | 2.14906E-02  X | 2.86984E+05    |     3          | 1.09748E-02    |TANGENTE   (SYM)|
+|    52        X | 2.12758E-02  X | 2.84116E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    53        X | 2.10632E-02  X | 2.81276E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    54        X | 2.08527E-02  X | 2.78465E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    55        X | 2.06442E-02  X | 2.75681E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    56        X | 2.04379E-02  X | 2.72926E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    57        X | 2.02336E-02  X | 2.70198E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    58        X | 2.00313E-02  X | 2.67496E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    59        X | 1.98311E-02  X | 2.64822E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    60        X | 2.00096E-02  X | 2.67207E+05    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    61        X | 1.98096E-02  X | 2.64536E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    62        X | 1.96106E-02  X | 2.61879E+05    |     3          | 1.00468E-02    |TANGENTE   (SYM)|
+|    63        X | 1.94031E-02  X | 2.59108E+05    |     3          | 1.05795E-02    |TANGENTE   (SYM)|
+|    64        X | 1.91855E-02  X | 2.56202E+05    |     3          | 1.12122E-02    |TANGENTE   (SYM)|
+|    65        X | 1.89557E-02  X | 2.53133E+05    |     3          | 1.19774E-02    |TANGENTE   (SYM)|
+|    66        X | 1.87108E-02  X | 2.49863E+05    |     3          | 1.29184E-02    |TANGENTE   (SYM)|
+|    67        X | 1.84470E-02  X | 2.46340E+05    |     3          | 1.40968E-02    |TANGENTE   (SYM)|
+|    68        X | 1.81590E-02  X | 2.42494E+05    |     3          | 1.56048E-02    |TANGENTE   (SYM)|
+|    69        X | 1.78396E-02  X | 2.38228E+05    |     3          | 1.75860E-02    |TANGENTE   (SYM)|
+|    70        X | 1.74344E-02  X | 2.32818E+05    |     3          | 2.26980E-02    |TANGENTE   (SYM)|
+|    71        X | 1.68715E-02  X | 2.25301E+05    |     3          | 3.22508E-02    |TANGENTE   (SYM)|
+|    72        X | 1.59762E-02  X | 2.13344E+05    |     3          | 5.29290E-02    |TANGENTE   (SYM)|
+|    73        X | 1.42937E-02  X | 1.90877E+05    |     3          | 1.04340E-01    |TANGENTE   (SYM)|
+|    74        X | 1.41158E-02  X | 1.88502E+05    |     3          | 1.23970E-02    |TANGENTE   (SYM)|
+|    75        X | 1.39741E-02  X | 1.86609E+05    |     3          | 1.00028E-02    |TANGENTE   (SYM)|
+|    76        X | 1.38338E-02  X | 1.84735E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    77        X | 1.39574E-02  X | 1.86386E+05    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    78        X | 1.38176E-02  X | 1.84519E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    79        X | 1.36414E-02  X | 1.82166E+05    |     3          | 1.27139E-02    |TANGENTE   (SYM)|
+|    80        X | 1.33795E-02  X | 1.78669E+05    |     3          | 1.90902E-02    |TANGENTE   (SYM)|
+|    81        X | 1.26976E-02  X | 1.69563E+05    |     3          | 5.00647E-02    |TANGENTE   (SYM)|
+|    82        X | 9.46112E-03  X | 1.26343E+05    |     3          | 2.25918E-01    |TANGENTE   (SYM)|
+|    83        X | 2.68258E-02  X | 3.58229E+05    |     3          | 9.00000E-03    |TANGENTE   (SYM)|
+|    84        X | 2.63677E-02  X | 3.52112E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    85        X | 2.49286E-02  X | 3.32895E+05    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    86        X | 7.47668E-03  X | 9.98430E+04    |     3          | 6.80881E-01    |TANGENTE   (SYM)|
+|    87        X | 7.90068E-03  X | 1.05505E+05    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    88        X | 4.56205E-03  X | 6.09213E+04    |     1          | 1.29337E+00    |TANGENTE   (SYM)|
+|    89        X | 5.32613E-03  X | 7.11247E+04    |     3          | 6.51726E-01    |TANGENTE   (SYM)|
+|    90        X | 1.66924E-03  X | 2.22909E+04    |     2          | 1.56445E+00    |TANGENTE   (SYM)|
+|    91        X | 1.64137E-03  X | 2.19187E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    92        X | 1.60857E-03  X | 2.14807E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    93        X | 1.56536E-03  X | 2.09037E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    94        X | 1.48982E-03  X | 1.98950E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    95        X | 1.04583E-03  X | 1.39660E+04    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    96        X | 1.00094E-03  X | 1.33664E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    97        X | 9.61508E-04  X | 1.28399E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    98        X | 9.26080E-04  X | 1.23668E+04    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    99        E | 9.01771E-04  X | 1.20422E+04    |     3          | 1.01140E-02    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+<Erreur> Le nombre maximum d'itérations de Newton est atteint
+
+<Action> On essaie de découper le pas de temps.
+
+On utilise la découpe manuelle.
+Découpe uniforme à partir de l'instant  5.000000000000e-01 en 4 pas de temps.
+(soit un incrément constant de  6.250000000000e-02)
+<Action> On découpe le pas de temps.
+Temps CPU consommé dans ce pas de temps    : 55.559 s
+
+* Nombre d'itérations de Newton                     : 100
+* Temps total intégration comportement              : 52.519 s (487 intégrations)
+* Temps total factorisation matrice                 : 0.794 s (100 factorisations)
+* Temps construction second membre                  : 1.460 s
+* Temps total résolution K.U=F                      : 0.095 s (100 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 287
+* Temps autres opérations                           : 0.690 s
+Mémoire (Mo) :   694.10 /   692.34 /   212.13 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  5.625000000000e-01 - Niveau de découpe: 3
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 4.33985E-04  X | 4.39304E+03    |                |                |TANGENTE   (SYM)|
+|     1        X | 6.68554E-05  X | 6.76748E+02    |     1          | 8.16694E-01    |TANGENTE   (SYM)|
+|     2        X | 6.43041E-06  X | 6.50923E+01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|     3          | 6.42271E-08    | 6.50144E-01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  6.422711580978e-08 au noeud et degré de liberté <6      
+DX>
+Temps CPU consommé dans ce pas de temps    : 1.526 s
+
+* Nombre d'itérations de Newton                     : 4
+* Temps total intégration comportement              : 1.349 s (9 intégrations)
+* Temps total factorisation matrice                 : 0.032 s (4 factorisations)
+* Temps construction second membre                  : 0.074 s
+* Temps total résolution K.U=F                      : 0.004 s (4 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 4
+* Temps autres opérations                           : 0.066 s
+Mémoire (Mo) :   694.82 /   692.66 /   212.13 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  5.625000000000e-01 pour le numéro d'ordre 6
+Champ stocké <SIEF_ELGA> à l'instant  5.625000000000e-01 pour le numéro d'ordre 6
+Champ stocké <VARI_ELGA> à l'instant  5.625000000000e-01 pour le numéro d'ordre 6
+Champ stocké <COMPORTEMENT> à l'instant  5.625000000000e-01 pour le numéro d'ordre 6
+Champ stocké <STRX_ELGA> à l'instant  5.625000000000e-01 pour le numéro d'ordre 6
+[ 56%] Instant calculé : 5.62500e-01, dernier instant archivé : 5.62500e-01, au numéro d'ordre :    
+6
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  6.250000000000e-01 - Niveau de découpe: 3
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 3.96584E-04  X | 4.44161E+03    |                |                |TANGENTE   (SYM)|
+|     1        X | 4.46849E-05  X | 5.00457E+02    |     1          | 8.64286E-01    |TANGENTE   (SYM)|
+|     2        X | 4.97100E-06  X | 5.56737E+01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|     3          | 3.32338E-08    | 3.72208E-01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  3.323376158866e-08 au noeud et degré de liberté <6      
+DX>
+Temps CPU consommé dans ce pas de temps    : 1.232 s
+
+* Nombre d'itérations de Newton                     : 4
+* Temps total intégration comportement              : 1.105 s (9 intégrations)
+* Temps total factorisation matrice                 : 0.023 s (4 factorisations)
+* Temps construction second membre                  : 0.055 s
+* Temps total résolution K.U=F                      : 0.003 s (4 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 1
+* Temps autres opérations                           : 0.045 s
+Mémoire (Mo) :   694.82 /   692.79 /   212.53 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  6.250000000000e-01 pour le numéro d'ordre 7
+Champ stocké <SIEF_ELGA> à l'instant  6.250000000000e-01 pour le numéro d'ordre 7
+Champ stocké <VARI_ELGA> à l'instant  6.250000000000e-01 pour le numéro d'ordre 7
+Champ stocké <COMPORTEMENT> à l'instant  6.250000000000e-01 pour le numéro d'ordre 7
+Champ stocké <STRX_ELGA> à l'instant  6.250000000000e-01 pour le numéro d'ordre 7
+[ 62%] Instant calculé : 6.25000e-01, dernier instant archivé : 6.25000e-01, au numéro d'ordre :    
+7
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  6.875000000000e-01 - Niveau de découpe: 3
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 3.64828E-04  X | 4.47892E+03    |                |                |TANGENTE   (SYM)|
+|     1        X | 2.95073E-05  X | 3.62255E+02    |     1          | 9.01632E-01    |TANGENTE   (SYM)|
+|     2        X | 3.50216E-06  X | 4.29954E+01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|     3          | 1.36091E-08    | 1.67076E-01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  1.360910874341e-08 au noeud et degré de liberté <6      
+DX>
+Temps CPU consommé dans ce pas de temps    : 1.192 s
+
+* Nombre d'itérations de Newton                     : 4
+* Temps total intégration comportement              : 1.020 s (9 intégrations)
+* Temps total factorisation matrice                 : 0.034 s (4 factorisations)
+* Temps construction second membre                  : 0.063 s
+* Temps total résolution K.U=F                      : 0.003 s (4 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 1
+* Temps autres opérations                           : 0.073 s
+Mémoire (Mo) :   695.91 /   693.62 /   212.99 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  6.875000000000e-01 pour le numéro d'ordre 8
+Champ stocké <SIEF_ELGA> à l'instant  6.875000000000e-01 pour le numéro d'ordre 8
+Champ stocké <VARI_ELGA> à l'instant  6.875000000000e-01 pour le numéro d'ordre 8
+Champ stocké <COMPORTEMENT> à l'instant  6.875000000000e-01 pour le numéro d'ordre 8
+Champ stocké <STRX_ELGA> à l'instant  6.875000000000e-01 pour le numéro d'ordre 8
+[ 68%] Instant calculé : 6.87500e-01, dernier instant archivé : 6.87500e-01, au numéro d'ordre :    
+8
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  7.500000000000e-01 - Niveau de découpe: 3
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 3.37599E-04  X | 4.50827E+03    |                |                |TANGENTE   (SYM)|
+|     1        X | 1.39980E-05  X | 1.86929E+02    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|     2        X | 2.95304E-06  X | 3.94346E+01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|     3          | 6.79901E-09    | 9.07934E-02    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  6.799006031178e-09 au noeud et degré de liberté <7      
+DX>
+Temps CPU consommé dans ce pas de temps    : 1.120 s
+
+* Nombre d'itérations de Newton                     : 4
+* Temps total intégration comportement              : 0.981 s (8 intégrations)
+* Temps total factorisation matrice                 : 0.026 s (4 factorisations)
+* Temps construction second membre                  : 0.056 s
+* Temps total résolution K.U=F                      : 0.004 s (4 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 0
+* Temps autres opérations                           : 0.052 s
+Mémoire (Mo) :   696.36 /   694.07 /   213.45 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  7.500000000000e-01 pour le numéro d'ordre 9
+Champ stocké <SIEF_ELGA> à l'instant  7.500000000000e-01 pour le numéro d'ordre 9
+Champ stocké <VARI_ELGA> à l'instant  7.500000000000e-01 pour le numéro d'ordre 9
+Champ stocké <COMPORTEMENT> à l'instant  7.500000000000e-01 pour le numéro d'ordre 9
+Champ stocké <STRX_ELGA> à l'instant  7.500000000000e-01 pour le numéro d'ordre 9
+[ 75%] Instant calculé : 7.50000e-01, dernier instant archivé : 7.50000e-01, au numéro d'ordre :    
+9
+ CELD: TEMP                        0
+-------------------------------------------------------------------------------------------------------
+Instant de calcul:  1.000000000000e+00 - Niveau de découpe: 2
+
+-------------------------------------------------------------------------------------------------------
+|     NEWTON     |     RESIDU     |     RESIDU     |  RECH.  LINE.  |  RECH.  LINE.  |     OPTION     |
+|    ITERATION   |     RELATIF    |     ABSOLU     |    NB. ITER    |  COEFFICIENT   |   ASSEMBLAGE   |
+|                | RESI_GLOB_RELA | RESI_GLOB_MAXI |                |      RHO       |(+ TYPE MATRICE)|
+-------------------------------------------------------------------------------------------------------
+|     0        X | 1.03980E-03  X | 1.83653E+04    |                |                |TANGENTE   (SYM)|
+|     1        X | 2.99410E-04  X | 5.28830E+03    |     2          | 6.66678E-01    |TANGENTE   (SYM)|
+|     2        X | 2.92485E-04  X | 5.16598E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     3        X | 2.87710E-04  X | 5.08164E+03    |     3          | 1.25971E-02    |TANGENTE   (SYM)|
+|     4        X | 2.81743E-04  X | 4.97626E+03    |     3          | 1.70640E-02    |TANGENTE   (SYM)|
+|     5        X | 2.70591E-04  X | 4.77928E+03    |     3          | 3.21228E-02    |TANGENTE   (SYM)|
+|     6        X | 2.45618E-04  X | 4.33821E+03    |     3          | 7.40968E-02    |TANGENTE   (SYM)|
+|     7        X | 1.90605E-04  X | 3.36655E+03    |     3          | 1.93431E-01    |TANGENTE   (SYM)|
+|     8        X | 1.88663E-04  X | 3.33225E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|     9        X | 1.86227E-04  X | 3.28921E+03    |     3          | 1.27975E-02    |TANGENTE   (SYM)|
+|    10        X | 1.82907E-04  X | 3.23057E+03    |     3          | 1.77213E-02    |TANGENTE   (SYM)|
+|    11        X | 1.76983E-04  X | 3.12595E+03    |     3          | 3.22396E-02    |TANGENTE   (SYM)|
+|    12        X | 1.68446E-04  X | 2.97517E+03    |     3          | 4.82153E-02    |TANGENTE   (SYM)|
+|    13        X | 1.62162E-04  X | 2.86417E+03    |     3          | 3.72270E-02    |TANGENTE   (SYM)|
+|    14        X | 1.58910E-04  X | 2.80673E+03    |     3          | 1.99611E-02    |TANGENTE   (SYM)|
+|    15        X | 1.56477E-04  X | 2.76376E+03    |     3          | 1.52215E-02    |TANGENTE   (SYM)|
+|    16        X | 1.54428E-04  X | 2.72757E+03    |     3          | 1.30052E-02    |TANGENTE   (SYM)|
+|    17        X | 1.52637E-04  X | 2.69593E+03    |     3          | 1.15097E-02    |TANGENTE   (SYM)|
+|    18        X | 1.51023E-04  X | 2.66743E+03    |     3          | 1.04784E-02    |TANGENTE   (SYM)|
+|    19        X | 1.49497E-04  X | 2.64048E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    20        X | 1.47983E-04  X | 2.61373E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    21        X | 1.46480E-04  X | 2.58718E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    22        X | 1.44986E-04  X | 2.56081E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    23        X | 1.43501E-04  X | 2.53457E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    24        X | 1.42021E-04  X | 2.50844E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    25        X | 1.40544E-04  X | 2.48234E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    26        X | 1.39062E-04  X | 2.45616E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    27        X | 1.37564E-04  X | 2.42971E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    28        X | 1.36022E-04  X | 2.40247E+03    |     3          | 1.00000E-02    |TANGENTE   (SYM)|
+|    29        X | 1.36970E-04  X | 2.41921E+03    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    30        X | 4.19029E-02  X | 7.40106E+05    |     3          |-9.00000E-03    |TANGENTE   (SYM)|
+|    31        X | 9.52670E-04  X | 1.68264E+04    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    32        X | 9.85015E-04  X | 1.73977E+04    |     3          | 6.98919E-01    |TANGENTE   (SYM)|
+|    33        X | 1.02863E-03  X | 1.81680E+04    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    34        X | 4.68849E-04  X | 8.28100E+03    |     1          | 8.46325E-01    |TANGENTE   (SYM)|
+|    35        X | 3.51787E-04  X | 6.21340E+03    |     2          | 7.53858E-01    |TANGENTE   (SYM)|
+|    36        X | 4.63480E-04  X | 8.18617E+03    |     3          | 2.00087E+00    |TANGENTE   (SYM)|
+|    37        X | 3.78266E-04  X | 6.68108E+03    |     3          | 2.07122E-01    |TANGENTE   (SYM)|
+|    38        X | 2.85091E-04  X | 5.03539E+03    |     2          | 7.92721E-01    |TANGENTE   (SYM)|
+|    39        X | 2.94788E-04  X | 5.20667E+03    |     2          | 1.14977E+00    |TANGENTE   (SYM)|
+|    40        X | 2.19180E-04  X | 3.87125E+03    |     3          | 2.62837E-01    |TANGENTE   (SYM)|
+|    41        X | 2.42469E-04  X | 4.28257E+03    |     2          | 1.12535E+00    |TANGENTE   (SYM)|
+|    42        X | 1.62372E-04  X | 2.86787E+03    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    43        X | 1.45464E-04  X | 2.56924E+03    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+|    44        X | 1.22591E-04  X | 2.16526E+03    |     1          | 1.13666E+00    |TANGENTE   (SYM)|
+|    45        X | 3.21593E-05  X | 5.68010E+02    |     1          | 1.20205E+00    |TANGENTE   (SYM)|
+|    46        X | 1.80910E-05  X | 3.19530E+02    |     1          | 8.56362E-01    |TANGENTE   (SYM)|
+|    47          | 5.94538E-07    | 1.05010E+01    |     0          | 1.00000E+00    |TANGENTE   (SYM)|
+-------------------------------------------------------------------------------------------------------
+Critère(s) de convergence atteint(s)
+
+Le résidu de type <RESI_GLOB_RELA> vaut  5.945379403368e-07 au noeud et degré de liberté <27     
+DX>
+Temps CPU consommé dans ce pas de temps    : 21.861 s
+
+* Nombre d'itérations de Newton                     : 48
+* Temps total intégration comportement              : 20.646 s (209 intégrations)
+* Temps total factorisation matrice                 : 0.316 s (48 factorisations)
+* Temps construction second membre                  : 0.557 s
+* Temps total résolution K.U=F                      : 0.038 s (48 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 113
+* Temps autres opérations                           : 0.304 s
+Mémoire (Mo) :   696.36 /   694.53 /   213.92 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+
+Archivage des champs
+
+Champ stocké <DEPL> à l'instant  1.000000000000e+00 pour le numéro d'ordre 10
+Champ stocké <SIEF_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 10
+Champ stocké <VARI_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 10
+Champ stocké <COMPORTEMENT> à l'instant  1.000000000000e+00 pour le numéro d'ordre 10
+Champ stocké <STRX_ELGA> à l'instant  1.000000000000e+00 pour le numéro d'ordre 10
+[100%] Instant calculé : 1.00000e+00, dernier instant archivé : 1.00000e+00, au numéro d'ordre :   
+10
+Temps CPU consommé dans le calcul          : 3 min 58 s
+
+dont temps CPU "perdu" dans les découpes            : 2 min 38 s
+* Nombre de pas de temps                            : 13
+* Nombre d'itérations de Newton                     : 473
+* Temps dans l'archivage                            : 0.020 s
+* Temps dans le post-traitement                     : 0.000 s
+* Temps total intégration comportement              : 3 min 44 s (2179 intégrations)
+* Temps total factorisation matrice                 : 3.426 s (473 factorisations)
+* Temps construction second membre                  : 6.541 s
+* Temps total résolution K.U=F                      : 0.421 s (473 résolutions)
+* Temps assemblage matrice                          : 0.000 s
+* Nombre d'itérations de recherche linéaire         : 1242
+#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):      3.82      0.43      3.84
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):    230.85      2.53    231.23
 # Résultat commande #0022 (STAT_NON_LINE): RESU ('<00000015>') de type <NonLinearResult>
-# Mémoire (Mo) :   691.45 /   684.53 /   212.13 /   203.51 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0022   user+syst:        0.47s (syst:        0.01s, elaps:        0.43s)
+# Mémoire (Mo) :   696.36 /   690.86 /   213.92 /   203.58 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0022   user+syst:      235.72s (syst:        3.04s, elaps:      238.27s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt183
@@ -759,21 +1653,48 @@ CALC_CHAMP(CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
  CELD: TEMP                        0
  CELD: TEMP                        0
  CELD: TEMP                        0
-Le système linéaire à résoudre a 832 degrés de liberté:
-   - 798 sont des degrés de liberté physiques
-     (ils sont portés par 41 noeuds du maillage)
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+Le système linéaire à résoudre a 937 degrés de liberté:
+   - 903 sont des degrés de liberté physiques
+     (ils sont portés par 62 noeuds du maillage)
    - 34 sont les couples de paramètres de Lagrange associés
      aux 17 relations linéaires dualisées.
  CELD: TEMP                        0
-#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.03      0.01      0.05
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+ CELD: TEMP                        0
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.54      0.07      0.54
 # Résultat commande #0023 (CALC_CHAMP): RESU ('<00000015>') de type <NonLinearResult>
-# Mémoire (Mo) :   694.62 /   690.51 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0023   user+syst:        0.07s (syst:        0.03s, elaps:        0.08s)
+# Mémoire (Mo) :   737.34 /   725.77 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0023   user+syst:        0.72s (syst:        0.09s, elaps:        0.80s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt343
+.. _stg1_txt345
 # ----------------------------------------------------------------------------------------------
-# Commande #0024 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 343
+# Commande #0024 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 345
 IMPR_RESU(FICHIER_UNIQUE='NON',
           FORMAT='MED',
           INFO=1,
@@ -803,13 +1724,13 @@ Création du fichier au format MED 3.3.1.
      Dans certains cas, le fichier MED produit peut devenir volumineux. Dans ce
      cas, l'utilisation du mot-clé NOM_CMP est conseillée.
 
-# Mémoire (Mo) :   694.62 /   691.02 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0024   user+syst:        0.05s (syst:        0.00s, elaps:        0.05s)
+# Mémoire (Mo) :   737.34 /   726.27 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0024   user+syst:        0.49s (syst:        0.09s, elaps:        0.57s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt354
+.. _stg1_txt356
 # ----------------------------------------------------------------------------------------------
-# Commande #0025 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 354
+# Commande #0025 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 356
 TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -821,13 +1742,13 @@ TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0025 (CREA_TABLE): TAB_EFFO ('<00000016>') de type <Table>
-# Mémoire (Mo) :   694.62 /   691.02 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0025   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# Mémoire (Mo) :   737.34 /   726.27 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0025   user+syst:        0.02s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt364
+.. _stg1_txt366
 # ----------------------------------------------------------------------------------------------
-# Commande #0026 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 364
+# Commande #0026 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 366
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -841,13 +1762,13 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_EFFO,
            UNITE=38)
 
-# Mémoire (Mo) :   694.62 /   691.02 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0026   user+syst:        0.05s (syst:        0.00s, elaps:        0.05s)
+# Mémoire (Mo) :   737.34 /   726.27 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0026   user+syst:        0.18s (syst:        0.00s, elaps:        0.19s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt373
+.. _stg1_txt375
 # ----------------------------------------------------------------------------------------------
-# Commande #0027 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 373
+# Commande #0027 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 375
 TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -859,13 +1780,13 @@ TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0027 (CREA_TABLE): TAB_DEPL ('<00000017>') de type <Table>
-# Mémoire (Mo) :   694.62 /   691.02 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0027   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   737.34 /   726.27 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0027   user+syst:        0.00s (syst:        0.00s, elaps:        0.01s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt383
+.. _stg1_txt385
 # ----------------------------------------------------------------------------------------------
-# Commande #0028 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 383
+# Commande #0028 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 385
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -879,13 +1800,13 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_DEPL,
            UNITE=39)
 
-# Mémoire (Mo) :   694.62 /   691.02 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0028   user+syst:        0.11s (syst:        0.00s, elaps:        0.10s)
+# Mémoire (Mo) :   737.34 /   726.27 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0028   user+syst:        0.11s (syst:        0.00s, elaps:        0.11s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt392
+.. _stg1_txt394
 # ----------------------------------------------------------------------------------------------
-# Commande #0029 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 392
+# Commande #0029 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 394
 TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -897,13 +1818,13 @@ TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0029 (CREA_TABLE): TAB_REAC ('<00000018>') de type <Table>
-# Mémoire (Mo) :   694.62 /   691.02 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0029   user+syst:        0.01s (syst:        0.00s, elaps:        0.00s)
+# Mémoire (Mo) :   737.34 /   726.27 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0029   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt402
+.. _stg1_txt404
 # ----------------------------------------------------------------------------------------------
-# Commande #0030 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 402
+# Commande #0030 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 404
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -917,13 +1838,13 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_REAC,
            UNITE=40)
 
-# Mémoire (Mo) :   694.62 /   691.02 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0030   user+syst:        0.17s (syst:        0.00s, elaps:        0.16s)
+# Mémoire (Mo) :   737.34 /   726.27 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0030   user+syst:        0.12s (syst:        0.00s, elaps:        0.12s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt411
+.. _stg1_txt413
 # ----------------------------------------------------------------------------------------------
-# Commande #0031 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 411
+# Commande #0031 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 413
 TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                               INST=1.0,
                               INTITULE='RESU',
@@ -935,13 +1856,13 @@ TAB_SIEQ = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
                       TYPE_TABLE='TABLE')
 
 # Résultat commande #0031 (CREA_TABLE): TAB_SIEQ ('<00000019>') de type <Table>
-# Mémoire (Mo) :   694.77 /   693.15 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0031   user+syst:        0.13s (syst:        0.02s, elaps:        0.14s)
+# Mémoire (Mo) :   737.34 /   728.50 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0031   user+syst:        0.31s (syst:        0.02s, elaps:        0.33s)
 # ----------------------------------------------------------------------------------------------
 
-.. _stg1_txt421
+.. _stg1_txt423
 # ----------------------------------------------------------------------------------------------
-# Commande #0032 de /tmp/run_aster_3gvcov0_/study.comm.changed.py, ligne 421
+# Commande #0032 de /tmp/run_aster_zt1mf5mi/study.comm.changed.py, ligne 423
 IMPR_TABLE(COMMENTAIRE='#',
            COMM_PARA='',
            DEBUT_LIGNE='',
@@ -955,8 +1876,8 @@ IMPR_TABLE(COMMENTAIRE='#',
            TABLE=TAB_SIEQ,
            UNITE=41)
 
-# Mémoire (Mo) :   717.16 /   699.38 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0032   user+syst:        0.20s (syst:        0.01s, elaps:        0.19s)
+# Mémoire (Mo) :   752.48 /   733.70 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0032   user+syst:        0.31s (syst:        0.04s, elaps:        0.35s)
 # ----------------------------------------------------------------------------------------------
 
 .. _stg1_txt76
@@ -976,38 +1897,38 @@ No database in results, objects not saved on processor #0
  ║                                                                                                ║
  ║     Les alarmes que vous avez choisies d'ignorer sont précédées de (*).                        ║
  ║     Nombre d'occurrences pour chacune des alarmes :                                            ║
- ║            aucune alarme                                                                       ║
+ ║            MECANONLINE3_95      émise    1 fois                                                ║
  ╚════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 <I> <FIN> ARRET NORMAL DANS "FIN" PAR APPEL A "JEFINI".
   
- <I> <FIN> MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :                     204.87 Mo
- <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     215.93 Mo
- <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     717.16 Mo
+ <I> <FIN> MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :                     204.89 Mo
+ <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     258.30 Mo
+ <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     752.48 Mo
   
  <I>       FERMETURE DES BASES EFFECTUEE
   
    STATISTIQUES CONCERNANT L'ALLOCATION DYNAMIQUE :
-     TAILLE CUMULEE MAXIMUM            :                  216  Mo.
-     TAILLE CUMULEE LIBEREE            :                   15  Mo.
-     NOMBRE TOTAL D'ALLOCATIONS        :                54986
-     NOMBRE TOTAL DE LIBERATIONS       :                53734
+     TAILLE CUMULEE MAXIMUM            :                  258  Mo.
+     TAILLE CUMULEE LIBEREE            :                 1057  Mo.
+     NOMBRE TOTAL D'ALLOCATIONS        :              3804446
+     NOMBRE TOTAL DE LIBERATIONS       :              3802789
      APPELS AU MECANISME DE LIBERATION :                    0
      TAILLE MEMOIRE CUMULEE RECUPEREE  :                    0  Mo.
      VOLUME DES LECTURES               :                    0  Mo.
-     VOLUME DES ECRITURES              :                    1  Mo.
+     VOLUME DES ECRITURES              :                  123  Mo.
   
-   MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :     204.87 Mo
+   MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :     204.89 Mo
      - IMPOSE DE NOMBREUX ACCES DISQUE
      - RALENTIT LA VITESSE D'EXECUTION
-   MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     215.93 Mo
+   MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     258.30 Mo
      - LIMITE LES ACCES DISQUE
      - AMELIORE LA VITESSE D'EXECUTION
-   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     717.16 Mo
+   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     752.48 Mo
      - COMPREND LA MEMOIRE CONSOMMEE PAR  JEVEUX, 
        LE SUPERVISEUR PYTHON, LES LIBRAIRIES EXTERNES
   
- <I>       FIN D'EXECUTION LE : ME-09-SEPT-2026 10:12:07
+ <I>       FIN D'EXECUTION LE : JE-10-SEPT-2026 00:59:26
 INFO './glob.1' deleted
 Deleting './glob.2': No such file or directory
 INFO './vola.1' deleted
@@ -1016,56 +1937,56 @@ Deleting './vola.2': No such file or directory
  ********************************************************************************
  * COMMAND                  :       USER :     SYSTEM :   USER+SYS :    ELAPSED *
  ********************************************************************************
- * DEBUT                    :       0.06 :       0.18 :       0.24 :       0.22 *
+ * DEBUT                    :       0.04 :       0.30 :       0.34 :       0.35 *
  * LIRE_MAILLAGE            :       0.01 :       0.00 :       0.01 :       0.01 *
- * CREA_MAILLAGE            :       0.00 :       0.01 :       0.01 :       0.01 *
- * AFFE_MODELE              :       0.02 :       0.00 :       0.02 :       0.02 *
- * DEFI_MATERIAU            :       0.08 :       0.00 :       0.08 :       0.08 *
- * AFFE_MATERIAU            :       0.07 :       0.00 :       0.07 :       0.06 *
- * AFFE_CARA_ELEM           :       0.04 :       0.00 :       0.04 :       0.04 *
+ * CREA_MAILLAGE            :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_MODELE              :       0.01 :       0.01 :       0.02 :       0.03 *
+ * DEFI_MATERIAU            :       0.08 :       0.00 :       0.08 :       0.09 *
+ * AFFE_MATERIAU            :       0.08 :       0.00 :       0.08 :       0.07 *
+ * AFFE_CARA_ELEM           :       0.07 :       0.00 :       0.07 :       0.07 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.00 *
+ * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.01 *
  * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.00 *
- * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.01 *
  * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.00 *
- * AFFE_CHAR_MECA           :       0.00 :       0.00 :       0.00 :       0.00 *
- * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
- * CREA_CHAMP               :       0.00 :       0.00 :       0.00 :       0.00 *
  * CREA_CHAMP               :       0.01 :       0.00 :       0.01 :       0.00 *
+ * CREA_CHAMP               :       0.00 :       0.00 :       0.00 :       0.01 *
  * CREA_RESU                :       0.00 :       0.00 :       0.00 :       0.01 *
- * AFFE_MATERIAU            :       0.06 :       0.00 :       0.06 :       0.05 *
- * DEFI_CONSTANTE           :       0.01 :       0.00 :       0.01 :       0.00 *
+ * AFFE_MATERIAU            :       0.09 :       0.00 :       0.09 :       0.09 *
  * DEFI_CONSTANTE           :       0.00 :       0.00 :       0.00 :       0.00 *
- * DEFI_CONTACT             :       0.00 :       0.00 :       0.00 :       0.00 *
+ * DEFI_CONSTANTE           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * DEFI_CONTACT             :       0.01 :       0.00 :       0.01 :       0.02 *
  * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.00 *
  * DEFI_LIST_INST           :       0.01 :       0.00 :       0.01 :       0.01 *
- * STAT_NON_LINE            :       0.47 :       0.01 :       0.48 :       0.43 *
- * CALC_CHAMP               :       0.07 :       0.03 :       0.10 :       0.08 *
- * IMPR_RESU                :       0.05 :       0.00 :       0.05 :       0.05 *
- * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
- * IMPR_TABLE               :       0.05 :       0.00 :       0.05 :       0.05 *
- * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.00 *
- * IMPR_TABLE               :       0.11 :       0.00 :       0.11 :       0.10 *
- * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.00 *
- * IMPR_TABLE               :       0.17 :       0.00 :       0.17 :       0.16 *
- * CREA_TABLE               :       0.13 :       0.02 :       0.15 :       0.14 *
- * IMPR_TABLE               :       0.20 :       0.01 :       0.21 :       0.19 *
- * FIN                      :       0.06 :       0.00 :       0.06 :       0.06 *
+ * STAT_NON_LINE            :     235.72 :       3.04 :     238.76 :     238.27 *
+ * CALC_CHAMP               :       0.72 :       0.09 :       0.81 :       0.80 *
+ * IMPR_RESU                :       0.49 :       0.09 :       0.58 :       0.57 *
+ * CREA_TABLE               :       0.02 :       0.00 :       0.02 :       0.01 *
+ * IMPR_TABLE               :       0.18 :       0.00 :       0.18 :       0.19 *
+ * CREA_TABLE               :       0.00 :       0.00 :       0.00 :       0.01 *
+ * IMPR_TABLE               :       0.11 :       0.00 :       0.11 :       0.11 *
+ * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.02 *
+ * IMPR_TABLE               :       0.12 :       0.00 :       0.12 :       0.12 *
+ * CREA_TABLE               :       0.31 :       0.02 :       0.33 :       0.33 *
+ * IMPR_TABLE               :       0.31 :       0.04 :       0.35 :       0.35 *
+ * FIN                      :       0.08 :       0.00 :       0.08 :       0.07 *
  *  . sdveri                :       0.00 :       0.00 :       0.00 :       0.00 *
- *  . check syntax          :       0.09 :       0.00 :       0.09 :       0.11 *
- *  . fortran               :       0.86 :       0.24 :       1.10 :       1.01 *
- *  . cleanup               :       0.56 :       0.00 :       0.56 :       0.54 *
+ *  . check syntax          :       0.15 :       0.00 :       0.15 :       0.20 *
+ *  . fortran               :     237.33 :       3.55 :     240.88 :     240.35 *
+ *  . cleanup               :       0.66 :       0.00 :       0.66 :       0.69 *
  ********************************************************************************
- * TOTAL_JOB                :       1.83 :       0.26 :       2.09 :       1.90 *
+ * TOTAL_JOB                :     238.69 :       3.59 :     242.28 :     241.78 *
  ********************************************************************************
 
-# Mémoire (Mo) :   717.16 /   699.38 /   215.93 /   204.87 (VmPeak / VmSize / Optimum / Minimum)
-# Fin commande #0033   user+syst:        0.06s (syst:        0.00s, elaps:        0.06s)
+# Mémoire (Mo) :   752.48 /   733.70 /   258.30 /   204.89 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0033   user+syst:        0.08s (syst:        0.00s, elaps:        0.07s)
 # ----------------------------------------------------------------------------------------------
 
-EXECUTION_CODE_ASTER_EXIT_6095=0
+EXECUTION_CODE_ASTER_EXIT_10672=0
 
 
 
 ------------------------------------------------------------
---- DIAGNOSTIC JOB : OK
+--- DIAGNOSTIC JOB : <A>_ALARM
 ------------------------------------------------------------
 
