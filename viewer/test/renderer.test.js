@@ -104,6 +104,24 @@ test("scene graph renders visible geometry with stable scene object metadata", (
   assert.equal(graph.objectsByObjectId.get("object:issue").userData.assetId, "geometry:issue");
 });
 
+// The grid is drawn from the model bounds rather than from a layer, so the
+// Ground grid row toggles this flag instead of a layer's visibility. The lights
+// share addReferenceHelpers with it and must not answer to it - without them
+// nothing is visible at all.
+test("the ground grid answers to its flag, and the lights do not", () => {
+  const gridOf = (scene) => scene.children.filter((child) => child.type === "GridHelper");
+  const lightsOf = (scene) =>
+    scene.children.filter((child) => child.type === "HemisphereLight" || child.type === "DirectionalLight");
+
+  const on = createThreeSceneGraph(fixtureState()).scene;
+  assert.equal(gridOf(on).length, 1, "drawn by default");
+  assert.equal(lightsOf(on).length, 2);
+
+  const off = createThreeSceneGraph({ ...fixtureState(), referenceGridVisible: false }).scene;
+  assert.equal(gridOf(off).length, 0);
+  assert.equal(lightsOf(off).length, 2, "the lights are not optional");
+});
+
 test("mesh vertex values render as a scalar-colored surface", () => {
   const state = fixtureState();
   const asset = state.geometryAssets.find((candidate) => candidate.id === "geometry:mesh");

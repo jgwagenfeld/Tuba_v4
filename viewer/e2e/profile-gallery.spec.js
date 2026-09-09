@@ -40,8 +40,9 @@ test("profile comparison keeps labels and solved local frames through load and d
   expect(localFrames.every(id => id.includes(":local:"))).toBe(true);
   expect(await rendered()).toEqual(expect.arrayContaining(labels));
   await page.screenshot({ path: "../.build/profile-local.png" });
-  await page.getByRole("button", { name: "All layers", exact: true }).click();
-  await page.locator("summary").filter({ hasText: /^All layers$/ }).click();
+  // One click, not two: the tree is the last row of the Display strip now
+  // rather than a popover the rail foot had to open first.
+  await page.locator("summary").filter({ hasText: /All layers/ }).click();
   const labelToggle = page.getByRole("checkbox", { name: /^Labels/i });
   await labelToggle.uncheck();
   expect((await rendered()).some(id => labels.includes(id))).toBe(false);

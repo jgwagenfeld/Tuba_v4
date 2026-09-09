@@ -5,12 +5,12 @@ test("layer-state toggles deformed and clash layers independently", async ({ pag
   await expect(page.locator("[data-runtime-status]")).toContainText("Ready");
   await page.waitForFunction(() => window.__tubaViewer?.lastRender?.renderableCount === 3);
 
-  await page.getByLabel(/Deformed Visual Centerline/).uncheck();
+  await page.getByLabel(/Visual centerline/).uncheck();
   await expect.poll(() => page.evaluate(() => window.__tubaViewer.lastRender.objectIds)).toEqual([
     "object:cold",
     "object:clash",
   ]);
 
-  await page.getByLabel(/Overlay Clash/).uncheck();
+  await page.getByLabel(/Clash/).uncheck();
   await expect.poll(() => page.evaluate(() => window.__tubaViewer.lastRender.objectIds)).toEqual(["object:cold"]);
 });

@@ -493,7 +493,7 @@ const scenarios = {
         return ids.length === 3 && ids.includes("object:cold") && ids.includes("object:deformed") && ids.includes("object:clash");
       });
 
-      await page.getByLabel(/Visual Centerline/).uncheck();
+      await page.getByLabel(/Visual centerline/).uncheck();
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 2 && ids.includes("object:cold") && ids.includes("object:clash") && !ids.includes("object:deformed");
@@ -619,12 +619,11 @@ const scenarios = {
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
       await page.waitForFunction(() => window.__tubaViewer?.state?.resultVectorScales?.displacement === 10);
-      // The layer tree is a secondary tool in the rail popover now, so the
-      // bodies panel owns the rail itself.
-      await page.locator('[data-rail-tool="layers"]').click();
-      await page.locator("[data-rail-popover] details.layer-tree summary").click();
-      const visualCenterline = page.getByLabel(/^\s*Visual Centerline/);
-      const physicalCenterline = page.getByLabel(/^\s*Physical Centerline/);
+      // The tree is the last row of the Display strip, so the summary is the
+      // only thing to open.
+      await page.locator("details.layer-tree summary").click();
+      const visualCenterline = page.getByLabel(/^\s*Visual centerline/);
+      const physicalCenterline = page.getByLabel(/^\s*Physical centerline/);
       // Only one geometry state is drawn at a time - assetMatchesActiveGeometryState
       // filters every asset that names a different one - so the physical and the
       // x50 visual deformed shapes can never be on screen together. A solved
@@ -924,15 +923,15 @@ const scenarios = {
         ),
         ["Geometry", "Analysis mesh", "Sub-points", "Deformed mesh"]
       );
-      // The categories survive intact, one level down in the layers popover.
-      await page.locator('[data-rail-tool="layers"]').click();
+      // The categories survive intact, one level down in the All layers row at
+      // the foot of the same list. The tree is rendered whether or not the row
+      // is open, so there is nothing to click to read it.
       assert.deepEqual(
         await page.locator("[data-layer-list] h3").evaluateAll((headings) =>
           headings.map((heading) => heading.textContent)
         ),
         ["Design", "Analysis mesh", "Results", "Annotations"]
       );
-      await page.locator('[data-rail-tool="layers"]').click();
 
       const field = page.getByRole("combobox", { name: "Field", exact: true });
       assert.deepEqual(
