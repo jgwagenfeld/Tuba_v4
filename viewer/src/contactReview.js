@@ -80,7 +80,7 @@ export function renderContactReview(state, dispatch, rerender) {
   add("h2", "Contact review — forces on the pipe");
   const states = contactStates(state);
   const activeIndex = states.findIndex((s) => s.id === state.activeResultStateId);
-  const navigation = add("div", "");
+  const navigation = add("div", ""); navigation.className = "contact-step-nav";
   for (const [label, offset] of [["Previous converged step", -1], ["Next converged step", 1]]) {
     const button = add("button", offset < 0 ? "← Previous" : "Next →", navigation);
     button.type = "button"; button.dataset.focusKey = `contact-step:${offset}`; button.setAttribute("aria-label", label);

@@ -10,10 +10,8 @@
   --chrome-text-2: #9aa7ad;
   --chrome-text-3: #8895a0;
   --paper-raised: #ffffff;
-  --paper-inset: #e6e9e8;
   --text: #172127;
   --muted: #4c5b63;
-  --line: #bac3c5;
   --accent: #5ed8e5;
   --accent-ink: #075b66;
   --focus-on-light: #0b7684;
@@ -776,7 +774,7 @@ textarea,
   border-radius: 0.3rem;
   background: var(--graphite-raised);
   color: var(--chrome-text-2);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.5;
   padding: 0.5rem 0.55rem;
 }
@@ -1519,7 +1517,7 @@ body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
   margin: 0;
   padding: 0;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   text-align: center;
   opacity: 0;
   pointer-events: none;
@@ -1597,6 +1595,26 @@ h1,
 h2,
 h3 {
   line-height: 1.3;
+}
+
+.sidebar h3,
+.cockpit-rail h3,
+.inspector h3,
+.sidebar h4,
+.cockpit-rail h4,
+.inspector h4,
+.cockpit-rail summary {
+  margin: 0.8rem 0 0.35rem;
+  color: #d9e0e2;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.cockpit-rail h4 {
+  font-size: 0.7rem;
+  color: var(--chrome-text-2);
 }
 
 .sidebar h2,
@@ -2105,6 +2123,20 @@ body[data-view="gallery"] {
   line-height: 1.5;
 }
 
+.contact-step-nav {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.cockpit-rail .contact-step-nav button {
+  width: auto;
+  flex: 1 1 0;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.4rem;
+  text-align: center;
+  font-size: 0.72rem;
+}
+
 .contact-review label {
   display: inline-flex;
   align-items: center;
@@ -2123,10 +2155,15 @@ body[data-view="gallery"] {
   font-size: 0.75rem;
 }
 
+/* Eight columns in a 244px rail: padding was 80px of that on its own. */
 .contact-review th,
 .contact-review td {
-  padding: 0.3125rem;
+  padding: 0.25rem 0.2rem;
   text-align: left;
+}
+
+/* The header is prose and wraps; a measured value must not break across lines. */
+.contact-review td {
   white-space: nowrap;
 }
 
