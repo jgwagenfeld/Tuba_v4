@@ -107,6 +107,8 @@ export function renderContactReview(state, dispatch, rerender) {
   const system = getUnitSystem(state);
   const quantity = (value, unit) => formatQuantity(value, unit, system) || "unavailable";
   const scroller = add("div", ""); scroller.className = "contact-table-scroll";
+  scroller.tabIndex = 0; scroller.setAttribute("role", "region");
+  scroller.setAttribute("aria-label", "Contact results, scrolls sideways");
   const table = add("table", "", scroller);
   const header = add("tr", "", add("thead", "", table));
   for (const label of ["Support", "State", "N", "|Ft|", "μN", "Usage", "Gap", "|Slip|"]) add("th", label, header).scope = "col";

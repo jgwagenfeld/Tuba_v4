@@ -646,9 +646,11 @@ textarea,
 }
 
 /* The drawn bodies read as active; a hidden one recedes rather than vanishing,
-   so the reviewer can still see what they turned off. */
+   so the reviewer can still see what they turned off. This was
+   --graphite-raised, which is the rail's own background - the highlight painted
+   nothing and the whole distinction rested on the name colour. */
 .body-row[data-body-visible="true"] {
-  background: var(--graphite-raised);
+  background: var(--sidebar-control);
 }
 
 .body-head {
@@ -701,7 +703,8 @@ textarea,
   color: var(--accent);
 }
 
-.body-opacity {
+.body-opacity,
+.body-scale {
   flex: 0 0 auto;
   width: auto;
   min-width: 2.6rem;
@@ -716,7 +719,8 @@ textarea,
   padding: 0.1rem 0.3rem;
 }
 
-.body-opacity:hover {
+.body-opacity:hover,
+.body-scale:hover {
   background: #36434c;
 }
 
@@ -1417,6 +1421,17 @@ section {
 
 body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
   --controls-width: min(18.5rem, max(45vw, 15rem));
+}
+
+/* The contact review is the densest panel in the app - eight measured columns
+   per shoe - and at the standard rail width three of them were visible at a
+   time. It gets the room its own content needs rather than the table being cut
+   down to fit: utilization is derived from |Ft| and the friction limit, but it
+   is derived under rules about open contacts and near-zero limits, and it is
+   the column a reviewer actually scans. Keeping the two inputs and dropping the
+   answer would be backwards. */
+body[data-rail-open="true"]:not([data-embed="true"]):has(.contact-review) .viewer-workspace {
+  --controls-width: min(26rem, max(45vw, 15rem));
 }
 
 .rail-toggle {
@@ -2144,9 +2159,16 @@ body[data-view="gallery"] {
   margin: 0.375rem;
 }
 
+/* Focusable because it scrolls: the columns past its right edge were reachable
+   only by tabbing through the support buttons inside it. */
 .contact-table-scroll {
   max-width: 100%;
   overflow-x: auto;
+}
+
+.contact-table-scroll:focus-visible {
+  outline: 2px solid var(--focus-on-dark);
+  outline-offset: 2px;
 }
 
 .contact-review table {
