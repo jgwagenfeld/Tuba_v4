@@ -354,7 +354,12 @@ def test_bundle_without_a_source_script_is_accepted(tmp_path):
 
 
 def test_every_published_gallery_can_explain_itself():
-    """A card is the first thing a new reader sees; none may ship blank."""
+    """A card is the first thing a new reader sees; none may ship blank.
+
+    OfficialGallery enforces this at construction, so reaching this assertion
+    at all means the whole published set was declared publishable. The loop
+    stays as the statement of what publishable means.
+    """
     for gallery in build_pages.PAGES_GALLERIES:
         assert gallery.title.strip(), f"{gallery.id} has no title"
         assert gallery.question.strip().endswith("?"), (
@@ -362,6 +367,43 @@ def test_every_published_gallery_can_explain_itself():
         )
         assert len(gallery.summary.split()) >= 10, f"{gallery.id} summary is too thin"
         assert gallery.evidence, f"{gallery.id} has no evidence badge"
+
+
+def _publishable_card(**overrides):
+    OfficialGallery = import_module("scripts.official_gallery").OfficialGallery
+    defaults = dict(
+        title="Hot line expansion loop",
+        question="Where does a hot line move, and what does it reach?",
+        summary=" ".join(["a"] * 12),
+    )
+    return OfficialGallery(
+        "demo",
+        frozenset({"pages"}),
+        "engineering-review",
+        lambda _bundle, _artifacts: None,
+        **{**defaults, **overrides},
+    )
+
+
+def test_a_card_that_cannot_introduce_its_review_is_rejected_where_it_is_written():
+    """The rule lives with the data, not only in this file.
+
+    Nine cards once had their questions replaced with labels - "Thermal
+    displacement and clearances" over "Where does a hot line move, and what
+    does it reach?" - and nothing objected until the full suite ran much later.
+    The constructor now refuses, so the copy fails on the next import of the
+    module it was written in.
+    """
+    assert _publishable_card().question.endswith("?")
+
+    with pytest.raises(ValueError, match="not a label"):
+        _publishable_card(question="Thermal displacement and clearances")
+
+    with pytest.raises(ValueError, match="too thin"):
+        _publishable_card(summary="Two words")
+
+    with pytest.raises(ValueError, match="needs a title"):
+        _publishable_card(title="   ")
 
 
 def test_every_published_gallery_has_a_committed_thumbnail():

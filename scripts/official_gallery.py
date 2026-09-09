@@ -74,6 +74,36 @@ class OfficialGallery:
     solver_options: dict[str, Any] = field(default_factory=dict, kw_only=True)
     refresh_load_cases: tuple[str, ...] = field(default=(), kw_only=True)
 
+    def __post_init__(self) -> None:
+        """Reject a card that cannot introduce its review.
+
+        The gallery is the front door for a reader who has never heard of Tuba,
+        and it describes reviews by the engineering question each one answers
+        rather than by the study that produced it - so the question leading the
+        card is what the card is for, not a house style.
+
+        Checked here rather than only in a test because the copy is written in
+        this file: a label pasted over a question fails on the next import,
+        with the id and the offending string, instead of surviving review and
+        turning up much later as one assertion in the full suite.
+        """
+        if not self.title.strip():
+            raise ValueError(f"{self.id}: a gallery card needs a title")
+        if not self.question.strip().endswith("?"):
+            raise ValueError(
+                f"{self.id}: a card leads with the engineering question it answers, "
+                f"not a label - got {self.question!r}"
+            )
+        if len(self.summary.split()) < 10:
+            raise ValueError(
+                f"{self.id}: the summary is too thin to explain the review "
+                f"({len(self.summary.split())} words)"
+            )
+        if self.profile not in PROFILE_EVIDENCE:
+            raise ValueError(
+                f"{self.id}: no evidence badge is defined for profile {self.profile!r}"
+            )
+
     @property
     def evidence(self) -> str:
         return PROFILE_EVIDENCE[self.profile]
@@ -237,7 +267,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "autorouted_expansion_hot",
         _autorouted_refresh,
         title="Hot line expansion loop",
-        question="Thermal displacement and clearances",
+        question="Where does a hot line move, and what does it reach?",
         summary=(
             "A 180 C line routed around equipment with an automatically selected expansion loop. "
             "The review shows thermal displacement and clearance violations around a cable tray."
@@ -251,7 +281,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating",
         _code_aster_refresh,
         title="Anchored line with two bends",
-        question="Displacement, pipe-wall stress, and anchor reactions",
+        question="What happens to a pressurised line held at both ends?",
         summary=(
             "A pressurised line with two anchors and two bends. The review shows displacement, "
             "pipe-wall stress, and anchor reactions from one Code_Aster run."
@@ -265,7 +295,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "elements_supports_loadcase1",
         _elements_supports_refresh,
         title="Mixed elements and supports",
-        question="Element types and support conditions",
+        question="Do bars, cables and spring supports survive the trip to the solver?",
         summary=(
             "Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, "
             "anchor and partly released supports. The review shows the element and support "
@@ -278,7 +308,7 @@ OFFICIAL_GALLERIES = (
         "mesh-review",
         _build_gmsh_tee_mesh_review,
         title="Tee junction mesh",
-        question="3D tee mesh before analysis",
+        question="What does the analysis actually discretise at a branch?",
         summary=(
             "A conformal quadratic-hexahedral wall mesh for a header and branch. "
             "This example shows mesh geometry only, with no solver results."
@@ -290,7 +320,7 @@ OFFICIAL_GALLERIES = (
         "model-review",
         _build_model_review,
         title="Imported equipment connection",
-        question="Component ports, frames, and coupling",
+        question="How does a supplied component join an authored line?",
         summary=(
             "A STEP/STL component placed beside Tuba pipework, showing connection ports, "
             "local frames and coupling. This example contains geometry only, with no solver results."
@@ -304,7 +334,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "native-friction-review",
         _friction_refresh,
         title="Pipe-shoe friction comparison",
-        question="Frictionless and Coulomb pipe shoes",
+        question="How does friction change the same pipe and load path?",
         summary=(
             "Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. "
             "The review compares friction coefficients of 0 and 0.3 through heating, cooling, lift-off and reseating."
@@ -320,7 +350,7 @@ OFFICIAL_GALLERIES = (
         _tee_volume_refresh,
         True,
         title="3D solid tee",
-        question="Stress distribution at the branch junction",
+        question="Does stress concentrate where the branch meets the header?",
         summary=(
             "A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction."
         ),
@@ -334,7 +364,7 @@ OFFICIAL_GALLERIES = (
         _profile_refresh,
         refresh_load_cases=PROFILE_CASES,
         title="I-section orientation and local axes",
-        question="Section orientation under global and local loads",
+        question="How do section orientation and local axes change bending?",
         summary=(
             "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. "
             "The review compares global and local loading, deformed profiles, and section rotations "
@@ -349,7 +379,7 @@ OFFICIAL_GALLERIES = (
         ROOT / "notebooks" / "code_aster_results" / "support_rack_operating",
         _support_rack_refresh,
         title="Pipe on a support rack",
-        question="Rack reactions and support spacing",
+        question="What do the supports and the steel underneath actually carry?",
         summary=(
             "An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, "
             "and a temperature increase from 20 C to 180 C, with no imposed nodal forces. "
