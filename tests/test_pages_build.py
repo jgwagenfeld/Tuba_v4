@@ -46,7 +46,11 @@ OFFICIAL_BUNDLES = [
     "profile-orientation-review",
     "support-rack-review",
 ]
-PAGES_BUNDLES = [bundle for bundle in OFFICIAL_BUNDLES if bundle != "gmsh-tee-mesh-review"]
+# OFFICIAL_BUNDLES above stays written out by hand on purpose: it is the one
+# place that says which reviews are published, so adding or losing one has to
+# be a deliberate edit here. Which of them reach Pages is a property of the
+# catalog, though, so that is read rather than re-implemented as a filter.
+PAGES_BUNDLES = list(build_pages.PAGES_BUNDLE_IDS)
 
 
 def test_official_gallery_records_drive_pages_ids_and_required_scenes():

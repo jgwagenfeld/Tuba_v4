@@ -22,19 +22,13 @@ from tuba.solver.base import FEAResults
 from tuba.solver.code_aster_runtime import ATTESTED_CODE_ASTER_FILES
 
 
-OFFICIAL_BUNDLES = (
-    "autorouted-expansion-loop",
-    "code-aster-review",
-    "elements-supports-review",
-    "gmsh-tee-mesh-review",
-    "guyed-mast-review",
-    "imported_component_mixed_demo",
-    "native-friction-review",
-    "pipe-tee-volume-review",
-    "profile-orientation-review",
-    "support-rack-review",
-)
-PAGES_BUNDLES = tuple(bundle for bundle in OFFICIAL_BUNDLES if bundle != "gmsh-tee-mesh-review")
+# Derived, not restated. These are the bundles the stubs below have to
+# produce, not a claim about which reviews are published - that claim is
+# asserted once, explicitly, in test_pages_build.py. A second hardcoded copy
+# only ever went stale: the guyed-mast review landed in the catalog and left
+# this list behind, which failed four tests here for no reason of its own.
+OFFICIAL_BUNDLES = tuple(gallery.id for gallery in build_pages.OFFICIAL_GALLERIES)
+PAGES_BUNDLES = build_pages.PAGES_BUNDLE_IDS
 
 
 def test_gmsh_mesh_viewer_recipe_builds_an_unsolved_scene() -> None:
