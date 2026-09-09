@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { createReadStream, existsSync, readFileSync, readdirSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { defineConfig } from "vite";
 
@@ -17,7 +17,13 @@ function listBundles() {
 }
 
 const REPO_ROOT = join(process.cwd(), "..");
-const THUMBNAIL_DIR = join(REPO_ROOT, "docs", "content", "assets", "gallery");
+// Shot on demand into .build/, never committed: the Pages build photographs
+// the bundles it produces, and dev photographs the bundles already sitting in
+// public/. Solving a review costs ~48s, which is why the published images used
+// to be baked by hand - but dev is not solving anything, it is screenshotting
+// what is already built, and that is about a second each.
+const THUMBNAIL_DIR = join(REPO_ROOT, ".build", "gallery-thumbnails");
+const SHOOTER = join(REPO_ROOT, "viewer", "scripts", "gallery-thumbnails.mjs");
 
 // The published gallery describes each review by the engineering question it
 // answers, with a summary, an evidence badge and a thumbnail. That catalog is
@@ -48,6 +54,29 @@ function officialCatalog() {
   return cachedCatalog;
 }
 
+let shootInFlight = null;
+function shootMissingThumbnails() {
+  if (shootInFlight) return shootInFlight;
+  const catalog = officialCatalog();
+  const wanted = [...(catalog?.keys() ?? [])].filter(
+    (id) => !existsSync(join(THUMBNAIL_DIR, `${id}.png`))
+  );
+  if (wanted.length === 0) return Promise.resolve();
+  mkdirSync(THUMBNAIL_DIR, { recursive: true });
+  shootInFlight = new Promise((resolve) => {
+    const run = spawnSync(process.execPath, [SHOOTER, THUMBNAIL_DIR, ...wanted], {
+      cwd: join(REPO_ROOT, "viewer"),
+      encoding: "utf8",
+      timeout: 180_000
+    });
+    if (run.status !== 0) console.warn("[tuba] gallery thumbnails unavailable:", run.stderr?.trim());
+    resolve();
+  }).finally(() => {
+    shootInFlight = null;
+  });
+  return shootInFlight;
+}
+
 function bundleManifest() {
   // An id with no catalog entry (a scratch bundle, a fixture) stays a plain
   // string: normalizeCatalog turns that into a title-only card.
@@ -65,12 +94,26 @@ function bundleManifest() {
         response.setHeader("content-type", "application/json");
         response.end(payload());
       });
-      // Thumbnails live with the docs they are published from; serving them
-      // here is what makes the dev gallery the gallery a reader sees.
-      server.middlewares.use("/gallery", (request, response, next) => {
+      // Thumbnails are produced by the Pages build now, not committed, so this
+      // serves whatever a local shoot has left behind and 404s otherwise - the
+      // card drops its image rather than showing a broken one. To see the real
+      // pictures locally, run the shooter:
+      //   node viewer/scripts/gallery-thumbnails.mjs docs/content/assets/gallery <id>
+      server.middlewares.use("/gallery", async (request, response, next) => {
         const name = (request.url ?? "").split("?")[0].replace(/^\//, "");
+        if (!/^[\w.-]+\.png$/.test(name)) return next();
         const file = join(THUMBNAIL_DIR, name);
-        if (!/^[\w.-]+\.png$/.test(name) || !existsSync(file)) return next();
+        if (!existsSync(file)) {
+          // One batch for the whole gallery rather than a browser launch per
+          // card: every request in flight waits on the same shoot.
+          try {
+            await shootMissingThumbnails();
+          } catch {
+            // A dev server that cannot reach a browser still serves the
+            // gallery; the cards simply drop their images.
+          }
+        }
+        if (!existsSync(file)) return next();
         response.setHeader("content-type", "image/png");
         createReadStream(file).pipe(response);
       });

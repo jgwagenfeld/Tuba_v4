@@ -71,6 +71,11 @@ function card(entry) {
     image.src = entry.thumbnail;
     image.alt = "";
     image.loading = "lazy";
+    // Thumbnails are build artifacts - the Pages build photographs the bundles
+    // it just produced - so a working tree that has not built one yet has no
+    // picture to show. A card without its image still reads; a broken-image
+    // icon in place of one reads as a bug in the review it is advertising.
+    image.addEventListener("error", () => image.remove(), { once: true });
     link.append(image);
   }
 
