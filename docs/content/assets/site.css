@@ -23,3 +23,10 @@
     min-height: 24rem;
   }
 }
+
+/* The home gallery has nine cards: three columns keep it a full 3x3 grid. */
+@media (min-width: 60em) {
+  .md-typeset .grid.cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

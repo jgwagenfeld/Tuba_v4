@@ -10,6 +10,8 @@ are included only where stated.
 
 ## Thermal expansion
 
+[![Thermal expansion review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop)
+
 A 180 C line routed around equipment with an automatically selected expansion loop. The review shows thermal displacement and clearance violations around a cable tray.
 
 The reported gap decreases from 150.0 mm cold to 137.6 mm in the operating
@@ -24,11 +26,15 @@ Piping-standard checks are the responsibility of the user.
 
 ## Pipe bends
 
+[![Pipe bends review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
+
 A pressurised line with two anchors and two bends. The review shows displacement, pipe-wall stress, and anchor reactions from one Code_Aster run.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review) &middot; Evidence: **Results**
 
 ## Elements and supports
+
+[![Elements and supports review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review)
 
 Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, anchor and partly released supports. The review shows the element and support definitions alongside the imported Code_Aster results.
 
@@ -36,17 +42,23 @@ Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, 
 
 ## Cable
 
+[![Cable review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/guyed-mast-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review)
+
 A 12 m tubular mast held by three pretensioned guy cables under a 3 kN side load. The leeward cable goes slack and the two windward ones carry it, which is the redistribution a tension-only member exists to show.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review) &middot; Evidence: **Results**
 
 ## Imported components
 
+[![Imported components model review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo)
+
 A STEP/STL component placed beside Tuba pipework, showing connection ports, local frames and coupling. This example contains geometry only, with no solver results.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo) &middot; Evidence: **Model only - no results**
 
 ## 3D solid
+
+[![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
 
 A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction.
 
@@ -57,6 +69,8 @@ displacement, terminal resultants and stress field stay separately inspectable.
 
 ## Load transfer
 
+[![Load transfer review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
+
 An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, and a temperature increase from 20 C to 180 C, with no imposed nodal forces. The review shows support reactions and a support-spacing check.
 
 An engineer-authored 3.5 m support-spacing rule flags the 4 m rack span.
@@ -64,6 +78,26 @@ This project rule annotates the solver evidence; it does not establish
 compliance with a piping or structural standard.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review) &middot; Evidence: **Results**
+
+## Nonlinear friction
+
+[![Nonlinear friction review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review)
+
+Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. The review compares friction coefficients of 0 and 0.3 through heating, cooling, lift-off and reseating.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review) &middot; Evidence: **Results**
+
+See the [native friction example](examples/native-friction.md) for the contact law, load stages and validation.
+
+## Beam orientation
+
+[![Beam orientation review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
+
+Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. The review compares global and local loading, deformed profiles, and section rotations relative to the original local axes.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) &middot; Evidence: **Results**
+
+See the [profile-orientation example](examples/profile-orientation.md) for the two load cases, local-axis convention and numerical reference checks.
 
 ## Local examples
 
@@ -122,19 +156,3 @@ After [Setup](setup.md) succeeds, open:
 ```
 
 Examples that display stress, reaction, displacement, compliance, or operating-state results must either execute Code_Aster or load real preserved Code_Aster artifacts.
-
-## Nonlinear friction
-
-Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. The review compares friction coefficients of 0 and 0.3 through heating, cooling, lift-off and reseating.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review) &middot; Evidence: **Results**
-
-See the [native friction example](examples/native-friction.md) for the contact law, load stages and validation.
-
-## Beam orientation
-
-Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. The review compares global and local loading, deformed profiles, and section rotations relative to the original local axes.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) &middot; Evidence: **Results**
-
-See the [profile-orientation example](examples/profile-orientation.md) for the two load cases, local-axis convention and numerical reference checks.

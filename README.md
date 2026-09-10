@@ -5,7 +5,29 @@ Code_Aster analyses, and displaying the results.
 
 [![A solved Tuba review showing pipe geometry, the analysis mesh, wall stress, deformation and support reactions together.](docs/content/assets/figures/code_aster_review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
-[Example gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
+## Gallery
+
+Every review opens in your browser, no install needed. All except *Imported
+components* show imported Code_Aster results.
+[Browse the full gallery →](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
+
+<table>
+<tr>
+<td width="33%"><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png" width="250" alt="Thermal expansion review in the Tuba viewer"></a><br><b>Thermal expansion</b><br>Where does a hot line move, and what does it reach?</td>
+<td width="33%"><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png" width="250" alt="Load transfer review in the Tuba viewer"></a><br><b>Load transfer</b><br>What do the supports and the steel underneath actually carry?</td>
+<td width="33%"><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png" width="250" alt="Beam orientation review in the Tuba viewer"></a><br><b>Beam orientation</b><br>How do section orientation and local axes change bending?</td>
+</tr>
+<tr>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png" width="250" alt="Pipe bends review in the Tuba viewer"></a><br><b>Pipe bends</b><br>What happens to a pressurised line held at both ends?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/guyed-mast-review.png" width="250" alt="Cable review in the Tuba viewer"></a><br><b>Cable</b><br>Which guys hold a mast in the wind, and which one goes slack?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png" width="250" alt="Nonlinear friction review in the Tuba viewer"></a><br><b>Nonlinear friction</b><br>How does friction change the same pipe and load path?</td>
+</tr>
+<tr>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png" width="250" alt="3D solid review in the Tuba viewer"></a><br><b>3D solid</b><br>Does stress concentrate where the branch meets the header?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png" width="250" alt="Elements and supports review in the Tuba viewer"></a><br><b>Elements and supports</b><br>Do bars, cables and spring supports survive the trip to the solver?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png" width="250" alt="Imported components model review in the Tuba viewer"></a><br><b>Imported components</b><br>How does a supplied component join an authored line?</td>
+</tr>
+</table>
 
 ## Example
 

@@ -183,11 +183,14 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertNotIn("sections.png", (CONTENT / "modeling.md").read_text(encoding="utf-8"))
 
     def test_readme_and_home_lead_into_the_review_gallery(self):
-        """First contact is the browser, so both front pages open the gallery.
+        """First contact is the browser, so both front pages show the gallery.
 
-        They deliberately do not deep-link one review: the gallery is what
-        explains the product to someone who has not heard of it.
+        Every published review appears as its Pages-built thumbnail linking
+        into the review, so a reader sees what Tuba does before any prose.
+        Derived from the registry: a new gallery cannot miss the front pages.
         """
+        from scripts.official_gallery import OFFICIAL_GALLERIES
+
         figure = CONTENT / "assets" / "figures" / "code_aster_review.png"
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         home = (CONTENT / "index.md").read_text(encoding="utf-8")
@@ -197,6 +200,11 @@ class TestStaticSiteDocs(unittest.TestCase):
         self.assertIn("assets/figures/code_aster_review.png", home)
         for page, text in (("README.md", readme), ("index.md", home)):
             self.assertIn("Tuba_v4/viewer/", text, f"{page} must link the review gallery")
+            for gallery in OFFICIAL_GALLERIES:
+                if "pages" not in gallery.audiences:
+                    continue
+                self.assertIn(f"viewer/?bundle={gallery.id}", text, f"{page} does not link {gallery.id!r}")
+                self.assertIn(f"viewer/{gallery.thumbnail}", text, f"{page} does not show {gallery.id!r}")
 
     def test_readme_stays_short_enough_to_read(self):
         """It reached 377 lines and buried the product under its own features."""
