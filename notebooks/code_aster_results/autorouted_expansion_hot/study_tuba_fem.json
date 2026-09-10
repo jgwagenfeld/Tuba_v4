@@ -308,7 +308,7 @@
   "schema_version": 1,
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "ca7de0aa1cc33b4388401e381d4bcdd5c1d58df2d6cd137da9da68db4b1f5261",
+    "fingerprint": "a174e05e608726def3d844b1ba61a3c366c01da53ffec5f0ee047824b4e91adb",
     "load_case": "Hot",
     "schema_id": "tuba.model.v4"
   },

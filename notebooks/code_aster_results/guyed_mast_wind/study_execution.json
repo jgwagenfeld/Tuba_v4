@@ -13,40 +13,40 @@
       "size_bytes": 6085
     },
     "study.mess": {
-      "sha256": "a949d0ce20dcc35595e8487b5f6c49f870c16fe2694aaede9bb57a27d45253ad",
+      "sha256": "91b37c10eeccc8bbfa15a6f6edd2e9155e395cf992a848bed377a35863dfb362",
       "size_bytes": 46101
     },
     "study.rmed": {
-      "sha256": "d0ad633578833cf34f78f9054e452d975e55ae1a7cc67955077d026e11bdd764",
+      "sha256": "563847dcfabaa5a60b5f28bf33e7c26ca1a06241596711faa6ea7a2de1bab233",
       "size_bytes": 56114
     },
     "study_depl.csv": {
-      "sha256": "7b42f9233688475e9151bdcb1fac163ba2f8b494d78c002b78e3fbc56f6af5ac",
+      "sha256": "977a5372a9c6936e65fa066d596d5e4856fc506f53f1ba944028a763299867e2",
       "size_bytes": 13739
     },
     "study_effo.csv": {
-      "sha256": "1bb6afa1c18266a113682086132e56e5fcd1fd95aa72237520457818ce4aa113",
+      "sha256": "4a720069d3562b7e84e44db7cca8a1c837fbd7cbdc33e3883c795c733d5e9311",
       "size_bytes": 29386
     },
     "study_manifest.json": {
-      "sha256": "93da0433c432a4a4f9d8916d02e67901e70e047b92c5b82ab72b4f6bbdc015d4",
+      "sha256": "a05478e9969b2dcbb93fe128f4789cef60da0f892df37122e005460ddbd6e775",
       "size_bytes": 30861
     },
     "study_reac.csv": {
-      "sha256": "d33acb605332858bfc59f4cb208f9c7bea38c47f5a1dd3800ce8d32d53849ba1",
+      "sha256": "a0e68e2260a298f81fa8041eeb8e3acd08b71184713442c61716f61c511c09db",
       "size_bytes": 13739
     },
     "study_tuba_fem.json": {
-      "sha256": "e9fcc81c6d5150a3691867f83b0a96f1d3ff0b8ed0fd248dc774ef84c9748e1f",
+      "sha256": "8d685b29e63584e14e0dc3e5c4604f5b4effd7f19353a05617c3a6f1337c6402",
       "size_bytes": 4610
     }
   },
   "execution_method": "wsl",
   "schema_version": "tuba.code_aster_execution.v1",
-  "solved_at": "2026-09-09T22:59:36.580043Z",
+  "solved_at": "2026-09-10T07:10:39.897398Z",
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "15338c9e4cc36eb07551c7a8987cd680df7a269896afe9b76e169a2f2e04f653",
+    "fingerprint": "f98f623878940fe59f83159167186d5a1a50da3b400d67f6ca2fd52b572d7298",
     "load_case": "Wind",
     "schema_id": "tuba.model.v4"
   },

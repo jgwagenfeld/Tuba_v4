@@ -126,6 +126,14 @@ BC_3 = AFFE_CHAR_MECA(
     ),
 );
 
+BC_4 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N5',
+        WO=0.0,
+    ),
+);
+
 # ----- Gravity -----
 GRAVITY = AFFE_CHAR_MECA(
     MODELE=MODELE,
@@ -219,6 +227,7 @@ RESU = STAT_NON_LINE(
         _F(CHARGE=BC_1),
         _F(CHARGE=BC_2),
         _F(CHARGE=BC_3),
+        _F(CHARGE=BC_4),
         _F(CHARGE=GRAVITY),
         _F(CHARGE=PRESSURE),
     ),
@@ -268,6 +277,7 @@ IMPR_TABLE(
     TABLE=TAB_EFFO,
     UNITE=38,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -286,6 +296,7 @@ IMPR_TABLE(
     TABLE=TAB_DEPL,
     UNITE=39,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -304,6 +315,7 @@ IMPR_TABLE(
     TABLE=TAB_REAC,
     UNITE=40,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 
@@ -322,6 +334,7 @@ IMPR_TABLE(
     TABLE=TAB_SIEQ,
     UNITE=41,
     FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
     SEPARATEUR=',',
 );
 

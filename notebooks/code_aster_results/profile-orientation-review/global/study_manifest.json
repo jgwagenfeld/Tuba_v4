@@ -9304,7 +9304,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "1674588cc22e9b452da21a2f0fad253f32473b0f84e964149a1bc540262583c4",
+      "fingerprint": "0e5ff0f4bc86fe33da6c2fb8f9c32c90170f2f41eb49811b46a9c559cd5a0424",
       "load_case": "global",
       "schema_id": "tuba.model.v4"
     },
@@ -9331,7 +9331,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "1674588cc22e9b452da21a2f0fad253f32473b0f84e964149a1bc540262583c4",
+      "fingerprint": "0e5ff0f4bc86fe33da6c2fb8f9c32c90170f2f41eb49811b46a9c559cd5a0424",
       "load_case": "global",
       "schema_id": "tuba.model.v4"
     },

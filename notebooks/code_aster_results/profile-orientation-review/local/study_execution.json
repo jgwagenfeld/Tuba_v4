@@ -13,40 +13,40 @@
       "size_bytes": 43323
     },
     "study.mess": {
-      "sha256": "b15d38a1477c678e30fc5c9d050a4f491fa9db6566be8f53d81b36df6bd0537d",
+      "sha256": "c602982c429fdd33b979f61f64fea37a9eda4d7bf4a72dc2ea64abe9c556b679",
       "size_bytes": 37802
     },
     "study.rmed": {
-      "sha256": "6a9b3933302d175bd2105147c09f5d4a868e3a3a5caea6326c18514ca69e1570",
+      "sha256": "595ee40432f1847e75936eb45a8e795086a5bed4ad3cd09c325560e6db95d8f8",
       "size_bytes": 138254
     },
     "study_depl.csv": {
-      "sha256": "978c2aef8ac12aec58a09bc52a861109afa22519702a881f30a7473414adad7f",
+      "sha256": "ff1b875b388e7244db9d80ebdf6f9967922ba19abb758177380a569a8fbc3755",
       "size_bytes": 95989
     },
     "study_effo.csv": {
-      "sha256": "b73b4563ef7dd0fa7812ae2eb83c72b036ae4c552224186c6693cf44eabee379",
+      "sha256": "37f46eb7982b58c8351ae626d28dcf5028f889d068c2971b1e8b000ad33533ae",
       "size_bytes": 209930
     },
     "study_manifest.json": {
-      "sha256": "0d35fb421e99b23fdf94b2764fdb2c4cac7a8e702089e9c87ba1bbeebb315b96",
+      "sha256": "d48b32c58e49ea3b81066512fe7ecedced4d27f7b80fe93a3ab6c60cdac08f18",
       "size_bytes": 215920
     },
     "study_reac.csv": {
-      "sha256": "1f8d05af7f84c126424861a48ebc1d36eb71a8e10661a34f9380e46c7208e154",
+      "sha256": "ee71bda4e2f1a3d78eadf6df81868c172eaa58db2cd7f251f9508bba15f06c4d",
       "size_bytes": 95989
     },
     "study_tuba_fem.json": {
-      "sha256": "40990aaf73e9227c86bbb0b36b46969c78f0c5073d8c9055b7a56d04b61067ca",
+      "sha256": "d01436a34209e4f715aa120e89b89648d02da0f7fe72d552af93028a1df1a339",
       "size_bytes": 30213
     }
   },
   "execution_method": "wsl",
   "schema_version": "tuba.code_aster_execution.v1",
-  "solved_at": "2026-09-09T23:02:36.792962Z",
+  "solved_at": "2026-09-10T07:13:12.273047Z",
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "4faa0ee37877e4650726143d1f5b2c28fead2fb82adbb1917594945b6ad02b28",
+    "fingerprint": "23b7c936d14488ef0edf36469cba604f6e252a0ee61bedfd5a11b5f9d2307ebc",
     "load_case": "local",
     "schema_id": "tuba.model.v4"
   },

@@ -95,7 +95,7 @@ def build_solver_input_identity(
     }
     if insulation:
         payload["insulation"] = insulation
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    canonical = json.dumps(_platform_stable(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return SolverInputIdentity(
         fingerprint=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         load_case=resolved_name,
@@ -147,6 +147,25 @@ def require_matching_solver_input_identities(
 ) -> None:
     if first is not None and second is not None and first != second:
         raise ValueError(f"{context} solver input fingerprints do not match.")
+
+
+# Floats are hashed at 9 significant digits, not by their exact repr. The same
+# model built by the same code can differ in the last bit between Windows and
+# Linux - the guyed mast's anchors come from math.cos and math.sin, and one of
+# them lands one ULP apart - and an exact hash made that a fingerprint mismatch:
+# the mast solved on Windows was refused by the Linux Pages build. 9 digits is
+# still far finer than any real edit to a model input, and a float that already
+# fits keeps its exact repr.
+# ponytail: a value that cancels to exactly 0.0 on one platform and ~1e-16 on
+# the other still mismatches; add an absolute floor if that ever turns up.
+def _platform_stable(value: Any) -> Any:
+    if isinstance(value, float):
+        return float(f"{value:.9g}")
+    if isinstance(value, dict):
+        return {key: _platform_stable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_platform_stable(item) for item in value]
+    return value
 
 
 def _operation_field_payload(field: Any) -> dict[str, Any]:

@@ -482,6 +482,34 @@ def test_solver_input_identity_ignores_int_versus_float_literals():
     assert integers == floats
 
 
+def test_solver_input_identity_survives_last_bit_float_noise():
+    """One model built on Windows and on Linux must keep one identity.
+
+    The guyed mast places its anchors with math.cos and math.sin, and the last
+    bit came out differently: node N5 was -5.196152422706631 on Windows and
+    -5.19615242270663 on Linux, so the artifact solved on Windows was refused
+    by the Linux Pages build.
+    """
+
+    def mast_model(anchor_y):
+        model = Model(project_name="Noise")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+        collar = model.add_node([0.0, 0.0, 8.0])
+        anchor = model.add_node([-3.0000000000000027, anchor_y, 0.0])
+        model.add_element(id="guy", type="pipe_straight", n1=collar, n2=anchor, section="Pipe", material="Steel")
+        model.define_load_case("Wind", gravity=True)
+        return model
+
+    windows = build_solver_input_identity(mast_model(-5.196152422706631), "Wind")
+    linux = build_solver_input_identity(mast_model(-5.19615242270663), "Wind")
+    moved = build_solver_input_identity(mast_model(-5.196147), "Wind")
+
+    assert windows == linux
+    # A real edit, even 5 micrometres, is still a different model.
+    assert moved != windows
+
+
 def _fake_solved_artifacts(work_dir: Path) -> None:
     """Write the artifact set a successful Code_Aster run leaves behind."""
     (work_dir / "study.mess").write_text("Code_Aster Version 17.1.0\n", encoding="utf-8")
