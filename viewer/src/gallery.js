@@ -82,15 +82,18 @@ function card(entry) {
   const body = document.createElement("div");
   body.className = "gallery-card-body";
 
+  // The question leads and the title is the eyebrow beneath it. 13709fc swapped
+  // the two, which put a whole sentence into the uppercase eyebrow style and
+  // failed the pages-gallery check that every card asks a question.
   const heading = document.createElement("h2");
   heading.className = "gallery-card-question";
-  heading.textContent = entry.title;
+  heading.textContent = entry.question || entry.title;
   body.append(heading);
 
   if (entry.question) {
     const title = document.createElement("p");
     title.className = "gallery-card-title";
-    title.textContent = entry.question;
+    title.textContent = entry.title;
     body.append(title);
   }
 
