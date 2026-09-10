@@ -2,9 +2,7 @@
 
 Autorouting generates and reviews pipe-centerline candidates. It can apply a selected candidate to a model, export Code_Aster studies, and write route reports. Engineering acceptance still requires a real Code_Aster solve and imported result artifacts.
 
-![Obstacles and endpoints before routing.](assets/figures/route_preroute.png)
-
-![Ranked route candidates and reserved envelopes.](assets/figures/route_candidates.png)
+![Route candidates between two endpoints around two obstacles, with the selected route applied as pipe.](assets/figures/route_candidates.png)
 
 ## Implementation map
 

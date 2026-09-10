@@ -10,11 +10,11 @@ The exported study files are a handoff. A `.comm`, `.mail`, or `.export` file do
 
 ## What you are building
 
-![Validated tutorial pipe geometry with supports.](assets/figures/tutorial_model.png)
+![The tutorial pipe in the Tuba viewer: geometry and supports, before any solve.](assets/figures/tutorial_model.png)
 
-The first figure is model geometry only. After a real Code_Aster solve, the same model can be inspected through the PyVista quick-look path:
+The first figure is model geometry only. After a real Code_Aster solve, the review scene shows the same model with its imported results:
 
-![PyVista deformed shape coloured by Code_Aster Von Mises stress.](assets/figures/pyvista_deformed_stress.png)
+[![The solved tutorial pipe in the Tuba viewer, coloured by FE Von Mises stress, with support reactions.](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
 ## Prerequisites
 
@@ -36,37 +36,34 @@ from tuba.visualization import build_visualization_scene, write_scene_bundle
 
 work_dir = Path("runs/first_pipe_operating")
 
-model = Model(project_name="FirstPipe")
+model = Model(project_name="VizGalleryDemo")
 model.add_material(
-    "steel",
+    "Steel",
     E=210e9,
     nu=0.3,
     rho=7850.0,
     alpha=12e-6,
-    allowable_stress={20.0: 140e6, 180.0: 120e6},
+    allowable_stress={20.0: 137e6, 150.0: 127e6},
 )
-model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+model.add_pipe_section("DN100", OD=0.1143, WT=0.00602, corrosion_allowance=0.001)
 
-with model.pipe(section="DN100", material="steel", route="P-100") as pipe:
+with model.pipe(section="DN100", material="Steel") as pipe:
     pipe.start([0.0, 0.0, 0.0], support="anchor")
-    pipe.run(2.0)
+    pipe.run(3.0)
+    pipe.add_support(type="guide")
     pipe.bend(radius=0.30, angle=90.0, plane="XY")
-    pipe.run(1.5)
+    pipe.run(2.0)
+    pipe.add_support(type="rest")
+    pipe.bend(radius=0.30, angle=90.0, plane="XZ")
+    pipe.run(2.0)
     pipe.end(support="anchor")
 
-operating = model.define_operation(
+model.define_load_case(
     "Operating",
     gravity=True,
-    pressure=1.2e6,
-    temperature=180.0,
+    pressure=1.5e6,
+    temperature=150.0,
     ref_temperature=20.0,
-)
-operating.add_field(
-    "temperature",
-    160.0,
-    route_id="P-100",
-    station_start=0.0,
-    station_end=1.2,
 )
 model.validate()
 
@@ -86,7 +83,7 @@ scene = build_visualization_scene(
 write_scene_bundle(scene, work_dir / "review_scene")
 ```
 
-The staged `CodeAsterSolver` path keeps export, execution, and import independently inspectable. `model.solve()` is the shorter convenience when that separation is not needed.
+This is the model in both figures above and in the linked review scene below. The staged `CodeAsterSolver` path keeps export, execution, and import independently inspectable. `model.solve()` is the shorter convenience when that separation is not needed.
 
 ## Units
 
@@ -95,8 +92,8 @@ Tuba model values use SI units.
 | Quantity | Unit | Example |
 | --- | --- | --- |
 | Length, diameter, wall thickness | m | `OD=0.1143` means 114.3 mm |
-| Pressure | Pa | `1.2e6` means 1.2 MPa |
-| Temperature | deg C | `180.0` |
+| Pressure | Pa | `1.5e6` means 1.5 MPa |
+| Temperature | deg C | `150.0` |
 | Force | N | Solver reactions |
 | Young's modulus and stress | Pa | `E=210e9` means 210 GPa |
 | Thermal expansion | 1/K | `alpha=12e-6` |

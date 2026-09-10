@@ -139,14 +139,14 @@ Unit fixtures may remain portable. Integration claims require the real backend.
 
 ## Documentation figures
 
-Figure generators use live Tuba objects but do not run the solver:
+Figure generators use live Tuba objects but do not run the solver. `generate_figures.py` writes each figure as a scene bundle and photographs it in the viewer with the gallery's headless browser, so it needs Node, the viewer's npm dependencies and the Playwright browser. Name figures to shoot only those:
 
 ```powershell
-uv run python scripts\docs\generate_figures.py
+uv run python scripts\docs\generate_figures.py [figure ...]
 uv run python scripts\docs\generate_section_drawings.py
 ```
 
-The deformed-stress figure loads committed Code_Aster artifacts with `run_solver=False`; it does not synthesize results.
+Result pictures in the manual are the Pages-built gallery thumbnails, which photograph committed Code_Aster artifacts; no figure synthesizes results.
 
 ## Contributing
 

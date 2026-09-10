@@ -5,8 +5,10 @@
 // and refreshed by hand, which kept the browser out of the release path and let
 // the pictures drift six weeks behind the data they claimed to show.
 //
-//   node viewer/scripts/gallery-thumbnails.mjs <out-dir> <id> [<id> ...]
+//   node viewer/scripts/gallery-thumbnails.mjs [--bare] <out-dir> <id> [<id> ...]
 // Set TUBA_PAGES_SITE_ROOT (relative to viewer/) to capture an assembled site.
+// --bare hides the camera buttons: scripts/docs/generate_figures.py shoots the
+// manual's figures here too, and a picture on a page is not a control surface.
 
 import { mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -16,10 +18,12 @@ import { createServer } from "vite";
 
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const siteRoot = process.env.TUBA_PAGES_SITE_ROOT?.trim();
-const [outDir, ...bundleIds] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const bare = args[0] === "--bare";
+const [outDir, ...bundleIds] = bare ? args.slice(1) : args;
 
 if (!outDir || bundleIds.length === 0) {
-  console.error("usage: node viewer/scripts/gallery-thumbnails.mjs <out-dir> <id> [<id> ...]");
+  console.error("usage: node viewer/scripts/gallery-thumbnails.mjs [--bare] <out-dir> <id> [<id> ...]");
   process.exit(2);
 }
 
@@ -53,6 +57,7 @@ try {
     await page.waitForFunction(
       () => (window.__tubaViewer?.lastRender?.objectIds ?? []).length > 0
     );
+    if (bare) await page.addStyleTag({ content: "[data-camera-controls] { display: none !important; }" });
     const target = join(outDir, `${bundleId}.png`);
     await page.locator("[data-canvas]").screenshot({ path: target });
     console.log(`wrote ${target}`);

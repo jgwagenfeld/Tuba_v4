@@ -85,9 +85,7 @@ The pipe builder is a moving frame. `run` advances along the current direction; 
 
 ![A builder route through in-plane and out-of-plane bends.](assets/figures/builder_route.png)
 
-![The finite-element chord and stored circular bend arc.](assets/figures/bend_chord_arc.png)
-
-![Dimensioned circular bend detail.](assets/figures/bend_detail.svg)
+![The straight finite-element chord against the stored circular bend arc.](assets/figures/bend_detail.svg)
 
 | Command | Effect | Common error |
 | --- | --- | --- |

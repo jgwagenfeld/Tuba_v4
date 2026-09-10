@@ -156,13 +156,13 @@ class TestStaticSiteDocs(unittest.TestCase):
         # Each concept page must reference the real rendered figures (committed
         # under assets/figures/) and must not fall back to Mermaid or CSS sketches.
         required_figures = {
-            "tutorial.md": ["tutorial_model.png", "pyvista_deformed_stress.png"],
+            "tutorial.md": ["tutorial_model.png"],
             "modeling.md": [
                 "element_triad.png", "placement_frame.png", "builder_route.png",
-                "bend_chord_arc.png", "sections.svg", "bend_detail.svg", "supports.png",
+                "sections.svg", "bend_detail.svg", "supports.png",
             ],
-            "workflow.md": ["tutorial_model.png", "pyvista_deformed_stress.png"],
-            "autorouting.md": ["route_preroute.png", "route_candidates.png"],
+            "workflow.md": ["tutorial_model.png"],
+            "autorouting.md": ["route_candidates.png"],
         }
         forbidden = [
             'class="mermaid"', "diagrams.js", "axis-sketch", "section-gallery",

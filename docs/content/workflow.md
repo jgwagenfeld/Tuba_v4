@@ -6,9 +6,9 @@ The current Tuba v4 engineering sequence is:
 Tuba model -> Code_Aster solve -> imported artifacts -> processed result review
 ```
 
-![Validated model geometry before solving.](assets/figures/tutorial_model.png)
+![Validated model geometry in the Tuba viewer, before solving.](assets/figures/tutorial_model.png)
 
-![PyVista quick-look of imported Code_Aster deformation and stress.](assets/figures/pyvista_deformed_stress.png)
+[![The same model after the Code_Aster solve, with imported stress and support reactions in the Tuba viewer.](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
 ## Execution sequence
 

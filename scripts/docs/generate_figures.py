@@ -1,362 +1,245 @@
-"""Render the documentation figures from the real Tuba pipeline.
+"""Photograph the documentation figures in the Tuba viewer.
 
-Run:  .\\.venv\\Scripts\\python.exe scripts/docs/generate_figures.py
-Outputs committed PNGs under docs/content/assets/figures/. No solver required.
+Run:  uv run python scripts/docs/generate_figures.py [figure ...]
+
+Each figure is a scene built from live Tuba objects, written as a viewer bundle
+and shot by the headless browser that photographs the gallery cards, so the
+manual shows what a reader sees when they open a review. The PyVista renders
+these replaced had drifted into a look the product no longer has. No solver
+runs here: result pictures in the manual are the Pages-built gallery thumbnails.
+
+Needs Node, the viewer's npm dependencies and the Playwright browser. Outputs
+committed PNGs under docs/content/assets/figures/.
 """
 from __future__ import annotations
 
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Iterable
 
 import numpy as np
-import pyvista as pv
-from PIL import Image
 
 from tuba import Model
-from tuba.plotting.scenes import build_model_scene
-from tuba.plotting.plots import add_local_axes_to_plotter, _add_supports_to_plotter
-from tuba.plotting.export import export_screenshot
+from tuba.geometry.section_mesh import beam_local_frame
+from tuba.model import sample_bend_geometry
+from tuba.placements import PlacementFrame
+from tuba.routing import GridRouter
+from tuba.routing.adapter import apply_candidate_to_model
+from tuba.routing.types import PipeRouteRequest, RouteEndpoint, RoutingConstraints, RoutingGridSpec
+from tuba.visualization import (
+    GeometryAsset,
+    SceneLayer,
+    SceneObject,
+    VisualizationScene,
+    add_scene_label,
+    build_visualization_scene,
+    write_scene_bundle,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:  # figures import from examples/, which is not installed
     sys.path.insert(0, str(REPO_ROOT))
 FIG_DIR = REPO_ROOT / "docs" / "content" / "assets" / "figures"
-RES = (1600, 1000)
+VIEWER = REPO_ROOT / "viewer"
+SHOOTER = VIEWER / "scripts" / "gallery-thumbnails.mjs"
+#: The viewer serves any public/ folder holding a scene.json as a bundle, so a
+#: figure is shot from there and removed again afterwards.
+BUNDLE_PREFIX = "docs-figure-"
+LABEL_HEIGHT = 0.13
+#: The viewer's own axis colours, as on its orientation gizmo.
+AXIS_COLORS = {"x": "#dc2626", "y": "#16a34a", "z": "#2563eb"}
 
 
-def _autocrop(path: Path, *, pad_frac: float = 0.05, min_pad: int = 24) -> None:
-    """Crop the solid-colour background margin so the subject fills the frame.
+def _materials(model: Model) -> None:
+    model.add_material("steel", E=210e9, nu=0.3, rho=7850.0, alpha=12e-6)
+    model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
 
-    Background colour is read from the top-left corner, so this works on both the
-    dark model renders (#111827) and the light route schematics (#f7f8fa) without
-    knowing which is which. Padding is a fraction of the subject's larger side, so
-    every figure keeps the same visual breathing room regardless of subject size.
+
+def _add_axes(scene: VisualizationScene, origin, basis, *, axes_id: str, length: float,
+              labels: dict[str, str] | None = None) -> None:
+    """Draw a right-handed triad as the viewer's local-axis vectors.
+
+    The scene builder emits these only for imported-component placements, so a
+    figure about element and placement frames adds its own in the same format.
     """
-    im = Image.open(path).convert("RGB")
-    arr = np.asarray(im, dtype=int)
-    h, w, _ = arr.shape
-    bg = arr[0, 0]
-    mask = np.abs(arr - bg).sum(axis=2) > 24
-    if not mask.any():
-        return
-    ys, xs = np.where(mask)
-    y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
-    pad = max(min_pad, round(pad_frac * max(y1 - y0, x1 - x0)))
-    box = (max(0, x0 - pad), max(0, y0 - pad),
-           min(w, x1 + 1 + pad), min(h, y1 + 1 + pad))
-    im.crop(box).save(path)
-
-
-def _steel(model: Model) -> None:
-    model.add_material(
-        "steel", E=210e9, nu=0.3, rho=7850.0, alpha=12e-6,
-        allowable_stress={20.0: 140e6, 180.0: 120e6},
-    )
-
-
-def _render(model, path: Path, *, results=None, deform_scale=None,
-            local_axes=False, local_axes_scale=0.45,
-            supports=False, supports_scale=0.085, body_opacity=None,
-            res=RES, post: Optional[Callable[["pv.Plotter"], None]] = None) -> Path:
-    plotter = build_model_scene(model, results, off_screen=True, title="",
-                                deform_scale=deform_scale)
-    if body_opacity is not None:
-        # Only the pipe body exists at this point (axes/supports are added below),
-        # so make it translucent to reveal the local X axis that runs down the bore.
-        for actor in list(plotter.renderer.actors.values()):
-            try:
-                actor.prop.opacity = body_opacity
-            except AttributeError:
-                pass
-    if local_axes:
-        add_local_axes_to_plotter(plotter, model, scale=local_axes_scale)
-    if supports:
-        _add_supports_to_plotter(plotter, model, scale=supports_scale)
-    if post is not None:
-        post(plotter)
-    plotter.reset_camera()
-    export_screenshot(plotter, str(path), resolution=res)
-    plotter.close()
-    _autocrop(path)
-    return path
-
-
-from tuba.placements import PlacementFrame
-from tuba.coordinates import CoordinateSystem
-
-
-def _triad(plotter, origin, cs, scale, labels) -> None:
+    if not any(layer.id == "local_coordinate_axes" for layer in scene.layers):
+        scene.layers.append(SceneLayer(id="local_coordinate_axes", category="design", label="Local axes"))
     origin = np.asarray(origin, dtype=float)
-    axes = ((cs.x_axis, "#ff3b30", labels[0]),
-            (cs.y_axis, "#7ed321", labels[1]),
-            (cs.z_axis, "#2f80ff", labels[2]))
-    tips, texts = [], []
-    for vec, col, lbl in axes:
-        v = np.asarray(vec, dtype=float)
-        plotter.add_mesh(pv.Arrow(start=origin, direction=v, scale=scale,
-                                  tip_radius=0.07, shaft_radius=0.028),
-                         color=col, lighting=False)
-        tips.append(origin + v * scale * 1.08)
-        texts.append(lbl)
-    plotter.add_mesh(pv.Sphere(radius=scale * 0.05, center=origin), color="#e5e7eb")
-    plotter.add_point_labels(np.array(tips), texts, font_size=16, text_color="white",
-                             shape=None, show_points=False, always_visible=True)
+    for axis, direction in zip("xyz", basis):
+        direction = np.asarray(direction, dtype=float)
+        end = origin + direction * length
+        object_id = f"object:docs_axes:{axes_id}:{axis}"
+        asset_id = f"geometry:docs_axes:{axes_id}:{axis}"
+        scene.geometry_assets.append(GeometryAsset(
+            id=asset_id,
+            format="vector",
+            bounds=[float(value) for value in (*np.minimum(origin, end), *np.maximum(origin, end))],
+            object_ids=[object_id],
+            generation_config={"axis": axis, "start": origin.tolist(), "end": end.tolist(),
+                               "color": AXIS_COLORS[axis]},
+        ))
+        scene.objects.append(SceneObject(
+            id=object_id,
+            kind="local_coordinate_axis",
+            name=f"{axes_id} {axis.upper()}",
+            geometry_asset_id=asset_id,
+            layer_ids=["local_coordinate_axes"],
+            metadata={"axis": axis},
+        ))
+        if labels:
+            tip = origin + direction * length * 1.2
+            add_scene_label(scene, labels[axis], tip.tolist(), label_id=f"{axes_id}-{axis}", height=LABEL_HEIGHT)
 
 
-def fig_element_triad(out_dir: Path) -> Path:
-    """One straight pipe element with its local X/Y/Z triad (X runs down the bore)."""
-    from tuba.plotting.plots import _get_element_local_frame
-
-    m = Model(project_name="ElementTriad")
-    _steel(m)
-    m.add_pipe_section("DN150", OD=0.1683, WT=0.0071)
-    with m.pipe(section="DN150", material="steel", route="P") as p:
-        p.start([0.0, 0.0, 0.0])
-        p.run(2.5)
-
-    elem = m.elements[0]
-    mid = (m.nodes[elem.n1].coords + m.nodes[elem.n2].coords) / 2.0
-    frame = _get_element_local_frame(m, elem)
-    scale = 0.7
-
-    def label_axes(plotter):
-        tips = [mid + np.asarray(v, float) * scale * 1.1 for v in frame]
-        plotter.add_point_labels(
-            np.array(tips),
-            ["local X — along the pipe", "local Y", "local Z"],
-            font_size=17, text_color="white", shape=None, show_points=False,
-            always_visible=True)
-
-    return _render(m, out_dir / "element_triad.png", local_axes=True,
-                   local_axes_scale=scale, body_opacity=0.4, post=label_axes)
-
-
-def fig_placement_frame(out_dir: Path) -> Path:
-    """World triad + a rotated local placement frame with a pipe authored in local coords."""
-    m = Model(project_name="Placement")
-    _steel(m)
-    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
-    frame = PlacementFrame(id="rack", origin=(2.4, 1.4, 0.4),
-                           axis=(0.0, 0.35, 1.0), ref_direction=(1.0, 0.6, 0.0))
-    cs = frame.to_coordinate_system()
-    start_g = cs.to_global_point(np.array([0.0, 0.0, 0.0]))
-    end_g = cs.to_global_point(np.array([1.8, 0.0, 0.0]))
-    n1 = m.add_node(start_g.tolist())
-    n2 = m.add_node(end_g.tolist())
-    m.add_element(id="local_pipe", type="pipe_straight", n1=n1, n2=n2,
-                  section="DN100", material="steel")
-    plotter = build_model_scene(m, off_screen=True, title="")
-    _triad(plotter, (0.0, 0.0, 0.0), CoordinateSystem.identity(), 1.1,
-           ["world X", "world Y", "world Z"])
-    _triad(plotter, cs.origin, cs, 1.0, ["local X", "local Y", "local Z"])
-    plotter.hide_axes()  # redundant with the drawn world triad; its corner widget only skews the crop
-    plotter.reset_camera()
-
-    export_screenshot(plotter, str(out_dir / "placement_frame.png"), resolution=RES)
-    plotter.close()
-    _autocrop(out_dir / "placement_frame.png")
-    return out_dir / "placement_frame.png"
-
-
-def fig_builder_route(out_dir: Path) -> Path:
-    """Local triad following a pipe through an in-plane and an out-of-plane bend."""
-    m = Model(project_name="BuilderRoute")
-    _steel(m)
-    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
-    with m.pipe(section="DN100", material="steel", route="P-100") as p:
-        p.start([0.0, 0.0, 0.0], support="anchor")
-        p.run(2.0)
-        p.bend(radius=0.3, angle=90.0, plane="XY")
-        p.run(1.5)
-        p.bend(radius=0.3, angle=90.0, plane="XZ")
-        p.run(1.2)
-        p.end(support="anchor")
-    return _render(m, out_dir / "builder_route.png", local_axes=True,
-                   local_axes_scale=0.45, supports=True, supports_scale=0.085)
-
-
-def fig_supports(out_dir: Path) -> Path:
-    """Anchor / guide / rest / spring support glyphs on a routed pipe."""
-    m = Model(project_name="Supports")
-    _steel(m)
-    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
-    with m.pipe(section="DN100", material="steel", route="S") as p:
-        p.start([0.0, 0.0, 0.0], support="anchor")
-        p.run(1.5)
-        p.add_support(type="guide")
-        p.run(1.5)
-        p.add_support(type="rest")
-        p.run(1.5)
-        p.add_support(type="spring")
-        p.run(1.5)
-        p.end(support="anchor")
-    return _render(m, out_dir / "supports.png", supports=True, supports_scale=0.1)
-
-
-def fig_bend_chord_arc(out_dir: Path) -> Path:
-    """The FE node chord (tangent-intersection) vs the true stored circular arc."""
-    from tuba.model import sample_bend_geometry
-
-    m = Model(project_name="BendChordArc")
-    _steel(m)
-    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
-    with m.pipe(section="DN100", material="steel", route="B") as p:
-        p.start([0.0, 0.0, 0.0])
-        p.run(1.5)
-        p.bend(radius=0.6, angle=90.0, plane="XY")
-        p.run(1.5)
-
-    plotter = build_model_scene(m, off_screen=True, title="")
-    # Straight FE chord: polyline through the actual stored node coordinates.
-    order = [e.n1 for e in m.elements] + [m.elements[-1].n2]
-    chord = np.array([m.nodes[n].coords for n in order], dtype=float)
-    plotter.add_mesh(pv.lines_from_points(chord), color="#f5a623", line_width=6,
-                     label="FE node chord")
-    plotter.add_mesh(pv.PolyData(chord), color="#f5a623", point_size=14,
-                     render_points_as_spheres=True)
-    # True arc for the bend element (sampler needs the bend start node as origin).
-    bend = next(e for e in m.elements if e.type == "pipe_bend")
-    start = m.nodes[bend.n1].coords
-    arc = np.asarray(sample_bend_geometry(start, bend.bend_geometry, n_segments=48), dtype=float)
-    plotter.add_mesh(pv.lines_from_points(arc), color="#2f80ff", line_width=6,
-                     label="true arc")
-    plotter.add_point_labels(
-        np.array([chord[1], arc[len(arc) // 2]]),
-        ["FE node (tangent point)", "true arc"],
-        font_size=15, text_color="white", shape=None, show_points=False, always_visible=True)
-    plotter.reset_camera()
-
-    export_screenshot(plotter, str(out_dir / "bend_chord_arc.png"), resolution=RES)
-    plotter.close()
-    _autocrop(out_dir / "bend_chord_arc.png")
-    return out_dir / "bend_chord_arc.png"
-
-
-def _viz_gallery_model() -> Model:
-    """The review model that matches the committed viz_gallery_operating study (from notebook 10)."""
+def fig_tutorial_model() -> VisualizationScene:
+    """The tutorial's model before it is solved: geometry and supports only."""
     from examples.code_aster_artifact_review import build_model
 
-    return build_model()
+    return build_visualization_scene(build_model())
 
 
-def fig_tutorial_model(out_dir: Path) -> Path:
-    """The review model as pure geometry — 'just data until it is solved'."""
-    return _render(_viz_gallery_model(), out_dir / "tutorial_model.png",
-                   supports=True, supports_scale=0.09)
+def fig_element_triad() -> VisualizationScene:
+    """One straight pipe with its local triad."""
+    model = Model(project_name="ElementTriad")
+    _materials(model)
+    with model.pipe(section="DN100", material="steel", route="P") as pipe:
+        pipe.start([0.0, 0.0, 0.0])
+        pipe.run(2.5)
+    element = model.elements[0]
+    start, end = model.nodes[element.n1].coords, model.nodes[element.n2].coords
+    scene = build_visualization_scene(model)
+    # At the pipe end rather than mid-span, where the pipe would hide local X.
+    _add_axes(scene, end, beam_local_frame(start, end), axes_id="element", length=0.7,
+              labels={"x": "local X (along the pipe)", "y": "local Y", "z": "local Z"})
+    return scene
 
 
-def _vmis_legend(plotter) -> None:
-    """Replace the default VMIS scalar bar with a titled one that fits the frame.
-
-    The stock bar renders its title and top exponent tick hard against the window
-    edge, so both clip. This re-draws the same mapper as an explicit horizontal
-    bar, centred and inset, with a readable title and non-clipping ticks (Pa in
-    scientific notation — the array is Pa, so no misleading unit conversion)."""
-    mappers = plotter.scalar_bars._scalar_bar_mappers.get("VMIS")
-    mapper = mappers[0] if mappers else None
-    try:
-        plotter.remove_scalar_bar("VMIS")
-    except (StopIteration, KeyError, IndexError):
-        pass
-    plotter.add_scalar_bar(
-        title="Von Mises stress (Pa)",
-        mapper=mapper,
-        color="#e5e7eb",
-        title_font_size=26,
-        label_font_size=20,
-        position_x=0.22,
-        position_y=0.09,
-        width=0.56,
-        height=0.045,
-        n_labels=5,
-        fmt="%.1e",
+def fig_placement_frame() -> VisualizationScene:
+    """The world frame and a rotated placement frame, with a pipe authored in that frame."""
+    model = Model(project_name="Placement")
+    _materials(model)
+    frame = PlacementFrame(id="rack", origin=(2.4, 1.4, 0.4), axis=(0.0, 0.35, 1.0), ref_direction=(1.0, 0.6, 0.0))
+    model.add_placement_frame(frame)
+    # Beside the frame's local X axis rather than along it, where the pipe would hide the axis.
+    n1, n2 = (
+        model.add_node([float(value) for value in model.to_global_point(point, frame="placement_frame:rack")])
+        for point in ((0.0, 0.45, 0.0), (1.8, 0.45, 0.0))
     )
+    model.add_element(id="rack_pipe", type="pipe_straight", n1=n1, n2=n2, section="DN100", material="steel")
+    scene = build_visualization_scene(model)
+    cs = frame.to_coordinate_system()
+    _add_axes(scene, (0.0, 0.0, 0.0), np.eye(3), axes_id="world", length=1.1,
+              labels={"x": "world X", "y": "world Y", "z": "world Z"})
+    _add_axes(scene, cs.origin, (cs.x_axis, cs.y_axis, cs.z_axis), axes_id="rack", length=1.0,
+              labels={"x": "local X", "y": "local Y", "z": "local Z"})
+    return scene
 
 
-def fig_pyvista_deformed_stress(out_dir: Path) -> Path:
-    """Deformed shape + Von Mises stress from the committed viz_gallery_operating study (no solver)."""
-    from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
+def fig_builder_route() -> VisualizationScene:
+    """A builder route through an in-plane and an out-of-plane bend, with each run's local frame."""
+    model = Model(project_name="BuilderRoute")
+    _materials(model)
+    with model.pipe(section="DN100", material="steel", route="P-100") as pipe:
+        pipe.start([0.0, 0.0, 0.0], support="anchor")
+        pipe.run(2.0)
+        pipe.bend(radius=0.3, angle=90.0, plane="XY")
+        pipe.run(1.5)
+        pipe.bend(radius=0.3, angle=90.0, plane="XZ")
+        pipe.run(1.2)
+        pipe.end(support="anchor")
+    scene = build_visualization_scene(model)
+    for index, element in enumerate(e for e in model.elements if e.type == "pipe_straight"):
+        start, end = model.nodes[element.n1].coords, model.nodes[element.n2].coords
+        frame = beam_local_frame(start, end)
+        # Just clear of the crown: on the centreline the pipe hides local X.
+        origin = (np.asarray(start) + np.asarray(end)) / 2 + frame[2] * 0.12
+        _add_axes(scene, origin, frame, axes_id=f"run-{index}", length=0.45)
+    for text, bend in zip(("bend in XY", "bend in XZ"), (e for e in model.elements if e.type == "pipe_bend")):
+        arc = np.asarray(sample_bend_geometry(model.nodes[bend.n1].coords, bend.bend_geometry, n_segments=8))
+        apex = arc[len(arc) // 2]
+        outward = apex - (arc[0] + arc[-1]) / 2
+        label_at = apex + outward / np.linalg.norm(outward) * 0.35
+        add_scene_label(scene, text, label_at.tolist(), label_id=text.replace(" ", "-"), height=LABEL_HEIGHT)
+    return scene
 
-    model = _viz_gallery_model()
-    work_dir = REPO_ROOT / "notebooks" / "code_aster_results" / "viz_gallery_operating"
-    run = load_or_run_code_aster_results(model, "Operating", work_dir, run_solver=False)
-    return _render(model, out_dir / "pyvista_deformed_stress.png", results=run.results,
-                   deform_scale=35.0, res=(1280, 1000), post=_vmis_legend)
+
+def fig_supports() -> VisualizationScene:
+    """Anchor, guide, rest and spring supports on one line, each labelled with its type."""
+    model = Model(project_name="Supports")
+    _materials(model)
+    with model.pipe(section="DN100", material="steel", route="S") as pipe:
+        pipe.start([0.0, 0.0, 0.0], support="anchor")
+        pipe.run(1.5)
+        pipe.add_support(type="guide")
+        pipe.run(1.5)
+        pipe.add_support(type="rest")
+        pipe.run(1.5)
+        pipe.add_support(type="spring", direction=[0.0, 0.0, 1.0], stiffness=2.0e5)
+        pipe.run(1.5)
+        pipe.end(support="anchor")
+    scene = build_visualization_scene(model)
+    for support in model.supports:
+        above = np.asarray(model.nodes[support.node].coords) + [0.0, 0.0, 0.45]
+        add_scene_label(scene, support.type, above.tolist(), label_id=f"support-{support.id}", height=LABEL_HEIGHT)
+    return scene
 
 
-def _route_model_and_request():
-    """The autorouting demo scene from notebook 05 (two obstacles, A->B request)."""
-    from tuba.routing.types import PipeRouteRequest, RouteEndpoint, RoutingConstraints
-
-    m = Model("RouteDemo")
-    _steel(m)
-    m.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
-    m.add_obstacle(id="equipment_box", type="cuboid",
-                   min_point=[1.5, -0.4, -0.4], max_point=[2.5, 0.4, 0.4])
-    m.add_obstacle(id="maintenance_keepout", type="cuboid",
-                   min_point=[2.8, 0.8, -0.4], max_point=[3.4, 1.4, 0.8])
+def fig_route_candidates() -> VisualizationScene:
+    """Ranked candidates around two obstacles, with the selected one applied as pipe."""
+    model = Model(project_name="RouteDemo")
+    _materials(model)
+    model.add_obstacle(id="equipment_box", type="cuboid", min_point=[1.5, -0.4, -0.4], max_point=[2.5, 0.4, 0.4])
+    model.add_obstacle(id="maintenance_keepout", type="cuboid", min_point=[2.8, 0.8, -0.4], max_point=[3.4, 1.4, 0.8])
     request = PipeRouteRequest(
         id="P-100",
         start=RouteEndpoint("A", (0.0, 0.0, 0.0)),
         goal=RouteEndpoint("B", (4.0, 0.0, 0.0)),
-        section="DN100", material="steel",
+        section="DN100",
+        material="steel",
         constraints=RoutingConstraints(clearance=0.10, min_bend_radius=0.20),
     )
-    return m, request
+    result = GridRouter(RoutingGridSpec(cell_size=0.25, margin=1.0), candidate_count=3).route(model, request)
+    apply_candidate_to_model(model, result.selected, request, add_supports=False)
+    scene = build_visualization_scene(model, route_results=[result])
+    for role, endpoint in (("start", request.start), ("goal", request.goal)):
+        below = np.asarray(endpoint.point) + [0.0, 0.0, -0.3]
+        add_scene_label(scene, f"{role} {endpoint.id}", below.tolist(), label_id=f"route-{role}", height=LABEL_HEIGHT)
+    return scene
 
 
-def fig_route_preroute(out_dir: Path) -> Path:
-    """Obstacles + start/goal endpoints before any route exists."""
-    from tuba.routing.visualization import build_route_plotter
-
-    m, request = _route_model_and_request()
-    plotter = build_route_plotter(m, request=request, off_screen=True)
-    plotter.reset_camera()
-
-    export_screenshot(plotter, str(out_dir / "route_preroute.png"), resolution=RES)
-    plotter.close()
-    _autocrop(out_dir / "route_preroute.png")
-    return out_dir / "route_preroute.png"
-
-
-def fig_route_candidates(out_dir: Path) -> Path:
-    """Ranked route candidates (selected highlighted) with reserved envelopes around obstacles."""
-    from tuba.routing import GridRouter
-    from tuba.routing.types import RoutingGridSpec
-    from tuba.routing.visualization import build_route_plotter
-
-    m, request = _route_model_and_request()
-    # GridRouter.route returns a PipeRouteResult directly (no study files written to disk).
-    result = GridRouter(RoutingGridSpec(cell_size=0.25, margin=1.0), candidate_count=3).route(m, request)
-    plotter = build_route_plotter(m, request=request, result=result, off_screen=True)
-    plotter.reset_camera()
-
-    export_screenshot(plotter, str(out_dir / "route_candidates.png"), resolution=RES)
-    plotter.close()
-    _autocrop(out_dir / "route_candidates.png")
-    return out_dir / "route_candidates.png"
-
-
-FIGURES: dict[str, Callable[[Path], Path]] = {
+FIGURES: dict[str, Callable[[], VisualizationScene]] = {
+    "tutorial_model": fig_tutorial_model,
     "element_triad": fig_element_triad,
     "placement_frame": fig_placement_frame,
     "builder_route": fig_builder_route,
     "supports": fig_supports,
-    "bend_chord_arc": fig_bend_chord_arc,
-    "tutorial_model": fig_tutorial_model,
-    "pyvista_deformed_stress": fig_pyvista_deformed_stress,
-    "route_preroute": fig_route_preroute,
     "route_candidates": fig_route_candidates,
 }
 
 
-def main(out_dir: Path = FIG_DIR) -> None:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for name, fn in FIGURES.items():
-        path = fn(out_dir)
-        print(f"OK  {path.relative_to(out_dir.parent)}")
+def main(names: Iterable[str] = FIGURES, out_dir: Path = FIG_DIR) -> None:
+    bundles = {name: VIEWER / "public" / f"{BUNDLE_PREFIX}{name}" for name in names}
+    try:
+        for name, bundle in bundles.items():
+            scene = FIGURES[name]()
+            scene.validate()  # a broken scene fails here, not as a blank photograph
+            shutil.rmtree(bundle, ignore_errors=True)
+            write_scene_bundle(scene, bundle)
+        with tempfile.TemporaryDirectory() as shots:
+            node = shutil.which("node") or "node"
+            subprocess.run([node, str(SHOOTER), "--bare", shots, *(bundle.name for bundle in bundles.values())],
+                           cwd=VIEWER, check=True)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for name, bundle in bundles.items():
+                shutil.copyfile(Path(shots) / f"{bundle.name}.png", out_dir / f"{name}.png")
+                print(f"OK  {name}.png")
+    finally:
+        for bundle in bundles.values():
+            shutil.rmtree(bundle, ignore_errors=True)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:] or FIGURES)

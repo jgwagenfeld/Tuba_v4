@@ -18,17 +18,16 @@ class TestDocsFigures(unittest.TestCase):
     def setUpClass(cls):
         cls.gen = _load_generator()
 
-    def test_every_registered_figure_renders_a_png(self):
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp)
-            for name, fn in self.gen.FIGURES.items():
-                path = fn(out)
-                self.assertTrue(path.exists(), f"{name}: no file")
-                self.assertGreater(path.stat().st_size, 2000, f"{name}: PNG too small")
-                with path.open("rb") as fh:
-                    self.assertEqual(fh.read(8), b"\x89PNG\r\n\x1a\n", f"{name}: not a PNG")
+    def test_every_registered_figure_is_a_valid_committed_scene(self):
+        # Photographing needs Node and a browser, so the suite checks what the
+        # photograph is of: a valid, non-empty viewer scene, committed as a PNG
+        # where the pages look for it.
+        for name, build in self.gen.FIGURES.items():
+            with self.subTest(figure=name):
+                scene = build()
+                scene.validate()
+                self.assertTrue(scene.objects, f"{name}: the scene is empty")
+                self.assertTrue((self.gen.FIG_DIR / f"{name}.png").is_file(), f"{name}: no committed figure")
 
 
 if __name__ == "__main__":
