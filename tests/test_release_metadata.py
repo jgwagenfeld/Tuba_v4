@@ -292,7 +292,8 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
     assert steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
     assert setup_uv < sync
     assert setup_node < npm
-    assert max(sync, npm, graphics) < build_step < chromium < semantic < visual < configure < upload
+    # The browser precedes the build: build_pages.py photographs every gallery card.
+    assert max(sync, npm, graphics) < chromium < build_step < semantic < visual < configure < upload
     assert steps[upload]["with"]["path"] == "_site"
     assert not any(
         command in source
@@ -375,4 +376,5 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     assert assembled_steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../.build/pages-check"
     assert setup_uv < sync
     assert setup_node < npm
-    assert max(sync, npm, graphics) < python_tests < build_step < chromium < semantic < visual
+    # The browser precedes the build: build_pages.py photographs every gallery card.
+    assert max(sync, npm, graphics) < python_tests < chromium < build_step < semantic < visual
