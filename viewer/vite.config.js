@@ -98,7 +98,7 @@ function bundleManifest() {
       // serves whatever a local shoot has left behind and 404s otherwise - the
       // card drops its image rather than showing a broken one. To see the real
       // pictures locally, run the shooter:
-      //   node viewer/scripts/gallery-thumbnails.mjs docs/content/assets/gallery <id>
+      //   node viewer/scripts/gallery-thumbnails.mjs .build/gallery-thumbnails <id>
       server.middlewares.use("/gallery", async (request, response, next) => {
         const name = (request.url ?? "").split("?")[0].replace(/^\//, "");
         if (!/^[\w.-]+\.png$/.test(name)) return next();
