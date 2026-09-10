@@ -1160,7 +1160,9 @@ test("pickRenderedObject uses Three.js raycasting metadata", () => {
   camera.updateMatrixWorld();
   graph.camera = camera;
 
-  assert.equal(pickRenderedObject(graph, { x: 50, y: 50 }, { width: 100, height: 100 }), "object:marker");
+  // One pixel off centre: the ray down the axis hits the sphere's pole vertex
+  // exactly, which three.js reports as a miss.
+  assert.equal(pickRenderedObject(graph, { x: 51, y: 51 }, { width: 100, height: 100 }), "object:marker");
 });
 
 test("pickRenderedObject skips dense TUYAU glyph instances", () => {
@@ -1191,7 +1193,7 @@ test("pickRenderedObject skips dense TUYAU glyph instances", () => {
   assert.doesNotThrow(() => pickRenderedObject(graph, { x: 50, y: 50 }, { width: 100, height: 100 }));
 });
 
-test("pickRenderedObject can skip projected fallback for hover misses", () => {
+test("pickRenderedObject selects nothing when the cursor misses", () => {
   const graph = createThreeSceneGraph({
     bounds: [-1, -1, -1, 1, 1, 1],
     geometryAssets: [
@@ -1212,10 +1214,77 @@ test("pickRenderedObject can skip projected fallback for hover misses", () => {
   camera.updateMatrixWorld();
   graph.camera = camera;
 
-  assert.equal(
-    pickRenderedObject(graph, { x: 0, y: 0 }, { width: 100, height: 100 }, { projectedFallback: false }),
-    null
-  );
+  assert.equal(pickRenderedObject(graph, { x: 0, y: 0 }, { width: 100, height: 100 }), null);
+});
+
+// The app's camera: orthographic, 10 m of height over 500 px, so 1 px = 0.02 m.
+// Screen x runs along world +X and screen y down world -Z. The marker is aimed
+// at 2 px off centre, clear of the sphere's pole vertex (a raycast miss).
+const PICK_VIEWPORT = { width: 500, height: 500 };
+const AT_MARKER = { x: 252, y: 252 };
+function pickGraph(assets) {
+  const graph = createThreeSceneGraph({
+    bounds: [-5, -5, -5, 5, 5, 5],
+    geometryAssets: assets,
+    geometryPayloads: [],
+    visibleObjectIds: assets.flatMap((asset) => asset.object_ids)
+  });
+  const camera = new OrthographicCamera(-5, 5, 5, -5, 0.1, 100);
+  camera.up.set(0, 0, 1);
+  camera.position.set(0, -10, 0);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  graph.camera = camera;
+  return graph;
+}
+const PICK_MARKER = {
+  id: "geometry:marker",
+  format: "marker",
+  bounds: [0, 0, 0, 0, 0, 0],
+  object_ids: ["object:marker"],
+  generation_config: { point: [0, 0, 0], radius_m: 0.2 }
+};
+
+test("pickRenderedObject does not let a line off the cursor steal the pick", () => {
+  const graph = pickGraph([
+    PICK_MARKER,
+    // 25 px above the marker on screen, and nearer the camera.
+    {
+      id: "geometry:line",
+      format: "polyline",
+      bounds: [-5, -0.5, 0.5, 5, -0.5, 0.5],
+      object_ids: ["object:line"],
+      generation_config: { points: [[-5, -0.5, 0.5], [5, -0.5, 0.5]] }
+    }
+  ]);
+
+  assert.equal(pickRenderedObject(graph, AT_MARKER, PICK_VIEWPORT), "object:marker");
+  // A one-pixel line still has to be hittable without pixel-perfect aim.
+  assert.equal(pickRenderedObject(graph, { x: 250, y: 228 }, PICK_VIEWPORT), "object:line");
+});
+
+test("pickRenderedObject ignores geometry the section box has cut away", () => {
+  const graph = pickGraph([PICK_MARKER]);
+
+  applySectionBoxClipping(graph, { min: [-1, -1, -1], max: [1, 1, 1] });
+  assert.equal(pickRenderedObject(graph, AT_MARKER, PICK_VIEWPORT), "object:marker");
+  applySectionBoxClipping(graph, { min: [1, 1, 1], max: [2, 2, 2] });
+  assert.equal(pickRenderedObject(graph, AT_MARKER, PICK_VIEWPORT), null);
+});
+
+test("pickRenderedObject resolves parts nested below an asset's direct children", () => {
+  // A moment is Group > ArrowHelper > Line: the axis line is a grandchild.
+  const graph = pickGraph([
+    {
+      id: "geometry:moment",
+      format: "vector",
+      bounds: [0, 0, 0, 0, 0, 2],
+      object_ids: ["object:moment"],
+      generation_config: { start: [0, 0, 0], end: [0, 0, 2], vector_kind: "moment" }
+    }
+  ]);
+
+  assert.equal(pickRenderedObject(graph, { x: 250, y: 225 }, PICK_VIEWPORT), "object:moment");
 });
 
 test("applyHoverHighlight records hover target and marks matching materials", () => {

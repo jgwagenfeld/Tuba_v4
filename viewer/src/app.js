@@ -2334,9 +2334,11 @@ dom.canvas.addEventListener("click", (event) => {
   }
   const rect = dom.canvas.getBoundingClientRect();
   const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  const objectId =
-    pickRenderedObject(lastRenderGraph, point, { width: rect.width, height: rect.height }) ??
-    pickObjectAt(currentState, point, { width: rect.width, height: rect.height });
+  // pickObjectAt is the flat top-down projection for when no 3D view exists. On
+  // a 3D miss it chose from a projection that has nothing to do with the camera.
+  const objectId = lastRenderGraph
+    ? pickRenderedObject(lastRenderGraph, point, { width: rect.width, height: rect.height })
+    : pickObjectAt(currentState, point, { width: rect.width, height: rect.height });
   if (objectId) {
     selectedObjectId = objectId;
     dispatch({ type: "selectObject", objectId, additive: event.shiftKey });
@@ -2393,8 +2395,7 @@ dom.canvas.addEventListener("mousemove", (event) => {
     const objectId = pickRenderedObject(
       lastRenderGraph,
       { x: pendingHoverPoint.x - rect.left, y: pendingHoverPoint.y - rect.top },
-      { width: rect.width, height: rect.height },
-      { projectedFallback: false }
+      { width: rect.width, height: rect.height }
     );
     pendingHoverPoint = null;
     if (objectId === hoveredObjectId) return;

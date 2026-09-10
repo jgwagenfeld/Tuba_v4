@@ -503,7 +503,10 @@ export function createThreeViewport(canvas, options = {}) {
   };
 }
 
-export function pickRenderedObject(graph, point, viewport, options = {}) {
+// How far from a line, in screen pixels, a click still lands on it.
+const PICK_LINE_TOLERANCE_PX = 6;
+
+export function pickRenderedObject(graph, point, viewport) {
   if (!graph?.camera || !graph.renderableObjects?.length) {
     return null;
   }
@@ -513,17 +516,42 @@ export function pickRenderedObject(graph, point, viewport, options = {}) {
   graph.camera.updateMatrixWorld();
   graph.scene?.updateMatrixWorld(true);
   raycaster.setFromCamera(normalized, graph.camera);
+  // Three.js hits a line anywhere within 1 world unit of the ray. On a metre-
+  // scale model that is dozens of pixels, and hits are ordered by depth, so any
+  // element line or mesh edge nearer the camera took the click from the support
+  // or pipe actually under the cursor.
+  raycaster.params.Line.threshold = PICK_LINE_TOLERANCE_PX * worldUnitsPerPixel(graph, viewport);
   const raycastTargets = graph.renderableObjects.filter(
     (object) => object.visible !== false && object.userData?.pickable !== false && object.userData?.format !== "tuyau_subpoint_glyphs"
   );
   const intersections = raycaster.intersectObjects(raycastTargets, true);
   for (const intersection of intersections) {
+    // Raycasting ignores clipping planes: without this a click picked geometry
+    // the section box had already cut away.
+    const clippingPlanes = intersection.object.material?.clippingPlanes ?? [];
+    if (clippingPlanes.some((plane) => plane.distanceToPoint(intersection.point) < 0)) {
+      continue;
+    }
     const objectId = intersection.object.userData?.primaryObjectId || intersection.object.userData?.objectId;
     if (objectId) {
       return objectId;
     }
   }
-  return options.projectedFallback === false ? null : pickNearestProjectedObject(graph, point, viewport);
+  // A miss selects nothing. It used to fall back to the object whose bounds
+  // centre projected nearest the click, which for a long pipe run is nowhere
+  // near where it is drawn - a near-miss selected something across the model.
+  return null;
+}
+
+// World size of one screen pixel. Exact for the app's orthographic camera; a
+// perspective camera is measured at the depth of the scene centre.
+function worldUnitsPerPixel(graph, viewport) {
+  const camera = graph.camera;
+  if (camera.isOrthographicCamera) {
+    return (camera.top - camera.bottom) / camera.zoom / viewport.height;
+  }
+  const depth = camera.position.distanceTo(centerOfBounds(graph.bounds) ?? new THREE.Vector3());
+  return (2 * depth * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / viewport.height;
 }
 
 export function updateSceneGraphVisibility(graph, state) {
@@ -1522,10 +1550,11 @@ function setRenderMetadata(object, asset, format) {
     objectIds: [...(asset.object_ids ?? [])],
     primaryObjectId: asset.object_ids?.[0] ?? null
   };
-  object.userData = { ...object.userData, ...metadata };
-  for (const child of object.children ?? []) {
-    child.userData = { ...child.userData, ...metadata };
-  }
+  // Every level, not just direct children: a moment glyph's axis line sits two
+  // levels down (Group > ArrowHelper > Line) and was unpickable.
+  object.traverse((part) => {
+    part.userData = { ...part.userData, ...metadata };
+  });
 }
 
 function isAssetVisible(asset, visibleIds) {
@@ -1903,32 +1932,6 @@ function invalidAsset(asset, message) {
     format: asset.format,
     object: null
   };
-}
-
-function pickNearestProjectedObject(graph, point, viewport) {
-  let best = null;
-  for (const object of graph.renderableObjects ?? []) {
-    if (object.visible === false || object.userData?.pickable === false) {
-      continue;
-    }
-    const objectId = object.userData?.primaryObjectId || object.userData?.objectId;
-    if (!objectId) {
-      continue;
-    }
-    const center = new THREE.Vector3();
-    new THREE.Box3().setFromObject(object).getCenter(center);
-    const projected = center.project(graph.camera);
-    if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z < -1 || projected.z > 1) {
-      continue;
-    }
-    const screenX = ((projected.x + 1) / 2) * viewport.width;
-    const screenY = ((-projected.y + 1) / 2) * viewport.height;
-    const distance = Math.hypot(screenX - point.x, screenY - point.y);
-    if (!best || distance < best.distance) {
-      best = { objectId, distance };
-    }
-  }
-  return best?.objectId ?? null;
 }
 
 function addContactMarkers(root, state) {
