@@ -33,9 +33,11 @@ jobs:
       - run: uv sync --group docs --extra code-aster-rmed --locked
       - run: npm ci
         working-directory: viewer
-      - run: uv run python scripts/build_pages.py pages --output _site
+      # build_pages.py photographs every gallery card with Playwright, so the
+      # browser has to exist before the build, not just before the e2e steps.
       - run: npx playwright install --with-deps chromium
         working-directory: viewer
+      - run: uv run python scripts/build_pages.py pages --output _site
       - run: npm run e2e -- pages-catalog --site-root ../_site
         working-directory: viewer
         env:
