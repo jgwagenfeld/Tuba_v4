@@ -33,7 +33,7 @@ class PipeVolumeStudyExporter:
         element_ids: Iterable[str],
         max_element_size: float,
         element_order: int = 2,
-        export_tensor_stress: bool = True,
+        export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
         from tuba.solver.aster_contact import shoes
         from tuba.solver.modelisation import PipeModelization

@@ -8,6 +8,7 @@ import pytest
 
 from tuba import Model
 from tuba.model import make_bend_geometry
+from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_volume_results import _rows, _volume_node_id
 from tuba.solver.modelisation import PipeModelization
 from tuba.visualization import build_visualization_scene
@@ -41,13 +42,16 @@ def test_pressurized_pipe_volume_matches_lame_and_builds_result_scene(tmp_path, 
     model.add_support(fixed, type="anchor")
     model.define_load_case("Pressure", gravity=False, pressure=pressure)
 
-    run = model.solve(
-        load_case="Pressure",
+    # This reference reads the tensor-stress table, which volume studies export only on request.
+    run = CodeAsterSolver(
         work_dir=tmp_path,
-        pipe_modelization=PipeModelization.SOLID_3D,
-        volume_element_ids=["pipe_0"],
-        max_element_size=max_element_size,
         exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"),
+    ).solve_volume_study(
+        model,
+        "Pressure",
+        element_ids=["pipe_0"],
+        max_element_size=max_element_size,
+        export_tensor_stress=True,
     )
 
     assert run.analysis_mesh is not None

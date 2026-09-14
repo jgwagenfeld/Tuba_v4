@@ -79,10 +79,27 @@ def test_exports_grouped_pipe_volume_study_without_claiming_results(tmp_path):
     assert study.metadata["pipe_modelization"] == PipeModelization.SOLID_3D.value
     assert study.metadata["result_status"] == "pending_solver"
     assert study.metadata["code_aster_solve_ready"] is True
-    assert study.metadata["tensor_stress_exported"] is True
-    assert "study_sigm.csv" in Path(study.input_files["export"]).read_text(encoding="utf-8")
+    assert study.metadata["tensor_stress_exported"] is False
+    assert study.metadata["compiler_inputs"]["export_tensor_stress"] is False
+    assert "study_sigm.csv" not in Path(study.input_files["export"]).read_text(encoding="utf-8")
     assert Path(study.input_files["med"]).is_file()
     assert manifest["analysis_mesh"]["surface_mesh"]["faces"]
+
+
+def test_volume_export_writes_the_tensor_stress_table_only_on_request(tmp_path):
+    study = CodeAsterSolver(work_dir=tmp_path).export_volume_study(
+        _pressurized_pipe_model(),
+        "Pressure",
+        tmp_path,
+        element_ids=["pipe_0"],
+        max_element_size=0.005,
+        export_tensor_stress=True,
+    )
+
+    assert study.metadata["tensor_stress_exported"] is True
+    assert study.metadata["compiler_inputs"]["export_tensor_stress"] is True
+    assert "study_sigm.csv" in Path(study.input_files["export"]).read_text(encoding="utf-8")
+
 
 def test_pipe_modelization_keeps_tuyau_as_default():
     assert PipeModelization.TUYAU_3M.value == "TUYAU_3M"

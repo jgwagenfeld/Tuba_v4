@@ -389,7 +389,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         element_ids,
         max_element_size: float,
         element_order: int = 2,
-        export_tensor_stress: bool = True,
+        export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
         """Export a native Gmsh pipe-volume study without claiming solver results."""
         if self.load_path is not None:
@@ -414,7 +414,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         element_ids,
         max_element_size: float,
         element_order: int = 2,
-        export_tensor_stress: bool = True,
+        export_tensor_stress: bool = False,
         force: bool = False,
     ) -> AnalysisRun:
         """Generate, execute, attest, and import an explicit pipe-volume study."""
