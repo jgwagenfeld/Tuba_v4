@@ -391,6 +391,31 @@ class TestOperationFields(unittest.TestCase):
                 with self.assertRaisesRegex(ModelValidationError, r"cannot carry 'line_load': \['bar_0'\]"):
                     model.validate()
 
+    def test_line_load_range_aligned_by_float_sums_loads_only_the_element_inside(self):
+        # Builder stations are running float sums, so aligned ends can differ by float noise.
+        for lengths, station_start, station_end, inside in (
+            ((0.3, 0.3), 0.0, 0.1 + 0.2, "pipe_str_0"),
+            ((0.1, 0.2, 0.3), 0.3, 0.6000000000000001, "pipe_str_2"),
+        ):
+            model = _model()
+            with model.pipe("PipeSec", "Steel", route="P-100") as pipe:
+                pipe.start([0.0, 0.0, 0.0], support="anchor")
+                for length in lengths:
+                    pipe.run(length)
+                pipe.end(support="anchor")
+            model.define_operation("Operating", gravity=False).add_field(
+                "line_load", 1000.0, route_id="P-100", station_start=station_start, station_end=station_end,
+                direction=[0.0, 0.0, -1.0],
+            )
+            with self.subTest(lengths=lengths):
+                model.validate()
+                with TemporaryDirectory() as tmpdir:
+                    CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+                    comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+                block = comm[comm.index("LINELOAD = AFFE_CHAR_MECA(") : comm.index("# ----- Solve -----")]
+                self.assertIn(f"GROUP_MA='{inside}',", block)
+                self.assertEqual(block.count("GROUP_MA="), 1)
+
     def test_piecewise_profile_fails_before_export(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", temperature=20.0, ref_temperature=20.0)

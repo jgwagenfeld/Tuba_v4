@@ -1092,16 +1092,18 @@ class TubaModel:
             if field_record.station_start is not None or field_record.station_end is not None:
                 start = field_record.station_start if field_record.station_start is not None else float("-inf")
                 end = field_record.station_end if field_record.station_end is not None else float("inf")
+                # Line loads ignore float noise at the range ends; other quantities keep the strict overlap.
+                noise = 1e-9 if field_record.quantity == "line_load" else 0.0
                 covered = [
                     e for e in covered
                     if e.station_start is not None
                     and e.station_end is not None
-                    and e.station_start < end
-                    and e.station_end > start
+                    and e.station_start < end - noise
+                    and e.station_end > start + noise
                 ]
                 if field_record.quantity == "line_load":
                     # FORCE_POUTRE loads whole elements, so a line load must not cover part of one.
-                    partial = [e for e in covered if e.station_start < start - 1e-9 or e.station_end > end + 1e-9]
+                    partial = [e for e in covered if e.station_start < start - noise or e.station_end > end + noise]
                     if partial:
                         spans = ", ".join(
                             f"{e.id!r} (stations {e.station_start:g} to {e.station_end:g})" for e in partial
