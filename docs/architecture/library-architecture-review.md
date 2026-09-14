@@ -133,12 +133,15 @@ hot.add_field(
 model.validate()
 ```
 
-Supported operation-field quantities are `pressure`, `temperature`, and `wind`.
-The Code_Aster writer supports uniform fields for all three quantities. It also
-supports `profile="linear"` for temperature fields scoped by route/station,
-exported as per-element midpoint temperature assignments through `CREA_CHAMP`.
-Non-uniform pressure, non-uniform wind, and piecewise profiles still fail
-validation before export.
+Supported operation-field quantities are `pressure`, `temperature`, `wind`, and
+`line_load`. The Code_Aster writer supports uniform fields for all four
+quantities. It also supports `profile="linear"` for temperature fields scoped by
+route/station, exported as per-element midpoint temperature assignments through
+`CREA_CHAMP`. Non-uniform pressure, non-uniform wind, and piecewise profiles
+still fail validation before export.
+A line load (`line_load`, newtons per metre along one global direction) loads
+pipe and beam elements in full through a plain `FORCE_POUTRE` under `TUYAU_3M`
+and `POU_D_T`; pipe-volume and native-contact studies refuse it.
 Wind fields are currently limited to beam-modeled elements because the writer
 uses `FORCE_POUTRE(TYPE_CHARGE='VENT')`; `TUYAU_3M` pipe wind and nodal-load
 shortcuts are rejected before export.
@@ -315,7 +318,7 @@ for commands such as `DEFI_MATERIAU`.
 | Material definition | `DEFI_MATERIAU` | Defines elastic material parameters and cable material data. | [U4.43.01 DEFI_MATERIAU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.43.01.html) |
 | Material assignment | `AFFE_MATERIAU` | Assigns materials and thermal reference variables to mesh groups. | [U4.43.03 AFFE_MATERIAU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.43.03.html) |
 | Element characteristics | `AFFE_CARA_ELEM` | Defines pipe, bend, beam, bar, cable, spring/mass, and `GENE_TUYAU` orientation data. | [U4.42.01 AFFE_CARA_ELEM](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.42.01.html) |
-| Supports, gravity, pressure, wind, mixed couplings | `AFFE_CHAR_MECA`, `AFFE_CHAR_MECA_F` | Writes `DDL_IMPO`, `PESANTEUR`, `FORCE_TUYAU`, beam-modeled wind through `FORCE_POUTRE(TYPE_CHARGE='VENT')`, and `LIAISON_ELEM`. | [U4.44.01 AFFE_CHAR_MECA](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.01.html) |
+| Supports, gravity, pressure, wind, line loads, mixed couplings | `AFFE_CHAR_MECA`, `AFFE_CHAR_MECA_F` | Writes `DDL_IMPO`, `PESANTEUR`, `FORCE_TUYAU`, beam-modeled wind through `FORCE_POUTRE(TYPE_CHARGE='VENT')`, line loads through a plain `FORCE_POUTRE`, and `LIAISON_ELEM`. | [U4.44.01 AFFE_CHAR_MECA](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.01.html) |
 | Thermal expansion fields | `CREA_CHAMP` | Creates temperature fields for uniform and route/station-linear thermal expansion. | [U4.72.04 CREA_CHAMP](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.72.04.html) |
 | Nonlinear thermal evolution | `CREA_RESU` | Creates thermal result evolution used by nonlinear cases. | [U4.44.12 CREA_RESU](https://www-mdp.eng.cam.ac.uk/web/CD/engapps/aster_docs/UDocs-HTML/U44412g1/U44412g1.pdf.html) |
 | Rest/contact time list | `DEFI_LIST_REEL`, `DEFI_LIST_INST` | Defines the simple nonlinear solve increments. | [U4.34.01 DEFI_LIST_REEL](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.01.html), [U4.34.03 DEFI_LIST_INST](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.03.html) |
@@ -368,6 +371,8 @@ instead of local memory.
   sidecar lineage.
 - Local uniform pressure and temperature fields compiled into Code_Aster mesh
   groups.
+- Line loads compiled into a plain `FORCE_POUTRE` on pipe and beam elements
+  under `TUYAU_3M` and `POU_D_T`.
 - Beam-modeled wind fields compiled into `FORCE_POUTRE(TYPE_CHARGE='VENT')`
   with constant `FORMULE` components; `TUYAU_3M` wind and `FORCE_NODALE` wind
   shortcuts are not implemented.

@@ -1074,7 +1074,10 @@ class TubaModel:
         )
 
     def resolve_operation_field_elements(self, field_record: OperationField) -> List[Element]:
-        allowed_types = {"beam"} if field_record.quantity == "wind" else {"pipe_straight", "pipe_bend"}
+        allowed_types = {
+            "wind": {"beam"},
+            "line_load": {"beam", "pipe_straight", "pipe_bend"},
+        }.get(field_record.quantity, {"pipe_straight", "pipe_bend"})
         pipe_elements = [e for e in self.elements if e.type in allowed_types]
         if field_record.scope == "all":
             return pipe_elements
@@ -1103,7 +1106,10 @@ class TubaModel:
             found = {e.id for e in pipe_elements if e.id in ids}
             missing = sorted(ids - found)
             if missing:
-                raise ValueError(f"Operation field references missing pipe elements {missing!r}.")
+                raise ValueError(
+                    "Operation field references elements that do not exist or cannot carry "
+                    f"{field_record.quantity!r}: {missing!r}."
+                )
             return [e for e in pipe_elements if e.id in ids]
         raise ValueError(f"Unsupported operation field scope {field_record.scope!r}.")
 

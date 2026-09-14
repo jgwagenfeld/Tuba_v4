@@ -11,6 +11,7 @@ from tuba.physical import physical_properties_for_element
 
 FieldGroups = List[tuple[List[str], float]]
 WindGroups = List[tuple[List[str], float, float, float]]
+LineLoadGroups = List[tuple[List[str], float, float, float]]
 NameMapper = Callable[[str], str]
 LineWriter = Callable[[str], None]
 
@@ -173,6 +174,65 @@ def write_wind_load(
         w(f"            FX=WFX_{index},")
         w(f"            FY=WFY_{index},")
         w(f"            FZ=WFZ_{index},")
+        w("        ),")
+    w("    ),")
+    w(");")
+    w()
+
+
+def resolve_line_load_groups(model: TubaModel, load_case: LoadCase) -> LineLoadGroups:
+    """Line loads as force per metre in global axes, grouped by value.
+
+    Code_Aster keeps only the last FORCE_POUTRE occurrence on an element within
+    one AFFE_CHAR_MECA (two loads on one group solved as the second alone), so
+    every element lands in exactly one row. Validation has already refused
+    overlapping line loads that disagree.
+    """
+    forces: dict[str, tuple[float, float, float]] = {}
+    for index, field_record in enumerate(getattr(load_case, "fields", [])):
+        if field_record.quantity != "line_load":
+            continue
+        if field_record.profile != "uniform":
+            raise ValueError(
+                f"Operation field {index} for 'line_load' uses profile "
+                f"{field_record.profile!r}; only uniform fields can be exported."
+            )
+        direction = np.asarray(field_record.direction, dtype=float)
+        norm = float(np.linalg.norm(direction))
+        if norm <= 1e-12:
+            raise ValueError(f"Operation field {index} for 'line_load' requires a non-zero direction.")
+        elements = model.resolve_operation_field_elements(field_record)
+        if not elements:
+            raise ValueError(f"Operation field {index} for 'line_load' selects no pipe or beam elements.")
+        force = (
+            float(field_record.value) * float(direction[0]) / norm,
+            float(field_record.value) * float(direction[1]) / norm,
+            float(field_record.value) * float(direction[2]) / norm,
+        )
+        for elem in elements:
+            forces[elem.id] = force
+    groups: dict[tuple[float, float, float], List[str]] = {}
+    for element_id, force in forces.items():
+        groups.setdefault(force, []).append(element_id)
+    return [(element_ids, fx, fy, fz) for (fx, fy, fz), element_ids in groups.items()]
+
+
+def write_line_load(
+    w: LineWriter,
+    *,
+    map_name: NameMapper,
+    line_loads: LineLoadGroups,
+) -> None:
+    w("# ----- Line loads on pipes and beams -----")
+    w("LINELOAD = AFFE_CHAR_MECA(")
+    w("    MODELE=MODELE,")
+    w("    FORCE_POUTRE=(")
+    for group_names, fx, fy, fz in line_loads:
+        w("        _F(")
+        w(f"            GROUP_MA={group_ma_value(group_names, map_name)},")
+        w(f"            FX={fx:.6E},")
+        w(f"            FY={fy:.6E},")
+        w(f"            FZ={fz:.6E},")
         w("        ),")
     w("    ),")
     w(");")

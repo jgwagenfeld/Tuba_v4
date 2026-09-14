@@ -33,8 +33,10 @@ from tuba.solver.aster_loads import (
     has_pressure_load,
     has_temperature_load as has_thermal_load,
     has_wind_load,
+    resolve_line_load_groups,
     resolve_operation_field_groups,
     resolve_wind_field_groups,
+    write_line_load,
     write_pressure_load,
     write_thermal_load,
     write_wind_load,
@@ -268,10 +270,12 @@ class _CommWriterMixin:
         pressure_fields = resolve_operation_field_groups(model, load_case, "pressure")
         temperature_fields = resolve_operation_field_groups(model, load_case, "temperature")
         wind_fields = resolve_wind_field_groups(model, load_case)
+        line_loads = resolve_line_load_groups(model, load_case)
         nodal_forces = list(getattr(load_case, "nodal_forces", []))
         has_pressure = has_pressure_load(load_case, pressure_fields)
         has_temperature = has_thermal_load(load_case, temperature_fields)
         has_wind = has_wind_load(wind_fields)
+        has_line_load = bool(line_loads)
         has_nodal_forces = bool(nodal_forces)
 
         affe_entries: List[str] = []
@@ -710,6 +714,16 @@ class _CommWriterMixin:
                 )
 
             # ==============================================================
+            # AFFE_CHAR_MECA — line loads on pipes and beams
+            # ==============================================================
+            if has_line_load:
+                write_line_load(
+                    w,
+                    map_name=map_name,
+                    line_loads=line_loads,
+                )
+
+            # ==============================================================
             # AFFE_CHAR_MECA - concentrated nodal forces
             # ==============================================================
             if has_nodal_forces:
@@ -783,6 +797,8 @@ class _CommWriterMixin:
                 excit_entries.append("        _F(CHARGE=PRESSURE),")
             if has_wind:
                 excit_entries.append("        _F(CHARGE=WIND),")
+            if has_line_load:
+                excit_entries.append("        _F(CHARGE=LINELOAD),")
             if has_nodal_forces:
                 excit_entries.append("        _F(CHARGE=POINT_FORCE),")
 

@@ -126,7 +126,7 @@ def _validate_bend_geometry_record(elem, errors: list[str]) -> None:
 
 
 def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
-    valid_quantities = {"pressure", "temperature", "wind"}
+    valid_quantities = {"pressure", "temperature", "wind", "line_load"}
     valid_scopes = {"all", "group", "route", "elements"}
     valid_profiles = {"uniform", "linear", "piecewise"}
 
@@ -137,7 +137,7 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
             if field_record.quantity not in valid_quantities:
                 errors.append(
                     f"{label} has unsupported quantity {field_record.quantity!r}; "
-                    "supported quantities are pressure, temperature, and wind."
+                    "supported quantities are pressure, temperature, wind, and line_load."
                 )
                 continue
             if field_record.scope not in valid_scopes:
@@ -168,16 +168,16 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
                         f"{label} linear {field_record.quantity} field requires station_start and station_end."
                     )
                     continue
-            if field_record.direction is not None and field_record.quantity != "wind":
-                errors.append(f"{label} uses direction but only wind fields accept direction.")
+            if field_record.direction is not None and field_record.quantity not in {"wind", "line_load"}:
+                errors.append(f"{label} uses direction but only wind and line_load fields accept direction.")
                 continue
-            if field_record.quantity == "wind":
+            if field_record.quantity in {"wind", "line_load"}:
                 if field_record.direction is None:
-                    errors.append(f"{label} wind field requires a finite non-zero direction vector.")
+                    errors.append(f"{label} {field_record.quantity} field requires a finite non-zero direction vector.")
                     continue
                 direction = np.asarray(field_record.direction, dtype=float)
                 if direction.shape != (3,) or not np.all(np.isfinite(direction)) or np.linalg.norm(direction) <= 1e-12:
-                    errors.append(f"{label} wind field requires a finite non-zero direction vector.")
+                    errors.append(f"{label} {field_record.quantity} field requires a finite non-zero direction vector.")
                     continue
             start = field_record.station_start
             end = field_record.station_end
@@ -200,6 +200,8 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
             if not selected:
                 if field_record.quantity == "wind":
                     errors.append(f"{label} {_BEAM_WIND_ONLY_MESSAGE}; selected no beam-modeled elements.")
+                elif field_record.quantity == "line_load":
+                    errors.append(f"{label} selects no pipe or beam elements.")
                 else:
                     errors.append(f"{label} selects no pipe elements.")
                 continue

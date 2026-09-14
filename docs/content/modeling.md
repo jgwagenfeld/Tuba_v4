@@ -164,7 +164,7 @@ except ModelValidationError as exc:
     print(str(exc))
 ```
 
-Common messages include `Pipe section ... WT is too large for OD`, missing section/material/node references, invalid placement frames, zero-length elements, unsupported operation quantities, and wind fields without a finite non-zero direction.
+Common messages include `Pipe section ... WT is too large for OD`, missing section/material/node references, invalid placement frames, zero-length elements, unsupported operation quantities, and wind or line-load fields without a finite non-zero direction.
 
 Debug in that same order. Import the result artifacts before plotting, reviewing, or reporting stress, displacement, reaction, compliance, or operating-state results. Never replace a blocked solver or missing table with fabricated values.
 

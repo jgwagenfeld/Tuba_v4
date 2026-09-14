@@ -5,8 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tuba import Model
+from tuba.model import Element, OperationField
 from tuba.validation import ModelValidationError
 from tuba.solver.aster import CodeAsterSolver
+from tuba.solver.aster_contact import validate_path
+from tuba.solver.modelisation import PipeModelization
 
 
 def _model(name: str = "OperationFields") -> Model:
@@ -266,6 +269,88 @@ class TestOperationFields(unittest.TestCase):
 
         with self.assertRaisesRegex(ModelValidationError, "FORCE_POUTRE.*TUYAU_3M.*FORCE_NODALE"):
             model.validate()
+
+    def test_line_load_exports_plain_force_poutre_on_pipes_and_beams(self):
+        model = _two_element_route()
+        with model.pipe("PipeSec", "Steel", route="RACK") as rack:
+            rack.start([0.0, 5.0, 0.0], support="anchor")
+            rack.beam(2.0)
+            rack.end(support="anchor")
+        beam_id = next(element.id for element in model.elements if element.type == "beam")
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("line_load", 250.0, direction=[0.0, 0.0, -2.0])
+
+        restored = Model.from_dict(model.to_dict())
+        restored.validate()
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(restored, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        block = comm[comm.index("LINELOAD = AFFE_CHAR_MECA(") : comm.index("# ----- Solve -----")]
+        self.assertIn(f"GROUP_MA=('pipe_str_0', 'pipe_str_1', '{beam_id}',)", block)
+        self.assertIn("FX=0.000000E+00", block)
+        self.assertIn("FZ=-2.500000E+02", block)
+        self.assertNotIn("TYPE_CHARGE", block)
+        self.assertIn("_F(CHARGE=LINELOAD),", comm)
+        self.assertNotIn("WIND", comm)
+
+    def test_line_load_on_beam_modelized_pipes_uses_the_same_force_poutre(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("line_load", 100.0, route_id="P-100", direction=[0.0, 1.0, 0.0])
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir, pipe_modelization=PipeModelization.POU_D_T).export_study(
+                model, "Operating", tmpdir
+            )
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("LINELOAD = AFFE_CHAR_MECA(", comm)
+        self.assertIn("FY=1.000000E+02", comm)
+        self.assertIn("_F(CHARGE=LINELOAD),", comm)
+
+    def test_line_load_and_wind_need_a_direction_and_a_carrying_element(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("line_load", 100.0)
+        with self.assertRaisesRegex(ModelValidationError, "line_load field requires a finite non-zero direction"):
+            model.validate()
+
+        guyed = _model("Guy")
+        base = guyed.add_node([0.0, 0.0, 0.0])
+        top = guyed.add_node([0.0, 0.0, 5.0])
+        guyed.elements.append(Element(id="guy", type="cable", n1=base, n2=top, section="PipeSec", material="Steel"))
+        for quantity in ("line_load", "wind"):
+            field_record = OperationField(
+                quantity, 100.0, direction=[1.0, 0.0, 0.0], scope="elements", element_ids=["guy"]
+            )
+            with self.assertRaisesRegex(ValueError, f"cannot carry '{quantity}'"):
+                guyed.resolve_operation_field_elements(field_record)
+
+    def test_overlapping_line_loads_that_disagree_fail_validation(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("line_load", 100.0, route_id="P-100", direction=[0.0, 0.0, -1.0])
+        operating.add_field("line_load", 300.0, element_ids=["pipe_str_0"], direction=[0.0, 0.0, -1.0])
+
+        with self.assertRaisesRegex(ModelValidationError, "overlapping incompatible line_load fields"):
+            model.validate()
+
+    def test_line_loads_are_refused_where_they_are_not_realized(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("line_load", 100.0, direction=[0.0, 0.0, -1.0])
+        with TemporaryDirectory() as tmpdir:
+            with self.assertRaisesRegex(ValueError, "Pipe-volume line loads are not implemented"):
+                CodeAsterSolver().export_volume_study(
+                    model, "Operating", tmpdir, element_ids=["pipe_str_0"], max_element_size=0.1
+                )
+
+        # Native contact paths already refuse every operation field; this pins that refusal.
+        hot = model.define_load_case("Hot", gravity=False)
+        hot.fields.append(OperationField("line_load", 100.0, direction=[0.0, 0.0, -1.0]))
+        with self.assertRaisesRegex(ValueError, "Native contact load paths currently support"):
+            validate_path(model, hot, None)
 
     def test_piecewise_profile_fails_before_export(self):
         model = _two_element_route()

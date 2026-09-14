@@ -100,6 +100,10 @@ _Avoid_: Runtime smoke test
 An authored load, pressure, temperature, or boundary condition shown during postprocessing to explain the analysis setup.
 _Avoid_: Solver result
 
+**Line load**:
+A force per metre of pipe or beam along one fixed global direction, carried in full whatever the element's orientation.
+_Avoid_: Distributed wind, nodal force
+
 **Solver result**:
 A quantity returned by a verified Code_Aster analysis and retained with its result provenance.
 _Avoid_: Applied input, derived compliance quantity

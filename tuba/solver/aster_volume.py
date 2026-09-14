@@ -220,6 +220,8 @@ def _coupling_groups(
 def _reject_unimplemented_loads(load_case) -> None:
     if any(field.quantity == "wind" for field in load_case.fields):
         raise ValueError("Pipe-volume wind loading is not implemented.")
+    if any(field.quantity == "line_load" for field in load_case.fields):
+        raise ValueError("Pipe-volume line loads are not implemented.")
     if load_case.nodal_forces:
         raise ValueError("Pipe-volume nodal-force coupling is not implemented.")
     if abs(load_case.temperature - load_case.ref_temperature) > 1.0e-10:
