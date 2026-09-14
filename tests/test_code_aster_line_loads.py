@@ -1,4 +1,4 @@
-"""Real Code_Aster references: authored distributed loads reach the pipe in full.
+"""Real Code_Aster references: line loads reach the pipe in full, and wind follows the cross-flow rule.
 
 A statics check needs no stiffness: the support reactions of a loaded pipe
 must add up to minus the applied load, whatever the modelization.

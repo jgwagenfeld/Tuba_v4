@@ -75,6 +75,9 @@ def quantity_takeoff(model: TubaModel) -> QuantityTakeoff:
 
 
 def wind_loads(model: TubaModel, *, pressure_pa: float) -> dict[str, dict[str, float]]:
+    """Report each element's head-on wind force (projected area × pressure), while the solver's
+    wind load on an oblique pipe is the smaller cross-flow load (see CONTEXT.md "Wind load").
+    """
     loads: dict[str, dict[str, float]] = {}
     for elem in model.elements:
         quantities = element_quantities(model, elem)

@@ -203,7 +203,13 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
             for elem in selected:
                 value_key = _operation_field_value_key(field_record)
                 previous = quantity_values.get(elem.id)
-                if previous is not None and previous != value_key:
+                if previous is not None and field_record.quantity == "line_load":
+                    # Pressure, temperature and wind are states, so equal values agree; line loads add.
+                    errors.append(
+                        f"Operation {operation_name!r} has overlapping line_load fields on element {elem.id!r}; "
+                        "line loads add, so author one combined line_load field."
+                    )
+                elif previous is not None and previous != value_key:
                     errors.append(
                         f"Operation {operation_name!r} has overlapping incompatible "
                         f"{field_record.quantity} fields on element {elem.id!r}: "

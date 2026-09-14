@@ -1126,9 +1126,14 @@ class TubaModel:
             named = set(field_record.element_ids) if field_record.scope == "elements" else {e.id for e in covered}
             refused = sorted(named - {e.id for e in selected})
             if refused:
+                remedy = (
+                    " Target pipe and beam elements with a group, route or element_ids."
+                    if field_record.quantity in load_quantities
+                    else ""
+                )
                 raise ValueError(
                     "Operation field references elements that do not exist or cannot carry "
-                    f"{field_record.quantity!r}: {refused!r}."
+                    f"{field_record.quantity!r}: {refused!r}.{remedy}"
                 )
         return selected
 

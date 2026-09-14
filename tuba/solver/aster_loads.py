@@ -188,8 +188,9 @@ def resolve_line_load_groups(model: TubaModel, load_case: LoadCase) -> LineLoadG
 
     Code_Aster keeps only the last FORCE_POUTRE occurrence on an element within
     one AFFE_CHAR_MECA (two loads on one group solved as the second alone), so
-    every element lands in exactly one row. Validation has already refused
-    overlapping line loads that disagree.
+    every element lands in exactly one row. Line loads add, so a second field on
+    an element is refused rather than applied once. This also covers load-case
+    fields, which validation does not walk.
     """
     forces: dict[str, tuple[float, float, float]] = {}
     for index, field_record in enumerate(getattr(load_case, "fields", [])):
@@ -213,6 +214,11 @@ def resolve_line_load_groups(model: TubaModel, load_case: LoadCase) -> LineLoadG
             float(field_record.value) * float(direction[2]) / norm,
         )
         for elem in elements:
+            if elem.id in forces:
+                raise ValueError(
+                    f"Operation field {index} for 'line_load' loads element {elem.id!r}, which an earlier "
+                    "line_load field already loads; line loads add, so author one combined line_load field."
+                )
             forces[elem.id] = force
     groups: dict[tuple[float, float, float], List[str]] = {}
     for element_id, force in forces.items():

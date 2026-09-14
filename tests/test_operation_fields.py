@@ -9,6 +9,7 @@ from tuba.model import Element, OperationField
 from tuba.validation import ModelValidationError
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_contact import validate_path
+from tuba.solver.aster_loads import resolve_line_load_groups
 from tuba.solver.modelisation import PipeModelization
 
 
@@ -318,6 +319,33 @@ class TestOperationFields(unittest.TestCase):
         self.assertIn("GROUP_MA='pipe_str_0'", comm)
         self.assertNotIn("WIND_TUY", comm)
 
+    def test_wind_over_tuyau_pipes_and_beams_writes_vent_and_the_cross_flow_rule(self):
+        model = _two_element_route()
+        with model.pipe("PipeSec", "Steel", route="RACK") as rack:
+            rack.start([0.0, 5.0, 0.0], support="anchor")
+            rack.beam(2.0)
+            rack.end(support="anchor")
+        beam_id = next(element.id for element in model.elements if element.type == "beam")
+        model.define_operation("Operating", gravity=False).add_field("wind", 1000.0, direction=[0.0, 1.0, 0.0])
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        # The one path that writes both concepts: VENT on the beam, Tuba's rule on the TUYAU pipes.
+        vent_start = comm.index("WIND = AFFE_CHAR_MECA_F(")
+        vent = comm[vent_start : comm.index("\n);", vent_start)]
+        tuyau_start = comm.index("WIND_TUY = AFFE_CHAR_MECA_F(")
+        tuyau = comm[tuyau_start : comm.index("\n);", tuyau_start)]
+        self.assertIn("TYPE_CHARGE='VENT'", vent)
+        self.assertIn(f"GROUP_MA='{beam_id}'", vent)
+        self.assertNotIn("pipe_str", vent)
+        self.assertIn("GROUP_MA='pipe_str_0'", tuyau)
+        self.assertIn("GROUP_MA='pipe_str_1'", tuyau)
+        self.assertNotIn(beam_id, tuyau)
+        excit = comm[comm.index("EXCIT=(") :]
+        self.assertLess(excit.index("_F(CHARGE=WIND),"), excit.index("_F(CHARGE=WIND_TUY),"))
+
     def test_wind_and_line_load_on_one_pipe_stay_separate_loads(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", gravity=False)
@@ -419,8 +447,34 @@ class TestOperationFields(unittest.TestCase):
         operating.add_field("line_load", 100.0, route_id="P-100", direction=[0.0, 0.0, -1.0])
         operating.add_field("line_load", 300.0, element_ids=["pipe_str_0"], direction=[0.0, 0.0, -1.0])
 
-        with self.assertRaisesRegex(ModelValidationError, "overlapping incompatible line_load fields"):
+        with self.assertRaisesRegex(ModelValidationError, "overlapping line_load fields on element 'pipe_str_0'"):
             model.validate()
+
+    def test_overlapping_line_loads_that_agree_fail_validation(self):
+        # Line loads add, so two equal loads on one element must not be applied once.
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("line_load", 100.0, route_id="P-100", direction=[0.0, 0.0, -1.0])
+        operating.add_field("line_load", 100.0, element_ids=["pipe_str_0"], direction=[0.0, 0.0, -1.0])
+
+        with self.assertRaisesRegex(
+            ModelValidationError, "overlapping line_load fields on element 'pipe_str_0'; line loads add"
+        ):
+            model.validate()
+
+    def test_line_loads_on_one_element_of_a_load_case_are_refused_at_export(self):
+        # Validation does not walk load-case fields, so the export resolver refuses the overlap itself.
+        model = _two_element_route()
+        load_case = model.define_load_case("Both", gravity=False)
+        for _ in range(2):
+            load_case.fields.append(
+                OperationField(
+                    "line_load", 100.0, direction=[0.0, 0.0, -1.0], scope="elements", element_ids=["pipe_str_0"]
+                )
+            )
+
+        with self.assertRaisesRegex(ValueError, r"field 1 for 'line_load' loads element 'pipe_str_0'.*line loads add"):
+            resolve_line_load_groups(model, load_case)
 
     def test_line_loads_are_refused_where_they_are_not_realized(self):
         model = _two_element_route()

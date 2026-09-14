@@ -68,7 +68,7 @@ Historical root-level `*_design.md`, `*_specification.md`, and
 | `tuba.solver.aster` | `CodeAsterSolver` | Study export, runtime execution, result parsing. |
 | `tuba.solver.aster_mesh` | `_write_mail(...)` | Code_Aster `.mail` generation and `AnalysisMesh` provenance. |
 | `tuba.solver.aster_comm` | `_write_comm(...)` | Code_Aster command-file orchestration in solver execution order. |
-| `tuba.solver.aster_loads` | load-block helpers | Pressure, temperature, and wind operation-field compilation. |
+| `tuba.solver.aster_loads` | load-block helpers | Pressure, temperature, wind, and line-load operation-field compilation. |
 | `tuba.solver.code_aster_runtime` | runtime discovery/execution | WSL, command runner, Python bridge, and Docker fallback command construction. |
 | `tuba.analysis.*` | `AnalysisRun`, `AnalysisStudy`, `AnalysisMesh`, `ResultState`, artifact import helpers | Traceability from Tuba model to solver files and parsed outputs. |
 | `tuba.solver.base` | `FEAResults` | Solver-neutral result container and plotting convenience methods. |
