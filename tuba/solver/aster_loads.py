@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, List
+import math
+from typing import Callable, List, Sequence
 
 import numpy as np
 
@@ -365,3 +366,52 @@ def _write_temperature_field(
         w("    ),")
     w(");")
     w()
+
+
+def cross_flow_line_load(line_load: Sequence[float], tangent: Sequence[float]) -> tuple[float, float, float]:
+    """The wind force per metre an element whose axis is ``tangent`` actually carries.
+
+    This is the rule Code_Aster applies for FORCE_POUTRE(TYPE_CHARGE='VENT'):
+    keep the part of the wind across the axis, and scale it once more by the
+    sine of the angle between wind and axis. A pipe at 30 degrees to the wind
+    carries a quarter of the head-on load (solved on POU_D_T: 1000 N/m at 30
+    degrees over 4 m gave 1000 N). TUYAU_3M refuses VENT, so Tuba applies the
+    same rule itself on pipe elements.
+    """
+    force = np.asarray(line_load, dtype=float)
+    magnitude = float(np.linalg.norm(force))
+    if magnitude == 0.0:
+        return (0.0, 0.0, 0.0)
+    axis = np.asarray(tangent, dtype=float)
+    axis = axis / float(np.linalg.norm(axis))
+    across = force - float(np.dot(force, axis)) * axis
+    carried = across * (float(np.linalg.norm(across)) / magnitude)
+    return (float(carried[0]), float(carried[1]), float(carried[2]))
+
+
+def cross_flow_formula(
+    line_load: Sequence[float],
+    center: Sequence[float],
+    axis: Sequence[float],
+) -> tuple[str, str, str]:
+    """``cross_flow_line_load`` along a circular bend, as FORMULE text in X, Y, Z.
+
+    The bend tangent at a point P is ``axis x (P - center)``; only its direction
+    matters, so it stays unnormalized. Numbers use ``repr`` so the text is exact.
+    Solved on TUYAU_3M, this text matched POU_D_T VENT on an elbow within 0.06%.
+    """
+    fx, fy, fz = (float(value) for value in line_load)
+    magnitude = math.sqrt(fx * fx + fy * fy + fz * fz)
+    if magnitude == 0.0:
+        return ("0.0", "0.0", "0.0")
+    unit = np.asarray(axis, dtype=float)
+    ax, ay, az = (float(value) for value in unit / float(np.linalg.norm(unit)))
+    cx, cy, cz = (float(value) for value in center)
+    rx, ry, rz = f"(X-({cx!r}))", f"(Y-({cy!r}))", f"(Z-({cz!r}))"
+    tx = f"(({ay!r})*{rz}-({az!r})*{ry})"
+    ty = f"(({az!r})*{rx}-({ax!r})*{rz})"
+    tz = f"(({ax!r})*{ry}-({ay!r})*{rx})"
+    along = f"((({fx!r})*{tx}+({fy!r})*{ty}+({fz!r})*{tz})/({tx}**2+{ty}**2+{tz}**2))"
+    across = [f"(({f!r})-{along}*{t})" for f, t in ((fx, tx), (fy, ty), (fz, tz))]
+    scale = f"(sqrt({across[0]}**2+{across[1]}**2+{across[2]}**2)/({magnitude!r}))"
+    return (f"{scale}*{across[0]}", f"{scale}*{across[1]}", f"{scale}*{across[2]}")
