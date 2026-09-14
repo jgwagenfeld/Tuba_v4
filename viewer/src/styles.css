@@ -1,0 +1,2752 @@
+:root {
+  --graphite: #151c22;
+  --graphite-raised: #202a31;
+  --graphite-line: #3a4851;
+  --chrome-text: #f3f5f5;
+  /* The two greys the rail was already using as tokens without naming them:
+     -2 labels a control or a band, -3 is mono metadata under one. Between them
+     they were 19 of the 80 colour literals in this file. Both clear AA on
+     --graphite-raised (5.92:1 and 4.77:1); do not darken either. */
+  --chrome-text-2: #9aa7ad;
+  --chrome-text-3: #8895a0;
+  --paper-raised: #ffffff;
+  --text: #172127;
+  --muted: #4c5b63;
+  --accent: #5ed8e5;
+  --accent-ink: #075b66;
+  --focus-on-light: #0b7684;
+  --focus-on-dark: #5ed8e5;
+  --sidebar-control: #26323a;
+  --success: #17613f;
+  --success-surface: #dff4e8;
+  --danger: #8f241d;
+  --danger-surface: #fde9e7;
+  /* --danger is a light-theme value, for use on --danger-surface. This is the
+     one to reach for on a dark panel: 6.20:1 on --graphite-raised. */
+  --danger-on-dark: #ff857d;
+  --warning: #6c4c00;
+  --warning-surface: #fff1c2;
+  --font-ui: "Roboto Condensed", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  color: var(--text);
+  background: var(--graphite);
+  font-family: var(--font-ui);
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--graphite);
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+}
+
+button,
+input,
+select,
+textarea,
+[tabindex="0"] {
+  outline-offset: 3px;
+}
+
+/* The shell is dark, so the dark ring is the default and the light one is scoped
+   to the only light surface in the app - the renderer's own canvas, which paints
+   #f8fafc over the viewport's CSS background. This used to be the other way
+   round, and the exceptions were listed rather than derived: `.viewer-workspace`
+   was written without a descendant space, so the rail toggle sitting inside it
+   was never covered, and neither were the header's bundle picker nor the gallery
+   card - the landing page's only control. All three drew a 2.74:1 ring. */
+:focus-visible {
+  outline: 3px solid var(--focus-on-dark);
+  outline-offset: 3px;
+}
+
+.viewport :focus-visible {
+  outline-color: var(--focus-on-light);
+}
+
+[data-canvas]:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-header,
+[data-workflow-tabs],
+.viewer-workspace {
+  min-width: 0;
+  width: 100%;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 3rem;
+  border-bottom: 1px solid var(--graphite-line);
+  background: var(--graphite);
+  color: var(--chrome-text);
+  padding: 0.25rem 0.85rem;
+}
+
+/* "TUBA / ENGINEERING REVIEW" above the scene name is decoration: the scene
+   name already says what this is, and the kicker cost a whole line of header. */
+.app-identity .app-kicker {
+  display: none;
+}
+
+.app-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The document's one h1: what you are looking at. It used to be a <strong>,
+   which left the page's only h1 inside a panel that could be closed. */
+.app-identity h1 {
+  margin: 0;
+  min-width: 4rem;
+  overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-kicker {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-kicker,
+.app-header .meta {
+  color: #b9c5c9;
+}
+
+.app-header .meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.header-actions > a,
+.header-actions > button {
+  width: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.8rem;
+  padding: 0.35rem 0.55rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.header-actions > a:hover,
+.header-actions > button:hover {
+  border-color: var(--focus-on-dark);
+  color: var(--chrome-text);
+}
+
+.header-actions > a:focus-visible,
+.header-actions > button:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.header-actions > [hidden] {
+  display: none;
+}
+
+/* Replaces the status band. It is a control, not a readout: clicking it opens
+   the task that explains the verdict. */
+.status-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.9rem;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.2rem 0.6rem 0.2rem 0.35rem;
+  white-space: nowrap;
+}
+
+.status-chip[hidden] {
+  display: none;
+}
+
+.status-chip:hover {
+  border-color: var(--focus-on-dark);
+}
+
+.status-chip:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.status-chip-alert {
+  border-left: 1px solid var(--graphite-line);
+  color: #f0b429;
+  font-size: 0.75rem;
+  padding-left: 0.45rem;
+}
+
+.report-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.report-link:focus-visible {
+  outline-color: var(--focus-on-dark);
+}
+
+.runtime-status {
+  border: 1px solid var(--graphite-line);
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.55rem;
+  white-space: nowrap;
+}
+
+.runtime-status[data-ready="true"] {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.runtime-status::before {
+  color: var(--accent);
+  content: "●";
+  margin-right: 0.4rem;
+}
+
+.runtime-status[data-error="true"] {
+  border-color: #e56f67;
+  color: #ffd6d3;
+}
+
+.runtime-status[data-error="true"]::before {
+  color: var(--danger-on-dark);
+}
+
+/* The primary panel in the rail: it takes the height that is left and scrolls
+   inside it. It was previously capped at 55%, which showed a third of the
+   bodies list through a window and made the panel unreadable. */
+.display-strip {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.5rem 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.display-strip[hidden] {
+  display: none;
+}
+
+/* The rail head: task strip and the find field. Sticky, so the way out of the
+   finder and the way between tasks never scroll away. */
+.rail-head {
+  position: sticky;
+  z-index: 6;
+  top: 0;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--graphite-line);
+  background: var(--graphite);
+}
+
+/* A segmented row, not a stack of page headings. Four tasks used 225px of the
+   rail as 44px-tall left-aligned text; this is 34px whatever the count, and a
+   1fr grid cannot overflow. */
+.cockpit-rail [data-workflow-tabs] {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.cockpit-rail .task-button {
+  width: 100%;
+  min-height: 2.125rem;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 2px solid transparent;
+  font-size: 0.69rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cockpit-rail .task-button:hover {
+  background: #2a353d;
+  color: var(--chrome-text);
+}
+
+/* The accent budget is spent on the scene, not on the least important control
+   in the rail. Active reads as a raised pill instead. */
+.cockpit-rail .task-button[aria-current="page"] {
+  border-bottom-color: #6b7a83;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-weight: 700;
+}
+
+.rail-find {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.rail-find input[type="search"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.25rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.find-dismiss {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  min-height: 1.6rem;
+  padding: 0;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.25rem;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.find-dismiss[hidden] {
+  display: none;
+}
+
+/* Exactly one pane occupies the scroll zone. A swap rather than an overlay, so
+   nothing focusable is ever left behind an opaque surface. */
+/* min-width too, not just min-height: this is a grid item, so it defaults to a
+   min-content floor, and one nowrap descendant then sets a width the rail cannot
+   honour - the whole pane stretched to 223px inside a 187px column and every
+   panel in it was clipped at the rail's edge. */
+.rail-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.rail-pane[hidden] {
+  display: none;
+}
+
+.rail-spacer {
+  flex: 1 1 1.5rem;
+}
+
+.find-scope {
+  display: flex;
+  gap: 0.2rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scrollbar-width: thin;
+}
+
+.scope-chip {
+  flex: 0 0 auto;
+  min-height: 1.5rem;
+  width: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.9rem;
+  background: transparent;
+  color: var(--chrome-text-2);
+  cursor: pointer;
+  font-size: 0.66rem;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+
+.scope-chip[aria-pressed="true"] {
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-weight: 650;
+}
+
+.object-list {
+  display: grid;
+  gap: 0.1rem;
+  min-height: 0;
+}
+
+.group-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--graphite);
+  color: var(--chrome-text-2);
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-align: left;
+  text-transform: uppercase;
+  padding: 0.3rem 0.15rem 0.2rem;
+}
+
+.group-count {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: normal;
+}
+
+.object-row {
+  display: grid;
+  gap: 0.05rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--chrome-text);
+  cursor: pointer;
+  text-align: left;
+  padding: 0.25rem 0.35rem;
+}
+
+.object-row:hover {
+  background: var(--graphite-raised);
+}
+
+.object-row.selected {
+  background: var(--graphite-raised);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* A match you cannot currently see still appears, dimmed and labelled. */
+.object-row.not-drawn {
+  opacity: 0.55;
+}
+
+.object-name {
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.object-name mark {
+  background: rgb(94 216 229 / 26%);
+  color: inherit;
+  border-radius: 0.1rem;
+}
+
+.object-meta {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-chip {
+  justify-self: start;
+  border-radius: 0.2rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text-2);
+  font-size: 0.6rem;
+  padding: 0 0.25rem;
+}
+
+.hidden-reveal {
+  width: 100%;
+  border: 1px dashed var(--graphite-line);
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--chrome-text-2);
+  cursor: pointer;
+  font-size: 0.66rem;
+  padding: 0.2rem 0.35rem;
+  text-align: left;
+}
+
+.hidden-reveal:hover {
+  color: var(--chrome-text);
+}
+
+/* Pinned: the discretisation verdict is sign-off evidence and must not be
+   something you can scroll past without noticing. */
+.rail-foot {
+  position: relative;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.5rem 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.rail-utility {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.utility-button {
+  width: auto;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--chrome-text-2);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.3rem;
+  text-transform: uppercase;
+}
+
+.utility-button:hover,
+.utility-button[aria-expanded="true"] {
+  border-color: var(--graphite-line);
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+}
+
+.find-tally {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+/* Opens inside the rail, above the utility row. The viewport is never covered -
+   and neither is the rail: this used to float over the bottom of the scroll
+   pane, which was harmless when a rosette lived there and not harmless once the
+   hotspot list did. Playwright and a reviewer hit the same wall, because the
+   click that would dismiss it is the click it intercepts. In flow it pushes the
+   pane up instead, so everything underneath stays reachable. */
+.rail-popover {
+  max-height: 50vh;
+  overflow-y: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.35rem;
+  background: var(--graphite-raised);
+  padding: 0.5rem 0.6rem;
+}
+
+.rail-popover[hidden] {
+  display: none;
+}
+
+.strip-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.strip-heading h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--chrome-text-2);
+}
+
+.strip-subheading {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--chrome-text-2);
+}
+
+.body-list {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.body-row {
+  display: grid;
+  gap: 0.25rem;
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.5rem 0.15rem;
+}
+
+/* The drawn bodies read as active; a hidden one recedes rather than vanishing,
+   so the reviewer can still see what they turned off. This was
+   --graphite-raised, which is the rail's own background - the highlight painted
+   nothing and the whole distinction rested on the name colour. */
+.body-row[data-body-visible="true"] {
+  background: var(--sidebar-control);
+}
+
+.body-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.body-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  /* Enough that the layer name never ellipsizes to nothing before the row wraps,
+     and not so much that it forces a wrap at full rail width: the badge, the
+     opacity chip and the caret need ~140px of the 244px row between them. */
+  min-width: 6rem;
+}
+
+.body-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--chrome-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body-row[data-body-visible="true"] .body-name {
+  color: var(--chrome-text);
+}
+
+.body-badge {
+  flex: 0 0 auto;
+  border-radius: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  padding: 0.1rem 0.3rem;
+  white-space: nowrap;
+}
+
+.body-badge-neutral {
+  background: #2a353d;
+  color: #c5ced1;
+}
+
+.body-badge-accent {
+  background: rgb(94 216 229 / 16%);
+  color: var(--accent);
+}
+
+.body-opacity,
+.body-scale {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 2.6rem;
+  min-height: 1.5rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: #2a353d;
+  color: #dfe6e8;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.body-opacity:hover,
+.body-scale:hover {
+  background: #36434c;
+}
+
+.body-caret {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: #7f9099;
+  cursor: pointer;
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.body-caret:hover,
+.body-caret[aria-expanded="true"] {
+  border-color: var(--graphite-line);
+  color: var(--chrome-text);
+}
+
+.body-metrics[hidden] {
+  display: none;
+}
+
+.strip-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.strip-toggle:hover {
+  color: var(--chrome-text);
+}
+
+.body-metric {
+  margin: 0;
+  padding-left: 1.35rem;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.projection-note {
+  margin: 0;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.3rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text-2);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: 0.5rem 0.55rem;
+}
+
+.projection-note[hidden],
+.section-profile[hidden],
+.mesh-check[hidden] {
+  display: none;
+}
+
+/* The rail is too narrow to set the rosette beside its facts without shredding
+   the mono lines into three words each, so the facts take their own full-width
+   row underneath. */
+.section-profile-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.6rem;
+}
+
+.section-rosette {
+  flex: 0 0 auto;
+  margin-inline: auto;
+}
+
+.section-profile-body .section-facts {
+  flex: 1 1 100%;
+}
+
+.rosette-wall {
+  fill: none;
+  stroke: var(--graphite-line);
+  stroke-width: 1;
+}
+
+/* Every station in the grid is drawn faintly; the ones the solver actually
+   reported are painted with the value that coloured them on screen. */
+.rosette-station {
+  fill: #3f4d57;
+}
+
+.rosette-point {
+  stroke: #f3f5f5;
+  stroke-width: 0.6;
+}
+
+.section-facts {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.section-facts .meta {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--chrome-text-3);
+}
+
+.section-facts .section-peak {
+  color: #f0b429;
+}
+
+/* The list a reviewer works down, so it is a list: one dense line each, the
+   value in mono where the eye can compare it, and the scene's own colour on the
+   left. The generic rail button spent 38px of left-aligned prose per hotspot. */
+.cockpit-rail [data-hotspot-list] {
+  gap: 0;
+}
+
+.cockpit-rail .hotspot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  padding: 0.15rem 0.3rem;
+}
+
+.cockpit-rail .hotspot-row:hover {
+  background: #2a353d;
+}
+
+.hotspot-dot {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(243 245 245 / 55%);
+  background: #3f4d57;
+}
+
+.hotspot-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotspot-value {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.hotspot-util {
+  flex: 0 0 auto;
+  min-width: 2.6rem;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-align: right;
+}
+
+.mesh-check {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.check-label {
+  flex: 1 1 auto;
+  color: var(--chrome-text-2);
+  font-size: 0.72rem;
+}
+
+.check-value {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--chrome-text);
+}
+
+.check-badge {
+  border-radius: 0.2rem;
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.3rem;
+  white-space: nowrap;
+}
+
+.check-ok {
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.check-warn {
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+/* A band heading that carries the state it is set to. Full-bleed against the
+   strip's padding, so the bands read as the rail's structure rather than as
+   another boxed card inside it. */
+.rail-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline: -0.75rem;
+  border-top: 1px solid var(--graphite-line);
+  border-bottom: 1px solid #2e3a43;
+  background: #1b242b;
+  padding: 0.25rem 0.75rem 0.3rem;
+}
+
+.cockpit-rail .rail-group h2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--chrome-text-2);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.rail-group-state {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+/* One label, one control, on one 26px line. The label-above-control stack this
+   replaces cost 56px for the same pair, and thirteen of those are what filled
+   the rail. Scoped to the rail so it outranks `.result-controls label`. */
+.cockpit-rail .prow {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.625rem;
+  margin-inline: -0.75rem;
+  padding-inline: 0.75rem;
+}
+
+.cockpit-rail .prow:hover {
+  background: #232e36;
+}
+
+.cockpit-rail .prow > .pname {
+  color: #b9c5c9;
+  font-size: 0.72rem;
+}
+
+.cockpit-rail .prow select,
+.cockpit-rail .prow input[type="number"],
+.cockpit-rail .field-select select {
+  width: 100%;
+  min-height: 1.5rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.cockpit-rail .prow input[type="number"] {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+/* The field is the longest string in the rail and the thing every other control
+   on the task hangs off, so it keeps a row to itself. */
+.field-select {
+  padding: 0.35rem 0 0.25rem;
+}
+
+.cockpit-rail .field-select select {
+  min-height: 1.625rem;
+}
+
+.deform-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.deform-control input[type="range"] {
+  width: 100%;
+}
+
+/* The two bodies a reviewer dims while reading a field. Accent when drawn: this
+   answers "is it on screen", which the neutral scope-chip state does not. */
+.body-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.body-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #153b43;
+  color: var(--accent);
+}
+
+.drawer-state::before {
+  content: "\00a0\00b7\00a0";
+}
+
+.drawer-state {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.bar-readout {
+  min-width: 2.1rem;
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.bar-button {
+  width: auto;
+  min-height: 1.5rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+  white-space: nowrap;
+}
+
+.bar-button:disabled {
+  color: #7d8a93;
+  cursor: not-allowed;
+}
+
+/* Pushed to the end of the rail foot: it governs every readout on screen
+   rather than belonging to any one selector beside it. */
+.bar-units {
+  min-height: 1.5rem;
+  margin-left: auto;
+  padding-block: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.viewport-legend,
+.body-legend {
+  position: absolute;
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 0.4rem;
+  background: rgb(12 16 22 / 94%);
+  color: #dbe4ec;
+  font-size: 0.7rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.viewport-legend {
+  left: 0.75rem;
+  bottom: 0.75rem;
+  min-width: 15rem;
+  max-width: min(22rem, 45%);
+}
+
+.viewport-legend[hidden],
+.body-legend[hidden] {
+  display: none;
+}
+
+.legend-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-weight: 600;
+}
+
+.legend-context {
+  color: #8b96a2;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.legend-ramp {
+  height: 0.55rem;
+  border: 1px solid rgb(243 245 245 / 35%);
+  border-radius: 0.15rem;
+}
+
+.legend-ticks {
+  display: flex;
+  justify-content: space-between;
+  color: #8b96a2;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+/* Under its toggle, top-right. It opens on request, so it no longer has to
+   dodge the camera controls - and no longer disappears when the rail opens,
+   which silently withdrew a panel the reader had asked for. */
+.body-legend {
+  right: 0.75rem;
+  top: 3.1rem;
+  max-width: min(24rem, 60%);
+  gap: 0.25rem;
+}
+
+.legend-toggle {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid #77858c;
+  border-radius: 0.25rem;
+  background: var(--paper-raised);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.legend-toggle[hidden] {
+  display: none;
+}
+
+.legend-toggle:hover {
+  border-color: var(--focus-on-light);
+  color: var(--text);
+}
+
+.legend-toggle[aria-expanded="true"] {
+  border-color: var(--focus-on-light);
+  background: rgb(12 16 22 / 94%);
+  color: #dbe4ec;
+}
+
+.body-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #c8d0da;
+  font-size: 0.68rem;
+}
+
+.body-legend-swatch {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  height: 0.5rem;
+  border-radius: 0.1rem;
+  background: #8f9aa6;
+}
+
+.body-legend-analysis_mesh {
+  height: 0.2rem;
+  background: #e2e8ef;
+}
+
+.body-legend-subpoints {
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: #e2542b;
+}
+
+.body-legend-deformed {
+  height: 0;
+  border-top: 2px dashed var(--accent);
+  background: none;
+}
+
+/* Secondary controls, folded away by default. The design's left column carries
+   the four bodies, the projection note, the section and the mesh check; these
+   are the app's extras and must not push those off the panel. */
+.strip-drawer > summary {
+  cursor: pointer;
+  color: var(--chrome-text-2);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 0.35rem 0;
+}
+
+.strip-drawer[open] > summary {
+  color: var(--chrome-text);
+}
+
+/* The last row of the Display list, so it takes the same rule that separates
+   the body and overlay rows above it rather than floating free underneath. */
+.layer-tree {
+  border-top: 1px solid var(--graphite-line);
+  margin-top: 0.35rem;
+}
+
+.layer-tree > summary {
+  cursor: pointer;
+}
+
+/* Floated rather than flexed: `display: flex` on a summary drops the native
+   disclosure triangle, and the triangle is what says the row opens. */
+.layer-tally {
+  float: right;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.layer-tree section {
+  margin: 0.25rem 0 0.25rem 0.25rem;
+}
+
+.layer-tree h3 {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  margin: 0.4rem 0 0.2rem;
+}
+
+.layer-tree details {
+  margin-left: 0.5rem;
+}
+
+.status-badge,
+.severity-badge {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.065em;
+  line-height: 1.2;
+  padding: 0.22rem 0.4rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-badge[data-status="solved"],
+.status-badge[data-status="compliance_complete"] {
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.status-badge[data-status="stale"],
+.status-badge[data-status="partial"],
+.status-badge[data-status="not_solved"],
+.severity-badge[data-severity="warning"] {
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+.severity-badge[data-severity="error"] {
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.severity-badge[data-severity="info"] {
+  background: #dceff2;
+  color: var(--accent-ink);
+}
+
+.diagnostics-workflow {
+  display: grid;
+  gap: 1rem;
+}
+
+[data-diagnostic-list][hidden] {
+  display: none;
+}
+
+.diagnostics-workflow,
+.diagnostic-group,
+.diagnostic-item,
+.diagnostic-item dl,
+.diagnostic-item dd {
+  min-width: 0;
+}
+
+.diagnostic-group {
+  padding: 0;
+}
+
+/* Two columns - a severity badge and everything else - because that is what fits
+   the rail this now lives in. The three-column grid it replaces was written for
+   the evidence dock deleted in 66815d4, and its 12rem/20rem minimums resolved to
+   602px of content inside a 268px pane: the Source/Code/Target list began past
+   the rail's right edge and every message lost its last line-width. The narrow
+   media query already collapsed this; the rail is narrow at every width, so the
+   collapse is the default. */
+.diagnostic-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem 0.75rem;
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.75rem 0;
+}
+
+.diagnostic-item dl {
+  grid-column: 1 / -1;
+}
+
+.diagnostic-item p {
+  overflow-wrap: anywhere;
+}
+
+.diagnostic-item:first-of-type {
+  margin-top: 0.75rem;
+}
+
+.diagnostic-item p,
+.diagnostic-item dl {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.diagnostic-item dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.2rem 0.6rem;
+  font-family: var(--font-mono);
+}
+
+.diagnostic-item dt {
+  color: var(--chrome-text-2);
+}
+
+.diagnostic-item dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The rail carries the bodies panel: a body row is a name, a badge, an opacity
+   chip and a mono metric line, and at 12rem those wrapped onto four lines each.
+   17rem fits them on one. */
+.viewer-workspace {
+  --controls-width: 0px;
+  padding-left: var(--controls-width);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(24rem, 1fr) minmax(16rem, 20rem);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "viewport inspector";
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--graphite);
+}
+
+.viewer-workspace:has(.inspector[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "viewport";
+}
+
+.viewer-workspace[hidden] {
+  display: none;
+}
+
+aside,
+section {
+  min-width: 0;
+}
+
+.sidebar,
+.cockpit-rail,
+.inspector {
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  padding: 0.85rem;
+  scrollbar-color: var(--graphite-line) var(--graphite-raised);
+}
+
+.sidebar {
+  grid-area: tools;
+  border-right: 1px solid var(--graphite-line);
+}
+
+body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
+  --controls-width: min(18.5rem, max(45vw, 15rem));
+}
+
+/* The contact review is the densest panel in the app - eight measured columns
+   per shoe - and at the standard rail width three of them were visible at a
+   time. It gets the room its own content needs rather than the table being cut
+   down to fit: utilization is derived from |Ft| and the friction limit, but it
+   is derived under rules about open contacts and near-zero limits, and it is
+   the column a reviewer actually scans. Keeping the two inputs and dropping the
+   answer would be backwards. */
+body[data-rail-open="true"]:not([data-embed="true"]):has(.contact-review) .viewer-workspace {
+  --controls-width: min(26rem, max(45vw, 15rem));
+}
+
+.rail-toggle {
+  position: absolute;
+  z-index: 7;
+  top: 0.75rem;
+  left: var(--controls-width);
+  width: 1.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid var(--graphite-line);
+  border-left: 0;
+  border-radius: 0 0.4rem 0.4rem 0;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-size: 1.75rem;
+  cursor: pointer;
+}
+
+.rail-toggle:hover { background: var(--graphite); }
+
+.cockpit-rail {
+  position: absolute;
+  z-index: 6;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--controls-width);
+  overflow: hidden;
+  border-right: 1px solid var(--graphite-line);
+}
+
+.cockpit-rail[hidden] {
+  display: none;
+}
+
+/* The task's own controls. It takes its natural height and never shrinks; the
+   strip scrolls around it. It used to be capped at 30% with a scrollbar of its
+   own, which put thirteen result controls behind a 200px window nested inside
+   the pane's own scrollbar - the reason the Results task was unusable. Nothing
+   is capped now because nothing shares the pane with it: the layer list belongs
+   to Model. */
+.cockpit-rail .task-panel {
+  flex: 0 0 auto;
+}
+
+.inspector {
+  grid-area: inspector;
+  overflow: auto;
+  border-left: 1px solid var(--graphite-line);
+}
+
+.inspector[hidden] {
+  display: none;
+}
+
+.viewport {
+  position: relative;
+  grid-area: viewport;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: #0e1418;
+}
+
+.viewport[data-renderer="unavailable"] > :not(.viewport-unavailable) {
+  display: none;
+}
+
+.viewport-unavailable {
+  place-self: center;
+  max-width: 34rem;
+  margin: 2rem;
+  color: var(--chrome-text);
+  text-align: center;
+}
+
+.viewport-unavailable h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.25rem;
+}
+
+.viewport-unavailable p {
+  margin: 0.35rem 0;
+  color: #b8c2c8;
+}
+
+/* A quiet caption rather than a slab. It is a first-run hint, not a control,
+   so it should not out-weigh the legend it used to sit on top of. */
+.viewport-guidance {
+  position: absolute;
+  left: 50%;
+  bottom: 0.4rem;
+  transform: translateX(-50%);
+  max-width: 60%;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.viewport:has([data-canvas]:focus-visible) .viewport-guidance {
+  opacity: 1;
+}
+
+/* Top-right column of compact chips, out of the way of the model. */
+/* Beside the orientation gizmo the renderer parks bottom-right, not in a
+   second corner of its own: the buttons and the gizmo do one job between them,
+   and the top-right is left to the viewport key. */
+.camera-controls {
+  position: absolute;
+  bottom: 0.6rem;
+  right: 8.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.camera-controls button {
+  width: 2.3rem;
+  min-height: 1.8rem;
+  padding: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.section-box-controls button {
+  width: auto;
+}
+
+.section-box-controls {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.section-box-controls h3 {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.section-box-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.section-box-grid label {
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.72rem;
+}
+
+.section-box-grid input {
+  min-width: 0;
+}
+
+/* Lives inside .camera-controls now (moved there in renderCameraControls), so
+   it is a chip in that column rather than a floating button of its own. */
+.camera-controls .reset-view {
+  width: 2.3rem;
+  min-height: 1.8rem;
+  margin-top: 0.25rem;
+  padding: 0.1rem;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.3;
+}
+
+.sidebar h3,
+.cockpit-rail h3,
+.inspector h3,
+.sidebar h4,
+.cockpit-rail h4,
+.inspector h4,
+.cockpit-rail summary {
+  margin: 0.8rem 0 0.35rem;
+  color: #d9e0e2;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.cockpit-rail h4 {
+  font-size: 0.7rem;
+  color: var(--chrome-text-2);
+}
+
+.sidebar h2,
+.cockpit-rail h2,
+.inspector h2 {
+  margin: 1rem 0 0.5rem;
+  color: #d9e0e2;
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.sidebar > section:first-child h2,
+.inspector > h2:first-child {
+  margin-top: 0;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Its own colour, not --meta's. Every [data-status] below repaints it, but an
+   unmapped status - "Not available", which is exactly what the header shows when
+   the review carries no analysis_status - fell through to --muted on dark. */
+.status-badge {
+  color: var(--chrome-text);
+  font-size: 0.75rem;
+}
+
+.sidebar .meta,
+.cockpit-rail .meta,
+.inspector .meta {
+  color: #b9c5c9;
+}
+
+[data-layer-list],
+[data-tree],
+[data-object-list],
+[data-hotspot-list],
+[data-issue-list] {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sidebar label,
+.cockpit-rail label,
+.inspector label {
+  color: #d9e0e2;
+  font-size: 0.8rem;
+}
+
+.tree-row {
+  border-left: 2px solid var(--graphite-line);
+  color: #c5ced1;
+  font-size: 0.75rem;
+  padding: 0.3rem 0 0.3rem 0.5rem;
+}
+
+input[type="search"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #687780;
+  border-radius: 0.15rem;
+  background: var(--paper-raised);
+  color: var(--text);
+  padding: 0.48rem 0.55rem;
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 1.5rem;
+  accent-color: var(--accent-ink);
+}
+
+.result-controls {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.result-controls label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.result-legend {
+  margin-top: 0.65rem;
+  color: #d9e0e2;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding-block: 0.3rem;
+}
+
+/* Travels with the legend and is never collapsed away: mislabelling FE stress
+   as code stress is a compliance problem, not a display preference. */
+.compliance-notice {
+  color: #f0b429;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+button {
+  width: 100%;
+  border: 1px solid #77858c;
+  border-radius: 0.15rem;
+  background: var(--paper-raised);
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.48rem 0.55rem;
+  text-align: left;
+}
+
+button:hover {
+  border-color: var(--focus-on-light);
+}
+
+.sidebar button,
+.cockpit-rail button,
+.inspector button {
+  border-color: var(--graphite-line);
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+}
+
+.sidebar button:hover,
+.cockpit-rail button:hover,
+.inspector button:hover {
+  border-color: var(--focus-on-dark);
+}
+
+button.selected,
+.sidebar button.selected,
+.cockpit-rail button.selected,
+.inspector button.selected {
+  border-color: var(--accent);
+  background: #153b43;
+  color: var(--accent);
+}
+
+[data-canvas] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+[data-deformation-preview] {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.property-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  /* The actions moved below the evidence, so the gap belongs above them. */
+  margin-top: 0.9rem;
+}
+
+/* What was selected, in words, before any number. */
+.evidence-head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.evidence-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.evidence-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--chrome-text);
+}
+
+.evidence-badge {
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  background: var(--sidebar-control);
+  color: #d9e0e2;
+  padding: 1px 6px;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.evidence-lede {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #b9c5c9;
+  text-wrap: pretty;
+}
+
+.evidence-meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #8895a0;
+  overflow-wrap: anywhere;
+}
+
+.evidence-note {
+  margin: 0;
+  border-top: 1px solid var(--graphite-line);
+  padding-top: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #8895a0;
+  text-wrap: pretty;
+}
+
+/* One cell per degree of freedom: the filled cells make a shape a reviewer can
+   compare between two supports without reading either. */
+.restraint-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.restraint-dof {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.restraint-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  height: 30px;
+  border: 1px solid var(--graphite-line);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+/* Held solid, released hollow. Spring and one-way are held too, but
+   conditionally, so they take the outline and carry a glyph. */
+.restraint-cell.is-fixed {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--graphite);
+}
+
+.restraint-cell.is-free {
+  border-color: #77858c;
+  background: transparent;
+  color: #8895a0;
+}
+
+.restraint-cell.is-spring,
+.restraint-cell.is-one-way {
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+
+.restraint-word {
+  font-size: 0.68rem;
+  color: #b9c5c9;
+}
+
+.restraint-word.is-free {
+  color: #8895a0;
+}
+
+/* The ids, folded away. */
+.evidence-reference > summary {
+  border-top: 1px solid var(--graphite-line);
+  padding-top: 0.7rem;
+  color: #b9c5c9;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.evidence-reference .property-section {
+  border-top: 0;
+  padding-top: 0.4rem;
+}
+
+.property-sections {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.property-section {
+  border-top: 1px solid var(--graphite-line);
+  padding-top: 0.7rem;
+}
+
+.property-section h3 {
+  margin: 0 0 0.5rem;
+  color: #d9e0e2;
+  font-size: 0.75rem;
+}
+
+.property-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.property-table th,
+.property-table td {
+  border-top: 1px solid var(--graphite-line);
+  padding: 0.35rem 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.property-table th {
+  width: 44%;
+  color: #b9c5c9;
+  font-weight: 500;
+  padding-right: 0.6rem;
+}
+
+.property-table td {
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+[data-embed="true"] .app-header,
+[data-embed="true"] .sidebar,
+[data-embed="true"] .cockpit-rail,
+[data-embed="true"] .inspector {
+  display: none;
+}
+
+body[data-embed="true"] .app-shell {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+body[data-embed="true"] .viewport,
+body[data-embed="true"] .viewer-workspace,
+body[data-embed="true"] [data-canvas] {
+  height: 100vh;
+}
+
+body[data-embed="true"] .viewer-workspace,
+body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "viewport";
+}
+
+@media (max-width: 1200px) {
+  .viewer-workspace,
+  .viewer-workspace:has(.inspector[hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "viewport";
+  }
+
+  .inspector {
+    position: absolute;
+    z-index: 4;
+    inset: 0 0 0 auto;
+    width: min(20rem, 100%);
+    box-shadow: -0.5rem 0 1rem rgba(14, 20, 24, 0.35);
+  }
+
+}
+
+@media (max-width: 900px) {
+  .app-header .meta {
+    display: none;
+  }
+
+  body[data-embed="true"] .viewport {
+    min-height: 100vh;
+  }
+
+  body[data-embed="true"] .viewer-workspace {
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 800px) {
+  body[data-embed="true"] .viewer-workspace {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "viewport";
+  }
+}
+
+@media (max-width: 520px) {
+  .app-header {
+    min-height: 3.25rem;
+    padding-inline: 0.7rem;
+  }
+
+  .header-actions {
+    gap: 0.2rem;
+  }
+
+  .header-actions > a,
+  .header-actions > button {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  [data-workflow-tabs] {
+    padding-inline: 0.25rem;
+  }
+
+  .cockpit-rail .task-button {
+    padding-inline: 0.65rem;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Landing gallery
+
+   The front door for a reader who has never opened a Tuba review. It reuses the
+   review shell's tokens so arriving at a scene is not a change of product, and
+   it renders in place of that shell rather than alongside it.
+   --------------------------------------------------------------------------- */
+
+body[data-view="gallery"] .app-shell {
+  display: none;
+}
+
+body[data-view="gallery"] {
+  height: auto;
+  overflow-y: auto;
+}
+
+/* No display rule here on purpose. A <main> is already block, and an author
+   `display` would override the UA's [hidden] rule - which it did, leaving an
+   empty full-viewport panel covering every review. */
+.gallery {
+  min-height: 100vh;
+  padding: 3rem 1.5rem 4rem;
+  background: var(--graphite);
+  color: var(--chrome-text);
+}
+
+.gallery-heading {
+  max-width: 68rem;
+  margin: 0 auto 0.5rem;
+  font-size: 1.9rem;
+  letter-spacing: 0.01em;
+}
+
+.gallery-intro {
+  max-width: 68rem;
+  margin: 0 auto 2.25rem;
+  color: #b9c4c9;
+  line-height: 1.5;
+  max-inline-size: 60ch;
+}
+
+.gallery-grid {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 68rem;
+  margin: 0 auto;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+}
+
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--graphite-line);
+  border-radius: 4px;
+  background: var(--graphite-raised);
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.gallery-card:hover,
+.gallery-card:focus-visible {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.gallery-card-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--graphite);
+  border-bottom: 1px solid var(--graphite-line);
+}
+
+.gallery-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.gallery-card-question {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.gallery-card-title {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gallery-card-summary {
+  margin: 0;
+  color: #b9c4c9;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.gallery-card-elements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery-card-element {
+  border: 1px solid var(--graphite-line);
+  border-radius: 2px;
+  padding: 0.12rem 0.4rem;
+  color: #8ea0a8;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.gallery-card-evidence {
+  margin: 0.35rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--graphite-line);
+  color: #8ea0a8;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gallery-card-edit {
+  margin: 0;
+  color: #8ea0a8;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.gallery-card-edit code {
+  color: #b9c4c9;
+  font-family: var(--font-mono);
+}
+
+.gallery-back {
+  align-self: flex-start;
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.gallery-back:hover,
+.gallery-back:focus-visible {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-card {
+    transition: none;
+  }
+  .gallery-card:hover,
+  .gallery-card:focus-visible {
+    transform: none;
+  }
+}
+
+/* Example switcher in the header identity block. The gallery is the landing
+   page; this is how you move between reviews once inside one. */
+.bundle-picker {
+  margin-top: 0.2rem;
+  align-self: start;
+  width: auto;
+  max-width: 100%;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-size: 0.72rem;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.35rem;
+}
+
+/* Explicit, because an author rule on this element would otherwise beat the
+   user-agent [hidden] rule - the mistake that once left an empty gallery
+   panel covering every review. */
+.bundle-picker[hidden] {
+  display: none;
+}
+/* The contact panel arrived with a palette of its own - slate borders, a sky-blue
+   selected row, a #b91c1c limit warning that measured 2.26:1 on this rail - and
+   px type against the rem the rest of the file sets. It is the same rail as every
+   other band, so it uses the same tokens. The plot keeps a light ground on
+   purpose: data surfaces in this app are light (the renderer paints #f8fafc), and
+   the chart's own strokes are AA against it. */
+.contact-review {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border-block: 1px solid var(--graphite-line);
+  padding-block: 0.75rem;
+}
+
+.contact-review p {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.contact-step-nav {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.cockpit-rail .contact-step-nav button {
+  width: auto;
+  flex: 1 1 0;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.4rem;
+  text-align: center;
+  font-size: 0.72rem;
+}
+
+.contact-review label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.375rem;
+}
+
+/* Focusable because it scrolls: the columns past its right edge were reachable
+   only by tabbing through the support buttons inside it. */
+.contact-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.contact-table-scroll:focus-visible {
+  outline: 2px solid var(--focus-on-dark);
+  outline-offset: 2px;
+}
+
+.contact-review table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+/* Eight columns in a 244px rail: padding was 80px of that on its own. */
+.contact-review th,
+.contact-review td {
+  padding: 0.25rem 0.2rem;
+  text-align: left;
+}
+
+/* The header is prose and wraps; a measured value must not break across lines. */
+.contact-review td {
+  white-space: nowrap;
+}
+
+.contact-review th {
+  color: var(--chrome-text-2);
+  font-weight: 650;
+}
+
+/* The same selected surface every other list in the rail uses. */
+.contact-review tr[data-selected="true"] {
+  background: #153b43;
+  color: var(--chrome-text);
+}
+
+.contact-review .contact-limit-exceeded {
+  color: var(--danger-on-dark);
+  font-weight: 600;
+}
+
+.contact-review svg {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 0.2rem;
+  background: var(--paper-raised);
+}
+
+.cockpit-rail .task-panel:has(.contact-review) { max-height: none; overflow: visible; }
+
+/* Build / Review. Build is model.py beside the scene; Review is the rail. The
+   switch is the header's one navigation control, so it stands apart from the
+   actions on the right rather than joining them. It stays in the flow and
+   centres on the free space: pinned to the middle of the header, a long status
+   message slid underneath it. */
+body[data-studio="true"] .app-identity {
+  flex-grow: 0;
+}
+
+.mode-switch {
+  display: flex;
+  flex: 0 0 auto;
+  margin-inline: auto;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+}
+
+.mode-switch[hidden] {
+  display: none;
+}
+
+.mode-switch button {
+  width: auto;
+  min-height: 1.875rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--chrome-text-2);
+  font-size: 0.69rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 1.35rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.mode-switch button + button {
+  border-left: 1px solid var(--graphite-line);
+}
+
+.mode-switch button:hover {
+  background: #2a353d;
+  color: var(--chrome-text);
+}
+
+/* The same raised pill the rail's active task uses. */
+.mode-switch button[aria-pressed="true"] {
+  border-bottom-color: #6b7a83;
+  background: var(--graphite-raised);
+  color: var(--chrome-text);
+  font-weight: 700;
+}
+
+/* The script takes the rail's slot, wider: a builder call runs to about sixty
+   characters and should neither wrap nor scroll sideways. */
+body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-workspace {
+  --controls-width: min(34rem, max(42vw, 20rem));
+}
+
+.code-pane {
+  position: absolute;
+  z-index: 6;
+  inset: 0 auto 0 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  width: var(--controls-width);
+  border-right: 1px solid var(--graphite-line);
+  background: var(--graphite);
+}
+
+.code-pane[hidden] {
+  display: none;
+}
+
+.code-pane-head {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  min-height: 2.25rem;
+  padding-right: 0.5rem;
+  border-bottom: 1px solid var(--graphite-line);
+  background: var(--graphite-raised);
+}
+
+.code-file {
+  display: flex;
+  align-items: center;
+  margin-bottom: -1px;
+  padding: 0 1rem;
+  border-bottom: 2px solid #6b7a83;
+  background: var(--graphite);
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.code-state {
+  flex: 1 1 auto;
+  align-self: center;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-pane .code-run {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 0.45rem;
+  width: auto;
+  min-height: 1.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.15rem;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+}
+
+.code-pane .code-run:hover {
+  background: #153b43;
+}
+
+.code-pane .code-run:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.code-run kbd {
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+}
+
+.code-editor {
+  display: flex;
+  min-height: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.25rem;
+}
+
+/* Numbers only; the textarea owns scrolling and the gutter follows it. The
+   extra bottom padding lets it follow past a horizontal scrollbar. */
+.code-gutter {
+  flex: 0 0 auto;
+  min-width: 2.75rem;
+  margin: 0;
+  overflow: hidden;
+  padding: 0.625rem 0.75rem 3rem 0.5rem;
+  color: var(--chrome-text-3);
+  font: inherit;
+  text-align: right;
+  user-select: none;
+}
+
+.code-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.code-mark {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1.25rem;
+  background: #153b43;
+  pointer-events: none;
+}
+
+.code-mark[hidden] {
+  display: none;
+}
+
+.code-mark-error {
+  background: rgb(255 133 125 / 16%);
+}
+
+.code-body textarea {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--chrome-text);
+  font: inherit;
+  padding: 0.625rem 0.75rem 0.625rem 0;
+  resize: none;
+  scrollbar-color: var(--graphite-line) var(--graphite);
+  tab-size: 4;
+  white-space: pre;
+}
+
+.code-body textarea:focus-visible {
+  outline: 2px solid var(--focus-on-dark);
+  outline-offset: -2px;
+}
+
+.code-problem {
+  max-height: 8rem;
+  margin: 0;
+  overflow: auto;
+  border-top: 1px solid rgb(255 133 125 / 45%);
+  background: #2a2226;
+  color: #ffcfcb;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  padding: 0.45rem 0.85rem;
+  white-space: pre-wrap;
+}
+
+.code-problem[hidden] {
+  display: none;
+}
+
+.code-pane-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.75rem;
+  border-top: 1px solid var(--graphite-line);
+  background: var(--graphite-raised);
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  padding: 0 0.85rem;
+}
+
+/* The inspector's link back to the script. */
+.inspector .script-link-reveal {
+  display: grid;
+  gap: 0.2rem;
+  font-family: var(--font-mono);
+  padding: 0.45rem 0.55rem;
+}
+
+.script-link-where {
+  color: var(--accent);
+  font-size: 0.6875rem;
+}
+
+.script-link-reveal code {
+  overflow: hidden;
+  color: var(--chrome-text);
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.script-link-param {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  color: var(--chrome-text-2);
+  font-size: 0.78rem;
+}
+
+.script-link-param input {
+  min-width: 0;
+  min-height: 1.75rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  background: var(--graphite);
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.script-link-unit {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.script-link-reveal + .script-link-reveal {
+  margin-top: 0.35rem;
+}
+
+/* The line that calls a shared helper: quieter than the selection's own line. */
+.code-mark-call {
+  background: rgb(94 216 229 / 7%);
+}
+
+/* Solve is the studio's one primary action, so it alone takes the accent fill. */
+.header-actions > .solve-button,
+.review-empty .solve-button {
+  width: auto;
+  border: 1px solid var(--accent);
+  border-radius: 0.15rem;
+  background: var(--accent);
+  color: #082d33;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.header-actions > .solve-button:hover,
+.review-empty .solve-button:hover {
+  border-color: #84e8f3;
+  background: #84e8f3;
+  color: #082d33;
+}
+
+.header-actions > .solve-button:disabled,
+.review-empty .solve-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.solve-button[hidden] {
+  display: none;
+}
+
+.status-badge[data-status="preparing"],
+.status-badge[data-status="solving"] {
+  background: #153b43;
+  color: var(--accent);
+}
+
+.review-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  max-width: min(24rem, 80%);
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 0.4rem;
+  background: rgb(12 16 22 / 94%);
+  color: #dbe4ec;
+  padding: 1rem 1.25rem;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.review-empty[hidden] {
+  display: none;
+}
+
+.review-empty p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.script-link-note {
+  margin: 0.4rem 0 0;
+  color: #8895a0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}

@@ -1,0 +1,123 @@
+import json
+import os
+import unittest
+from unittest.mock import patch
+
+from tuba.solver.code_aster_doctor import main
+from tuba.solver.code_aster_runtime import CodeAsterRuntimeCandidate
+
+
+class TestCodeAsterDoctor(unittest.TestCase):
+    def test_json_output_lists_candidates(self):
+        candidates = [CodeAsterRuntimeCandidate("python_bridge", ("/opt/aster/bin/python",), True)]
+
+        with patch("tuba.solver.code_aster_doctor.discover_code_aster_runtimes", return_value=candidates):
+            payload = main(["--json"], return_output=True)
+
+        data = json.loads(payload)
+        self.assertEqual(data["candidates"][0]["kind"], "python_bridge")
+        self.assertEqual(data["candidates"][0]["command"], ["/opt/aster/bin/python"])
+        self.assertTrue(data["candidates"][0]["available"])
+
+    def test_text_output_includes_setup_guidance_when_empty(self):
+        candidates = [CodeAsterRuntimeCandidate("auto", (), False, "No runtime")]
+
+        with patch("tuba.solver.code_aster_doctor.discover_code_aster_runtimes", return_value=candidates):
+            output = main([], return_output=True)
+
+        self.assertIn("No runtime", output)
+        self.assertIn("TUBA_CODE_ASTER_PYTHON", output)
+
+    def test_windows_guidance_prefers_wsl_and_rejects_linux_python_path(self):
+        candidates = [CodeAsterRuntimeCandidate("auto", (), False, "No runtime")]
+
+        with patch("tuba.solver.code_aster_doctor.os.name", "nt"), patch(
+            "tuba.solver.code_aster_doctor.discover_code_aster_runtimes",
+            return_value=candidates,
+        ):
+            output = main([], return_output=True)
+
+        self.assertIn("Primary Windows setup path", output)
+        self.assertIn("Do not set TUBA_CODE_ASTER_PYTHON to a Linux/WSL path", output)
+        self.assertLess(output.index("TUBA_CODE_ASTER_EXEC_METHOD=wsl"), output.index("TUBA_CODE_ASTER_PYTHON"))
+
+    def test_environment_defaults_are_passed_to_runtime_discovery(self):
+        captured = {}
+
+        def fake_discover(config):
+            captured["config"] = config
+            return [CodeAsterRuntimeCandidate("wsl", ("wsl", "-d", "Ubuntu", "--"), True)]
+
+        env = {
+            "TUBA_CODE_ASTER_EXEC_METHOD": "wsl",
+            "TUBA_CODE_ASTER_WSL_DISTRO": "Ubuntu",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("tuba.solver.code_aster_doctor.discover_code_aster_runtimes", fake_discover):
+                output = main([], return_output=True)
+
+        self.assertEqual(captured["config"].exec_method, "wsl")
+        self.assertEqual(captured["config"].wsl_distro, "Ubuntu")
+        self.assertIn("wsl -d Ubuntu --", output)
+
+    def test_check_json_output_lists_runtime_readiness(self):
+        from tuba.solver.code_aster_runtime import CodeAsterRuntimeCheck
+
+        checks = [
+            CodeAsterRuntimeCheck(
+                runtime=CodeAsterRuntimeCandidate("wsl", ("wsl", "-d", "Ubuntu", "--"), True),
+                command=("wsl", "-d", "Ubuntu", "--", "bash", "-lc", "probe"),
+                returncode=127,
+                stdout="",
+                stderr="Code_Aster runner not found",
+                ok=False,
+                reason="Code_Aster runner not found",
+            )
+        ]
+
+        with patch("tuba.solver.code_aster_doctor.preflight_code_aster_runtimes", return_value=checks):
+            payload = main(["--json", "--check"], return_output=True)
+
+        data = json.loads(payload)
+        self.assertFalse(data["checks"][0]["ok"])
+        self.assertEqual(data["checks"][0]["kind"], "wsl")
+        self.assertIn("Code_Aster runner not found", data["checks"][0]["reason"])
+
+    def test_check_uses_env_docker_image_in_runtime_config(self):
+        captured = {}
+
+        def fake_preflight(config):
+            captured["config"] = config
+            return []
+
+        env = {"TUBA_CODE_ASTER_DOCKER_IMAGE": "local/code-aster:env"}
+        with patch.dict(os.environ, env, clear=False):
+            with patch("tuba.solver.code_aster_doctor.preflight_code_aster_runtimes", side_effect=fake_preflight):
+                main(["--check"], return_output=True)
+
+        self.assertEqual(captured["config"].docker_image, "local/code-aster:env")
+
+    def test_check_exit_code_reflects_runtime_readiness(self):
+        from tuba.solver.code_aster_runtime import CodeAsterRuntimeCheck
+
+        runtime = CodeAsterRuntimeCandidate("command", ("run_aster",), True)
+        for ready, expected in ((False, 1), (True, 0)):
+            check = CodeAsterRuntimeCheck(
+                runtime=runtime,
+                command=("run_aster", "--help"),
+                returncode=0 if ready else 127,
+                stdout="run_aster" if ready else "",
+                stderr="" if ready else "Code_Aster runner not found",
+                ok=ready,
+                reason=None if ready else "Code_Aster runner not found",
+            )
+            with self.subTest(ready=ready):
+                with patch(
+                    "tuba.solver.code_aster_doctor.preflight_code_aster_runtimes",
+                    return_value=[check],
+                ), patch("builtins.print"):
+                    self.assertEqual(main(["--check", "--exec-method", "command"]), expected)
+
+
+if __name__ == "__main__":
+    unittest.main()

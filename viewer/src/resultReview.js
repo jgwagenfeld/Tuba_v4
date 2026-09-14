@@ -1,0 +1,400 @@
+import { getColoringLegend, getColoringValues } from "./coloring.js";
+
+export function formatPseudoTime(value) {
+  return Number.isFinite(value) ? String(Number(value.toPrecision(8))) : "unavailable";
+}
+
+export function getLoadCaseOptions(state) {
+  const byLoadCase = new Map();
+  for (const overlay of [...(state.resultStates ?? []), ...(state.geometryStates ?? []), ...solverResultOverlays(state)]) {
+    const data = overlay.data ?? {};
+    const loadCase = data.load_case;
+    if (!loadCase || byLoadCase.has(loadCase)) {
+      continue;
+    }
+    byLoadCase.set(loadCase, {
+      id: loadCase,
+      label: loadCase,
+      resultStateId: data.result_state_id ?? data.id ?? null
+    });
+  }
+  return [...byLoadCase.values()];
+}
+
+export function getResultStateOptions(state) {
+  return (state.resultStates ?? []).map((overlay) => {
+    const data = overlay.data ?? {};
+    return {
+      id: data.id ?? overlay.id,
+      label: data.metadata?.stage_label ? `${data.metadata.stage_label} / ${formatPseudoTime(data.metadata.pseudo_time)}` : overlay.name || data.load_case || data.id || overlay.id,
+      loadCase: data.load_case ?? null,
+      overlay
+    };
+  });
+}
+
+export function coherentResultContext(previousState, nextState) {
+  const options = getResultStateOptions(nextState);
+  const previous = options.find(
+    (option) =>
+      option.id === previousState.activeResultStateId &&
+      option.loadCase === previousState.activeLoadCase
+  );
+  if (previous) {
+    return {
+      activeResultStateId: previous.id,
+      activeLoadCase: previous.loadCase
+    };
+  }
+
+  const next =
+    options.find(
+      (option) =>
+        option.id === nextState.activeResultStateId &&
+        option.loadCase === nextState.activeLoadCase
+    ) ??
+    options.find((option) => option.id === nextState.activeResultStateId) ??
+    options.find((option) => option.loadCase === nextState.activeLoadCase) ??
+    options[0] ??
+    null;
+  return {
+    activeResultStateId: next?.id ?? null,
+    activeLoadCase: next?.loadCase ?? nextState.activeLoadCase ?? null
+  };
+}
+
+export function getGeometryStateOptions(state, loadCase = state.activeLoadCase ?? null) {
+  return (state.geometryStates ?? []).filter((overlay) => {
+    const geometryLoadCase = overlay.data?.load_case ?? null;
+    return !loadCase || geometryLoadCase === loadCase;
+  }).map((overlay) => {
+    const data = overlay.data ?? {};
+    return {
+      id: data.id ?? overlay.id,
+      label: overlay.name || data.id || overlay.id,
+      loadCase: data.load_case ?? null,
+      purpose: data.purpose ?? null,
+      stateType: data.state_type ?? null,
+      visualScale: data.visual_scale ?? data.displacement_scale ?? null,
+      overlay
+    };
+  });
+}
+
+export function getActiveResultState(state) {
+  const options = getResultStateOptions(state);
+  return (
+    options.find((option) => option.id === state.activeResultStateId) ??
+    options.find((option) => option.loadCase === getActiveLoadCase(state)) ??
+    options[0] ??
+    null
+  );
+}
+
+export function getActiveLoadCase(state) {
+  return state.activeLoadCase ?? state.resultStates?.[0]?.data?.load_case ?? solverResultOverlays(state)[0]?.data?.load_case ?? null;
+}
+
+export function getActiveLoadCaseDefinition(state) {
+  const activeLoadCase = getActiveLoadCase(state);
+  return (state.overlays ?? []).find(
+    (overlay) => overlay.kind === "load_case" && overlay.data?.load_case === activeLoadCase
+  )?.data ?? null;
+}
+
+export function getSolverResultOverlays(state, resultType = null) {
+  const activeState = getActiveResultState(state);
+  const activeResultStateId = state.activeResultStateId ?? activeState?.id ?? null;
+  const activeLoadCase = getActiveLoadCase(state);
+  return solverResultOverlays(state).filter((overlay) => {
+    const data = overlay.data ?? {};
+    if (resultType && data.result_type !== resultType) {
+      return false;
+    }
+    if (activeResultStateId && data.result_state_id && data.result_state_id !== activeResultStateId) {
+      return false;
+    }
+    if (activeLoadCase && data.load_case && data.load_case !== activeLoadCase) {
+      return false;
+    }
+    return overlay.visible !== false;
+  });
+}
+
+export function getActiveScalarOverlay(state) {
+  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
+  // When the scene carries a field catalogue the choice is explicit. The
+  // priority chain below is the legacy path for bundles written before it.
+  if ((state.resultFields ?? []).length > 0) {
+    return getColoringLegend(state)?.overlay ?? null;
+  }
+  return (
+    getSolverResultOverlays(state, "tuyau_subpoints")[0] ??
+    getSolverResultOverlays(state, "stress")[0] ??
+    getSolverResultOverlays(state).find((overlay) => hasNumericObjectValues(overlay.data?.values)) ??
+    null
+  );
+}
+
+export function getScalarLegend(state) {
+  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
+  if ((state.resultFields ?? []).length > 0) {
+    const legend = getColoringLegend(state);
+    return legend
+      ? {
+          ...legend,
+          colorMap: legend.overlay?.data?.legend?.color_map ?? "turbo",
+          thresholds: {
+            stress_min: numberOrNull(state.resultThreshold),
+            utilization_min: numberOrNull(state.utilizationThreshold)
+          }
+        }
+      : null;
+  }
+  const overlay = getActiveScalarOverlay(state);
+  if (!overlay) {
+    return null;
+  }
+  const data = overlay.data ?? {};
+  const values = numericValues(data.values);
+  const range = data.legend?.range ?? data.range ?? {
+    min: Math.min(...values),
+    max: Math.max(...values)
+  };
+  return {
+    field: data.legend?.field ?? data.field ?? data.result_type ?? overlay.name ?? overlay.id,
+    unit: data.legend?.unit ?? data.unit ?? "",
+    range,
+    colorMap: data.legend?.color_map ?? "turbo",
+    thresholds: {
+      ...(data.legend?.thresholds ?? {}),
+      stress_min: numberOrNull(state.resultThreshold),
+      utilization_min: numberOrNull(state.utilizationThreshold)
+    },
+    overlay
+  };
+}
+
+export function getHotspots(state) {
+  const overlay = getActiveScalarOverlay(state);
+  if (!overlay) {
+    return [];
+  }
+  const data = overlay.data ?? {};
+  const values = (state.resultFields ?? []).length > 0 ? getColoringValues(state) : data.values ?? {};
+  const hotspots = Array.isArray(data.hotspots) && data.hotspots.length > 0
+    ? data.hotspots
+    : Object.entries(values).map(([objectId, value]) => ({
+        object_id: objectId,
+        value,
+        unit: data.unit
+      }));
+  const stressMin = numberOrNull(state.resultThreshold);
+  const utilizationMin = numberOrNull(state.utilizationThreshold);
+  return hotspots
+    .map((hotspot) => {
+      const objectId = hotspot.object_id ?? hotspot.objectId;
+      const object = (state.objects ?? []).find((candidate) => candidate.id === objectId);
+      const value = Number(hotspot.value ?? values[objectId]);
+      const utilization = numberOrNull(hotspot.utilization ?? data.utilization_values?.[objectId]);
+      return {
+        objectId,
+        objectName: object?.name ?? objectId,
+        elementId: hotspot.element_id ?? hotspot.elementId,
+        rowIndex: hotspot.row_index ?? hotspot.rowIndex,
+        subpointIndex: hotspot.subpoint_index ?? hotspot.subpointIndex,
+        unit: hotspot.unit ?? data.unit ?? "",
+        utilization,
+        value
+      };
+    })
+    .filter((hotspot) => Number.isFinite(hotspot.value))
+    .filter((hotspot) => stressMin === null || hotspot.value >= stressMin)
+    .filter((hotspot) => utilizationMin === null || (hotspot.utilization ?? 0) >= utilizationMin)
+    .sort((left, right) => right.value - left.value);
+}
+
+export function getObjectScalarColor(state, objectIds, valueIds = []) {
+  const overlay = getActiveScalarOverlay(state);
+  if (!overlay) {
+    return null;
+  }
+  const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
+  const values = (state.resultFields ?? []).length > 0 ? getColoringValues(state) : overlay.data?.values ?? {};
+  const relatedValueIds = (overlay.data?.vectors ?? [])
+    .filter((vector) => (vector.object_ids ?? []).some((id) => ids.includes(id)))
+    .map((vector) => vector.node_id)
+    .filter(Boolean);
+  const found = [...ids, ...valueIds, ...relatedValueIds]
+    .map((id) => Number(values[id]))
+    .filter((value) => Number.isFinite(value));
+  if (found.length === 0) {
+    return null;
+  }
+  return colorForScalarValue(Math.max(...found), getScalarLegend(state));
+}
+
+// Cividis. Lightness rises monotonically end to end, so ranking two values never
+// depends on hue: a greyscale print and a colour-blind reader both still read the
+// scale. The sRGB blue -> yellow -> red lerp this replaces peaked in lightness at
+// mid-range instead, which left its two ends 1.07:1 apart in luminance - the
+// lowest and the highest stress were the same shade on paper - and collapsed to
+// a near-neutral grey (chroma 27/255) around 20% of range, where tens of MPa
+// looked identical. "Blue is low" survives; the top end is now the brightest
+// rather than the reddest.
+const SCALAR_RAMP = Object.freeze([
+  0x00204c, 0x00306f, 0x39486b, 0x575d6d, 0x707173,
+  0x8a8779, 0xa69d75, 0xc4b56c, 0xffea46
+]);
+
+export function colorForScalarValue(value, legend) {
+  if (!legend || !Number.isFinite(value)) {
+    return null;
+  }
+  const min = Number(legend.range?.min ?? value);
+  const max = Number(legend.range?.max ?? value);
+  const ratio = clamp((value - min) / Math.max(max - min, 1e-12), 0, 1);
+  const span = ratio * (SCALAR_RAMP.length - 1);
+  const index = Math.min(Math.floor(span), SCALAR_RAMP.length - 2);
+  return interpolateHex(SCALAR_RAMP[index], SCALAR_RAMP[index + 1], span - index);
+}
+
+export function getResultVectorScale(state, vectorType) {
+  const fromMap = state.resultVectorScales?.[vectorType];
+  if (Number.isFinite(Number(fromMap))) {
+    return Math.max(Number(fromMap), 0);
+  }
+  if (vectorType === "reaction") {
+    return Math.max(Number(state.reactionVectorScale ?? 1) || 0, 0);
+  }
+  if (vectorType === "displacement") {
+    return Math.max(Number(state.displacementVectorScale ?? 1) || 0, 0);
+  }
+  return 1;
+}
+
+export function getVisualDeformationDisplayScale(state) {
+  const value = Number(state.visualDeformationScale ?? 1);
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+export function setActiveLoadCase(state, loadCase) {
+  const resultState = getResultStateOptions(state).find((candidate) => candidate.loadCase === loadCase);
+  const activeGeometryState = getGeometryStateOptions(state, null).find(
+    (candidate) => candidate.id === state.activeGeometryStateId
+  );
+  const geometryOptions = getGeometryStateOptions(state, loadCase);
+  const geometryState =
+    (activeGeometryState?.purpose
+      ? geometryOptions.find((candidate) => candidate.purpose === activeGeometryState.purpose)
+      : null) ??
+    geometryOptions[0] ??
+    null;
+  return {
+    ...state,
+    activeLoadCase: loadCase ?? null,
+    activeResultStateId: resultState?.id ?? null,
+    activeGeometryStateId: geometryState?.id ?? null,
+    visualDeformationScale:
+      geometryState?.purpose === "visualization" && geometryState.visualScale != null
+        ? Number(geometryState.visualScale)
+        : state.visualDeformationScale
+  };
+}
+
+export function setActiveResultState(state, resultStateId) {
+  const option = getResultStateOptions(state).find((candidate) => candidate.id === resultStateId);
+  if (option) {
+    const next = setActiveLoadCase(state, option.loadCase);
+    const geometry = getGeometryStateOptions(state, null).filter((item) => item.overlay.data?.result_state_id === option.id);
+    return {
+      ...next,
+      activeResultStateId: option.id,
+      activeGeometryStateId: (geometry.find((item) => item.purpose === "visualization") ?? geometry[0])?.id ?? next.activeGeometryStateId,
+      visualDeformationScale: state.visualDeformationScale
+    };
+  }
+  return {
+    ...state,
+    activeResultStateId: resultStateId ?? null,
+    activeLoadCase: option?.loadCase ?? state.activeLoadCase ?? null
+  };
+}
+
+export function setActiveGeometryState(state, geometryStateId) {
+  const option = getGeometryStateOptions(state).find((candidate) => candidate.id === geometryStateId);
+  return {
+    ...state,
+    activeGeometryStateId: geometryStateId ?? null,
+    visualDeformationScale:
+      option?.purpose === "visualization" && option.visualScale != null ? Number(option.visualScale) : state.visualDeformationScale
+  };
+}
+
+export function setResultThreshold(state, threshold) {
+  return { ...state, resultThreshold: Math.max(Number(threshold) || 0, 0) };
+}
+
+export function setUtilizationThreshold(state, threshold) {
+  return { ...state, utilizationThreshold: Math.max(Number(threshold) || 0, 0) };
+}
+
+export function setResultVectorScale(state, vectorType, scale) {
+  const value = Math.max(Number(scale) || 0, 0);
+  return {
+    ...state,
+    resultVectorScales: {
+      ...(state.resultVectorScales ?? {}),
+      [vectorType]: value
+    },
+    ...(vectorType === "displacement" ? { displacementVectorScale: value } : {}),
+    ...(vectorType === "reaction" ? { reactionVectorScale: value } : {})
+  };
+}
+
+export function setVisualDeformationScale(state, scale) {
+  const visualStates = getGeometryStateOptions(state).filter((option) => option.purpose === "visualization");
+  const visualState = visualStates.find((option) => option.overlay.data?.result_state_id === state.activeResultStateId) ??
+    visualStates.find((option) => option.id === state.activeGeometryStateId) ?? visualStates[0];
+  return {
+    ...state,
+    activeGeometryStateId: visualState?.id ?? state.activeGeometryStateId,
+    visualDeformationScale: Math.max(Number(scale) || 0, 0)
+  };
+}
+
+function solverResultOverlays(state) {
+  return (state.overlays ?? []).filter((overlay) => overlay.kind === "solver_result");
+}
+
+function hasNumericObjectValues(values) {
+  return numericValues(values).length > 0;
+}
+
+function numericValues(values) {
+  return Object.values(values ?? {})
+    .map(Number)
+    .filter((value) => Number.isFinite(value));
+}
+
+function numberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function interpolateHex(start, end, ratio) {
+  const sr = (start >> 16) & 0xff;
+  const sg = (start >> 8) & 0xff;
+  const sb = start & 0xff;
+  const er = (end >> 16) & 0xff;
+  const eg = (end >> 8) & 0xff;
+  const eb = end & 0xff;
+  const r = Math.round(sr + (er - sr) * ratio);
+  const g = Math.round(sg + (eg - sg) * ratio);
+  const b = Math.round(sb + (eb - sb) * ratio);
+  return (r << 16) + (g << 8) + b;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}

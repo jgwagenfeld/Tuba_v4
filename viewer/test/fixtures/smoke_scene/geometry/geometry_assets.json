@@ -1,0 +1,75 @@
+[
+  {
+    "id": "geometry:element:pipe_smoke",
+    "format": "tube",
+    "uri": "geometry/geometry_element_pipe_smoke.json",
+    "bounds": [-0.08, -0.08, -0.08, 3.08, 0.08, 0.08],
+    "object_ids": ["object:element:pipe_smoke"],
+    "generation_config": {
+      "source": "tuba.element",
+      "entity_ref": "element:pipe_smoke",
+      "points": [[0, 0, 0], [3, 0, 0]],
+      "radius_m": 0.08
+    }
+  },
+  {
+    "id": "geometry:obstacle:rack_member_smoke",
+    "format": "cuboid",
+    "uri": "geometry/geometry_obstacle_rack_member_smoke.json",
+    "bounds": [1.35, -0.25, -0.2, 1.75, 0.25, 0.2],
+    "object_ids": ["object:obstacle:rack_member_smoke"],
+    "generation_config": {
+      "source": "tuba.obstacle",
+      "obstacle": {
+        "id": "rack_member_smoke",
+        "type": "cuboid",
+        "min_point": [1.35, -0.25, -0.2],
+        "max_point": [1.75, 0.25, 0.2]
+      }
+    }
+  },
+  {
+    "id": "geometry:issue:clash:pipe_smoke:rack_member_smoke",
+    "format": "point",
+    "uri": "geometry/geometry_issue_clash_pipe_smoke_rack_member_smoke.json",
+    "bounds": [1.55, 0.07, 0, 1.55, 0.07, 0],
+    "object_ids": ["object:issue:clash:pipe_smoke:rack_member_smoke"],
+    "generation_config": {
+      "source": "tuba.clash",
+      "issue_id": "issue:clash:pipe_smoke:rack_member_smoke",
+      "point": [1.55, 0.07, 0],
+      "clash": {
+        "severity": "operating_only_hard",
+        "distance_m": 0.04,
+        "penetration_m": 0.02
+      }
+    }
+  },
+  {
+    "id": "geometry:analysis_mesh:smoke:element:pipe_smoke",
+    "format": "polyline",
+    "uri": "geometry/geometry_analysis_mesh_smoke_element_pipe_smoke.json",
+    "bounds": [0, 0.16, 0.12, 3, 0.16, 0.12],
+    "object_ids": ["object:analysis_mesh:smoke:element:pipe_smoke"],
+    "generation_config": {
+      "source": "tuba.analysis_mesh.element",
+      "mesh_id": "analysis_mesh:smoke",
+      "points": [[0, 0.16, 0.12], [3, 0.16, 0.12]]
+    }
+  },
+  {
+    "id": "geometry:solver_result:reaction:Hot:N0",
+    "format": "vector",
+    "uri": "geometry/geometry_solver_result_reaction_Hot_N0.json",
+    "bounds": [0, 0, 0, 0, 0, 0.75],
+    "object_ids": ["object:solver_result:reaction:Hot:N0"],
+    "generation_config": {
+      "source": "tuba.solver_results",
+      "result_type": "reaction",
+      "load_case": "Hot",
+      "start": [0, 0, 0],
+      "end": [0, 0, 0.75],
+      "reaction_force_n": [0, 0, 750]
+    }
+  }
+]

@@ -1,0 +1,61 @@
+# Diagnostic native contact qualification; quantities are SI.
+# Parameters are substituted by the integration test before execution.
+import math
+DEBUT()
+elastic_driver = __DRIVER__
+beam_k = 2e11 * math.pi * (0.05715**2 - (0.05715-0.006)**2) / 2.
+series_k = beam_k * __KT__ / (beam_k + __KT__)
+mesh = LIRE_MAILLAGE(FORMAT='ASTER', UNITE=20)
+model = AFFE_MODELE(MAILLAGE=mesh, AFFE=(
+    _F(GROUP_MA='CONTACT', PHENOMENE='MECANIQUE', MODELISATION='DIS_T'),
+    _F(GROUP_MA='BEAM', PHENOMENE='MECANIQUE', MODELISATION='POU_D_T'),
+))
+cara = AFFE_CARA_ELEM(MODELE=model,
+    DISCRET=_F(GROUP_MA='CONTACT', CARA='K_T_D_L', REPERE='LOCAL', VALE=(0.,0.,0.)),
+    POUTRE=_F(GROUP_MA='BEAM', SECTION='CERCLE', CARA=('R','EP'), VALE=(0.05715,0.006)),
+    ORIENTATION=_F(GROUP_MA='BEAM', CARA='VECT_Y', VALE=(0.,1.,0.)),
+)
+steel = DEFI_MATERIAU(ELAS=_F(E=2e11, NU=0.3))
+contact = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=__KN__, RIGI_TAN=__KT__, COULOMB=0.3, DIST_1=1.))
+mat = AFFE_MATERIAU(MAILLAGE=mesh, AFFE=(
+    _F(GROUP_MA='CONTACT', MATER=contact), _F(GROUP_MA='BEAM', MATER=steel),
+))
+# Compressive preload, sub-limit travel, sliding, reversal, opening, reseating.
+tn = (0.,1.,2.,3.,4.,5.,6.,7.,8.)
+normal = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=tn,
+    ORDONNEE=(0.,-10000./__KN__,-10000./__KN__,-10000./__KN__,-10000./__KN__,-10000./__KN__,0.001,-10000./__KN__,-10000./__KN__))
+tx = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=tn,
+    ORDONNEE=(0.,0.,1000./(series_k if elastic_driver else __KT__),0.001,0.00099,-0.001,-0.001,-0.001,0.001))
+tz = DEFI_FONCTION(NOM_PARA='INST', ABSCISSE=tn,
+    ORDONNEE=(0.,0.,0.,0.001,0.00099,-0.001,-0.001,-0.001,0.001))
+fixed = AFFE_CHAR_MECA(MODELE=model, DDL_IMPO=(
+    _F(GROUP_NO='GROUND', DX=0.,DY=0.,DZ=0.),
+    _F(GROUP_NO='BASE', **(dict(DY=0.,DZ=0.,DRX=0.,DRY=0.,DRZ=0.) if elastic_driver else dict(DX=0.,DY=0.,DZ=0.,DRX=0.,DRY=0.,DRZ=0.))),
+))
+if elastic_driver:
+    zero = DEFI_CONSTANTE(VALE=0.)
+    motion = AFFE_CHAR_MECA_F(MODELE=model, DDL_IMPO=(
+        _F(GROUP_NO='BASE', DX=tx), _F(GROUP_NO='PIPE', DY=normal,DZ=zero)))
+else:
+    motion = AFFE_CHAR_MECA_F(MODELE=model, DDL_IMPO=_F(GROUP_NO='PIPE', DX=tx,DY=normal,DZ=tz))
+steps = DEFI_LIST_REEL(DEBUT=0., INTERVALLE=_F(JUSQU_A=8., PAS=__STEP__))
+times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=steps),
+    ECHEC=_F(EVENEMENT='ERREUR', SUBD_METHODE='MANUEL', SUBD_PAS=4, SUBD_NIVEAU=8))
+res = STAT_NON_LINE(MODELE=model, CHAM_MATER=mat, CARA_ELEM=cara,
+    EXCIT=(_F(CHARGE=fixed),_F(CHARGE=motion)),
+    COMPORTEMENT=(_F(GROUP_MA='BEAM',RELATION='ELAS'),
+                  _F(GROUP_MA='CONTACT',RELATION='__LAW__',RESI_INTE=1e-9)),
+    INCREMENT=_F(LIST_INST=times),
+    NEWTON=_F(MATRICE='TANGENTE',REAC_ITER=1),
+    CONVERGENCE=_F(RESI_GLOB_RELA=1e-8,ITER_GLOB_MAXI=40))
+res = CALC_CHAMP(reuse=res,RESULTAT=res,FORCE='REAC_NODA')
+reaction = CREA_TABLE(RESU=_F(RESULTAT=res,NOM_CHAM='REAC_NODA',TOUT='OUI',TOUT_CMP='OUI'))
+IMPR_TABLE(TABLE=reaction,UNITE=40,FORMAT='TABLEAU',SEPARATEUR=',')
+force = CREA_TABLE(RESU=_F(RESULTAT=res,GROUP_MA='CONTACT',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'))
+intern = CREA_TABLE(RESU=_F(RESULTAT=res,GROUP_MA='CONTACT',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'))
+disp = CREA_TABLE(RESU=_F(RESULTAT=res,GROUP_NO='PIPE',NOM_CHAM='DEPL',TOUT_CMP='OUI'))
+IMPR_TABLE(TABLE=force,UNITE=38,FORMAT='TABLEAU',SEPARATEUR=',')
+IMPR_TABLE(TABLE=intern,UNITE=41,FORMAT='TABLEAU',SEPARATEUR=',')
+IMPR_TABLE(TABLE=disp,UNITE=39,FORMAT='TABLEAU',SEPARATEUR=',')
+IMPR_RESU(FORMAT='MED',UNITE=80,RESU=_F(RESULTAT=res))
+FIN()

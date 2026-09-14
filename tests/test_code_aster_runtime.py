@@ -1,0 +1,635 @@
+import json
+import subprocess
+import unittest
+from pathlib import Path, PureWindowsPath
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+import tuba.solver.code_aster_runtime as runtime
+from tuba.analysis.provenance import (
+    CODE_ASTER_COMPILER_ID,
+    MIXED_CODE_ASTER_COMPILER_ID,
+    VOLUME_CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
+)
+from tuba.solver.code_aster_runtime import (
+    CodeAsterExecution,
+    CodeAsterRuntimeCandidate,
+    CodeAsterRuntimeConfig,
+    attested_code_aster_files,
+    build_code_aster_command,
+    build_code_aster_preflight_command,
+    discover_code_aster_runtimes,
+    run_code_aster_export,
+    select_code_aster_runtime,
+)
+from tuba import Model
+from tuba.solver.aster import CodeAsterSolver
+
+
+class TestCodeAsterRuntime(unittest.TestCase):
+    def test_expected_attestation_artifacts_follow_study_metadata(self):
+        standard = {
+            "study.comm",
+            "study.mail",
+            "study.export",
+            "study_manifest.json",
+            "study_tuba_fem.json",
+            "study.mess",
+            "study.rmed",
+            "study_depl.csv",
+            "study_effo.csv",
+            "study_reac.csv",
+            "study_sieq.csv",
+        }
+        volume = {
+            "study.comm",
+            "study.med",
+            "study.export",
+            "study_manifest.json",
+            "study_tuba_fem.json",
+            "study.mess",
+            "study.rmed",
+            "study_depl.csv",
+            "study_reac.csv",
+            "study_sieq.csv",
+        }
+
+        self.assertEqual(
+            set(runtime.expected_code_aster_artifact_files({}, compiler_id=CODE_ASTER_COMPILER_ID)),
+            standard,
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"pipe_stress_exported": False},
+                    compiler_id=CODE_ASTER_COMPILER_ID,
+                )
+            ),
+            standard - {"study_sieq.csv"},
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"mixed_analysis": True},
+                    compiler_id=MIXED_CODE_ASTER_COMPILER_ID,
+                )
+            ),
+            standard,
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"mixed_analysis": True, "volume_analysis": True},
+                    compiler_id=MIXED_CODE_ASTER_COMPILER_ID,
+                )
+            ),
+            volume | {"study_effo.csv", "study_sigm.csv"},
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"volume_analysis": True},
+                    compiler_id=VOLUME_CODE_ASTER_COMPILER_ID,
+                )
+            ),
+            volume | {"study_sigm.csv"},
+        )
+        self.assertEqual(
+            set(
+                runtime.expected_code_aster_artifact_files(
+                    {"volume_analysis": True, "tensor_stress_exported": False},
+                    compiler_id=VOLUME_CODE_ASTER_COMPILER_ID,
+                )
+            ),
+            volume,
+        )
+
+    def test_contact_history_artifact_is_required_only_for_declared_contact_law(self):
+        legacy = runtime.expected_code_aster_artifact_files({}, compiler_id=CODE_ASTER_COMPILER_ID)
+        contact = runtime.expected_code_aster_artifact_files(
+            {"compiler_inputs": {"contact_law": "DIS_CONTACT"}, "pipe_stress_exported": False},
+            compiler_id=CODE_ASTER_COMPILER_ID,
+        )
+        self.assertNotIn("study_contact.json", legacy)
+        self.assertEqual(set(contact), (set(legacy) - {"study_sieq.csv"}) | {"study_contact.json"})
+        for invalid in (None, "", [], 1):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, "contact_law"):
+                runtime.expected_code_aster_artifact_files(
+                    {"compiler_inputs": {"contact_law": invalid}}, compiler_id=CODE_ASTER_COMPILER_ID,
+                )
+
+    def test_contact_history_attestation_requires_bytes_and_rejects_changed_or_malformed_integrity(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            identity = SolverInputIdentity("f" * 64, "Cold", "tuba.model.v4", CODE_ASTER_COMPILER_ID)
+            metadata = {"compiler_inputs": {"contact_law": "DIS_CONTACT"}, "pipe_stress_exported": False}
+            files = runtime.expected_code_aster_artifact_files(metadata, compiler_id=CODE_ASTER_COMPILER_ID)
+            for name in files:
+                if name != "study_contact.json":
+                    (root / name).write_text(name, encoding="utf-8")
+            (root / "study_manifest.json").write_text(json.dumps({"study": {
+                "metadata": metadata, "solver_input_identity": identity.to_dict(),
+            }}), encoding="utf-8")
+            (root / "study.mess").write_text("Version 18.0.12", encoding="utf-8")
+            execution = CodeAsterExecution(CodeAsterRuntimeCandidate("test", ()), (), 0, "", "")
+            with self.assertRaisesRegex(ValueError, "study_contact.json"):
+                runtime.write_code_aster_execution_attestation(root, execution, identity)
+            contact_path = root / "study_contact.json"
+            contact_path.write_text('{"fixture": "artifact integrity only"}', encoding="utf-8")
+            payload = runtime.write_code_aster_execution_attestation(root, execution, identity)
+            self.assertEqual(runtime.load_code_aster_execution_attestation(root), payload)
+            self.assertEqual(len(payload["artifacts"]["study_contact.json"]["sha256"]), 64)
+            contact_path.write_text('{"fixture": "artifact integrity edit"}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "study_contact.json.*(size|hash)"):
+                runtime.load_code_aster_execution_attestation(root)
+            payload["artifacts"]["study_contact.json"]["sha256"] = "invalid"
+            with self.assertRaisesRegex(ValueError, "study_contact.json.*sha256"):
+                runtime.validate_code_aster_execution_attestation_payload(payload, expected_artifacts=files)
+            del payload["artifacts"]["study_contact.json"]
+            with self.assertRaisesRegex(ValueError, "inventory"):
+                runtime.validate_code_aster_execution_attestation_payload(payload, expected_artifacts=files)
+
+    def test_expected_attestation_artifacts_reject_compiler_metadata_contradictions(self):
+        contradictions = (
+            ({"volume_analysis": True}, CODE_ASTER_COMPILER_ID),
+            ({"mixed_analysis": True}, CODE_ASTER_COMPILER_ID),
+            ({}, MIXED_CODE_ASTER_COMPILER_ID),
+            ({"volume_analysis": True}, MIXED_CODE_ASTER_COMPILER_ID),
+            ({}, VOLUME_CODE_ASTER_COMPILER_ID),
+            ({"mixed_analysis": True}, VOLUME_CODE_ASTER_COMPILER_ID),
+            ({}, "tuba.code_aster.unknown.v1"),
+        )
+
+        for metadata, compiler_id in contradictions:
+            with self.subTest(metadata=metadata, compiler_id=compiler_id):
+                with self.assertRaisesRegex(ValueError, "compiler"):
+                    runtime.expected_code_aster_artifact_files(metadata, compiler_id=compiler_id)
+
+    def test_pure_attestation_validator_returns_the_bound_identity(self):
+        identity = SolverInputIdentity("f" * 64, "Hot", "tuba.model.v4", "tuba.code_aster.v1")
+        artifact_names = runtime.ATTESTED_CODE_ASTER_FILES
+        payload = {
+            "schema_version": "tuba.code_aster_execution.v1",
+            "solver_name": "Code_Aster",
+            "solver_version": "18.0.12",
+            "execution_method": "test",
+            "solved_at": "2026-08-27T12:00:00Z",
+            "solver_input_identity": identity.to_dict(),
+            "artifacts": {
+                filename: {"size_bytes": 1, "sha256": "0" * 64}
+                for filename in artifact_names
+            },
+        }
+
+        actual = runtime.validate_code_aster_execution_attestation_payload(
+            payload,
+            expected_artifacts=artifact_names,
+        )
+
+        self.assertEqual(actual, identity)
+
+    def test_beam_only_attestation_does_not_require_pipe_stress_table(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            identity = SolverInputIdentity(
+                "f" * 64,
+                "Hot",
+                "tuba.model.v4",
+                CODE_ASTER_COMPILER_ID,
+            )
+            (root / "study_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "study": {
+                            "metadata": {"pipe_stress_exported": False},
+                            "solver_input_identity": identity.to_dict(),
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            files = attested_code_aster_files(root)
+
+        self.assertNotIn("study_sieq.csv", files)
+
+    def test_attested_files_reject_absent_manifest_identity(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study_manifest.json").write_text(
+                json.dumps({"study": {"metadata": {}}}),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "solver_input_identity"):
+                attested_code_aster_files(root)
+
+    def test_attested_files_reject_partial_manifest_identity(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "study_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "study": {
+                            "metadata": {},
+                            "solver_input_identity": {
+                                "compiler_id": CODE_ASTER_COMPILER_ID,
+                            },
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "solver_input_identity"):
+                attested_code_aster_files(root)
+
+    def test_attested_files_reject_missing_manifest_structure(self):
+        invalid_manifests = (
+            (None, "study_manifest"),
+            ({}, "study"),
+            ({"study": {}}, "metadata"),
+        )
+
+        for manifest, error in invalid_manifests:
+            with self.subTest(manifest=manifest):
+                with TemporaryDirectory() as tmpdir:
+                    root = Path(tmpdir)
+                    if manifest is not None:
+                        (root / "study_manifest.json").write_text(
+                            json.dumps(manifest),
+                            encoding="utf-8",
+                        )
+
+                    with self.assertRaisesRegex(ValueError, error):
+                        attested_code_aster_files(root)
+
+    def test_manifest_attestation_artifacts_bind_metadata_to_identity_compiler(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            identity = SolverInputIdentity(
+                "f" * 64,
+                "Hot",
+                "tuba.model.v4",
+                CODE_ASTER_COMPILER_ID,
+            )
+            (root / "study_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "study": {
+                            "metadata": {"volume_analysis": True},
+                            "solver_input_identity": identity.to_dict(),
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "compiler"):
+                attested_code_aster_files(root)
+
+    def test_successful_solve_writes_observed_execution_attestation(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            model = Model(project_name="AttestedRun")
+            model.add_material("Steel", E=2.0e11, nu=0.3, allowable_stress={20.0: 137e6})
+            model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+            n0 = model.add_node([0.0, 0.0, 0.0])
+            n1 = model.add_node([1.0, 0.0, 0.0])
+            model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+            model.add_support(node=n0, type="anchor", id="support_anchor_0")
+            model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+            solver = CodeAsterSolver(work_dir=root)
+            identity = solver.export_analysis_study(model, "Hot", root).solver_input_identity
+            (root / "study.mess").write_text("Code_Aster\nVersion 18.0.12\n", encoding="utf-8")
+            for filename in ("study.rmed", "study_depl.csv", "study_effo.csv", "study_reac.csv", "study_sieq.csv"):
+                (root / filename).write_text(filename, encoding="utf-8")
+            execution = CodeAsterExecution(CodeAsterRuntimeCandidate("wsl", ("wsl",)), (), 0, "", "")
+
+            with patch("tuba.solver.aster.run_code_aster_export", return_value=execution):
+                with patch("tuba.analysis.code_aster_artifacts.import_code_aster_artifacts", return_value=object()):
+                    solver.solve_exported_study(model, solver.export_analysis_study(model, "Hot", root))
+
+            attestation = json.loads((root / "study_execution.json").read_text(encoding="utf-8"))
+        self.assertEqual(attestation["schema_version"], "tuba.code_aster_execution.v1")
+        self.assertEqual(attestation["solver_name"], "Code_Aster")
+        self.assertEqual(attestation["solver_version"], "18.0.12")
+        self.assertEqual(attestation["execution_method"], "wsl")
+        self.assertEqual(attestation["solver_input_identity"]["fingerprint"], identity.fingerprint)
+        self.assertGreater(attestation["artifacts"]["study_depl.csv"]["size_bytes"], 0)
+        self.assertEqual(len(attestation["artifacts"]["study_depl.csv"]["sha256"]), 64)
+        self.assertNotIn("command", attestation)
+
+    def test_wsl_command_uses_configured_distro_and_run_aster(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu"),
+            )
+
+        self.assertEqual(command[:4], ["wsl", "-d", "Ubuntu", "--"])
+        self.assertIn("run_aster study.export", command[-1])
+        self.assertIsNone(cwd)
+
+    def test_command_mode_runs_configured_runner_in_work_dir(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="command", runner_command="conda run -n tuba-code-aster run_aster"),
+            )
+
+        self.assertEqual(command, ["conda", "run", "-n", "tuba-code-aster", "run_aster", "study.export"])
+        self.assertEqual(cwd, root)
+
+    def test_explicit_command_mode_defaults_to_run_aster(self):
+        candidate = select_code_aster_runtime(CodeAsterRuntimeConfig(exec_method="command", env={}))
+
+        self.assertEqual(candidate.command, ("run_aster",))
+
+    def test_python_bridge_uses_requested_python_executable(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="python_bridge", bridge_python="/opt/codeaster/bin/python"),
+            )
+
+        self.assertEqual(command[0], "/opt/codeaster/bin/python")
+        self.assertTrue(command[1].endswith("code_aster_bridge.py"))
+        self.assertEqual(command[-1], "study.export")
+        self.assertEqual(cwd, root)
+
+    def test_discovery_uses_environment_defaults(self):
+        env = {
+            "TUBA_CODE_ASTER_EXEC_METHOD": "wsl",
+            "TUBA_CODE_ASTER_WSL_DISTRO": "Ubuntu",
+            "TUBA_CODE_ASTER_RUNNER_COMMAND": "run_aster",
+        }
+
+        candidates = discover_code_aster_runtimes(CodeAsterRuntimeConfig(env=env))
+        wsl = next(candidate for candidate in candidates if candidate.method == "wsl")
+        command = next(candidate for candidate in candidates if candidate.method == "command")
+
+        self.assertEqual(wsl.command[:4], ("wsl", "-d", "Ubuntu", "--"))
+        self.assertEqual(command.command, ("run_aster",))
+
+    def test_auto_without_runner_does_not_claim_host_command_runtime(self):
+        candidates = discover_code_aster_runtimes(CodeAsterRuntimeConfig(exec_method="auto", env={}))
+
+        self.assertNotIn("command", {candidate.kind for candidate in candidates})
+
+    def test_auto_without_wsl_env_tries_ubuntu_before_default_wsl(self):
+        candidates = discover_code_aster_runtimes(CodeAsterRuntimeConfig(exec_method="auto", env={}))
+        wsl_commands = [candidate.command for candidate in candidates if candidate.kind == "wsl"]
+
+        self.assertGreaterEqual(len(wsl_commands), 2)
+        self.assertEqual(wsl_commands[0], ("wsl", "-d", "Ubuntu", "--"))
+        self.assertEqual(wsl_commands[1], ("wsl",))
+
+    def test_default_preflight_timeout_allows_cold_wsl_start(self):
+        self.assertGreaterEqual(CodeAsterRuntimeConfig().preflight_timeout_seconds, 30)
+
+    def test_docker_command_mounts_workdir(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+
+            command, cwd = build_code_aster_command(
+                export_file,
+                root,
+                CodeAsterRuntimeConfig(exec_method="docker", docker_image="local/code-aster:dev", env={}),
+            )
+
+        self.assertEqual(command[:3], ["docker", "run", "--rm"])
+        self.assertIn("local/code-aster:dev", command)
+        self.assertIn("study.export", command[-1])
+        self.assertIsNone(cwd)
+
+    def test_wsl_preflight_uses_real_workdir_contract_and_does_not_mask_runner_failure(self):
+        root = PureWindowsPath("C:/Tuba Work")
+        candidate = select_code_aster_runtime(CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}))
+
+        command, cwd = build_code_aster_preflight_command(candidate, CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={}), root)
+
+        self.assertEqual(command[:4], ["wsl", "-d", "Ubuntu", "--"])
+        self.assertIn("cd '/mnt/c/Tuba Work'", command[-1])
+        self.assertIn(".tuba-preflight-probe", command[-1])
+        self.assertNotIn("|| true", command[-1])
+        self.assertIsNone(cwd)
+
+    def test_docker_preflight_uses_real_mount_contract_and_probe_file(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            config = CodeAsterRuntimeConfig(exec_method="docker", docker_image="local/code-aster:dev", env={})
+            candidate = select_code_aster_runtime(config)
+
+            command, cwd = build_code_aster_preflight_command(candidate, config, root)
+
+        self.assertEqual(command[:3], ["docker", "run", "--rm"])
+        self.assertIn("-v", command)
+        self.assertIn(f"{root.resolve()}:/work", command)
+        self.assertIn("-w", command)
+        self.assertIn("/work", command)
+        self.assertIn(".tuba-preflight-probe", command[-1])
+        self.assertIsNone(cwd)
+
+    def test_run_writes_utf8_logs_and_raises_with_message_tail(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+            (root / "study.mess").write_text("line 1\nfatal solver error\n", encoding="utf-8")
+
+            def fake_run(cmd, **_kwargs):
+                return subprocess.CompletedProcess(cmd, 2, stdout="solver stdout", stderr="solver stderr")
+
+            with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+                with self.assertRaisesRegex(RuntimeError, "fatal solver error") as raised:
+                    run_code_aster_export(
+                        export_file,
+                        root,
+                        CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster"),
+                    )
+
+            message = str(raised.exception)
+            self.assertIn("command: run_aster study.export", message)
+            self.assertIn(str(root / "stdout.command.log"), message)
+            self.assertIn(str(root / "stderr.command.log"), message)
+            self.assertIn("solver stdout", message)
+            self.assertIn("solver stderr", message)
+            self.assertEqual((root / "stdout.log").read_text(encoding="utf-8"), "solver stdout")
+            self.assertEqual((root / "stderr.log").read_text(encoding="utf-8"), "solver stderr")
+
+    def test_run_code_aster_export_writes_per_runtime_logs(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+
+            def fake_run(cmd, **_kwargs):
+                return subprocess.CompletedProcess(cmd, 0, stdout="solver stdout", stderr="solver stderr")
+
+            with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster", env={}),
+                )
+
+            self.assertEqual(execution.returncode, 0)
+            self.assertEqual(execution.runtime.kind, "command")
+            self.assertEqual((root / "stdout.command.log").read_text(encoding="utf-8"), "solver stdout")
+            self.assertEqual((root / "stderr.command.log").read_text(encoding="utf-8"), "solver stderr")
+
+    def test_run_code_aster_export_captures_output_as_utf8(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+            captured = {}
+
+            def fake_run(cmd, **kwargs):
+                captured["kwargs"] = kwargs
+                return subprocess.CompletedProcess(cmd, 0, stdout=None, stderr=None)
+
+            with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="command", runner_command="run_aster", env={}),
+                )
+
+            self.assertEqual(captured["kwargs"]["encoding"], "utf-8")
+            self.assertEqual(captured["kwargs"]["errors"], "replace")
+            self.assertEqual(execution.stdout, "")
+            self.assertEqual(execution.stderr, "")
+
+    def test_auto_mode_falls_back_from_missing_wsl_runner_to_docker(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+            calls = []
+
+            def fake_run(cmd, **_kwargs):
+                calls.append(cmd)
+                if cmd[0] == "wsl":
+                    return subprocess.CompletedProcess(cmd, 127, stdout="", stderr="Code_Aster runner not found")
+                return subprocess.CompletedProcess(cmd, 0, stdout="docker ok", stderr="")
+
+            with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="auto", docker_image="local/code-aster:dev", env={}),
+                )
+
+        self.assertEqual(execution.runtime.kind, "docker")
+        self.assertEqual(len(calls), 3)
+
+    def test_auto_mode_falls_back_when_runtime_executable_is_missing(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            export_file = root / "study.export"
+            export_file.write_text("", encoding="utf-8")
+            calls = []
+
+            def fake_run(cmd, **_kwargs):
+                calls.append(cmd)
+                if cmd[0] == "wsl":
+                    raise FileNotFoundError("wsl executable not found")
+                return subprocess.CompletedProcess(cmd, 0, stdout="docker ok", stderr="")
+
+            with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+                execution = run_code_aster_export(
+                    export_file,
+                    root,
+                    CodeAsterRuntimeConfig(exec_method="auto", docker_image="local/code-aster:dev", env={}),
+                )
+            missing_wsl_log = (root / "stderr.wsl.log").read_text(encoding="utf-8")
+
+        self.assertEqual(execution.runtime.kind, "docker")
+        self.assertEqual(len(calls), 3)
+        self.assertIn("wsl executable not found", missing_wsl_log)
+
+    def test_preflight_reports_ok_runtime(self):
+        from tuba.solver.code_aster_runtime import preflight_code_aster_runtimes
+
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append((cmd, kwargs))
+            return subprocess.CompletedProcess(cmd, 0, stdout="run_aster ok", stderr="")
+
+        with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+            checks = preflight_code_aster_runtimes(
+                CodeAsterRuntimeConfig(
+                    exec_method="command",
+                    runner_command="run_aster",
+                    env={},
+                    preflight_timeout_seconds=3,
+                )
+            )
+
+        self.assertEqual(len(checks), 1)
+        self.assertTrue(checks[0].ok)
+        self.assertEqual(checks[0].runtime.kind, "command")
+        self.assertEqual(checks[0].stdout, "run_aster ok")
+        self.assertEqual(calls[0][1]["timeout"], 3)
+
+    def test_preflight_reports_missing_wsl_runner(self):
+        from tuba.solver.code_aster_runtime import preflight_code_aster_runtimes
+
+        def fake_run(cmd, **_kwargs):
+            return subprocess.CompletedProcess(cmd, 127, stdout="", stderr="Code_Aster runner not found")
+
+        with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+            checks = preflight_code_aster_runtimes(
+                CodeAsterRuntimeConfig(exec_method="wsl", wsl_distro="Ubuntu", env={})
+            )
+
+        self.assertEqual(len(checks), 1)
+        self.assertFalse(checks[0].ok)
+        self.assertEqual(checks[0].returncode, 127)
+        self.assertIn("Code_Aster runner not found", checks[0].reason)
+
+    def test_preflight_timeout_is_reported_without_hanging(self):
+        from tuba.solver.code_aster_runtime import preflight_code_aster_runtimes
+
+        def fake_run(cmd, **kwargs):
+            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"], output="pulling", stderr="still pulling")
+
+        with patch("tuba.solver.code_aster_runtime.subprocess.run", fake_run):
+            checks = preflight_code_aster_runtimes(
+                CodeAsterRuntimeConfig(
+                    exec_method="docker",
+                    docker_image="simvia/code_aster:stable",
+                    env={},
+                    preflight_timeout_seconds=1,
+                )
+            )
+
+        self.assertEqual(len(checks), 1)
+        self.assertFalse(checks[0].ok)
+        self.assertIsNone(checks[0].returncode)
+        self.assertIn("timed out after 1 seconds", checks[0].reason)
+
+
+if __name__ == "__main__":
+    unittest.main()

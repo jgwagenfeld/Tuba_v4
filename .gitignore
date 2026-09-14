@@ -1,0 +1,103 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.venv/
+venv/
+env/
+
+# Local secrets and credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+*-credentials.json
+service-account*.json
+secrets.*
+*.secret
+.npmrc
+.pypirc
+
+build/
+.build/
+/_site/
+dist/
+*.egg-info/
+
+routing_reports/
+code_aster_study/
+generated/
+*.html
+!docs/site/**/*.html
+!viewer/index.html
+!tuba/visualization/_viewer/index.html
+viewer/dist/
+viewer/node_modules/
+/viewer/public/bundles.json
+/viewer/public/autorouted-expansion-loop/
+/viewer/public/code-aster-review/
+/viewer/public/elements-supports-review/
+/viewer/public/gmsh-tee-mesh-review/
+/viewer/public/guyed-mast-review/
+/viewer/public/imported_component_mixed_demo/
+/viewer/public/pipe-tee-volume-review/
+/viewer/public/support-rack-review/
+
+# Vite dependency cache
+.vite/
+
+# Agent workflow scratch
+.superpowers/
+.worktrees/
+
+# Generated benchmark + smoke-test outputs
+.benchmarks/
+code_aster_smoke_debug/
+
+# Runtime logs
+*.log
+/logs_*.zip
+
+# Generated notebook artifacts (regenerate by re-running the notebooks)
+notebooks/viz_gallery_report/
+notebooks/viz_gallery_bundle/
+notebooks/viz_gallery_stress.ply
+notebooks/viz_gallery_model.gltf
+notebooks/viz_gallery_blender.py
+notebooks/code_aster_export_demo/
+notebooks/interactive_postprocessor_bundle/
+notebooks/visual_check_jpegs/
+notebooks/tuyau_subpoints_shell_detail_bundle/
+notebooks/tuyau_subpoints_shell_detail_viewer.png
+notebooks/bim_demo.ifc
+notebooks/bim_demo_model.json
+notebooks/advanced_piping_rack.ifc
+/imported_component_mixed_demo/run/
+/imported_component_mixed_demo/browser_checks/
+
+# Root demo outputs (written by examples/demo.py and the BIM notebook)
+/piping_model.json
+/blender_import_tuba.py
+/advanced_piping_rack.ifc
+/bim_demo.ifc
+/bim_demo_model.json
+
+# Agent scratch notes (specs/decisions/todos)
+.agents/
+
+/viewer/public/native-friction-review/
+/viewer/public/profile-orientation-review/
+
+# Vite build scratch output and a stray from a mangled pip install
+/.tmp/
+/=2.2

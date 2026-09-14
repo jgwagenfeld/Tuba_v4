@@ -1,0 +1,59 @@
+{
+  "artifacts": {
+    "study.comm": {
+      "sha256": "7d4b06bee3e92fcf2b6295baff88f418b4f5940b460e4f43b6563002da6ea31e",
+      "size_bytes": 9093
+    },
+    "study.export": {
+      "sha256": "58c126e2d2bf87bedd28c395e588931203b5a712de6725b633a419f9e2cb2198",
+      "size_bytes": 395
+    },
+    "study.mail": {
+      "sha256": "5b406de8517abc7772ccbfbe62254351240d356b70151a664259d9e8ce1bc935",
+      "size_bytes": 10882
+    },
+    "study.mess": {
+      "sha256": "f48cb014ffa79c57a89cf3980b233316d4213b54602e0c9cbfd17290881b1544",
+      "size_bytes": 58979
+    },
+    "study.rmed": {
+      "sha256": "c9d330e3a142185830a7e255bb5c0172070d2ffe6e3d3f314d15ccbc074f5595",
+      "size_bytes": 523815
+    },
+    "study_depl.csv": {
+      "sha256": "8bdeec0521e57916963e55ba84bba39ee8b37bfd99c6e52d36de9427e7dde1bf",
+      "size_bytes": 22951
+    },
+    "study_effo.csv": {
+      "sha256": "994be98c5caebf66271224fad64295a2c8be0216de0f7674c3c0c9aa71f6f3b3",
+      "size_bytes": 50134
+    },
+    "study_manifest.json": {
+      "sha256": "9f6b9003d853d13ca0ebf9e05591b26e42960aabb3b5de45ae9f7cedd3f27aa6",
+      "size_bytes": 56785
+    },
+    "study_reac.csv": {
+      "sha256": "e73ae23d004db20242511d568862e746e654a6555605c132e8e2a52f5f3e546c",
+      "size_bytes": 22951
+    },
+    "study_sieq.csv": {
+      "sha256": "992a781a4a7f22a96347cec930308f5c78aba3a81bc3e8a6025c88d4813fa721",
+      "size_bytes": 486738
+    },
+    "study_tuba_fem.json": {
+      "sha256": "c7622e0dd8aacfe6fee591a83237a3eb5cadb09ac262baf7612cd89d8b8576eb",
+      "size_bytes": 8828
+    }
+  },
+  "execution_method": "wsl",
+  "schema_version": "tuba.code_aster_execution.v1",
+  "solved_at": "2026-09-10T07:13:15.887507Z",
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v2",
+    "fingerprint": "ce1f4e490b2e8da9688420c2f5613dee66bfd9f1bfd8543c484fe8683498f5e7",
+    "load_case": "Operating",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster",
+  "solver_version": "18.0.12"
+}

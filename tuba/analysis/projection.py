@@ -1,0 +1,143 @@
+"""Project solver displacement result states onto model centerlines."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+
+from tuba.analysis.mesh import AnalysisMesh
+from tuba.analysis.results import ResultState
+from tuba.analysis.states import GeometryState
+from tuba.model import Element, TubaModel
+from tuba.refs import EntityRef
+
+
+@dataclass(frozen=True)
+class DeformedCenterline:
+    entity: EntityRef
+    geometry_state_id: str
+    points: tuple[tuple[float, float, float], ...]
+    source_mesh_nodes: tuple[str, ...]
+    diagnostics: tuple[str, ...] = ()
+
+
+def project_deformed_centerline(
+    *,
+    model: TubaModel,
+    element: Element,
+    result_state: ResultState,
+    geometry_state: GeometryState,
+    analysis_mesh: AnalysisMesh | None = None,
+) -> DeformedCenterline:
+    factor = geometry_state.displacement_scale * geometry_state.safety_factor
+    node_ids, diagnostics = centerline_node_ids(
+        element=element, result_state=result_state, analysis_mesh=analysis_mesh
+    )
+
+    points = tuple(
+        _project_node(model, analysis_mesh, result_state, node_id, factor)
+        for node_id in node_ids
+    )
+    return DeformedCenterline(
+        entity=EntityRef("element", element.id),
+        geometry_state_id=geometry_state.id,
+        points=points,
+        source_mesh_nodes=node_ids,
+        diagnostics=diagnostics,
+    )
+
+
+
+def centerline_node_ids(
+    *,
+    element: Element,
+    result_state: ResultState,
+    analysis_mesh: AnalysisMesh | None = None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """The nodes an element's centreline runs through, and any diagnostics.
+
+    A member is a chord between its end nodes until the analysis mesh supplies
+    the generated interior nodes. Every consumer must ask for the same node
+    set: comparing a chord against a refined arc measures the discretisation,
+    not the movement.
+    """
+    generated = _generated_centerline_nodes(element, analysis_mesh)
+    if generated and all(node_id in result_state.node_displacements for node_id in generated):
+        return (element.n1, *generated, element.n2), ()
+    if element.type == "pipe_bend":
+        return (element.n1, element.n2), ("bend_displacement_interpolated",)
+    if generated:
+        raise ValueError(f"Missing solved interior displacements for {element.id!r}.")
+    return (element.n1, element.n2), ()
+
+
+def displace_polyline(
+    *,
+    element: Element,
+    result_state: ResultState,
+    points: Any,
+    factor: float = 1.0,
+) -> tuple[tuple[float, float, float], ...]:
+    """Move an already-built cold polyline onto its operating position.
+
+    project_deformed_centerline needs the analysis mesh to place a bend's
+    interior nodes on their own solved displacement. A caller that holds a cold
+    polyline it built itself - an IFC swept-disk directrix, say - has no mesh,
+    so interior points follow a linear blend of the two end displacements: the
+    same approximation centerline_node_ids reports as
+    'bend_displacement_interpolated'.
+    """
+    start = _node_displacement(result_state, element.n1) * factor
+    end = _node_displacement(result_state, element.n2) * factor
+    span = max(len(points) - 1, 1)
+    return tuple(
+        tuple(
+            float(value)
+            for value in np.asarray(point, dtype=float) + start + (end - start) * (index / span)
+        )
+        for index, point in enumerate(points)
+    )
+
+
+def _node_displacement(result_state: ResultState, node_id: str) -> np.ndarray:
+    values = result_state.node_displacements.get(node_id)
+    if not values:
+        return np.zeros(3)
+    return np.asarray([float(value or 0.0) for value in values[:3]], dtype=float)
+
+
+def _generated_centerline_nodes(element: Element, analysis_mesh: AnalysisMesh | None) -> tuple[str, ...]:
+    if analysis_mesh is None:
+        return ()
+    generated: list[tuple[float, int, str]] = []
+    element_ref = EntityRef("element", element.id)
+    for node_id, source in analysis_mesh.node_sources.items():
+        if source.source_ref != element_ref or source.role not in {"generated_bend_node", "generated_straight_node"}:
+            continue
+        parametric_t = source.parametric_t if source.parametric_t is not None else 0.0
+        segment_index = source.segment_index if source.segment_index is not None else 0
+        generated.append((float(parametric_t), int(segment_index), node_id))
+    return tuple(node_id for _parametric_t, _segment_index, node_id in sorted(generated))
+
+
+def _project_node(
+    model: TubaModel,
+    analysis_mesh: AnalysisMesh | None,
+    result_state: ResultState,
+    node_id: str,
+    factor: float,
+) -> tuple[float, float, float]:
+    point = _base_point(model, analysis_mesh, node_id)
+    displacement = np.asarray(result_state.node_displacements.get(node_id, (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)), dtype=float)
+    projected = point + displacement[:3] * factor
+    return tuple(float(value) for value in projected)
+
+
+def _base_point(model: TubaModel, analysis_mesh: AnalysisMesh | None, node_id: str) -> np.ndarray:
+    if node_id in model.nodes:
+        return np.asarray(model.nodes[node_id].coords, dtype=float)
+    if analysis_mesh is not None and node_id in analysis_mesh.nodes:
+        return np.asarray(analysis_mesh.nodes[node_id], dtype=float)
+    raise KeyError(f"Cannot project unknown node {node_id!r}.")

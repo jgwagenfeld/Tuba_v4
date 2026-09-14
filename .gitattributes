@@ -1,0 +1,16 @@
+viewer/index.html text eol=lf
+viewer/public/favicon.svg text eol=lf
+viewer/public/licenses/*.txt text eol=lf
+tuba/visualization/_viewer/** text eol=lf
+tuba/visualization/_viewer/assets/*.js -whitespace
+*.woff -text -whitespace
+*.woff2 -text -whitespace
+
+# Solver attestation hashes bind exact bytes; never rewrite their line endings.
+examples/*/evidence/** -text -whitespace
+notebooks/code_aster_results/stress_analysis_operating/* -text -whitespace
+notebooks/code_aster_results/structural_operating_hot/* -text -whitespace
+notebooks/code_aster_results/bim_operating/* -text -whitespace
+notebooks/code_aster_results/advanced_operating_hot/* -text -whitespace
+notebooks/code_aster_results/building_profile_end_force/* -text -whitespace
+viewer/public/code-aster-review/artifacts/* -text -whitespace

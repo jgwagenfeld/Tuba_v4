@@ -1,0 +1,59 @@
+{
+  "artifacts": {
+    "study.comm": {
+      "sha256": "b943ae897a88620b76346be22e0b56a507cf980057f0339f16452ea52bbb7be3",
+      "size_bytes": 12806
+    },
+    "study.export": {
+      "sha256": "58c126e2d2bf87bedd28c395e588931203b5a712de6725b633a419f9e2cb2198",
+      "size_bytes": 395
+    },
+    "study.mail": {
+      "sha256": "2e22d26ae0ca6a99b87aa4a0dcf53f6c883e2d477452aba9e0d36ec4052a81a4",
+      "size_bytes": 21162
+    },
+    "study.mess": {
+      "sha256": "2216857033d2a9528c53a15ae8b1a994cc8425b14c99fd72edd2ae5f6a479f05",
+      "size_bytes": 215492
+    },
+    "study.rmed": {
+      "sha256": "563561027251de8a47ad557037791d1e9dbf7a4b42f422f1bde8aef579deafbc",
+      "size_bytes": 1662999
+    },
+    "study_contact.json": {
+      "sha256": "ecad9cff4430adc1ac184fc7da5be291c92034ebd5c5df86d2b1996b520ea934",
+      "size_bytes": 34045
+    },
+    "study_depl.csv": {
+      "sha256": "858f509f60cc378b8475ba3a97f3e670cf7a37db46aba13a7c25390b9a827891",
+      "size_bytes": 2248636
+    },
+    "study_effo.csv": {
+      "sha256": "f24fea4b7a8579ae96e37a61499b8f0deca76d9795a41efc11d443c2b6cd1e86",
+      "size_bytes": 4901162
+    },
+    "study_manifest.json": {
+      "sha256": "717765e6b60e8c15e33a0ae04802156377e6645a1073f12af129b1d1ca4273e2",
+      "size_bytes": 182006
+    },
+    "study_reac.csv": {
+      "sha256": "fc1f872356b65e1e61b58d74fb5d0e93ed4332724b6f6ed09c7010f40f2e0ef0",
+      "size_bytes": 2248636
+    },
+    "study_tuba_fem.json": {
+      "sha256": "59ce5f9b5f4a8c2472855b2771c7c178c0bf79b933a318421366225323f69d8c",
+      "size_bytes": 14326
+    }
+  },
+  "execution_method": "wsl",
+  "schema_version": "tuba.code_aster_execution.v1",
+  "solved_at": "2026-09-10T07:10:52.775223Z",
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v2",
+    "fingerprint": "f99039167fb067a52a9bc54f3117b8b624bede3a5b95352617f7dfe573b760bd",
+    "load_case": "Cold",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster",
+  "solver_version": "18.0.12"
+}

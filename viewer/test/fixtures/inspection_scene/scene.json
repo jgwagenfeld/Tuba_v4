@@ -1,0 +1,95 @@
+{
+  "schema_version": "visualization.scene.v1",
+  "scene_id": "scene:inspection",
+  "model_id": "model:inspection",
+  "units": { "length": "m" },
+  "coordinate_system": { "up_axis": "Z" },
+  "objects": [
+    {
+      "id": "object:pipe",
+      "entity_ref": "element:pipe_insulated",
+      "kind": "pipe",
+      "name": "Insulated pipe",
+      "geometry_asset_id": "asset:pipe",
+      "layer_ids": ["cold_geometry"],
+      "metadata": {
+        "section": "DN100",
+        "material": "Steel",
+        "route": "R-100",
+        "insulation": { "id": "mw_30", "material": "mineral_wool", "thickness_m": 0.03 },
+        "external_refs": { "ifc_guid": "2abc" },
+        "source_ref": "element:pipe_insulated"
+      },
+      "physical": { "effective_radius_m": 0.08, "effective_od_m": 0.16, "mass_kg_per_m": 23.5 },
+      "quantities": { "length_m": 2.0 }
+    },
+    {
+      "id": "object:clash",
+      "entity_ref": "issue:clash:pipe:rack",
+      "kind": "clash_marker",
+      "name": "Clash marker",
+      "geometry_asset_id": "asset:clash",
+      "layer_ids": ["issues:clash"],
+      "metadata": {
+        "issue_id": "issue:clash:pipe:rack",
+        "left": "element:pipe_insulated",
+        "right": "obstacle:rack",
+        "distance_m": 0.04,
+        "penetration_m": 0.02
+      }
+    },
+    {
+      "id": "object:mesh",
+      "entity_ref": "analysis_mesh:Hot:element:pipe_insulated",
+      "kind": "analysis_mesh_element",
+      "name": "Analysis mesh element",
+      "geometry_asset_id": "asset:mesh",
+      "layer_ids": ["analysis_mesh:elements"],
+      "group_ids": ["AllPipes"],
+      "metadata": {
+        "mesh_id": "analysis_mesh:Hot",
+        "role": "native_element",
+        "source_ref": "element:pipe_insulated",
+        "groups": ["AllPipes"]
+      },
+      "source": { "analysis_mesh": { "id": "analysis_mesh:Hot", "member_type": "element", "member_id": "pipe_insulated" } }
+    }
+  ],
+  "geometry_assets": [
+    {
+      "id": "asset:pipe",
+      "format": "tube",
+      "bounds": [-0.08, -0.08, -0.08, 2.08, 0.08, 0.08],
+      "object_ids": ["object:pipe"],
+      "generation_config": { "points": [[0, 0, 0], [2, 0, 0]], "radius_m": 0.08 }
+    },
+    {
+      "id": "asset:clash",
+      "format": "marker",
+      "bounds": [1, 0.08, 0, 1, 0.08, 0],
+      "object_ids": ["object:clash"],
+      "generation_config": { "point": [1, 0.08, 0], "issue_id": "issue:clash:pipe:rack" }
+    },
+    {
+      "id": "asset:mesh",
+      "format": "polyline",
+      "bounds": [0, 0.2, 0, 2, 0.2, 0],
+      "object_ids": ["object:mesh"],
+      "generation_config": { "points": [[0, 0.2, 0], [2, 0.2, 0]] }
+    }
+  ],
+  "materials": [],
+  "styles": [],
+  "overlays": [
+    { "id": "overlay:stress", "kind": "solver_result", "name": "Stress", "object_ids": ["object:pipe"], "data": { "field": "max_von_mises", "unit": "Pa", "values": { "object:pipe": 57000000 } }, "visible": true },
+    { "id": "overlay:clash", "kind": "clash", "name": "Clash", "object_ids": ["object:pipe", "object:clash"], "visible": true }
+  ],
+  "issues": [
+    { "id": "issue:clash:pipe:rack", "type": "clash", "severity": "error", "status": "open", "title": "Pipe clashes with rack", "object_ids": ["object:pipe", "object:clash"], "entity_refs": ["element:pipe_insulated", "obstacle:rack"] }
+  ],
+  "route_reviews": [],
+  "agent_proposals": [],
+  "views": [],
+  "scene_diffs": [],
+  "diagnostics": []
+}

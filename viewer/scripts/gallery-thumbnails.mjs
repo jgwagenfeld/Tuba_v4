@@ -1,0 +1,68 @@
+// Screenshot each published review for its gallery card.
+//
+// Run by scripts/build_pages.py against the assembled site, so every card is a
+// photograph of the bundle shipping beside it. The images used to be committed
+// and refreshed by hand, which kept the browser out of the release path and let
+// the pictures drift six weeks behind the data they claimed to show.
+//
+//   node viewer/scripts/gallery-thumbnails.mjs [--bare] <out-dir> <id> [<id> ...]
+// Set TUBA_PAGES_SITE_ROOT (relative to viewer/) to capture an assembled site.
+// --bare hides the camera buttons: scripts/docs/generate_figures.py shoots the
+// manual's figures here too, and a picture on a page is not a control surface.
+
+import { mkdir } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "@playwright/test";
+import { createServer } from "vite";
+
+const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const siteRoot = process.env.TUBA_PAGES_SITE_ROOT?.trim();
+const args = process.argv.slice(2);
+const bare = args[0] === "--bare";
+const [outDir, ...bundleIds] = bare ? args.slice(1) : args;
+
+if (!outDir || bundleIds.length === 0) {
+  console.error("usage: node viewer/scripts/gallery-thumbnails.mjs [--bare] <out-dir> <id> [<id> ...]");
+  process.exit(2);
+}
+
+let server;
+let browser;
+try {
+  await mkdir(outDir, { recursive: true });
+  server = await createServer({
+    root: siteRoot ? resolve(viewerRoot, siteRoot, "viewer") : viewerRoot,
+    configFile: siteRoot ? false : undefined,
+    cacheDir: resolve(viewerRoot, "../.build/gallery-thumbnail-vite"),
+    logLevel: "error",
+    server: { host: "127.0.0.1", port: 15975, strictPort: false }
+  });
+  await server.listen();
+  const baseUrl = server.resolvedUrls.local[0];
+
+  browser = await chromium.launch({ headless: true });
+  // 16:10 matches the card's aspect-ratio, so the shot is never re-cropped.
+  const page = await browser.newPage({ viewport: { height: 800, width: 1280 } });
+  page.setDefaultTimeout(30_000);
+
+  for (const bundleId of bundleIds) {
+    const url = new URL("/", baseUrl);
+    url.searchParams.set("bundle", bundleId);
+    // embed=1 drops the header, docks and status chrome, leaving the model.
+    url.searchParams.set("embed", "1");
+    await page.goto(url.toString(), { waitUntil: "load" });
+    // Wait for real geometry, not just for the page: an empty canvas is a
+    // thumbnail that silently says nothing.
+    await page.waitForFunction(
+      () => (window.__tubaViewer?.lastRender?.objectIds ?? []).length > 0
+    );
+    if (bare) await page.addStyleTag({ content: "[data-camera-controls] { display: none !important; }" });
+    const target = join(outDir, `${bundleId}.png`);
+    await page.locator("[data-canvas]").screenshot({ path: target });
+    console.log(`wrote ${target}`);
+  }
+} finally {
+  await browser?.close();
+  await server?.close();
+}

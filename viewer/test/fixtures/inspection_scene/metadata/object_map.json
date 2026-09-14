@@ -1,0 +1,5 @@
+{
+  "object:pipe": { "entity_ref": "element:pipe_insulated" },
+  "object:clash": { "entity_ref": "issue:clash:pipe:rack" },
+  "object:mesh": { "entity_ref": "analysis_mesh:Hot:element:pipe_insulated" }
+}

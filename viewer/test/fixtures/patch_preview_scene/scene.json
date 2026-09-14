@@ -1,0 +1,117 @@
+{
+  "schema_version": "visualization.scene.v1",
+  "scene_id": "scene:patch_preview",
+  "model_id": "model:patch_preview_committed",
+  "units": { "length": "m" },
+  "coordinate_system": { "up_axis": "Z" },
+  "objects": [
+    {
+      "id": "object:proposal_pipe",
+      "entity_ref": "element:pipe_str_0",
+      "kind": "proposal_added",
+      "name": "Proposed pipe",
+      "geometry_asset_id": "asset:proposal_pipe",
+      "layer_ids": ["agent_proposal:added"],
+      "metadata": {
+        "proposal_state": "added",
+        "base_kind": "pipe"
+      }
+    }
+  ],
+  "geometry_assets": [
+    {
+      "id": "asset:proposal_pipe",
+      "format": "polyline",
+      "bounds": [0, 0, 0, 2, 0, 0],
+      "object_ids": ["object:proposal_pipe"],
+      "generation_config": {
+        "points": [[0, 0, 0], [2, 0, 0]],
+        "source": "patch-preview-fixture"
+      }
+    }
+  ],
+  "materials": [],
+  "styles": [],
+  "overlays": [
+    {
+      "id": "overlay:agent_proposal:live_preview",
+      "kind": "agent_proposal",
+      "name": "Proposal live_preview",
+      "object_ids": ["object:proposal_pipe"],
+      "entity_refs": ["element:pipe_str_0"],
+      "visible": true,
+      "data": {
+        "proposal_id": "live_preview",
+        "agent_id": "live_preview",
+        "approval_state": "pending",
+        "created_entity_refs": ["element:pipe_str_0"]
+      }
+    }
+  ],
+  "issues": [],
+  "route_reviews": [],
+  "agent_proposals": [
+    {
+      "proposal_id": "live_preview",
+      "agent_id": "live_preview",
+      "goal": "preview patch",
+      "rationale": "dry-run patch preview",
+      "model_patch": {
+        "operations": [
+          { "op": "add_node", "local_id": "a", "coords": [0, 0, 0] },
+          { "op": "add_node", "local_id": "b", "coords": [2, 0, 0] },
+          {
+            "op": "add_element",
+            "local_id": "pipe",
+            "type": "pipe_straight",
+            "n1": "a",
+            "n2": "b",
+            "section": "PipeSec",
+            "material": "Steel"
+          }
+        ],
+        "provenance": { "source": "agent" }
+      },
+      "approval_state": "pending",
+      "after_metrics": {
+        "created_element_count": 1,
+        "created_node_count": 2
+      },
+      "created_entity_refs": ["element:pipe_str_0"]
+    }
+  ],
+  "views": [],
+  "scene_diffs": [
+    {
+      "diff_id": "diff:proposal:live_preview",
+      "base_scene_id": "scene:patch_preview_base",
+      "added_objects": [
+        {
+          "id": "object:proposal_pipe",
+          "entity_ref": "element:pipe_str_0",
+          "kind": "proposal_added",
+          "name": "Proposed pipe",
+          "geometry_asset_id": "asset:proposal_pipe",
+          "layer_ids": ["agent_proposal:added"],
+          "metadata": {
+            "proposal_state": "added",
+            "base_kind": "pipe"
+          }
+        }
+      ],
+      "added_geometry_assets": [
+        {
+          "id": "asset:proposal_pipe",
+          "format": "polyline",
+          "bounds": [0, 0, 0, 2, 0, 0],
+          "object_ids": ["object:proposal_pipe"],
+          "generation_config": {
+            "points": [[0, 0, 0], [2, 0, 0]],
+            "source": "patch-preview-fixture"
+          }
+        }
+      ]
+    }
+  ],
+  "diagnostics": []
+}

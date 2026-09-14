@@ -1,0 +1,7 @@
+{
+  "element:pipe_warm": "object:pipe:warm",
+  "element:pipe_hot": "object:pipe:hot",
+  "node:N1": "object:reaction_vector",
+  "node:N2": "object:displacement_vector",
+  "issue:operating_clash": "object:clash"
+}

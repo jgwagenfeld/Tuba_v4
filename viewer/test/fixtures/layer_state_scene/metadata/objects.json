@@ -1,0 +1,5 @@
+[
+  { "id": "object:cold", "entity_ref": "element:cold", "kind": "pipe", "name": "Cold pipe", "geometry_asset_id": "asset:cold", "layer_ids": ["cold_geometry"] },
+  { "id": "object:deformed", "entity_ref": "element:cold", "kind": "deformed_centerline", "name": "Visual deformation", "geometry_asset_id": "asset:deformed", "layer_ids": ["deformed:visual_centerline"] },
+  { "id": "object:clash", "entity_ref": "issue:clash", "kind": "clash_marker", "name": "Clash marker", "geometry_asset_id": "asset:clash", "layer_ids": ["issues:clash"] }
+]

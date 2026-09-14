@@ -1,0 +1,382 @@
+{
+  "schema_version": "visualization.scene.v1",
+  "scene_id": "scene:code_aster_results",
+  "model_id": "model:code_aster_results",
+  "objects": [
+    {
+      "id": "object:pipe:warm",
+      "entity_ref": "element:pipe_warm",
+      "kind": "pipe",
+      "name": "Warm pipe",
+      "geometry_asset_id": "asset:pipe:warm",
+      "layer_ids": ["cold:pipe_body"],
+      "metadata": { "material": "Steel", "source_ref": "element:pipe_warm" }
+    },
+    {
+      "id": "object:pipe:hot",
+      "entity_ref": "element:pipe_hot",
+      "kind": "pipe",
+      "name": "Hot pipe",
+      "geometry_asset_id": "asset:pipe:hot",
+      "layer_ids": ["cold:pipe_body"],
+      "metadata": { "material": "Steel", "source_ref": "element:pipe_hot" }
+    },
+    {
+      "id": "object:displacement_vector",
+      "entity_ref": "node:N2",
+      "kind": "displacement_vector",
+      "name": "Displacement vector",
+      "geometry_asset_id": "asset:displacement",
+      "layer_ids": ["result:displacement"],
+      "metadata": { "result_type": "displacement", "load_case": "Hot" }
+    },
+    {
+      "id": "object:reaction_vector",
+      "entity_ref": "node:N1",
+      "kind": "reaction_vector",
+      "name": "Reaction vector",
+      "geometry_asset_id": "asset:reaction",
+      "layer_ids": ["result:reaction"],
+      "metadata": { "result_type": "reaction", "load_case": "Hot" }
+    },
+    {
+      "id": "object:deformed_physical",
+      "entity_ref": "element:pipe_hot",
+      "kind": "deformed_centerline",
+      "name": "Physical deformed pipe",
+      "geometry_asset_id": "asset:deformed:physical",
+      "layer_ids": ["deformed:physical_centerline"],
+      "metadata": {
+        "geometry_state_id": "geometry_state:Hot:physical",
+        "result_state_id": "result_state:Hot",
+        "load_case": "Hot",
+        "purpose": "engineering",
+        "visual_scale": 1
+      }
+    },
+    {
+      "id": "object:deformed_visual",
+      "entity_ref": "element:pipe_hot",
+      "kind": "deformed_centerline",
+      "name": "Visual deformed pipe",
+      "geometry_asset_id": "asset:deformed:visual",
+      "layer_ids": ["deformed:visual_centerline"],
+      "metadata": {
+        "geometry_state_id": "geometry_state:Hot:visual_x50",
+        "result_state_id": "result_state:Hot",
+        "load_case": "Hot",
+        "purpose": "visualization",
+        "visual_scale": 50
+      }
+    },
+    {
+      "id": "object:clash",
+      "entity_ref": "issue:operating_clash",
+      "kind": "clash_marker",
+      "name": "Operating clash marker",
+      "geometry_asset_id": "asset:clash",
+      "layer_ids": ["issues:clash"],
+      "metadata": {
+        "issue_id": "issue:operating_clash",
+        "left": "element:pipe_hot",
+        "right": "obstacle:rack_member_0",
+        "cold_distance_m": 0.12,
+        "operating_distance_m": 0.04,
+        "penetration_m": 0.01,
+        "envelope_type": "insulation"
+      }
+    },
+    {
+      "id": "object:result_state:Hot",
+      "kind": "result_state",
+      "name": "Result state Hot",
+      "metadata": { "result_state_id": "result_state:Hot", "load_case": "Hot", "solver_name": "code_aster" }
+    },
+    {
+      "id": "object:geometry_state:physical",
+      "kind": "geometry_state",
+      "name": "Geometry state Hot physical",
+      "metadata": { "geometry_state_id": "geometry_state:Hot:physical", "load_case": "Hot", "purpose": "engineering" }
+    },
+    {
+      "id": "object:geometry_state:visual",
+      "kind": "geometry_state",
+      "name": "Geometry state Hot visual",
+      "metadata": { "geometry_state_id": "geometry_state:Hot:visual_x50", "load_case": "Hot", "purpose": "visualization" }
+    }
+  ],
+  "geometry_assets": [
+    {
+      "id": "asset:pipe:warm",
+      "format": "tube",
+      "bounds": [0, -0.05, -0.05, 2, 0.05, 0.05],
+      "object_ids": ["object:pipe:warm"],
+      "generation_config": {
+        "source": "tuba.element",
+        "points": [[0, 0, 0], [2, 0, 0]],
+        "radius_m": 0.05
+      }
+    },
+    {
+      "id": "asset:pipe:hot",
+      "format": "tube",
+      "bounds": [0, 0.3, -0.05, 2, 0.4, 0.05],
+      "object_ids": ["object:pipe:hot"],
+      "generation_config": {
+        "source": "tuba.element",
+        "points": [[0, 0.35, 0], [2, 0.35, 0]],
+        "radius_m": 0.05
+      }
+    },
+    {
+      "id": "asset:displacement",
+      "format": "vector",
+      "bounds": [1, 0.35, 0, 1, 0.35, 0.02],
+      "object_ids": ["object:displacement_vector"],
+      "generation_config": {
+        "source": "tuba.solver_result.displacement",
+        "result_type": "displacement",
+        "load_case": "Hot",
+        "start": [1, 0.35, 0],
+        "end": [1, 0.35, 0.02]
+      }
+    },
+    {
+      "id": "asset:reaction",
+      "format": "vector",
+      "bounds": [0, -0.2, 0, 0, 0, 0],
+      "object_ids": ["object:reaction_vector"],
+      "generation_config": {
+        "source": "tuba.solver_result.reaction",
+        "result_type": "reaction",
+        "load_case": "Hot",
+        "start": [0, 0, 0],
+        "end": [0, -0.2, 0]
+      }
+    },
+    {
+      "id": "asset:deformed:physical",
+      "format": "polyline",
+      "bounds": [0, 0.35, 0, 2, 0.37, 0],
+      "object_ids": ["object:deformed_physical"],
+      "generation_config": {
+        "source": "tuba.deformed_centerline.physical",
+        "geometry_state_id": "geometry_state:Hot:physical",
+        "result_state_id": "result_state:Hot",
+        "load_case": "Hot",
+        "visual_scale": 1,
+        "points": [[0, 0.35, 0], [2, 0.37, 0]]
+      }
+    },
+    {
+      "id": "asset:deformed:visual",
+      "format": "polyline",
+      "bounds": [0, 0.35, 0, 2, 0.75, 0],
+      "object_ids": ["object:deformed_visual"],
+      "generation_config": {
+        "source": "tuba.deformed_centerline.visual",
+        "geometry_state_id": "geometry_state:Hot:visual_x50",
+        "result_state_id": "result_state:Hot",
+        "load_case": "Hot",
+        "visual_scale": 50,
+        "base_points": [[0, 0.35, 0], [2, 0.35, 0]],
+        "points": [[0, 0.35, 0], [2, 0.75, 0]]
+      }
+    },
+    {
+      "id": "asset:clash",
+      "format": "marker",
+      "bounds": [1, 0.18, 0, 1, 0.18, 0],
+      "object_ids": ["object:clash"],
+      "generation_config": {
+        "source": "tuba.clash",
+        "issue_id": "issue:operating_clash",
+        "point": [1, 0.18, 0],
+        "radius_m": 0.06
+      }
+    }
+  ],
+  "overlays": [
+    {
+      "id": "overlay:result_state:Hot",
+      "kind": "result_state",
+      "object_ids": ["object:result_state:Hot"],
+      "name": "Result state Hot",
+      "data": {
+        "id": "result_state:Hot",
+        "study_id": "study:Hot",
+        "model_revision": 0,
+        "solver_name": "code_aster",
+        "load_case": "Hot",
+        "mesh_id": "analysis_mesh:Hot"
+      }
+    },
+    {
+      "id": "overlay:geometry_state:Hot:physical",
+      "kind": "geometry_state",
+      "object_ids": ["object:geometry_state:physical"],
+      "name": "Physical deformation Hot",
+      "data": {
+        "id": "geometry_state:Hot:physical",
+        "state_type": "operating",
+        "load_case": "Hot",
+        "result_state_id": "result_state:Hot",
+        "displacement_scale": 1,
+        "visual_scale": 1,
+        "purpose": "engineering"
+      }
+    },
+    {
+      "id": "overlay:geometry_state:Hot:visual",
+      "kind": "geometry_state",
+      "object_ids": ["object:geometry_state:visual"],
+      "name": "Visual deformation Hot x50",
+      "data": {
+        "id": "geometry_state:Hot:visual_x50",
+        "state_type": "deformed",
+        "load_case": "Hot",
+        "result_state_id": "result_state:Hot",
+        "displacement_scale": 50,
+        "visual_scale": 50,
+        "purpose": "visualization"
+      }
+    },
+    {
+      "id": "overlay:solver_result:stress:Hot",
+      "kind": "solver_result",
+      "object_ids": ["object:pipe:warm", "object:pipe:hot"],
+      "name": "Stress Hot",
+      "data": {
+        "result_type": "stress",
+        "result_state_id": "result_state:Hot",
+        "load_case": "Hot",
+        "field": "max_von_mises",
+        "unit": "Pa",
+        "values": {
+          "object:pipe:warm": 6000000,
+          "object:pipe:hot": 57000000
+        },
+        "utilization_values": {
+          "object:pipe:warm": 0.2,
+          "object:pipe:hot": 0.95
+        },
+        "range": { "min": 6000000, "max": 57000000 },
+        "legend": {
+          "field": "max_von_mises",
+          "unit": "Pa",
+          "range": { "min": 6000000, "max": 57000000 },
+          "color_map": "turbo",
+          "thresholds": { "warning": 0.8, "critical": 1.0 }
+        },
+        "hotspots": [
+          { "object_id": "object:pipe:hot", "value": 57000000, "utilization": 0.95, "unit": "Pa" },
+          { "object_id": "object:pipe:warm", "value": 6000000, "utilization": 0.2, "unit": "Pa" }
+        ],
+        "element_results": {
+          "object:pipe:hot": { "max_von_mises": 57000000, "stress_unit": "Pa" },
+          "object:pipe:warm": { "max_von_mises": 6000000, "stress_unit": "Pa" }
+        }
+      }
+    },
+    {
+      "id": "overlay:solver_result:displacement:Hot",
+      "kind": "solver_result",
+      "object_ids": ["object:displacement_vector"],
+      "name": "Displacement Hot",
+      "data": {
+        "result_type": "displacement",
+        "result_state_id": "result_state:Hot",
+        "load_case": "Hot",
+        "vectors": [
+          { "node_id": "N2", "magnitude_m": 0.02, "object_ids": ["object:displacement_vector"] }
+        ],
+        "values": { "N2": 0.02 },
+        "legend": {
+          "field": "displacement_magnitude",
+          "unit": "m",
+          "range": { "min": 0, "max": 0.02 },
+          "color_map": "viridis",
+          "thresholds": {}
+        }
+      }
+    },
+    {
+      "id": "overlay:solver_result:reaction:Hot",
+      "kind": "solver_result",
+      "object_ids": ["object:reaction_vector"],
+      "name": "Reaction Hot",
+      "data": {
+        "result_type": "reaction",
+        "result_state_id": "result_state:Hot",
+        "load_case": "Hot",
+        "vectors": [
+          { "node_id": "N1", "magnitude_n": 1200, "object_ids": ["object:reaction_vector"] }
+        ],
+        "values": { "N1": 1200 },
+        "legend": {
+          "field": "reaction_force_magnitude",
+          "unit": "N",
+          "range": { "min": 0, "max": 1200 },
+          "color_map": "magma",
+          "thresholds": {}
+        }
+      }
+    },
+    {
+      "id": "overlay:clash:operating",
+      "kind": "clash",
+      "object_ids": ["object:clash"],
+      "name": "Operating clash",
+      "data": { "issue_ids": ["issue:operating_clash"], "load_case": "Hot" }
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue:operating_clash",
+      "type": "clash",
+      "title": "Operating pipe/rack clash",
+      "severity": "error",
+      "status": "open",
+      "object_ids": ["object:pipe:hot", "object:clash"],
+      "entity_refs": ["element:pipe_hot", "obstacle:rack_member_0"],
+      "description": "Operating deformation reduces clearance.",
+      "external_refs": {
+        "bcf": {
+          "topic_guid": "bcf-operating-clash",
+          "topic_type": "Clash",
+          "topic_status": "Open"
+        }
+      },
+      "metadata": {
+        "cold_distance_m": 0.12,
+        "operating_distance_m": 0.04,
+        "penetration_m": 0.01,
+        "envelope_type": "insulation",
+        "load_case": "Hot",
+        "result_state_id": "result_state:Hot"
+      },
+      "external_refs": {
+        "bcf": {
+          "topic_type": "Clash",
+          "topic_status": "Open",
+          "related_entity_refs": ["element:pipe_hot", "obstacle:rack_member_0"],
+          "labels": ["tuba", "clash", "operating_only_hard"]
+        },
+        "clash_review": {
+          "focus_object_ids": ["object:pipe:hot", "object:clash"],
+          "grouping": {
+            "severity": "operating_only_hard",
+            "load_case": "Hot",
+            "geometry_state": "geometry_state:Hot:physical",
+            "result_state_id": "result_state:Hot",
+            "envelope_type": "insulation",
+            "object_pair": ["element:pipe_hot", "obstacle:rack_member_0"]
+          },
+          "object_pair": ["element:pipe_hot", "obstacle:rack_member_0"]
+        }
+      }
+    }
+  ],
+  "views": [],
+  "diagnostics": []
+}

@@ -1,0 +1,1974 @@
+import { contactRecords, contactObjectId, contactForceMaxima, CONTACT_COLORS } from "./contactReview.js";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
+import {
+  colorForScalarValue,
+  getObjectScalarColor,
+  getResultVectorScale,
+  getScalarLegend,
+  getVisualDeformationDisplayScale
+} from "./resultReview.js";
+import { bodyOpacityForObjectIds } from "./bodies.js";
+import { isSupportConfig, supportBlockedDofs } from "./supports.js";
+
+export const SUPPORTED_RENDER_FORMATS = new Set([
+  "aabb",
+  "cuboid",
+  "label",
+  "line",
+  "marker",
+  "mesh",
+  "point",
+  "polyline",
+  "tube",
+  "tube_envelope",
+  "tuyau_subpoint_glyphs",
+  "vector"
+]);
+
+const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
+const REFERENCE_GEOMETRY_OPACITY = 0.32;
+
+export const STANDARD_VIEW_DIRECTIONS = {
+  iso: [1, -1, 0.65],
+  positiveX: [1, 0, 0],
+  negativeX: [-1, 0, 0],
+  positiveY: [0, 1, 0],
+  negativeY: [0, -1, 0],
+  positiveZ: [0, 0, 1],
+  negativeZ: [0, 0, -1]
+};
+
+export const WEBGL2_UNAVAILABLE = "viewer.webgl2_unavailable";
+
+export function createThreeSceneGraph(state, options = {}) {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(options.backgroundColor ?? 0xf8fafc);
+
+  const root = new THREE.Group();
+  root.name = "TubaSceneRoot";
+  scene.add(root);
+
+  const declaredBounds = normalizeBounds(state.bounds) ?? mergeAssetBounds(state.geometryAssets ?? []);
+
+  const payloadsByAssetId = new Map((state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload]));
+  const visibleIds = new Set(state.visibleObjectIds ?? []);
+  const renderState = {
+    ...state,
+    canvasFactory: options.canvasFactory ?? (() => globalThis.document?.createElement("canvas")),
+    hasVisualDeformedGeometry: hasVisibleVisualDeformedGeometry(state, payloadsByAssetId, visibleIds)
+  };
+  const objectsByObjectId = new Map();
+  const diagnostics = [];
+  let renderedObjectCount = 0;
+
+  for (const asset of state.geometryAssets ?? []) {
+    const payload = payloadsByAssetId.get(asset.id) ?? {};
+    if (!isAssetVisible(asset, visibleIds) || !assetMatchesActiveGeometryState(asset, payload, state.activeGeometryStateId)) {
+      continue;
+    }
+    const result = createRenderableForAsset(asset, payload, renderState);
+    if (result.diagnostic) {
+      diagnostics.push(result.diagnostic);
+    }
+    if (!result.object) {
+      continue;
+    }
+    setRenderMetadata(result.object, asset, result.format);
+    root.add(result.object);
+    renderedObjectCount += 1;
+    for (const objectId of asset.object_ids ?? []) {
+      objectsByObjectId.set(objectId, result.object);
+    }
+  }
+
+  addContactMarkers(root, state);
+
+  // Fit to what was actually drawn, not to what the assets declare. Deformed
+  // geometry is baked at its authored visual scale (x50) and rescaled here at
+  // draw time, so the declared bounds describe an envelope fifty times larger
+  // than the shape on screen - and the camera framed that envelope instead.
+  const bounds = renderedBounds(root) ?? declaredBounds;
+  const renderableObjects = [...root.children];
+  const deformationPreview = createVisualDeformationPreview(root);
+  if (deformationPreview) root.add(deformationPreview);
+  addReferenceHelpers(scene, bounds, state.referenceGridVisible !== false);
+
+  return {
+    bounds,
+    deformationPreview,
+    diagnostics,
+    objectsByObjectId,
+    renderableObjects,
+    renderedObjectCount,
+    root,
+    scene
+  };
+}
+
+function renderedBounds(root) {
+  if (root.children.length === 0) {
+    return null;
+  }
+  const structural = root.children.filter((object) => object.userData?.format !== "vector");
+  const box = new THREE.Box3();
+  for (const object of structural.length > 0 ? structural : root.children) {
+    box.expandByObject(object, true);
+  }
+  if (box.isEmpty() || !Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) {
+    return null;
+  }
+  return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
+}
+
+export function buildRenderableScene(state, options = {}) {
+  const graph = createThreeSceneGraph(state, options);
+  const camera = createEngineeringCamera((options.width ?? 1280) / Math.max(options.height ?? 800, 1));
+  const fit = fitCameraToBounds(camera, state.camera?.fitRequest?.bounds ?? graph.bounds);
+  return {
+    ...graph,
+    camera,
+    controlsTarget: new THREE.Vector3(...fit.target)
+  };
+}
+
+const SCENE_GRAPH_STATE_KEYS = [
+  "bounds",
+  "geometryAssets",
+  "geometryPayloads",
+  "overlays",
+  "activeLoadCase",
+  "activeResultStateId",
+  "activeGeometryStateId",
+  "coloring",
+  "resultVectorScales",
+  "displacementVectorScale",
+  "reactionVectorScale",
+  "bodyOpacity",
+  "contactArrows",
+  "contactNeutral"
+];
+
+export function createSceneGraphCache(buildGraph, disposeGraph = () => {}) {
+  let currentState = null;
+  let currentGraph = null;
+  return {
+    get(state) {
+      const visibilityChanged = currentState?.visibleObjectIds !== state?.visibleObjectIds;
+      const deformedReferenceModeChanged =
+        visibilityChanged &&
+        stateHasVisibleVisualDeformedGeometry(currentState) !== stateHasVisibleVisualDeformedGeometry(state);
+      const rebuild =
+        !currentGraph ||
+        deformedReferenceModeChanged ||
+        SCENE_GRAPH_STATE_KEYS.some((key) => currentState?.[key] !== state?.[key]);
+      if (rebuild) {
+        const previousGraph = currentGraph;
+        currentGraph = buildGraph(state);
+        if (previousGraph) {
+          disposeGraph(previousGraph);
+        }
+      }
+      currentState = state;
+      return currentGraph;
+    },
+    clear() {
+      if (currentGraph) {
+        disposeGraph(currentGraph);
+      }
+      currentState = null;
+      currentGraph = null;
+    }
+  };
+}
+
+function stateHasVisibleVisualDeformedGeometry(state) {
+  if (!state) {
+    return false;
+  }
+  const payloadsByAssetId = new Map(
+    (state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload])
+  );
+  return hasVisibleVisualDeformedGeometry(
+    state,
+    payloadsByAssetId,
+    new Set(state.visibleObjectIds ?? [])
+  );
+}
+
+export function createThreeCanvasRenderer(canvas, options = {}) {
+  const context = canvas.getContext?.("webgl2", {
+    antialias: true,
+    preserveDrawingBuffer: true
+  });
+  if (!context) {
+    const error = new Error("This browser could not start WebGL2.");
+    error.code = WEBGL2_UNAVAILABLE;
+    throw error;
+  }
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    canvas,
+    context,
+    preserveDrawingBuffer: true
+  });
+  renderer.setClearColor(options.backgroundColor ?? 0xf8fafc, 1);
+  renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio ?? 1, 2));
+  renderer.localClippingEnabled = true;
+  const deformationOverlay = createDeformationOverlay(canvas);
+
+  const camera = createEngineeringCamera(1);
+
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = false;
+
+  // Orientation gizmo. ViewHelper draws itself into a corner viewport on top of the
+  // scene, so the main pass must not auto-clear underneath it.
+  renderer.autoClear = false;
+  const viewHelper = new ViewHelper(camera, canvas);
+  viewHelper.setLabels("X", "Y", "Z");
+
+  let currentGraph = null;
+  let deformationInteractionActive = false;
+  let redrawFrameId = null;
+  const cameraDirection = new THREE.Vector3();
+  // Rendering is on-demand, so nothing re-reads the canvas box between state
+  // renders. Without this the drawing buffer keeps its old size after a window
+  // or panel resize and the frame is stretched into the new box - geometry
+  // reads as squashed and cut off.
+  const syncCanvasSize = () => {
+    const width = Math.max(1, Math.floor(canvas.clientWidth || canvas.width || 1));
+    const height = Math.max(1, Math.floor(canvas.clientHeight || canvas.height || 1));
+    resizeCameraViewport(camera, width, height, options.viewportInsets?.() ?? {});
+    const size = renderer.getSize(new THREE.Vector2());
+    if (size.x === width && size.y === height) {
+      return false;
+    }
+    renderer.setSize(width, height, false);
+    return true;
+  };
+  const drawFrame = (graph) => {
+    renderer.clear();
+    renderer.render(graph.scene, camera);
+    viewHelper.render(renderer);
+    if (deformationInteractionActive) drawDeformationOverlay(deformationOverlay, graph.deformationPreview, camera);
+    canvas.dataset.cameraDirection = camera
+      .getWorldDirection(cameraDirection)
+      .toArray()
+      .map((value) => value.toFixed(3))
+      .join(",");
+  };
+  const redrawScene = () => {
+    if (redrawFrameId !== null) return;
+    redrawFrameId = requestAnimationFrame(() => {
+      redrawFrameId = null;
+      if (currentGraph) drawFrame(currentGraph);
+    });
+  };
+  // ponytail: fixed 1/60s step instead of a real clock — the gizmo turn is a short
+  // constant-rate slerp, so drift is invisible. Swap in THREE.Clock if it ever matters.
+  const animateGizmo = () => {
+    viewHelper.update(1 / 60);
+    controls.update();
+    if (currentGraph) drawFrame(currentGraph);
+    if (viewHelper.animating) requestAnimationFrame(animateGizmo);
+  };
+  // Nothing is dropped while the camera moves. A detail LOD used to hide the
+  // line/point formats here, which took supports, coupling lines and the whole
+  // analysis mesh off screen on every drag - a beam model is those lines, so
+  // orbiting emptied the viewport. Measured before removing it: the heaviest
+  // bundle is 2224 draw calls / 139k triangles and the LOD spared 154 of them,
+  // while the one scene it did thin (1.62M triangles) is a single InstancedMesh
+  // costing one draw call. If orbit ever does judder, measure first and thin
+  // the thing that is actually slow.
+  controls.addEventListener("change", redrawScene);
+  // Guarded: the node test environment has no ResizeObserver.
+  const resizeObserver =
+    typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(() => {
+          if (syncCanvasSize()) redrawScene();
+        });
+  resizeObserver?.observe(canvas);
+  const graphCache = createSceneGraphCache(
+    (state) => createThreeSceneGraph(state, options),
+    disposeThreeSceneGraph
+  );
+  const cameraFitController = createCameraFitController(camera, controls);
+
+  return {
+    render(state) {
+      syncCanvasSize();
+
+      if (currentGraph && !hasAllVisibleAssets(currentGraph, state)) {
+        graphCache.clear();
+        currentGraph = null;
+      }
+      const graph = graphCache.get(state);
+      applyVisualDeformationScale(graph.root, state, { previewOnly: deformationInteractionActive });
+      updateSceneGraphVisibility(graph, state);
+      if (deformationInteractionActive) setDeformationPreviewMode(graph, true);
+      applySectionBoxClipping(graph, state.sectionBox);
+      cameraFitController.apply(state, graph.bounds);
+      controls.update();
+      graph.camera = camera;
+      applySelectionHighlight(graph, state.selectedObjectIds ?? []);
+      drawFrame(graph);
+      currentGraph = graph;
+
+      canvas.dataset.renderer = "three";
+      canvas.dataset.renderedObjects = String(graph.renderedObjectCount);
+      canvas.dataset.renderDiagnostics = String(graph.diagnostics.length);
+      return graph;
+    },
+    redraw() {
+      redrawScene();
+    },
+    setDeformationInteraction(active) {
+      if (deformationInteractionActive === active || !canSetDeformationPreview(currentGraph, active)) return false;
+      deformationInteractionActive = active;
+      if (currentGraph) setDeformationPreviewMode(currentGraph, active);
+      if (deformationOverlay.canvas) deformationOverlay.canvas.hidden = !active;
+      if (active) drawFrame(currentGraph);
+      else deformationOverlay.context?.clearRect(0, 0, deformationOverlay.canvas.width, deformationOverlay.canvas.height);
+      return true;
+    },
+    renderDeformation(state) {
+      if (!deformationInteractionActive || !currentGraph?.deformationPreview) return false;
+      applyVisualDeformationScale(currentGraph.root, state, { previewOnly: true });
+      drawDeformationOverlay(deformationOverlay, currentGraph.deformationPreview, camera);
+      return true;
+    },
+    handleGizmoClick(event) {
+      viewHelper.center.copy(controls.target);
+      if (!viewHelper.handleClick(event)) return false;
+      requestAnimationFrame(animateGizmo);
+      return true;
+    },
+    resetView() {
+      if (!currentGraph) return;
+      syncCanvasSize();
+      fitCameraToBounds(camera, currentGraph.bounds, controls);
+      drawFrame(currentGraph);
+    },
+    setStandardView(viewId) {
+      if (!currentGraph) return;
+      syncCanvasSize();
+      setCameraToStandardView(camera, currentGraph.bounds, controls, viewId);
+      drawFrame(currentGraph);
+    },
+    zoomBy(factor) {
+      if (!zoomCameraBy(camera, factor)) return;
+      if (currentGraph) drawFrame(currentGraph);
+    },
+    orbitBy(deltaAzimuth, deltaPolar) {
+      if (!orbitCameraBy(camera, controls.target, deltaAzimuth, deltaPolar)) return;
+      controls.update();
+      if (currentGraph) drawFrame(currentGraph);
+    },
+    dispose() {
+      graphCache.clear();
+      if (redrawFrameId !== null) cancelAnimationFrame(redrawFrameId);
+      resizeObserver?.disconnect();
+      controls.removeEventListener("change", redrawScene);
+      controls.removeEventListener("start", startInteraction);
+      controls.removeEventListener("end", endInteraction);
+      controls.dispose();
+      viewHelper.dispose();
+      renderer.dispose();
+      deformationOverlay.canvas?.remove();
+    }
+  };
+}
+
+function createDeformationOverlay(canvas) {
+  const overlay = canvas.ownerDocument?.createElement?.("canvas");
+  const context = overlay?.getContext?.("2d");
+  if (!overlay || !context || !canvas.parentElement) return { canvas: null, context: null };
+  overlay.dataset.deformationPreview = "";
+  overlay.hidden = true;
+  canvas.insertAdjacentElement("afterend", overlay);
+  return { canvas: overlay, context };
+}
+
+function drawDeformationOverlay(overlay, preview, camera) {
+  if (!overlay?.canvas || !overlay.context || overlay.canvas.hidden || !preview) return;
+  const sourceCanvas = overlay.canvas.previousElementSibling;
+  if (!sourceCanvas) return;
+  if (overlay.canvas.width !== sourceCanvas.width || overlay.canvas.height !== sourceCanvas.height) {
+    overlay.canvas.width = sourceCanvas.width;
+    overlay.canvas.height = sourceCanvas.height;
+  }
+  const { canvas, context } = overlay;
+  const positions = preview.geometry.getAttribute("position");
+  const point = new THREE.Vector3();
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.beginPath();
+  for (let index = 0; index + 1 < positions.count; index += 2) {
+    point.fromBufferAttribute(positions, index).applyMatrix4(preview.matrixWorld).project(camera);
+    context.moveTo((point.x + 1) * canvas.width / 2, (1 - point.y) * canvas.height / 2);
+    point.fromBufferAttribute(positions, index + 1).applyMatrix4(preview.matrixWorld).project(camera);
+    context.lineTo((point.x + 1) * canvas.width / 2, (1 - point.y) * canvas.height / 2);
+  }
+  context.strokeStyle = "#7c3aed";
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.lineWidth = Math.max(6, 6 * (globalThis.devicePixelRatio ?? 1));
+  context.stroke();
+}
+
+export function disposeThreeSceneGraph(graph) {
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+  graph?.scene?.traverse((object) => {
+    if (object.geometry) {
+      geometries.add(object.geometry);
+    }
+    for (const material of Array.isArray(object.material) ? object.material : object.material ? [object.material] : []) {
+      materials.add(material);
+      if (material.map) textures.add(material.map);
+    }
+  });
+  for (const geometry of geometries) {
+    geometry.dispose();
+  }
+  for (const material of materials) {
+    material.dispose();
+  }
+  for (const texture of textures) {
+    texture.dispose();
+  }
+}
+
+export function createCameraFitController(camera, controls = null) {
+  let initialized = false;
+  let appliedRequestId = null;
+
+  return {
+    apply(state, sceneBounds) {
+      const request = state?.camera?.fitRequest;
+      if (!initialized) {
+        initialized = true;
+        appliedRequestId = request?.id ?? null;
+        return fitCameraToBounds(camera, request?.bounds ?? sceneBounds, controls);
+      }
+      if (!request || request.id === appliedRequestId) {
+        return null;
+      }
+      appliedRequestId = request.id;
+      return fitCameraToBounds(camera, request.bounds, controls);
+    }
+  };
+}
+
+export function createThreeViewport(canvas, options = {}) {
+  const canvasRenderer = createThreeCanvasRenderer(canvas, options);
+  return {
+    setState(state) {
+      const graph = canvasRenderer.render(state);
+      return {
+        ...graph,
+        renderableObjects: [...new Set(graph.objectsByObjectId.values())].filter((object) => object.visible !== false)
+      };
+    },
+    render() {
+      canvasRenderer.redraw();
+    },
+    setDeformationInteraction(active) {
+      return canvasRenderer.setDeformationInteraction(active);
+    },
+    renderDeformation(state) {
+      return canvasRenderer.renderDeformation(state);
+    },
+    handleGizmoClick(event) {
+      return canvasRenderer.handleGizmoClick(event);
+    },
+    resetView() {
+      canvasRenderer.resetView();
+    },
+    setStandardView(viewId) {
+      canvasRenderer.setStandardView(viewId);
+    },
+    zoomBy(factor) {
+      canvasRenderer.zoomBy(factor);
+    },
+    orbitBy(deltaAzimuth, deltaPolar) {
+      canvasRenderer.orbitBy(deltaAzimuth, deltaPolar);
+    },
+    dispose() {
+      canvasRenderer.dispose();
+    }
+  };
+}
+
+// How far from a line, in screen pixels, a click still lands on it.
+const PICK_LINE_TOLERANCE_PX = 6;
+
+export function pickRenderedObject(graph, point, viewport) {
+  if (!graph?.camera || !graph.renderableObjects?.length) {
+    return null;
+  }
+  const raycaster = new THREE.Raycaster();
+  const normalized = new THREE.Vector2((point.x / viewport.width) * 2 - 1, -(point.y / viewport.height) * 2 + 1);
+  graph.camera.updateProjectionMatrix();
+  graph.camera.updateMatrixWorld();
+  graph.scene?.updateMatrixWorld(true);
+  raycaster.setFromCamera(normalized, graph.camera);
+  // Three.js hits a line anywhere within 1 world unit of the ray. On a metre-
+  // scale model that is dozens of pixels, and hits are ordered by depth, so any
+  // element line or mesh edge nearer the camera took the click from the support
+  // or pipe actually under the cursor.
+  raycaster.params.Line.threshold = PICK_LINE_TOLERANCE_PX * worldUnitsPerPixel(graph, viewport);
+  const raycastTargets = graph.renderableObjects.filter(
+    (object) => object.visible !== false && object.userData?.pickable !== false && object.userData?.format !== "tuyau_subpoint_glyphs"
+  );
+  const intersections = raycaster.intersectObjects(raycastTargets, true);
+  for (const intersection of intersections) {
+    // Raycasting ignores clipping planes: without this a click picked geometry
+    // the section box had already cut away.
+    const clippingPlanes = intersection.object.material?.clippingPlanes ?? [];
+    if (clippingPlanes.some((plane) => plane.distanceToPoint(intersection.point) < 0)) {
+      continue;
+    }
+    const objectId = intersection.object.userData?.primaryObjectId || intersection.object.userData?.objectId;
+    if (objectId) {
+      return objectId;
+    }
+  }
+  // A miss selects nothing. It used to fall back to the object whose bounds
+  // centre projected nearest the click, which for a long pipe run is nowhere
+  // near where it is drawn - a near-miss selected something across the model.
+  return null;
+}
+
+// World size of one screen pixel. Exact for the app's orthographic camera; a
+// perspective camera is measured at the depth of the scene centre.
+function worldUnitsPerPixel(graph, viewport) {
+  const camera = graph.camera;
+  if (camera.isOrthographicCamera) {
+    return (camera.top - camera.bottom) / camera.zoom / viewport.height;
+  }
+  const depth = camera.position.distanceTo(centerOfBounds(graph.bounds) ?? new THREE.Vector3());
+  return (2 * depth * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / viewport.height;
+}
+
+export function updateSceneGraphVisibility(graph, state) {
+  const visibleIds = new Set(state.visibleObjectIds ?? []);
+  let renderedObjectCount = 0;
+  for (const object of graph.renderableObjects ?? []) {
+    const objectIds = object.userData?.objectIds ?? [];
+    object.visible = objectIds.length === 0 || objectIds.some((objectId) => visibleIds.has(objectId));
+    if (object.visible) {
+      renderedObjectCount += 1;
+    }
+  }
+  graph.renderedObjectCount = renderedObjectCount;
+  return graph;
+}
+
+export function sectionBoxClippingPlanes(sectionBox) {
+  if (!sectionBox) {
+    return [];
+  }
+  const { min, max } = sectionBox;
+  return [
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), max[0]),
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -min[0]),
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), max[1]),
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), -min[1]),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), max[2]),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), -min[2])
+  ];
+}
+
+export function applySectionBoxClipping(graph, sectionBox) {
+  const clippingPlanes = sectionBox ? sectionBoxClippingPlanes(sectionBox) : null;
+  graph.root?.traverse((object) => {
+    if (object.userData?.volumeMeshEdges) object.visible = Boolean(sectionBox);
+    const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : [];
+    for (const material of materials) {
+      material.clippingPlanes = clippingPlanes;
+      material.needsUpdate = true;
+    }
+  });
+}
+
+// Whether the deformation preview may flip to `active`. Entering needs a preview
+// to draw, and is refused while a section rotation is on screen - that one needs
+// its surface and local frames throughout the drag. Leaving is unconditional: a
+// graph rebuilt between pointerdown and pointerup carries no preview, and making
+// the exit depend on one stranded the flag set, so every later render re-hid the
+// undeformed reference geometry for good.
+export function canSetDeformationPreview(graph, active) {
+  if (!active) return true;
+  return (
+    Boolean(graph?.deformationPreview) &&
+    !(graph.renderableObjects ?? []).some((object) => object.userData?.sectionDeformation)
+  );
+}
+
+export function setDeformationPreviewMode(graph, active) {
+  for (const object of graph.renderableObjects ?? []) {
+    if (!object.userData?.undeformedReference && !objectHasVisualDeformation(object)) continue;
+    if (active) {
+      if (!Object.hasOwn(object.userData, "visibleBeforeDeformationPreview")) {
+        object.userData.visibleBeforeDeformationPreview = object.visible;
+      }
+      object.visible = false;
+    } else if (Object.hasOwn(object.userData, "visibleBeforeDeformationPreview")) {
+      object.visible = object.userData.visibleBeforeDeformationPreview;
+      delete object.userData.visibleBeforeDeformationPreview;
+    }
+  }
+  return graph;
+}
+
+function objectHasVisualDeformation(object) {
+  let found = false;
+  object.traverse((part) => { found ||= Boolean(part.userData?.visualDeformationSourceScale); });
+  return found;
+}
+
+function hasAllVisibleAssets(graph, state) {
+  const cachedAssetIds = new Set((graph.renderableObjects ?? []).map((object) => object.userData?.assetId));
+  const visibleIds = new Set(state.visibleObjectIds ?? []);
+  const payloadsByAssetId = new Map((state.geometryPayloads ?? []).map((payload) => [payload.asset_id, payload]));
+  return (state.geometryAssets ?? [])
+    .filter((asset) => isAssetVisible(asset, visibleIds))
+    .filter((asset) => assetMatchesActiveGeometryState(asset, payloadsByAssetId.get(asset.id) ?? {}, state.activeGeometryStateId))
+    .every((asset) => cachedAssetIds.has(asset.id));
+}
+
+export function applyHoverHighlight(graph, objectId) {
+  if (graph.highlightedObjectId === (objectId ?? null)) {
+    return graph;
+  }
+  setObjectHover(graph.objectsByObjectId?.get(graph.highlightedObjectId), false);
+  graph.highlightedObjectId = objectId ?? null;
+  setObjectHover(graph.objectsByObjectId?.get(objectId), true);
+  return graph;
+}
+
+function setObjectHover(object, hovered) {
+  if (!object) return;
+  object.userData.hovered = hovered;
+  object.traverse((child) => {
+    child.userData.hovered = hovered;
+    const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+    for (const material of materials) {
+      if (material.emissive) {
+        material.emissive.setHex(hovered ? 0x1d4ed8 : child.userData.selected ? 0xf59e0b : 0x000000);
+      }
+    }
+  });
+}
+
+export function applySelectionHighlight(graph, objectIds = []) {
+  const selectedIds = new Set(objectIds);
+  graph.selectedObjectIds = [...selectedIds];
+  for (const object of graph.renderableObjects ?? []) {
+    const selected = (object.userData.objectIds ?? []).some((objectId) => selectedIds.has(objectId));
+    object.userData.selected = selected;
+    object.traverse((child) => {
+      child.userData.selected = selected;
+      const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+      for (const material of materials) {
+        if (material.emissive) {
+          material.emissive.setHex(selected ? 0xf59e0b : 0x000000);
+        }
+      }
+    });
+  }
+  return graph;
+}
+
+// Half-extents of the bounds as they actually project onto the screen for one
+// view direction, plus the depth along it.
+//
+// The fit used to size the frustum from half the AABB diagonal - the bounding
+// sphere. For an elongated pipe run that diagonal is far longer than anything
+// visible from any single angle, so the model sat at a fraction of the frame
+// with the rest of the viewport empty.
+function projectedHalfExtents(bounds, direction, up) {
+  const center = centerOfBounds(bounds);
+  const forward = direction.clone().normalize();
+  let screenUp = up.clone().normalize();
+  if (Math.abs(forward.dot(screenUp)) > 0.999) {
+    screenUp = new THREE.Vector3(0, 1, 0);
+  }
+  const right = new THREE.Vector3().crossVectors(screenUp, forward).normalize();
+  screenUp = new THREE.Vector3().crossVectors(forward, right).normalize();
+
+  const corner = new THREE.Vector3();
+  let halfWidth = 0;
+  let halfHeight = 0;
+  let halfDepth = 0;
+  for (let index = 0; index < 8; index += 1) {
+    corner
+      .set(
+        index & 1 ? bounds[3] : bounds[0],
+        index & 2 ? bounds[4] : bounds[1],
+        index & 4 ? bounds[5] : bounds[2]
+      )
+      .sub(center);
+    halfWidth = Math.max(halfWidth, Math.abs(corner.dot(right)));
+    halfHeight = Math.max(halfHeight, Math.abs(corner.dot(screenUp)));
+    halfDepth = Math.max(halfDepth, Math.abs(corner.dot(forward)));
+  }
+  return { halfWidth, halfHeight, halfDepth };
+}
+
+// Breathing room around the fitted extents, so the outermost surface is not
+// flush against the frame edge.
+const FIT_MARGIN = 1.1;
+
+export function upVectorForView(viewId = "iso") {
+  // Looking straight down or up the Z axis, world Z cannot also be screen up.
+  return Math.abs(STANDARD_VIEW_DIRECTIONS[viewId]?.[2] ?? 0) === 1
+    ? new THREE.Vector3(0, 1, 0)
+    : new THREE.Vector3(0, 0, 1);
+}
+
+export function resizeCameraViewport(camera, width, height, insets = {}) {
+  camera.userData.viewportSize = { width, height };
+  camera.userData.viewportInsets = insets;
+  camera.userData.viewportAspect = width / height;
+  if (camera.isOrthographicCamera) {
+    const halfHeight = camera.userData.fitHalfHeight ?? 1;
+    camera.left = -halfHeight * width / height;
+    camera.right = halfHeight * width / height;
+    camera.top = halfHeight;
+    camera.bottom = -halfHeight;
+    // Native view offsets remain fixed in screen pixels when zoom changes.
+    const inset = (side) => Math.max(0, Number(insets[side]) || 0);
+    camera.setViewOffset(width, height, (inset("right") - inset("left")) / 2,
+      (inset("bottom") - inset("top")) / 2, width, height);
+  } else {
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  }
+}
+
+export function fitCameraToBounds(camera, bounds, controls = null, viewId = "iso") {
+  const normalized = normalizeBounds(bounds) ?? [-1, -1, -1, 1, 1, 1];
+  const center = centerOfBounds(normalized);
+  const size = sizeOfBounds(normalized);
+  const radius = Math.max(size.length() * 0.5, 0.5);
+  // Fitted per view: setCameraToStandardView reuses this frustum when it swings
+  // the camera to an axis, so sizing it for the isometric view alone would clip
+  // the others.
+  const direction = new THREE.Vector3(
+    ...(STANDARD_VIEW_DIRECTIONS[viewId] ?? STANDARD_VIEW_DIRECTIONS.iso)
+  ).normalize();
+  const up = upVectorForView(viewId);
+  const extents = projectedHalfExtents(normalized, direction, up);
+  let distance;
+
+  if (camera.isOrthographicCamera) {
+    const aspect = positiveNumber(camera.userData.viewportAspect) ?? 1;
+    const viewport = camera.userData.viewportSize;
+    const insets = camera.userData.viewportInsets ?? {};
+    const leftInset = Math.max(0, Number(insets.left) || 0);
+    const rightInset = Math.max(0, Number(insets.right) || 0);
+    const topInset = Math.max(0, Number(insets.top) || 0);
+    const bottomInset = Math.max(0, Number(insets.bottom) || 0);
+    const availableWidth = Math.max(1, (viewport?.width ?? 1) - leftInset - rightInset);
+    const availableHeight = Math.max(1, (viewport?.height ?? 1) - topInset - bottomInset);
+    const visibleAspect = viewport ? availableWidth / availableHeight : aspect;
+    // Whichever axis binds first: a wide viewport is limited by height, a tall
+    // one by width.
+    const halfHeight = Math.max(
+      Math.max(extents.halfHeight, extents.halfWidth / visibleAspect) * FIT_MARGIN,
+      1e-4
+    );
+    camera.zoom = 1;
+    camera.userData.fitHalfHeight = viewport ? halfHeight * viewport.height / availableHeight : halfHeight;
+    if (viewport) {
+      resizeCameraViewport(camera, viewport.width, viewport.height, insets);
+    } else {
+      camera.left = -halfHeight * aspect;
+      camera.right = halfHeight * aspect;
+      camera.top = halfHeight;
+      camera.bottom = -halfHeight;
+    }
+    // Orthographic projection does not change with distance, so this only has to
+    // clear the geometry and leave near/far room around it.
+    distance = Math.max(extents.halfDepth * 2 + radius, 1);
+  } else {
+    const fov = THREE.MathUtils.degToRad(camera.fov || 45);
+    const aspect = positiveNumber(camera.aspect) ?? 1;
+    const forHeight = (extents.halfHeight * FIT_MARGIN) / Math.tan(fov / 2);
+    const forWidth = (extents.halfWidth * FIT_MARGIN) / (Math.tan(fov / 2) * aspect);
+    distance = Math.max(forHeight, forWidth) + extents.halfDepth;
+    distance = Math.max(distance, 1e-3);
+  }
+
+  camera.near = Math.max(distance / 1000, 0.001);
+  camera.far = distance * 1000;
+  camera.up.copy(up);
+  camera.position.copy(center).addScaledVector(direction, distance);
+  camera.lookAt(center);
+  camera.updateProjectionMatrix();
+  camera.userData.fitBounds = normalized;
+
+  if (controls) {
+    controls.target.copy(center);
+    controls.update();
+  }
+
+  return {
+    distance,
+    radius,
+    target: center.toArray()
+  };
+}
+
+export function setCameraToStandardView(camera, bounds, controls = null, viewId = "iso") {
+  // Fit for the view being switched to, not for the isometric one: each axis
+  // sees a different silhouette, and reusing one frustum for all of them either
+  // clips the widest or wastes the frame on the narrowest.
+  const fit = fitCameraToBounds(camera, bounds, controls, viewId);
+  const target = new THREE.Vector3(...fit.target);
+  const direction = new THREE.Vector3(...(STANDARD_VIEW_DIRECTIONS[viewId] ?? STANDARD_VIEW_DIRECTIONS.iso)).normalize();
+  camera.up.copy(upVectorForView(viewId));
+  camera.position.copy(target).addScaledVector(direction, fit.distance);
+  camera.lookAt(target);
+  camera.updateProjectionMatrix();
+  if (controls) {
+    controls.target.copy(target);
+    controls.update();
+  }
+}
+
+/**
+ * Swing the camera around its target by two angles, in radians.
+ *
+ * Written against spherical coordinates rather than OrbitControls internals so
+ * the keyboard path and the mouse path cannot drift apart. The polar angle is
+ * clamped short of the poles: at exactly 0 or PI the up vector and the view
+ * direction are parallel and the view flips.
+ */
+export function orbitCameraBy(camera, target, deltaAzimuth, deltaPolar) {
+  if (!Number.isFinite(deltaAzimuth) || !Number.isFinite(deltaPolar)) return false;
+  const offset = camera.position.clone().sub(target);
+  const spherical = new THREE.Spherical().setFromVector3(
+    new THREE.Vector3(offset.x, offset.z, -offset.y)
+  );
+  spherical.theta += deltaAzimuth;
+  spherical.phi = THREE.MathUtils.clamp(spherical.phi + deltaPolar, 0.02, Math.PI - 0.02);
+  const rotated = new THREE.Vector3().setFromSpherical(spherical);
+  camera.position.copy(target).add(new THREE.Vector3(rotated.x, -rotated.z, rotated.y));
+  camera.up.set(0, 0, 1);
+  camera.lookAt(target);
+  camera.updateProjectionMatrix();
+  return true;
+}
+
+export function zoomCameraBy(camera, factor) {
+  if (!camera.isOrthographicCamera || !Number.isFinite(factor) || factor <= 0) return false;
+  camera.zoom = THREE.MathUtils.clamp(camera.zoom * factor, 0.05, 20);
+  camera.updateProjectionMatrix();
+  return true;
+}
+
+function createRenderableForAsset(asset, payload, state) {
+  const format = String(asset.format ?? "").toLowerCase();
+  if (!SUPPORTED_RENDER_FORMATS.has(format)) {
+    return invalidAsset(asset, `Unsupported geometry format '${asset.format}'.`);
+  }
+
+  const preparedConfig = prepareAssetRenderConfig(asset, payload, state);
+  const morph = preparedConfig.section_deformations ? null : visualDeformationMorphConfigs(asset, payload, preparedConfig);
+  const config = morph?.sourceConfig ?? preparedConfig;
+  try {
+    const result = createPreparedRenderable(asset, payload, state, format, config);
+    if (result.object) result.object.userData.undeformedReference = isUndeformedReferenceConfig(asset, preparedConfig, state);
+    if (result.object && preparedConfig.section_deformations && isVisualDeformedConfig(asset, preparedConfig)) {
+      result.object.userData.sectionDeformation = preparedConfig;
+      applyVisualDeformationScale(result.object, state);
+    } else if (result.object && morph) {
+      const base = createPreparedRenderable(asset, payload, state, format, morph.baseConfig);
+      if (base.object && attachVisualDeformationMorph(result.object, base.object, morph.sourceScale)) {
+        applyVisualDeformationScale(result.object, state);
+      }
+    }
+    return result;
+  } catch (error) {
+    return invalidAsset(asset, error.message);
+  }
+}
+
+function createPreparedRenderable(asset, payload, state, format, config) {
+  if (format === "tube" || format === "tube_envelope") {
+    return createTube(asset, config, format);
+  }
+  if (format === "polyline" || format === "line") {
+    return createPolyline(asset, config, format);
+  }
+  if (format === "label") {
+    return createLabel(asset, config, format, state);
+  }
+  if (format === "point" || format === "marker") {
+    return createPoint(asset, config, format, state);
+  }
+  if (format === "tuyau_subpoint_glyphs") {
+    return createTuyauSubpointGlyphs(asset, config, format, state);
+  }
+  if (format === "vector") {
+    return createVector(asset, config, format, state);
+  }
+  if (format === "cuboid" || format === "aabb") {
+    return createBox(asset, config, format);
+  }
+  if (format === "mesh") {
+    return createMesh(asset, config, payload, format, state);
+  }
+  return invalidAsset(asset, `No renderer for geometry format '${asset.format}'.`);
+}
+
+function visualDeformationMorphConfigs(asset, payload, preparedConfig) {
+  const format = String(asset.format ?? "").toLowerCase();
+  if (format !== "polyline" && format !== "line" && format !== "tube" && format !== "tube_envelope" && format !== "mesh") {
+    return null;
+  }
+  const source = {
+    ...(payload.generation_config ?? {}),
+    ...(asset.generation_config ?? {})
+  };
+  if (!isVisualDeformedConfig(asset, source)) {
+    return null;
+  }
+  const sourceScale = positiveNumber(source.visual_scale ?? source.deformation_scale ?? source.displacement_scale);
+  const sourceKey = format === "mesh" ? "vertices" : "points";
+  const baseKey = format === "mesh" ? "base_vertices" : "base_points";
+  const sourcePoints = numericPoints(source[sourceKey]);
+  const basePoints = numericPoints(source[baseKey] ?? (format === "mesh" ? undefined : source.cold_points));
+  if (!sourceScale || sourcePoints.length < 2 || basePoints.length !== sourcePoints.length) {
+    return null;
+  }
+  return {
+    sourceScale,
+    sourceConfig: { ...preparedConfig, [sourceKey]: sourcePoints, visual_scale_display_only: sourceScale },
+    baseConfig: { ...preparedConfig, [sourceKey]: basePoints, visual_scale_display_only: 0 }
+  };
+}
+
+function attachVisualDeformationMorph(sourceRoot, baseRoot, sourceScale) {
+  const sourceObjects = [];
+  const baseObjects = [];
+  sourceRoot.traverse((object) => {
+    if (object.geometry?.getAttribute("position")) sourceObjects.push(object);
+  });
+  baseRoot.traverse((object) => {
+    if (object.geometry?.getAttribute("position")) baseObjects.push(object);
+  });
+  let attached = false;
+  for (let index = 0; index < Math.min(sourceObjects.length, baseObjects.length); index += 1) {
+    const object = sourceObjects[index];
+    const base = baseObjects[index];
+    const position = object.geometry.getAttribute("position");
+    const basePosition = base.geometry.getAttribute("position");
+    if (position.count !== basePosition.count) continue;
+    object.userData.visualDeformationSourceScale = sourceScale;
+    if (object.isLine) {
+      object.userData.visualDeformationPositions = {
+        base: basePosition.array.slice(),
+        source: position.array.slice()
+      };
+      attached = true;
+      continue;
+    }
+    object.geometry.morphAttributes.position = [basePosition];
+    const normal = object.geometry.getAttribute("normal");
+    const baseNormal = base.geometry.getAttribute("normal");
+    if (normal && baseNormal?.count === normal.count) {
+      object.geometry.morphAttributes.normal = [baseNormal];
+    }
+    object.updateMorphTargets?.();
+    attached = true;
+  }
+  return attached;
+}
+
+function createVisualDeformationPreview(root) {
+  const vertices = [];
+  for (const object of root.children) {
+    const positions = object.userData?.visualDeformationPositions;
+    if (!positions) continue;
+    for (let point = 0; point < positions.base.length / 3 - 1; point += 1) {
+      for (const index of [point, point + 1]) {
+        vertices.push({
+          base: positions.base.slice(index * 3, index * 3 + 3),
+          source: positions.source.slice(index * 3, index * 3 + 3),
+          sourceScale: object.userData.visualDeformationSourceScale
+        });
+      }
+    }
+  }
+  if (vertices.length === 0) return null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices.flatMap(({ source }) => [...source]), 3));
+  const preview = new THREE.LineSegments(
+    geometry,
+    new THREE.LineBasicMaterial({ color: 0x7c3aed, depthTest: false, transparent: true })
+  );
+  preview.name = "VisualDeformationPreview";
+  preview.renderOrder = 1000;
+  preview.visible = false;
+  preview.userData.visualDeformationPreview = vertices;
+  return preview;
+}
+
+export function applyVisualDeformationScale(root, state, options = {}) {
+  const displayScale = getVisualDeformationDisplayScale(state);
+  root?.traverse((object) => {
+    const preview = object.userData?.visualDeformationPreview;
+    if (preview) {
+      const attribute = object.geometry.getAttribute("position");
+      for (let index = 0; index < preview.length; index += 1) {
+        const { base, source, sourceScale } = preview[index];
+        const factor = displayScale / sourceScale;
+        attribute.setXYZ(
+          index,
+          base[0] + (source[0] - base[0]) * factor,
+          base[1] + (source[1] - base[1]) * factor,
+          base[2] + (source[2] - base[2]) * factor
+        );
+      }
+      attribute.needsUpdate = true;
+      return;
+    }
+    const section = object.userData?.sectionDeformation;
+    if (section) {
+      const points = scaledSectionPoints(section, displayScale);
+      const attribute = object.geometry.getAttribute("position");
+      points.forEach((point, index) => attribute.setXYZ(index, ...point));
+      attribute.needsUpdate = true;
+      if (object.isMesh) object.geometry.computeVertexNormals();
+      object.geometry.computeBoundingBox();
+      object.geometry.computeBoundingSphere();
+      return;
+    }
+    if (options.previewOnly) return;
+    const sourceScale = positiveNumber(object.userData?.visualDeformationSourceScale);
+    if (!sourceScale) return;
+    const positions = object.userData.visualDeformationPositions;
+    if (positions) {
+      const attribute = object.geometry.getAttribute("position");
+      const factor = displayScale / sourceScale;
+      for (let index = 0; index < attribute.array.length; index += 1) {
+        attribute.array[index] = positions.base[index] + (positions.source[index] - positions.base[index]) * factor;
+      }
+      attribute.needsUpdate = true;
+      object.geometry.computeBoundingBox();
+      object.geometry.computeBoundingSphere();
+    } else if (object.morphTargetInfluences) {
+      object.morphTargetInfluences[0] = 1 - displayScale / sourceScale;
+    }
+  });
+}
+
+function createTube(asset, config, format) {
+  const points = readPoints(config.points);
+  if (points.length < 2) {
+    return invalidAsset(asset, "Tube assets require at least two points.");
+  }
+  const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, 0.035);
+  const curve = new THREE.CatmullRomCurve3(points);
+  const tubularSegments = Math.max(8, points.length * 12);
+  const outer = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false),
+    materialForAsset(asset, config, { transparent: format === "tube_envelope" && config.envelope_type !== "insulation" })
+  );
+  const innerRadius = positiveNumber(config.inner_radius_m);
+  if (!innerRadius || innerRadius >= radius) {
+    outer.name = asset.id;
+    return { format, object: outer };
+  }
+
+  const pipe = new THREE.Group();
+  const innerMaterial = materialForAsset(asset, config);
+  innerMaterial.side = THREE.BackSide;
+  pipe.add(outer, new THREE.Mesh(new THREE.TubeGeometry(curve, tubularSegments, innerRadius, 14, false), innerMaterial));
+
+  const capMaterial = materialForAsset(asset, config);
+  capMaterial.side = THREE.DoubleSide;
+  const normal = new THREE.Vector3(0, 0, 1);
+  for (const position of [0, 1]) {
+    const cap = new THREE.Mesh(new THREE.RingGeometry(innerRadius, radius, 28), capMaterial);
+    cap.position.copy(curve.getPoint(position));
+    cap.quaternion.setFromUnitVectors(normal, curve.getTangent(position).normalize());
+    pipe.add(cap);
+  }
+  pipe.name = asset.id;
+  return { format, object: pipe };
+}
+
+function createPolyline(asset, config, format) {
+  const points = readPoints(config.points);
+  if (points.length < 2) {
+    return invalidAsset(asset, "Polyline assets require at least two points.");
+  }
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const opacity = opacityForConfig(config, 1);
+  const line = new THREE.Line(
+    geometry,
+    new THREE.LineBasicMaterial({
+      color: colorForAsset(asset, config),
+      depthWrite: opacity >= 1 && !config.transparent,
+      linewidth: 2,
+      opacity,
+      transparent: Boolean(config.transparent || opacity < 1)
+    })
+  );
+  line.name = asset.id;
+  return { format, object: line };
+}
+
+function createPoint(asset, config, format, state) {
+  const point = readPoint(config.point ?? config.location ?? config.clash?.location) ?? centerOfBounds(asset.bounds);
+  if (!point) {
+    return invalidAsset(asset, "Point assets require a point or valid bounds.");
+  }
+  const isSupport = isSupportConfig(config);
+  if (isSupport) {
+    return createSupportGlyph(asset, config, format, point, state);
+  }
+  const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, format === "marker" ? 0.06 : 0.035);
+  const geometry = new THREE.SphereGeometry(radius, 16, 12);
+  geometry.computeBoundingSphere();
+  const material = materialForAsset(asset, config);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(point);
+  mesh.name = asset.id;
+  return { format, object: mesh };
+}
+
+function createLabel(asset, config, format, state) {
+  const text = typeof config.text === "string" ? config.text : "";
+  const point = readPoint(config.position);
+  const height = positiveNumber(config.height);
+  if (!text || !point || !height) return invalidAsset(asset, "Label assets require text, position, and a positive height.");
+  const canvas = state.canvasFactory?.();
+  const context = canvas?.getContext?.("2d");
+  if (!context) return invalidAsset(asset, "Label rendering requires a 2D canvas context.");
+  const fontSize = 64;
+  const padding = 18;
+  context.font = `600 ${fontSize}px sans-serif`;
+  canvas.width = Math.ceil(context.measureText(text).width + padding * 2);
+  canvas.height = fontSize + padding * 2;
+  context.font = `600 ${fontSize}px sans-serif`;
+  context.fillStyle = "rgba(15, 23, 42, 0.86)";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#ffffff";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+  sprite.position.copy(point);
+  sprite.scale.set(height * canvas.width / canvas.height, height, 1);
+  sprite.renderOrder = 1100;
+  sprite.name = asset.id;
+  sprite.userData.pickable = false;
+  return { format, object: sprite };
+}
+
+function createSupportGlyph(asset, config, format, point, state) {
+  const requestedType = String(config.support_type ?? "custom").toLowerCase();
+  const supportType = requestedType === "fixed" ? "anchor" : requestedType;
+  const sceneSize = sizeOfBounds(state?.bounds ?? asset.bounds);
+  const span = Math.max(sceneSize.x, sceneSize.y, sceneSize.z);
+  // radius_m on a support asset is the radius of the pipe the support clamps
+  // (builders/_objects.py writes max(attached_radii)), not a glyph size. Taking
+  // it as the size drew every restraint flush with the pipe wall, where a 50%
+  // opaque mark is invisible. It is a floor now - the glyph must clear the pipe
+  // it marks - and the scene span sets the size, as it always did without one.
+  const size = Math.max(
+    (positiveNumber(config.radius_m) ?? 0) * 1.5,
+    THREE.MathUtils.clamp(span * 0.018, 0.08, 0.3)
+  );
+  const restraintMaterial = supportMaterial(0xdaa520);
+  const springMaterial = supportMaterial(0x2563eb);
+  const displacementMaterial = supportMaterial(0xf97316);
+  const glyph = new THREE.Group();
+  glyph.name = asset.id;
+  glyph.position.copy(point);
+  glyph.renderOrder = 20;
+  glyph.userData.supportGlyph = "dof";
+  glyph.userData.supportType = supportType;
+
+  const mesh = (geometry, role, material, position = null) => {
+    const child = new THREE.Mesh(geometry, material);
+    if (position) child.position.copy(position);
+    child.userData.supportPart = role;
+    glyph.add(child);
+    return child;
+  };
+
+  const axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
+  const blocked = supportBlockedDofs(config);
+  if (blocked.every(Boolean)) {
+    mesh(new THREE.BoxGeometry(size * 2, size * 2, size * 2), "fixed-block", restraintMaterial);
+  } else {
+    for (let index = 0; index < 3; index += 1) {
+      if (!blocked[index]) continue;
+      for (const side of [-1, 1]) {
+        const axis = axes[index];
+        const cone = mesh(
+          new THREE.ConeGeometry(size, size * 2, 24),
+          "restraint-cone",
+          restraintMaterial,
+          axis.clone().multiplyScalar(side * size * 2)
+        );
+        cone.quaternion.setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          axis.clone().multiplyScalar(-side)
+        );
+        cone.userData.supportAxis = index;
+        cone.userData.supportSide = side;
+      }
+    }
+    for (let index = 3; index < 6; index += 1) {
+      if (!blocked[index]) continue;
+      const rotation = mesh(
+        new THREE.TorusGeometry(size * 0.85, size * 0.18, 8, 24),
+        "restraint-rotation",
+        restraintMaterial
+      );
+      rotation.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axes[index - 3]);
+      rotation.userData.supportAxis = index;
+    }
+  }
+
+  const stiffness = Array.isArray(config.stiffness_matrix) ? config.stiffness_matrix.map(Number) : [];
+  for (let index = 0; index < 3; index += 1) {
+    if (!Number.isFinite(stiffness[index]) || Math.abs(stiffness[index]) <= 0) continue;
+    addSupportSpringRings(mesh, axes[index], size, springMaterial, index);
+  }
+  if (stiffness.length === 0 && Number.isFinite(Number(config.stiffness)) && Math.abs(Number(config.stiffness)) > 0) {
+    const direction = readPoint(config.direction);
+    if (direction?.lengthSq() > 1e-12) {
+      addSupportSpringRings(mesh, direction.normalize(), size, springMaterial, "direction");
+    }
+  }
+  for (let index = 3; index < 6; index += 1) {
+    if (!Number.isFinite(stiffness[index]) || Math.abs(stiffness[index]) <= 0) continue;
+    const rotation = mesh(
+      new THREE.TorusGeometry(size * 1.25, size * 0.22, 8, 24),
+      "spring-rotation",
+      springMaterial
+    );
+    rotation.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axes[index - 3]);
+    rotation.userData.supportAxis = index;
+  }
+
+  const imposed = readPoint(config.imposed_displacement);
+  if (imposed?.lengthSq() > 1e-12) {
+    const direction = imposed.normalize();
+    const displacement = mesh(
+      new THREE.ConeGeometry(size, size * 3, 24),
+      "prescribed-displacement",
+      displacementMaterial,
+      direction.clone().multiplyScalar(size * 1.5)
+    );
+    displacement.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+  }
+  return { format, object: glyph };
+}
+
+function supportMaterial(color) {
+  return new THREE.MeshBasicMaterial({
+    color,
+    depthTest: true,
+    depthWrite: false,
+    opacity: 0.5,
+    transparent: true,
+    wireframe: false
+  });
+}
+
+function addSupportSpringRings(mesh, axis, size, material, supportAxis) {
+  for (const offset of [-3, -2, 2, 3]) {
+    const ring = mesh(
+      new THREE.TorusGeometry(size, size * 0.5, 10, 28),
+      "spring-ring",
+      material,
+      axis.clone().multiplyScalar(offset * size)
+    );
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis);
+    ring.userData.supportAxis = supportAxis;
+  }
+}
+
+function createTuyauSubpointGlyphs(asset, config, format, state) {
+  const starts = readPoints(config.starts ?? config.start_points);
+  const ends = readPoints(config.ends ?? config.end_points);
+  const count = Math.min(starts.length, ends.length);
+  if (count < 1) {
+    return invalidAsset(asset, "TUYAU sub-point glyph assets require start and end point arrays.");
+  }
+  const radius = positiveNumber(config.radius_m) ?? 0.006;
+  const radialSegments = Math.max(4, Math.min(16, Math.floor(Number(config.radial_segments) || 8)));
+  const geometry = new THREE.CylinderGeometry(radius, radius, 1, radialSegments, 1, false);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    opacity: opacityForConfig(config, 0.94),
+    transparent: true
+  });
+  const mesh = new THREE.InstancedMesh(geometry, material, count);
+  const matrix = new THREE.Matrix4();
+  const midpoint = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  const scale = new THREE.Vector3(1, 1, 1);
+  const quaternion = new THREE.Quaternion();
+  const yAxis = new THREE.Vector3(0, 1, 0);
+  const values = Array.isArray(config.values) ? config.values.map(Number) : [];
+  const legend = subpointLegend(config, values, state);
+  let written = 0;
+
+  for (let index = 0; index < count; index += 1) {
+    direction.copy(ends[index]).sub(starts[index]);
+    const length = direction.length();
+    if (length <= 1e-12) {
+      continue;
+    }
+    midpoint.copy(starts[index]).add(ends[index]).multiplyScalar(0.5);
+    quaternion.setFromUnitVectors(yAxis, direction.normalize());
+    scale.set(1, length, 1);
+    matrix.compose(midpoint, quaternion, scale);
+    mesh.setMatrixAt(written, matrix);
+    mesh.setColorAt(written, new THREE.Color(colorForSubpointValue(values[index], legend, asset, config)));
+    written += 1;
+  }
+
+  mesh.count = written;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) {
+    mesh.instanceColor.needsUpdate = true;
+  }
+  mesh.name = asset.id;
+  return { format, object: mesh };
+}
+
+function createVector(asset, config, format, state) {
+  const start = readPoint(config.start);
+  const end = readPoint(config.end);
+  if (!start || !end) {
+    return invalidAsset(asset, "Vector assets require start and end points.");
+  }
+  const direction = end.clone().sub(start);
+  const length = direction.length();
+  if (length <= 1e-12) {
+    return invalidAsset(asset, "Vector assets require non-zero length.");
+  }
+  const unitDirection = direction.normalize();
+  const color = colorForAsset(asset, config);
+  const headLength = Math.min(length * 0.25, 0.18);
+  const headWidth = Math.min(length * 0.12, 0.08);
+  if (config.vector_kind === "moment" || String(config.result_type ?? "").endsWith("_moment")) {
+    const localAxis = new THREE.Vector3(0, 1, 0);
+    const moment = new THREE.Group();
+    moment.position.copy(start);
+    moment.quaternion.setFromUnitVectors(localAxis, unitDirection);
+
+    const axis = new THREE.ArrowHelper(localAxis, new THREE.Vector3(), length, color, headLength, headWidth);
+    axis.name = "moment-axis";
+
+    const arcRadius = length * 0.22;
+    const arcStart = -Math.PI / 4;
+    const arcSweep = Math.PI * 1.5;
+    const arcPoints = Array.from({ length: 33 }, (_, index) => {
+      const angle = arcStart + arcSweep * index / 32;
+      return new THREE.Vector3(arcRadius * Math.cos(angle), 0, -arcRadius * Math.sin(angle));
+    });
+    const arc = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arcPoints), 32, length * 0.012, 10, false),
+      new THREE.MeshBasicMaterial({ color })
+    );
+    arc.name = "moment-rotation-arc";
+
+    const arcEndAngle = arcStart + arcSweep;
+    const arcTangent = new THREE.Vector3(-Math.sin(arcEndAngle), 0, -Math.cos(arcEndAngle)).normalize();
+    const arcHeadLength = length * 0.12;
+    const arcHead = new THREE.Mesh(
+      new THREE.ConeGeometry(length * 0.045, arcHeadLength, 16),
+      new THREE.MeshBasicMaterial({ color })
+    );
+    arcHead.position.copy(arcPoints.at(-1)).addScaledVector(arcTangent, arcHeadLength / 2);
+    arcHead.quaternion.setFromUnitVectors(localAxis, arcTangent);
+    arcHead.name = "moment-rotation-head";
+
+    moment.add(axis, arc, arcHead);
+    moment.name = asset.id;
+    return { format, object: moment };
+  }
+  const arrow = new THREE.ArrowHelper(
+    unitDirection,
+    start,
+    length,
+    color,
+    headLength,
+    headWidth
+  );
+  arrow.name = asset.id;
+  return { format, object: arrow };
+}
+
+function createBox(asset, config, format) {
+  const bounds = normalizeBounds(config.bounds ?? config.obstacle?.bounds ?? asset.bounds);
+  if (!bounds) {
+    return invalidAsset(asset, "Box assets require valid bounds.");
+  }
+  const size = sizeOfBounds(bounds);
+  const geometry = new THREE.BoxGeometry(Math.max(size.x, 1e-6), Math.max(size.y, 1e-6), Math.max(size.z, 1e-6));
+  const mesh = new THREE.Mesh(geometry, materialForAsset(asset, config, { transparent: true }));
+  mesh.position.copy(centerOfBounds(bounds));
+  mesh.name = asset.id;
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geometry),
+    new THREE.LineBasicMaterial({ color: darkenColor(colorForAsset(asset, config)) })
+  );
+  mesh.add(edges);
+  return { format, object: mesh };
+}
+
+function createMesh(asset, config, payload, format, state) {
+  const vertices = config.vertices ?? payload.vertices ?? config.mesh?.vertices;
+  const faces = config.triangles ?? config.faces ?? config.indices ?? payload.faces ?? payload.indices ?? config.mesh?.faces;
+  if (!Array.isArray(vertices) || vertices.length < 3) {
+    return invalidAsset(asset, "Mesh assets require vertices.");
+  }
+  const flatVertices = vertices.flat();
+  if (!flatVertices.every(Number.isFinite)) {
+    return invalidAsset(asset, "Mesh vertices must be finite numbers.");
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(flatVertices, 3));
+  if (Array.isArray(faces) && faces.length > 0) {
+    geometry.setIndex(
+      faces.flatMap((face) =>
+        Array.isArray(face) && face.length === 4
+          ? [face[0], face[1], face[2], face[0], face[2], face[3]]
+          : face
+      )
+    );
+  }
+  geometry.computeVertexNormals();
+  const meshConfig = { opacity: 1, ...config };
+  const material = materialForAsset(asset, meshConfig);
+  material.side = THREE.DoubleSide;
+  const vertexValues = Array.isArray(config.vertex_values) ? config.vertex_values.map(Number) : [];
+  if (vertexValues.length === vertices.length && vertexValues.every(Number.isFinite)) {
+    const legend = subpointLegend(config, vertexValues, state);
+    const colors = vertexValues.flatMap((value) => {
+      const color = new THREE.Color(colorForSubpointValue(value, legend, asset, config));
+      return [color.r, color.g, color.b];
+    });
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    material.vertexColors = true;
+  }
+  const mesh = new THREE.Mesh(geometry, material);
+  if (config.show_edges) {
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = 1;
+    material.polygonOffsetUnits = 1;
+    const opacity = opacityForConfig(meshConfig, 1);
+    const surfaceEdges = config.surface_edge_indices;
+    let edgeGeometry;
+    if (Array.isArray(surfaceEdges) && surfaceEdges.length > 0) {
+      edgeGeometry = new THREE.BufferGeometry();
+      edgeGeometry.setAttribute("position", geometry.getAttribute("position"));
+      edgeGeometry.setIndex(surfaceEdges.flat());
+    } else {
+      edgeGeometry = new THREE.WireframeGeometry(geometry);
+    }
+    mesh.add(new THREE.LineSegments(edgeGeometry, meshEdgeMaterial(asset, meshConfig, opacity)));
+  }
+  const volumeVertices = config.volume_vertices;
+  const volumeEdgeIndices = config.volume_edge_indices;
+  if (Array.isArray(volumeVertices) && volumeVertices.length > 0 && Array.isArray(volumeEdgeIndices) && volumeEdgeIndices.length > 0) {
+    const edgeGeometry = new THREE.BufferGeometry();
+    edgeGeometry.setAttribute("position", new THREE.Float32BufferAttribute(volumeVertices.flat(), 3));
+    edgeGeometry.setIndex(volumeEdgeIndices.flat());
+    const volumeEdges = new THREE.LineSegments(edgeGeometry, meshEdgeMaterial(asset, meshConfig));
+    volumeEdges.userData.volumeMeshEdges = true;
+    volumeEdges.visible = false;
+    mesh.add(volumeEdges);
+  }
+  mesh.name = asset.id;
+  return { format, object: mesh };
+}
+
+function meshEdgeMaterial(asset, config, opacity = opacityForConfig(config, 1)) {
+  return new THREE.LineBasicMaterial({
+    color: 0x1f2937,
+    depthWrite: false,
+    opacity,
+    transparent: opacity < 1
+  });
+}
+
+function addReferenceHelpers(scene, bounds, gridVisible = true) {
+  const size = sizeOfBounds(bounds);
+  const span = Math.max(size.x, size.y, size.z, 1);
+  const center = centerOfBounds(bounds);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8b94a3, 2.1));
+  const directional = new THREE.DirectionalLight(0xffffff, 2.4);
+  directional.position.set(center.x + span, center.y - span, center.z + span);
+  scene.add(directional);
+
+  // Sized to the model, not half again as large. At 1.5x the grid filled the
+  // frame that the camera had fitted to the geometry, so the subject read as
+  // small even when it was framed correctly.
+  // Toggled from the Ground grid row in the Overlays band. The lights above
+  // are not optional - they are how anything is visible at all - so only the
+  // grid answers to it.
+  if (gridVisible) {
+    const grid = new THREE.GridHelper(span * 1.05, 10, 0xb8c2d0, 0xe1e7ef);
+    grid.rotation.x = Math.PI / 2;
+    grid.position.set(center.x, center.y, bounds[2] - span * 0.03);
+    scene.add(grid);
+  }
+
+  // No axes helper. It drew a second orientation indicator floating at the
+  // centre of the bounds - in mid-air, since the bounds centre is rarely on the
+  // geometry - and the interactive view gizmo in the corner already says which
+  // way X, Y and Z point.
+}
+
+function setRenderMetadata(object, asset, format) {
+  const metadata = {
+    assetId: asset.id,
+    bounds: asset.bounds ?? null,
+    format,
+    objectId: asset.object_ids?.[0] ?? null,
+    objectIds: [...(asset.object_ids ?? [])],
+    primaryObjectId: asset.object_ids?.[0] ?? null
+  };
+  // Every level, not just direct children: a moment glyph's axis line sits two
+  // levels down (Group > ArrowHelper > Line) and was unpickable.
+  object.traverse((part) => {
+    part.userData = { ...part.userData, ...metadata };
+  });
+}
+
+function isAssetVisible(asset, visibleIds) {
+  const ids = asset.object_ids ?? [];
+  return ids.length === 0 || ids.some((id) => visibleIds.has(id));
+}
+
+function assetMatchesActiveGeometryState(asset, payload, activeGeometryStateId) {
+  const geometryStateId = {
+    ...(payload?.generation_config ?? {}),
+    ...(asset?.generation_config ?? {})
+  }.geometry_state_id ?? null;
+  return geometryStateId === null || geometryStateId === activeGeometryStateId;
+}
+
+function hasVisibleVisualDeformedGeometry(state, payloadsByAssetId = new Map(), visibleIds = new Set(state.visibleObjectIds ?? [])) {
+  return (state.geometryAssets ?? []).some((asset) => {
+    if (!isAssetVisible(asset, visibleIds)) {
+      return false;
+    }
+    const payload = payloadsByAssetId.get(asset.id) ?? {};
+    if (!assetMatchesActiveGeometryState(asset, payload, state.activeGeometryStateId)) {
+      return false;
+    }
+    const config = {
+      ...(payload.generation_config ?? {}),
+      ...(asset.generation_config ?? {})
+    };
+    return isVisualDeformedConfig(asset, config);
+  });
+}
+
+function isUndeformedReferenceConfig(asset, config, state) {
+  const hasVisualDeformedGeometry =
+    typeof state.hasVisualDeformedGeometry === "boolean" ? state.hasVisualDeformedGeometry : hasVisibleVisualDeformedGeometry(state);
+  return hasVisualDeformedGeometry && String(config.source ?? "").toLowerCase() === "tuba.element";
+}
+
+export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
+  const config = {
+    ...(payload.generation_config ?? {}),
+    ...(asset.generation_config ?? {})
+  };
+  if (String(asset.format ?? "").toLowerCase() !== "tuyau_subpoint_glyphs") {
+    const scalarValueIds = [config.node_id, config.element_id && `object:element:${config.element_id}`].filter(Boolean).map(String);
+    const scalarColor = getObjectScalarColor(state, asset.object_ids ?? [], scalarValueIds);
+    if (scalarColor !== null) {
+      config.color = scalarColor;
+    }
+  }
+  if (isUndeformedReferenceConfig(asset, config, state)) {
+    config.color = REFERENCE_GEOMETRY_COLOR;
+    config.opacity = REFERENCE_GEOMETRY_OPACITY;
+    config.transparent = true;
+  }
+  // Per-body opacity is a ceiling, not a multiplier: dimming Geometry must not
+  // compound with the ghosting an undeformed reference already carries and
+  // drive it to invisible.
+  const bodyLimit = bodyOpacityForObjectIds(state, asset.object_ids ?? []);
+  if (bodyLimit !== null && bodyLimit < 1) {
+    const declared = Number(config.opacity);
+    config.opacity = Number.isFinite(declared) ? Math.min(declared, bodyLimit) : bodyLimit;
+    config.transparent = true;
+  }
+  if (String(asset.format ?? "").toLowerCase() === "vector") {
+    return scaleVectorConfig(asset, config, state);
+  }
+  return scaleVisualDeformationConfig(asset, config, state);
+}
+
+function materialForAsset(asset, config, options = {}) {
+  const opacity = opacityForConfig(config, options.transparent ? 0.48 : 0.92);
+  const transparent = Boolean(options.transparent || config.transparent || opacity < 1);
+  return new THREE.MeshStandardMaterial({
+    color: colorForAsset(asset, config),
+    depthWrite: !transparent,
+    metalness: 0.05,
+    opacity,
+    roughness: 0.68,
+    transparent
+  });
+}
+
+function colorForAsset(asset, config) {
+  const explicitColor = parseColor(config.color);
+  if (explicitColor !== null) {
+    return explicitColor;
+  }
+  const markerish = config.issue_id || config.clash || asset.id?.includes(":clash:");
+  if (markerish) {
+    return 0xdc2626;
+  }
+  const source = String(config.source ?? "");
+  if (source === "tuba.support") {
+    return 0xf59e0b;
+  }
+  if (asset.format === "vector") {
+    // Off the cividis ramp on purpose. An arrow is not a value: amber sat in
+    // the ramp's warm end, so a glyph read as "high", and it collided with both
+    // the support colour and the selection highlight.
+    return 0xc026d3;
+  }
+  if (source.includes("analysis_mesh")) {
+    return 0x059669;
+  }
+  if (source.includes("deformed")) {
+    return 0x7c3aed;
+  }
+  if (source.includes("obstacle") || asset.id?.includes(":obstacle:")) {
+    return 0x64748b;
+  }
+  if (asset.format === "aabb" || asset.format === "cuboid") {
+    return 0x94a3b8;
+  }
+  return 0x2563eb;
+}
+
+function subpointLegend(config, values, state) {
+  const stateLegend = getScalarLegend(state);
+  const fallbackRange = config.range ?? config.legend?.range ?? rangeForValues(values);
+  if (stateLegend?.overlay?.data?.result_type === "tuyau_subpoints") {
+    return stateLegend;
+  }
+  return {
+    field: config.legend?.field ?? "VMIS",
+    unit: config.legend?.unit ?? "Pa",
+    range: fallbackRange,
+    colorMap: config.legend?.color_map ?? "turbo",
+    thresholds: config.legend?.thresholds ?? {}
+  };
+}
+
+function colorForSubpointValue(value, legend, asset, config) {
+  const scalarColor = colorForScalarValue(Number(value), legend);
+  return scalarColor ?? colorForAsset(asset, config);
+}
+
+function rangeForValues(values) {
+  const numeric = values.filter(Number.isFinite);
+  if (numeric.length === 0) {
+    return { min: 0, max: 1 };
+  }
+  return { min: Math.min(...numeric), max: Math.max(...numeric) };
+}
+
+function scaleVectorConfig(asset, config, state) {
+  const start = numericPoint(config.start);
+  const end = numericPoint(config.end);
+  if (!start || !end) {
+    return config;
+  }
+  const vectorType = vectorTypeForConfig(asset, config);
+  const scale = getResultVectorScale(state, vectorType);
+  if (scale === 1) {
+    return config;
+  }
+  return {
+    ...config,
+    end: start.map((value, index) => value + (end[index] - value) * scale)
+  };
+}
+
+export function scaledSectionPoints(config, scale) {
+  const base = config.base_vertices ?? config.base_points;
+  const count = base.length / config.section_origins.length;
+  return base.map((point, index) => {
+    const station = Math.floor(index / count);
+    const origin = new THREE.Vector3(...config.section_origins[station]);
+    const dof = config.section_deformations[station];
+    const rotation = new THREE.Vector3(...dof.slice(3)).multiplyScalar(scale);
+    const angle = rotation.length();
+    const offset = new THREE.Vector3(...point).sub(origin);
+    if (angle > 1e-15) offset.applyAxisAngle(rotation.divideScalar(angle), angle);
+    return offset.add(origin).add(new THREE.Vector3(...dof.slice(0, 3)).multiplyScalar(scale)).toArray();
+  });
+}
+
+function scaleVisualDeformationConfig(asset, config, state) {
+  if (!isVisualDeformedConfig(asset, config)) {
+    return config;
+  }
+  const points = numericPoints(config.points);
+  if (points.length < 2) {
+    return config;
+  }
+  const sourceScale = positiveNumber(config.visual_scale ?? config.deformation_scale ?? config.displacement_scale);
+  const displayScale = getVisualDeformationDisplayScale(state);
+  if (!sourceScale || Math.abs(displayScale - sourceScale) <= 1e-12) {
+    return { ...config, visual_scale_display_only: displayScale };
+  }
+  const basePoints = numericPoints(config.base_points ?? config.cold_points);
+  if (basePoints.length !== points.length) {
+    return { ...config, visual_scale_display_only: sourceScale };
+  }
+  const scaled = points.map((point, index) => {
+    const base = basePoints[index];
+    return point.map((value, axis) => base[axis] + (value - base[axis]) * (displayScale / sourceScale));
+  });
+  return {
+    ...config,
+    points: scaled,
+    visual_scale_display_only: displayScale
+  };
+}
+
+function vectorTypeForConfig(asset, config) {
+  const source = `${asset.id ?? ""} ${config.source ?? ""} ${config.result_type ?? ""} ${config.resultType ?? ""}`.toLowerCase();
+  // Moments scale against other moments, never against forces: they are a
+  // different physical quantity, and sharing one slider meant a model whose
+  // moments are numerically large drew arcs that swallowed the geometry.
+  if (config.vector_kind === "moment" || source.includes("moment")) {
+    return "moment";
+  }
+  if (source.includes("reaction") || source.includes("forc_noda")) {
+    return "reaction";
+  }
+  if (source.includes("displacement") || source.includes("depl")) {
+    return "displacement";
+  }
+  return "vector";
+}
+
+function isVisualDeformedConfig(asset, config) {
+  const layerIds = asset.layer_ids ?? config.layer_ids ?? [];
+  const source = `${asset.id ?? ""} ${config.source ?? ""} ${config.purpose ?? ""} ${config.geometry_state_id ?? ""}`.toLowerCase();
+  return (
+    layerIds.some((layerId) => String(layerId).includes("deformed:visual")) ||
+    source.includes("visual") ||
+    (source.includes("deformed") && positiveNumber(config.visual_scale ?? config.deformation_scale ?? config.displacement_scale) > 1)
+  );
+}
+
+function numericPoints(points) {
+  return Array.isArray(points) ? points.map(numericPoint).filter(Boolean) : [];
+}
+
+function numericPoint(point) {
+  if (!Array.isArray(point) || point.length < 3) {
+    return null;
+  }
+  const values = point.slice(0, 3).map(Number);
+  return values.every(Number.isFinite) ? values : null;
+}
+
+function opacityForConfig(config, fallback) {
+  const value = Number(config.opacity);
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(1, value));
+}
+
+function parseColor(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().replace(/^#/, "");
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) {
+    return null;
+  }
+  return Number.parseInt(normalized, 16);
+}
+
+function darkenColor(color) {
+  const value = new THREE.Color(color);
+  value.multiplyScalar(0.65);
+  return value;
+}
+
+function readPoints(points) {
+  if (!Array.isArray(points)) {
+    return [];
+  }
+  return points.map(readPoint).filter(Boolean);
+}
+
+function readPoint(point) {
+  if (!Array.isArray(point) || point.length < 3) {
+    return null;
+  }
+  const values = point.slice(0, 3).map(Number);
+  if (!values.every(Number.isFinite)) {
+    return null;
+  }
+  return new THREE.Vector3(values[0], values[1], values[2]);
+}
+
+function normalizeBounds(bounds) {
+  if (!Array.isArray(bounds) || bounds.length !== 6) {
+    return null;
+  }
+  const values = bounds.map(Number);
+  if (!values.every(Number.isFinite)) {
+    return null;
+  }
+  return [
+    Math.min(values[0], values[3]),
+    Math.min(values[1], values[4]),
+    Math.min(values[2], values[5]),
+    Math.max(values[0], values[3]),
+    Math.max(values[1], values[4]),
+    Math.max(values[2], values[5])
+  ];
+}
+
+function mergeAssetBounds(assets) {
+  const bounds = assets.map((asset) => normalizeBounds(asset.bounds)).filter(Boolean);
+  if (bounds.length === 0) {
+    return [-1, -1, -1, 1, 1, 1];
+  }
+  return bounds.reduce(
+    (merged, current) => [
+      Math.min(merged[0], current[0]),
+      Math.min(merged[1], current[1]),
+      Math.min(merged[2], current[2]),
+      Math.max(merged[3], current[3]),
+      Math.max(merged[4], current[4]),
+      Math.max(merged[5], current[5])
+    ],
+    bounds[0]
+  );
+}
+
+function centerOfBounds(bounds) {
+  const normalized = normalizeBounds(bounds);
+  if (!normalized) {
+    return null;
+  }
+  return new THREE.Vector3(
+    (normalized[0] + normalized[3]) / 2,
+    (normalized[1] + normalized[4]) / 2,
+    (normalized[2] + normalized[5]) / 2
+  );
+}
+
+function sizeOfBounds(bounds) {
+  const normalized = normalizeBounds(bounds) ?? [-1, -1, -1, 1, 1, 1];
+  return new THREE.Vector3(
+    Math.max(normalized[3] - normalized[0], 1e-6),
+    Math.max(normalized[4] - normalized[1], 1e-6),
+    Math.max(normalized[5] - normalized[2], 1e-6)
+  );
+}
+
+function radiusFromBounds(bounds, fallback) {
+  const size = sizeOfBounds(bounds);
+  const radius = Math.min(size.x, size.y, size.z) / 2;
+  return radius > 1e-6 ? radius : fallback;
+}
+
+function positiveNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function createEngineeringCamera(aspect) {
+  const safeAspect = positiveNumber(aspect) ?? 1;
+  const camera = new THREE.OrthographicCamera(-safeAspect, safeAspect, 1, -1, 0.01, 10000);
+  camera.up.set(0, 0, 1);
+  camera.userData.viewportAspect = safeAspect;
+  return camera;
+}
+
+function invalidAsset(asset, message) {
+  return {
+    diagnostic: {
+      assetId: asset.id,
+      code: "renderer.invalid_asset",
+      message,
+      severity: "error"
+    },
+    format: asset.format,
+    object: null
+  };
+}
+
+function addContactMarkers(root, state) {
+  const maxima = contactForceMaxima(state);
+  const span = sizeOfBounds(state.bounds);
+  const size = Math.max(span.x, span.y, span.z, 1) * 0.025;
+  for (const contact of Object.values(contactRecords(state))) {
+    const objectId = contactObjectId(state, contact.support_id);
+    if (!(state.visibleObjectIds ?? []).includes(objectId)) continue;
+    const object = (state.objects ?? []).find((o) => o.id === objectId);
+    const asset = (state.geometryAssets ?? []).find((a) => a.id === object?.geometry_asset_id);
+    if (!asset) continue;
+    const payload = (state.geometryPayloads ?? []).find((p) => p.asset_id === asset.id);
+    const config = { ...asset.generation_config, ...payload?.generation_config };
+    const location = readPoint(config.point ?? config.location) ?? centerOfBounds(asset.bounds);
+    if (!location) continue;
+    const group = new THREE.Group(); group.position.copy(location);
+    group.userData = { objectIds: [objectId], format: "vector", contactStatus: contact.status };
+    const color = contact.utilization > 1.001 ? 0xdc2626 : CONTACT_COLORS[contact.status] ?? CONTACT_COLORS.indeterminate;
+    const material = new THREE.MeshBasicMaterial({ color, depthTest: false });
+    let marker;
+    if (contact.status === "open") marker = new THREE.Mesh(new THREE.TorusGeometry(size * 0.45, size * 0.08, 8, 24), material);
+    else if (contact.status === "sticking") marker = new THREE.Mesh(new THREE.BoxGeometry(size * 0.7, size * 0.7, size * 0.7), material);
+    else if (contact.status === "sliding") marker = new THREE.ArrowHelper(new THREE.Vector3(...contact.tangential_force).normalize(), new THREE.Vector3(), size, color, size * 0.5, size * 0.35);
+    else {
+      marker = new THREE.Group();
+      marker.add(new THREE.Mesh(new THREE.TorusGeometry(size * 0.3, size * 0.07, 8, 16, Math.PI * 1.5), material));
+      const point = new THREE.Mesh(new THREE.SphereGeometry(size * 0.08, 8, 8), material); point.position.y = -size * 0.45; marker.add(point);
+    }
+    group.add(marker);
+    for (const [quantity, vector, color] of [["normal", contact.normal.map((v) => v * contact.normal_force), 0x2563eb], ["tangential", contact.tangential_force, 0x0f766e]]) {
+      const direction = new THREE.Vector3(...vector); const force = direction.length();
+      if (state.contactArrows?.[quantity] === false || !(force > 0) || !(maxima[quantity] > 0)) continue;
+      const arrow = new THREE.ArrowHelper(direction.normalize(), new THREE.Vector3(), size * 8 * force / maxima[quantity], color);
+      arrow.userData.contactForce = quantity; group.add(arrow);
+    }
+    group.traverse((child) => { child.userData.objectIds = [objectId]; child.userData.primaryObjectId = objectId; child.renderOrder = 30; });
+    root.add(group);
+  }
+}

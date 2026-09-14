@@ -1,0 +1,289 @@
+import json
+import unittest
+from dataclasses import replace
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from tuba import Model
+from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
+from tuba.geometry.profiles import profile_for_section
+from tuba.refs import EntityRef
+from tuba.routing.adapter import apply_candidate_to_model
+from tuba.routing.postprocess import build_segments
+from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, RouteEndpoint, RoutingConstraints
+from tuba.solver.aster import CodeAsterSolver
+from tuba.visualization import build_visualization_scene
+
+
+class TestVisualizationAnalysisMesh(unittest.TestCase):
+    def test_mixed_mesh_replaces_only_the_solid_span_and_keeps_line_mesh_visible(self):
+        model = Model("MixedVolumeSkin")
+        model.add_material("Steel", E=2.1e11, nu=0.3)
+        model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+        n0 = model.add_node([-1.0, 0.0, 0.0])
+        n1 = model.add_node([0.0, 0.0, 0.0])
+        n2 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="line", type="pipe_straight", n1=n0, n2=n1, section="Pipe", material="Steel")
+        model.add_element(id="solid", type="pipe_straight", n1=n1, n2=n2, section="Pipe", material="Steel")
+        mesh = AnalysisMesh(
+            id="mixed_mesh",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={
+                "VN1": (-1.0, 0.0, 0.0),
+                "VN2": (0.0, 0.0, 0.0),
+                "VN3": (-0.5, 0.0, 0.0),
+                **{f"VN{index}": (0.5, 0.0, 0.0) for index in range(4, 24)},
+            },
+            elements={
+                "LM1": ("VN1", "VN2", "VN3"),
+                "VM1": tuple(f"VN{index}" for index in range(4, 24)),
+            },
+            groups={"G_TUBE": ("LM1",), "G_SOLID_region_0": ("VM1",)},
+            node_sources={},
+            element_sources={
+                "LM1": MeshElementSource("LM1", EntityRef("element", "line"), "native_element"),
+                "VM1": MeshElementSource("VM1", EntityRef("element", "solid"), "volume_cell"),
+            },
+            modelisations={"G_TUBE": "TUYAU_3M", "G_SOLID_region_0": "3D"},
+            surface_mesh={
+                "vertices": [[0.0, -0.1, 0.0], [1.0, -0.1, 0.0], [1.0, 0.1, 0.0], [0.0, 0.1, 0.0]],
+                "faces": [[0, 1, 2, 3]],
+            },
+        )
+
+        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+
+        model_objects = {
+            str(obj.entity_ref): obj
+            for obj in scene.objects
+            if obj.entity_ref and obj.entity_ref.kind == "element" and obj.kind == "pipe"
+        }
+        mesh_lines = [
+            obj
+            for obj in scene.objects
+            if obj.kind == "analysis_mesh_element" and obj.metadata["role"] == "native_element"
+        ]
+        layers = {layer.id: layer for layer in scene.layers}
+        assert model_objects["element:solid"].geometry_asset_id is None
+        assert model_objects["element:line"].geometry_asset_id is not None
+        assert layers["pipe"].default_visible is True
+        assert len(mesh_lines) == 1
+        assert mesh_lines[0].metadata["source_ref"] == "element:line"
+
+    def test_volume_skin_replaces_procedural_pipe_geometry(self):
+        model = Model("VolumeSkinWithPipe")
+        model.add_material("Steel", E=2.1e11, nu=0.3)
+        model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe", type="pipe_straight", n1=n0, n2=n1, section="Pipe", material="Steel")
+        mesh = AnalysisMesh(
+            id="volume_region_0",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={n0: (0.0, 0.0, 0.0), n1: (1.0, 0.0, 0.0)},
+            elements={"M0": (n0, n1)},
+            groups={"G_SOLID_region_0": ("M0",)},
+            node_sources={},
+            element_sources={},
+            modelisations={"G_SOLID_region_0": "3D"},
+            surface_mesh={
+                "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                "faces": [[0, 1, 2]],
+            },
+        )
+
+        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        layers = {layer.id: layer for layer in scene.layers}
+        pipe_objects = [obj for obj in scene.objects if obj.kind == "pipe"]
+
+        self.assertNotIn("pipe", layers)
+        self.assertTrue(layers["analysis_mesh:volume_skin"].default_visible)
+        self.assertEqual(len(pipe_objects), 1)
+        self.assertIsNone(pipe_objects[0].geometry_asset_id)
+        self.assertEqual(pipe_objects[0].layer_ids, ["analysis_mesh:volume_skin"])
+        self.assertFalse(
+            any(asset.generation_config.get("source") == "tuba.element" for asset in scene.geometry_assets)
+        )
+
+    def test_build_scene_adds_native_volume_skin_as_analysis_input(self):
+        mesh = AnalysisMesh(
+            id="volume_region_0",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={
+                "N0": (0.0, 0.0, 0.0),
+                "N1": (1.0, 0.0, 0.0),
+                "N2": (0.0, 1.0, 0.0),
+                "N3": (0.0, 0.0, 1.0),
+                "N4": (1.0, 0.0, 1.0),
+                "N5": (1.0, 1.0, 1.0),
+                "N6": (0.0, 1.0, 1.0),
+                "N7": (1.0, 1.0, 0.0),
+                **{f"N{index}": (0.5, 0.5, 0.5) for index in range(8, 20)},
+            },
+            elements={
+                "M0": (
+                    "N0", "N1", "N7", "N2", "N3", "N4", "N5", "N6",
+                    *(f"N{index}" for index in range(8, 20)),
+                )
+            },
+            groups={"G_SOLID_region_0": ("M0",)},
+            node_sources={},
+            element_sources={},
+            modelisations={"G_SOLID_region_0": "3D"},
+            surface_mesh={
+                "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+                "faces": [[0, 1, 2, 3]],
+            },
+        )
+
+        scene = build_visualization_scene(Model("VolumeSkin"), analysis_meshes=[mesh])
+
+        asset = next(
+            asset
+            for asset in scene.geometry_assets
+            if asset.generation_config.get("source") == "tuba.analysis_mesh.volume_skin"
+        )
+        surface = next(obj for obj in scene.objects if obj.geometry_asset_id == asset.id)
+        self.assertEqual(asset.format, "mesh")
+        self.assertEqual(asset.generation_config["faces"], [[0, 1, 2, 3]])
+        self.assertEqual(asset.generation_config["surface_edge_indices"], [[0, 1], [0, 3], [1, 2], [2, 3]])
+        self.assertTrue(asset.generation_config["show_edges"])
+        self.assertEqual(
+            asset.generation_config["volume_edge_indices"],
+            [[0, 1], [0, 2], [0, 3], [1, 4], [1, 7], [2, 6], [2, 7], [3, 4], [3, 6], [4, 5], [5, 6], [5, 7]],
+        )
+        self.assertEqual(len(asset.generation_config["volume_vertices"]), 8)
+        self.assertEqual(surface.kind, "analysis_mesh_surface")
+        self.assertIn("analysis_mesh:volume_skin", surface.layer_ids)
+        self.assertFalse(any("solver_result" in layer for layer in surface.layer_ids))
+        self.assertEqual(AnalysisMesh.from_dict(mesh.to_dict()).surface_mesh, mesh.surface_mesh)
+        self.assertEqual(len(scene.objects), 1)
+        self.assertEqual(len(scene.geometry_assets), 1)
+
+    def test_build_scene_adds_selectable_analysis_mesh_nodes_and_elements(self):
+        model = _model_with_exportable_bend()
+        bend = next(element for element in model.elements if element.type == "pipe_bend")
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            manifest = json.loads((Path(study.work_dir) / "study_manifest.json").read_text(encoding="utf-8"))
+        mesh = replace(
+            AnalysisMesh.from_dict(manifest["analysis_mesh"]),
+            solver_input_identity=None,
+        )
+
+        scene = build_visualization_scene(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh")
+        scene.validate()
+
+        node_objects = [obj for obj in scene.objects if obj.kind == "analysis_mesh_node"]
+        element_objects = [obj for obj in scene.objects if obj.kind == "analysis_mesh_element"]
+        generated_node = next(obj for obj in node_objects if obj.metadata["role"] == "generated_bend_node")
+        native_node = next(obj for obj in node_objects if obj.metadata["role"] == "native_node")
+        bend_segment = next(obj for obj in element_objects if obj.metadata["role"] == "bend_segment")
+        bend_object = next(obj for obj in scene.objects if obj.entity_ref and str(obj.entity_ref) == f"element:{bend.id}")
+
+        self.assertEqual(len(node_objects), len(mesh.nodes))
+        self.assertEqual(len(element_objects), len(mesh.elements))
+        self.assertEqual(str(native_node.entity_ref), native_node.metadata["source_ref"])
+        self.assertTrue(native_node.metadata["source_ref"].startswith("node:"))
+        self.assertEqual(str(generated_node.entity_ref), f"element:{bend.id}")
+        self.assertEqual(generated_node.metadata["mesh_id"], mesh.id)
+        self.assertEqual(generated_node.metadata["source_ref"], f"element:{bend.id}")
+        self.assertEqual(generated_node.metadata["source_metadata"]["bend_geometry"]["generation_mode"], "autoroute")
+        self.assertEqual(generated_node.metadata["segment_index"], 1)
+        self.assertGreater(generated_node.metadata["parametric_t"], 0.0)
+        self.assertIn("analysis_mesh:nodes", generated_node.layer_ids)
+        self.assertIn("analysis_mesh:generated_bend_nodes", generated_node.layer_ids)
+        self.assertEqual(bend_segment.metadata["source_ref"], f"element:{bend.id}")
+        self.assertEqual(bend_segment.metadata["source_metadata"]["bend_geometry"]["generation_mode"], "autoroute")
+        self.assertIn("PipeElbows", bend_segment.metadata["groups"])
+        self.assertEqual(bend_object.metadata["bend_geometry"]["generation_mode"], "autoroute")
+        self.assertIn("analysis_mesh:elements", bend_segment.layer_ids)
+        self.assertIn("analysis_mesh:groups", bend_segment.layer_ids)
+        self.assertIn("analysis_mesh:group:PipeElbows", bend_segment.layer_ids)
+
+        node_asset = next(asset for asset in scene.geometry_assets if asset.id == generated_node.geometry_asset_id)
+        element_asset = next(asset for asset in scene.geometry_assets if asset.id == bend_segment.geometry_asset_id)
+        self.assertEqual(node_asset.format, "point")
+        self.assertEqual(element_asset.format, "polyline")
+        self.assertEqual(node_asset.generation_config["source"], "tuba.analysis_mesh.node")
+        self.assertEqual(element_asset.generation_config["source"], "tuba.analysis_mesh.element")
+        # Node balls annotate the pipe; they must not be as fat as it.
+        pipe_radius = min(
+            profile_for_section(section).collision_radius_m for section in model.sections.values()
+        )
+        self.assertLess(node_asset.generation_config["radius_m"], pipe_radius / 2.0)
+        self.assertGreater(node_asset.generation_config["radius_m"], 0.0)
+
+    def test_build_scene_reports_analysis_mesh_missing_provenance(self):
+        model = Model(project_name="AnalysisMeshDiagnostics")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        elem = model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        mesh = AnalysisMesh(
+            id="analysis_mesh:diagnostics",
+            model_revision=0,
+            solver_name="Code_Aster",
+            nodes={n0: (0.0, 0.0, 0.0), n1: (1.0, 0.0, 0.0)},
+            elements={elem.id: (n0, n1)},
+            groups={"AllPipes": (elem.id,)},
+            node_sources={
+                n0: MeshNodeSource(node_id=n0, source_ref=EntityRef("node", n0), role="native_node"),
+            },
+            element_sources={},
+        )
+
+        scene = build_visualization_scene(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh_diagnostics")
+        scene.validate()
+
+        diagnostic_codes = {diagnostic.code for diagnostic in scene.diagnostics}
+        unmapped_node = next(
+            obj for obj in scene.objects if obj.kind == "analysis_mesh_node" and obj.id.endswith(f":node:{n1}")
+        )
+        unmapped_element = next(
+            obj
+            for obj in scene.objects
+            if obj.kind == "analysis_mesh_element" and obj.id.endswith(f":element:{elem.id}")
+        )
+
+        self.assertIn("analysis_mesh.missing_node_source", diagnostic_codes)
+        self.assertIn("analysis_mesh.missing_element_source", diagnostic_codes)
+        self.assertEqual(unmapped_node.metadata["role"], "unmapped_node")
+        self.assertEqual(unmapped_element.metadata["role"], "unmapped_element")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+def _model_with_exportable_bend() -> Model:
+    model = Model(project_name="AnalysisMeshScene")
+    model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+    model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+    request = PipeRouteRequest(
+        id="P-100",
+        start=RouteEndpoint(id="A", point=(0.0, 0.0, 0.0)),
+        goal=RouteEndpoint(id="B", point=(2.0, 2.0, 0.0)),
+        section="PipeSec",
+        material="Steel",
+        constraints=RoutingConstraints(min_bend_radius=0.5),
+    )
+    points = [(0.0, 0.0, 0.0), (2.0, 0.0, 0.0), (2.0, 2.0, 0.0)]
+    apply_candidate_to_model(
+        model,
+        PipeRouteCandidate(
+            request_id="P-100",
+            points=points,
+            segments=build_segments(points, request.constraints),
+            cost=4.0,
+            cost_breakdown={"length": 4.0, "bends": 1},
+        ),
+        request,
+    )
+    model.define_load_case("Hot", gravity=True, pressure=1.0e6, temperature=120.0, ref_temperature=20.0)
+    return model

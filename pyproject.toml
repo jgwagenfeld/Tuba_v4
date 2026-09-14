@@ -1,0 +1,106 @@
+[build-system]
+requires = ["setuptools>=77.0.3", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tuba"
+version = "4.0.1"
+description = "Code_Aster-backed piping analysis and result-review library"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = "LGPL-3.0-or-later"
+license-files = ["LICENSE", "LICENSE.GPL"]
+authors = [
+    { name = "Jan-Georg Wagenfeld" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # numpy 1.24's Linux kernels differ by up to one ULP from every later build,
+    # which changes computed bend geometry and therefore the Code_Aster
+    # solver-input fingerprint. 2.2 is the first release that agrees everywhere.
+    "numpy>=2.2",
+    "jsonschema>=4.0",
+    "gmsh>=4.11",
+]
+
+[project.scripts]
+tuba-viewer = "tuba.visualization.viewer:main"
+
+[project.optional-dependencies]
+# PyVista (pulls VTK, ~100 MB) backs the tuba.plotting quick-look/export path
+# only; the web-review path (tuba.visualization + viewer/) does not need it.
+viz = [
+    "meshio>=5.0",
+    "pyvista>=0.38",
+]
+mixed = [
+    "meshio>=5.0",
+]
+code-aster-rmed = [
+    "h5py>=3.10",
+]
+ifc = [
+    "ifcopenshell==0.8.4.post1",
+]
+notebook-viz = [
+    "jupyterlab>=3",
+    "nbclient>=0.10",
+    "nbformat>=5.10",
+    "ipykernel>=6",
+    "ipywidgets",
+    "pyvista[all]>=0.48",
+    "trame>=3",
+    "trame-vtk>=2",
+    "trame-vuetify>=3",
+    "jupyter-server-proxy",
+    "meshio>=5.0",
+]
+course = [
+    "jupyterlab>=3",
+    "nbclient>=0.10",
+    "nbformat>=5.10",
+    "ipykernel>=6",
+    "ipywidgets",
+    "pyvista[all]>=0.48",
+    "trame>=3",
+    "trame-vtk>=2",
+    "trame-vuetify>=3",
+    "jupyter-server-proxy",
+    "meshio>=5.0",
+    "h5py>=3.10",
+    "ifcopenshell==0.8.4.post1",
+    "trimesh>=4.0",
+]
+dev = [
+    "pytest>=8.2",
+    "pyyaml>=6",
+]
+mcp = [
+    "mcp>=1.0.0,<2",
+]
+
+[dependency-groups]
+docs = [
+    "mkdocstrings[python]>=1.0",
+    "zensical==0.0.51",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tuba*"]
+
+[tool.setuptools.package-data]
+"tuba.sections" = ["data/*.input", "data/*.output"]
+"tuba.visualization" = ["_viewer/*", "_viewer/assets/*", "_viewer/licenses/*"]

@@ -1,0 +1,14 @@
+P actions make_etude
+P version stable
+P nomjob study
+P mode interactif
+P ncpus 1
+A memjeveux 1024
+A tpmax 3600
+F comm study.comm D 1
+F mmed study.med D 20
+F mess study.mess R 6
+F rmed study.rmed R 80
+F depl study_depl.csv R 39
+F reac study_reac.csv R 40
+F sieq study_sieq.csv R 41

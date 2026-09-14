@@ -1,0 +1,1 @@
+{"asset_id":"geometry:solver_result:reaction:Hot:N0","generation_config":{"end":[0,0,0.75],"load_case":"Hot","reaction_force_n":[0,0,750],"result_type":"reaction","source":"tuba.solver_results","start":[0,0,0]},"object_ids":["object:solver_result:reaction:Hot:N0"]}

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "object:proposal_pipe",
+    "entity_ref": "element:pipe_str_0",
+    "kind": "proposal_added",
+    "name": "Proposed pipe",
+    "geometry_asset_id": "asset:proposal_pipe",
+    "layer_ids": ["agent_proposal:added"],
+    "metadata": {
+      "proposal_state": "added",
+      "base_kind": "pipe"
+    }
+  }
+]
