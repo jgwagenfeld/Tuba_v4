@@ -352,6 +352,45 @@ class TestOperationFields(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Native contact load paths currently support"):
             validate_path(model, hot, None)
 
+    def test_line_load_station_range_must_cover_whole_elements(self):
+        partial = _two_element_route()
+        partial.define_operation("Operating", gravity=False).add_field(
+            "line_load", 1000.0, route_id="P-100", station_start=0.0, station_end=0.5, direction=[0.0, 0.0, -1.0]
+        )
+        with self.assertRaisesRegex(
+            ModelValidationError, r"station range 0 to 0\.5 only partly covers 'pipe_str_0' \(stations 0 to 1\)"
+        ):
+            partial.validate()
+
+        aligned = _two_element_route()
+        aligned.define_operation("Operating", gravity=False).add_field(
+            "line_load", 1000.0, route_id="P-100", station_start=0.0, station_end=1.0, direction=[0.0, 0.0, -1.0]
+        )
+        aligned.validate()
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(aligned, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        block = comm[comm.index("LINELOAD = AFFE_CHAR_MECA(") : comm.index("# ----- Solve -----")]
+        self.assertIn("GROUP_MA='pipe_str_0'", block)
+        self.assertNotIn("pipe_str_1", block)
+
+    def test_line_load_scope_that_covers_a_bar_fails_validation(self):
+        for scope, scope_kwargs in (("route", {"route_id": "RACK"}), ("all", {}), ("group", {"group": "G"})):
+            model = _model(f"PipeAndBar {scope}")
+            with model.pipe("PipeSec", "Steel", route="RACK") as rack:
+                rack.start([0.0, 0.0, 0.0], support="anchor")
+                rack.run(2.0)
+                rack.bar(2.0)
+                rack.end(support="anchor")
+            model.groups["G"] = {"elements": [element.id for element in model.elements]}
+            model.define_operation("Operating", gravity=False).add_field(
+                "line_load", 1000.0, direction=[0.0, 0.0, -1.0], **scope_kwargs
+            )
+            with self.subTest(scope=scope):
+                with self.assertRaisesRegex(ModelValidationError, r"cannot carry 'line_load': \['bar_0'\]"):
+                    model.validate()
+
     def test_piecewise_profile_fails_before_export(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", temperature=20.0, ref_temperature=20.0)

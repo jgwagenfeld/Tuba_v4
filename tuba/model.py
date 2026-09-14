@@ -1078,40 +1078,55 @@ class TubaModel:
             "wind": {"beam"},
             "line_load": {"beam", "pipe_straight", "pipe_bend"},
         }.get(field_record.quantity, {"pipe_straight", "pipe_bend"})
-        pipe_elements = [e for e in self.elements if e.type in allowed_types]
         if field_record.scope == "all":
-            return pipe_elements
-        if field_record.scope == "group":
+            covered = self.elements
+        elif field_record.scope == "group":
             if not field_record.group or field_record.group not in self.groups:
                 raise ValueError(f"Operation field references missing group {field_record.group!r}.")
             ids = set(self.groups[field_record.group].get("elements", []))
-            return [e for e in pipe_elements if e.id in ids]
-        if field_record.scope == "route":
+            covered = [e for e in self.elements if e.id in ids]
+        elif field_record.scope == "route":
             if not field_record.route_id:
                 raise ValueError("Operation field route scope requires route_id.")
-            selected = [e for e in pipe_elements if e.route_id == field_record.route_id]
+            covered = [e for e in self.elements if e.route_id == field_record.route_id]
             if field_record.station_start is not None or field_record.station_end is not None:
                 start = field_record.station_start if field_record.station_start is not None else float("-inf")
                 end = field_record.station_end if field_record.station_end is not None else float("inf")
-                selected = [
-                    e for e in selected
+                covered = [
+                    e for e in covered
                     if e.station_start is not None
                     and e.station_end is not None
                     and e.station_start < end
                     and e.station_end > start
                 ]
-            return selected
-        if field_record.scope == "elements":
+                if field_record.quantity == "line_load":
+                    # FORCE_POUTRE loads whole elements, so a line load must not cover part of one.
+                    partial = [e for e in covered if e.station_start < start - 1e-9 or e.station_end > end + 1e-9]
+                    if partial:
+                        spans = ", ".join(
+                            f"{e.id!r} (stations {e.station_start:g} to {e.station_end:g})" for e in partial
+                        )
+                        raise ValueError(
+                            f"Line load station range {start:g} to {end:g} only partly covers {spans}; "
+                            "align the range with element ends or use element_ids."
+                        )
+        elif field_record.scope == "elements":
             ids = set(field_record.element_ids)
-            found = {e.id for e in pipe_elements if e.id in ids}
-            missing = sorted(ids - found)
-            if missing:
+            covered = [e for e in self.elements if e.id in ids]
+        else:
+            raise ValueError(f"Unsupported operation field scope {field_record.scope!r}.")
+
+        selected = [e for e in covered if e.type in allowed_types]
+        if field_record.scope == "elements" or field_record.quantity == "line_load":
+            # Named elements must exist, and a line load may not cover elements that cannot carry it.
+            named = set(field_record.element_ids) if field_record.scope == "elements" else {e.id for e in covered}
+            refused = sorted(named - {e.id for e in selected})
+            if refused:
                 raise ValueError(
                     "Operation field references elements that do not exist or cannot carry "
-                    f"{field_record.quantity!r}: {missing!r}."
+                    f"{field_record.quantity!r}: {refused!r}."
                 )
-            return [e for e in pipe_elements if e.id in ids]
-        raise ValueError(f"Unsupported operation field scope {field_record.scope!r}.")
+        return selected
 
     # -- Tees and Obstacles --------------------------------------------------
 
