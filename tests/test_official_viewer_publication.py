@@ -335,6 +335,41 @@ def test_committed_gallery_artifact_bytes_match_the_execution_attestation(
         assert sha256(content).hexdigest() == expected["sha256"], filename
 
 
+def _gallery_evidence() -> list[tuple[object, Path]]:
+    """Each committed gallery evidence set, paired with the gallery that imports it."""
+    return sorted(
+        (
+            (gallery, Path(root).resolve().relative_to(REPO_ROOT))
+            for gallery in build_pages.OFFICIAL_GALLERIES
+            if gallery.artifact_dir is not None
+            for root in _gallery_evidence_roots(gallery)
+        ),
+        key=lambda pair: pair[1],
+    )
+
+
+@pytest.mark.parametrize(
+    ("gallery", "artifact_root"),
+    _gallery_evidence(),
+    ids=lambda value: value.as_posix() if isinstance(value, Path) else value.id,
+)
+def test_committed_evidence_matches_the_identity_its_study_would_attest_now(gallery, artifact_root: Path) -> None:
+    """Spec decision 15: the current model and study options still produce every committed attestation."""
+    from tuba.analysis.provenance import SolverInputIdentity
+    from tuba.project import load_project
+    from tuba.project.freshness import expected_identity
+
+    model = load_project(REPO_ROOT / gallery.project).run_model()["model"]
+    attestation = json.loads((REPO_ROOT / artifact_root / "study_execution.json").read_text(encoding="utf-8"))
+
+    assert expected_identity(
+        model,
+        artifact_root.name,
+        solver_options=gallery.solver_options,
+        volume_export=gallery.volume_export or None,
+    ) == SolverInputIdentity.from_dict(attestation["solver_input_identity"])
+
+
 def test_gallery_evidence_lives_in_its_project_one_folder_per_operation() -> None:
     """Evidence is kept in the project it belongs to, one folder per attested operation (spec decision 10)."""
     assert _committed_evidence_sets()

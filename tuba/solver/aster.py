@@ -81,6 +81,15 @@ _TUBA_GENE_TUYAU = np.array(DISPLAY_GENERATRICE, dtype=float)
 # Solver
 # ---------------------------------------------------------------------------
 
+class StudyInputs(NamedTuple):
+    """What a beam or TUYAU export compiles, resolved without writing anything."""
+
+    load_case_name: str
+    load_case: LoadCase
+    compiler_inputs: Optional[dict[str, Any]]
+    solver_input_identity: SolverInputIdentity
+
+
 class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     """Headless Code_Aster backend for piping stress analysis.
 
@@ -245,14 +254,12 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
         return wdir
 
-    def export_analysis_study(
-        self,
-        model: TubaModel,
-        load_case_name: Optional[str] = None,
-        output_dir: Optional[str | Path] = None,
-    ) -> AnalysisStudy:
-        """Generate Code_Aster input files plus a traceable analysis manifest."""
-        self._bend_node_cache.clear()
+    def analysis_study_inputs(self, model: TubaModel, load_case_name: Optional[str] = None) -> StudyInputs:
+        """Resolve the solved case and fingerprint what :meth:`export_analysis_study` compiles.
+
+        It writes, meshes and solves nothing, so a caller can ask which identity an export
+        of the current model would attest (spec decision 15) without exporting.
+        """
         if self.load_path is not None:
             if not self.load_path or isinstance(self.load_path, str):
                 raise ValueError('load_path must be a nonempty sequence of load-case names.')
@@ -261,17 +268,6 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             load_case_name = self.load_path[-1]
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
-
-        if output_dir is not None:
-            wdir = Path(output_dir)
-            wdir.mkdir(parents=True, exist_ok=True)
-        elif self.work_dir is not None:
-            wdir = self.work_dir
-            wdir.mkdir(parents=True, exist_ok=True)
-        else:
-            wdir = Path(tempfile.mkdtemp(prefix="tuba_aster_"))
-
-        model_revision = int(getattr(model, "revision", 0))
         compiler_inputs = (
             {"pipe_modelization": self.pipe_modelization.value, "bend_segments": self._BEND_SEGMENTS}
             if self.pipe_modelization is PipeModelization.POU_D_T else None
@@ -290,6 +286,30 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         solver_input_identity = build_solver_input_identity(
             model, load_case_name, compiler_inputs=compiler_inputs,
         )
+        return StudyInputs(load_case_name, load_case, compiler_inputs, solver_input_identity)
+
+    def export_analysis_study(
+        self,
+        model: TubaModel,
+        load_case_name: Optional[str] = None,
+        output_dir: Optional[str | Path] = None,
+    ) -> AnalysisStudy:
+        """Generate Code_Aster input files plus a traceable analysis manifest."""
+        self._bend_node_cache.clear()
+        load_case_name, load_case, compiler_inputs, solver_input_identity = self.analysis_study_inputs(
+            model, load_case_name
+        )
+
+        if output_dir is not None:
+            wdir = Path(output_dir)
+            wdir.mkdir(parents=True, exist_ok=True)
+        elif self.work_dir is not None:
+            wdir = self.work_dir
+            wdir.mkdir(parents=True, exist_ok=True)
+        else:
+            wdir = Path(tempfile.mkdtemp(prefix="tuba_aster_"))
+
+        model_revision = int(getattr(model, "revision", 0))
         mail_path = wdir / "study.mail"
         comm_path = wdir / "study.comm"
         export_path = wdir / "study.export"
@@ -400,6 +420,30 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             model,
             load_case_name,
             output_dir,
+            element_ids=element_ids,
+            max_element_size=max_element_size,
+            element_order=element_order,
+            export_tensor_stress=export_tensor_stress,
+        )
+
+    def volume_study_inputs(
+        self,
+        model: TubaModel,
+        load_case_name: str | None,
+        *,
+        element_ids,
+        max_element_size: float,
+        element_order: int = 2,
+        export_tensor_stress: bool = False,
+    ):
+        """Resolve and fingerprint what :meth:`export_volume_study` compiles, without meshing or writing."""
+        if self.load_path is not None:
+            raise ValueError('Native contact load paths require POU_D_T; volume/mixed paths are unsupported.')
+        from tuba.solver.aster_volume import volume_study_inputs
+
+        return volume_study_inputs(
+            model,
+            load_case_name,
             element_ids=element_ids,
             max_element_size=max_element_size,
             element_order=element_order,

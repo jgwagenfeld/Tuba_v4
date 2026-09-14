@@ -5,12 +5,13 @@ from __future__ import annotations
 from dataclasses import replace
 import math
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable, NamedTuple
 
 from tuba.analysis import AnalysisStudy
 from tuba.analysis.provenance import (
     MIXED_CODE_ASTER_COMPILER_ID,
     VOLUME_CODE_ASTER_COMPILER_ID,
+    SolverInputIdentity,
     build_solver_input_identity,
 )
 from tuba.meshing import build_pipe_volume_mesh
@@ -19,6 +20,56 @@ from tuba.solver.aster_comm import _pipe_orientation_vector
 from tuba.solver.aster_loads import resolve_operation_field_groups
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
 from tuba.solver.modelisation import PipeModelization
+
+
+class VolumeStudyInputs(NamedTuple):
+    """What a pipe-volume export compiles, resolved without meshing or writing."""
+
+    load_case_name: str
+    load_case: Any
+    element_ids: tuple[str, ...]
+    line_elements: list
+    compiler_inputs: dict[str, Any]
+    solver_input_identity: SolverInputIdentity
+
+
+def volume_study_inputs(
+    model: TubaModel,
+    load_case_name: str | None,
+    *,
+    element_ids: Iterable[str],
+    max_element_size: float,
+    element_order: int = 2,
+    export_tensor_stress: bool = False,
+) -> VolumeStudyInputs:
+    """Resolve the solved case and fingerprint what the volume export compiles (spec decision 15).
+
+    The fingerprint never reads the Gmsh mesh, so this meshes and writes nothing.
+    """
+    from tuba.solver.aster_contact import shoes
+
+    shoes(model, PipeModelization.SOLID_3D)
+    load_case_name, load_case = model.resolve_load_case(load_case_name)
+    model.validate()
+    if any(model.get_insulation(f"element:{element.id}") for element in model.elements):
+        raise ValueError("Insulated pipe-volume studies are not supported; use the pipe beam/TUYAU solver so insulation weight is included.")
+    ids = tuple(element_ids)
+    line_elements = [element for element in model.elements if element.id not in ids]
+    mixed_analysis = bool(line_elements)
+    compiler_inputs = {
+        "element_ids": sorted(ids),
+        **({"line_element_ids": sorted(element.id for element in line_elements)} if mixed_analysis else {}),
+        "element_order": element_order,
+        "max_element_size": float(max_element_size),
+        "export_tensor_stress": bool(export_tensor_stress),
+    }
+    identity = build_solver_input_identity(
+        model,
+        load_case_name,
+        compiler_id=(MIXED_CODE_ASTER_COMPILER_ID if mixed_analysis else VOLUME_CODE_ASTER_COMPILER_ID),
+        compiler_inputs=compiler_inputs,
+    )
+    return VolumeStudyInputs(load_case_name, load_case, ids, line_elements, compiler_inputs, identity)
 
 
 class PipeVolumeStudyExporter:
@@ -35,14 +86,17 @@ class PipeVolumeStudyExporter:
         element_order: int = 2,
         export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
-        from tuba.solver.aster_contact import shoes
-        from tuba.solver.modelisation import PipeModelization
-        shoes(model, PipeModelization.SOLID_3D)
-        load_case_name, load_case = model.resolve_load_case(load_case_name)
-        model.validate()
-        if any(model.get_insulation(f"element:{element.id}") for element in model.elements):
-            raise ValueError("Insulated pipe-volume studies are not supported; use the pipe beam/TUYAU solver so insulation weight is included.")
-        ids = tuple(element_ids)
+        inputs = volume_study_inputs(
+            model,
+            load_case_name,
+            element_ids=element_ids,
+            max_element_size=max_element_size,
+            element_order=element_order,
+            export_tensor_stress=export_tensor_stress,
+        )
+        load_case_name, load_case, ids = inputs.load_case_name, inputs.load_case, inputs.element_ids
+        line_elements, compiler_inputs, identity = inputs.line_elements, inputs.compiler_inputs, inputs.solver_input_identity
+        mixed_analysis = bool(line_elements)
         root = Path(output_dir)
         root.mkdir(parents=True, exist_ok=True)
         med_path = root / "study.med"
@@ -59,21 +113,6 @@ class PipeVolumeStudyExporter:
             element_ids=ids,
             max_element_size=max_element_size,
             element_order=element_order,
-        )
-        line_elements = [element for element in model.elements if element.id not in ids]
-        mixed_analysis = bool(line_elements)
-        compiler_inputs = {
-            "element_ids": sorted(ids),
-            **({"line_element_ids": sorted(element.id for element in line_elements)} if mixed_analysis else {}),
-            "element_order": element_order,
-            "max_element_size": float(max_element_size),
-            "export_tensor_stress": bool(export_tensor_stress),
-        }
-        identity = build_solver_input_identity(
-            model,
-            load_case_name,
-            compiler_id=(MIXED_CODE_ASTER_COMPILER_ID if mixed_analysis else VOLUME_CODE_ASTER_COMPILER_ID),
-            compiler_inputs=compiler_inputs,
         )
         analysis_mesh = replace(generated.analysis_mesh, solver_input_identity=identity)
         name_map = build_solver_name_map(generated.groups)
