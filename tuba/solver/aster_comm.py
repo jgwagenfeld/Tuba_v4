@@ -36,9 +36,11 @@ from tuba.solver.aster_loads import (
     resolve_line_load_groups,
     resolve_operation_field_groups,
     resolve_wind_field_groups,
+    tuyau_wind_rows,
     write_line_load,
     write_pressure_load,
     write_thermal_load,
+    write_tuyau_wind_load,
     write_wind_load,
 )
 
@@ -270,11 +272,22 @@ class _CommWriterMixin:
         pressure_fields = resolve_operation_field_groups(model, load_case, "pressure")
         temperature_fields = resolve_operation_field_groups(model, load_case, "temperature")
         wind_fields = resolve_wind_field_groups(model, load_case)
+        # Wind reaches Code_Aster through the command its element's modelization
+        # accepts: VENT on beam-modelled elements, Tuba's cross-flow rule on
+        # TUYAU_3M pipes, which refuse VENT.
+        element_types = {element.id: element.type for element in model.elements}
+        beam_winds = [row for row in wind_fields if beam_pipes or element_types[row[0][0]] == "beam"]
+        tuyau_winds = tuyau_wind_rows(
+            model,
+            [row for row in wind_fields if not (beam_pipes or element_types[row[0][0]] == "beam")],
+            lambda element: self._get_bend_geometry(model, element)[:2],
+        )
         line_loads = resolve_line_load_groups(model, load_case)
         nodal_forces = list(getattr(load_case, "nodal_forces", []))
         has_pressure = has_pressure_load(load_case, pressure_fields)
         has_temperature = has_thermal_load(load_case, temperature_fields)
-        has_wind = has_wind_load(wind_fields)
+        has_wind = has_wind_load(beam_winds)
+        has_tuyau_wind = bool(tuyau_winds)
         has_line_load = bool(line_loads)
         has_nodal_forces = bool(nodal_forces)
 
@@ -704,13 +717,20 @@ class _CommWriterMixin:
                 )
 
             # ==============================================================
-            # AFFE_CHAR_MECA — wind on beam-modelized pipe
+            # AFFE_CHAR_MECA_F — wind: VENT on beam-modelled elements,
+            # Tuba's cross-flow rule on TUYAU_3M pipes
             # ==============================================================
             if has_wind:
                 write_wind_load(
                     w,
                     map_name=map_name,
-                    wind_fields=wind_fields,
+                    wind_fields=beam_winds,
+                )
+            if has_tuyau_wind:
+                write_tuyau_wind_load(
+                    w,
+                    map_name=map_name,
+                    rows=tuyau_winds,
                 )
 
             # ==============================================================
@@ -797,6 +817,8 @@ class _CommWriterMixin:
                 excit_entries.append("        _F(CHARGE=PRESSURE),")
             if has_wind:
                 excit_entries.append("        _F(CHARGE=WIND),")
+            if has_tuyau_wind:
+                excit_entries.append("        _F(CHARGE=WIND_TUY),")
             if has_line_load:
                 excit_entries.append("        _F(CHARGE=LINELOAD),")
             if has_nodal_forces:

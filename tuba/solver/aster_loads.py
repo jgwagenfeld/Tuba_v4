@@ -7,12 +7,14 @@ from typing import Callable, List, Sequence
 
 import numpy as np
 
-from tuba.model import LoadCase, TubaModel
+from tuba.model import Element, LoadCase, TubaModel
 from tuba.physical import physical_properties_for_element
 
 FieldGroups = List[tuple[List[str], float]]
 WindGroups = List[tuple[List[str], float, float, float]]
 LineLoadGroups = List[tuple[List[str], float, float, float]]
+TuyauWindRows = List[tuple[str, str, tuple[str, str, str]]]
+BendFrame = Callable[[Element], tuple[Sequence[float], Sequence[float]]]
 NameMapper = Callable[[str], str]
 LineWriter = Callable[[str], None]
 
@@ -133,7 +135,7 @@ def resolve_wind_field_groups(model: TubaModel, load_case: LoadCase) -> WindGrou
         direction = direction / norm
         elements = model.resolve_operation_field_elements(field_record)
         if not elements:
-            raise ValueError(f"Operation field {index} for 'wind' selects no beam-modelized elements.")
+            raise ValueError(f"Operation field {index} for 'wind' selects no pipe or beam elements.")
         for elem in elements:
             diameter = physical_properties_for_element(model, elem).wind_diameter_m
             line_load = float(field_record.value) * diameter
@@ -415,3 +417,61 @@ def cross_flow_formula(
     across = [f"(({f!r})-{along}*{t})" for f, t in ((fx, tx), (fy, ty), (fz, tz))]
     scale = f"(sqrt({across[0]}**2+{across[1]}**2+{across[2]}**2)/({magnitude!r}))"
     return (f"{scale}*{across[0]}", f"{scale}*{across[1]}", f"{scale}*{across[2]}")
+
+
+def tuyau_wind_rows(model: TubaModel, wind_fields: WindGroups, bend_frame: BendFrame) -> TuyauWindRows:
+    """Wind on TUYAU_3M pipe elements as ``(element id, NOM_PARA, FORMULE texts)``.
+
+    Code_Aster refuses TYPE_CHARGE='VENT' on pipe elements (PIPE1_44), so the
+    cross-flow rule VENT uses on beams is applied here: a constant on a straight
+    pipe, a function of X, Y, Z along a bend. One row per element, because one
+    FORCE_POUTRE command keeps only its last occurrence on an element.
+    """
+    loads: dict[str, tuple[float, float, float]] = {}
+    for group_names, fx, fy, fz in wind_fields:
+        for element_id in group_names:
+            loads[element_id] = (fx, fy, fz)
+    rows: TuyauWindRows = []
+    for element_id, line_load in loads.items():
+        elem = model.get_element(element_id)
+        if elem.type == "pipe_bend":
+            center, axis = bend_frame(elem)
+            rows.append((element_id, "('X', 'Y', 'Z')", cross_flow_formula(line_load, center, axis)))
+            continue
+        start = np.asarray(model.nodes[elem.n1].coords, dtype=float)
+        end = np.asarray(model.nodes[elem.n2].coords, dtype=float)
+        fx, fy, fz = cross_flow_line_load(line_load, end - start)
+        rows.append((element_id, "'X'", (f"{fx:.6E}", f"{fy:.6E}", f"{fz:.6E}")))
+    return rows
+
+
+def write_tuyau_wind_load(
+    w: LineWriter,
+    *,
+    map_name: NameMapper,
+    rows: TuyauWindRows,
+) -> None:
+    # ponytail: Code_Aster concept names cap at 8 characters, so TFX_9999 is the last
+    # formula; group equal straight-pipe loads if a model ever carries 10 000 wind elements.
+    for index, (_, nom_para, texts) in enumerate(rows):
+        for suffix, text in zip(("X", "Y", "Z"), texts):
+            w(f"TF{suffix}_{index} = FORMULE(")
+            w(f"    NOM_PARA={nom_para},")
+            w(f"    VALE='''{text}''',")
+            w(");")
+            w()
+
+    w("# ----- Wind line loads on TUYAU pipes (VENT's cross-flow rule, applied by Tuba) -----")
+    w("WIND_TUY = AFFE_CHAR_MECA_F(")
+    w("    MODELE=MODELE,")
+    w("    FORCE_POUTRE=(")
+    for index, (element_id, _, _) in enumerate(rows):
+        w("        _F(")
+        w(f"            GROUP_MA='{map_name(element_id)}',")
+        w(f"            FX=TFX_{index},")
+        w(f"            FY=TFY_{index},")
+        w(f"            FZ=TFZ_{index},")
+        w("        ),")
+    w("    ),")
+    w(");")
+    w()

@@ -1074,10 +1074,12 @@ class TubaModel:
         )
 
     def resolve_operation_field_elements(self, field_record: OperationField) -> List[Element]:
-        allowed_types = {
-            "wind": {"beam"},
-            "line_load": {"beam", "pipe_straight", "pipe_bend"},
-        }.get(field_record.quantity, {"pipe_straight", "pipe_bend"})
+        load_quantities = {"wind", "line_load"}
+        allowed_types = (
+            {"beam", "pipe_straight", "pipe_bend"}
+            if field_record.quantity in load_quantities
+            else {"pipe_straight", "pipe_bend"}
+        )
         if field_record.scope == "all":
             covered = self.elements
         elif field_record.scope == "group":
@@ -1092,8 +1094,8 @@ class TubaModel:
             if field_record.station_start is not None or field_record.station_end is not None:
                 start = field_record.station_start if field_record.station_start is not None else float("-inf")
                 end = field_record.station_end if field_record.station_end is not None else float("inf")
-                # Line loads ignore float noise at the range ends; other quantities keep the strict overlap.
-                noise = 1e-9 if field_record.quantity == "line_load" else 0.0
+                # Wind and line loads ignore float noise at the range ends; other quantities keep the strict overlap.
+                noise = 1e-9 if field_record.quantity in load_quantities else 0.0
                 covered = [
                     e for e in covered
                     if e.station_start is not None
@@ -1101,15 +1103,15 @@ class TubaModel:
                     and e.station_start < end - noise
                     and e.station_end > start + noise
                 ]
-                if field_record.quantity == "line_load":
-                    # FORCE_POUTRE loads whole elements, so a line load must not cover part of one.
+                if field_record.quantity in load_quantities:
+                    # FORCE_POUTRE loads whole elements, so wind and line loads must not cover part of one.
                     partial = [e for e in covered if e.station_start < start - noise or e.station_end > end + noise]
                     if partial:
                         spans = ", ".join(
                             f"{e.id!r} (stations {e.station_start:g} to {e.station_end:g})" for e in partial
                         )
                         raise ValueError(
-                            f"Line load station range {start:g} to {end:g} only partly covers {spans}; "
+                            f"{field_record.quantity} station range {start:g} to {end:g} only partly covers {spans}; "
                             "align the range with element ends or use element_ids."
                         )
         elif field_record.scope == "elements":
@@ -1119,8 +1121,8 @@ class TubaModel:
             raise ValueError(f"Unsupported operation field scope {field_record.scope!r}.")
 
         selected = [e for e in covered if e.type in allowed_types]
-        if field_record.scope == "elements" or field_record.quantity == "line_load":
-            # Named elements must exist, and a line load may not cover elements that cannot carry it.
+        if field_record.scope == "elements" or field_record.quantity in load_quantities:
+            # Named elements must exist, and wind and line loads may not cover elements that cannot carry them.
             named = set(field_record.element_ids) if field_record.scope == "elements" else {e.id for e in covered}
             refused = sorted(named - {e.id for e in selected})
             if refused:

@@ -142,9 +142,10 @@ still fail validation before export.
 A line load (`line_load`, newtons per metre along one global direction) loads
 pipe and beam elements in full through a plain `FORCE_POUTRE` under `TUYAU_3M`
 and `POU_D_T`; pipe-volume and native-contact studies refuse it.
-Wind fields are currently limited to beam-modeled elements because the writer
-uses `FORCE_POUTRE(TYPE_CHARGE='VENT')`; `TUYAU_3M` pipe wind and nodal-load
-shortcuts are rejected before export.
+Wind fields load pipe and beam elements. Beam-modelled elements use
+`FORCE_POUTRE(TYPE_CHARGE='VENT')`. Code_Aster refuses `VENT` on `TUYAU_3M`
+elements, so there Tuba applies VENT's cross-flow rule itself and writes a plain
+`FORCE_POUTRE`: a constant on a straight pipe, a function of X, Y, Z on a bend.
 
 ### 3. Export And Run Code_Aster
 
@@ -318,7 +319,7 @@ for commands such as `DEFI_MATERIAU`.
 | Material definition | `DEFI_MATERIAU` | Defines elastic material parameters and cable material data. | [U4.43.01 DEFI_MATERIAU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.43.01.html) |
 | Material assignment | `AFFE_MATERIAU` | Assigns materials and thermal reference variables to mesh groups. | [U4.43.03 AFFE_MATERIAU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.43.03.html) |
 | Element characteristics | `AFFE_CARA_ELEM` | Defines pipe, bend, beam, bar, cable, spring/mass, and `GENE_TUYAU` orientation data. | [U4.42.01 AFFE_CARA_ELEM](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.42.01.html) |
-| Supports, gravity, pressure, wind, line loads, mixed couplings | `AFFE_CHAR_MECA`, `AFFE_CHAR_MECA_F` | Writes `DDL_IMPO`, `PESANTEUR`, `FORCE_TUYAU`, beam-modeled wind through `FORCE_POUTRE(TYPE_CHARGE='VENT')`, line loads through a plain `FORCE_POUTRE`, and `LIAISON_ELEM`. | [U4.44.01 AFFE_CHAR_MECA](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.01.html) |
+| Supports, gravity, pressure, wind, line loads, mixed couplings | `AFFE_CHAR_MECA`, `AFFE_CHAR_MECA_F` | Writes `DDL_IMPO`, `PESANTEUR`, `FORCE_TUYAU`, beam-modeled wind through `FORCE_POUTRE(TYPE_CHARGE='VENT')`, `TUYAU_3M` wind through a plain `FORCE_POUTRE` carrying the same cross-flow rule, line loads through a plain `FORCE_POUTRE`, and `LIAISON_ELEM`. | [U4.44.01 AFFE_CHAR_MECA](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.01.html) |
 | Thermal expansion fields | `CREA_CHAMP` | Creates temperature fields for uniform and route/station-linear thermal expansion. | [U4.72.04 CREA_CHAMP](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.72.04.html) |
 | Nonlinear thermal evolution | `CREA_RESU` | Creates thermal result evolution used by nonlinear cases. | [U4.44.12 CREA_RESU](https://www-mdp.eng.cam.ac.uk/web/CD/engapps/aster_docs/UDocs-HTML/U44412g1/U44412g1.pdf.html) |
 | Rest/contact time list | `DEFI_LIST_REEL`, `DEFI_LIST_INST` | Defines the simple nonlinear solve increments. | [U4.34.01 DEFI_LIST_REEL](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.01.html), [U4.34.03 DEFI_LIST_INST](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.03.html) |
@@ -330,13 +331,19 @@ for commands such as `DEFI_MATERIAU`.
 | Parseable CSV tables | `CREA_TABLE`, `IMPR_TABLE` | Writes `study_depl.csv`, `study_effo.csv`, `study_reac.csv`, and `study_sieq.csv`. | [U4.91.03 IMPR_TABLE](https://www-mdp.eng.cam.ac.uk/web/CD/engapps/aster_docs/UDocs-HTML/U49103e/U49103e.pdf.html) |
 | Runtime execution | `run_aster` / `.export` | Executes studies from Code_Aster export files. | [run_aster package](https://codeaster.readthedocs.io/en/latest/devguide/run_aster/run_aster.html) |
 
-Wind is deliberately narrow today. Code_Aster U4.44.01 documents
+Wind follows the element's modelization. Code_Aster U4.44.01 documents
 `FORCE_POUTRE(TYPE_CHARGE='VENT')` for beam modelizations; Tuba emits
-`AFFE_CHAR_MECA_F` with constant `FORMULE` concepts for the wind components
-because the current runtime accepts function/formula values for this VENT path.
-The same command page documents `FORCE_TUYAU` with pressure (`PRES`) for
-`TUYAU_3M` / `TUYAU_6M`, not as a wind line-load command, so Tuba rejects
-`TUYAU_3M` wind rather than approximating it with `FORCE_NODALE`.
+`AFFE_CHAR_MECA_F` with constant `FORMULE` concepts for those wind components.
+`TUYAU_3M` elements accept a plain `FORCE_POUTRE` but refuse `VENT`
+(`<EXCEPTION> <PIPE1_44>`), so Tuba applies VENT's rule itself in a separate
+`WIND_TUY` load: only the part of the wind across the pipe axis, scaled once
+more by the sine of the angle between wind and axis. That is a constant on
+straight pipes and a `FORMULE` of X, Y, Z along bends.
+`tests/test_code_aster_line_loads.py` solves both against POU_D_T `VENT` on an
+oblique straight and an elbow. Line loads use a plain `FORCE_POUTRE` in their
+own `LINELOAD` load. Within one `AFFE_CHAR_MECA`, Code_Aster keeps only the last
+`FORCE_POUTRE` occurrence on an element, so each element gets one row and each
+kind of load its own concept. No `FORCE_NODALE` shortcut is used for either.
 Equivalent-stress (`SIEQ_ELNO`) output is emitted only for studies with pipe
 elements; pure beam/bar/cable studies return displacement, element-force, and
 reaction artifacts without inventing a Von Mises stress table.
@@ -373,9 +380,9 @@ instead of local memory.
   groups.
 - Line loads compiled into a plain `FORCE_POUTRE` on pipe and beam elements
   under `TUYAU_3M` and `POU_D_T`.
-- Beam-modeled wind fields compiled into `FORCE_POUTRE(TYPE_CHARGE='VENT')`
-  with constant `FORMULE` components; `TUYAU_3M` wind and `FORCE_NODALE` wind
-  shortcuts are not implemented.
+- Wind fields compiled by modelization: `FORCE_POUTRE(TYPE_CHARGE='VENT')` on
+  beam-modelled elements and a plain `FORCE_POUTRE` with VENT's cross-flow rule
+  on `TUYAU_3M` pipes and bends; no `FORCE_NODALE` shortcut.
 - `.mail`, `.comm`, `.export`, `study_manifest.json`, and
   `study_tuba_fem.json` generation.
 - Runtime discovery/execution through WSL, command runner, Python bridge, or
@@ -417,7 +424,7 @@ instead of local memory.
 |---|---|---|
 | Real runtime proof | The library supports runtime discovery, but a fresh production solve requires a configured Code_Aster runner. | Run `python -m tuba.solver.code_aster_doctor --check`, then `TUBA_RUN_CODE_ASTER_INTEGRATION=1` integration tests on a solver machine. |
 | Linear/piecewise operation fields | Uniform fields are supported; linear temperature by route/station is exported as per-element midpoint values. Pressure, wind, and piecewise profiles still fail before export. | Add one end-to-end writer slice per remaining profile shape, with result import and notebook proof. |
-| Wind beyond beam-modeled elements | Wind currently works only for beam-modeled elements that can use `FORCE_POUTRE(TYPE_CHARGE='VENT')`. `TUYAU_3M` wind is rejected, and `FORCE_NODALE` is not used as a production pipe-wind shortcut. | Extend only when the chosen Code_Aster pipe modelization has a documented distributed-load command. |
+| Distributed loads on volume and mixed studies | 1D pipes and beams take wind and line loads under `TUYAU_3M` and `POU_D_T`. Pipe-volume studies refuse both, and the STEP mixed exporter writes no loads at all. | Apply wind and line loads to the 3D outer skin (`FORCE_FACE` on `G_OUTER_*`), checked against the 1D total reaction. |
 | Seismic loads | Not implemented. Code_Aster has dedicated seismic commands, but Tuba does not yet have the model, writer, parser, or routing/compliance slice. | Add as a full vertical slice: model field, command writer, artifact import, compliance/routing use. |
 | B31J tee/branch factors | Blocked by source-data rights. | Use licensed ASME B31J text or authorized user-provided tables. Do not infer coefficients from secondary sources. |
 | Mixed STEP solve/import/display | Mixed export exists for the first pipe-to-solid-port slice. | Prove real mixed solve, import artifacts, and display results through the same review paths. |

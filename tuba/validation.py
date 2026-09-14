@@ -14,11 +14,6 @@ from tuba.refs import resolve_entity_ref
 
 
 _PIPE_TO_PORT_OPTIONS = {"3D_TUYAU", "3D_POU", "COQ_TUYAU", "COQ_POU"}
-_BEAM_WIND_ONLY_MESSAGE = (
-    "uses the current Code_Aster wind slice: FORCE_POUTRE(TYPE_CHARGE='VENT') "
-    "on beam-modeled elements only; TUYAU_3M pipe wind is not implemented, "
-    "and FORCE_NODALE is not used as a production pipe-wind shortcut"
-)
 
 
 class ModelValidationError(ValueError):
@@ -198,18 +193,11 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
                 continue
 
             if not selected:
-                if field_record.quantity == "wind":
-                    errors.append(f"{label} {_BEAM_WIND_ONLY_MESSAGE}; selected no beam-modeled elements.")
-                elif field_record.quantity == "line_load":
+                if field_record.quantity in {"wind", "line_load"}:
                     errors.append(f"{label} selects no pipe or beam elements.")
                 else:
                     errors.append(f"{label} selects no pipe elements.")
                 continue
-            if field_record.quantity == "wind":
-                bad = [elem.id for elem in selected if elem.type != "beam"]
-                if bad:
-                    errors.append(f"{label} {_BEAM_WIND_ONLY_MESSAGE}; got {bad!r}.")
-                    continue
 
             quantity_values = seen.setdefault(field_record.quantity, {})
             for elem in selected:

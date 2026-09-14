@@ -262,13 +262,99 @@ class TestOperationFields(unittest.TestCase):
         self.assertIn("_F(CHARGE=POINT_FORCE),", comm)
         self.assertIn("GROUP_NO NOM=GN_N1", mail)
 
-    def test_wind_field_rejects_tuyau_pipe_elements(self):
+    def test_wind_on_tuyau_pipes_applies_the_cross_flow_rule_itself(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", gravity=False)
-        operating.add_field("wind", 1000.0, route_id="P-100", direction=[1.0, 0.0, 0.0])
+        operating.add_field("wind", 1000.0, route_id="P-100", direction=[1.0, 1.0, 0.0])
+        model.validate()
 
-        with self.assertRaisesRegex(ModelValidationError, "FORCE_POUTRE.*TUYAU_3M.*FORCE_NODALE"):
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        # 1000 Pa on a 0.1 m pipe is 100 N/m head-on. At 45 degrees to the axis the pipe
+        # carries 100 * sin(45)^2 = 50 N/m across it and nothing along it.
+        self.assertIn("WIND_TUY = AFFE_CHAR_MECA_F(", comm)
+        self.assertNotIn("TYPE_CHARGE='VENT'", comm)
+        self.assertIn("GROUP_MA='pipe_str_0'", comm)
+        self.assertIn("VALE='''0.000000E+00'''", comm)
+        self.assertIn("VALE='''5.000000E+01'''", comm)
+        self.assertIn("_F(CHARGE=WIND_TUY),", comm)
+
+    def test_wind_on_a_tuyau_bend_follows_the_bend_axis(self):
+        model = _model("BendWind")
+        with model.pipe("PipeSec", "Steel", route="P-200") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.run(1.0)
+            pipe.bend(radius=0.5, angle=90.0, plane="XY")
+            pipe.run(1.0)
+            pipe.end(support="anchor")
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("wind", 1000.0, direction=[0.0, -1.0, 0.0])
+        bend = next(element for element in model.elements if element.type == "pipe_bend")
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        block = comm[comm.index("WIND_TUY = AFFE_CHAR_MECA_F(") : comm.index("# ----- Solve -----")]
+        self.assertIn(f"GROUP_MA='{bend.id}'", block)
+        self.assertIn("NOM_PARA=('X', 'Y', 'Z')", comm)
+        self.assertIn("sqrt(", comm)
+
+    def test_wind_on_beam_modelized_pipes_keeps_code_aster_vent(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("wind", 1000.0, route_id="P-100", direction=[0.0, 1.0, 0.0])
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir, pipe_modelization=PipeModelization.POU_D_T).export_study(
+                model, "Operating", tmpdir
+            )
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("WIND = AFFE_CHAR_MECA_F(", comm)
+        self.assertIn("TYPE_CHARGE='VENT'", comm)
+        self.assertIn("GROUP_MA='pipe_str_0'", comm)
+        self.assertNotIn("WIND_TUY", comm)
+
+    def test_wind_and_line_load_on_one_pipe_stay_separate_loads(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("wind", 1000.0, direction=[0.0, 1.0, 0.0])
+        operating.add_field("line_load", 50.0, direction=[0.0, 0.0, -1.0])
+
+        with TemporaryDirectory() as tmpdir:
+            CodeAsterSolver(work_dir=tmpdir).export_study(model, "Operating", tmpdir)
+            comm = (Path(tmpdir) / "study.comm").read_text(encoding="utf-8")
+
+        # One FORCE_POUTRE command keeps only its last occurrence per element, so the two
+        # loads must be separate concepts that EXCIT adds.
+        self.assertIn("WIND_TUY = AFFE_CHAR_MECA_F(", comm)
+        self.assertIn("LINELOAD = AFFE_CHAR_MECA(", comm)
+        excit = comm[comm.index("EXCIT=(") :]
+        self.assertLess(excit.index("_F(CHARGE=WIND_TUY),"), excit.index("_F(CHARGE=LINELOAD),"))
+
+    def test_wind_refuses_partial_station_ranges_and_elements_that_cannot_carry_it(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field(
+            "wind", 1000.0, route_id="P-100", station_start=0.0, station_end=0.5, direction=[0.0, 1.0, 0.0]
+        )
+        with self.assertRaisesRegex(ModelValidationError, r"wind station range 0 to 0\.5 only partly covers 'pipe_str_0'"):
             model.validate()
+
+        rack = _model("WindRack")
+        with rack.pipe("PipeSec", "Steel", route="RACK") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.run(2.0)
+            pipe.bar(2.0)
+            pipe.end(support="anchor")
+        rack.define_operation("Operating", gravity=False).add_field(
+            "wind", 1000.0, route_id="RACK", direction=[0.0, 1.0, 0.0]
+        )
+        with self.assertRaisesRegex(ModelValidationError, r"cannot carry 'wind': \['bar_0'\]"):
+            rack.validate()
 
     def test_line_load_exports_plain_force_poutre_on_pipes_and_beams(self):
         model = _two_element_route()
