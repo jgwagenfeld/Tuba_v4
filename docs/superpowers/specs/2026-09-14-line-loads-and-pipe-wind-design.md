@@ -52,8 +52,9 @@ the TUYAU segments, and the sin² rule is the one that reproduces `VENT`.
      axis × (P − center) from the stored bend geometry.
 4. **Each kind of load is its own load concept:** `WIND` (`VENT`), `WIND_TUY` (Tuba's rule) and `LINELOAD`, so
    they add up in `EXCIT`. Within a concept, each element appears in at most one `FORCE_POUTRE` row (fact 7).
-5. **Overlapping line loads that disagree fail validation**, through the existing overlap rule, so the engineer
-   authors one combined field. Summing per element can come later if needed.
+5. **Any two line loads on the same element are refused, even when they agree.** Line loads add, so applying
+   agreeing fields once would silently under-load the pipe; the engineer authors one combined field. Summing per
+   element can come later if needed.
 6. **No compiler-id bump.** Models valid before this change export byte-identical studies, so committed evidence
    stays current.
 7. **Cables and bars take neither load** until a solve backs them.
