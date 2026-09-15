@@ -596,8 +596,10 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
                 solver = CodeAsterSolver(work_dir=scratch, **gallery.solver_options)
                 study = solver.export_analysis_study(model, case, scratch)
                 fresh = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+                fresh_mail = (Path(study.work_dir) / "study.mail").read_text(encoding="utf-8")
             committed = (gallery.artifact_dir / "study.comm").read_text(encoding="utf-8")
             self.assertEqual(fresh, committed, gallery.id)
+            self.assertEqual(fresh_mail, (gallery.artifact_dir / "study.mail").read_text(encoding="utf-8"), gallery.id)
             checked += 1
         self.assertGreater(checked, 0)
 
