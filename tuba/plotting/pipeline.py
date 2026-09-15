@@ -47,13 +47,6 @@ def _require_pyvista():
         )
 
 
-def get_section_radius(sec) -> float:
-    """Calculate an equivalent radius for a section profile [m]."""
-    from tuba.geometry.profiles import collision_radius_for_section
-
-    return collision_radius_for_section(sec)
-
-
 # ---------------------------------------------------------------------------
 # Loading .rmed results
 # ---------------------------------------------------------------------------
@@ -574,16 +567,8 @@ def _get_element_3d_mesh(
         )
     
     # 1. Determine centerline path points
-    if elem.type == "pipe_bend" and elem.bend_radius:
-        path = _get_bend_points(model, elem, n_segments=16)
-    else:
-        p1 = model.nodes[elem.n1].coords
-        p2 = model.nodes[elem.n2].coords
-        path = np.array([p1, p2])
-        
+    path = _get_bend_points(model, elem, n_segments=16)
     N = len(path)
-    if N < 2:
-        return pv.PolyData()
         
     # 2. Get 2D profile loops
     sec = model.sections[elem.section]
@@ -603,25 +588,16 @@ def _get_element_3d_mesh(
         
     lx = t0
     # Base local coordinate frame calculation matching Code_Aster
-    if elem.type in ("pipe_straight", "pipe_bend"):
-        V = np.array([0.0, 0.0, 1.0])
-        cross = np.cross(V, lx)
-        norm_cross = np.linalg.norm(cross)
-        if norm_cross > 1e-9:
-            ly = cross / norm_cross
-        else:
-            V_fallback = np.array([0.0, 1.0, 0.0])
-            cross = np.cross(V_fallback, lx)
-            ly = cross / np.linalg.norm(cross)
-        lz = np.cross(lx, ly)
+    V = np.array([0.0, 0.0, 1.0])
+    cross = np.cross(V, lx)
+    norm_cross = np.linalg.norm(cross)
+    if norm_cross > 1e-9:
+        ly = cross / norm_cross
     else:
-        Z = np.array([0.0, 0.0, 1.0])
-        if np.abs(np.abs(lx[2]) - 1.0) < 1e-6:
-            ly = np.array([0.0, 1.0, 0.0])
-        else:
-            cross = np.cross(Z, lx)
-            ly = cross / np.linalg.norm(cross)
-        lz = np.cross(lx, ly)
+        V_fallback = np.array([0.0, 1.0, 0.0])
+        cross = np.cross(V_fallback, lx)
+        ly = cross / np.linalg.norm(cross)
+    lz = np.cross(lx, ly)
         
     # Apply twist angle
     twist_deg = getattr(elem, "twist_angle", 0.0)

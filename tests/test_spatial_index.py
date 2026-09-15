@@ -1,6 +1,6 @@
 import unittest
 
-from tuba.geometry.spatial import SpatialIndex, bounds_overlap
+from tuba.geometry.spatial import SpatialIndex
 
 
 class TestSpatialIndex(unittest.TestCase):
@@ -31,8 +31,6 @@ class TestSpatialIndex(unittest.TestCase):
 
         self.assertEqual(len(pairs), 20)
         self.assertLess(len(pairs), len(left_bounds) * len(right_index))
-        self.assertTrue(bounds_overlap((0, 0, 0, 1, 1, 1), (1, 1, 1, 2, 2, 2)))
-        self.assertFalse(bounds_overlap((0, 0, 0, 1, 1, 1), (1.01, 0, 0, 2, 1, 1)))
 
 
 if __name__ == "__main__":

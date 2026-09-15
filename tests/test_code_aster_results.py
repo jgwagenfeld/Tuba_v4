@@ -505,7 +505,6 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                 results = CodeAsterSolver()._parse_results(model, root)
 
             self.assertEqual(root / "study.rmed", results.result_file)
-            self.assertIsNone(results.raw_mesh)
 
         self.assertEqual([], calls)
 

@@ -14,7 +14,6 @@ from tuba.analysis import AnalysisMesh, AnalysisStudy
 from tuba.routing.adapter import apply_candidate_to_model
 from tuba.routing.postprocess import build_segments
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, RouteEndpoint, RoutingConstraints
-from tuba.solver.base import FEAResults
 from tuba.solver.aster import CodeAsterSolver
 
 
@@ -563,29 +562,6 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
 
         self.assertEqual(captured["config"].exec_method, "wsl")
         self.assertEqual(captured["config"].wsl_distro, "Ubuntu")
-
-    def test_rmed_loader_reads_rmed_with_med_format(self):
-        calls = []
-
-        class FakeMesh:
-            points = [(0.0, 0.0, 0.0)]
-
-        class FakeMeshio:
-            @staticmethod
-            def read(path, *, file_format=None):
-                calls.append((Path(path).name, file_format))
-                return FakeMesh()
-
-        with TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            (root / "study.rmed").write_bytes(b"fake-med-content")
-            results = FEAResults(solver_name="Code_Aster")
-
-            with patch.dict("sys.modules", {"meshio": FakeMeshio}):
-                CodeAsterSolver._try_load_rmed(root, results)
-
-        self.assertEqual(calls, [("study.rmed", "med")])
-        self.assertIsInstance(results.raw_mesh, FakeMesh)
 
     def test_refreshable_galleries_keep_their_committed_study_text(self):
         from importlib import import_module

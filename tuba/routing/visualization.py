@@ -278,9 +278,9 @@ def _as_point(point) -> Point3D:
 def _section_radius(model: TubaModel, section_name: str) -> float:
     if section_name not in model.sections:
         raise ValueError(f"Cannot visualize route geometry: section {section_name!r} is not defined.")
-    from tuba.plotting.pipeline import get_section_radius
+    from tuba.geometry.profiles import collision_radius_for_section
 
-    return get_section_radius(model.sections[section_name])
+    return collision_radius_for_section(model.sections[section_name])
 
 
 def _route_radius(model: TubaModel, request: PipeRouteRequest | None) -> float:

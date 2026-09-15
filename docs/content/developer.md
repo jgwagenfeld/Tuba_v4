@@ -22,7 +22,7 @@ Tuba is split by ownership: model authoring, Code_Aster export/execution/import,
 | `viewer/` | Three.js review renderer; no engineering calculation |
 | `tuba.reporting.compliance` | Data records for user-supplied stress checks; no built-in standards evaluation |
 | `tuba.clash`, `tuba.rules` | Geometric clash and rule checks |
-| `tuba.quantities`, `tuba.load_path` | Quantity takeoff, wind loads, and load-path analysis |
+| `tuba.quantities`, `tuba.load_path` | Quantity takeoff and load-path analysis |
 | `tuba.external` | IFC and BOM boundaries |
 
 The dependency direction is:

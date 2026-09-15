@@ -106,30 +106,6 @@ class Material:
         """Shear modulus derived from E and nu."""
         return self.E / (2.0 * (1.0 + self.nu))
 
-    def get_allowable(self, temperature: float) -> float:
-        """Linearly interpolate allowable stress for *temperature* [°C].
-
-        Returns the nearest boundary value if *temperature* is outside the
-        defined range.
-        """
-        if not self.allowable_stress:
-            raise ValueError(f"No allowable stress data for material '{self.name}'")
-        temps = sorted(self.allowable_stress.keys())
-        if temperature <= temps[0]:
-            return self.allowable_stress[temps[0]]
-        if temperature >= temps[-1]:
-            return self.allowable_stress[temps[-1]]
-        # Linear interpolation
-        for i in range(len(temps) - 1):
-            t0, t1 = temps[i], temps[i + 1]
-            if t0 <= temperature <= t1:
-                s0 = self.allowable_stress[t0]
-                s1 = self.allowable_stress[t1]
-                frac = (temperature - t0) / (t1 - t0)
-                return s0 + frac * (s1 - s0)
-        # Fallback (should not reach here)
-        return self.allowable_stress[temps[-1]]
-
 
 @dataclass
 class PipeSection:
@@ -180,17 +156,6 @@ class PipeSection:
     def Z(self) -> float:
         """Elastic section modulus [m³]."""
         return self.I / (self.OD / 2.0)
-
-    @property
-    def corroded_Z(self) -> float:
-        """Section modulus with corroded wall [m³]."""
-        t = self.corroded_WT
-        OD_c = self.OD  # OD unchanged by internal corrosion
-        ID_c = OD_c - 2.0 * t
-        r_o = OD_c / 2.0
-        r_i = ID_c / 2.0
-        I_c = math.pi / 4.0 * (r_o**4 - r_i**4)
-        return I_c / r_o
 
 
 @dataclass
@@ -1114,10 +1079,6 @@ class TubaModel:
                 op.add_field(**field_record)
         self.operations[name] = op
         return op
-
-    def operation(self, *args, **kwargs) -> Operation:
-        """Convenience alias for :meth:`define_operation`."""
-        return self.define_operation(*args, **kwargs)
 
     def resolve_load_case(self, name: Optional[str] = None) -> Tuple[str, LoadCase]:
         """Return a named load case or uniform operation as a load case."""

@@ -511,28 +511,6 @@ MODEL_SCHEMA_V4 = {
             },
             "additionalProperties": False,
         },
-        "bendGeometry": {
-            "type": "object",
-            "required": [
-                "center",
-                "normal",
-                "radius",
-                "angle",
-                "start_tangent",
-                "end_tangent",
-                "generation_mode",
-            ],
-            "properties": {
-                "center": {"$ref": "#/$defs/vector3"},
-                "normal": {"$ref": "#/$defs/vector3"},
-                "radius": {"type": "number", "exclusiveMinimum": 0.0},
-                "angle": {"type": "number"},
-                "start_tangent": {"$ref": "#/$defs/vector3"},
-                "end_tangent": {"$ref": "#/$defs/vector3"},
-                "generation_mode": {"type": "string"},
-            },
-            "additionalProperties": False,
-        },
         "vector3": {
             "type": "array",
             "minItems": 3,

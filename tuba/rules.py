@@ -112,14 +112,3 @@ class ClashFreeRule:
                 )
             )
         return results
-
-
-def rule_report_to_markdown(report: RuleReport) -> str:
-    lines = ["# Rule Report", "", f"Passed: {'yes' if report.passed else 'no'}", ""]
-    if not report.results:
-        lines.append("No rule diagnostics.")
-        return "\n".join(lines) + "\n"
-    for result in report.results:
-        refs = ", ".join(str(ref) for ref in result.refs)
-        lines.append(f"- `{result.rule_id}` [{result.severity}]: {result.message} ({refs})")
-    return "\n".join(lines) + "\n"

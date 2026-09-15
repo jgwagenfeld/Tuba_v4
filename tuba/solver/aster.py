@@ -1275,22 +1275,3 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         z_axis = np.cross(x_axis, y_axis)
         z_axis = z_axis / np.linalg.norm(z_axis)
         return y_axis, z_axis
-
-    @staticmethod
-    def _try_load_rmed(work_dir: Path, results: FEAResults) -> None:
-        """Attempt to load the ``.rmed`` file via *meshio* for visualisation."""
-        rmed_path = work_dir / "study.rmed"
-        if not rmed_path.exists():
-            return
-        try:
-            import meshio  # type: ignore[import-untyped]
-            try:
-                mesh = meshio.read(str(rmed_path), file_format="med")
-            except TypeError:
-                mesh = meshio.read(str(rmed_path))
-            results.raw_mesh = mesh
-            logger.info("Loaded MED mesh with %d points.", len(mesh.points))
-        except ImportError:
-            logger.debug("meshio not installed — skipping .rmed import.")
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to read .rmed: %s", exc)

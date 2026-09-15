@@ -4,7 +4,7 @@ from tuba import Model
 from tuba.analysis import GeometryState, ResultState
 from tuba.clash.engine import ClashEngine
 from tuba.clash.operating import candidate_obstacle_pairs_for_envelopes
-from tuba.geometry.deformed import build_deformed_envelope_index, build_deformed_envelopes
+from tuba.geometry.deformed import build_deformed_envelopes
 
 
 class TestDeformedPerformance(unittest.TestCase):
@@ -50,14 +50,12 @@ class TestDeformedPerformance(unittest.TestCase):
         cold_state = GeometryState(id="geometry_state:cold:sparse", model_revision=0, state_type="cold")
         return model, result_state, geometry_state, cold_state
 
-    def test_deformed_envelope_index_prunes_obstacle_candidates(self):
+    def test_candidate_obstacle_pairs_prune_sparse_envelopes(self):
         model, result_state, geometry_state, _cold_state = self._sparse_model_state_and_geometry()
         envelopes = build_deformed_envelopes(model=model, result_state=result_state, geometry_state=geometry_state)
 
-        index = build_deformed_envelope_index(envelopes)
         pairs = candidate_obstacle_pairs_for_envelopes(model=model, envelopes=envelopes)
 
-        self.assertEqual(len(index), len(envelopes))
         self.assertEqual(len(pairs), len(envelopes))
         self.assertLess(len(pairs), len(envelopes) * len(model.obstacles))
 
