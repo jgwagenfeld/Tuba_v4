@@ -171,3 +171,40 @@ test("a selected moment vector exposes Mx, My, Mz, magnitude, node and load case
   assert.equal(moment.lines[0].value, "5 kN·m");
   assert.equal(moment.lines[1].value, "3 / 0 / 4 kN·m");
 });
+
+test("a support's restraint links to the line that adds the support", () => {
+  const state = supportFixture({ support_type: "anchor", node: "N0", property_lines: { restraint: 12 } });
+  assert.equal(getSelectionSummary(state, "object:support:s0").restraintLine, 12);
+  assert.equal(getSelectionSummary(supportFixture({ support_type: "anchor", node: "N0" }), "object:support:s0").restraintLine, undefined);
+});
+
+test("a load arrow names its load case, linked to the line that defines the case", () => {
+  const objects = [{
+    id: "object:applied_load:Operating:N1:0:force",
+    entity_ref: "node:N1",
+    kind: "applied_load",
+    name: "N1 applied force (Operating)",
+    geometry_asset_id: "geometry:applied_load:Operating:N1:0:force",
+    metadata: {
+      load_case: "Operating",
+      node_id: "N1",
+      vector_kind: "force",
+      components: [0, 0, -500],
+      unit: "N",
+      source_line: 14,
+      property_lines: { load_case: 12 }
+    }
+  }];
+  const assets = [{
+    id: "geometry:applied_load:Operating:N1:0:force",
+    format: "vector",
+    bounds: [2, 0, 0, 2, 0, 1],
+    object_ids: [objects[0].id],
+    generation_config: { source: "tuba.applied_loads", load_case: "Operating", node_id: "N1", vector_kind: "force", components: [0, 0, -500], unit: "N" }
+  }];
+
+  const summary = getSelectionSummary(stateWith(objects, assets), objects[0].id);
+
+  const load = summary.sections.find((section) => section.title === "Load");
+  assert.deepEqual(load.lines, [{ kind: "row", label: "Load case", value: "Operating", sourceLine: 12 }]);
+});

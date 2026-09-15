@@ -42,6 +42,9 @@ export function getPropertySections(state, objectId) {
   const externalRows = externalRowsForObject(obj);
   const provenanceRows = provenanceRowsForObject(obj, asset);
   const profileRows = obj.metadata?.profile ?? {};
+  // Where model.py defines each property, when the studio ran it as __main__.
+  const propertyLines = obj.metadata?.property_lines ?? {};
+  const attributeLines = propertyLines.attributes ?? {};
 
   return [
     {
@@ -57,9 +60,17 @@ export function getPropertySections(state, objectId) {
     {
       id: "attributes",
       title: "Attributes",
-      rows: compactRows({ section: obj.metadata?.section, material: obj.metadata?.material, ...attributes })
+      rows: compactRows({ section: obj.metadata?.section, material: obj.metadata?.material, ...attributes }),
+      sourceLines: compactRows({
+        section: propertyLines.section,
+        material: propertyLines.material,
+        ...attributeLines,
+        // The insulation rows spell out the one assignment behind them.
+        insulation_material: attributeLines.insulation,
+        insulation_thickness_m: attributeLines.insulation
+      })
     },
-    { id: "profile", title: "Profile", rows: compactRows(profileRows) },
+    { id: "profile", title: "Profile", rows: compactRows(profileRows), sourceLine: propertyLines.section },
     { id: "physical", title: "Physical", rows: compactRows(obj.physical ?? {}) },
     { id: "quantities", title: "Quantities", rows: compactRows(obj.quantities ?? {}) },
     { id: "result_values", title: "Result Values", rows: compactRows(resultRows) },

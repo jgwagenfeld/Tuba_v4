@@ -264,6 +264,18 @@ function clashLede(obj, system) {
   return `${left} overlaps ${right}${overlap}.`;
 }
 
+// A load arrow is authored input: say which load case applies it, linked to the
+// line in model.py that defines that case.
+function loadSection(obj) {
+  const metadata = obj.metadata ?? {};
+  if (obj.kind !== "applied_load" || !metadata.load_case) return [];
+  const sourceLine = metadata.property_lines?.load_case;
+  return [{
+    title: "Load",
+    lines: [{ kind: "row", label: "Load case", value: metadata.load_case, ...(sourceLine ? { sourceLine } : {}) }]
+  }];
+}
+
 export function getSelectionSummary(state, objectId) {
   const obj = (state.objects ?? []).find((candidate) => candidate.id === objectId);
   if (!obj) return null;
@@ -283,7 +295,13 @@ export function getSelectionSummary(state, objectId) {
     .filter((section) => !FOLDED_SECTIONS.has(section.id))
     .map((section) => ({
       title: section.title,
-      lines: Object.entries(section.rows).map(([label, value]) => ({ kind: "row", label, value }))
+      ...(section.sourceLine ? { sourceLine: section.sourceLine } : {}),
+      lines: Object.entries(section.rows).map(([label, value]) => ({
+        kind: "row",
+        label,
+        value,
+        ...(section.sourceLines?.[label] ? { sourceLine: section.sourceLines[label] } : {})
+      }))
     }));
 
   return {
@@ -303,6 +321,7 @@ export function getSelectionSummary(state, objectId) {
       point ? `${point.map((value) => formatNumber(value)).join(", ")} m` : null
     ].filter(Boolean).join(` ${MIDDOT} `),
     dofs: dofStates ? DOF_AXES.map((axis, index) => ({ axis, state: dofStates[index] })) : null,
+    restraintLine: isSupport ? obj.metadata?.property_lines?.restraint : undefined,
     sections: isSupport
       ? [
           ...definitionSection(config, state, system),
@@ -310,7 +329,7 @@ export function getSelectionSummary(state, objectId) {
           ...(contact.section ? [contact.section] : []),
           ...generic
         ]
-      : [...resultVectorSection(obj, asset, system), ...generic],
+      : [...resultVectorSection(obj, asset, system), ...loadSection(obj), ...generic],
     reference: compact({
       entity_ref: obj.entity_ref,
       geometry: asset?.format,

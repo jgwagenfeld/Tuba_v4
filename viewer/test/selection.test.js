@@ -10,6 +10,7 @@ import {
   pickObjectAt,
   selectObject
 } from "../src/selection.js";
+import { getSelectionSummary } from "../src/selectionSummary.js";
 
 function fixtureState() {
   return createViewerState({
@@ -209,6 +210,38 @@ test("getPropertySections exposes result values clashes external refs and proven
   const meshSections = Object.fromEntries(getPropertySections(state, "object:mesh").map((section) => [section.id, section]));
   assert.equal(meshSections.provenance.rows.source_ref, "element:pipe_insulated");
   assert.equal(meshSections.provenance.rows.role, "native_element");
+});
+
+test("property sections carry the model.py line that defines each property", () => {
+  const state = fixtureState();
+  state.objects[0].metadata.property_lines = { section: 5, material: 4, attributes: { insulation: 11 } };
+
+  const byId = Object.fromEntries(getPropertySections(state, "object:element:pipe_0").map((section) => [section.id, section]));
+  assert.equal(byId.profile.sourceLine, 5);
+  assert.deepEqual(byId.attributes.sourceLines, {
+    section: 5,
+    material: 4,
+    insulation: 11,
+    insulation_material: 11,
+    insulation_thickness_m: 11
+  });
+
+  const summary = getSelectionSummary(state, "object:element:pipe_0");
+  const attributes = summary.sections.find((section) => section.title === "Attributes");
+  assert.equal(attributes.lines.find((line) => line.label === "material").sourceLine, 4);
+  assert.equal(summary.sections.find((section) => section.title === "Profile").sourceLine, 5);
+});
+
+test("a property the script did not define carries no line", () => {
+  const state = fixtureState();
+
+  const byId = Object.fromEntries(getPropertySections(state, "object:element:pipe_0").map((section) => [section.id, section]));
+  assert.equal(byId.profile.sourceLine, undefined);
+  assert.deepEqual(byId.attributes.sourceLines, {});
+
+  const summary = getSelectionSummary(state, "object:element:pipe_0");
+  const attributes = summary.sections.find((section) => section.title === "Attributes");
+  assert.equal("sourceLine" in attributes.lines.find((line) => line.label === "material"), false);
 });
 
 test("hideSelected and isolateSelection update visible object ids", () => {
