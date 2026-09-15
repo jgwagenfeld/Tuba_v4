@@ -8,7 +8,9 @@ import numpy as np
 import pytest
 
 from tuba import Model
+from tuba.builder import BuildStep
 from tuba.model import TubaModel
+from tuba.patches import ModelPatch, ModelTransaction
 from tuba.project import load_project, run_model_script
 from tuba.project.script import GENERATED_HEADER, generate_model_script, is_generated, same_model
 from tuba.project.script import AuthoredModelScript, ModelScriptChanged, write_model_script
@@ -39,6 +41,19 @@ def _rebuild(text: str) -> TubaModel:
     namespace: dict = {"__name__": "generated_model_check"}
     exec(compile(text, "model.py", "exec"), namespace)
     return namespace["model"]
+
+
+def _block(*steps: str, section: str = "DN100", material: str = "Steel", route: str | None = None) -> str:
+    route_argument = "" if route is None else f", route={route!r}"
+    head = f"with model.pipe(section={section!r}, material={material!r}{route_argument}) as builder:"
+    return "\n".join([head, *(f"    builder.{step}" for step in steps)])
+
+
+def _sections_model(name: str) -> TubaModel:
+    model = Model(name)
+    model.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0, alpha=1.2e-5)
+    model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+    return model
 
 
 @pytest.mark.parametrize("folder", EXAMPLES, ids=lambda folder: folder.name)
@@ -130,7 +145,120 @@ def test_a_generated_script_keeps_a_numpy_boolean():
     assert same_model(model, _rebuild(generate_model_script(model)))
 
 
-def test_each_element_and_support_links_to_its_own_line(tmp_path: Path):
+def test_a_pipe_block_is_written_as_the_steps_that_built_it():
+    namespace: dict = {"__name__": "generated_model_check"}
+    exec(compile(_BUILDER, "authored.py", "exec"), namespace)
+    model = namespace["model"]
+
+    text = generate_model_script(model)
+
+    assert _block(
+        "start([0.0, 0.0, 0.0], support='anchor')",
+        "run(4.0)",
+        "bend(radius=0.3, angle=90.0, plane='XY')",
+        "add_support(type='guide')",
+        "run(2.0)",
+        "end(support='anchor')",
+    ) in text
+    assert "model.add_node(" not in text and "model.add_element(" not in text
+    assert same_model(model, _rebuild(text))
+    single_calls = generate_model_script(model, pipe_runs=False)
+    assert "with model.pipe(" not in single_calls
+    assert same_model(model, _rebuild(single_calls))
+
+
+def test_beams_and_cables_are_written_under_their_own_names():
+    model = _sections_model("Members")
+    model.add_ibeam_section("IPE100", "IPE100")
+    model.add_cable_section("Guy", radius=0.006, pretension=500.0)
+    with model.pipe(section="IPE100", material="Steel") as builder:
+        builder.start([0.0, 0.0, 0.0]).beam(1.5, twist_angle=45.0)
+    with model.pipe(section="Guy", material="Steel", route="G-1") as builder:
+        builder.start([0.0, 0.0, 1.0])
+        builder.set_direction([1.0, 0.0, -1.0])
+        builder.cable(2.0)
+
+    text = generate_model_script(model)
+
+    assert _block("start([0.0, 0.0, 0.0])", "beam(1.5, twist_angle=45.0)", section="IPE100") in text
+    assert _block(
+        "start([0.0, 0.0, 1.0])", "set_direction([1.0, 0.0, -1.0])", "cable(2.0)", section="Guy", route="G-1"
+    ) in text
+    assert same_model(model, _rebuild(text))
+
+
+def test_records_added_between_two_runs_stay_single_calls_in_creation_order():
+    model = _line_model()
+    patch = ModelPatch.from_dict(
+        {
+            "operations": [
+                {"op": "add_node", "local_id": "far", "coords": [2.0, 3.0, 0.0]},
+                {
+                    "op": "add_element", "local_id": "link", "type": "pipe_straight",
+                    "n1": "N1", "n2": "far", "section": "DN100", "material": "Steel",
+                },
+            ],
+            "provenance": {"source": "test"},
+        }
+    )
+    ModelTransaction(model).apply(patch, validate=False)
+    with model.pipe(section="DN100", material="Steel") as builder:
+        builder.start([2.0, 3.0, 0.0])  # snaps onto the patch's node
+        builder.run(1.0)
+
+    text = generate_model_script(model)
+    lines = text.splitlines()
+    first, second = [index for index, line in enumerate(lines) if line.startswith("with model.pipe(")]
+    link = next(index for index, line in enumerate(lines) if line.startswith("model.add_element(id='pipe_str_1'"))
+
+    assert first < lines.index("model.add_node([2.0, 3.0, 0.0])") < link < second
+    assert same_model(model, _rebuild(text))
+
+
+def test_a_model_call_inside_a_block_is_written_after_it():
+    model = _sections_model("Foreign call")
+    with model.pipe(section="DN100", material="Steel") as builder:
+        builder.start([0.0, 0.0, 0.0])
+        builder.run(2.0)
+        model.add_support(node=builder.last_node_id, type="anchor")
+        builder.run(1.0)
+
+    text = generate_model_script(model)
+
+    support = "model.add_support(node='N1', type='anchor', id='support_0')"
+    assert _block("start([0.0, 0.0, 0.0])", "run(2.0)", "run(1.0)") + "\n" + support in text
+    assert same_model(model, _rebuild(text))
+
+
+def test_a_run_whose_records_are_interleaved_is_written_as_single_calls():
+    model = _sections_model("Interleaved")
+    with model.pipe(section="DN100", material="Steel") as builder:
+        builder.start([0.0, 0.0, 0.0])
+        builder.run(1.0)
+        model.add_node([5.0, 5.0, 5.0])  # takes N2 between the run's own nodes
+        builder.run(1.0)
+
+    text = generate_model_script(model)
+
+    assert "with model.pipe(" not in text
+    assert same_model(model, _rebuild(text))
+
+
+def test_a_run_with_its_own_up_vector_is_written_as_single_calls():
+    model = _sections_model("Up vector")
+    with model.pipe(section="DN100", material="Steel") as builder:
+        builder.up_vector = np.array([0.0, 1.0, 0.0])
+        builder.start([0.0, 0.0, 0.0])
+        builder.run(1.0)
+        builder.bend(radius=0.3, angle=90.0, plane="XY")
+
+    text = generate_model_script(model)
+
+    assert "with model.pipe(" not in text
+    assert same_model(model, _rebuild(text))
+
+
+def test_generated_elements_link_to_their_steps_and_supports_to_their_points(tmp_path: Path):
     namespace: dict = {"__name__": "__main__"}
     exec(compile(_BUILDER, "authored.py", "exec"), namespace)
     script = tmp_path / "model.py"
@@ -138,13 +266,20 @@ def test_each_element_and_support_links_to_its_own_line(tmp_path: Path):
 
     rebuilt = run_model_script(script)["model"]
     lines = script.read_text(encoding="utf-8").splitlines()
-    for element in rebuilt.elements:
-        assert lines[element.source_line - 1].startswith("model.add_element(")
-        assert repr(element.id) in lines[element.source_line - 1]
-    for support in rebuilt.supports:
-        assert lines[support.source_line - 1].startswith("model.add_support(")
-    recorded = [item.source_line for item in [*rebuilt.elements, *rebuilt.supports]]
-    assert len(set(recorded)) == len(recorded)
+
+    def step(record) -> str:
+        return lines[record.source_line - 1].strip()
+
+    assert {element.id: step(element) for element in rebuilt.elements} == {
+        "pipe_str_0": "builder.run(4.0)",
+        "pipe_bend_0": "builder.bend(radius=0.3, angle=90.0, plane='XY')",
+        "pipe_str_1": "builder.run(2.0)",
+    }
+    assert {support.id: step(rebuilt.nodes[support.node]) for support in rebuilt.supports} == {
+        "support_0": "builder.start([0.0, 0.0, 0.0], support='anchor')",
+        "support_1": "builder.bend(radius=0.3, angle=90.0, plane='XY')",
+        "support_2": "builder.run(2.0)",
+    }
 
 
 def test_a_byte_order_mark_does_not_hide_the_header():
@@ -247,10 +382,21 @@ def test_writing_refuses_a_script_that_does_not_rebuild_the_model(tmp_path: Path
     monkeypatch.setattr(
         script_module,
         "generate_model_script",
-        lambda model: GENERATED_HEADER + "\nfrom tuba.model import TubaModel\nmodel = TubaModel(project_name='Other')\n",
+        lambda model, **_options: GENERATED_HEADER + "\nfrom tuba.model import TubaModel\nmodel = TubaModel(project_name='Other')\n",
     )
     target = tmp_path / "project" / "model.py"
 
     with pytest.raises(ValueError, match="does not rebuild"):
         write_model_script(target, _line_model(), last_text=None)
     assert not target.parent.exists()
+
+
+def test_writing_falls_back_to_single_calls_when_the_blocks_do_not_rebuild_the_model(tmp_path: Path):
+    target = tmp_path / "model.py"
+    model = _line_model()
+    model.pipe_runs[0].recipe.steps[1] = BuildStep(op="run", params={"length": 3.0})  # no longer what built N1
+
+    text = write_model_script(target, model, last_text=None)
+
+    assert "with model.pipe(" not in text
+    assert same_model(model, run_model_script(target)["model"])

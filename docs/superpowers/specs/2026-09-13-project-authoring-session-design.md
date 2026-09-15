@@ -76,7 +76,9 @@ producer become thin callers of it.
 9. A generated model script is a hybrid: one public call per node, element,
    support, load case and operation (so source-line links work), plus one exact
    data block for records without a public call (groups, specs other than
-   insulation, I-beam properties).
+   insulation, I-beam properties). Amended 2026-09-15: pipe runs are written as
+   their builder steps (`2026-09-15-geometry-first-script-links-design.md`,
+   decision 7).
 
 ### Evidence
 

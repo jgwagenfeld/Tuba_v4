@@ -64,6 +64,44 @@ def test_build_pipe_run_procedural(tmp_path: Path):
     assert len(info["supports"]) == 2
 
 
+def test_a_built_pipe_run_is_saved_as_its_steps_through_a_reload_and_a_patch(tmp_path: Path):
+    model_file = tmp_path / "vectors" / "model.py"
+    init_session(project_name="Vectors", file_path=str(model_file), load_existing=False)
+    build_pipe_run(
+        section="DN100_SCH40",
+        material="P265GH",
+        steps=[
+            {"op": "start", "point": [0.0, 0.0, 0.0], "support": "anchor"},
+            {"op": "run", "length": 5.0},
+            {"op": "bend", "radius": 0.1524, "angle": 90.0, "plane": "XY"},
+            {"op": "run", "length": 3.0},
+        ],
+    )
+    block = "\n".join(
+        [
+            "with model.pipe(section='DN100_SCH40', material='P265GH') as builder:",
+            "    builder.start([0.0, 0.0, 0.0], support='anchor')",
+            "    builder.run(5.0)",
+            "    builder.bend(radius=0.1524, angle=90.0, plane='XY')",
+            "    builder.run(3.0)",
+        ]
+    )
+    assert block in model_file.read_text(encoding="utf-8")
+
+    assert init_session(file_path=str(model_file))["status"] == "loaded"
+    apply_model_patch(
+        [
+            {"op": "add_node", "local_id": "extra", "coords": [9.0, 0.0, 0.0]},
+            {"op": "add_support", "node": "extra", "type": "anchor"},
+        ]
+    )
+
+    text = model_file.read_text(encoding="utf-8")
+    assert block in text
+    assert "model.add_node([9.0, 0.0, 0.0])" in text
+    assert same_model(run_model_script(model_file)["model"], get_active_model())
+
+
 def test_configure_load_case_and_forces(tmp_path: Path):
     model_file = tmp_path / "lc" / "model.py"
     init_session(project_name="Load Case Test", file_path=str(model_file), load_existing=False)

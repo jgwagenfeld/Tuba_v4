@@ -1,15 +1,17 @@
 """Generated model scripts: the ``model.py`` an authoring session writes for its model.
 
 A generated model script starts with ``GENERATED_HEADER``; any other script is authored,
-and tools read it but never rewrite it. A generated script makes one public call per
-record where a call reproduces the record exactly, so every element and support links to
-its own line in the studio, and writes literals for the rest (groups, specs other than
-insulation, I-beam properties). Running it rebuilds a model that serialises to the same
-JSON text as the model it was generated from.
+and tools read it but never rewrite it. A generated script writes geometry in creation
+order: each pipe run the model remembers as the builder steps that built it, and one public
+call per other node, element and support, so every element and support links to a line in
+the studio. Other records are public calls where a call reproduces the record exactly, and
+literals otherwise (groups, specs other than insulation, I-beam properties). Running it
+rebuilds a model that serialises to the same JSON text as the model it was generated from.
 """
 
 from __future__ import annotations
 
+import inspect
 import json
 import math
 from dataclasses import fields
@@ -18,6 +20,7 @@ from typing import Any
 
 import numpy as np
 
+from tuba.builder import BuildStep, BuiltRun, PipingBuilder
 from tuba.model import BarSection, CableSection, IBeamSection, PipeSection, RectangularSection, TubaModel
 from tuba.refs import EntityRef
 
@@ -42,8 +45,13 @@ def same_model(first: TubaModel, second: TubaModel) -> bool:
     return _json_text(first) == _json_text(second)
 
 
-def generate_model_script(model: TubaModel) -> str:
-    """The generated model script that rebuilds *model*."""
+def generate_model_script(model: TubaModel, *, pipe_runs: bool = True) -> str:
+    """The generated model script that rebuilds *model*.
+
+    With *pipe_runs*, each pipe run the model remembers is written as its builder steps
+    where a block reproduces it; ``pipe_runs=False`` writes every node, element and
+    support as one call.
+    """
     from tuba.attributes import InsulationSpec
 
     node_ids = list(model.nodes)
@@ -69,12 +77,7 @@ def generate_model_script(model: TubaModel) -> str:
         )
     for name, section in model.sections.items():
         lines.append(_section_line(name, section))
-    for node in model.nodes.values():
-        lines.append(f"model.add_node({_literal(node.coords.tolist())})")
-    for element in data["elements"]:
-        lines.append(_element_line(element))
-    for support in data["supports"]:
-        lines.append(f"model.add_support({_keywords(support)})")
+    lines.extend(_geometry_lines(model, data, model.pipe_runs if pipe_runs else []))
     for name, case in model.load_cases.items():
         lines.append(
             f"model.define_load_case({_literal(name)}, gravity={_literal(case.gravity)}, "
@@ -136,15 +139,14 @@ def write_model_script(path: str | Path, model: TubaModel, *, last_text: str | N
 
     *last_text* is the text this caller last read from, or wrote to, *path* (None when the
     file did not exist), as ``Path.read_text(encoding="utf-8")`` returns it or as this
-    function returned it. Nothing is written when the file holds an authored script, when it
-    changed since *last_text*, or when running the generated text does not rebuild *model*.
+    function returned it. The text with pipe-run blocks is written when running it rebuilds
+    *model*, otherwise the text with single calls. Nothing is written when the file holds an
+    authored script, when it changed since *last_text*, or when neither text rebuilds *model*.
     """
     target = Path(path)
     _check_rewritable(target, last_text)
-    text = generate_model_script(model)
-    namespace: dict[str, Any] = {"__name__": "tuba_generated_model_check"}  # not __main__: no source lines needed
-    exec(compile(text, "<generated model script>", "exec"), namespace)
-    if not same_model(model, namespace["model"]):
+    text = _rebuilding_text(model)
+    if text is None:
         raise ValueError(f"The generated script for {target} does not rebuild the model exactly, so it was not written.")
     # Check again: the proof takes time, and an editor may have saved the file meanwhile.
     _check_rewritable(target, last_text)
@@ -156,6 +158,26 @@ def write_model_script(path: str | Path, model: TubaModel, *, last_text: str | N
     # os.replace with short retries once the watcher tolerates sharing violations.
     target.write_text(text, encoding="utf-8", newline="")
     return text
+
+
+def _rebuilding_text(model: TubaModel) -> str | None:
+    """The generated text that rebuilds *model*: with pipe-run blocks when that one does, else with single calls."""
+    if model.pipe_runs:
+        # ponytail: one run that replays inexactly flattens the whole script; prove runs one by one if that matters.
+        try:
+            text = generate_model_script(model)
+            if _rebuilds(model, text):
+                return text
+        except Exception:  # a block that cannot even run is a failed proof too
+            pass
+    text = generate_model_script(model, pipe_runs=False)
+    return text if _rebuilds(model, text) else None
+
+
+def _rebuilds(model: TubaModel, text: str) -> bool:
+    namespace: dict[str, Any] = {"__name__": "tuba_generated_model_check"}  # not __main__: no source lines needed
+    exec(compile(text, "<generated model script>", "exec"), namespace)
+    return same_model(model, namespace["model"])
 
 
 def _check_rewritable(target: Path, last_text: str | None) -> None:
@@ -203,6 +225,95 @@ def _element_line(element: dict[str, Any]) -> str:
     if geometry is not None:
         text += f", bend_geometry=BendGeometry({_keywords(geometry)})"
     return f"model.add_element({text})"
+
+
+# Steps whose first argument reads as the step itself: start([...]), run(5.0), beam(1.5).
+_POSITIONAL_STEPS = frozenset({"start", "run", "run_element", "beam", "bar", "cable", "set_direction", "bend_to"})
+_DEFAULT_UP_VECTOR = (0.0, 0.0, 1.0)
+
+
+def _geometry_lines(model: TubaModel, data: dict[str, Any], runs: list[BuiltRun]) -> list[str]:
+    """Nodes, elements and supports in creation order, each replayable pipe run as its block of steps."""
+    nodes = list(model.nodes.values())
+    sequences = (
+        [node.id for node in nodes],
+        [element.id for element in model.elements],
+        [support.id for support in model.supports],
+    )
+    lines: list[str] = []
+    written = (0, 0, 0)
+    for run in _replayable_runs(runs, sequences):
+        lines.extend(_single_calls(nodes, data, written, run.offsets))
+        lines.extend(_block_lines(run))
+        written = _run_end(run)
+    lines.extend(_single_calls(nodes, data, written, tuple(len(sequence) for sequence in sequences)))
+    return lines
+
+
+def _replayable_runs(runs: list[BuiltRun], sequences: tuple[list[str], list[str], list[str]]) -> list[BuiltRun]:
+    """The runs a block reproduces: in order, filling the positions after their offsets, with the default up vector."""
+    replayable: list[BuiltRun] = []
+    reached = (0, 0, 0)
+    for run in runs:
+        created = (run.node_ids, run.element_ids, run.support_ids)
+        fills = all(
+            sequence[offset:offset + len(ids)] == list(ids)
+            for sequence, offset, ids in zip(sequences, run.offsets, created)
+        )
+        in_order = all(offset >= end for offset, end in zip(run.offsets, reached))
+        if fills and in_order and tuple(run.recipe.up_vector) == _DEFAULT_UP_VECTOR:
+            replayable.append(run)
+            reached = _run_end(run)
+    return replayable
+
+
+def _run_end(run: BuiltRun) -> tuple[int, int, int]:
+    created = (run.node_ids, run.element_ids, run.support_ids)
+    return tuple(offset + len(ids) for offset, ids in zip(run.offsets, created))
+
+
+def _single_calls(nodes: list[Any], data: dict[str, Any], start: tuple[int, ...], end: tuple[int, ...]) -> list[str]:
+    lines = [f"model.add_node({_literal(node.coords.tolist())})" for node in nodes[start[0]:end[0]]]
+    lines.extend(_element_line(element) for element in data["elements"][start[1]:end[1]])
+    lines.extend(f"model.add_support({_keywords(support)})" for support in data["supports"][start[2]:end[2]])
+    return lines
+
+
+def _block_lines(run: BuiltRun) -> list[str]:
+    recipe = run.recipe
+    route = "" if recipe.route_id is None else f", route={_literal(recipe.route_id)}"
+    return [
+        f"with model.pipe(section={_literal(recipe.section)}, material={_literal(recipe.material)}{route}) as builder:",
+        *(f"    builder.{_step_call(step)}" for step in recipe.steps),
+    ]
+
+
+def _step_call(step: BuildStep) -> str:
+    """One builder step as source: the main argument positional, the rest keywords, empty defaults left out."""
+    method, params = step.op, dict(step.params)
+    kind = params.get("element_type")
+    # beam(), bar() and cable() record themselves as run_element; write them back by name when that replays identically.
+    if method == "run_element" and (
+        kind == "beam" or (kind in ("bar", "cable") and _is_empty_default(params.get("twist_angle"), 0.0))
+    ):
+        method = params.pop("element_type")
+        if method != "beam":
+            params.pop("twist_angle")
+    parameters = list(inspect.signature(getattr(PipingBuilder, method)).parameters.values())[1:]  # without self
+    arguments = []
+    for index, parameter in enumerate(parameters):
+        if parameter.name not in params or _is_empty_default(params[parameter.name], parameter.default):
+            continue
+        value = _literal(params[parameter.name])
+        arguments.append(value if index == 0 and method in _POSITIONAL_STEPS else f"{parameter.name}={value}")
+    return f"{method}({', '.join(arguments)})"
+
+
+def _is_empty_default(value: Any, default: Any) -> bool:
+    """Whether *value* is an empty default (None, or a float 0.0) that leaving out replays identically."""
+    if default is None:
+        return value is None
+    return type(default) is float and type(value) is float and value == default == 0.0
 
 
 def _keywords(record: dict[str, Any]) -> str:
