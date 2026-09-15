@@ -73,7 +73,7 @@ review = build_engineering_review(
 write_engineering_review(review, "runs/demo_hot/review")
 ```
 
-FE stress remains labelled `FE Von Mises (not piping-code stress)`. Piping-code compliance is available only when an explicit compliance report is supplied.
+FE stress remains labelled `FE Von Mises (not piping-code stress)`.
 
 ## Exactly two visualization paths
 

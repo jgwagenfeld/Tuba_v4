@@ -17,7 +17,6 @@ from tuba.analysis.provenance import (
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
-from tuba.reporting.compliance import ComplianceReport
 from tuba.model import TubaModel
 from tuba.reporting.model import (
     EngineeringReviewError,
@@ -25,7 +24,6 @@ from tuba.reporting.model import (
     ReviewProvenance,
 )
 from tuba.reporting.tables import (
-    build_code_compliance_table,
     build_diagnostics,
     build_diagnostics_table,
     build_model_tables,
@@ -41,7 +39,6 @@ def build_engineering_review(
     studies: Iterable[AnalysisStudy] = (),
     analysis_meshes: Iterable[AnalysisMesh] = (),
     result_states: Iterable[ResultState] = (),
-    compliance_reports: Iterable[ComplianceReport] = (),
     package_id: str | None = None,
     created_at: str | None = None,
 ) -> EngineeringReviewPackage:
@@ -67,16 +64,14 @@ def build_engineering_review(
         study_records = tuple(run.study for run in run_records)
         mesh_records = tuple(run.analysis_mesh for run in run_records if run.analysis_mesh is not None)
         state_records = tuple(run.result_state for run in run_records)
-    compliance_records = tuple(compliance_reports)
     _validate_lineage(
         model,
         study_records,
         mesh_records,
         state_records,
-        compliance_records,
     )
 
-    status = _analysis_status(study_records, state_records, compliance_records)
+    status = _analysis_status(study_records, state_records)
     diagnostics = build_diagnostics(state_records)
     tables = list(build_model_tables(model, analysis_status=status))
     if study_records:
@@ -87,15 +82,6 @@ def build_engineering_review(
                 model,
                 study_records,
                 state_records,
-                compliance_reports=compliance_records,
-            )
-        )
-    if compliance_records:
-        tables.append(
-            build_code_compliance_table(
-                study_records,
-                state_records,
-                compliance_records,
             )
         )
     tables.append(
@@ -124,7 +110,6 @@ def _validate_lineage(
     studies: tuple[AnalysisStudy, ...],
     analysis_meshes: tuple[AnalysisMesh, ...],
     result_states: tuple[ResultState, ...],
-    compliance_reports: tuple[ComplianceReport, ...],
 ) -> None:
     model_revision = int(getattr(model, "revision", 0))
     studies_by_id: dict[str, AnalysisStudy] = {}
@@ -148,8 +133,6 @@ def _validate_lineage(
             )
 
     result_ids: set[str] = set()
-    result_load_cases: set[str] = set()
-    result_load_case_counts: dict[str, int] = {}
     model_node_ids = set(model.nodes)
     model_element_ids = {element.id for element in model.elements}
     meshes_by_id = {mesh.id: mesh for mesh in analysis_meshes}
@@ -270,37 +253,6 @@ def _validate_lineage(
                 f"Result state {state.id!r} requires a verified Code_Aster solve attestation "
                 "before it can enter an engineering review."
             )
-        result_load_cases.add(state.load_case)
-        result_load_case_counts[state.load_case] = (
-            result_load_case_counts.get(state.load_case, 0) + 1
-        )
-
-    for report in compliance_reports:
-        if report.load_case not in result_load_cases:
-            raise EngineeringReviewError(
-                f"Compliance load case {report.load_case!r} has no matching result state."
-            )
-        if result_load_case_counts[report.load_case] != 1:
-            raise EngineeringReviewError(
-                f"Compliance load case {report.load_case!r} matches multiple result states."
-            )
-        for result in report.results:
-            element = model.get_element(result.element_id)
-            if element is None:
-                raise EngineeringReviewError(
-                    f"Compliance result for load case {report.load_case!r} references "
-                    f"unknown model element {result.element_id!r}."
-                )
-            if result.node_id not in model.nodes:
-                raise EngineeringReviewError(
-                    f"Compliance result for element {result.element_id!r} references "
-                    f"unknown model node {result.node_id!r}."
-                )
-            if result.node_id not in {element.n1, element.n2}:
-                raise EngineeringReviewError(
-                    f"Compliance result node {result.node_id!r} is not an endpoint of "
-                    f"model element {result.element_id!r}."
-                )
 
 
 def _analysis_node_ids(state: ResultState) -> set[str]:
@@ -362,7 +314,6 @@ def _validate_analysis_node_lineage(
 def _analysis_status(
     studies: tuple[AnalysisStudy, ...],
     result_states: tuple[ResultState, ...],
-    compliance_reports: tuple[ComplianceReport, ...],
 ) -> str:
     if not result_states:
         return "not_solved"
@@ -371,10 +322,6 @@ def _analysis_status(
     if any(study.id not in solved_study_ids for study in studies):
         return "partial"
 
-    compliance_load_cases = {report.load_case for report in compliance_reports}
-    result_load_cases = {state.load_case for state in result_states}
-    if compliance_reports and result_load_cases <= compliance_load_cases:
-        return "compliance_complete"
     return "solved"
 
 

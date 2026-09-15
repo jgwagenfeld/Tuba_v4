@@ -230,7 +230,6 @@ _SECTION_TITLES = (
     "Model",
     "Load Cases",
     "Results",
-    "Compliance",
     "Diagnostics",
 )
 
@@ -383,8 +382,6 @@ def _section_for_table(table: ReportTable) -> str:
         return "Summary"
     if table.id in {"load_cases", "studies"}:
         return "Load Cases"
-    if table.id == "code_compliance" or table.source == "compliance_report":
-        return "Compliance"
     if table.id == "diagnostics" or table.source == "diagnostics":
         return "Diagnostics"
     if table.source == "result_state":
@@ -576,11 +573,6 @@ def _unavailable_message(
         return (
             "Results are unavailable because this review package has not been solved "
             "by Code_Aster."
-        )
-    if section_title == "Compliance" and "code_compliance" not in review.tables_by_id:
-        return (
-            "Compliance is unavailable because no piping-code compliance report was "
-            "supplied."
         )
     return None
 
