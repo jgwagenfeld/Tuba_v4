@@ -61,7 +61,7 @@ from tuba.analysis.tuyau import (
     DISPLAY_GENERATRICE,
     subpoint_station,
 )
-from tuba.solver.modelisation import PipeModelization
+from tuba.solver.modelisation import PipeModelization, needs_discrete_element
 from tuba.analysis.provenance import (
     SolverInputIdentity,
     build_solver_input_identity,
@@ -276,6 +276,10 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         )
         if any(len(self._straight_segment_node_pairs(e)) > 1 for e in model.elements if e.type != "pipe_bend"):
             compiler_inputs = dict(compiler_inputs or {}, line_segments=self.line_segments)
+        if any(needs_discrete_element(s) for s in model.supports):
+            # CREA_POI1 once named its node with NOEUD and put these supports on the wrong node;
+            # evidence solved before GROUP_NO lacks this input, so it reads stale.
+            compiler_inputs = dict(compiler_inputs or {}, discrete_support_nodes="GROUP_NO")
         from tuba.solver.aster_contact import shoes, validate_path
         contact_specs = shoes(model, self.pipe_modelization)
         if self.load_path is not None and (not contact_specs or self.pipe_modelization is not PipeModelization.POU_D_T):

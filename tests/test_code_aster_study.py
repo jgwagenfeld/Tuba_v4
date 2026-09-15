@@ -626,6 +626,23 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertIn("    AFFE_VARC=_F(\n        GROUP_MA=('AllPipes',),\n", export(with_spring=True))
         self.assertIn("    AFFE_VARC=_F(\n        TOUT='OUI',\n", export(with_spring=False))
 
+    def test_only_discrete_supports_add_the_discrete_support_nodes_input(self):
+        def compiler_inputs(kind, **support):
+            model = Model(project_name="DiscreteSupportNodes")
+            model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+            model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+            n0 = model.add_node([0.0, 0.0, 0.0])
+            n1 = model.add_node([1.0, 0.0, 0.0])
+            model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+            model.add_support(n0, type="anchor")
+            model.add_support(n1, type=kind, **support)
+            model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+            return CodeAsterSolver().analysis_study_inputs(model, "Hot").compiler_inputs or {}
+
+        spring = compiler_inputs("spring", stiffness_matrix=[0.0, 0.0, 1.0e5, 0.0, 0.0, 0.0])
+        self.assertEqual(spring.get("discrete_support_nodes"), "GROUP_NO")
+        self.assertNotIn("discrete_support_nodes", compiler_inputs("guide", direction=[0.0, 1.0, 0.0]))
+
 
 def _extract_gene_tuyau_vector(comm: str) -> np.ndarray:
     marker = "CARA='GENE_TUYAU'"
