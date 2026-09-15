@@ -754,6 +754,17 @@ class _CommWriterMixin:
             # ==============================================================
             # Thermal load (uniform temperature field for expansion)
             # ==============================================================
+            has_discrete_supports = bool(contacts) or any(needs_discrete_element(s) for s in model.supports)
+            structural_groups = [
+                group
+                for group, present in (
+                    ("AllPipes", bool(pipe_straights or pipe_bends)),
+                    ("G_TUBE", bool(beam_elems)),
+                    ("G_BAR", bool(bar_elems)),
+                    ("G_CABLE", bool(cable_elems)),
+                )
+                if present
+            ]
             if has_temperature:
                 write_thermal_load(
                     w,
@@ -763,6 +774,7 @@ class _CommWriterMixin:
                     node_temperatures=node_temperatures,
                     affe_entries=affe_entries,
                     is_nonlinear=is_nonlinear,
+                    varc_groups=structural_groups if has_discrete_supports else None,
                 )
 
             # ==============================================================

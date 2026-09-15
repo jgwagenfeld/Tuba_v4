@@ -46,6 +46,7 @@ class FrictionCompilation(unittest.TestCase):
             self.assertIn('study_contact.json', Path(root,'study.export').read_text())
             self.assertIn('load_path', study.metadata['compiler_inputs'])
             self.assertIn('DIRECTION=(0.,0.,-1.)', comm)
+            self.assertIn("AFFE_VARC=_F(GROUP_MA=('AllPipes',),", comm)
 
     def test_default_native_shoe_normal_is_global_up(self):
         model = friction_model()

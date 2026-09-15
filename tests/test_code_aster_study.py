@@ -578,6 +578,48 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertEqual(calls, [("study.rmed", "med")])
         self.assertIsInstance(results.raw_mesh, FakeMesh)
 
+    def test_studies_without_discrete_supports_keep_their_committed_command_text(self):
+        from importlib import import_module
+
+        galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+        checked = 0
+        for gallery in galleries:
+            if gallery.refresh_producer is None or gallery.volume_export or gallery.refresh_load_cases:
+                continue
+            with TemporaryDirectory() as scratch:
+                model, case = gallery.refresh_producer(Path(scratch))
+                if any(
+                    s.type in ("rest", "spring") or s.mass > 0 or getattr(s, "attached_to", None)
+                    for s in model.supports
+                ):
+                    continue
+                solver = CodeAsterSolver(work_dir=scratch, **gallery.solver_options)
+                study = solver.export_analysis_study(model, case, scratch)
+                fresh = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+            committed = (gallery.artifact_dir / "study.comm").read_text(encoding="utf-8")
+            self.assertEqual(fresh, committed, gallery.id)
+            checked += 1
+        self.assertGreater(checked, 0)
+
+    def test_temperature_stays_off_discrete_support_elements(self):
+        def export(with_spring):
+            model = Model(project_name="SpringTemperature")
+            model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+            model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+            n0 = model.add_node([0.0, 0.0, 0.0])
+            n1 = model.add_node([1.0, 0.0, 0.0])
+            model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+            model.add_support(n0, type="anchor")
+            if with_spring:
+                model.add_support(n1, type="spring", stiffness_matrix=[0.0, 0.0, 1.0e5, 0.0, 0.0, 0.0])
+            model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+            with TemporaryDirectory() as tmpdir:
+                study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+                return (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("    AFFE_VARC=_F(\n        GROUP_MA=('AllPipes',),\n", export(with_spring=True))
+        self.assertIn("    AFFE_VARC=_F(\n        TOUT='OUI',\n", export(with_spring=False))
+
 
 def _extract_gene_tuyau_vector(comm: str) -> np.ndarray:
     marker = "CARA='GENE_TUYAU'"

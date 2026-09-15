@@ -123,14 +123,14 @@ def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_en
     for temperature in temperatures:
         w(f"TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE={temperature!r})))")
     w(f"THERM = CREA_RESU(OPERATION='AFFE',TYPE_RESU='EVOL_THER',NOM_CHAM='TEMP',AFFE=tuple(_F(CHAM_GD=f,INST=t) for f,t in zip(TFIELDS,{times!r})))")
-    w('CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL,AFFE=(')
-    for entry in affe_entries:
-        w(entry)
-    w(f"), AFFE_VARC=_F(TOUT='OUI',NOM_VARC='TEMP',EVOL=THERM,VALE_REF={cases[0].ref_temperature!r}))")
     elastic_groups = [name for name in ('AllPipes','G_TUBE','G_BAR')
                       if (name == 'AllPipes' and any(e.type.startswith('pipe_') for e in model.elements))
                       or (name == 'G_TUBE' and any(e.type == 'beam' for e in model.elements))
                       or (name == 'G_BAR' and any(e.type == 'bar' for e in model.elements))]
+    w('CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL,AFFE=(')
+    for entry in affe_entries:
+        w(entry)
+    w(f"), AFFE_VARC=_F(GROUP_MA={tuple(map_name(x) for x in elastic_groups)!r},NOM_VARC='TEMP',EVOL=THERM,VALE_REF={cases[0].ref_temperature!r}))")
     elastic_groups.extend(f'DIS_{s.node}' for s in model.supports if s.type == 'spring' or s.mass > 0.)
     elastic_groups = tuple(map_name(x) for x in dict.fromkeys(elastic_groups))
     intervals = tuple(_ for _ in range(1, len(cases)+1))
