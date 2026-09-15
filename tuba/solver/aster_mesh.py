@@ -309,7 +309,9 @@ class _MeshWriterMixin:
             lines.append("")
 
         # --- GROUP_NO for supports and concentrated nodal loads -----------
-        grouped_node_ids = sorted({sup.node for sup in model.supports} | _nodal_force_node_ids(model))
+        grouped_node_ids = sorted(
+            {sup.node for sup in model.supports} | _nodal_force_node_ids(model) | self._node_temperature_node_ids(model)
+        )
         for node_id in grouped_node_ids:
             grp_name = f"GN_{node_id}"
             lines.append(f"GROUP_NO NOM={map_name(grp_name)}")
@@ -476,7 +478,11 @@ class _MeshWriterMixin:
             groups["G_CABLE"] = tuple(sid for elem in cable_elems for sid, _, _ in self._straight_segment_node_pairs(elem))
         for elem in pipe_bends:
             groups[elem.id] = tuple(f"{elem.id}_s{index}" for index in range(n_segments))
-        for node_id in sorted({support.node for support in model.supports} | _nodal_force_node_ids(model)):
+        for node_id in sorted(
+            {support.node for support in model.supports}
+            | _nodal_force_node_ids(model)
+            | self._node_temperature_node_ids(model)
+        ):
             groups[f"GN_{node_id}"] = (node_id,)
         if model.supports:
             groups["AllSupports"] = tuple(support.node for support in model.supports)
@@ -567,6 +573,36 @@ class _MeshWriterMixin:
             return node_id
         digest = hashlib.sha1(node_id.encode("utf-8")).hexdigest()[:8].upper()
         return f"N_{digest}"
+
+    def _element_solver_nodes(self, elem: Element) -> list[tuple[str, float]]:
+        """Every solver node of one model element with its fraction along it, from n1 to n2.
+
+        The fractions match the ``parametric_t`` the analysis mesh records: equal steps
+        along subdivided straights and bends (bend nodes sit at equal angles), and TUYAU
+        SEG3 midsides halfway along their segment.
+        """
+        if elem.type == "pipe_bend":
+            pairs = self._bend_segment_node_pairs(elem, self._BEND_SEGMENTS)
+        else:
+            pairs = self._straight_segment_node_pairs(elem)
+        midsides = elem.type in ("pipe_straight", "pipe_bend") and self.pipe_modelization is not PipeModelization.POU_D_T
+        nodes = [(elem.n1, 0.0)]
+        for index, (segment_id, _, end) in enumerate(pairs):
+            if midsides:
+                nodes.append((self._generated_midpoint_node_id(segment_id), (index + 0.5) / len(pairs)))
+            nodes.append((end, (index + 1) / len(pairs)))
+        return nodes
+
+    def _node_temperature_node_ids(self, model: TubaModel) -> set[str]:
+        """Solver nodes that any load case's or operation's node temperatures write, for their GN_ groups."""
+        node_ids: set[str] = set()
+        cases = list(getattr(model, "load_cases", {}).values()) + list(getattr(model, "operations", {}).values())
+        for case in cases:
+            touched = {node_id for f in getattr(case, "fields", []) if f.scope == "nodes" for node_id in f.node_ids}
+            for elem in model.elements:
+                if elem.n1 in touched or elem.n2 in touched:
+                    node_ids.update(node_id for node_id, _ in self._element_solver_nodes(elem))
+        return node_ids
 
     @staticmethod
     def _section_group_name(section_name: str) -> str:

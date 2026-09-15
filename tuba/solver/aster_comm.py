@@ -33,6 +33,7 @@ from tuba.solver.aster_loads import (
     has_pressure_load,
     has_temperature_load as has_thermal_load,
     has_wind_load,
+    node_temperature_entries,
     resolve_line_load_groups,
     resolve_operation_field_groups,
     resolve_wind_field_groups,
@@ -271,6 +272,7 @@ class _CommWriterMixin:
         delta_t = load_case.temperature - load_case.ref_temperature
         pressure_fields = resolve_operation_field_groups(model, load_case, "pressure")
         temperature_fields = resolve_operation_field_groups(model, load_case, "temperature")
+        node_temperatures = node_temperature_entries(model, load_case, temperature_fields, self._element_solver_nodes)
         wind_fields = resolve_wind_field_groups(model, load_case)
         # Wind reaches Code_Aster through the command its element's modelization
         # accepts: VENT on beam-modelled elements, Tuba's cross-flow rule on
@@ -285,7 +287,7 @@ class _CommWriterMixin:
         line_loads = resolve_line_load_groups(model, load_case)
         nodal_forces = list(getattr(load_case, "nodal_forces", []))
         has_pressure = has_pressure_load(load_case, pressure_fields)
-        has_temperature = has_thermal_load(load_case, temperature_fields)
+        has_temperature = has_thermal_load(load_case, temperature_fields, node_temperatures)
         has_wind = has_wind_load(beam_winds)
         has_tuyau_wind = bool(tuyau_winds)
         has_line_load = bool(line_loads)
@@ -771,6 +773,7 @@ class _CommWriterMixin:
                     map_name=map_name,
                     load_case=load_case,
                     temperature_fields=temperature_fields,
+                    node_temperatures=node_temperatures,
                     affe_entries=affe_entries,
                     is_nonlinear=is_nonlinear,
                 )

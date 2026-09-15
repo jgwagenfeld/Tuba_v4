@@ -17,6 +17,8 @@ TuyauWindRows = List[tuple[str, str, tuple[str, str, str]]]
 BendFrame = Callable[[Element], tuple[Sequence[float], Sequence[float]]]
 NameMapper = Callable[[str], str]
 LineWriter = Callable[[str], None]
+NodeTemperatureEntries = Sequence[tuple[str, float]]
+SolverNodes = Callable[[Element], Sequence[tuple[str, float]]]
 
 
 def group_ma_value(group_names: List[str], map_name: NameMapper) -> str:
@@ -35,6 +37,8 @@ def resolve_operation_field_groups(
     for index, field_record in enumerate(getattr(load_case, "fields", [])):
         if field_record.quantity != quantity:
             continue
+        if quantity == "temperature" and field_record.scope == "nodes":
+            continue  # Node temperatures reach the field through node_temperature_entries.
         if field_record.profile == "uniform":
             elements = model.resolve_operation_field_elements(field_record)
             if not elements:
@@ -110,12 +114,98 @@ def has_pressure_load(load_case: LoadCase, pressure_fields: FieldGroups) -> bool
     return load_case.internal_pressure > 0.0 or bool(pressure_fields)
 
 
-def has_temperature_load(load_case: LoadCase, temperature_fields: FieldGroups) -> bool:
+def has_temperature_load(
+    load_case: LoadCase,
+    temperature_fields: FieldGroups,
+    node_temperatures: NodeTemperatureEntries = (),
+) -> bool:
     delta_t = load_case.temperature - load_case.ref_temperature
     return (
         abs(delta_t) > 1e-10
         or any(abs(value - load_case.ref_temperature) > 1e-10 for _, value in temperature_fields)
+        or any(abs(value - load_case.ref_temperature) > 1e-10 for _, value in node_temperatures)
     )
+
+
+def resolve_node_temperatures(model: TubaModel, load_case: LoadCase) -> dict[str, float]:
+    """Node-scoped temperature fields of one load case, as model node id -> temperature.
+
+    Validation walks only operations, so this repeats its node rules for load-case fields.
+    """
+    values: dict[str, float] = {}
+    for index, field_record in enumerate(getattr(load_case, "fields", [])):
+        if field_record.scope != "nodes":
+            continue
+        if field_record.quantity != "temperature" or field_record.profile != "uniform":
+            raise ValueError(
+                f"Operation field {index} scopes {field_record.quantity!r} to nodes; "
+                "only uniform temperature fields take node_ids."
+            )
+        value = float(field_record.value)
+        for node_id in field_record.node_ids:
+            if node_id not in model.nodes:
+                raise ValueError(f"Operation field {index} references missing node {node_id!r}.")
+            previous = values.get(node_id)
+            if previous is not None and previous != value:
+                raise ValueError(
+                    f"Operation field {index} gives node {node_id!r} {value!r}, "
+                    f"but an earlier node field gives it {previous!r}."
+                )
+            values[node_id] = value
+    if not values:
+        return values
+    covered: set[str] = set()
+    for field_record in getattr(load_case, "fields", []):
+        if field_record.quantity == "temperature" and field_record.scope != "nodes":
+            for elem in model.resolve_operation_field_elements(field_record):
+                covered.update((elem.n1, elem.n2))
+    shared = sorted(set(values) & covered)
+    if shared:
+        raise ValueError(
+            f"Nodes {shared!r} have a node temperature and belong to elements an element temperature "
+            "field covers; a node takes one or the other."
+        )
+    return values
+
+
+def node_temperature_entries(
+    model: TubaModel,
+    load_case: LoadCase,
+    temperature_fields: FieldGroups,
+    solver_nodes: SolverNodes,
+) -> list[tuple[str, float]]:
+    """Temperatures for every solver node of the elements a node temperature touches, in write order.
+
+    Code_Aster's temperature field has one value per node, and the solver mesh has
+    nodes the model does not: bend and subdivision nodes, TUYAU midsides. A touched
+    element gets its two end values and interpolates its generated nodes linearly at
+    the fractions ``solver_nodes`` gives. An end without a node temperature keeps
+    what the rest of the field gives it: the last element row covering it, else the
+    case temperature.
+    """
+    node_values = resolve_node_temperatures(model, load_case)
+    if not node_values:
+        return []
+    row_values: dict[str, float] = {}
+    for element_ids, value in temperature_fields:
+        for element_id in element_ids:
+            elem = model.get_element(element_id)
+            row_values[elem.n1] = value
+            row_values[elem.n2] = value
+
+    def end_value(node_id: str) -> float:
+        if node_id in node_values:
+            return node_values[node_id]
+        return row_values.get(node_id, float(load_case.temperature))
+
+    entries: dict[str, float] = {}
+    for elem in model.elements:
+        if elem.n1 not in node_values and elem.n2 not in node_values:
+            continue
+        start, end = end_value(elem.n1), end_value(elem.n2)
+        for node_id, fraction in solver_nodes(elem):
+            entries.setdefault(node_id, (1.0 - fraction) * start + fraction * end)
+    return list(entries.items())
 
 
 def resolve_wind_field_groups(model: TubaModel, load_case: LoadCase) -> WindGroups:
@@ -281,6 +371,7 @@ def write_thermal_load(
     map_name: NameMapper,
     load_case: LoadCase,
     temperature_fields: FieldGroups,
+    node_temperatures: NodeTemperatureEntries,
     affe_entries: List[str],
     is_nonlinear: bool,
 ) -> None:
@@ -292,6 +383,7 @@ def write_thermal_load(
             value=load_case.ref_temperature,
             map_name=map_name,
             temperature_fields=[],
+            node_temperatures=[],
         )
         _write_temperature_field(
             w,
@@ -299,6 +391,7 @@ def write_thermal_load(
             value=load_case.temperature,
             map_name=map_name,
             temperature_fields=temperature_fields,
+            node_temperatures=node_temperatures,
         )
         w("TEMP_EVOL = CREA_RESU(")
         w("    OPERATION='AFFE',")
@@ -317,6 +410,7 @@ def write_thermal_load(
             value=load_case.temperature,
             map_name=map_name,
             temperature_fields=temperature_fields,
+            node_temperatures=node_temperatures,
         )
 
     w("CHMAT = AFFE_MATERIAU(")
@@ -346,11 +440,12 @@ def _write_temperature_field(
     value: float,
     map_name: NameMapper,
     temperature_fields: FieldGroups,
+    node_temperatures: NodeTemperatureEntries,
 ) -> None:
     w(f"{name} = CREA_CHAMP(")
     w("    TYPE_CHAM='NOEU_TEMP_R',")
     w("    OPERATION='AFFE',")
-    if temperature_fields:
+    if temperature_fields or node_temperatures:
         w("    MODELE=MODELE,")
         w("    AFFE=(")
         w("        _F(")
@@ -363,6 +458,13 @@ def _write_temperature_field(
             w(f"            GROUP_MA={group_ma_value(group_names, map_name)},")
             w("            NOM_CMP='TEMP',")
             w(f"            VALE={field_value:.6E},")
+            w("        ),")
+        # A later occurrence overwrites an earlier one on a node, so the node rows go last.
+        for node_id, node_value in node_temperatures:
+            w("        _F(")
+            w(f"            GROUP_NO='{map_name(f'GN_{node_id}')}',")
+            w("            NOM_CMP='TEMP',")
+            w(f"            VALE={node_value:.6E},")
             w("        ),")
         w("    ),")
     else:

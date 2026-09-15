@@ -1,10 +1,18 @@
+import json
+import re
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from tuba import Model
+from tuba.analysis import AnalysisMesh
 from tuba.analysis.provenance import _operation_field_payload
-from tuba.model import OperationField, _operation_field_to_dict
+from tuba.model import BendGeometry, OperationField, _operation_field_to_dict
 from tuba.reporting.tables import _operation_field_dict
 from tuba.schema import validate_model_dict
+from tuba.solver.aster import CodeAsterSolver
+from tuba.solver.aster_loads import resolve_node_temperatures
+from tuba.solver.modelisation import PipeModelization
 from tuba.validation import ModelValidationError
 
 
@@ -124,3 +132,236 @@ class TestNodeTemperatureAuthoring(unittest.TestCase):
         operating.add_field("temperature", 150.0, node_ids=["N0"])
         operating.add_field("temperature", 90.0, element_ids=["pipe_str_1"])
         apart.validate()
+
+
+# Captured from main at e155b2d: what an element-temperature model exports before node temperatures exist.
+TEMP_FIELD_TODAY = """TEMP_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MODELE=MODELE,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            NOM_CMP='TEMP',
+            VALE=6.000000E+01,
+        ),
+        _F(
+            GROUP_MA='pipe_str_0',
+            NOM_CMP='TEMP',
+            VALE=9.000000E+01,
+        ),
+        _F(
+            GROUP_MA='pipe_str_1',
+            NOM_CMP='TEMP',
+            VALE=1.000000E+02,
+        ),
+    ),
+);
+"""
+TEMP_HOT_FIELD_TODAY = TEMP_FIELD_TODAY.replace("TEMP_FIELD = ", "TEMP_HOT_FIELD = ", 1)
+TEMP_REF_FIELD_TODAY = """TEMP_REF_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MAILLAGE=MAIL,
+    AFFE=_F(
+        TOUT='OUI',
+        NOM_CMP='TEMP',
+        VALE=2.000000E+01,
+    ),
+);
+"""
+
+
+def _export(model: Model, case: str, **solver_options) -> tuple[str, str]:
+    with TemporaryDirectory() as tmpdir:
+        CodeAsterSolver(work_dir=tmpdir, **solver_options).export_study(model, case, tmpdir)
+        root = Path(tmpdir)
+        return (root / "study.comm").read_text(encoding="utf-8"), (root / "study.mail").read_text(encoding="utf-8")
+
+
+def _crea_champ(comm: str, name: str) -> str:
+    start = comm.index(f"{name} = CREA_CHAMP(")
+    return comm[start : comm.index(");\n", start) + len(");\n")]
+
+
+def _group_no_lines(mail: str) -> list[str]:
+    return [line for line in mail.splitlines() if line.startswith("GROUP_NO NOM=")]
+
+
+def _node_rows(block: str) -> list[tuple[str, str]]:
+    """(GROUP_NO name, VALE text) of each node row of a CREA_CHAMP block, in order."""
+    return re.findall(r"GROUP_NO='([^']+)',\n\s+NOM_CMP='TEMP',\n\s+VALE=([^,]+),", block)
+
+
+def _element_temperature_model(*, rest: bool) -> Model:
+    model = _two_element_route("ElementTemperatures")
+    if rest:
+        model.add_support("N1", type="rest")
+    operating = model.define_operation("Operating", gravity=False, temperature=60.0, ref_temperature=20.0)
+    operating.add_field("temperature", 120.0, route_id="P-100", station_start=0.0, station_end=1.0, profile="linear")
+    operating.add_field("temperature", 100.0, element_ids=["pipe_str_1"])
+    return model
+
+
+def _elbow_model() -> Model:
+    """run: N0 (0, 0, 0) to N1 (4, 0, 0); elbow: 90 degrees, R 0.5, N1 to N2 (4.5, 0.5, 0); anchored at N0 and N2."""
+    model = _model("NodeTemperatureElbow")
+    start = model.add_node([0.0, 0.0, 0.0])
+    corner = model.add_node([4.0, 0.0, 0.0])
+    end = model.add_node([4.5, 0.5, 0.0])
+    model.add_element(id="run", type="pipe_straight", n1=start, n2=corner, section="PipeSec", material="Steel")
+    model.add_element(
+        id="elbow", type="pipe_bend", n1=corner, n2=end, section="PipeSec", material="Steel",
+        bend_radius=0.5, bend_angle=90,
+        bend_geometry=BendGeometry(
+            center=[4.0, 0.5, 0.0], normal=[0.0, 0.0, 1.0], radius=0.5, angle=90,
+            start_tangent=[1.0, 0.0, 0.0], end_tangent=[0.0, 1.0, 0.0],
+        ),
+    )
+    model.add_support(start, "anchor")
+    model.add_support(end, "anchor")
+    return model
+
+
+class TestNodeTemperatureCompiler(unittest.TestCase):
+    def test_models_without_node_temperatures_export_todays_text(self):
+        comm, mail = _export(_element_temperature_model(rest=False), "Operating")
+        self.assertEqual(_crea_champ(comm, "TEMP_FIELD"), TEMP_FIELD_TODAY)
+        self.assertEqual(
+            _group_no_lines(mail),
+            ["GROUP_NO NOM=PipeOrientationNodes", "GROUP_NO NOM=GN_N0", "GROUP_NO NOM=GN_N2", "GROUP_NO NOM=AllSupports"],
+        )
+
+        # A rest support makes the case nonlinear: a uniform reference field, then the hot field.
+        comm, mail = _export(_element_temperature_model(rest=True), "Operating")
+        self.assertEqual(_crea_champ(comm, "TEMP_REF_FIELD"), TEMP_REF_FIELD_TODAY)
+        self.assertEqual(_crea_champ(comm, "TEMP_HOT_FIELD"), TEMP_HOT_FIELD_TODAY)
+        self.assertEqual(
+            _group_no_lines(mail),
+            [
+                "GROUP_NO NOM=PipeOrientationNodes",
+                "GROUP_NO NOM=GN_N0",
+                "GROUP_NO NOM=GN_N1",
+                "GROUP_NO NOM=GN_N2",
+                "GROUP_NO NOM=AllSupports",
+            ],
+        )
+
+    def test_node_temperatures_interpolate_along_subdivided_beam_pipes(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False, temperature=20.0, ref_temperature=20.0)
+        operating.add_field("temperature", 100.0, node_ids=["N0"])
+        operating.add_field("temperature", 180.0, node_ids=["N1"])
+
+        comm, mail = _export(model, "Operating", pipe_modelization=PipeModelization.POU_D_T)
+
+        # The operation temperature equals the reference, so only the node temperatures make this a thermal case.
+        block = _crea_champ(comm, "TEMP_FIELD")
+        self.assertIn("MODELE=MODELE,", block)
+        self.assertNotIn("GROUP_MA=", block)
+        # Eight SEG2 spans per straight: N0 (100) to N1 (180) in 10-degree steps. Then N1 back to N2, which
+        # nothing covers, so N2 keeps the operation temperature (20).
+        expected = [("GN_N0", 100.0)]
+        expected += [(f"GN_pipe_str_0_n{k}", 100.0 + 10.0 * k) for k in range(1, 8)]
+        expected += [("GN_N1", 180.0)]
+        expected += [(f"GN_pipe_str_1_n{k}", 180.0 - 20.0 * k) for k in range(1, 8)]
+        expected += [("GN_N2", 20.0)]
+        self.assertEqual(_node_rows(block), [(name, f"{value:.6E}") for name, value in expected])
+        for name, _ in expected:
+            self.assertIn(f"GROUP_NO NOM={name}", mail)
+
+    def test_node_temperatures_interpolate_along_tuyau_bend_segments_and_midsides(self):
+        model = _elbow_model()
+        operating = model.define_operation("Operating", gravity=False, temperature=20.0, ref_temperature=20.0)
+        operating.add_field("temperature", 40.0, node_ids=["N1"])
+        operating.add_field("temperature", 200.0, node_ids=["N2"])
+
+        comm, mail = _export(model, "Operating")
+
+        # The run is touched through N1: N0 keeps the operation temperature, and the SEG3 midside sits halfway.
+        expected = [("GN_N0", 20.0), ("GN_run_mid", 30.0), ("GN_N1", 40.0)]
+        # Sixteen SEG3 segments along the elbow: 10 degrees per segment, each midside halfway between.
+        for k in range(16):
+            expected.append((f"GN_elbow_s{k}_mid", 45.0 + 10.0 * k))
+            expected.append((f"GN_elbow_n{k + 1}" if k < 15 else "GN_N2", 50.0 + 10.0 * k))
+        self.assertEqual(_node_rows(_crea_champ(comm, "TEMP_FIELD")), [(name, f"{value:.6E}") for name, value in expected])
+        self.assertIn("GROUP_NO NOM=GN_elbow_s0_mid", mail)
+
+    def test_an_uncovered_end_takes_the_value_its_neighbour_field_gives_it(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False, temperature=20.0, ref_temperature=20.0)
+        operating.add_field("temperature", 60.0, node_ids=["N0"])
+        operating.add_field("temperature", 140.0, element_ids=["pipe_str_1"])
+        model.validate()
+
+        comm, _ = _export(model, "Operating")
+
+        block = _crea_champ(comm, "TEMP_FIELD")
+        # pipe_str_1's field gives N1 140 degrees, so pipe_str_0 runs 60 to 140 with its midside at 100.
+        self.assertEqual(
+            _node_rows(block),
+            [("GN_N0", "6.000000E+01"), ("GN_pipe_str_0_mid", "1.000000E+02"), ("GN_N1", "1.400000E+02")],
+        )
+        self.assertLess(block.index("GROUP_MA='pipe_str_1'"), block.index("GROUP_NO="))
+
+    def test_nonlinear_cases_ramp_to_the_node_temperatures(self):
+        model = _two_element_route()
+        model.add_support("N1", type="rest")
+        operating = model.define_operation("Operating", gravity=False, temperature=20.0, ref_temperature=20.0)
+        operating.add_field("temperature", 120.0, node_ids=["N0"])
+
+        comm, _ = _export(model, "Operating")
+
+        self.assertEqual(_crea_champ(comm, "TEMP_REF_FIELD"), TEMP_REF_FIELD_TODAY)
+        self.assertEqual(
+            _node_rows(_crea_champ(comm, "TEMP_HOT_FIELD")),
+            [("GN_N0", "1.200000E+02"), ("GN_pipe_str_0_mid", "7.000000E+01"), ("GN_N1", "2.000000E+01")],
+        )
+
+    def test_groups_serve_every_study_but_rows_only_their_own_case(self):
+        model = _two_element_route()
+        model.define_operation("Hot", gravity=False).add_field("temperature", 120.0, node_ids=["N0"])
+        model.define_operation("Warm", gravity=False, temperature=60.0, ref_temperature=20.0)
+
+        comm, mail = _export(model, "Warm")
+
+        self.assertNotIn("GROUP_NO=", _crea_champ(comm, "TEMP_FIELD"))
+        self.assertIn("GROUP_NO NOM=GN_pipe_str_0_mid", mail)
+
+    def test_the_analysis_mesh_records_the_node_temperature_groups(self):
+        model = _two_element_route()
+        model.define_operation("Hot", gravity=False).add_field("temperature", 120.0, node_ids=["N0"])
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+            manifest = json.loads((Path(study.work_dir) / "study_manifest.json").read_text(encoding="utf-8"))
+
+        mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
+        self.assertEqual(tuple(mesh.groups["GN_pipe_str_0_mid"]), ("pipe_str_0_mid",))
+        self.assertEqual(mesh.node_sources["pipe_str_0_mid"].parametric_t, 0.5)
+
+    def test_load_case_node_fields_are_checked_at_export(self):
+        # Validation walks only operations, so the export resolver repeats the node rules for load cases.
+        model = _two_element_route()
+        load_case = model.define_load_case("Hot", gravity=False)
+        load_case.fields.append(OperationField("temperature", 120.0, scope="nodes", node_ids=["N9"]))
+        with self.assertRaisesRegex(ValueError, "field 0 references missing node 'N9'"):
+            resolve_node_temperatures(model, load_case)
+
+        load_case.fields[:] = [
+            OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
+            OperationField("temperature", 90.0, scope="nodes", node_ids=["N1"]),
+        ]
+        with self.assertRaisesRegex(ValueError, r"field 1 gives node 'N1' 90\.0, but an earlier node field gives it 120\.0"):
+            resolve_node_temperatures(model, load_case)
+
+        load_case.fields[:] = [
+            OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
+            OperationField("temperature", 90.0, scope="elements", element_ids=["pipe_str_1"]),
+        ]
+        with self.assertRaisesRegex(ValueError, r"Nodes \['N1'\] have a node temperature and belong to elements"):
+            resolve_node_temperatures(model, load_case)
+
+        load_case.fields[:] = [OperationField("pressure", 1.0e6, scope="nodes", node_ids=["N1"])]
+        with self.assertRaisesRegex(ValueError, "field 0 scopes 'pressure' to nodes"):
+            resolve_node_temperatures(model, load_case)
