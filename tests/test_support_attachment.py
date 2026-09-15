@@ -117,6 +117,7 @@ class AttachedExport(unittest.TestCase):
         comm, _mail = export(model)
         self.assertIn("DDL=('DY', 'DY')", comm)
         self.assertNotIn("DDL=('DX', 'DX')", comm)
+        self.assertNotIn("DDL=('DZ', 'DZ')", comm)
 
     def test_attached_rest_ties_its_shoe_helper_instead_of_fixing_it(self):
         model, _tip, other = attached_model("rest", friction_coefficient=0.3)

@@ -131,6 +131,8 @@ def test_rack_shoe_slides_with_coulomb_friction_under_pressure():
         assert float(np.linalg.norm(contact.tangential_force)) == pytest.approx(0.3 * contact.normal_force, rel=0.001)
         slide = run.results.node_results[rack_node].displacement[0] - run.results.node_results[pipe_node].displacement[0]
         assert abs(slide) == pytest.approx(3.83e-3, rel=0.02)
+        assert contact.gap < 1e-9
+        assert contact.relative_displacement[0] == pytest.approx(-slide)
 
 
 def test_attached_anchor_between_coincident_nodes_matches_a_shared_node():

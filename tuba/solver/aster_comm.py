@@ -623,11 +623,7 @@ class _CommWriterMixin:
             lines_bc = []
 
             if sup.blocked_dof is not None:
-                dof_names = ["DX", "DY", "DZ", "DRX", "DRY", "DRZ"]
-                blocked = []
-                for idx, val in enumerate(sup.blocked_dof):
-                    if val not in (False, 0, '0', 'x', 'X', None):
-                        blocked.append(dof_names[idx])
+                blocked = _held_dofs(sup)
                 if blocked:
                     write_bc = True
                     lines_bc.append(f"{char_name} = AFFE_CHAR_MECA(")
@@ -656,18 +652,8 @@ class _CommWriterMixin:
                     lines_bc.append(f"    MODELE=MODELE,")
                     lines_bc.append(f"    DDL_IMPO=_F(")
                     lines_bc.append(f"        GROUP_NO='{grp_name}',")
-                    if sup.direction:
-                        dof_map = {0: "DX", 1: "DY", 2: "DZ"}
-                        blocked = []
-                        for idx, val in enumerate(sup.direction):
-                            if abs(val) > 1e-12:
-                                blocked.append(dof_map[idx])
-                        for dof in blocked:
-                            lines_bc.append(f"        {dof}=0.0,")
-                    else:
-                        lines_bc.append(f"        DX=0.0,")
-                        lines_bc.append(f"        DY=0.0,")
-                        lines_bc.append(f"        DZ=0.0,")
+                    for dof in _held_dofs(sup):
+                        lines_bc.append(f"        {dof}=0.0,")
                     append_pipe_warping_bc(lines_bc, sup.node)
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
@@ -693,9 +679,8 @@ class _CommWriterMixin:
                     lines_bc.append(f"    MODELE=MODELE,")
                     lines_bc.append(f"    DDL_IMPO=_F(")
                     lines_bc.append(f"        GROUP_NO='{grp_name}',")
-                    lines_bc.append(f"        DX=0.0,")
-                    lines_bc.append(f"        DY=0.0,")
-                    lines_bc.append(f"        DZ=0.0,")
+                    for dof in _held_dofs(sup):
+                        lines_bc.append(f"        {dof}=0.0,")
                     append_pipe_warping_bc(lines_bc, sup.node)
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
