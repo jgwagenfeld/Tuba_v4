@@ -947,3 +947,59 @@ study would solve."
 - [ ] If `main` has moved, rebase the branch onto it. Then run `PY -m pytest -q -p no:cacheprovider` on the tip and compare with the per-task results.
 - [ ] Run `git log --oneline main..HEAD` and confirm the plan commit plus the four task commits.
 - [ ] Report to the user. The branch merges into `main` only with the user's approval, and a push is the user's own decision.
+
+---
+
+## As executed (2026-09-15)
+
+Rulings and changes made while executing this plan, which amend the text above:
+
+- **Base:** the branch was rebased onto `main` at `e155b2d` (the line-loads merge) before Task 1. The baseline is therefore 1042 passed / 32 skipped, not `412ba8a`'s 1020 / 26.
+- **No commit trailer** (Global Constraints) held: no commit of this plan carries `Co-Authored-By`.
+- **Commits:** seven task commits instead of four, then three follow-ups and this section:
+  - Task 1 `6012b3b`; Task 2 `e747fdc`, `dc33183`, `aaf0026`; Task 3 `aabd532`; Task 4 `0594cc3`, `34d19e8`;
+  - follow-ups `6d8d664` (a review's identities are read once per bundle), `2776506` (invalid study options read as stale) and `f961c50` (the setup page's Docker sentence).
+- **`stale_operations`** builds one solver outside the `try`, through a private `_identity` helper (`dc33183`, `aaf0026`):
+  - options the solver constructor rejects raise;
+  - an operation that can no longer be compiled reads as stale, including a load path the model or study cannot run. Until Plan 6 validates study options, an empty `load_path`, or a `load_path` with a volume export, reads as stale instead of raising.
+- **Task 2 tests:** three beyond the plan: the volume `load_path` refusal, never-meshes, and invalid options raise.
+- **Evidence tests:** `_committed_evidence_sets` derives from `_gallery_evidence`, and the gallery identity test drops its local `SolverInputIdentity` import (`dc33183`).
+- **Volume exporter:** it unpacks `volume_study_inputs` in one tuple assignment instead of field by field (`dc33183`).
+- **Task 3's accepted consequence holds only for `analysis_runs=`:** there, the review and scene builders refuse a Docker-executed run. They check no trust on `result_states=` inputs; that gate is Plan 5.
+- **`attested_identities` docstring:** it says "a model-only review", because a mesh from an exported study carries an identity (`34d19e8`).
+- **`review_stale`:**
+  - it reads a review's identities once per bundle, instead of parsing `scene.json` on every save: when `_produce_review` builds the bundle, or at startup for a bundle already on disk (`6d8d664`);
+  - it reads the review as stale when `stale_operations` raises `TypeError` or `ValueError` for the study's own options, instead of letting the error propagate (`34d19e8`, `2776506`).
+- **Task 4 tests:**
+  - a second studio test shows that invalid study options still import the review, keep the studio usable, and mark the review stale;
+  - the imported-review test also corrupts `review/scene.json` after the import (`34d19e8`, `6d8d664`, `2776506`).
+- **Setup page:** `docs/content/setup.md` says that a Code_Aster run through Docker is always unverified and is not published in a review or scene (`f961c50`).
+- **Tasks 1 and 3** otherwise match the plan text.
+- **Full suite:** `34d19e8`, `6d8d664` and `2776506` were committed on the studio and freshness test files. The full suite then ran on `f961c50`: 1067 passed / 32 skipped, plus the two worktree-only `tests/test_package_release.py` failures (no `viewer/node_modules`) and the pre-existing zmq warning.
+
+Deferred, each to the plan that reworks its code:
+
+- **Plan 5:**
+  - `tuba/reporting/builder.py` says it requires a verified attestation but only checks that one exists, so a Docker attestation passes on the `result_states=` path.
+  - `import_code_aster_artifacts(allow_unverified=False)` can return an unverified (Docker) run. The docstring is accurate, but the name is not.
+  - `execution_trust` returns `str`; a `Literal["verified", "unverified"]` would let a type checker catch typos.
+  - `_artifact_files` attaches a `sigm` role whenever `study_sigm.csv` exists, even when the attested inventory excludes it. Nothing reads it.
+  - The volume `load_path` refusal exists in three copies. `volume_study_inputs` has no return annotation, and `VolumeStudyInputs.load_case` is typed `Any`.
+  - `_identity`'s signature in `freshness.py` is one long line typed `solver: Any`.
+- **Plan 6:**
+  - `VOLUME_EXPORT` problems have three outcomes: a non-numeric `max_element_size` reads as stale, while `None` or an unknown key raises.
+  - `review_stale`'s `(TypeError, ValueError)` catch wraps the whole `stale_operations` call, so an incidental `TypeError` on the compile path reads as stale. Validating options at load removes the catch.
+  - The mixed STEP exporter has no freshness route; its only caller is `run_demo(export_study=True)`.
+  - The refresh tests match only "execution_method", so the new "is unverified" message is not pinned.
+- **Plan 7:**
+  - The viewer badge still says "Model changed since the last solve", although invalid or changed study options also set it. Changing the copy needs a viewer rebuild.
+  - study.py is not watched, so a study-option change shows as stale only after a restart. Review identities belong in session state keyed to the bundle revision.
+  - Startup exposure:
+    - an unexpected error in `review_stale` during the first script run makes `start()` return before the evidence import;
+    - `GET /api/project` has no error guard;
+    - a corrupt review bundle left on disk fails the studio's construction.
+  - `review_stale` runs outside error handling in the `else:` branches of `_prepare_review` and `_solve`, and in `_publish_scene`. An unexpected exception there ends the thread without an event.
+  - The two imported-review studio tests duplicate their copy, start and 120 s import setup.
+- **No target plan:**
+  - No test asserts that a volume `.comm` omits the `TAB_SIGM` block when tensor stress is off. The export file list is pinned, and the block is gated.
+  - The zmq `RuntimeWarning` in the full suite predates this branch.
