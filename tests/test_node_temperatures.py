@@ -1,6 +1,7 @@
 import json
 import re
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -9,10 +10,12 @@ from tuba.analysis import AnalysisMesh
 from tuba.analysis.provenance import _operation_field_payload
 from tuba.model import BendGeometry, OperationField, _operation_field_to_dict
 from tuba.reporting.tables import _operation_field_dict
+from tuba.sampling import field_from_function
 from tuba.schema import validate_model_dict
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.modelisation import PipeModelization
 from tuba.validation import ModelValidationError
+from tuba.visualization import build_visualization_scene
 
 
 def _model(name: str = "NodeTemperatures") -> Model:
@@ -338,6 +341,37 @@ class TestNodeTemperatureCompiler(unittest.TestCase):
         mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
         self.assertEqual(tuple(mesh.groups["GN_pipe_str_0_mid"]), ("pipe_str_0_mid",))
         self.assertEqual(mesh.node_sources["pipe_str_0_mid"].parametric_t, 0.5)
+
+    def test_only_support_and_nodal_force_groups_become_viewer_layers(self):
+        # A whole-model node temperature gives every solver node a GN_ group, in every study of the model.
+        model = _model("NodeTemperatureLayers")
+        with model.pipe("PipeSec", "Steel", route="P-100") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.run(1.0)
+            pipe.run(1.0)
+            pipe.run(1.0)
+            pipe.end(support="anchor")
+        hot = model.define_operation("Hot", gravity=False)
+        field_from_function(model, hot, "temperature", lambda x, y, z: 20.0 + 50.0 * x)
+        model.define_operation("Load", gravity=False).add_nodal_force("N1", force=[0.0, 0.0, -1000.0])
+
+        with TemporaryDirectory() as tmpdir:
+            study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Load", tmpdir)
+            manifest = json.loads((Path(study.work_dir) / "study_manifest.json").read_text(encoding="utf-8"))
+        mesh = replace(AnalysisMesh.from_dict(manifest["analysis_mesh"]), solver_input_identity=None)
+        self.assertIn("GN_N2", mesh.groups)
+        self.assertIn("GN_pipe_str_0_mid", mesh.groups)
+
+        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+
+        # The anchors at N0 and N3, and the Load operation's force at N1.
+        self.assertEqual(
+            sorted(layer.id for layer in scene.layers if layer.id.startswith("analysis_mesh:group:GN_")),
+            ["analysis_mesh:group:GN_N0", "analysis_mesh:group:GN_N1", "analysis_mesh:group:GN_N3"],
+        )
+        midside = next(obj for obj in scene.objects if obj.id.endswith(":node:pipe_str_0_mid"))
+        self.assertEqual(midside.group_ids, ["GN_pipe_str_0_mid"])
+        self.assertEqual(midside.layer_ids, ["analysis_mesh:nodes"])
 
     def test_load_case_node_fields_are_checked_at_export(self):
         # Validation walks only operations, so export applies its node rules to load-case fields.

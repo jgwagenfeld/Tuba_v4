@@ -13,6 +13,7 @@ from tuba.geometry.deformed import build_deformed_envelopes
 from tuba.geometry.profiles import profile_for_section
 from tuba.geometry.section_mesh import deformed_straight_section_surface_mesh
 from tuba.refs import EntityRef
+from tuba.solver.aster_mesh import _nodal_force_node_ids
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
@@ -459,6 +460,10 @@ def _build_analysis_mesh_scene(
     assets: list[GeometryAsset] = []
     diagnostics: list[SceneDiagnostic] = []
     groups_by_member = _analysis_mesh_groups_by_member(analysis_mesh)
+    # Node temperatures give every solver node they write a GN_ group; only support and nodal-force groups are layers.
+    layered_node_groups = None if model is None else {
+        f"GN_{node_id}" for node_id in {support.node for support in model.supports} | _nodal_force_node_ids(model)
+    }
     line_element_ids = {
         element_id
         for element_id, node_ids in analysis_mesh.elements.items()
@@ -586,6 +591,10 @@ def _build_analysis_mesh_scene(
                 },
             )
         )
+        layer_groups = [
+            group for group in groups
+            if layered_node_groups is None or not group.startswith("GN_") or group in layered_node_groups
+        ]
         objects.append(
             SceneObject(
                 id=object_id,
@@ -594,7 +603,7 @@ def _build_analysis_mesh_scene(
                 name=f"{node_id} ({role})",
                 geometry_asset_id=asset_id,
                 group_ids=groups,
-                layer_ids=_analysis_mesh_node_layers(role, groups),
+                layer_ids=_analysis_mesh_node_layers(role, layer_groups),
                 metadata=metadata,
                 source={"analysis_mesh": {"id": analysis_mesh.id, "member_type": "node", "member_id": node_id}},
             )
