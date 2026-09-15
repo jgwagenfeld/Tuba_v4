@@ -14,7 +14,7 @@ from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
-from tuba.visualization.builders._helpers import SceneBuildOptions, _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds
+from tuba.visualization.builders._helpers import SceneBuildOptions, _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields
 
 
 _PROFILE_DIMENSION_KEYS = {
@@ -62,18 +62,30 @@ def _build_element_object(
     metadata["profile"] = _profile_metadata(model, elem)
     if elem.bend_geometry is not None:
         metadata["bend_geometry"] = elem.bend_geometry.to_dict()
-    if elem.source_line is not None:
-        metadata["source_line"] = elem.source_line
-        if elem.source_call_line is not None:
-            metadata["source_call_line"] = elem.source_call_line
+    metadata.update(_script_line_fields(elem))
+    property_lines: dict[str, Any] = {
+        key: line
+        for key, line in (
+            ("section", getattr(model.sections.get(elem.section), "source_line", None)),
+            ("material", getattr(model.materials.get(elem.material), "source_line", None)),
+        )
+        if line is not None
+    }
 
     if options.include_attributes:
-        attributes = model.get_attributes(entity_ref)
-        if attributes:
-            metadata["attributes"] = attributes
+        assignments = model.get_attribute_assignments(entity_ref)
+        if assignments:
+            metadata["attributes"] = {key: assignment.value for key, assignment in assignments.items()}
+        attribute_lines = {
+            key: assignment.source_line for key, assignment in assignments.items() if assignment.source_line is not None
+        }
+        if attribute_lines:
+            property_lines["attributes"] = attribute_lines
         insulation = model.get_insulation(entity_ref)
         if insulation is not None:
             metadata["insulation"] = {"id": insulation.id, **insulation.to_dict()}
+    if property_lines:
+        metadata["property_lines"] = property_lines
 
     physical: dict[str, Any] = {}
     if options.include_physical:
@@ -267,8 +279,9 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         metadata={
             "node": support.node,
             **support_data,
-            **({"source_line": support.source_line} if support.source_line is not None else {}),
-            **({"source_call_line": support.source_call_line} if support.source_call_line is not None else {}),
+            # "Defined by" is the line that made the support's point; the restraint links to the support itself.
+            **(_script_line_fields(model.nodes.get(support.node)) or _script_line_fields(support)),
+            **({"property_lines": {"restraint": support.source_line}} if support.source_line is not None else {}),
         },
     )
     return scene_object, asset

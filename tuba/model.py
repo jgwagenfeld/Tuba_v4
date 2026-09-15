@@ -1004,21 +1004,29 @@ class TubaModel:
             metadata=metadata,
         )
 
-    def get_attributes(self, target) -> Dict[str, Any]:
+    def get_attribute_assignments(self, target) -> Dict[str, AttributeAssignment]:
+        """The assignment that supplies each attribute of *target*.
+
+        Assignments to groups containing it come first and direct ones after; the last
+        assignment of a key wins. :meth:`get_attributes` reads its values from here.
+        """
         ref = coerce_entity_ref(target)
-        values: Dict[str, Any] = {}
+        assignments: Dict[str, AttributeAssignment] = {}
 
         if ref.kind in _GROUP_MEMBER_KEYS:
             containing_groups = self._groups_containing_ref(ref)
             for assignment in self.attributes:
                 if assignment.target.kind == "group" and assignment.target.id in containing_groups:
-                    values[assignment.key] = assignment.value
+                    assignments[assignment.key] = assignment
 
         for assignment in self.attributes:
             if assignment.target == ref:
-                values[assignment.key] = assignment.value
+                assignments[assignment.key] = assignment
 
-        return values
+        return assignments
+
+    def get_attributes(self, target) -> Dict[str, Any]:
+        return {key: assignment.value for key, assignment in self.get_attribute_assignments(target).items()}
 
     def get_insulation(self, target) -> Optional[InsulationSpec]:
         spec_id = self.get_attributes(target).get("insulation")

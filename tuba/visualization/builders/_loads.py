@@ -16,6 +16,7 @@ from tuba.solver.aster_loads import resolve_operation_field_groups
 from tuba.visualization.builders._helpers import (
     _bounds_for_points,
     _node_coords,
+    _script_line_fields,
     _vector_endpoint,
     model_span,
 )
@@ -63,6 +64,11 @@ def _force_glyphs(
         ("force", nodal_force.components[:3], "N", FORCE_LAYER),
         ("moment", nodal_force.components[3:], "N*m", MOMENT_LAYER),
     )
+    # Script links go on the object only: the asset's generation_config describes the arrow.
+    case = model.load_cases.get(case_name) or model.operations.get(case_name)
+    links = dict(_script_line_fields(nodal_force))
+    if case is not None and case.source_line is not None:
+        links["property_lines"] = {"load_case": case.source_line}
     for vector_kind, components, unit, layer_id in parts:
         vector = [float(value) for value in components]
         if max((abs(value) for value in vector), default=0.0) <= 0.0:
@@ -93,7 +99,7 @@ def _force_glyphs(
                     geometry_asset_id=asset_id,
                     layer_ids=[layer_id],
                     entity_ref=EntityRef("node", nodal_force.node),
-                    metadata=metadata,
+                    metadata={**metadata, **links},
                 ),
                 GeometryAsset(
                     id=asset_id,

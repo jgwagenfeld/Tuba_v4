@@ -310,11 +310,54 @@ class TestStudioServer(unittest.TestCase):
         status, payload = self._post_script(server, _BUILDER_SCRIPT)
         self.assertEqual(status, 200, payload)
 
-        lines = {name: obj.get("metadata", {}).get("source_line") for name, obj in self._scene_objects(server).items()}
+        objects = self._scene_objects(server)
+        lines = {name: obj.get("metadata", {}).get("source_line") for name, obj in objects.items()}
         self.assertEqual(lines["pipe_str_0"], _line_of(_BUILDER_SCRIPT, "builder.run(4.0)"))
         self.assertEqual(lines["pipe_bend_0"], _line_of(_BUILDER_SCRIPT, "builder.bend("))
+        # A support links to the step that made its point; its restraint links to the support's own line.
         self.assertEqual(lines["support_0"], _line_of(_BUILDER_SCRIPT, "builder.start("))
-        self.assertEqual(lines["support_1"], _line_of(_BUILDER_SCRIPT, "builder.add_support("))
+        self.assertEqual(lines["support_1"], _line_of(_BUILDER_SCRIPT, "builder.bend("))
+        self.assertEqual(lines["support_2"], _line_of(_BUILDER_SCRIPT, "builder.run(2.0)"))
+        self.assertEqual(
+            objects["support_1"]["metadata"]["property_lines"], {"restraint": _line_of(_BUILDER_SCRIPT, "builder.add_support(")}
+        )
+        self.assertEqual(
+            objects["pipe_str_0"]["metadata"]["property_lines"],
+            {
+                "section": _line_of(_BUILDER_SCRIPT, "model.add_pipe_section("),
+                "material": _line_of(_BUILDER_SCRIPT, "model.add_material("),
+            },
+        )
+
+    def test_studio_scene_links_attributes_and_loads_to_their_lines(self):
+        tmpdir = self.enterContext(TemporaryDirectory())
+        server = self._start_studio(Path(tmpdir))
+
+        status, payload = self._post_script(server, _PROPERTY_SCRIPT)
+        self.assertEqual(status, 200, payload)
+
+        objects = self._scene_objects(server)
+
+        def line(text: str) -> int:
+            return _line_of(_PROPERTY_SCRIPT, text)
+
+        self.assertEqual(
+            objects["pipe"]["metadata"]["property_lines"],
+            {
+                "section": line("model.add_pipe_section("),
+                "material": line("model.add_material("),
+                "attributes": {"paint": line("model.assign_attribute(")},
+            },
+        )
+        support = objects["support_0"]["metadata"]
+        self.assertEqual(support["source_line"], line("start = model.add_node("))
+        self.assertEqual(support["property_lines"], {"restraint": line("model.add_support(")})
+        operating = objects["N1 applied force (Operating)"]["metadata"]
+        self.assertEqual(operating["source_line"], line("operating.add_nodal_force("))
+        self.assertEqual(operating["property_lines"], {"load_case": line("model.define_load_case(")})
+        hot = objects["N1 applied force (Hot)"]["metadata"]
+        self.assertEqual(hot["source_line"], line("hot.add_nodal_force("))
+        self.assertEqual(hot["property_lines"], {"load_case": line("model.define_operation(")})
 
     def test_studio_server_reruns_model_py_saved_by_another_editor(self):
         tmpdir = self.enterContext(TemporaryDirectory())

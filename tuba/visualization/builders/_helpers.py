@@ -60,6 +60,13 @@ def _as_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+def _script_line_fields(record: Any) -> dict[str, int]:
+    """A record's model.py lines for scene object metadata; empty unless model.py ran as __main__."""
+    return {
+        key: getattr(record, key)
+        for key in ("source_line", "source_call_line")
+        if getattr(record, key, None) is not None
+    }
 def _object_ids_for_node(model: TubaModel, node_id: str) -> list[str]:
     return [
         _object_id(EntityRef("element", elem.id))

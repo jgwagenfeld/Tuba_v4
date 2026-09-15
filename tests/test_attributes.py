@@ -77,6 +77,16 @@ class TestAttributes(unittest.TestCase):
         self.assertEqual(model.get_insulation(EntityRef("element", e1.id)).id, "aero_10")
         self.assertEqual(model.get_attributes(EntityRef("element", e0.id))["insulation"], "mw_30")
 
+    def test_the_assignment_behind_each_attribute_follows_the_rule_of_its_value(self):
+        model, e0, e1 = self._model_with_two_elements()
+        model.groups["rack_A"] = {"name": "rack_A", "elements": [e0.id, e1.id]}
+        group_paint = model.assign_attribute("group:rack_A", "paint", "grey")
+        direct_paint = model.assign_attribute(EntityRef("element", e1.id), "paint", "red")
+
+        self.assertIs(model.get_attribute_assignments(EntityRef("element", e0.id))["paint"], group_paint)
+        self.assertIs(model.get_attribute_assignments(EntityRef("element", e1.id))["paint"], direct_paint)
+        self.assertEqual(model.get_attributes(EntityRef("element", e1.id)), {"paint": "red"})
+
     def test_generic_attributes_are_preserved_without_geometry_effect(self):
         model, element, _ = self._model_with_two_elements()
 
