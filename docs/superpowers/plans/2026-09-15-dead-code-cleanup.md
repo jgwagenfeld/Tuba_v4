@@ -434,3 +434,29 @@ git commit -m "refactor(visualization): delete agent proposals, scene diffs, fed
 - Run the full suite from the worktree root and compare with the f0ebb82 baseline (1138 passed, 34 skipped, 151 subtests): fewer tests (deleted ones), no failures.
 - Final whole-branch review, then the finishing options. If Plan 6a or support-attachment has landed on main by then, rebase first; conflicts are possible only in `tuba/reporting/tables.py` and `docs/content/`.
 - After the merge, if Task 2 removed the `/=2.2` rule, delete the stray untracked `=2.2` file in the main checkout.
+
+## As executed (2026-09-16)
+
+Run subagent-driven from the worktree `D:/tmp/tuba-cleanup` on branch `cleanup/dead-code`: one implementer and one independent reviewer per task, every subagent on opus.
+
+**Commits** (after the second rebase, onto main 6513a9b, which carries Plan 6a and support-attachment): plan d63d04a; Task 1 415321a and 0519ddf; Task 2 15c6d9c and 48386d4; Task 3 3fd0d35; Task 4 e2cb3a2; Task 5 f6d3652; fix wave 5750adb, 817de44, 35bf305, 04da8e1 and c24dcad; and this record as the branch's final commit. About 5,300 lines deleted outside the rebuilt viewer bundle.
+
+**Rebases.** The branch started on main f0ebb82, was rebased onto 0cc40bc when Plan 6a merged (no conflicts), and again onto 6513a9b when support-attachment merged. The second rebase hit one conflict, in `tests/test_code_aster_study.py`: main still held the `FEAResults` import and `test_rmed_loader_reads_rmed_with_med_format`, which this branch deletes together with `_try_load_rmed`. It was resolved by taking main's file and re-applying exactly those two deletions, checked with `git diff main..HEAD` on that file.
+
+**Reviews.** Every task review returned Spec ✅ and Approved with no Critical or Important finding. The final whole-branch review returned "merge with fixes" (0 Critical; Important: the rebase was still owed, and two docs pages still advertised the removed compliance channel and viewer tabs). Its eight-item fix list ran as one fix wave, and the scoped re-review found all eight addressed with no new breakage.
+
+**Verification on the final tip:** strict docs build "No issues found"; full suite 1155 passed, 38 skipped, 161 subtests, 1 warning (the pre-existing zmq notice in tests/test_notebook_vscode_render.py). Earlier runs: 1134 passed / 31 skipped after the first rebase, and 1103 passed / 31 skipped before it, against an f0ebb82 baseline of 1138 passed / 34 skipped — with the three generated-docs HTML checks now running instead of skipping, and the later growth coming from Plan 6a's and support-attachment's own tests.
+
+**Kept out of scope by ruling:** `parse_result_artifacts` (the test surface for validated parsing), `has_wind_load` (in support-attachment's file), the scipy and trimesh import guards (they pin a dependency boundary), the viewer's FE-stress notice and `compliance_role` (ADR 0002), Tier 3 (the studio server's dead routes and `results_stale`, `build_pages.py`'s `compliance_complete`, `model_revision`), and Tier 2d (legacy examples and facade trims, which the user did not choose).
+
+**Rulings that changed this plan's own text:** the `make_bundle` docstring lives in `examples/pipe-tee-volume-review/mesh_study.py`, not `tuba/solver/mesh_study.py`; the plan wrongly listed an ADR 0002 guard (`assert "compliance" not in row`) as a compliance-report case, so the fix wave restored it; the deleted network-routing tests were the only cover for `avoid_existing_pipes=False`, so the fix wave added one; and clash issues' `external_refs["bcf"]`, kept during Task 5, was removed after all, since both its readers were gone.
+
+**Deferred with reasons** (the final review's triage): recorded viewer fixtures that still carry retired keys and BCF data; the viewer's `"preview"` diagnostic branch and its group label; the `3d` tab entry that only embed mode reaches; the dropped orthographic-camera test; two test symbols unused before this branch; a vacuous assertion in workflow-rendering.test.js; `compliance_complete` in `scripts/build_pages.py` and the matching viewer CSS badge; the routing `compliance_evaluator` hook's undocumented shape; `ThermalRouteRequirement.delta_t_c`; the always-zero routing penalty channel and the unread zone fields; `hot_request` in autorouting.md; stale metadata files left when re-exporting into a pre-branch folder; four recorded fixtures Python's `from_dict` cannot parse; and the studio server's unread `results_stale`.
+
+**Parked:** `docs/content/architecture/visualization.md:23` still lists "proposals" among annotation layers, which this branch deleted — a one-line follow-up.
+
+**Follow-ups the final review recommended**, each naming one owner for a rule now restated in several places: `tuba/reporting/model.py` should own the analysis-status vocabulary that `scripts/build_pages.py` restates; `tuba/visualization/web_export.py` should own the bundle metadata file list that `tuba/reporting/export.py` restates; `tuba/routing/solver_loop.py` should state the compliance-evaluator shape as a `Protocol`, or the hook should go; Plan 6b should drop `results_stale` from the studio event; and `tuba/routing/grid.py` should either delete the always-zero penalty channel or give its zones a writer.
+
+**Owed before any push:** the Linux Pages check, cloned inside the container.
+
+**For future plans:** name `docs/adr` as a history record, write a legacy-loading test after the widest removal list is known, and include notebooks in docs searches.
