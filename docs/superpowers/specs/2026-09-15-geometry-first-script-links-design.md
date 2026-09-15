@@ -90,11 +90,12 @@ steps it was built from.
    `run_element` steps recorded by `beam`, `bar` and `cable` are written under
    those names (`builder.beam(1.5)`). A recipe's route is passed as
    `model.pipe(..., route=...)`.
-5. A remembered run is written as a block only when:
+5. Remembered runs are taken in the order they finished. A run is written as a
+   block only when:
    - its records fill exactly the positions that follow the sequence lengths
      recorded at its first step, in each of the three sequences;
-   - it does not overlap or interleave with another remembered run in any
-     sequence;
+   - it starts at or after the end of the last run written as a block, in each
+     sequence, so of two nested runs at most one keeps its block;
    - its up vector is the builder default.
 
    Otherwise its records are written as single calls, exactly as today. A model
@@ -104,6 +105,9 @@ steps it was built from.
    instead; only when that fails too does the save raise, as today. The
    ceiling, to be noted in the code: one run that replays inexactly flattens
    the whole script; a per-run proof is the upgrade if that ever matters.
+   Falling back to single calls is permanent for that project: a single-call
+   model.py recreates no pipe runs, so the runs it flattened never come back
+   as blocks.
 7. Decision 9 of the authoring-session spec is amended: pipe runs are written
    as their builder steps; every other node, element and support stays one
    public call.

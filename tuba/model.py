@@ -50,7 +50,7 @@ def _inside_tuba(filename: str) -> bool:
 
 
 def _script_lines() -> Tuple[Optional[int], Optional[int]]:
-    """Where the running script created an element or support: ``(line, call_line)``.
+    """Where the running script created a model record: ``(line, call_line)``.
 
     Recorded for the code <-> 3D link and never serialized. ``line`` is the first
     frame outside tuba, and it counts only when that frame runs as ``__main__`` -

@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from tuba import Model
-from tuba.builder import BuildStep
+from tuba.builder import BuildStep, PipeRunRecipe
 from tuba.model import TubaModel
 from tuba.patches import ModelPatch, ModelTransaction
 from tuba.project import load_project, run_model_script
@@ -185,6 +185,15 @@ def test_beams_and_cables_are_written_under_their_own_names():
         "start([0.0, 0.0, 1.0])", "set_direction([1.0, 0.0, -1.0])", "cable(2.0)", section="Guy", route="G-1"
     ) in text
     assert same_model(model, _rebuild(text))
+
+
+def test_a_negative_zero_twist_is_written_rather_than_taken_for_the_default():
+    model = _sections_model("Negative zero")
+    model.add_ibeam_section("IPE100", "IPE100")
+    with model.pipe(section="IPE100", material="Steel") as builder:
+        builder.start([0.0, 0.0, 0.0]).beam(1.5, twist_angle=-0.0)
+
+    assert _block("start([0.0, 0.0, 0.0])", "beam(1.5, twist_angle=-0.0)", section="IPE100") in generate_model_script(model)
 
 
 def test_records_added_between_two_runs_stay_single_calls_in_creation_order():
@@ -399,4 +408,27 @@ def test_writing_falls_back_to_single_calls_when_the_blocks_do_not_rebuild_the_m
     text = write_model_script(target, model, last_text=None)
 
     assert "with model.pipe(" not in text
+    assert same_model(model, run_model_script(target)["model"])
+
+
+def test_a_run_built_from_integer_steps_keeps_its_block(tmp_path: Path):
+    model = _sections_model("Integer steps")
+    recipe = PipeRunRecipe(
+        section="DN100",
+        material="Steel",
+        steps=[  # JSON numbers as an agent sends them to build_pipe_run
+            BuildStep(op="start", params={"point": [0, 0, 0], "support": "anchor"}),
+            BuildStep(op="run", params={"length": 2}),
+            BuildStep(op="bend", params={"radius": 1, "angle": 90, "plane": "XY"}),
+            BuildStep(op="add_support", params={"type": "guide", "direction": [0, 1, 0]}),
+            BuildStep(op="run", params={"length": 3}),
+        ],
+    )
+    recipe.build(model)
+    target = tmp_path / "model.py"
+
+    text = write_model_script(target, model, last_text=None)
+
+    assert "with model.pipe(" in text
+    assert "builder.add_support(type='guide', direction=[0, 1, 0])" in text
     assert same_model(model, run_model_script(target)["model"])

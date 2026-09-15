@@ -310,10 +310,10 @@ def _step_call(step: BuildStep) -> str:
 
 
 def _is_empty_default(value: Any, default: Any) -> bool:
-    """Whether *value* is an empty default (None, or a float 0.0) that leaving out replays identically."""
+    """Whether *value* is exactly its None or float *default* (``-0.0`` is not ``0.0``), so it can be left out."""
     if default is None:
         return value is None
-    return type(default) is float and type(value) is float and value == default == 0.0
+    return type(default) is float and type(value) is float and repr(value) == repr(default)
 
 
 def _keywords(record: dict[str, Any]) -> str:

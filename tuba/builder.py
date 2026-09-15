@@ -386,7 +386,8 @@ class PipingBuilder:
         self._record(
             "add_support",
             type=type,
-            direction=(None if direction is None else [float(x) for x in direction]),
+            # Not converted to floats: the support keeps its direction as given, so a replay must pass the same values.
+            direction=(None if direction is None else list(direction)),
             stiffness=stiffness,
             stiffness_matrix=stiffness_matrix,
             blocked_dof=blocked_dof,
