@@ -63,15 +63,12 @@ class TestVisualizationIssues(unittest.TestCase):
         )
         self.assertEqual(view.active_overlay_ids, [overlay.id])
 
-    def test_clash_issue_carries_bcf_compatible_fields_and_raw_payload(self):
+    def test_clash_issue_carries_raw_clash_payload(self):
         model, clash = self._model_and_clash()
 
         scene = build_visualization_scene(model, clash_results=[clash], scene_id="scene_clash_review")
         issue = scene.issues[0]
 
-        self.assertEqual(issue.external_refs["bcf"]["topic_type"], "Clash")
-        self.assertEqual(issue.external_refs["bcf"]["topic_status"], "Open")
-        self.assertEqual(issue.external_refs["bcf"]["related_entity_refs"], ["element:pipe_0", "obstacle:tray_0"])
         self.assertEqual(issue.external_refs["clash"]["left"], {"kind": "element", "id": "pipe_0"})
         self.assertGreater(issue.external_refs["clash"]["penetration_m"], 0.0)
 

@@ -183,12 +183,6 @@ def _build_clash_issue_scene(
         view_id=view_id,
         source_report_id="clash",
         external_refs={
-            "bcf": {
-                "topic_type": "Clash",
-                "topic_status": "Open",
-                "related_entity_refs": [str(clash.left), str(clash.right)],
-                "labels": ["tuba", "clash", clash.severity],
-            },
             "clash": clash.to_dict(),
             "clash_review": {
                 "focus_object_ids": [*involved_object_ids, marker_id],
