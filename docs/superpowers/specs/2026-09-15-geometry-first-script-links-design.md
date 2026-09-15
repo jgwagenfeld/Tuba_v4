@@ -1,7 +1,7 @@
 # Geometry-first script links and vector-style generated model scripts
 
 Date: 2026-09-15
-Status: proposed
+Status: accepted
 
 Terms follow `CONTEXT.md` (Model script, Generated and Authored model script,
 Authoring session, Model fingerprint). This spec adds **Pipe run**: the records
@@ -204,8 +204,9 @@ Python, written to fail first:
     non-default up vector, are written as single calls.
   - Fallback: when the script with blocks does not rebuild the model,
     `write_model_script` writes the single-call script.
-  - `test_each_element_and_support_links_to_its_own_line` asserts that
-    elements link to their block step and supports to their node's line.
+  - `test_each_element_and_support_links_to_its_own_line` is replaced by a
+    test asserting that elements link to their block step and supports to
+    their node's line.
   - The nine example projects still rebuild (the parametrized round trip, now
     with blocks).
 - `tests/test_studio_server.py`: the guide support links to `builder.bend(`;
