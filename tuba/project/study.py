@@ -17,7 +17,8 @@ from tuba.project.evidence import evidence_dir
 from tuba.solver.aster import CodeAsterSolver
 
 #: How Code_Aster runs on this machine: not the study's choice, and not part of the solver input identity.
-_RUNTIME = frozenset({"work_dir", "exec_method", "docker_image", "wsl_distro", "runner_command", "bridge_python", "timeout_seconds"})
+#: A study may set ``timeout_seconds``, because no environment variable or command-line flag sets a solve's timeout.
+_RUNTIME = frozenset({"work_dir", "exec_method", "docker_image", "wsl_distro", "runner_command", "bridge_python"})
 _VOLUME_REQUIRED = ("element_ids", "max_element_size")
 _VOLUME = frozenset({*_VOLUME_REQUIRED, "element_order"})
 

@@ -24,10 +24,10 @@ def test_a_missing_study_or_name_takes_its_default():
 
 
 def test_the_settings_are_the_study_names():
-    beam = SimpleNamespace(LOAD_CASES=["Hot", "Cold"], SOLVER_OPTIONS={"line_segments": 4})
+    beam = SimpleNamespace(LOAD_CASES=["Hot", "Cold"], SOLVER_OPTIONS={"line_segments": 4, "timeout_seconds": 14400})
     volume = SimpleNamespace(LOAD_CASES=("Pressure",), SOLVER_OPTIONS={}, VOLUME_EXPORT=VOLUME)
 
-    assert study_settings(beam) == StudySettings(("Hot", "Cold"), {"line_segments": 4}, None)
+    assert study_settings(beam) == StudySettings(("Hot", "Cold"), {"line_segments": 4, "timeout_seconds": 14400}, None)
     assert study_settings(volume) == StudySettings(("Pressure",), {}, VOLUME)
 
 
@@ -40,7 +40,7 @@ def test_the_settings_are_the_study_names():
         ({"LOAD_CASES": ("Hot", "Hot")}, "twice"),
         ({"LOAD_CASES": ("Hot", "hot")}, "twice"),
         ({"SOLVER_OPTIONS": {"exec_method": "docker"}}, "runs on this machine: exec_method"),
-        ({"SOLVER_OPTIONS": {"work_dir": "scratch", "timeout_seconds": 60}}, "runs on this machine: timeout_seconds, work_dir"),
+        ({"SOLVER_OPTIONS": {"work_dir": "scratch", "docker_image": "tuba/aster"}}, "runs on this machine: docker_image, work_dir"),
         ({"SOLVER_OPTIONS": {"line_segment": 4}}, "line_segment'"),
         ({"SOLVER_OPTIONS": {"line_segments": 0}}, "line_segments must be a positive integer"),
         ({"VOLUME_EXPORT": {"element_ids": ("pipe_0",)}}, "needs max_element_size"),
