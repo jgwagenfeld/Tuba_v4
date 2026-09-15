@@ -7,17 +7,12 @@ import {
   applySectionBox,
   buildObjectTree,
   filterIssues,
-  filterObjects,
   focusIssue,
   getIssueSummary,
   groupIssues,
-  measureDistanceBetweenObjects,
   restoreViewState,
   saveViewState,
-  sectionBoxDefaults,
-  setRuntimeState,
-  setOverlayVisibility,
-  searchObjects
+  sectionBoxDefaults
 } from "../src/controls.js";
 
 function fixtureState() {
@@ -98,8 +93,7 @@ function fixtureState() {
           severity: "error",
           status: "open",
           entity_refs: ["element:pipe_0", "obstacle:equipment_box"],
-          view_id: "view:issue:clash:element:pipe_0:obstacle:equipment_box",
-          external_refs: { bcf: { topic_type: "Clash", topic_status: "Open" } }
+          view_id: "view:issue:clash:element:pipe_0:obstacle:equipment_box"
         }
       ],
       views: [
@@ -115,117 +109,6 @@ function fixtureState() {
           camera: { mode: "orbit", target: [1, 0.12, 0], distance: 2 }
         }
       ],
-      diagnostics: []
-    },
-    objects: [],
-    objectMap: {},
-    overlays: [],
-    geometryAssets: [],
-    geometryPayloads: []
-  });
-}
-
-function fixtureEnvelopeState() {
-  return createViewerState({
-    scene: {
-      schema_version: "visualization.scene.v1",
-      scene_id: "scene_envelope_controls",
-      model_id: "model_envelope_controls",
-      objects: [
-        {
-          id: "object:element:pipe_0",
-          entity_ref: "element:pipe_0",
-          kind: "pipe",
-          name: "P-100",
-          geometry_asset_id: "geometry:element:pipe_0",
-          metadata: {}
-        },
-        {
-          id: "object:physical_envelope:element:pipe_0:insulation",
-          kind: "physical_envelope",
-          name: "Insulation envelope",
-          geometry_asset_id: "geometry:physical_envelope:element:pipe_0:insulation",
-          metadata: { envelope_type: "insulation" }
-        }
-      ],
-      geometry_assets: [
-        {
-          id: "geometry:element:pipe_0",
-          format: "tube",
-          bounds: [0, -0.05, -0.05, 2, 0.05, 0.05],
-          object_ids: ["object:element:pipe_0"],
-          generation_config: {}
-        },
-        {
-          id: "geometry:physical_envelope:element:pipe_0:insulation",
-          format: "tube_envelope",
-          bounds: [0, -0.1, -0.1, 2, 0.1, 0.1],
-          object_ids: ["object:physical_envelope:element:pipe_0:insulation"],
-          generation_config: { radius_m: 0.1 }
-        }
-      ],
-      overlays: [
-        {
-          id: "overlay:physical_envelope:element:pipe_0:insulation",
-          kind: "physical_envelope",
-          object_ids: ["object:physical_envelope:element:pipe_0:insulation"],
-          data: { envelope_type: "insulation" },
-          visible: true
-        }
-      ],
-      issues: [],
-      views: [],
-      diagnostics: []
-    },
-    objects: [],
-    objectMap: {},
-    overlays: [],
-    geometryAssets: [],
-    geometryPayloads: []
-  });
-}
-
-function fixtureRuntimeState() {
-  return createViewerState({
-    scene: {
-      schema_version: "visualization.scene.v1",
-      scene_id: "scene_runtime",
-      model_id: "model_runtime",
-      objects: [
-        {
-          id: "object:element:pipe_0",
-          entity_ref: "element:pipe_0",
-          kind: "pipe",
-          name: "P-100",
-          geometry_asset_id: "geometry:element:pipe_0",
-          metadata: {}
-        }
-      ],
-      geometry_assets: [
-        {
-          id: "geometry:element:pipe_0",
-          format: "tube",
-          bounds: [0, -0.05, -0.05, 1, 0.05, 0.05],
-          object_ids: ["object:element:pipe_0"],
-          generation_config: {}
-        }
-      ],
-      overlays: [
-        {
-          id: "overlay:runtime_state",
-          kind: "runtime_state",
-          object_ids: ["object:element:pipe_0"],
-          data: {
-            timestamps: ["2026-06-20T10:00:00Z", "2026-06-20T11:00:00Z"],
-            states: {
-              "2026-06-20T10:00:00Z": { "object:element:pipe_0": { status: "active" } },
-              "2026-06-20T11:00:00Z": { "object:element:pipe_0": { status: "alarm" } }
-            }
-          }
-        }
-      ],
-      issues: [],
-      views: [],
       diagnostics: []
     },
     objects: [],
@@ -280,31 +163,6 @@ test("buildObjectTree groups objects by route group and source", () => {
     buildObjectTree(state, { groupBy: "source" }).children.map((node) => node.label).sort(),
     ["analysis_mesh:Hot", "model_tree_groups"],
   );
-});
-
-test("searchObjects finds nested metadata values", () => {
-  const matches = searchObjects(fixtureState(), "mineral");
-
-  assert.deepEqual(matches.map((obj) => obj.id), ["object:element:pipe_0"]);
-});
-
-test("filterObjects narrows by kind and metadata", () => {
-  const matches = filterObjects(fixtureState(), { kind: "pipe", metadata: { material: "Steel" } });
-
-  assert.deepEqual(matches.map((obj) => obj.id), ["object:element:pipe_0"]);
-});
-
-test("measureDistanceBetweenObjects returns center-to-center distance", () => {
-  const distance = measureDistanceBetweenObjects(
-    fixtureState(),
-    "object:element:pipe_0",
-    "object:obstacle:equipment_box"
-  );
-
-  assert.equal(distance.unit, "m");
-  assert.equal(distance.from, "object:element:pipe_0");
-  assert.equal(distance.to, "object:obstacle:equipment_box");
-  assert.equal(distance.distance_m, 2.5);
 });
 
 test("applySectionBox hides objects outside the clipping bounds", () => {
@@ -408,38 +266,12 @@ test("focusIssue selects involved objects and activates issue view", () => {
   assert.deepEqual(focused.camera.target, [1, 0.12, 0]);
 });
 
-test("getIssueSummary exposes BCF status and related object names", () => {
+test("getIssueSummary exposes the title and related object names", () => {
   const summary = getIssueSummary(fixtureState(), "issue:clash:element:pipe_0:obstacle:equipment_box");
 
   assert.equal(summary.title, "Pipe clashes with equipment box");
-  assert.equal(summary.bcf.topic_status, "Open");
   assert.deepEqual(summary.relatedObjects.map((obj) => obj.id), [
     "object:element:pipe_0",
     "object:obstacle:equipment_box"
   ]);
-});
-
-test("setOverlayVisibility hides and restores overlay-owned envelope objects", () => {
-  const hidden = setOverlayVisibility(
-    fixtureEnvelopeState(),
-    "overlay:physical_envelope:element:pipe_0:insulation",
-    false
-  );
-
-  assert.deepEqual(hidden.visibleOverlayIds, []);
-  assert.deepEqual(hidden.visibleObjectIds, ["object:element:pipe_0"]);
-
-  const restored = setOverlayVisibility(hidden, "overlay:physical_envelope:element:pipe_0:insulation", true);
-  assert.deepEqual(restored.visibleOverlayIds, ["overlay:physical_envelope:element:pipe_0:insulation"]);
-  assert.deepEqual(restored.visibleObjectIds, [
-    "object:element:pipe_0",
-    "object:physical_envelope:element:pipe_0:insulation"
-  ]);
-});
-
-test("setRuntimeState activates timestamped object states", () => {
-  const next = setRuntimeState(fixtureRuntimeState(), "overlay:runtime_state", "2026-06-20T11:00:00Z");
-
-  assert.equal(next.activeRuntimeState.timestamp, "2026-06-20T11:00:00Z");
-  assert.equal(next.activeRuntimeState.objectStates["object:element:pipe_0"].status, "alarm");
 });

@@ -1291,54 +1291,6 @@ const scenarios = {
       });
     }
   },
-  "partial-compliance-neutrality": {
-    bundle: "/test/fixtures/code_aster_results",
-    // Six: this bundle declares two deformed geometry states and only the
-    // active one is drawn (assetMatchesActiveGeometryState), so the seventh
-    // object can never render.
-    minimumObjects: 6,
-    async beforeNavigate(page) {
-      await page.route("**/test/fixtures/code_aster_results/review.json", async (route) => {
-        const response = await route.fetch();
-        const review = await response.json();
-        review.analysis_status = "compliance_complete";
-        review.tables.code_compliance = {
-          id: "code_compliance",
-          title: "Code compliance",
-          source: "compliance_report",
-          columns: [
-            { id: "load_case", label: "Load case" },
-            { id: "entity_ref", label: "Entity reference" },
-            { id: "sustained_ratio", label: "Sustained ratio" },
-            { id: "sustained_pass", label: "Sustained pass" },
-            { id: "expansion_ratio", label: "Expansion ratio" },
-            { id: "expansion_pass", label: "Expansion pass" }
-          ],
-          rows: [{
-            load_case: "Partial Operating",
-            entity_ref: "element:pipe_partial",
-            sustained_ratio: 0.74,
-            expansion_ratio: 0.86
-          }]
-        };
-        await route.fulfill({ response, json: review });
-      });
-    },
-    async run(page) {
-      // Partial compliance rows must never be dressed up as a verdict. The
-      // chip carries no governing facts at all, and the Governing Results card
-      // states plainly that they are unavailable rather than printing a ratio
-      // derived from an incomplete table.
-      const chip = await page.locator("[data-status-chip]").textContent();
-      assert.doesNotMatch(chip, /Partial Operating|pipe_partial|0\.86|Compliance fail/i);
-
-      // Nothing anywhere in the shell may restate the partial rows as a
-      // verdict; cockpitStatusViewModel's own tests hold the neutrality rule.
-      await openIssuesTask(page);
-      const shell = await page.locator(".app-shell").textContent();
-      assert.doesNotMatch(shell, /Partial Operating|pipe_partial|0\.86/);
-    }
-  },
   "embedded-review": {
     bundle: "/test/fixtures/code_aster_results",
     minimumObjects: 6,
@@ -1377,8 +1329,6 @@ const scenarios = {
       await page.getByLabel(/Issue Status/).selectOption("resolved");
       await page.getByLabel(/Issue Comment/).fill("Reviewed in browser");
       await page.getByLabel(/Issue Comment/).dispatchEvent("change");
-      await page.getByRole("button", { name: /Export BCF/ }).click();
-      await page.waitForFunction(() => /BCF ready issue:operating_clash/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
 
       await page.getByRole("button", { name: /Isolate selected/ }).click();
       await page.waitForFunction(() => {

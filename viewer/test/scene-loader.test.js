@@ -7,7 +7,6 @@ import * as sceneLoaderModule from "../src/sceneLoader.js";
 
 import {
   createViewerState,
-  loadSceneBundle,
   loadSceneBundleFromUrl,
   setLayerVisibility,
   categoryForLayerId,
@@ -87,8 +86,19 @@ async function createFixtureBundle() {
   return root;
 }
 
+// Reads the folder the way a static host serves it: the file, or a 404.
+function loadFixtureBundle(root) {
+  return loadSceneBundleFromUrl(root, async (path) => {
+    try {
+      return new Response(await readFile(path, "utf8"));
+    } catch {
+      return new Response("", { status: 404 });
+    }
+  });
+}
+
 test("loads scene bundle files and geometry payloads", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
+  const bundle = await loadFixtureBundle(await createFixtureBundle());
 
   assert.equal(bundle.scene.scene_id, "scene_001");
   assert.equal(bundle.objects.length, 1);
@@ -97,7 +107,7 @@ test("loads scene bundle files and geometry payloads", async () => {
 });
 
 test("creates viewer state with visible layers and scene bounds", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
+  const bundle = await loadFixtureBundle(await createFixtureBundle());
 
   const state = createViewerState(bundle);
 
@@ -316,7 +326,7 @@ test("uses complete manifest geometry and fetches only stripped payload formats"
 });
 
 test("updates layer visibility without mutating prior state", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
+  const bundle = await loadFixtureBundle(await createFixtureBundle());
   const state = createViewerState(bundle);
 
   const next = setLayerVisibility(state, "pipe", false);
@@ -584,19 +594,6 @@ test("task presets keep scene-declared analytical layers hidden", () => {
 
   assert.equal(resultsState.layers.pipe.visible, true);
   assert.equal(resultsState.layers["physical_envelope:clearance"].visible, false);
-});
-
-test("scene loader carries the authoring script uri into viewer state", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
-  bundle.scene.source_uri = "source.py";
-
-  assert.equal(createViewerState(bundle).sourceUri, "source.py");
-});
-
-test("scene loader reports no authoring script when the bundle omits one", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
-
-  assert.equal(createViewerState(bundle).sourceUri, null);
 });
 
 test("large URL bundles bound active geometry reads, preserve every payload, and propagate failures", async () => {

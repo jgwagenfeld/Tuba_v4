@@ -2,30 +2,11 @@ import { loadOptionalReview } from "./reviewLoader.js";
 import { visibilityPresetForTask } from "./workflowState.js";
 import { createColoringState } from "./coloring.js";
 
-const NODE_FS_PROMISES = "node:fs/promises";
-const NODE_PATH = "node:path";
-
 // Only reached now when a review was asked for, when a folder holds a single
 // bundle, or when the viewer is embedded: a multi-bundle landing page shows the
 // gallery instead of guessing which review the reader wanted.
 export function resolveBundleId(requestedBundle, availableBundles = []) {
   return requestedBundle || availableBundles[0] || ".";
-}
-
-export async function loadSceneBundle(root) {
-  const { readFile } = await import(/* @vite-ignore */ NODE_FS_PROMISES);
-  const { join } = await import(/* @vite-ignore */ NODE_PATH);
-  const readJson = async (relativePath) => JSON.parse(await readFile(join(root, relativePath), "utf8"));
-  const scene = await readJson("scene.json");
-  const objects = Array.isArray(scene.objects) ? scene.objects : await readJson("metadata/objects.json");
-  const objectMap = await readJson("metadata/object_map.json");
-  const overlays = Array.isArray(scene.overlays) ? scene.overlays : await readJson("metadata/overlays.json");
-  const geometryAssets = Array.isArray(scene.geometry_assets)
-    ? scene.geometry_assets
-    : await readJson("geometry/geometry_assets.json");
-  const geometryPayloads = await readGeometryPayloads(scene.geometry_assets ?? geometryAssets, readJson);
-
-  return { scene, objects, objectMap, overlays, geometryAssets, geometryPayloads };
 }
 
 export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis.fetch) {
@@ -128,13 +109,8 @@ export function createViewerState(bundle) {
     geometryStates[0] ??
     null;
 
-  const isStaleDiagnostic = (scene.diagnostics ?? []).some((d) => d.code === "engineering.results_stale");
-  const resultsStale = Boolean(bundle.resultsStale || scene.results_stale || isStaleDiagnostic);
-
   const state = {
     sceneId: scene.scene_id,
-    sourceUri: typeof scene.source_uri === "string" ? scene.source_uri : null,
-    resultsStale,
     objects,
     objectMap: bundle.objectMap ?? {},
     geometryAssets,
@@ -161,8 +137,6 @@ export function createViewerState(bundle) {
     activeLoadCase: initialLoadCase,
     activeResultStateId: activeResultState?.data?.id ?? activeResultState?.id ?? null,
     activeGeometryStateId: activeGeometryState?.data?.id ?? activeGeometryState?.id ?? null,
-    displacementVectorScale: 1,
-    reactionVectorScale: 1,
     resultThreshold: null,
     resultVectorScales: { displacement: 1, reaction: 1, moment: 1 },
     utilizationThreshold: null,

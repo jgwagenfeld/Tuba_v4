@@ -1,25 +1,17 @@
 export const WORKFLOW_TABS = Object.freeze([
-  { id: "summary", label: "Review", requiresReview: true },
-  { id: "model", label: "Model", requiresReview: true },
-  { id: "load-cases", label: "Load Cases", requiresReview: true },
-  { id: "results", label: "Results", requiresReview: true },
-  { id: "diagnostics", label: "Issues", requiresReview: false },
-  { id: "3d", label: "Display", requiresReview: false },
-  { id: "compliance", label: "Compliance", requiresReview: true }
+  { id: "model", label: "Model" },
+  { id: "results", label: "Results" },
+  { id: "diagnostics", label: "Issues" },
+  { id: "3d", label: "Display" }
 ]);
 
 // The Results task owns the coloring channel now that the permanent bar above
 // the viewport is gone, so a scene carrying fields or result states must offer
 // it even without a review - otherwise there is no way left to pick what
-// colours the model. Both visibility lists read this: the rail must never
-// offer a task setWorkflowTab will reject.
+// colours the model. setWorkflowTab checks the rail's own list, so the rail
+// never offers a task it rejects.
 function hasResultContent({ resultFields, resultStates } = {}) {
   return (resultFields ?? []).length > 0 || (resultStates ?? []).length > 0;
-}
-
-export function getVisibleWorkflowTabs(state = {}) {
-  if (state.review) return WORKFLOW_TABS.map((tab) => tab.id);
-  return hasResultContent(state) ? ["model", "results", "diagnostics"] : ["model", "diagnostics"];
 }
 
 export function getVisibleCockpitTaskIds(state = {}) {
@@ -37,7 +29,6 @@ export function defaultWorkflowTab({ review, embed } = {}) {
 }
 
 const TASK_VISIBILITY_PRESETS = Object.freeze({
-  summary: { design: true, analysis_mesh: false, results: true, annotations: true },
   model: { design: true, analysis_mesh: false, results: false, annotations: false },
   results: { design: true, analysis_mesh: false, results: true, annotations: true },
   diagnostics: { design: true, analysis_mesh: false, results: false, annotations: true }
@@ -60,7 +51,7 @@ export function setWorkflowTab(state, tabId) {
   if (!tab) {
     throw new RangeError(`Unknown workflow tab: ${tabId}`);
   }
-  if (!getVisibleWorkflowTabs(state).includes(tabId)) {
+  if (!getVisibleCockpitTaskIds(state).includes(tabId)) {
     throw new RangeError(`Workflow tab is not visible: ${tabId}`);
   }
   return { ...state, activeTab: tabId };

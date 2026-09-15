@@ -167,7 +167,6 @@ test("viewer reducer owns compound selection and visibility transitions", () => 
     type: "restoreViewState",
     view: { selectedObjectIds: ["object:cold"], visibleLayers: { "issues:clash": false } },
   });
-  const shown = reduceViewerState(view, { type: "showReviewEntityIn3d", entityRef: "object:clash" });
 
   assert.deepEqual(selected.selectedObjectIds, ["object:cold", "object:clash"]);
   assert.ok(!hidden.visibleObjectIds.includes("object:cold"));
@@ -175,8 +174,6 @@ test("viewer reducer owns compound selection and visibility transitions", () => 
   assert.deepEqual(restored.hiddenObjectIds, []);
   assert.deepEqual(sectioned.sectionBox, { min: [0, 0, 0], max: [0.5, 0.5, 0.5] });
   assert.equal(view.layers["issues:clash"].visible, false);
-  assert.deepEqual(shown.selectedObjectIds, ["object:clash"]);
-  assert.ok(shown.camera.fitRequest);
 });
 
 test("viewer reducer fits the current selection through a camera request", () => {
@@ -222,8 +219,8 @@ test("viewer reducer tracks result review controls without changing clash metada
   const loadCase = reduceViewerState(threshold, { type: "setActiveLoadCase", loadCase: "Hot" });
 
   assert.equal(loadCase.visualDeformationScale, 10);
-  assert.equal(loadCase.displacementVectorScale, 2);
-  assert.equal(loadCase.reactionVectorScale, 0.5);
+  assert.equal(loadCase.resultVectorScales.displacement, 2);
+  assert.equal(loadCase.resultVectorScales.reaction, 0.5);
   assert.equal(loadCase.resultThreshold, 60000000);
   assert.equal(loadCase.activeLoadCase, "Hot");
   assert.deepEqual(loadCase.issues, state.issues);
@@ -312,7 +309,7 @@ test("viewer state reload preserves a still-valid workflow tab and review contro
     ...createWorkflowState({ review, embed: false })
   };
   const selected = reduceViewerState(initial, { type: "selectObjects", objectIds: ["object:cold"] });
-  const previous = reduceViewerState(selected, { type: "setWorkflowTab", tabId: "results" });
+  const previous = reduceViewerState(selected, { type: "activateTask", tabId: "results" });
   const nextState = {
     ...createViewerState({ ...bundle(), review, legacyReview: false }),
     ...createWorkflowState({ review, embed: false })

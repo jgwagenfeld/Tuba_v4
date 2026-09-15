@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildObjectTree, rankObjectMatches, searchObjects } from "../src/controls.js";
+import { buildObjectTree, rankObjectMatches } from "../src/controls.js";
 
 function state() {
   return {
@@ -37,19 +37,19 @@ function state() {
 }
 
 test("search matches fields a reader can actually see", () => {
-  assert.deepEqual(searchObjects(state(), "P-100").map((o) => o.id), ["object:element:pipe_0"]);
-  assert.deepEqual(searchObjects(state(), "anchor").map((o) => o.id), ["object:support:S1"]);
-  assert.deepEqual(searchObjects(state(), "mineral").map((o) => o.id), ["object:element:pipe_0"]);
-  assert.deepEqual(searchObjects(state(), "hot_oil").map((o) => o.id), ["object:element:pipe_0"]);
-  assert.deepEqual(searchObjects(state(), "R-100").map((o) => o.id), ["object:element:pipe_0"]);
+  assert.deepEqual(rankObjectMatches(state(), "P-100").map((match) => match.object.id), ["object:element:pipe_0"]);
+  assert.deepEqual(rankObjectMatches(state(), "anchor").map((match) => match.object.id), ["object:support:S1"]);
+  assert.deepEqual(rankObjectMatches(state(), "mineral").map((match) => match.object.id), ["object:element:pipe_0"]);
+  assert.deepEqual(rankObjectMatches(state(), "hot_oil").map((match) => match.object.id), ["object:element:pipe_0"]);
+  assert.deepEqual(rankObjectMatches(state(), "R-100").map((match) => match.object.id), ["object:element:pipe_0"]);
 });
 
 test("search does not match coordinates, and numbers are not searchable text", () => {
   // The old implementation ran over JSON.stringify(obj), so "0.1143" matched the
   // pipe on its outer diameter and "1" matched almost everything.
-  assert.deepEqual(searchObjects(state(), "0.1143"), []);
-  assert.deepEqual(searchObjects(state(), "19"), []);
-  assert.deepEqual(searchObjects(state(), "outer_diameter_m"), []);
+  assert.deepEqual(rankObjectMatches(state(), "0.1143"), []);
+  assert.deepEqual(rankObjectMatches(state(), "19"), []);
+  assert.deepEqual(rankObjectMatches(state(), "outer_diameter_m"), []);
 });
 
 test("a name hit outranks a metadata hit", () => {

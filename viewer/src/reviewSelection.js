@@ -1,5 +1,3 @@
-import { fitSelection, selectObject } from "./selection.js";
-
 export function resolveEntityObjectId(state, entityRef) {
   if (typeof entityRef !== "string" || entityRef.length === 0) {
     return null;
@@ -34,15 +32,6 @@ export function resolveEntityObjectId(state, entityRef) {
   }
   candidates.sort((left, right) => left.rank - right.rank || compareIds(left.id, right.id));
   return candidates[0]?.id ?? null;
-}
-
-export function showReviewEntityIn3d(state, entityRef) {
-  const objectId = resolveEntityObjectId(state, entityRef);
-  if (!objectId) {
-    return state;
-  }
-  const selected = selectObject(state, objectId);
-  return fitSelection(selected);
 }
 
 function mappedObjectIdsForEntity(objectMap, entityRef, objectsById) {

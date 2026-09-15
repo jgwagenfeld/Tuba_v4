@@ -264,12 +264,6 @@ export function getResultVectorScale(state, vectorType) {
   if (Number.isFinite(Number(fromMap))) {
     return Math.max(Number(fromMap), 0);
   }
-  if (vectorType === "reaction") {
-    return Math.max(Number(state.reactionVectorScale ?? 1) || 0, 0);
-  }
-  if (vectorType === "displacement") {
-    return Math.max(Number(state.displacementVectorScale ?? 1) || 0, 0);
-  }
   return 1;
 }
 
@@ -346,9 +340,7 @@ export function setResultVectorScale(state, vectorType, scale) {
     resultVectorScales: {
       ...(state.resultVectorScales ?? {}),
       [vectorType]: value
-    },
-    ...(vectorType === "displacement" ? { displacementVectorScale: value } : {}),
-    ...(vectorType === "reaction" ? { reactionVectorScale: value } : {})
+    }
   };
 }
 

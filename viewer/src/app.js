@@ -10,7 +10,6 @@ import {
 import { contactObjectId, contactRecords, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
-  filterIssues,
   getIssueSummary,
   groupIssues,
   saveViewState,
@@ -21,7 +20,7 @@ import { bundleIdsOf, bundleKey, normalizeCatalog, renderGallery, shouldShowGall
 import {
   WEBGL2_UNAVAILABLE,
   applyHoverHighlight,
-  createThreeViewport,
+  createThreeCanvasRenderer,
   pickRenderedObject
 } from "./renderer.js";
 import {
@@ -76,7 +75,7 @@ import {
 } from "./units.js";
 import { cockpitStatusViewModel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
-import { getPropertySections, pickObjectAt } from "./selection.js";
+import { getPropertySections } from "./selection.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
@@ -97,7 +96,6 @@ const dom = {
   taskRail: document.querySelector("[data-task-rail]"),
   taskPanel: document.querySelector("[data-task-panel]"),
   workflowTabs: document.querySelector("[data-workflow-tabs]"),
-  viewerWorkspace: document.querySelector("[data-viewer-workspace]"),
   inspector: document.querySelector("[data-inspector]"),
   issueToolsHome: document.querySelector("[data-issue-tools-home]"),
   bodiesPane: document.querySelector("[data-bodies-pane]"),
@@ -117,12 +115,10 @@ const dom = {
   bodyLegendToggle: document.querySelector("[data-body-legend-toggle]"),
   layerList: document.querySelector("[data-layer-list]"),
   layerTally: document.querySelector("[data-layer-tally]"),
-  resultTools: document.querySelector("[data-result-tools]"),
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
   resultControls: document.querySelector("[data-result-controls]"),
   resultLegend: document.querySelector("[data-result-legend]"),
   resultShape: document.querySelector("[data-result-shape]"),
-  layersBlock: document.querySelector("[data-layers-block]"),
   overlaysBlock: document.querySelector("[data-overlays-block]"),
   overlayList: document.querySelector("[data-overlay-list]"),
   hotspotList: document.querySelector("[data-hotspot-list]"),
@@ -215,8 +211,8 @@ const studio = {
   // Whether the inspector was last drawn with the script's lines moved since the run.
   linesMoved: false,
   tabLeavesEditor: false,
-  // A project studio (model.py + study.py) also serves a review bundle beside the
-  // live model, and can solve. Null for a plain model.json studio.
+  // The project studio (model.py + study.py) serves a review bundle beside the
+  // live model, and can solve. Its /api/project answer; null outside a studio.
   project: null,
   hasReview: false,
   reviewStale: false,
@@ -495,25 +491,18 @@ function renderStatusChip() {
     renderProjectStatusChip();
     return;
   }
-  // A run in Build mode rebuilds the scene without the solved review, so a
-  // stale model is status in its own right, review or not.
-  dom.statusChip.hidden = currentState.embed || (!currentState.review && !currentState.resultsStale);
+  dom.statusChip.hidden = currentState.embed || !currentState.review;
   if (dom.statusChip.hidden) return;
-  const status = currentState.review
-    ? cockpitStatusViewModel(currentState.review)
-    : { analysisStatus: "stale", complianceStatus: null, warningCount: 0 };
+  const status = cockpitStatusViewModel(currentState.review);
 
   const verdict = document.createElement("span");
   verdict.className = "status-badge";
-  verdict.dataset.status = currentState.resultsStale ? "stale" : String(status.analysisStatus);
-  verdict.textContent = currentState.resultsStale ? "stale" : String(status.analysisStatus).replaceAll("_", " ");
+  verdict.dataset.status = String(status.analysisStatus);
+  verdict.textContent = String(status.analysisStatus).replaceAll("_", " ");
   dom.statusChip.append(verdict);
 
-  // Exceptions only. A passing or unavailable compliance verdict is not news;
-  // a failing one must never be something you have to open a tab to discover.
+  // Exceptions only: a clean review is not news, a warning is.
   const alerts = [
-    currentState.resultsStale ? ["stale", "Model changed since the last solve"] : null,
-    status.complianceStatus === "Fail" ? ["compliance", "Compliance fail"] : null,
     status.warningCount > 0
       ? ["diagnostics", `${status.warningCount} warning${status.warningCount === 1 ? "" : "s"}`]
       : null
@@ -525,11 +514,11 @@ function renderStatusChip() {
     dom.statusChip.append(alert);
   }
 
-  const target = alerts.length > 0 ? "diagnostics" : "summary";
+  const target = alerts.length > 0 ? "diagnostics" : "model";
   dom.statusChip.dataset.statusTarget = target;
   dom.statusChip.setAttribute(
     "aria-label",
-    `Analysis ${currentState.resultsStale ? "stale" : status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review tasks`
+    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review tasks`
   );
   dom.statusChip.onclick = () => {
     studio.mode = "review";
@@ -769,8 +758,8 @@ function filtersDrawer() {
       render();
     }),
     rangeControl(
-      `Displacement vector scale ${formatScale(currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1)}x`,
-      currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1,
+      `Displacement vector scale ${formatScale(currentState.resultVectorScales?.displacement ?? 1)}x`,
+      currentState.resultVectorScales?.displacement ?? 1,
       0,
       20,
       0.5,
@@ -795,8 +784,8 @@ function filtersDrawer() {
       "Moment vector scale"
     ),
     rangeControl(
-      `Reaction vector scale ${formatScale(currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1)}x`,
-      currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1,
+      `Reaction vector scale ${formatScale(currentState.resultVectorScales?.reaction ?? 1)}x`,
+      currentState.resultVectorScales?.reaction ?? 1,
       0,
       5,
       0.25,
@@ -812,9 +801,9 @@ function filtersDrawer() {
 
 function vectorScaleSummary() {
   const scales = [
-    currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1,
+    currentState.resultVectorScales?.displacement ?? 1,
     currentState.resultVectorScales?.moment ?? 1,
-    currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1
+    currentState.resultVectorScales?.reaction ?? 1
   ];
   return scales.map((scale) => formatScale(scale)).join(" / ");
 }
@@ -2300,13 +2289,6 @@ function appendIssueReviewActions(issueSummary) {
     dispatch({ type: "setIssueReviewComment", issueId: issueSummary.id, comment: comment.value });
   });
 
-  const bcfButton = document.createElement("button");
-  bcfButton.type = "button";
-  bcfButton.textContent = "Export BCF";
-  bcfButton.addEventListener("click", () => {
-    setStatus(issueSummary.bcf ? `BCF ready ${issueSummary.id}` : `BCF export path unavailable for ${issueSummary.id}`);
-  });
-
   const restoreButton = document.createElement("button");
   restoreButton.type = "button";
   restoreButton.textContent = "Restore view";
@@ -2315,7 +2297,7 @@ function appendIssueReviewActions(issueSummary) {
     render();
   });
 
-  dom.propertyActions.append(status, comment, bcfButton, restoreButton);
+  dom.propertyActions.append(status, comment, restoreButton);
 }
 
 function renderCanvas() {
@@ -2324,7 +2306,7 @@ function renderCanvas() {
     return;
   }
   try {
-    viewportRenderer ??= createThreeViewport(dom.canvas);
+    viewportRenderer ??= createThreeCanvasRenderer(dom.canvas);
   } catch (error) {
     if (error?.code !== WEBGL2_UNAVAILABLE) throw error;
     viewportUnavailable = true;
@@ -2333,7 +2315,11 @@ function renderCanvas() {
     return;
   }
   renderCameraControls();
-  const result = viewportRenderer.setState(currentState);
+  const graph = viewportRenderer.render(currentState);
+  const result = {
+    ...graph,
+    renderableObjects: [...new Set(graph.objectsByObjectId.values())].filter((object) => object.visible !== false)
+  };
   lastRenderGraph = result;
   const objectIds = [...new Set(result.renderableObjects.flatMap((object) => object.userData.objectIds ?? []))];
   globalThis.__tubaViewer = {
@@ -2421,11 +2407,7 @@ dom.canvas.addEventListener("click", (event) => {
   }
   const rect = dom.canvas.getBoundingClientRect();
   const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  // pickObjectAt is the flat top-down projection for when no 3D view exists. On
-  // a 3D miss it chose from a projection that has nothing to do with the camera.
-  const objectId = lastRenderGraph
-    ? pickRenderedObject(lastRenderGraph, point, { width: rect.width, height: rect.height })
-    : pickObjectAt(currentState, point, { width: rect.width, height: rect.height });
+  const objectId = pickRenderedObject(lastRenderGraph, point, { width: rect.width, height: rect.height });
   if (objectId) {
     selectedObjectId = objectId;
     dispatch({ type: "selectObject", objectId, additive: event.shiftKey });
@@ -2489,7 +2471,7 @@ dom.canvas.addEventListener("mousemove", (event) => {
     hoveredObjectId = objectId;
     dom.canvas.dataset.hoverObjectId = objectId ?? "";
     applyHoverHighlight(lastRenderGraph, objectId);
-    viewportRenderer.render();
+    viewportRenderer.redraw();
   });
 });
 

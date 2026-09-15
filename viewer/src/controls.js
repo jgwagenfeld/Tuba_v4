@@ -72,24 +72,6 @@ export function rankObjectMatches(state, query) {
   return matches.sort((left, right) => left.rank - right.rank);
 }
 
-export function searchObjects(state, query) {
-  return rankObjectMatches(state, query).map((match) => match.object);
-}
-
-export function filterObjects(state, criteria = {}) {
-  return state.objects.filter((obj) => {
-    if (criteria.kind && obj.kind !== criteria.kind) {
-      return false;
-    }
-    for (const [key, expected] of Object.entries(criteria.metadata ?? {})) {
-      if (obj.metadata?.[key] !== expected) {
-        return false;
-      }
-    }
-    return true;
-  });
-}
-
 export function filterIssues(state, criteria = {}) {
   return (state.issues ?? []).filter((issue) => {
     if (criteria.type && issue.type !== criteria.type) {
@@ -126,30 +108,6 @@ export function groupIssues(state, criteria = {}) {
     groups.get(id).issues.push(issue);
   }
   return [...groups.values()];
-}
-
-export function setOverlayVisibility(state, overlayId, visible) {
-  const overlays = (state.overlays ?? []).map((overlay) =>
-    overlay.id === overlayId ? { ...overlay, visible } : overlay
-  );
-  const visibleOverlayIds = overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id);
-  return withVisibility({ ...state, overlays, visibleOverlayIds });
-}
-
-export function setRuntimeState(state, overlayId, timestamp) {
-  const overlay = (state.overlays ?? []).find((candidate) => candidate.id === overlayId);
-  if (!overlay || overlay.kind !== "runtime_state") {
-    return state;
-  }
-  const objectStates = overlay.data?.states?.[timestamp] ?? {};
-  return {
-    ...state,
-    activeRuntimeState: {
-      overlayId,
-      timestamp,
-      objectStates
-    }
-  };
 }
 
 export function focusIssue(state, issueId) {
@@ -190,17 +148,9 @@ export function getIssueSummary(state, issueId) {
     severity: issue.severity,
     status: state.issueReviewState?.[issue.id]?.status || issue.status,
     comment: state.issueReviewState?.[issue.id]?.comment || "",
-    bcf: issue.external_refs?.bcf ?? null,
     review: issueReviewData(state, issue),
     relatedObjects
   };
-}
-
-export function measureDistanceBetweenObjects(state, fromId, toId) {
-  const from = centerForObject(state, fromId);
-  const to = centerForObject(state, toId);
-  const distance = Math.hypot(from[0] - to[0], from[1] - to[1], from[2] - to[2]);
-  return { from: fromId, to: toId, distance_m: round(distance), unit: "m" };
 }
 
 export function applySectionBox(state, sectionBox) {
@@ -285,22 +235,6 @@ function valueForGroup(obj, groupBy, state) {
   return obj[groupBy] || obj.metadata?.[groupBy] || "unassigned";
 }
 
-function centerForObject(state, objectId) {
-  const asset = assetForObject(state, objectId);
-  if (!asset?.bounds || asset.bounds.length !== 6) {
-    return [0, 0, 0];
-  }
-  return [
-    (asset.bounds[0] + asset.bounds[3]) / 2,
-    (asset.bounds[1] + asset.bounds[4]) / 2,
-    (asset.bounds[2] + asset.bounds[5]) / 2
-  ];
-}
-
-function assetForObject(state, objectId) {
-  return state.geometryAssets.find((asset) => (asset.object_ids ?? []).includes(objectId));
-}
-
 function objectIdsForIssue(state, issue) {
   const objectIds = new Set();
   for (const objectId of issue.object_ids ?? []) {
@@ -357,10 +291,6 @@ function isOperatingOnlyIssue(review) {
         review.cold_distance_m !== undefined &&
         Number(review.operating_distance_m) < Number(review.cold_distance_m))
   );
-}
-
-function round(value) {
-  return Math.round(value * 1_000_000_000) / 1_000_000_000;
 }
 
 function slug(value) {

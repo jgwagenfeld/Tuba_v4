@@ -1,10 +1,9 @@
 import { applyTaskVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { cycleBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
-import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
+import { getVisibleCockpitTaskIds, setWorkflowTab } from "./workflowState.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
 import { fitSelection, hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
-import { showReviewEntityIn3d } from "./reviewSelection.js";
 import {
   setColoringComponent,
   setColoringField,
@@ -45,8 +44,6 @@ export function reduceViewerState(state, action) {
       return restoreViewState(state, action.view);
     case "focusIssue":
       return focusIssue(state, action.issueId);
-    case "showReviewEntityIn3d":
-      return showReviewEntityIn3d(state, action.entityRef);
     case "setLayerVisibility":
       return setLayerVisibility(state, action.layerId, action.visible);
     case "setOverlayVisibility":
@@ -59,8 +56,6 @@ export function reduceViewerState(state, action) {
       return setUnitSystem(state, action.unitSystem);
     case "activateTask":
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
-    case "setWorkflowTab":
-      return setWorkflowTab(state, action.tabId);
     case "setContactNeutral":
       return withVisibility({ ...state, contactNeutral: action.neutral });
     case "setContactArrows":
@@ -152,8 +147,6 @@ export function preserveViewerStateForReload(previousState, nextState) {
     activeLoadCase: coherentState.activeLoadCase,
     activeResultStateId: resultContext.activeResultStateId ?? coherentState.activeResultStateId,
     activeGeometryStateId: coherentState.activeGeometryStateId,
-    displacementVectorScale: previousState.displacementVectorScale ?? nextState.displacementVectorScale,
-    reactionVectorScale: previousState.reactionVectorScale ?? nextState.reactionVectorScale,
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,
     resultVectorScales: previousState.resultVectorScales ?? nextState.resultVectorScales,
     utilizationThreshold: previousState.utilizationThreshold ?? nextState.utilizationThreshold,
@@ -162,10 +155,7 @@ export function preserveViewerStateForReload(previousState, nextState) {
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
     unitSystem: previousState.unitSystem ?? nextState.unitSystem,
-    // The scene is the authority: a run that restores the solved geometry
-    // clears the flag again.
-    resultsStale: nextState.resultsStale,
-    activeTab: getVisibleWorkflowTabs(nextState).includes(previousState.activeTab)
+    activeTab: getVisibleCockpitTaskIds(nextState).includes(previousState.activeTab)
       ? previousState.activeTab
       : nextState.activeTab,
     // Carried over so a reload keeps the user's field selection, then snapped

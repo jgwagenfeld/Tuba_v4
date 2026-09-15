@@ -7,7 +7,6 @@ import {
   createWorkflowState,
   defaultWorkflowTab,
   getVisibleCockpitTaskIds,
-  getVisibleWorkflowTabs,
   visibilityPresetForTask,
   workflowTabForKey,
   setWorkflowTab
@@ -23,13 +22,10 @@ test("workflow tabs follow the engineering review order", () => {
   assert.deepEqual(
     WORKFLOW_TABS.map(({ id, label }) => [id, label]),
     [
-      ["summary", "Review"],
       ["model", "Model"],
-      ["load-cases", "Load Cases"],
       ["results", "Results"],
       ["diagnostics", "Issues"],
-      ["3d", "Display"],
-      ["compliance", "Compliance"]
+      ["3d", "Display"]
     ]
   );
 });
@@ -65,12 +61,10 @@ test("legacy mode keeps model and issues tasks and defaults to model", () => {
     { review: null, resultFields: [{ id: "field:stress" }] },
     { review: reviewFixture }
   ]) {
-    const visible = getVisibleWorkflowTabs(state);
     for (const id of getVisibleCockpitTaskIds(state)) {
-      assert.ok(visible.includes(id), `cockpit task ${id} must be a visible workflow tab`);
+      assert.doesNotThrow(() => setWorkflowTab(state, id), `cockpit task ${id} must be a visible workflow tab`);
     }
   }
-  assert.deepEqual(getVisibleWorkflowTabs({ review: null }), ["model", "diagnostics"]);
   assert.equal(defaultWorkflowTab({ review: null, embed: false }), "model");
   assert.equal(createWorkflowState({ review: null, embed: false }).activeTab, "model");
 });
@@ -81,9 +75,6 @@ test("embed still defaults to the 3d canvas destination", () => {
 });
 
 test("visibility presets hide analysis mesh everywhere and scope results/annotations per task", () => {
-  assert.deepEqual(visibilityPresetForTask("summary"), {
-    design: true, analysis_mesh: false, results: true, annotations: true
-  });
   assert.deepEqual(visibilityPresetForTask("model"), {
     design: true, analysis_mesh: false, results: false, annotations: false
   });
@@ -103,7 +94,7 @@ test("workflow tab changes reject hidden and unknown tabs", () => {
   const legacyState = createWorkflowState({ review: null, embed: false });
   const reviewState = createWorkflowState({ review: reviewFixture, embed: false });
 
-  assert.throws(() => setWorkflowTab(legacyState, "summary"), /not visible/i);
+  assert.throws(() => setWorkflowTab(legacyState, "results"), /not visible/i);
   assert.throws(() => setWorkflowTab(reviewState, "unknown"), /unknown workflow tab/i);
 });
 

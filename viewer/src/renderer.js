@@ -122,17 +122,6 @@ function renderedBounds(root) {
   return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
 }
 
-export function buildRenderableScene(state, options = {}) {
-  const graph = createThreeSceneGraph(state, options);
-  const camera = createEngineeringCamera((options.width ?? 1280) / Math.max(options.height ?? 800, 1));
-  const fit = fitCameraToBounds(camera, state.camera?.fitRequest?.bounds ?? graph.bounds);
-  return {
-    ...graph,
-    camera,
-    controlsTarget: new THREE.Vector3(...fit.target)
-  };
-}
-
 const SCENE_GRAPH_STATE_KEYS = [
   "bounds",
   "geometryAssets",
@@ -143,8 +132,6 @@ const SCENE_GRAPH_STATE_KEYS = [
   "activeGeometryStateId",
   "coloring",
   "resultVectorScales",
-  "displacementVectorScale",
-  "reactionVectorScale",
   "bodyOpacity",
   "contactArrows",
   "contactNeutral"
@@ -366,18 +353,6 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       if (!orbitCameraBy(camera, controls.target, deltaAzimuth, deltaPolar)) return;
       controls.update();
       if (currentGraph) drawFrame(currentGraph);
-    },
-    dispose() {
-      graphCache.clear();
-      if (redrawFrameId !== null) cancelAnimationFrame(redrawFrameId);
-      resizeObserver?.disconnect();
-      controls.removeEventListener("change", redrawScene);
-      controls.removeEventListener("start", startInteraction);
-      controls.removeEventListener("end", endInteraction);
-      controls.dispose();
-      viewHelper.dispose();
-      renderer.dispose();
-      deformationOverlay.canvas?.remove();
     }
   };
 }
@@ -459,46 +434,6 @@ export function createCameraFitController(camera, controls = null) {
       }
       appliedRequestId = request.id;
       return fitCameraToBounds(camera, request.bounds, controls);
-    }
-  };
-}
-
-export function createThreeViewport(canvas, options = {}) {
-  const canvasRenderer = createThreeCanvasRenderer(canvas, options);
-  return {
-    setState(state) {
-      const graph = canvasRenderer.render(state);
-      return {
-        ...graph,
-        renderableObjects: [...new Set(graph.objectsByObjectId.values())].filter((object) => object.visible !== false)
-      };
-    },
-    render() {
-      canvasRenderer.redraw();
-    },
-    setDeformationInteraction(active) {
-      return canvasRenderer.setDeformationInteraction(active);
-    },
-    renderDeformation(state) {
-      return canvasRenderer.renderDeformation(state);
-    },
-    handleGizmoClick(event) {
-      return canvasRenderer.handleGizmoClick(event);
-    },
-    resetView() {
-      canvasRenderer.resetView();
-    },
-    setStandardView(viewId) {
-      canvasRenderer.setStandardView(viewId);
-    },
-    zoomBy(factor) {
-      canvasRenderer.zoomBy(factor);
-    },
-    orbitBy(deltaAzimuth, deltaPolar) {
-      canvasRenderer.orbitBy(deltaAzimuth, deltaPolar);
-    },
-    dispose() {
-      canvasRenderer.dispose();
     }
   };
 }

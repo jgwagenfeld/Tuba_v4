@@ -10,7 +10,6 @@ import {
   applyVisualDeformationScale,
   applyHoverHighlight,
   applySelectionHighlight,
-  buildRenderableScene,
   createThreeSceneGraph,
   disposeThreeSceneGraph,
   fitCameraToBounds,
@@ -536,25 +535,6 @@ test("fitCameraToBounds targets scene center and computes a usable distance", ()
   assert.deepEqual(fit.target, [5, 0, 0.75]);
   assert.ok(fit.distance > 10);
   assert.ok(camera.far > camera.near);
-});
-
-test("viewer defaults to an orthographic engineering camera", () => {
-  const renderable = buildRenderableScene(fixtureState(), { width: 976, height: 525 });
-
-  assert.equal(renderable.camera.isOrthographicCamera, true);
-  assert.ok(renderable.camera.right > renderable.camera.left);
-  assert.ok(renderable.camera.top > renderable.camera.bottom);
-});
-
-test("renderer sends requested selection bounds through the existing camera-fit pipeline", () => {
-  const selectionBounds = [0, -0.05, -0.05, 2, 0.05, 0.05];
-  const renderable = buildRenderableScene({
-    ...fixtureState(),
-    camera: { mode: "orbit", target: [1, 0, 0], distance: 2, fitRequest: { id: 1, bounds: selectionBounds } }
-  });
-
-  assert.deepEqual(renderable.camera.userData.fitBounds, selectionBounds);
-  assert.deepEqual(renderable.controlsTarget.toArray(), [1, 0, 0]);
 });
 
 test("live camera fitting applies each request once and retains OrbitControls changes", () => {

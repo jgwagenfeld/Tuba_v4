@@ -63,6 +63,6 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
 
 
 def build():
-    """Return the mesh-only scene for ``viewer/scripts/make_bundle.py --recipe``."""
+    """Return the mesh-only scene, meshed in a temporary folder."""
     with TemporaryDirectory(prefix="tuba-gmsh-tee-mesh-") as temporary:
         return _build_scene(_PROJECT.run_model()["model"], Path(temporary))

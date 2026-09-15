@@ -7,7 +7,6 @@ import {
   getPropertySections,
   hideSelected,
   isolateSelection,
-  pickObjectAt,
   selectObject
 } from "../src/selection.js";
 import { getSelectionSummary } from "../src/selectionSummary.js";
@@ -249,14 +248,6 @@ test("hideSelected and isolateSelection update visible object ids", () => {
 
   assert.deepEqual(hidden.visibleObjectIds, ["object:obstacle:equipment_box"]);
   assert.deepEqual(isolated.visibleObjectIds, ["object:element:pipe_0"]);
-});
-
-test("pickObjectAt selects nearest visible object from projected bounds", () => {
-  const state = fixtureState();
-
-  const picked = pickObjectAt(state, { x: 64, y: 200 }, { width: 400, height: 400 });
-
-  assert.equal(picked, "object:element:pipe_0");
 });
 
 test("fitSelection uses the selected object's geometry asset when object_ids are absent", () => {
