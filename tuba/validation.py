@@ -50,6 +50,15 @@ def validate_model(model: TubaModel) -> None:
     for support in model.supports:
         if support.node not in model.nodes:
             errors.append(f"Support references missing node {support.node!r}.")
+        if support.attached_to is not None:
+            if support.attached_to not in model.nodes:
+                errors.append(f"Support {support.id!r} is attached to missing node {support.attached_to!r}.")
+            elif support.attached_to == support.node:
+                errors.append(
+                    f"Support {support.id!r} is attached to its own node {support.node!r}; give the pipe its own node."
+                )
+            if support.imposed_displacement is not None:
+                errors.append(f"Support {support.id!r} is attached to a node, so it cannot impose a displacement.")
 
     for name, section in model.sections.items():
         _validate_section(name, section, errors)

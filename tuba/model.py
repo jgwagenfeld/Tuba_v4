@@ -350,6 +350,7 @@ class Support:
     gap: float = 0.0
     normal_stiffness: Optional[float] = None
     tangential_stiffness: Optional[float] = None
+    attached_to: Optional[str] = None  # the node the restraint acts against; None means ground
     source_line: Optional[int] = None  # user script lines, not serialized (see Element)
     source_call_line: Optional[int] = None
 
@@ -867,6 +868,7 @@ class TubaModel:
         gap: float = 0.0,
         normal_stiffness: Optional[float] = None,
         tangential_stiffness: Optional[float] = None,
+        attached_to: Optional[str] = None,
     ) -> Support:
         support_id = id or self.next_support_id()
         sup = Support(
@@ -883,6 +885,7 @@ class TubaModel:
             gap=gap,
             normal_stiffness=normal_stiffness,
             tangential_stiffness=tangential_stiffness,
+            attached_to=attached_to,
         )
         sup.source_line, sup.source_call_line = _script_lines()
         self.supports.append(sup)
@@ -1416,6 +1419,7 @@ class TubaModel:
                     **({"gap": s.gap} if s.gap != 0.0 else {}),
                     **({"normal_stiffness": s.normal_stiffness} if s.normal_stiffness is not None else {}),
                     **({"tangential_stiffness": s.tangential_stiffness} if s.tangential_stiffness is not None else {}),
+                    **({"attached_to": s.attached_to} if s.attached_to is not None else {}),
                 }
                 for s in self.supports
             ],

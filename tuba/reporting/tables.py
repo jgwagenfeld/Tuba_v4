@@ -258,6 +258,7 @@ def build_supports_table(model: TubaModel) -> ReportTable:
         {
             "support_id": support.id,
             "node": support.node,
+            "attached_to": support.attached_to,
             "support_type": support.type,
             "direction": _optional_list(support.direction),
             "stiffness_n_m": support.stiffness,
@@ -276,6 +277,7 @@ def build_supports_table(model: TubaModel) -> ReportTable:
         columns=(
             ReportColumn("support_id", "Support"),
             ReportColumn("node", "Node"),
+            ReportColumn("attached_to", "Attached to"),
             ReportColumn("support_type", "Type"),
             ReportColumn("direction", "Direction"),
             ReportColumn("stiffness_n_m", "Stiffness", unit="N/m"),
