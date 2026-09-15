@@ -271,9 +271,11 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
                 )
             }
 
-        self.assertEqual(summary["result_source"], "code_aster_artifact_tables")
+        # The rest is a contact shoe: the result state names study_contact.json as its
+        # source, and the single-operation study keeps only its final state.
+        self.assertEqual(summary["result_source"], "Code_Aster study_contact.json")
         self.assertEqual(summary["artifact_provenance"], "committed_real_code_aster_artifacts")
-        self.assertEqual(summary["result_state_id"], "result_state:Operating")
+        self.assertEqual(summary["result_state_id"], "result_state:Operating:step:0")
         self.assertGreater(summary["counts"]["scene_objects"], 0)
         self.assertIn("solver_result", {overlay["kind"] for overlay in scene["overlays"]})
         self.assertTrue(all(output_files.values()), output_files)

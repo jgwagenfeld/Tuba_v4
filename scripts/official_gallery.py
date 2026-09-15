@@ -182,7 +182,7 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "autorouted-expansion-loop",
         title="Thermal expansion",
-        elements=("TUYAU_3M",),
+        elements=("TUYAU_3M", "DIS_T"),
         question="Where does a hot line move, and what does it reach?",
         summary=(
             "A 180 C line routed around equipment with an automatically selected expansion loop. "
@@ -195,7 +195,7 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "code-aster-review",
         title="Pipe bends",
-        elements=("TUYAU_3M",),
+        elements=("TUYAU_3M", "DIS_T"),
         question="What happens to a pressurised line held at both ends?",
         summary=(
             "A pressurised line with two anchors and two bends. The review shows displacement, "
@@ -208,7 +208,7 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "elements-supports-review",
         title="Elements and supports",
-        elements=("TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR"),
+        elements=("TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR", "DIS_T"),
         question="Do bars, cables and spring supports survive the trip to the solver?",
         summary=(
             "Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, "

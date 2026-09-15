@@ -1,6 +1,14 @@
 {
   "analysis_mesh": {
     "element_sources": {
+      "CONTACT_2": {
+        "element_id": "CONTACT_2",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_2",
+          "kind": "support"
+        }
+      },
       "pipe_bend_0_s0": {
         "element_id": "pipe_bend_0_s0",
         "metadata": {
@@ -1179,6 +1187,10 @@
       }
     },
     "elements": {
+      "CONTACT_2": [
+        "GROUND_2",
+        "N3"
+      ],
       "pipe_bend_0_s0": [
         "N1",
         "pipe_bend_0_n1"
@@ -1367,6 +1379,9 @@
         "N3",
         "N5"
       ],
+      "CONTACT_2": [
+        "CONTACT_2"
+      ],
       "GN_N0": [
         "N0"
       ],
@@ -1378,6 +1393,9 @@
       ],
       "GN_N5": [
         "N5"
+      ],
+      "GROUND_2": [
+        "GROUND_2"
       ],
       "MAT_Steel": [
         "pipe_str_0",
@@ -1512,9 +1530,18 @@
     "id": "analysis_mesh:Operating",
     "model_revision": 0,
     "modelisations": {
-      "AllPipes": "TUYAU_3M"
+      "AllPipes": "TUYAU_3M",
+      "CONTACT_2": "DIS_T"
     },
     "node_sources": {
+      "GROUND_2": {
+        "node_id": "GROUND_2",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_2",
+          "kind": "support"
+        }
+      },
       "N0": {
         "node_id": "N0",
         "role": "native_node",
@@ -3025,6 +3052,11 @@
       }
     },
     "nodes": {
+      "GROUND_2": [
+        3.3,
+        2.3,
+        -1.0
+      ],
       "N0": [
         0.0,
         0.0,
@@ -3383,7 +3415,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "b5b4fe7e1b8c8d7aa1d09a4eac20c7c733ac0163d4c7491b5488354aba3bcd18",
+      "fingerprint": "0c2565b08e0bba5746b1bf7b550bf7f884a9294e5a4865eafd42bad37f7a26c6",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -3401,13 +3433,25 @@
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "metadata": {
+      "compiler_inputs": {
+        "contact_law": "DIS_CHOC",
+        "contact_stiffness_defaults": [
+          10000000000.0,
+          100000000.0
+        ],
+        "load_path": [
+          "Operating"
+        ],
+        "load_step": 0.1,
+        "pipe_modelization": "TUYAU_3M"
+      },
       "pipe_stress_exported": true,
       "project_name": "VizGalleryDemo"
     },
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "b5b4fe7e1b8c8d7aa1d09a4eac20c7c733ac0163d4c7491b5488354aba3bcd18",
+      "fingerprint": "0c2565b08e0bba5746b1bf7b550bf7f884a9294e5a4865eafd42bad37f7a26c6",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

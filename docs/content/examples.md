@@ -14,8 +14,8 @@ are included only where stated.
 
 A 180 C line routed around equipment with an automatically selected expansion loop. The review shows thermal displacement and clearance violations around a cable tray.
 
-The reported gap decreases from 150.0 mm cold to 137.6 mm in the operating
-state. The clearance check reports a 6.8 mm violation of the configured 100 mm
+The reported gap decreases from 150.0 mm cold to 131.3 mm in the operating
+state. The clearance check reports a 13.2 mm violation of the configured 100 mm
 clearance band, flagged `introduced_by_deformation`. The tray and clearance
 band are model inputs; displacement comes from imported Code_Aster results.
 The router's reserved corridor also includes the declared insulation.

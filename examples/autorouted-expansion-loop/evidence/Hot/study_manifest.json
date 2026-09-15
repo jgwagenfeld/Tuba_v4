@@ -1,6 +1,22 @@
 {
   "analysis_mesh": {
     "element_sources": {
+      "CONTACT_0": {
+        "element_id": "CONTACT_0",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_0",
+          "kind": "support"
+        }
+      },
+      "CONTACT_1": {
+        "element_id": "CONTACT_1",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_1",
+          "kind": "support"
+        }
+      },
       "pipe_bend_0_s0": {
         "element_id": "pipe_bend_0_s0",
         "metadata": {
@@ -2363,6 +2379,14 @@
       }
     },
     "elements": {
+      "CONTACT_0": [
+        "GROUND_0",
+        "N1"
+      ],
+      "CONTACT_1": [
+        "GROUND_1",
+        "N10"
+      ],
       "pipe_bend_0_s0": [
         "N2",
         "pipe_bend_0_n1"
@@ -2731,6 +2755,12 @@
         "N0",
         "N11"
       ],
+      "CONTACT_0": [
+        "CONTACT_0"
+      ],
+      "CONTACT_1": [
+        "CONTACT_1"
+      ],
       "GN_N0": [
         "N0"
       ],
@@ -2742,6 +2772,12 @@
       ],
       "GN_N11": [
         "N11"
+      ],
+      "GROUND_0": [
+        "GROUND_0"
+      ],
+      "GROUND_1": [
+        "GROUND_1"
       ],
       "MAT_steel": [
         "pipe_str_0",
@@ -3000,9 +3036,27 @@
     "id": "analysis_mesh:Hot",
     "model_revision": 0,
     "modelisations": {
-      "AllPipes": "TUYAU_3M"
+      "AllPipes": "TUYAU_3M",
+      "CONTACT_0": "DIS_T",
+      "CONTACT_1": "DIS_T"
     },
     "node_sources": {
+      "GROUND_0": {
+        "node_id": "GROUND_0",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_0",
+          "kind": "support"
+        }
+      },
+      "GROUND_1": {
+        "node_id": "GROUND_1",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_1",
+          "kind": "support"
+        }
+      },
       "N0": {
         "node_id": "N0",
         "role": "native_node",
@@ -6031,6 +6085,16 @@
       }
     },
     "nodes": {
+      "GROUND_0": [
+        2.0,
+        0.0,
+        -1.0
+      ],
+      "GROUND_1": [
+        7.25,
+        0.0,
+        -1.0
+      ],
       "N0": [
         0.0,
         0.0,
@@ -6749,7 +6813,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "a174e05e608726def3d844b1ba61a3c366c01da53ffec5f0ee047824b4e91adb",
+      "fingerprint": "e273562554e5f7a893ce72aa78458816f9009f0c11babddd4fc621e5868129e8",
       "load_case": "Hot",
       "schema_id": "tuba.model.v4"
     },
@@ -6767,13 +6831,25 @@
     "load_case": "Hot",
     "mesh_id": "analysis_mesh:Hot",
     "metadata": {
+      "compiler_inputs": {
+        "contact_law": "DIS_CHOC",
+        "contact_stiffness_defaults": [
+          10000000000.0,
+          100000000.0
+        ],
+        "load_path": [
+          "Hot"
+        ],
+        "load_step": 0.1,
+        "pipe_modelization": "TUYAU_3M"
+      },
       "pipe_stress_exported": true,
       "project_name": "HotLineExpansionLoop"
     },
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "a174e05e608726def3d844b1ba61a3c366c01da53ffec5f0ee047824b4e91adb",
+      "fingerprint": "e273562554e5f7a893ce72aa78458816f9009f0c11babddd4fc621e5868129e8",
       "load_case": "Hot",
       "schema_id": "tuba.model.v4"
     },

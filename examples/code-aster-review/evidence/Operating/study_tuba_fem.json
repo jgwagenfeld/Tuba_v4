@@ -32,6 +32,7 @@
     "GB8AE4AA": "element:pipe_bend_1",
     "GBC5706F": "element:pipe_bend_1",
     "GC2FA374": "element:pipe_bend_1",
+    "GCC48F90": "support:support_2",
     "GDD51663": "element:pipe_bend_1",
     "GE9EE529": "element:pipe_bend_0",
     "GF75806A": "element:pipe_str_2",
@@ -41,10 +42,12 @@
   "name_map": {
     "AllPipes": "AllPipes",
     "AllSupports": "G2F28381",
+    "CONTACT_2": "GCC48F90",
     "GN_N0": "GN_N0",
     "GN_N1": "GN_N1",
     "GN_N3": "GN_N3",
     "GN_N5": "GN_N5",
+    "GROUND_2": "GROUND_2",
     "MAT_Steel": "G5AF7883",
     "N0": "N0",
     "N1": "N1",
@@ -162,7 +165,7 @@
   "schema_version": 1,
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "b5b4fe7e1b8c8d7aa1d09a4eac20c7c733ac0163d4c7491b5488354aba3bcd18",
+    "fingerprint": "0c2565b08e0bba5746b1bf7b550bf7f884a9294e5a4865eafd42bad37f7a26c6",
     "load_case": "Operating",
     "schema_id": "tuba.model.v4"
   },
