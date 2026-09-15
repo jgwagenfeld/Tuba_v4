@@ -8,7 +8,7 @@ import pytest
 
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.project import evidence, load_project
-from tuba.project.evidence import evidence_dir, promote_evidence
+from tuba.project.evidence import evidence_dir, promote_evidence, study_artifact_dir
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -26,6 +26,11 @@ def test_each_operation_has_one_evidence_folder_named_after_it(tmp_path):
     for name in ("", ".", "..", "a/b", "a\\b", "Hot:Cold", "Hot?", "CON", "nul.txt", "Hot ", "Hot.", "tab\there"):
         with pytest.raises(ValueError, match="cannot name an evidence folder"):
             evidence_dir(tmp_path, name)
+
+
+def test_a_study_imports_its_operation_folder_or_the_evidence_folder_holding_several(tmp_path):
+    assert study_artifact_dir(tmp_path, ("Operating",)) == tmp_path / "evidence" / "Operating"
+    assert study_artifact_dir(tmp_path, ("global", "local")) == tmp_path / "evidence"
 
 
 def test_promotion_keeps_only_attested_files_and_lands_the_attestation_last(tmp_path, monkeypatch):

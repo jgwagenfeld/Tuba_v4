@@ -11,7 +11,7 @@ Build a project's review from the command line (from the repository root)::
     python -m tuba.project examples/native-friction-review --output .build/friction \\
         --artifact-dir examples/native-friction-review/evidence/Cold
 
-The first form solves the study's operations into the project's ``evidence/`` first, reusing evidence that
+The first form solves the study's operations into the project's ``evidence/``, reusing evidence that
 still matches the model and study (``--force`` solves again). The second imports the folder it names.
 """
 

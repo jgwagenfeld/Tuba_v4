@@ -776,7 +776,7 @@ class ProjectStudioServer(PreviewServer):
         }
 
     def code_aster_commands(self, case: str) -> tuple[int, dict[str, Any]]:
-        """The ``study.comm`` a Solve of *case* would run now, compiled from model.py and study.py.
+        """The ``study.comm`` a Solve of *case* would compile now from model.py and study.py.
 
         Generated on request into a scratch folder the same way the gallery studies export
         before solving; nothing is solved and nothing is written into the project.

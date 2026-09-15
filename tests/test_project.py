@@ -81,13 +81,15 @@ def test_the_project_command_solves_into_the_project_evidence_and_reuses_it(tmp_
 
 
 def test_the_project_command_reports_a_busy_project(tmp_path, capsys):
+    from tests.project_replay import ReplaySolver
     from tuba.project import main
     from tuba.project.claim import claim_solve
 
     project = tmp_path / "support-rack-review"
     shutil.copytree(SUPPORT_RACK, project, ignore=shutil.ignore_patterns("evidence"))
+    solver = ReplaySolver(SUPPORT_RACK / "evidence")
 
     with claim_solve(project):
-        assert main([str(project), "--output", str(tmp_path / "review")]) == 1
+        assert main([str(project), "--output", str(tmp_path / "review")], solver=solver) == 1
 
     assert "already being solved" in capsys.readouterr().err
