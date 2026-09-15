@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.official_gallery import OFFICIAL_GALLERIES
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.solver.aster import CodeAsterSolver
+from tuba.solver.code_aster_runtime import execution_trust
 
 
 _SOLVER_OUTPUT_FILES = (
@@ -121,8 +122,13 @@ def _validate_gallery_artifact_chain(output: Path, artifact: Any, *, beam: bool 
     if not isinstance(attestation.get("solver_version"), str) or not attestation["solver_version"]:
         raise ValueError("Canonical Code_Aster gallery attestation requires solver_version.")
     execution_method = attestation.get("execution_method")
-    if not isinstance(execution_method, str) or not execution_method or execution_method == "docker":
-        raise ValueError("Canonical Code_Aster gallery attestation requires a native execution_method.")
+    if not isinstance(execution_method, str) or not execution_method:
+        raise ValueError("Canonical Code_Aster gallery attestation requires an execution_method.")
+    if execution_trust(attestation) != "verified":
+        raise ValueError(
+            f"Canonical Code_Aster gallery attestation is unverified: execution_method {execution_method!r} "
+            "is not a qualified runtime."
+        )
     if attestation.get("solver_name") != "Code_Aster":
         raise ValueError("Canonical Code_Aster gallery attestation must name Code_Aster.")
     if not isinstance(attestation.get("solved_at"), str) or not attestation["solved_at"]:

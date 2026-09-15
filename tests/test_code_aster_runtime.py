@@ -20,6 +20,7 @@ from tuba.solver.code_aster_runtime import (
     build_code_aster_command,
     build_code_aster_preflight_command,
     discover_code_aster_runtimes,
+    execution_trust,
     run_code_aster_export,
     select_code_aster_runtime,
 )
@@ -188,6 +189,17 @@ class TestCodeAsterRuntime(unittest.TestCase):
         )
 
         self.assertEqual(actual, identity)
+
+    def test_execution_trust_is_verified_unless_code_aster_ran_through_docker(self):
+        for attestation, trust in (
+            (None, "unverified"),
+            ({"execution_method": "docker"}, "unverified"),
+            ({"execution_method": "wsl"}, "verified"),
+            ({"execution_method": "command"}, "verified"),
+            ({"execution_method": "python_bridge"}, "verified"),
+        ):
+            with self.subTest(attestation=attestation):
+                self.assertEqual(execution_trust(attestation), trust)
 
     def test_beam_only_attestation_does_not_require_pipe_stress_table(self):
         with TemporaryDirectory() as tmpdir:

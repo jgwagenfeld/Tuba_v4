@@ -196,6 +196,22 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         self.assertEqual(artifact.result_state.metadata["result_trust"], "verified")
         self.assertEqual(artifact.result_state.files["execution"], str(work_dir / "study_execution.json"))
 
+    def test_import_marks_a_docker_executed_solve_unverified(self):
+        model, n0, n1 = self._model()
+
+        with TemporaryDirectory() as tmpdir:
+            work_dir = Path(tmpdir)
+            study = CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
+            _write_solver_tables(work_dir, n0=n0, n1=n1)
+            _write_execution_attestation(work_dir, study.solver_input_identity, execution_method="docker")
+
+            artifact = import_code_aster_artifacts(model=model, work_dir=work_dir)
+
+        self.assertEqual(artifact.result_state.metadata["result_trust"], "unverified")
+        self.assertEqual(artifact.result_state.metadata["solve_attestation"]["execution_method"], "docker")
+        with self.assertRaisesRegex(ValueError, "result_trust == 'verified'"):
+            artifact.validate_for_publication(model)
+
     def test_import_preserves_rmed_diagnostic_in_result_state_metadata(self):
         pytest.importorskip("h5py", exc_type=ImportError)
         model, n0, n1 = self._model()
@@ -360,7 +376,7 @@ def _write_solver_tables(work_dir: Path, *, n0: str, n1: str) -> None:
     )
 
 
-def _write_execution_attestation(work_dir: Path, identity) -> None:
+def _write_execution_attestation(work_dir: Path, identity, execution_method: str = "wsl") -> None:
     (work_dir / "study.mess").write_text("Version 18.0.12", encoding="utf-8")
     (work_dir / "study.rmed").write_bytes(b"RMED")
     artifacts = {
@@ -376,7 +392,7 @@ def _write_execution_attestation(work_dir: Path, identity) -> None:
                 "schema_version": "tuba.code_aster_execution.v1",
                 "solver_name": "Code_Aster",
                 "solver_version": "18.0.12",
-                "execution_method": "wsl",
+                "execution_method": execution_method,
                 "solved_at": "2026-07-29T12:00:00Z",
                 "solver_input_identity": identity.to_dict(),
                 "artifacts": artifacts,

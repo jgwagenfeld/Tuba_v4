@@ -430,6 +430,19 @@ def validate_code_aster_execution_attestation(
     return payload
 
 
+def execution_trust(attestation: Mapping[str, Any] | None) -> str:
+    """The one trust judgement (spec decision 17): ``"verified"`` or ``"unverified"``.
+
+    A run is verified when it has a validated attestation, whose artifact inventory is then
+    complete for its profile, and Code_Aster did not run through Docker. Pass the payload that
+    :func:`validate_code_aster_execution_attestation` or :func:`load_code_aster_execution_attestation`
+    returned.
+    """
+    if attestation is None or attestation.get("execution_method") == "docker":
+        return "unverified"
+    return "verified"
+
+
 def _file_integrity(path: Path) -> dict[str, int | str]:
     if not path.is_file():
         raise ValueError(f"Cannot attest Code_Aster execution: missing required artifact {path.name}.")

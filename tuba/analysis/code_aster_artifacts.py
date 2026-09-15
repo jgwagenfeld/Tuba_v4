@@ -15,6 +15,7 @@ from tuba.analysis.study import AnalysisStudy
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_sidecar import load_and_validate_artifact_chain
 from tuba.solver.code_aster_runtime import (
+    execution_trust,
     load_code_aster_execution_attestation,
     validate_code_aster_execution_attestation,
 )
@@ -259,7 +260,7 @@ def import_code_aster_artifacts(
         analysis_mesh=analysis_mesh,
     )
     result_state = _with_artifact_files(result_state, _artifact_files(root, loaded_study))
-    metadata = {**result_state.metadata, "result_trust": "verified" if attestation is not None else "unverified"}
+    metadata = {**result_state.metadata, "result_trust": execution_trust(attestation)}
     if attestation is not None:
         metadata["solve_attestation"] = attestation
     result_state = replace(result_state, metadata=metadata)
