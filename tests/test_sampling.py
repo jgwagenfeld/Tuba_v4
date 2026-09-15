@@ -157,3 +157,21 @@ class TestFieldFromRouteTable(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "strictly increasing stations"):
             field_from_route_table(model, operation, "temperature", "P-100", [(1.0, 100.0), (0.0, 200.0)])
+
+    def test_a_table_without_a_route_id_is_refused_and_nothing_is_written(self):
+        # Without a route_id the selection would span every run in the model, not the one the table follows.
+        model = _model()
+        with model.pipe("PipeSec", "Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0], support="anchor")
+            pipe.run(1.0)
+            pipe.run(1.0)
+            pipe.end(support="anchor")
+        operation = model.define_operation("Table", gravity=False)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"field_from_route_table needs the route_id of the route the table follows; "
+            r"name unnamed runs with model\.pipe\(\.\.\., route=\.\.\.\)\.",
+        ):
+            field_from_route_table(model, operation, "temperature", None, [(0.0, 100.0), (2.0, 300.0)])
+        self.assertEqual(operation.fields, [])

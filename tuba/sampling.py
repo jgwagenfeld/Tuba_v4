@@ -137,6 +137,11 @@ def field_from_route_table(
     Targets outside the table's stations are refused rather than extrapolated;
     ``station_start`` and ``station_end`` limit the helper to the part the table covers.
     """
+    if not isinstance(route_id, str) or not route_id:
+        raise ValueError(
+            "field_from_route_table needs the route_id of the route the table follows; "
+            "name unnamed runs with model.pipe(..., route=...)."
+        )
     rows = [(float(station), float(value)) for station, value in table]
     stations = np.array([station for station, _ in rows])
     table_values = np.array([value for _, value in rows])
