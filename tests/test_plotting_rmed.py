@@ -54,6 +54,7 @@ def test_load_rmed_preserves_quadratic_lines_and_normalizes_latest_results(monke
     # The shoe raised peak displacement about 44% and peak von Mises about 5%.
     assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.00909002553351697)
     # The shoe's helper node carries no stress, so its VMIS is NaN.
+    assert np.flatnonzero(np.isnan(grid.point_data["VMIS"])).tolist() == [0]
     assert np.isclose(np.nanmax(grid.point_data["VMIS"]), 349965981.94583714)
 
 

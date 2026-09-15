@@ -46,7 +46,9 @@ class TestModelisationIsNotDuplicated(unittest.TestCase):
         # A discrete spring and a lumped mass both force POI1/DIS_TR entries,
         # which is where the two emitters used to be able to disagree.
         model.supports.append(Support(node="N0", type="spring", stiffness=1.0e6, direction=[0.0, 0.0, 1.0]))
-        model.supports.append(Support(node="N1", type="rest", mass=25.0))
+        # The mass sits on an anchor: a rest would be a contact shoe, which cannot share
+        # N1 with guide SUP-2 or sit in a model whose anchor imposes a displacement.
+        model.supports.append(Support(node="N1", type="anchor", mass=25.0))
         return model
 
     def test_affe_modele_matches_the_shared_assignment(self):

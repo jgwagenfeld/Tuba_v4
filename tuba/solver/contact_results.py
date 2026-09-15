@@ -32,7 +32,8 @@ def read_contact_history(model, root, study, parser):
     instants = sorted({key[0] for key in indexed})
     path = inputs['load_path']
     # A single-operation study keeps only its final state; a load-path history keeps every increment.
-    final_state = len(path) == 1 and len(instants) == 1 and abs(instants[0] - 1) < 1e-10
+    # Only an explicit load path records load_path_inputs, even when it has a single stage.
+    final_state = 'load_path_inputs' not in inputs and len(instants) == 1 and abs(instants[0] - 1) < 1e-10
     if not final_state and (instants[0] != 0 or abs(instants[-1] - len(path)) > 1e-10):
         raise ValueError('Native contact history is incomplete at the load-path endpoints.')
     for endpoint in ([] if final_state else range(len(path)+1)):

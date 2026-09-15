@@ -110,6 +110,11 @@ class NativeContactImport(unittest.TestCase):
             rows = [row for row in self.rows if row['instant'] in times]
             with self.subTest(times=times), self.assertRaisesRegex(ValueError, 'incomplete'):
                 self.read(rows, times=times)
+        # A one-stage explicit load path is still a history.
+        self.parser = CodeAsterSolver(pipe_modelization='POU_D_T', load_path=['Cold'])
+        self.study = self.parser.export_analysis_study(self.model, 'Cold', self.root)
+        with self.subTest(load_path=['Cold']), self.assertRaisesRegex(ValueError, 'incomplete'):
+            self.read([{**self.rows[-1], 'instant': 1.}], times=[1.])
 
     def test_vector_coulomb_bound_and_tensile_normal_force_fail(self):
         for changes in ({'N':10000.}, {'VY':2500., 'VZ':2500.}):

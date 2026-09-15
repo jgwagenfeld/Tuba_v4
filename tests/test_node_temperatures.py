@@ -241,6 +241,7 @@ class TestNodeTemperatureCompiler(unittest.TestCase):
         self.assertEqual(
             _group_no_lines(mail),
             [
+                "GROUP_NO NOM=GROUND_2",  # the rest's contact-shoe helper node
                 "GROUP_NO NOM=PipeOrientationNodes",
                 "GROUP_NO NOM=GN_N0",
                 "GROUP_NO NOM=GN_N1",
