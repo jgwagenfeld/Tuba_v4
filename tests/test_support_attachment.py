@@ -4,8 +4,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tuba import Model
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.load_path import analyze_load_paths
 from tuba.model import SUPPORT_TYPES
 from tuba.patches import ModelPatch, ModelTransaction
+from tuba.project import load_project
 from tuba.project.script import generate_model_script
 from tuba.solver.aster import CodeAsterSolver
 from tuba.validation import ModelValidationError
@@ -139,6 +142,24 @@ class AttachedExport(unittest.TestCase):
         # The helper sits 1 m below the tip at (6, 0, 0), and its tie is applied as a load.
         self.assertIn("  SPRHLP_2 +6.0000000000E+00 +0.0000000000E+00 -1.0000000000E+00", mail.splitlines())
         self.assertIn("        _F(CHARGE=SPRING0),", comm.splitlines())
+
+
+class RackExampleEvidence(unittest.TestCase):
+    def test_the_rack_example_pipe_slides_on_two_shoes_that_load_the_rack(self):
+        project = Path(__file__).resolve().parents[1] / "examples" / "support-rack-review"
+        model = load_project(project).run_model()["model"]
+        run = import_code_aster_artifacts(model=model, work_dir=project / "evidence" / "Operating")
+        shoes = [run.results.contact_results[support.id] for support in model.supports if support.type == "rest"]
+        self.assertEqual(len(shoes), 2)
+        for shoe in shoes:
+            self.assertEqual(shoe.status, "sliding")
+            self.assertLess(shoe.gap, 1e-9)
+            # Read from the committed evidence: each shoe carries 2728.14 N.
+            self.assertAlmostEqual(shoe.normal_force, 2728.14, delta=0.05)
+        rack = analyze_load_paths(model, result_state=run.result_state).rack_loads["rack_A"]
+        self.assertEqual(rack["support_count"], 2)
+        carried = sum(shoe.normal_force for shoe in shoes)
+        self.assertAlmostEqual(rack["force_z_n"], -carried, delta=0.02 * carried)
 
 
 if __name__ == "__main__":

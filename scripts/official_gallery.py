@@ -303,12 +303,12 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "support-rack-review",
         title="Load transfer",
-        elements=("TUYAU_3M", "POU_D_T"),
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
         question="What do the supports and the steel underneath actually carry?",
         summary=(
-            "An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, "
-            "and a temperature increase from 20 C to 180 C, with no imposed nodal forces. "
-            "The review shows support reactions and a support-spacing check."
+            "A DN100 line resting on friction shoes on an I-beam rack, analysed together with the rack under gravity, "
+            "1.5 MPa internal pressure and a temperature increase from 20 C to 180 C, with no imposed nodal forces. "
+            "The review shows the shoe forces, the load the shoes put on the rack, and a support-spacing check."
         ),
     ),
 )

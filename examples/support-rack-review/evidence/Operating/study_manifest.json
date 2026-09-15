@@ -1,6 +1,22 @@
 {
   "analysis_mesh": {
     "element_sources": {
+      "CONTACT_6": {
+        "element_id": "CONTACT_6",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_6",
+          "kind": "support"
+        }
+      },
+      "CONTACT_7": {
+        "element_id": "CONTACT_7",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_7",
+          "kind": "support"
+        }
+      },
       "pipe_inlet": {
         "element_id": "pipe_inlet",
         "role": "native_element",
@@ -603,17 +619,25 @@
       }
     },
     "elements": {
-      "pipe_inlet": [
-        "N8",
-        "N4"
-      ],
-      "pipe_outlet": [
-        "N6",
+      "CONTACT_6": [
+        "GROUND_6",
         "N9"
       ],
+      "CONTACT_7": [
+        "GROUND_7",
+        "N10"
+      ],
+      "pipe_inlet": [
+        "N8",
+        "N9"
+      ],
+      "pipe_outlet": [
+        "N10",
+        "N11"
+      ],
       "pipe_rack_span": [
-        "N4",
-        "N6"
+        "N9",
+        "N10"
       ],
       "rack_A_beam_0_s0": [
         "N0",
@@ -887,15 +911,27 @@
         "N2",
         "N3",
         "N8",
+        "N11",
         "N9",
-        "N4",
-        "N6"
+        "N10"
+      ],
+      "CONTACT_6": [
+        "CONTACT_6"
+      ],
+      "CONTACT_7": [
+        "CONTACT_7"
       ],
       "GN_N0": [
         "N0"
       ],
       "GN_N1": [
         "N1"
+      ],
+      "GN_N10": [
+        "N10"
+      ],
+      "GN_N11": [
+        "N11"
       ],
       "GN_N2": [
         "N2"
@@ -914,6 +950,12 @@
       ],
       "GN_N9": [
         "N9"
+      ],
+      "GROUND_6": [
+        "GROUND_6"
+      ],
+      "GROUND_7": [
+        "GROUND_7"
       ],
       "G_TUBE": [
         "rack_A_beam_0_s0",
@@ -1227,9 +1269,27 @@
     "model_revision": 0,
     "modelisations": {
       "AllPipes": "TUYAU_3M",
+      "CONTACT_6": "DIS_T",
+      "CONTACT_7": "DIS_T",
       "G_TUBE": "POU_D_T"
     },
     "node_sources": {
+      "GROUND_6": {
+        "node_id": "GROUND_6",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_6",
+          "kind": "support"
+        }
+      },
+      "GROUND_7": {
+        "node_id": "GROUND_7",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_7",
+          "kind": "support"
+        }
+      },
       "N0": {
         "node_id": "N0",
         "role": "native_node",
@@ -1243,6 +1303,22 @@
         "role": "native_node",
         "source_ref": {
           "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N10": {
+        "node_id": "N10",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N10",
+          "kind": "node"
+        }
+      },
+      "N11": {
+        "node_id": "N11",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N11",
           "kind": "node"
         }
       },
@@ -1902,6 +1978,16 @@
       }
     },
     "nodes": {
+      "GROUND_6": [
+        0.0,
+        -1.0,
+        2.25
+      ],
+      "GROUND_7": [
+        4.0,
+        -1.0,
+        2.25
+      ],
       "N0": [
         0.0,
         -1.0,
@@ -1911,6 +1997,16 @@
         0.0,
         1.0,
         0.0
+      ],
+      "N10": [
+        4.0,
+        -1.0,
+        3.25
+      ],
+      "N11": [
+        6.0,
+        -1.0,
+        3.25
       ],
       "N2": [
         4.0,
@@ -1945,27 +2041,27 @@
       "N8": [
         -2.0,
         -1.0,
-        3.0
+        3.25
       ],
       "N9": [
-        6.0,
+        0.0,
         -1.0,
-        3.0
+        3.25
       ],
       "pipe_inlet_mid": [
         -1.0,
         -1.0,
-        3.0
+        3.25
       ],
       "pipe_outlet_mid": [
         5.0,
         -1.0,
-        3.0
+        3.25
       ],
       "pipe_rack_span_mid": [
         2.0,
         -1.0,
-        3.0
+        3.25
       ],
       "rack_A_beam_0_n1": [
         0.0,
@@ -2250,7 +2346,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "ce1f4e490b2e8da9688420c2f5613dee66bfd9f1bfd8543c484fe8683498f5e7",
+      "fingerprint": "31c6c19e6a4fe5fd8bdc6ed90b78bd9a591ce0ab413b70f21384ed3dfab338a3",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -2269,7 +2365,17 @@
     "mesh_id": "analysis_mesh:Operating",
     "metadata": {
       "compiler_inputs": {
-        "line_segments": 8
+        "contact_law": "DIS_CHOC",
+        "contact_stiffness_defaults": [
+          10000000000.0,
+          100000000.0
+        ],
+        "line_segments": 8,
+        "load_path": [
+          "Operating"
+        ],
+        "load_step": 0.1,
+        "pipe_modelization": "TUYAU_3M"
       },
       "pipe_stress_exported": true,
       "project_name": "SupportRackReview"
@@ -2277,7 +2383,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "ce1f4e490b2e8da9688420c2f5613dee66bfd9f1bfd8543c484fe8683498f5e7",
+      "fingerprint": "31c6c19e6a4fe5fd8bdc6ed90b78bd9a591ce0ab413b70f21384ed3dfab338a3",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
