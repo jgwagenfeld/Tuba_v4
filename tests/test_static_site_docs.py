@@ -149,7 +149,6 @@ class TestStaticSiteDocs(unittest.TestCase):
 
         self.assertIn("exported study files are a handoff", tutorial)
         self.assertIn("exported `.comm`, `.mail`, and `.export` files are handoff artifacts", autorouting)
-        self.assertIn("Network routing is sequential with repair attempts, not global multi-line optimization", autorouting)
         self.assertIn("The current generator emits U-loop candidates only", autorouting)
 
     def test_pages_use_real_figures_not_sketches(self):

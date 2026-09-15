@@ -69,7 +69,6 @@ class PipeRouteRequest:
     preferred_waypoints: tuple[Point3D, ...] = ()
     forbidden_zones: tuple[str, ...] = ()
     preferred_zones: tuple[str, ...] = ()
-    routing_space: Any | None = None
     thermal_requirements: Any | None = None
     solver_acceptance: Any | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -112,28 +111,6 @@ class PipeRouteResult:
         return self.candidates[self.selected_index]
 
 
-@dataclass
-class NetworkRouteRequest:
-    id: str
-    pipe_requests: list[PipeRouteRequest]
-    order_strategy: Literal[
-        "given",
-        "large_bore_first",
-        "critical_first",
-        "least_flexible_first",
-    ] = "given"
-    max_reroute_attempts: int = 20
-
-
-@dataclass
-class NetworkRouteResult:
-    request: NetworkRouteRequest
-    pipe_results: dict[str, PipeRouteResult]
-    accepted_candidates: dict[str, PipeRouteCandidate]
-    unresolved_conflicts: list[dict[str, Any]]
-    diagnostics: list[str]
-
-
-def route_result_to_dict(result: PipeRouteResult | NetworkRouteResult) -> dict[str, Any]:
+def route_result_to_dict(result: PipeRouteResult) -> dict[str, Any]:
     """Convert route results to JSON-serializable primitive containers."""
     return asdict(result)

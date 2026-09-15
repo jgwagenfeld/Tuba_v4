@@ -4,19 +4,14 @@ from tuba.routing.agent import AutoroutingAgent, AutoroutingRun
 from tuba.routing.astar import GridRouter
 from tuba.routing.expansion import ExpansionLoopGenerator
 from tuba.routing.hybrid import ExpansionAwareRouter
-from tuba.routing.network import NetworkRouter
 from tuba.routing.plan import RoutePlan
 from tuba.routing.cost_model import CostTerm, RouteCostBreakdown, RouteCostModel
-from tuba.routing.spaces import RoutingSpace, RoutingZone
 from tuba.routing.thermal import (
     ExpansionLoopSpec,
     SolverAcceptanceCriteria,
     ThermalRouteRequirement,
-    estimate_free_expansion,
 )
 from tuba.routing.types import (
-    NetworkRouteRequest,
-    NetworkRouteResult,
     PipeRouteCandidate,
     PipeRouteRequest,
     PipeRouteResult,
@@ -33,24 +28,18 @@ __all__ = [
     "GridRouter",
     "ExpansionAwareRouter",
     "ExpansionLoopGenerator",
-    "NetworkRouter",
     "RoutePlan",
     "CostTerm",
     "RouteCostBreakdown",
     "RouteCostModel",
-    "NetworkRouteRequest",
-    "NetworkRouteResult",
     "PipeRouteCandidate",
     "PipeRouteRequest",
     "PipeRouteResult",
     "RouteEndpoint",
     "RouteSegment",
-    "RoutingSpace",
-    "RoutingZone",
     "ExpansionLoopSpec",
     "SolverAcceptanceCriteria",
     "ThermalRouteRequirement",
-    "estimate_free_expansion",
     "RoutingConstraints",
     "RoutingCostWeights",
     "RoutingGridSpec",

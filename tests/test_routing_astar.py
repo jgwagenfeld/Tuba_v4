@@ -1,13 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.routing import GridRouter
-from tuba.routing.types import (
-    PipeRouteRequest,
-    RouteEndpoint,
-    RoutingConstraints,
-    RoutingGridSpec,
-)
+from tuba.routing import GridRouter, PipeRouteRequest, RouteEndpoint, RoutingConstraints, RoutingGridSpec
 
 
 def _base_model():

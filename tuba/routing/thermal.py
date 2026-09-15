@@ -50,11 +50,3 @@ class SolverAcceptanceCriteria:
     @classmethod
     def hot_line_defaults(cls) -> "SolverAcceptanceCriteria":
         return cls()
-
-
-def estimate_free_expansion(requirement: ThermalRouteRequirement) -> float:
-    return (
-        float(requirement.thermal_expansion_coefficient)
-        * float(requirement.delta_t_c)
-        * float(requirement.line_length_m)
-    )

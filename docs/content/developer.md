@@ -11,7 +11,7 @@ Tuba is split by ownership: model authoring, Code_Aster export/execution/import,
 | `tuba.sampling` | Operation fields sampled from CFD point clouds, Python functions and route tables |
 | `tuba.validation` | Pre-export model invariants |
 | `tuba.schema` | Model and patch JSON schemas |
-| `tuba.routing` | Requests, grid search, expansion candidates, network routing, solver-loop review, reports |
+| `tuba.routing` | Requests, grid search, expansion candidates, solver-loop review, reports |
 | `tuba.solver.aster` | Code_Aster study export, external execution, and result parsing |
 | `tuba.solver.aster_mesh` | `study.mail` mesh generation and mesh provenance |
 | `tuba.solver.aster_comm` | `study.comm` command generation |
@@ -96,9 +96,9 @@ Keep search, scoring, review, and model mutation separate.
 | Change | Owner | Verification |
 | --- | --- | --- |
 | Request field | `tuba.routing.types` | Serialization and type tests |
-| Obstacle or space behavior | `tuba.routing.grid`, `tuba.routing.spaces` | Occupancy and route tests |
+| Obstacle behavior | `tuba.routing.grid` | Occupancy and route tests |
 | Cost term | `tuba.routing.cost_model` | Term calculation and selected-candidate ordering |
-| Loop family | `tuba.routing.expansion`, `tuba.routing.hybrid` | Geometry, envelope, and network-conflict tests |
+| Loop family | `tuba.routing.expansion`, `tuba.routing.hybrid` | Geometry and envelope tests |
 | Solver acceptance gate | `tuba.routing.solver_loop` | Deterministic unit fixture plus real Code_Aster integration when solver evidence is required |
 | Review output | `tuba.routing.report`, `tuba.visualization` | Markdown/JSON and scene-contract tests |
 

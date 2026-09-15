@@ -123,7 +123,6 @@ notebooks keep theirs under `notebooks/code_aster_results/`.
 | `demo.py` | **MODEL JSON + STUDY HANDOFF** | Writes `piping_model.json` and Code_Aster input files, then stops before results |
 | `autorouting_basic.py` | **ROUTE REPORT** | Applies a selected single-pipe candidate in memory and writes route report files; no study export |
 | `autoroute_single_pipe.py` | **ROUTE REPORT + STUDY HANDOFF** | Writes a route report and exports candidate Code_Aster studies without running them |
-| `autoroute_network.py` | **NETWORK ROUTE REPORT** | Writes prioritized multi-pipe routing and conflict reports; no study export |
 | `autoroute_expansion_loop.py` | **ROUTE REPORT + STUDY HANDOFF** | Writes a hot-line U-loop report and exports candidate studies without running them |
 | `operating_state_clash.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises until real result artifacts are available |
 | `future_ready_semantic_workflow.py` | **BOM + BENCHMARK; COMPUTED MODEL CHECKS** | Writes a BOM CSV and benchmark summary, then prints quantity, route-cost, load-path, and rule results; no solver study or results |
@@ -148,7 +147,6 @@ python -m tuba.project examples/code-aster-review --output .build/code-aster-rev
 
 ```powershell
 .\.venv\Scripts\python.exe examples\autoroute_single_pipe.py
-.\.venv\Scripts\python.exe examples\autoroute_network.py
 .\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py
 ```
 
