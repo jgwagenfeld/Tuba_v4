@@ -127,6 +127,27 @@ class TestFieldFromFunction(unittest.TestCase):
                     direction=[0.0, 1.0, 0.0], route_id="RACK",
                 )
 
+    def test_helpers_refuse_scope_keywords_they_would_drop(self):
+        # add_field keeps an ignored keyword on its field, but a helper stores only per-node or per-element
+        # fields, so it would sample where the caller never pointed it.
+        model = _two_element_route()
+        operation = model.define_operation("Scopes", gravity=False)
+        with self.assertRaisesRegex(
+            ValueError, "A station range narrows a route: pass route_id with station_start and station_end."
+        ):
+            field_from_function(
+                model, operation, "temperature", lambda x, y, z: 80.0, station_start=0.0, station_end=1.0
+            )
+        with self.assertRaisesRegex(
+            ValueError, "route_id and element_ids each pick a scope; pass only one of group, route_id or element_ids."
+        ):
+            field_from_function(
+                model, operation, "temperature", lambda x, y, z: 80.0, route_id="P-100", element_ids=["pipe_str_0"]
+            )
+        with self.assertRaisesRegex(ValueError, "A station range narrows a route: pass route_id with station_end."):
+            field_from_cloud(model, operation, "temperature", [[0.0, 0.0, 0.0]], [80.0], station_end=1.0)
+        self.assertEqual(operation.fields, [])
+
     def test_bends_without_stored_geometry_have_no_known_midpoint(self):
         model = _elbow_model(stored_geometry=False)
         operation = model.define_operation("Formula", gravity=False)

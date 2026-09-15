@@ -181,6 +181,16 @@ def _targets(
         raise ValueError(f"quantity must be one of {', '.join(_QUANTITIES)}; got {quantity!r}.")
     if (direction is None) == (quantity in _DIRECTED):
         raise ValueError(f"{quantity} {'needs a direction' if quantity in _DIRECTED else 'takes no direction'}.")
+    # add_field keeps keywords its scope ignores on the field; the per-node or per-element fields written here would drop them.
+    scopes = [
+        name for name, value in (("group", group), ("route_id", route_id), ("element_ids", element_ids))
+        if value is not None
+    ]
+    if len(scopes) > 1:
+        raise ValueError(f"{' and '.join(scopes)} each pick a scope; pass only one of group, route_id or element_ids.")
+    ranged = [name for name, value in (("station_start", station_start), ("station_end", station_end)) if value is not None]
+    if ranged and route_id is None:
+        raise ValueError(f"A station range narrows a route: pass route_id with {' and '.join(ranged)}.")
     # A probe field picks the scope exactly as add_field does, and selection applies the field rules.
     probe = Operation("probe").add_field(
         quantity, 0.0, group=group, route_id=route_id, station_start=station_start,
