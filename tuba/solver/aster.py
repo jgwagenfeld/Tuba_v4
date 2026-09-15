@@ -276,9 +276,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             compiler_inputs = dict(compiler_inputs or {}, line_segments=self.line_segments)
         from tuba.solver.aster_contact import shoes, validate_path
         contact_specs = shoes(model, self.pipe_modelization)
-        if self.load_path is not None and not contact_specs:
-            raise ValueError('load_path currently requires a resting shoe.')
+        if self.load_path is not None and (not contact_specs or self.pipe_modelization is not PipeModelization.POU_D_T):
+            raise ValueError("load_path histories require pipe_modelization='POU_D_T' and a resting shoe.")
         if contact_specs:
+            if not math.isfinite(self.load_step) or not 0 < self.load_step <= 1:
+                raise ValueError('load_step must be finite and in (0, 1].')
             if self.load_path is not None:
                 names, _cases = validate_path(model, load_case, self.load_path)
             else:

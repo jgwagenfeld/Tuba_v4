@@ -135,6 +135,17 @@ class FrictionCompilation(unittest.TestCase):
                 CodeAsterSolver(pipe_modelization='POU_D_T').export_analysis_study(model,'Cold',root)
             self.assertFalse(Path(root,'study.comm').exists())
 
+    def test_load_path_and_load_step_are_refused_before_writing_the_study(self):
+        refusals=(
+            (dict(load_path=['Cold','Hot']),'Hot',"load_path histories require pipe_modelization='POU_D_T' and a resting shoe."),
+            (dict(pipe_modelization='POU_D_T',load_step=0.0),'Cold','load_step must be finite and in (0, 1].'),
+        )
+        for options, case, message in refusals:
+            with self.subTest(options=options), TemporaryDirectory() as root:
+                with self.assertRaisesRegex(ValueError,re.escape(message)):
+                    CodeAsterSolver(**options).export_analysis_study(friction_model(),case,root)
+                self.assertEqual(list(Path(root).iterdir()),[])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -789,8 +789,8 @@ class _CommWriterMixin:
 
             if is_nonlinear:
                 if contacts:
-                    if not math.isfinite(self.load_step) or not 0 < self.load_step <= 1:
-                        raise ValueError("load_step must be finite and in (0, 1].")
+                    # Mechanical loads act in full from the first increment; only the
+                    # temperature ramps over the load_step increments.
                     w(f"lst_inst = DEFI_LIST_REEL(DEBUT=0.0, INTERVALLE=_F(JUSQU_A=1.0, NOMBRE={math.ceil(1 / self.load_step)}));")
                 else:
                     w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
