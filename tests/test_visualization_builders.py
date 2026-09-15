@@ -5,7 +5,7 @@ from tuba import Model
 from tuba.refs import EntityRef
 from tuba.model import sample_bend_geometry
 from tuba.visualization import SceneBuildOptions, build_visualization_scene
-from tuba.visualization.builders import _find_element
+from tuba.visualization.builders._helpers import _find_element
 
 
 class TestVisualizationBuilders(unittest.TestCase):

@@ -29,8 +29,6 @@ _SCENE_METADATA_URIS = (
     "metadata/overlays.json",
     "metadata/issues.json",
     "metadata/route_reviews.json",
-    "metadata/agent_proposals.json",
-    "metadata/scene_diffs.json",
     "geometry/geometry_assets.json",
 )
 

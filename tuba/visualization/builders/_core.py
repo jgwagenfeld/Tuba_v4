@@ -23,13 +23,11 @@ from tuba.clash.types import ClashResult
 from tuba.load_path import LoadPathReport
 from tuba.routing.types import PipeRouteResult
 from tuba.rules import RuleResult
-from tuba.visualization.scene import AgentProposal
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Issue
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import RouteReview
 from tuba.visualization.scene import SceneDiagnostic
-from tuba.visualization.scene import SceneDiff
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.scene import ViewState
 from tuba.visualization.scene import VisualizationScene
@@ -40,7 +38,7 @@ from tuba.visualization.builders._layers import build_layer_registry, build_resu
 from tuba.visualization.builders._loads import build_load_scene
 from tuba.visualization.builders._states import _build_analysis_mesh_scene, _build_deformed_state_scene, _build_geometry_state_record
 from tuba.visualization.builders._results import _build_result_state_record, _build_result_state_result_scene
-from tuba.visualization.builders._review import _build_agent_proposal_preview, _build_clash_issue_scene, _build_cost_quantity_overlays, _build_external_source_scene, _build_field_context_scene, _build_load_path_scene, _build_route_result_scene, _build_rule_issue_scene, _build_runtime_state_overlay
+from tuba.visualization.builders._review import _build_clash_issue_scene, _build_cost_quantity_overlays, _build_field_context_scene, _build_load_path_scene, _build_route_result_scene, _build_rule_issue_scene
 
 
 def build_visualization_scene(
@@ -56,13 +54,9 @@ def build_visualization_scene(
     result_states: Iterable[ResultState] | None = None,
     geometry_states: Iterable[GeometryState] | None = None,
     analysis_meshes: Iterable[AnalysisMesh] | None = None,
-    agent_proposals: Iterable[AgentProposal | dict[str, Any]] | None = None,
     ifc_guid_map: dict[str | EntityRef, str] | None = None,
     ifc_context: dict[str, Any] | None = None,
-    external_sources: Iterable[dict[str, Any]] | None = None,
-    point_clouds: Iterable[dict[str, Any]] | None = None,
     field_notes: Iterable[dict[str, Any]] | None = None,
-    runtime_states: Iterable[dict[str, Any]] | None = None,
     scene_id: str | None = None,
     model_id: str | None = None,
     created_at: str | None = None,
@@ -164,8 +158,6 @@ def build_visualization_scene(
     overlays: list[Overlay] = []
     issues: list[Issue] = []
     route_reviews: list[RouteReview] = []
-    proposal_records: list[AgentProposal] = []
-    scene_diffs: list[SceneDiff] = []
     views: list[ViewState] = []
 
     if opts.include_elements:
@@ -296,33 +288,11 @@ def build_visualization_scene(
     if opts.include_cost_overlays:
         overlays.extend(_build_cost_quantity_overlays(model, opts.cost_metric))
 
-    for proposal_payload in agent_proposals or []:
-        proposal, diff, proposal_objects, proposal_assets, proposal_overlay = _build_agent_proposal_preview(
-            model,
-            proposal_payload,
-            opts,
-            resolved_scene_id,
-        )
-        proposal_records.append(proposal)
-        scene_diffs.append(diff)
-        objects.extend(proposal_objects)
-        assets.extend(proposal_assets)
-        overlays.append(proposal_overlay)
-
-    for external_source in external_sources or []:
-        external_objects, external_assets, external_overlay = _build_external_source_scene(external_source)
-        objects.extend(external_objects)
-        assets.extend(external_assets)
-        overlays.append(external_overlay)
-
-    if point_clouds or field_notes:
-        field_objects, field_assets, field_overlay = _build_field_context_scene(point_clouds or [], field_notes or [])
+    if field_notes:
+        field_objects, field_assets, field_overlay = _build_field_context_scene(field_notes)
         objects.extend(field_objects)
         assets.extend(field_assets)
         overlays.append(field_overlay)
-
-    if runtime_states:
-        overlays.append(_build_runtime_state_overlay(runtime_states))
 
     layers, layer_diagnostics = build_layer_registry(objects, overlays, analysis_mesh_records)
     diagnostics.extend(layer_diagnostics)
@@ -340,9 +310,7 @@ def build_visualization_scene(
         result_fields=build_result_fields(overlays),
         issues=issues,
         route_reviews=route_reviews,
-        agent_proposals=proposal_records,
         views=views,
-        scene_diffs=scene_diffs,
         diagnostics=diagnostics,
         extra=_scene_provenance_extra(result_state_records, analysis_mesh_records, ifc_context),
     )
