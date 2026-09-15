@@ -49,6 +49,18 @@ from tuba.solver.aster_loads import (
 logger = logging.getLogger(__name__)
 
 
+def _held_dofs(support) -> list[str]:
+    """The DOFs a two-way support holds, exactly as the grounded branch blocks them."""
+    names = ["DX", "DY", "DZ", "DRX", "DRY", "DRZ"]
+    if support.blocked_dof is not None:
+        return [names[i] for i, value in enumerate(support.blocked_dof) if value not in (False, 0, "0", "x", "X", None)]
+    if support.type == "anchor":
+        return names
+    if support.type == "guide" and support.direction:
+        return [names[i] for i, value in enumerate(support.direction) if abs(value) > 1e-12]
+    return names[:3]
+
+
 def _pipe_orientation_vector(model: TubaModel, pipe_straights: list, pipe_bends: list) -> tuple[float, float, float]:
     directions = []
     for elem in pipe_straights:
@@ -585,6 +597,27 @@ class _CommWriterMixin:
         for i, sup in enumerate(model.supports):
             grp_name = map_name(f"GN_{sup.node}")
             char_name = f"BC_{i}"
+
+            if sup.attached_to is not None and sup.type not in ("rest", "spring"):
+                dofs = _held_dofs(sup)
+                if not dofs:
+                    continue
+                other = map_name(f"GN_{sup.attached_to}")
+                w(f"{char_name} = AFFE_CHAR_MECA(")
+                w("    MODELE=MODELE,")
+                w("    LIAISON_DDL=(")
+                for dof in dofs:
+                    w(f"        _F(GROUP_NO=('{grp_name}', '{other}'), DDL=('{dof}', '{dof}'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),")
+                w("    ),")
+                if sup.node in pipe_nodes_with_warping:
+                    w("    DDL_IMPO=_F(")
+                    w(f"        GROUP_NO='{grp_name}',")
+                    w("        WO=0.0,")
+                    w("    ),")
+                w(");")
+                w()
+                active_bcs.append(char_name)
+                continue
 
             write_bc = False
             lines_bc = []

@@ -1,10 +1,13 @@
 """Supports: the closed type list and attachment to another node."""
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from tuba import Model
 from tuba.model import SUPPORT_TYPES
 from tuba.patches import ModelPatch, ModelTransaction
 from tuba.project.script import generate_model_script
+from tuba.solver.aster import CodeAsterSolver
 from tuba.validation import ModelValidationError
 
 
@@ -75,6 +78,52 @@ class SupportAttachment(unittest.TestCase):
         model.add_support(tip, "anchor", attached_to=rack, imposed_displacement=[0.0, 0.0, 0.01], id="moved")
         with self.assertRaisesRegex(ModelValidationError, "Support 'moved' is attached to a node, so it cannot impose a displacement"):
             model.validate()
+
+
+def export(model, case="Hot", **options):
+    with TemporaryDirectory() as tmpdir:
+        study = CodeAsterSolver(work_dir=tmpdir, **options).export_analysis_study(model, case, tmpdir)
+        root = Path(study.work_dir)
+        return (root / "study.comm").read_text(encoding="utf-8"), (root / "study.mail").read_text(encoding="utf-8")
+
+
+def attached_model(kind, **support):
+    """The cantilever, a post under its tip, and a support at the tip attached to the post top."""
+    model, root, tip = cantilever()
+    model.add_rectangular_section("Post", height_y=0.1, height_z=0.1, thickness_y=0.01, thickness_z=0.01)
+    other = model.add_node([6.0, 0.0, -0.25])
+    base = model.add_node([6.0, 0.0, -1.25])
+    model.add_element(id="post", type="beam", n1=base, n2=other, section="Post", material="Steel")
+    model.add_support(root, "anchor")
+    model.add_support(base, "anchor")
+    model.add_support(tip, kind, attached_to=other, id="attached", **support)
+    model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+    return model, tip, other
+
+
+class AttachedExport(unittest.TestCase):
+    def test_attached_anchor_ties_all_six_dofs(self):
+        model, tip, other = attached_model("anchor")
+        comm, mail = export(model)
+        for dof in ("DX", "DY", "DZ", "DRX", "DRY", "DRZ"):
+            self.assertIn(
+                f"_F(GROUP_NO=('GN_{tip}', 'GN_{other}'), DDL=('{dof}', '{dof}'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),",
+                comm,
+            )
+        self.assertIn(f"GROUP_NO NOM=GN_{other}", mail)
+
+    def test_attached_guide_ties_only_its_direction(self):
+        model, _tip, _other = attached_model("guide", direction=[0.0, 1.0, 0.0])
+        comm, _mail = export(model)
+        self.assertIn("DDL=('DY', 'DY')", comm)
+        self.assertNotIn("DDL=('DX', 'DX')", comm)
+
+    def test_attached_rest_ties_its_shoe_helper_instead_of_fixing_it(self):
+        model, _tip, other = attached_model("rest", friction_coefficient=0.3)
+        comm, _mail = export(model)
+        self.assertIn("GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(", comm)
+        self.assertIn(f"'GN_{other}'),DDL=('DZ','DZ')", comm)
+        self.assertNotIn("DDL_IMPO=_F(GROUP_NO='GROUND_", comm)
 
 
 if __name__ == "__main__":

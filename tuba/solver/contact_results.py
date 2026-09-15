@@ -60,6 +60,9 @@ def read_contact_history(model, root, study, parser):
             t1 = np.array(spec.tangent)
             t2 = np.cross(normal,t1)
             displacement = results.node_results[spec.support.node].displacement[:3]
+            if spec.support.attached_to is not None:
+                # The shoe's helper node is tied to the attached node: measure gap and movement against it.
+                displacement = displacement - results.node_results[spec.support.attached_to].displacement[:3]
             normal_force = -float(row['N'])
             tangential_force = -(row['VY']*t1 + row['VZ']*t2)
             slip = row['slip_y']*t1 + row['slip_z']*t2

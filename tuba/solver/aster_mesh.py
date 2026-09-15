@@ -311,6 +311,7 @@ class _MeshWriterMixin:
         # --- GROUP_NO for supports and concentrated nodal loads -----------
         grouped_node_ids = sorted(
             {sup.node for sup in model.supports} | _nodal_force_node_ids(model) | self._node_temperature_node_ids(model)
+            | {sup.attached_to for sup in model.supports if sup.attached_to is not None}
         )
         for node_id in grouped_node_ids:
             grp_name = f"GN_{node_id}"
@@ -482,6 +483,7 @@ class _MeshWriterMixin:
             {support.node for support in model.supports}
             | _nodal_force_node_ids(model)
             | self._node_temperature_node_ids(model)
+            | {support.attached_to for support in model.supports if support.attached_to is not None}
         ):
             groups[f"GN_{node_id}"] = (node_id,)
         if model.supports:
