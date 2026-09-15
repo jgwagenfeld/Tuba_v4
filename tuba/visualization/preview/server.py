@@ -679,8 +679,8 @@ class ProjectStudioServer(PreviewServer):
                 volume_export=getattr(self.study, "VOLUME_EXPORT", None),
             )
         except (TypeError, ValueError):
-            # study.py's own solver options are invalid: staleness cannot be judged, and a Solve reports why.
-            return False
+            # study.py's solver options are invalid: nothing it would solve can match the review, and a Solve reports why.
+            return True
         return bool(stale)
 
     def _publish_scene(self) -> dict[str, Any]:

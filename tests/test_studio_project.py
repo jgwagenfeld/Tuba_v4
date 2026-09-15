@@ -144,7 +144,7 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertTrue(payload["review_stale"])
         self.assertTrue(self._get(server, "api/project")["review_stale"])
 
-    def test_invalid_study_solver_options_leave_the_studio_usable(self):
+    def test_invalid_study_solver_options_keep_the_studio_usable_and_mark_the_review_stale(self):
         from tuba.visualization.preview.server import ProjectStudioServer
 
         root = Path(self.enterContext(TemporaryDirectory()))
@@ -166,10 +166,13 @@ class StudioProjectModeTest(unittest.TestCase):
             timeout=120.0,
         )
 
-        self.assertFalse(self._get(server, "api/project")["review_stale"])
+        self.assertIsNone(server.review_error)
+        info = self._get(server, "api/project")
+        self.assertTrue(info["has_review"])
+        self.assertTrue(info["review_stale"])
         status, payload = self._post(server, "api/script", {"code": (project / "model.py").read_text(encoding="utf-8")})
         self.assertEqual(status, 200, payload)
-        self.assertFalse(payload["review_stale"])
+        self.assertTrue(payload["review_stale"])
 
     def test_attested_evidence_imports_after_startup_without_holding_it_up(self):
         tmpdir = self.enterContext(TemporaryDirectory())
