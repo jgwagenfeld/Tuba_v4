@@ -12,7 +12,7 @@ from typing import Callable, Dict, List, Optional
 
 import numpy as np
 from tuba.physical import physical_properties_for_element
-from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor
+from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
 
 from tuba.model import (
     BarSection,
@@ -711,13 +711,8 @@ class _CommWriterMixin:
             for index, contact in enumerate(contacts):
                 active_bcs.append(write_shoe_anchor(w, index, contact, map_name))
         for index, link in enumerate(links):
-            helper = map_name(link.helper)
-            other = map_name(f"GN_{link.support.attached_to}")
-            ties = ",".join(
-                f"_F(GROUP_NO=('{helper}','{other}'),DDL=('{dof}','{dof}'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)"
-                for dof in ("DX", "DY", "DZ", "DRX", "DRY", "DRZ")
-            )
-            w(f"SPRING{index} = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=({ties}))")
+            write_tie(w, f"SPRING{index}", link.helper, link.support.attached_to,
+                      ("DX", "DY", "DZ", "DRX", "DRY", "DRZ"), map_name)
             active_bcs.append(f"SPRING{index}")
 
         if native_path:

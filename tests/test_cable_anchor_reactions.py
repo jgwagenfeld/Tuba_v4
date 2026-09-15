@@ -112,6 +112,7 @@ def test_the_node_a_support_is_attached_to_reports_its_reaction(tmp_path):
     mast_top = model.elements[0].n2
     clamp = model.add_node([0.0, 0.2, 5.0])
     model.add_support(clamp, "guide", direction=[1.0, 0.0, 0.0], attached_to=mast_top)
+    unsupported = model.add_node([0.0, 0.0, 2.5])
 
     results = _parse(
         model,
@@ -119,6 +120,7 @@ def test_the_node_a_support_is_attached_to_reports_its_reaction(tmp_path):
         [
             _row(clamp, (1.5e3, 0.0, 0.0), (0.0, 0.0, 0.0)),
             _row(mast_top, (-1.5e3, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            _row(unsupported, (7.0e2, 0.0, 0.0), (0.0, 0.0, 0.0)),
         ],
     )
 
@@ -126,3 +128,5 @@ def test_the_node_a_support_is_attached_to_reports_its_reaction(tmp_path):
         results.node_results[mast_top].reaction_force,
         [-1.5e3, 0.0, 0.0, 0.0, 0.0, 0.0],
     )
+    # A node that is neither supported nor attached to keeps no reaction.
+    assert results.node_results[unsupported].reaction_force is None

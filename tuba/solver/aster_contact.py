@@ -86,17 +86,24 @@ def validate_path(model, load_case, load_path):
     return names, cases
 
 
+def write_tie(w, name, helper, attached_to, dofs, map_name):
+    """Write load `name`: helper node group `helper` moves with model node `attached_to` on each of `dofs`.
+
+    Both names are raw Tuba names; they are mapped here.
+    """
+    helper, other = map_name(helper), map_name(f'GN_{attached_to}')
+    ties = ','.join(f"_F(GROUP_NO=('{helper}','{other}'),DDL=('{dof}','{dof}'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)"
+                    for dof in dofs)
+    w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=({ties}))")
+
+
 def write_shoe_anchor(w, index, spec, map_name):
     """Hold a shoe's helper node: fixed in space, or tied to the node its rest is attached to."""
     name = f'GROUND{index}'
-    ground = map_name(spec.ground)
     if spec.support.attached_to is None:
-        w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='{ground}',DX=0.,DY=0.,DZ=0.))")
+        w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='{map_name(spec.ground)}',DX=0.,DY=0.,DZ=0.))")
     else:
-        other = map_name(f'GN_{spec.support.attached_to}')
-        ties = ','.join(f"_F(GROUP_NO=('{ground}','{other}'),DDL=('{dof}','{dof}'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)"
-                        for dof in ('DX', 'DY', 'DZ'))
-        w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=({ties}))")
+        write_tie(w, name, spec.ground, spec.support.attached_to, ('DX', 'DY', 'DZ'), map_name)
     return name
 
 

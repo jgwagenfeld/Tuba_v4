@@ -136,6 +136,9 @@ class AttachedExport(unittest.TestCase):
         self.assertIn(f"'GN_{other}'),DDL=('DRZ','DRZ')", comm)
         self.assertIn("    AFFE_VARC=_F(\n        GROUP_MA=('AllPipes', 'G_TUBE'),\n", comm)
         self.assertIn(f" SPRING_2 SPRHLP_2 {tip}", mail)
+        # The helper sits 1 m below the tip at (6, 0, 0), and its tie is applied as a load.
+        self.assertIn("  SPRHLP_2 +6.0000000000E+00 +0.0000000000E+00 -1.0000000000E+00", mail.splitlines())
+        self.assertIn("        _F(CHARGE=SPRING0),", comm.splitlines())
 
 
 if __name__ == "__main__":
