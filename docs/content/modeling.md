@@ -101,7 +101,15 @@ A bend stores its center, normal, radius, angle, and tangent metadata. The finit
 
 ![Anchor, guide, rest, and spring support glyphs.](assets/figures/supports.png)
 
-Supports are boundary-condition records attached to real nodes. Their geometry is a review aid; the support record drives the solver constraint.
+Supports are boundary-condition records placed on real nodes. Their geometry is a review aid; the support record drives the solver constraint.
+
+A support is fixed in space unless it names the node it is attached to, such as the rack beam node under a pipe shoe:
+
+```python
+model.add_support(pipe_node, "rest", attached_to=rack_node, friction_coefficient=0.3)
+```
+
+The restraint then acts between matching directions of the two nodes; the offset between their positions carries no lever arm. Every rest is a one-way contact shoe: it carries compression, slides with its friction coefficient and lifts off. Give the pipe its own node, because a pipe built through the structure node is welded to it.
 
 ## Operation temperatures and sampled fields
 
