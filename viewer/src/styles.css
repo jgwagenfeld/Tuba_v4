@@ -2734,6 +2734,20 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   margin-top: 0.35rem;
 }
 
+/* A property's own line in model.py, beside the value it explains. */
+.inspector .script-line-chip {
+  float: right;
+  width: auto;
+  margin-left: 0.4rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  padding: 0 0.25rem;
+}
+
 /* The line that calls a shared helper: quieter than the selection's own line. */
 .code-mark-call {
   background: rgb(94 216 229 / 7%);

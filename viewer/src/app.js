@@ -2083,11 +2083,12 @@ function renderProperties() {
   });
   dom.propertyActions.append(fitButton, hideButton, isolateButton);
   dom.properties.append(renderEvidenceHead(summary));
-  if (isBuildMode() && /^(element|support):/.test(selectedObject?.entity_ref ?? "")) {
+  // A load arrow's entity ref names its node, so it is recognised by kind.
+  if (isBuildMode() && (/^(element|support):/.test(selectedObject?.entity_ref ?? "") || selectedObject?.kind === "applied_load")) {
     dom.properties.append(renderScriptLink(selectedObject));
   }
   if (summary.dofs) {
-    dom.properties.append(renderRestraintStrip(summary.dofs));
+    dom.properties.append(renderRestraintStrip(summary.dofs, summary.restraintLine));
   }
   for (const section of sections) {
     dom.properties.append(renderEvidenceSection(section));
@@ -2144,11 +2145,13 @@ const DOF_GLYPHS = Object.freeze({
   "one-way": "M6 1.5l4 6H2z M0.5 9.5h11"
 });
 
-function renderRestraintStrip(dofs) {
+function renderRestraintStrip(dofs, sourceLine) {
   const section = document.createElement("section");
   section.className = "property-section";
   const heading = document.createElement("h3");
   heading.textContent = "Restraint";
+  const chip = scriptLineChip(sourceLine);
+  if (chip) heading.append(chip);
   const strip = document.createElement("div");
   strip.className = "restraint-strip";
   for (const dof of dofs) {
@@ -2194,6 +2197,8 @@ function renderEvidenceSection(section) {
   wrapper.className = "property-section";
   const heading = document.createElement("h3");
   heading.textContent = section.title;
+  const headingChip = scriptLineChip(section.sourceLine);
+  if (headingChip) heading.append(headingChip);
   wrapper.append(heading);
   const table = document.createElement("table");
   table.className = "property-table";
@@ -2208,6 +2213,8 @@ function renderEvidenceSection(section) {
     label.textContent = line.label;
     const cell = document.createElement("td");
     cell.textContent = formatPropertyValue(line.value);
+    const chip = scriptLineChip(line.sourceLine);
+    if (chip) cell.append(chip);
     row.append(label, cell);
     body.append(row);
   }
@@ -3314,11 +3321,29 @@ function scriptLineButton(line, label) {
   const code = document.createElement("code");
   code.textContent = scriptLine(dom.codeText.value, line).trim();
   button.append(where, code);
-  button.addEventListener("click", () => {
-    showCodeTab(null); // a hidden textarea has no height to scroll to the line
-    revealScriptLine(line, { focus: true });
-  });
+  button.addEventListener("click", () => revealLineInScript(line));
   return button;
+}
+
+function revealLineInScript(line) {
+  showCodeTab(null); // a hidden textarea has no height to scroll to the line
+  revealScriptLine(line, { focus: true });
+}
+
+// A property's half of the link: the model.py line that defines it, as a quiet
+// number beside the value it explains. Build mode only, and only while the
+// script's lines still match the run that recorded them; otherwise null.
+function scriptLineChip(line) {
+  if (!isBuildMode() || !Number.isInteger(line) || line < 1 || scriptLinesMoved()) return null;
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "script-line-chip";
+  chip.dataset.focusKey = `script-line-chip:${line}`;
+  chip.textContent = `:${line}`;
+  chip.title = `model.py:${line}  ${scriptLine(dom.codeText.value, line).trim()}`;
+  chip.setAttribute("aria-label", `Show model.py line ${line}`);
+  chip.addEventListener("click", () => revealLineInScript(line));
+  return chip;
 }
 
 for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
