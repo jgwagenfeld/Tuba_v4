@@ -43,6 +43,8 @@ class FrictionCompilation(unittest.TestCase):
             self.assertIn("RELATION='DIS_CHOC'", comm)
             self.assertNotIn("FORMULATION='LIAISON_UNIL'", comm)
             self.assertEqual(comm.count('RESU = STAT_NON_LINE'),1)
+            # A load-path history keeps every increment in its MED file and tables.
+            self.assertNotIn('INST=1.0', comm)
             self.assertIn('study_contact.json', Path(root,'study.export').read_text())
             self.assertIn('load_path', study.metadata['compiler_inputs'])
             self.assertIn('DIRECTION=(0.,0.,-1.)', comm)

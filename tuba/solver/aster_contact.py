@@ -161,14 +161,15 @@ def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_en
     w("),INCREMENT=_F(LIST_INST=times),NEWTON=_F(MATRICE='TANGENTE',REAC_ITER=1),CONVERGENCE=_F(RESI_GLOB_RELA=1e-8,ITER_GLOB_MAXI=50))")
 
 
-def write_contact_tables(w, specs, map_name):
-    """Solver-side JSON preserves exact support identifiers and all increments."""
+def write_contact_tables(w, specs, map_name, instant=None):
+    """Solver-side JSON preserves exact support identifiers, at every increment or only at ``instant``."""
+    select = '' if instant is None else f',INST={instant!r}'
     w('import json')
     w('contact_rows = []')
     for spec in specs:
-        w(f"CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'))")
+        w(f"CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'{select}))")
         w('forces = CT.EXTR_TABLE().values()')
-        w(f"VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'))")
+        w(f"VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'{select}))")
         w('variables = VT.EXTR_TABLE().values()')
         w("if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')")
         w('iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}')

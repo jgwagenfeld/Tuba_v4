@@ -929,6 +929,10 @@ class _CommWriterMixin:
         w("    UNITE=80,")
         w("    RESU=_F(")
         w("        RESULTAT=RESU,")
+        # A load-path history keeps every increment; a single-operation shoe
+        # study keeps only its final state, in the MED file and in every table.
+        if contacts and not native_path:
+            w("        INST=1.0,")
         if has_pipe_stress:
             w("        CARA_ELEM=CARA,")
             w("        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),")
@@ -948,7 +952,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='EFGE_ELNO',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),")
-        if is_nonlinear and not contacts:
+        if is_nonlinear and not native_path:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -968,7 +972,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='DEPL',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),")
-        if is_nonlinear and not contacts:
+        if is_nonlinear and not native_path:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -988,7 +992,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='REAC_NODA',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),")
-        if is_nonlinear and not contacts:
+        if is_nonlinear and not native_path:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -1009,7 +1013,7 @@ class _CommWriterMixin:
             w("        NOM_CHAM='SIEQ_ELNO',")
             w("        TOUT='OUI',")
             w("        NOM_CMP=('VMIS',),")
-            if is_nonlinear and not contacts:
+            if is_nonlinear and not native_path:
                 w("        INST=1.0,")
             w("    ),")
             w(");")
@@ -1027,7 +1031,7 @@ class _CommWriterMixin:
         # FIN
         # ==============================================================
         if contacts:
-            write_contact_tables(w, contacts, map_name)
+            write_contact_tables(w, contacts, map_name, instant=None if native_path else 1.0)
         w("FIN();")
 
         path.write_text("\n".join(comm), encoding="utf-8")

@@ -290,6 +290,13 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertEqual(inputs["contact_law"], "DIS_CHOC")
         self.assertEqual(inputs["pipe_modelization"], "TUYAU_3M")
         self.assertEqual(inputs["load_path"], ["Hot"])
+        # A single-operation study keeps only its final state: the MED file,
+        # every result table and the shoe's contact tables print INST=1.0.
+        for block in ("IMPR_RESU(", "TAB_EFFO = CREA_TABLE(", "TAB_DEPL = CREA_TABLE(", "TAB_REAC = CREA_TABLE(", "TAB_SIEQ = CREA_TABLE("):
+            start = comm.index(block)
+            self.assertIn("        INST=1.0,", comm[start:comm.index(");", start)], block)
+        self.assertIn("NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))", comm)
+        self.assertIn("NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))", comm)
 
     def test_uniform_load_writer_preserves_legacy_pressure_and_temperature_syntax(self):
         model = Model(project_name="UniformLoadSyntax")
