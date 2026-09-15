@@ -98,8 +98,9 @@ class TestFieldFromFunction(unittest.TestCase):
     def test_helpers_follow_the_field_rules(self):
         model = _two_element_route()
         operation = model.define_operation("Rules", gravity=False)
-        with self.assertRaisesRegex(ValueError, "wind needs a direction"):
-            field_from_function(model, operation, "wind", lambda x, y, z: 1000.0)
+        for quantity in ("wind", "line_load"):
+            with self.subTest(quantity=quantity), self.assertRaisesRegex(ValueError, f"{quantity} needs a direction"):
+                field_from_function(model, operation, quantity, lambda x, y, z: 1000.0)
         with self.assertRaisesRegex(ValueError, "temperature takes no direction"):
             field_from_function(model, operation, "temperature", lambda x, y, z: 80.0, direction=[1.0, 0.0, 0.0])
         with self.assertRaisesRegex(TypeError, "formula strings are not evaluated"):
@@ -113,17 +114,18 @@ class TestFieldFromFunction(unittest.TestCase):
             )
         self.assertEqual(operation.fields, [])
 
-        rack = _model("Rack")
-        with rack.pipe("PipeSec", "Steel", route="RACK") as pipe:
-            pipe.start([0.0, 0.0, 0.0], support="anchor")
-            pipe.run(2.0)
-            pipe.bar(2.0)
-            pipe.end(support="anchor")
-        with self.assertRaisesRegex(ValueError, r"cannot carry 'wind': \['bar_0'\]"):
-            field_from_function(
-                rack, rack.define_operation("Wind", gravity=False), "wind", lambda x, y, z: 1000.0,
-                direction=[0.0, 1.0, 0.0], route_id="RACK",
-            )
+        for kind in ("bar", "cable"):
+            rack = _model("Rack")
+            with rack.pipe("PipeSec", "Steel", route="RACK") as pipe:
+                pipe.start([0.0, 0.0, 0.0], support="anchor")
+                pipe.run(2.0)
+                getattr(pipe, kind)(2.0)
+                pipe.end(support="anchor")
+            with self.subTest(element=kind), self.assertRaisesRegex(ValueError, rf"cannot carry 'wind': \['{kind}_0'\]"):
+                field_from_function(
+                    rack, rack.define_operation("Wind", gravity=False), "wind", lambda x, y, z: 1000.0,
+                    direction=[0.0, 1.0, 0.0], route_id="RACK",
+                )
 
     def test_bends_without_stored_geometry_have_no_known_midpoint(self):
         model = _elbow_model(stored_geometry=False)
