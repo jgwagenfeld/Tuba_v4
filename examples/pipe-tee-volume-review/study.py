@@ -1,6 +1,7 @@
 """Solve (or import) the tee as native 3D solids and publish the stress review."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidence
 from tuba.reporting import build_engineering_review
@@ -11,6 +12,13 @@ SOLVER_OPTIONS: dict = {}
 ARTIFACT_DIR = Path(__file__).resolve().parent / "evidence" / LOAD_CASES[0]
 #: Which elements become 3D solids, and how finely Gmsh meshes them.
 VOLUME_EXPORT = {"element_ids": ("header_left", "header_right", "branch"), "max_element_size": 0.005}
+
+
+def check(solved):
+    """The tee is reviewed as native 3D solids; a run without its volume mesh never becomes evidence."""
+    run = solved.runs[LOAD_CASES[0]]
+    if not run.study.metadata.get("volume_analysis") or run.analysis_mesh is None:
+        raise RuntimeError("The tee review requires an attested native pipe-volume Code_Aster study.")
 
 
 def build_review(namespace, output, *, artifact_dir=None, force=False):
@@ -28,8 +36,7 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
         solver_options=SOLVER_OPTIONS,
         volume_export=VOLUME_EXPORT,
     )
-    if not artifact.study.metadata.get("volume_analysis") or artifact.analysis_mesh is None:
-        raise RuntimeError("The tee review requires an attested native pipe-volume Code_Aster study.")
+    check(SimpleNamespace(model=model, namespace=namespace, runs={LOAD_CASES[0]: artifact}))
     solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
     artifact = stage_code_aster_artifact_evidence(artifact, output / "review_scene")
     scene = build_visualization_scene(

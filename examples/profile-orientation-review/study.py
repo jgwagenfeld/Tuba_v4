@@ -56,6 +56,16 @@ def check_solved_response(model, runs, *, rolls, length) -> list[dict]:
     return rows
 
 
+def check(solved):
+    """Rolled stiffness, force basis and rotation sign must match beam theory before a solve becomes evidence."""
+    check_solved_response(
+        solved.model,
+        [solved.runs[case] for case in LOAD_CASES],
+        rolls=solved.namespace["ROLLS"],
+        length=solved.namespace["LENGTH"],
+    )
+
+
 def _add_frames(scene, model, runs, states, rolls):
     colors = ("#ef4444", "#22c55e", "#3b82f6")
     for kind, label in (("original", "Original local basis (x red, y green, z blue)"),

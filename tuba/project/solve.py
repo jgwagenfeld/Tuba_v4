@@ -2,8 +2,9 @@
 
 Spec decision 13: evidence whose attested solver input matches what the model and study would compile now
 is reused, unless the solve is forced. Decision 11: the rest is solved and lands in ``evidence/<operation>/``
-(decision 12: all operations or none). Decision 18: an unverified run is written and reported. Decision 20:
-the solve holds the project's claim throughout.
+(decision 12: nothing lands before every operation has solved and passed the study's check, and an
+interrupted promotion leaves operations unsolved, never falsely attested). Decision 18: an unverified run is
+written and reported. Decision 20: the solve holds the project's claim throughout.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Protocol
 
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
@@ -60,8 +62,9 @@ def solve_project(
 
     *namespace* is the model script's globals, ``project.run_model()`` when omitted; a caller that already ran
     the script passes that snapshot. *study_file* picks the study, as :meth:`Project.load_study` does.
-    *solver* defaults to Code_Aster. Nothing reaches ``evidence/`` before every solve has finished, so a
-    solve that raises leaves the evidence as it was.
+    *solver* defaults to Code_Aster. Nothing reaches ``evidence/`` before every solve has finished and the
+    study's ``check(solved)`` has passed, so a solve or check that raises leaves the evidence as it was; an
+    interrupted promotion leaves the affected operations unsolved, never falsely attested.
     """
     study = project.load_study(study_file)
     operations = tuple(getattr(study, "LOAD_CASES", None) or ())
@@ -85,7 +88,8 @@ def solve_project(
         staging = project.root / STAGING
         shutil.rmtree(staging, ignore_errors=True)
         try:
-            port = solver or exporter
+            port = solver if solver is not None else exporter
+            runs = {}
             for operation in solve:
                 folder = staging / operation
                 folder.mkdir(parents=True)
@@ -94,11 +98,21 @@ def solve_project(
                     if volume_export
                     else exporter.export_analysis_study(model, operation, folder)
                 )
-                port.solve_exported_study(model, exported)
+                runs[operation] = port.solve_exported_study(model, exported)
+            for operation in operations:
+                if operation not in runs:
+                    runs[operation] = import_code_aster_artifacts(model=model, work_dir=folders[operation])
+            check = getattr(study, "check", None)
+            if check is not None:
+                check(SimpleNamespace(model=model, namespace=namespace, runs={operation: runs[operation] for operation in operations}))
             promote_evidence({staging / operation: folders[operation] for operation in solve})
         finally:
             shutil.rmtree(staging, ignore_errors=True)
-        runs = {operation: import_code_aster_artifacts(model=model, work_dir=folders[operation]) for operation in operations}
+        # A solved run was imported from staging, which is gone: read it again from its evidence folder.
+        runs = {
+            operation: import_code_aster_artifacts(model=model, work_dir=folders[operation]) if operation in solve else runs[operation]
+            for operation in operations
+        }
     return ProjectSolve(
         runs=runs,
         solved=solve,

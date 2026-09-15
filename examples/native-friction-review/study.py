@@ -6,6 +6,7 @@ import json
 import math
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 from tuba.analysis import create_visual_deformed_geometry_state
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts, stage_code_aster_artifact_evidence
@@ -55,13 +56,9 @@ def _write_contact_exports(run, root: Path) -> None:
     (root / "contact-history.svg").write_text(svg, encoding="utf-8")
 
 
-def build_review(namespace, output, *, artifact_dir=None, force=False):
-    """The single-run friction comparison: checks the physics, then writes the bundle."""
-    model = namespace["model"]
-    output = Path(output)
-    run = (import_code_aster_artifacts(model=model, work_dir=Path(artifact_dir))
-           if artifact_dir is not None else model.solve(**SOLVER_OPTIONS, force=force, work_dir=str(output / "solver")))
-    run.validate_for_publication(model)
+def check(solved):
+    """The contact behaviour this comparison exists to show; a solve that misses it never becomes evidence."""
+    run = solved.runs[LOAD_CASES[0]]
     friction_contacts = lambda state: {key: value for key, value in state.contact_results.items() if key.startswith("F_")}
     statuses = {contact.status for state in run.result_states for contact in friction_contacts(state).values()}
     if not {"open", "sticking", "sliding"} <= statuses:
@@ -80,6 +77,16 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     if any(math.hypot(*contact.tangential_force) >= 1e-8 for state in run.result_states
            for key, contact in state.contact_results.items() if key.startswith("NF_")):
         raise RuntimeError("The frictionless copy produced a nonzero tangential contact force.")
+
+
+def build_review(namespace, output, *, artifact_dir=None, force=False):
+    """The single-run friction comparison: checks the physics, then writes the bundle."""
+    model = namespace["model"]
+    output = Path(output)
+    run = (import_code_aster_artifacts(model=model, work_dir=Path(artifact_dir))
+           if artifact_dir is not None else model.solve(**SOLVER_OPTIONS, force=force, work_dir=str(output / "solver")))
+    run.validate_for_publication(model)
+    check(SimpleNamespace(model=model, namespace=namespace, runs={LOAD_CASES[0]: run}))
     bundle_root = output / "review_scene"
     run = stage_code_aster_artifact_evidence(run, bundle_root)
     states = run.result_states or (run.result_state,)

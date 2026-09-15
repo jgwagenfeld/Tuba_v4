@@ -1,13 +1,14 @@
 """Project solve: reuse, force, staging and promotion through the solver port (spec decisions 11-13, 18, 20)."""
 
 import json
+import os
 import shutil
 from pathlib import Path
 
 import pytest
 
 from tests.project_replay import ReplaySolver
-from tuba.project import load_project
+from tuba.project import evidence, load_project
 from tuba.project.claim import SolveBusy, claim_solve, solve_claimed
 from tuba.project.solve import solve_project
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
@@ -161,3 +162,63 @@ def test_a_volume_study_exports_its_solids_without_the_tensor_stress_table(tmp_p
     assert study.metadata["compiler_inputs"]["export_tensor_stress"] is False
     assert not (root / "evidence").exists()
     assert not (root / ".tuba" / "staging").exists()
+
+
+def test_an_interrupted_promotion_leaves_the_operation_unsolved_and_the_next_solve_repeats_it(tmp_path, monkeypatch):
+    project = _copy(tmp_path, RACK)
+    solver = ReplaySolver(RACK / "evidence")
+    real_replace = os.replace
+    moves = []
+
+    def refuse_the_first_move(source, destination):
+        moves.append(destination)
+        if len(moves) == 1:
+            raise PermissionError("study.rmed is open in another program")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(evidence.os, "replace", refuse_the_first_move)
+    with pytest.raises(PermissionError):
+        solve_project(project, solver=solver, force=True)
+    monkeypatch.setattr(evidence.os, "replace", real_replace)
+
+    assert not (project.root / ".tuba" / "staging").exists()
+    assert load_code_aster_execution_attestation(project.root / "evidence" / "Operating") is None
+    assert not solve_claimed(project.root)
+    assert solve_project(project, solver=solver).solved == ("Operating",)
+
+
+def test_a_failing_study_check_keeps_the_solve_out_of_the_evidence(tmp_path):
+    project = _copy(tmp_path, RACK, evidence=False)
+    study = project.root / "study.py"
+    study.write_text(
+        study.read_text(encoding="utf-8") + '\n\ndef check(solved):\n    raise RuntimeError(f"rejected {sorted(solved.runs)}")\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match=r"rejected \['Operating'\]"):
+        solve_project(project, solver=ReplaySolver(RACK / "evidence"))
+
+    assert not (project.root / "evidence").exists()
+    assert not (project.root / ".tuba" / "staging").exists()
+    assert not solve_claimed(project.root)
+
+
+def test_the_study_check_sees_the_model_its_script_globals_and_every_run(tmp_path):
+    project = _copy(tmp_path, RACK)
+    study = project.root / "study.py"
+    study.write_text(
+        study.read_text(encoding="utf-8")
+        + "\n\ndef check(solved):\n"
+        + "    import json\n"
+        + "    record = {'model': solved.model.project_name, 'script': Path(solved.namespace['__file__']).name, 'runs': sorted(solved.runs)}\n"
+        + "    (Path(__file__).parent / 'checked.json').write_text(json.dumps(record), encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+
+    solve_project(project, solver=ReplaySolver(RACK / "evidence"))
+
+    assert json.loads((project.root / "checked.json").read_text(encoding="utf-8")) == {
+        "model": "SupportRackReview",
+        "script": "model.py",
+        "runs": ["Operating"],
+    }
