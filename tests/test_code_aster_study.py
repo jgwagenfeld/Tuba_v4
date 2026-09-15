@@ -587,7 +587,7 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertEqual(calls, [("study.rmed", "med")])
         self.assertIsInstance(results.raw_mesh, FakeMesh)
 
-    def test_studies_without_discrete_supports_keep_their_committed_command_text(self):
+    def test_refreshable_galleries_keep_their_committed_study_text(self):
         from importlib import import_module
 
         galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
@@ -597,11 +597,6 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
                 continue
             with TemporaryDirectory() as scratch:
                 model, case = gallery.refresh_producer(Path(scratch))
-                if any(
-                    s.type in ("rest", "spring") or s.mass > 0 or getattr(s, "attached_to", None)
-                    for s in model.supports
-                ):
-                    continue
                 solver = CodeAsterSolver(work_dir=scratch, **gallery.solver_options)
                 study = solver.export_analysis_study(model, case, scratch)
                 fresh = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
