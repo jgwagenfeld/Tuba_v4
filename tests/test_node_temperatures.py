@@ -11,7 +11,6 @@ from tuba.model import BendGeometry, OperationField, _operation_field_to_dict
 from tuba.reporting.tables import _operation_field_dict
 from tuba.schema import validate_model_dict
 from tuba.solver.aster import CodeAsterSolver
-from tuba.solver.aster_loads import resolve_node_temperatures
 from tuba.solver.modelisation import PipeModelization
 from tuba.validation import ModelValidationError
 
@@ -341,27 +340,51 @@ class TestNodeTemperatureCompiler(unittest.TestCase):
         self.assertEqual(mesh.node_sources["pipe_str_0_mid"].parametric_t, 0.5)
 
     def test_load_case_node_fields_are_checked_at_export(self):
-        # Validation walks only operations, so the export resolver repeats the node rules for load cases.
-        model = _two_element_route()
-        load_case = model.define_load_case("Hot", gravity=False)
-        load_case.fields.append(OperationField("temperature", 120.0, scope="nodes", node_ids=["N9"]))
-        with self.assertRaisesRegex(ValueError, "field 0 references missing node 'N9'"):
-            resolve_node_temperatures(model, load_case)
-
-        load_case.fields[:] = [
-            OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
-            OperationField("temperature", 90.0, scope="nodes", node_ids=["N1"]),
-        ]
-        with self.assertRaisesRegex(ValueError, r"field 1 gives node 'N1' 90\.0, but an earlier node field gives it 120\.0"):
-            resolve_node_temperatures(model, load_case)
-
-        load_case.fields[:] = [
-            OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
-            OperationField("temperature", 90.0, scope="elements", element_ids=["pipe_str_1"]),
-        ]
-        with self.assertRaisesRegex(ValueError, r"Nodes \['N1'\] have a node temperature and belong to elements"):
-            resolve_node_temperatures(model, load_case)
-
-        load_case.fields[:] = [OperationField("pressure", 1.0e6, scope="nodes", node_ids=["N1"])]
-        with self.assertRaisesRegex(ValueError, "field 0 scopes 'pressure' to nodes"):
-            resolve_node_temperatures(model, load_case)
+        # Validation walks only operations, so export applies its node rules to load-case fields.
+        cases = (
+            ([OperationField("temperature", 120.0, scope="nodes", node_ids=["N9"])], r"field 0 references missing nodes \['N9'\]"),
+            ([OperationField("temperature", 120.0, scope="nodes")], "field 0 has scope 'nodes' but no node_ids"),
+            # N2 lies only on beam_0, and N3 on no element.
+            (
+                [OperationField("temperature", 120.0, scope="nodes", node_ids=["N2", "N3"])],
+                r"field 0 gives a temperature to nodes on no pipe element: \['N2', 'N3'\]",
+            ),
+            (
+                [OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"], element_ids=["pipe_str_0"])],
+                "field 0 scopes to nodes, so it takes no group, route_id, station range, element_ids or direction",
+            ),
+            (
+                [OperationField("temperature", 120.0, scope="route", route_id="RACK", node_ids=["N1"])],
+                "field 0 lists node_ids but has scope 'route'",
+            ),
+            # Export resolves node temperatures before wind, so a node-scoped wind field is refused here.
+            (
+                [OperationField("wind", 500.0, scope="nodes", node_ids=["N1"], direction=[0.0, 1.0, 0.0])],
+                "field 0 scopes 'wind' to nodes; only uniform temperature fields take node_ids",
+            ),
+            (
+                [
+                    OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
+                    OperationField("temperature", 90.0, scope="nodes", node_ids=["N1"]),
+                ],
+                r"field 1 gives node 'N1' 90\.0, but an earlier node field gives it 120\.0",
+            ),
+            (
+                [
+                    OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
+                    OperationField("temperature", 90.0, scope="elements", element_ids=["pipe_str_0"]),
+                ],
+                r"Nodes \['N1'\] have a node temperature and belong to elements",
+            ),
+        )
+        for fields, message in cases:
+            model = _model("LoadCaseNodeFields")
+            with model.pipe("PipeSec", "Steel", route="RACK") as rack:
+                rack.start([0.0, 0.0, 0.0], support="anchor")
+                rack.run(1.0)
+                rack.beam(1.0)
+                rack.end(support="anchor")
+            model.add_node([5.0, 5.0, 0.0])
+            model.define_load_case("Hot", gravity=False).fields.extend(fields)
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                _export(model, "Hot")

@@ -120,16 +120,21 @@ def _validate_bend_geometry_record(elem, errors: list[str]) -> None:
         errors.append(f"Element {elem.id!r} bend_geometry.generation_mode must not be empty.")
 
 
-def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
-    valid_quantities = {"pressure", "temperature", "wind", "line_load"}
-    valid_scopes = {"all", "group", "route", "elements", "nodes"}
-    valid_profiles = {"uniform", "linear", "piecewise"}
-    pipe_nodes = {
+def _pipe_node_ids(model: TubaModel) -> set[str]:
+    """Nodes that lie on a pipe element, the only nodes a node temperature may name."""
+    return {
         node_id
         for elem in model.elements
         if elem.type in {"pipe_straight", "pipe_bend"}
         for node_id in (elem.n1, elem.n2)
     }
+
+
+def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
+    valid_quantities = {"pressure", "temperature", "wind", "line_load"}
+    valid_scopes = {"all", "group", "route", "elements", "nodes"}
+    valid_profiles = {"uniform", "linear", "piecewise"}
+    pipe_nodes = _pipe_node_ids(model)
 
     for operation_name, operation in getattr(model, "operations", {}).items():
         seen: dict[str, dict[str, float]] = {}

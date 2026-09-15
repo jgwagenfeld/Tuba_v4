@@ -9,6 +9,7 @@ import numpy as np
 
 from tuba.model import Element, LoadCase, TubaModel
 from tuba.physical import physical_properties_for_element
+from tuba.validation import _node_field_problem, _pipe_node_ids
 
 FieldGroups = List[tuple[List[str], float]]
 WindGroups = List[tuple[List[str], float, float, float]]
@@ -130,21 +131,18 @@ def has_temperature_load(
 def resolve_node_temperatures(model: TubaModel, load_case: LoadCase) -> dict[str, float]:
     """Node-scoped temperature fields of one load case, as model node id -> temperature.
 
-    Validation walks only operations, so this repeats its node rules for load-case fields.
+    Validation walks only operations, so this applies its node rules to load-case fields.
     """
+    pipe_nodes = _pipe_node_ids(model)
     values: dict[str, float] = {}
     for index, field_record in enumerate(getattr(load_case, "fields", [])):
-        if field_record.scope != "nodes":
+        if field_record.scope != "nodes" and not field_record.node_ids:
             continue
-        if field_record.quantity != "temperature" or field_record.profile != "uniform":
-            raise ValueError(
-                f"Operation field {index} scopes {field_record.quantity!r} to nodes; "
-                "only uniform temperature fields take node_ids."
-            )
+        problem = _node_field_problem(field_record, model, pipe_nodes)
+        if problem is not None:
+            raise ValueError(f"Operation field {index} {problem}")
         value = float(field_record.value)
         for node_id in field_record.node_ids:
-            if node_id not in model.nodes:
-                raise ValueError(f"Operation field {index} references missing node {node_id!r}.")
             previous = values.get(node_id)
             if previous is not None and previous != value:
                 raise ValueError(
