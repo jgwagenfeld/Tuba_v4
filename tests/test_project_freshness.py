@@ -8,7 +8,7 @@ import pytest
 from tuba import Model
 from tuba.analysis.provenance import SolverInputIdentity
 from tuba.project import run_model_script
-from tuba.project.freshness import expected_identity, stale_operations
+from tuba.project.freshness import attested_identities, expected_identity, stale_operations
 from tuba.solver.aster import CodeAsterSolver
 
 SUPPORT_RACK = Path(__file__).resolve().parents[1] / "examples" / "support-rack-review"
@@ -123,3 +123,16 @@ def test_an_operation_the_model_no_longer_defines_is_stale(tmp_path):
     model = _rack(tmp_path, lambda text: text.replace('"Operating",', '"Cold",'))
 
     assert stale_operations(model, _rack_attestation()) == ["Operating"]
+
+
+def test_attested_identities_come_from_the_review_scene(tmp_path):
+    identity = {
+        "fingerprint": "f" * 64,
+        "load_case": "Operating",
+        "schema_id": "tuba.model.v4",
+        "compiler_id": "tuba.code_aster.v2",
+    }
+    (tmp_path / "scene.json").write_text(json.dumps({"solver_input_identities": [identity]}), encoding="utf-8")
+
+    assert attested_identities(tmp_path) == [SolverInputIdentity.from_dict(identity)]
+    assert attested_identities(tmp_path / "missing") == []

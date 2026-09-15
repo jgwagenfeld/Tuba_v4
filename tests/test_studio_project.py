@@ -1,4 +1,5 @@
 import json
+import shutil
 import time
 import unittest
 from pathlib import Path
@@ -72,8 +73,8 @@ class StudioProjectModeTest(unittest.TestCase):
         except HTTPError as exc:
             return exc.code, json.loads(exc.read().decode("utf-8"))
 
-    def _wait(self, condition, message: str) -> None:
-        deadline = time.time() + 10
+    def _wait(self, condition, message: str, timeout: float = 10.0) -> None:
+        deadline = time.time() + timeout
         while time.time() < deadline:
             if condition():
                 return
@@ -83,7 +84,7 @@ class StudioProjectModeTest(unittest.TestCase):
     def _solves_finished(self, server) -> int:
         return sum(event.get("type") == "solve_finished" for event in server.broker.events)
 
-    def test_build_and_review_bundles_solve_and_go_stale(self):
+    def test_build_and_review_bundles_solve_and_an_evidence_free_review_never_goes_stale(self):
         root = Path(self.enterContext(TemporaryDirectory()))
         server = self._start(root)
         out = root / "out"
@@ -104,7 +105,39 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertTrue((out / "review" / "scene.json").is_file())
         self.assertTrue(self._get(server, "api/project")["has_review"])
 
+        # This study's review carries no solver evidence, so nothing in it can go stale (spec decision 15).
         status, payload = self._post(server, "api/script", {"code": MODEL.replace("run(2.0)", "run(3.0)")})
+        self.assertEqual(status, 200, payload)
+        self.assertFalse(payload["review_stale"])
+        self.assertFalse(self._get(server, "api/project")["review_stale"])
+
+    def test_an_imported_review_goes_stale_only_when_its_solver_input_changes(self):
+        from tuba.visualization.preview.server import ProjectStudioServer
+
+        root = Path(self.enterContext(TemporaryDirectory()))
+        project = root / "project"
+        shutil.copytree(Path(__file__).resolve().parents[1] / "examples" / "support-rack-review", project)
+        server = ProjectStudioServer(project, root / "out", port=0, poll_interval_s=0.05, debounce_s=0.05)
+        self.addCleanup(server.stop)
+        server.start()
+        self._wait(
+            lambda: any(event.get("type") in {"review_ready", "review_failed"} for event in server.broker.events),
+            "the committed evidence never imported",
+            timeout=120.0,
+        )
+        self.assertIsNone(server.review_error)
+        self.assertFalse(self._get(server, "api/project")["review_stale"])
+
+        model = (project / "model.py").read_text(encoding="utf-8")
+        renamed = model.replace('Model("SupportRackReview")', 'Model("RenamedRack")') + (
+            'model.define_load_case("Hydrotest", gravity=True, pressure=2.0e6)\n'
+        )
+        status, payload = self._post(server, "api/script", {"code": renamed})
+        self.assertEqual(status, 200, payload)
+        self.assertFalse(payload["review_stale"])
+
+        moved = model.replace("(-2.0, -1.0, 3.0)", "(-2.5, -1.0, 3.0)")
+        status, payload = self._post(server, "api/script", {"code": moved})
         self.assertEqual(status, 200, payload)
         self.assertTrue(payload["review_stale"])
         self.assertTrue(self._get(server, "api/project")["review_stale"])

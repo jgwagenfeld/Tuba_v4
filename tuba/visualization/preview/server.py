@@ -523,7 +523,8 @@ class ProjectStudioServer(PreviewServer):
 
     The live model scene is the ``build/`` bundle and the solved or imported review is
     ``review/``. A Run never overwrites a review, and Review never shows results for a
-    model that has changed since without saying so (``review_stale``).
+    model that has changed since without saying so (``review_stale``): a review is stale
+    when an operation it was solved for would now attest a different identity.
     """
 
     def __init__(
@@ -553,7 +554,6 @@ class ProjectStudioServer(PreviewServer):
         self.namespace: dict[str, Any] | None = None
         self.study = self.project.load_study()
         self.review_error: str | None = None
-        self._review_model_hash: str | None = None
         self._solve_lock = threading.Lock()
         # Busy with a review (the startup import or a Solve); _preparing marks the import.
         self._solving = False
@@ -659,10 +659,19 @@ class ProjectStudioServer(PreviewServer):
 
     @property
     def review_stale(self) -> bool:
-        return (
-            self._review_model_hash is not None
-            and self.model is not None
-            and _model_hash(self.model) != self._review_model_hash
+        """Spec decision 15: an operation the review was solved for would now attest a different identity."""
+        from tuba.project.freshness import attested_identities, stale_operations
+
+        if self.model is None or self.study is None:
+            return False
+        attested = attested_identities(self.out_dir / "review")
+        return bool(attested) and bool(
+            stale_operations(
+                self.model,
+                attested,
+                solver_options=getattr(self.study, "SOLVER_OPTIONS", None),
+                volume_export=getattr(self.study, "VOLUME_EXPORT", None),
+            )
         )
 
     def _publish_scene(self) -> dict[str, Any]:
@@ -706,7 +715,6 @@ class ProjectStudioServer(PreviewServer):
         shutil.rmtree(work, ignore_errors=True)
         root = self.study.build_review(namespace, work, artifact_dir=artifact_dir, force=force)
         self._swap_bundle("review", Path(root))
-        self._review_model_hash = _model_hash(namespace["model"])
         self.review_error = None
         shutil.rmtree(work, ignore_errors=True)
 
@@ -756,10 +764,6 @@ class ProjectStudioServer(PreviewServer):
         finally:
             with self._solve_lock:
                 self._solving = False
-
-
-def _model_hash(model: TubaModel) -> str:
-    return hashlib.sha256(json.dumps(model.to_dict(), sort_keys=True, default=str).encode("utf-8")).hexdigest()
 
 
 def _script_error_line(exc: BaseException, script_path: Path) -> int | None:

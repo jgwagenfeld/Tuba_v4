@@ -7,7 +7,9 @@ computed by the same code the Code_Aster exporters run, so a study-option change
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 from tuba.analysis.provenance import SolverInputIdentity
@@ -56,6 +58,18 @@ def stale_operations(
         if current != identity:
             stale.add(identity.load_case)
     return sorted(stale)
+
+
+def attested_identities(review_bundle: str | Path) -> list[SolverInputIdentity]:
+    """The solver input identities a review bundle was built from, read from its ``scene.json``.
+
+    A review without solver evidence (model-only or mesh-only) has none, so it is never stale.
+    """
+    try:
+        scene = json.loads((Path(review_bundle) / "scene.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:  # no review yet, or a bundle being swapped
+        return []
+    return [SolverInputIdentity.from_dict(record) for record in scene.get("solver_input_identities", [])]
 
 
 def _identity(solver: Any, model: TubaModel, operation: str, volume_export: Mapping[str, Any] | None) -> SolverInputIdentity:
