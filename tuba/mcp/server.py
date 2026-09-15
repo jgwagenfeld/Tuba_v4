@@ -312,7 +312,7 @@ def apply_model_patch(
     Operation types:
     - {'op': 'add_node', 'local_id': 'n_custom', 'coords': [x, y, z]}
     - {'op': 'add_element', 'local_id': 'e_custom', 'type': 'pipe_straight', 'n1': 'n1', 'n2': 'n2', 'section': 'DN100', 'material': 'P265GH'}
-    - {'op': 'add_support', 'node': 'n1', 'type': 'anchor'|'guide'|'rest'|'spring'}
+    - {'op': 'add_support', 'node': 'n1', 'type': 'anchor'|'guide'|'rest'|'spring', 'attached_to': 'n2' (optional: the node the support acts against, left out for ground)}
     - {'op': 'create_group', 'name': 'Loop1', 'elements': ['pipe_str_0', 'pipe_str_1']}
     """
     patch = ModelPatch.from_dict({

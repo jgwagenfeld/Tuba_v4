@@ -1302,7 +1302,7 @@ class TubaModel:
         solver = CodeAsterSolver(**kwargs)
         if selected_modelization is PipeModelization.SOLID_3D:
             if load_path is not None or any(s.friction_coefficient for s in self.supports):
-                raise ValueError('Native contact load paths require POU_D_T; solid contact is not implemented.')
+                raise ValueError('Friction, gap and contact stiffness require a 1D study (TUYAU_3M or POU_D_T).')
             if not volume_element_ids or max_element_size is None:
                 raise ValueError("SOLID_3D requires volume_element_ids and max_element_size.")
             return solver.solve_volume_study(
