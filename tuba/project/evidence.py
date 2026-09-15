@@ -1,13 +1,15 @@
 """Evidence folders: where a project's solved operations live, and how a solve lands there.
 
 Spec decision 10: one folder per operation, ``<project>/evidence/<operation>/``. Decision 12: a solve
-promotes its files first and ``study_execution.json`` last, and lands all of its operations or none.
+promotes its files first and ``study_execution.json`` last; nothing moves before every staged
+attestation passes its integrity check, and an interrupted promotion leaves operations unsolved, never
+falsely attested.
 """
 
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
@@ -32,6 +34,17 @@ def evidence_dir(project_root: str | Path, operation: str) -> Path:
     ):
         raise ValueError(f"Operation {operation!r} cannot name an evidence folder.")
     return Path(project_root) / EVIDENCE / operation
+
+
+def study_artifact_dir(project_root: str | Path, operations: Sequence[str]) -> Path:
+    """The folder a study's ``build_review`` imports the project's evidence from.
+
+    A single-operation study imports its operation's folder, and a study of several imports the evidence
+    folder holding one folder per operation, as today's studies set ``ARTIFACT_DIR``.
+    """
+    if len(operations) == 1:
+        return evidence_dir(project_root, operations[0])
+    return Path(project_root) / EVIDENCE
 
 
 def promote_evidence(moves: Mapping[Path, Path]) -> None:

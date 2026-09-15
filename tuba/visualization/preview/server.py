@@ -255,9 +255,16 @@ def _handler_factory(
                 return
             parsed = urlparse(self.path)
             if parsed.path == "/api/solve" and solve_handler is not None:
-                if length > 0:
-                    self.rfile.read(length)
-                status, result = solve_handler()
+                body = self.rfile.read(length) if length > 0 else b"{}"
+                try:
+                    payload = json.loads(body.decode("utf-8"))
+                    force = payload.get("force", False) if isinstance(payload, dict) else None
+                    if not isinstance(force, bool):
+                        raise ValueError('a solve takes an optional boolean "force"')
+                except ValueError as exc:
+                    status, result = 400, {"ok": False, "error": str(exc)}
+                else:
+                    status, result = solve_handler(force=force)
                 data = json.dumps(result).encode("utf-8")
                 self.send_response(status)
                 self._response_headers()
@@ -551,6 +558,7 @@ class ProjectStudioServer(PreviewServer):
         timeout_s: float = 5.0,
         poll_interval_s: float = 0.25,
         debounce_s: float = 0.2,
+        solver: Any = None,
     ) -> None:
         from tuba.project import load_project
         from tuba.project.freshness import attested_identities
@@ -576,6 +584,10 @@ class ProjectStudioServer(PreviewServer):
         # Busy with a review (the startup import or a Solve); _preparing marks the import.
         self._solving = False
         self._preparing = False
+        # The solver port a Solve hands to the project solve: Code_Aster when None, a replay in tests.
+        self.solver = solver
+        #: The operations the last Solve left unverified (spec decision 18).
+        self.unverified: tuple[str, ...] = ()
 
     def start(self) -> "ProjectStudioServer":
         super().start()
@@ -733,12 +745,12 @@ class ProjectStudioServer(PreviewServer):
         Path(source).rename(target)
         shutil.rmtree(retired, ignore_errors=True)
 
-    def _produce_review(self, namespace: dict[str, Any], *, artifact_dir: Path | None, force: bool = False) -> None:
+    def _produce_review(self, namespace: dict[str, Any], *, artifact_dir: Path | None) -> None:
         from tuba.project.freshness import attested_identities
 
         work = self.out_dir / ".review-work"
         shutil.rmtree(work, ignore_errors=True)
-        root = self.study.build_review(namespace, work, artifact_dir=artifact_dir, force=force)
+        root = self.study.build_review(namespace, work, artifact_dir=artifact_dir)
         identities = attested_identities(Path(root))
         self._swap_bundle("review", Path(root))
         self._review_identities = identities
@@ -746,6 +758,8 @@ class ProjectStudioServer(PreviewServer):
         shutil.rmtree(work, ignore_errors=True)
 
     def project_info(self) -> dict[str, Any]:
+        from tuba.project.claim import solve_claimed
+
         return {
             "ok": True,
             "name": self.project.name,
@@ -756,8 +770,9 @@ class ProjectStudioServer(PreviewServer):
             "has_review": (self.out_dir / "review" / "scene.json").is_file(),
             "review_stale": self.review_stale,
             "review_error": self.review_error,
-            "solving": self._solving and not self._preparing,
+            "solving": (self._solving and not self._preparing) or solve_claimed(self.project.root),
             "preparing_review": self._preparing,
+            "unverified": list(self.unverified),
         }
 
     def code_aster_commands(self, case: str) -> tuple[int, dict[str, Any]]:
@@ -788,7 +803,9 @@ class ProjectStudioServer(PreviewServer):
                 return 422, {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         return 200, {"ok": True, "case": case, "code": code}
 
-    def start_solve(self) -> tuple[int, dict[str, Any]]:
+    def start_solve(self, force: bool = False) -> tuple[int, dict[str, Any]]:
+        from tuba.project.claim import solve_claimed
+
         if self.study is None:
             return 400, {"ok": False, "error": f"{self.project.name} has no study.py to solve."}
         if self.namespace is None:
@@ -797,14 +814,27 @@ class ProjectStudioServer(PreviewServer):
             if self._solving:
                 busy = "The review is still being imported." if self._preparing else "A solve is already running."
                 return 409, {"ok": False, "error": busy}
+            if solve_claimed(self.project.root):
+                return 409, {"ok": False, "error": "Another process is solving this project."}
             self._solving = True
-        threading.Thread(target=self._solve, args=(self.namespace,), name="tuba-studio-solve", daemon=True).start()
+        threading.Thread(
+            target=self._solve, args=(self.namespace, force), name="tuba-studio-solve", daemon=True
+        ).start()
         return 202, {"ok": True}
 
-    def _solve(self, namespace: dict[str, Any]) -> None:
+    def _solve(self, namespace: dict[str, Any], force: bool = False) -> None:
+        from tuba.project.evidence import study_artifact_dir
+        from tuba.project.solve import solve_project
+
         self.broker.broadcast({"type": "solve_started"})
         try:
-            self._produce_review(namespace, artifact_dir=None, force=True)
+            operations = tuple(getattr(self.study, "LOAD_CASES", None) or ())
+            artifact_dir = None
+            if operations:
+                # Spec decisions 11 and 13: bring the project's evidence up to date, then review it.
+                self.unverified = solve_project(self.project, namespace, force=force, solver=self.solver).unverified
+                artifact_dir = study_artifact_dir(self.project.root, operations)
+            self._produce_review(namespace, artifact_dir=artifact_dir)
         except KeyboardInterrupt:
             raise
         except BaseException as exc:  # a study calling sys.exit() fails the solve, not the server
