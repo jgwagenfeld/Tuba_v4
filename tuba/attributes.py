@@ -67,6 +67,9 @@ class AttributeAssignment:
     value: Any
     source: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Where the running script assigned it (tuba.model._script_lines): never serialized, never compared.
+    source_line: int | None = field(default=None, compare=False, repr=False)
+    source_call_line: int | None = field(default=None, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "target", coerce_entity_ref(self.target))

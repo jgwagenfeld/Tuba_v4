@@ -71,6 +71,11 @@ def _script_lines() -> Tuple[Optional[int], Optional[int]]:
     return line, (call_line if call_line != line else None)
 
 
+def _script_line_field() -> Any:
+    """A record's line in the running script (see _script_lines): never serialized, never compared."""
+    return field(default=None, compare=False, repr=False)
+
+
 # Stable model-schema identity. This intentionally does not track the package
 # release version; readers continue to accept legacy records through from_dict.
 MODEL_SERIALIZATION_VERSION = "tuba.model.v4"
@@ -92,6 +97,8 @@ class Material:
     alpha: float = 0.0  # Mean thermal expansion coeff [1/K]
     allowable_stress: Dict[float, float] = field(default_factory=dict)
     """Mapping of temperature [°C] → allowable stress [Pa]."""
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     @property
     def G(self) -> float:
@@ -131,6 +138,8 @@ class PipeSection:
     OD: float  # Outer diameter [m]
     WT: float  # Wall thickness [m]
     corrosion_allowance: float = 0.0  # [m]
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     @property
     def ID(self) -> float:  # noqa: N802 – intentional capital
@@ -190,6 +199,8 @@ class BarSection:
     name: str
     OD: float  # Outer diameter [m]
     WT: float  # Wall thickness [m] (0.0 if solid)
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     @property
     def area(self) -> float:
@@ -214,6 +225,8 @@ class CableSection:
     #: the usual value) when slackening is the point, as it is for a guy that
     #: sheds its load to the windward side.
     compression_modulus_ratio: float = 1.0
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     @property
     def area(self) -> float:
@@ -229,6 +242,8 @@ class RectangularSection:
     height_z: float  # [m]
     thickness_y: float = 0.0  # [m], 0.0 if solid
     thickness_z: float = 0.0  # [m], 0.0 if solid
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     @property
     def area(self) -> float:
@@ -250,6 +265,8 @@ class IBeamSection:
     name: str
     profile_name: str
     properties: Dict[str, float] = field(default_factory=dict)
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     @classmethod
     def load_from_db(cls, name: str, profile_name: str) -> IBeamSection:
@@ -266,6 +283,8 @@ class Node:
 
     id: str
     coords: np.ndarray  # shape (3,)
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     def __post_init__(self):
         self.coords = np.asarray(self.coords, dtype=float)
@@ -417,6 +436,8 @@ class NodalForce:
 
     node: str
     components: List[float]
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     def __post_init__(self) -> None:
         if len(self.components) != 6:
@@ -457,6 +478,8 @@ class LoadCase:
     ref_temperature: float = 20.0  # [°C]
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     def add_nodal_force(
         self,
@@ -465,6 +488,7 @@ class LoadCase:
         moment: Optional[List[float]] = None,
     ) -> NodalForce:
         load = NodalForce.from_force(node=node, force=force, moment=moment)
+        load.source_line, load.source_call_line = _script_lines()
         self.nodal_forces.append(load)
         return load
 
@@ -481,6 +505,8 @@ class Operation:
     metadata: Dict[str, Any] = field(default_factory=dict)
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
+    source_line: Optional[int] = _script_line_field()
+    source_call_line: Optional[int] = _script_line_field()
 
     def to_load_case(self) -> LoadCase:
         return LoadCase(
@@ -500,6 +526,7 @@ class Operation:
         moment: Optional[List[float]] = None,
     ) -> NodalForce:
         load = NodalForce.from_force(node=node, force=force, moment=moment)
+        load.source_line, load.source_call_line = _script_lines()
         self.nodal_forces.append(load)
         return load
 
@@ -607,6 +634,7 @@ class TubaModel:
             alpha=alpha,
             allowable_stress=allowable_stress or {},
         )
+        mat.source_line, mat.source_call_line = _script_lines()
         self.materials[name] = mat
         return mat
 
@@ -620,11 +648,13 @@ class TubaModel:
         corrosion_allowance: float = 0.0,
     ) -> PipeSection:
         sec = PipeSection(name=name, OD=OD, WT=WT, corrosion_allowance=corrosion_allowance)
+        sec.source_line, sec.source_call_line = _script_lines()
         self.sections[name] = sec
         return sec
 
     def add_bar_section(self, name: str, OD: float, WT: float) -> BarSection:
         sec = BarSection(name=name, OD=OD, WT=WT)
+        sec.source_line, sec.source_call_line = _script_lines()
         self.sections[name] = sec
         return sec
 
@@ -641,6 +671,7 @@ class TubaModel:
             pretension=pretension,
             compression_modulus_ratio=compression_modulus_ratio,
         )
+        sec.source_line, sec.source_call_line = _script_lines()
         self.sections[name] = sec
         return sec
 
@@ -659,11 +690,13 @@ class TubaModel:
             thickness_y=thickness_y,
             thickness_z=thickness_z,
         )
+        sec.source_line, sec.source_call_line = _script_lines()
         self.sections[name] = sec
         return sec
 
     def add_ibeam_section(self, name: str, profile_name: str) -> IBeamSection:
         sec = IBeamSection.load_from_db(name=name, profile_name=profile_name)
+        sec.source_line, sec.source_call_line = _script_lines()
         self.sections[name] = sec
         return sec
 
@@ -781,7 +814,9 @@ class TubaModel:
         """Create a node from [x, y, z] coordinates and return its id."""
         node_id = f"N{self._node_counter}"
         self._node_counter += 1
-        self.nodes[node_id] = Node(id=node_id, coords=np.asarray(coords, dtype=float))
+        node = Node(id=node_id, coords=np.asarray(coords, dtype=float))
+        node.source_line, node.source_call_line = _script_lines()
+        self.nodes[node_id] = node
         self._index_node(node_id)
         return node_id
 
@@ -932,12 +967,15 @@ class TubaModel:
         source: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> AttributeAssignment:
+        line, call_line = _script_lines()
         assignment = AttributeAssignment(
             target=coerce_entity_ref(target),
             key=key,
             value=value,
             source=source,
             metadata=dict(metadata or {}),
+            source_line=line,
+            source_call_line=call_line,
         )
         self.attributes.append(assignment)
         return assignment
@@ -1019,6 +1057,7 @@ class TubaModel:
             temperature=temperature,
             ref_temperature=ref_temperature,
         )
+        lc.source_line, lc.source_call_line = _script_lines()
         self.load_cases[name] = lc
         return lc
 
@@ -1045,6 +1084,7 @@ class TubaModel:
             ref_temperature=ref_temperature,
             metadata=dict(metadata or {}),
         )
+        op.source_line, op.source_call_line = _script_lines()
         for field_record in fields or []:
             if isinstance(field_record, OperationField):
                 op.fields.append(field_record)

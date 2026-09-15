@@ -32,6 +32,23 @@ with model.pipe(section="DN100", material="Steel") as builder:
     builder.end(support="anchor")
 """
 
+_PROPERTY_SCRIPT = """from tuba import Model
+
+model = Model("PropertyLines")
+model.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0, alpha=1.2e-5)
+model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
+model.add_ibeam_section("IPE100", "IPE100")
+start = model.add_node([0.0, 0.0, 0.0])
+end = model.add_node([2.0, 0.0, 0.0])
+model.add_element(id="pipe", type="pipe_straight", n1=start, n2=end, section="DN100", material="Steel")
+model.add_support(node=start, type="anchor")
+model.assign_attribute("element:pipe", "paint", "epoxy")
+operating = model.define_load_case("Operating", gravity=True)
+operating.add_nodal_force(end, [0.0, 0.0, -500.0])
+hot = model.define_operation("Hot", temperature=150.0)
+hot.add_nodal_force(end, [0.0, 0.0, -250.0])
+"""
+
 
 def _line_of(script: str, text: str) -> int:
     return next(number for number, line in enumerate(script.splitlines(), 1) if text in line)
@@ -373,6 +390,41 @@ class TestStudioServer(unittest.TestCase):
         self.assertEqual(linked["model"].elements[0].source_line, _line_of(_BUILDER_SCRIPT, "builder.run(4.0)"))
         self.assertEqual({element.source_line for element in other["model"].elements}, {None})
 
+    def test_property_records_link_to_the_lines_that_define_them(self):
+        linked: dict = {"__name__": "__main__"}
+        exec(compile(_PROPERTY_SCRIPT, "model.py", "exec"), linked)
+        other: dict = {"__name__": "somewhere_else"}
+        exec(compile(_PROPERTY_SCRIPT, "model.py", "exec"), other)
+        model = linked["model"]
+
+        def line(text: str) -> int:
+            return _line_of(_PROPERTY_SCRIPT, text)
+
+        self.assertEqual(model.materials["Steel"].source_line, line("model.add_material("))
+        self.assertEqual(model.sections["DN100"].source_line, line("model.add_pipe_section("))
+        self.assertEqual(model.sections["IPE100"].source_line, line("model.add_ibeam_section("))
+        self.assertEqual(
+            [node.source_line for node in model.nodes.values()],
+            [line("start = model.add_node("), line("end = model.add_node(")],
+        )
+        self.assertEqual(model.attributes[0].source_line, line("model.assign_attribute("))
+        self.assertEqual(model.load_cases["Operating"].source_line, line("model.define_load_case("))
+        self.assertEqual(model.load_cases["Operating"].nodal_forces[0].source_line, line("operating.add_nodal_force("))
+        self.assertEqual(model.operations["Hot"].source_line, line("model.define_operation("))
+        self.assertEqual(model.operations["Hot"].nodal_forces[0].source_line, line("hot.add_nodal_force("))
+
+        def records(built) -> list:
+            return [
+                *built.materials.values(), *built.sections.values(), *built.nodes.values(), *built.attributes,
+                *built.load_cases.values(), *built.operations.values(),
+                *built.load_cases["Operating"].nodal_forces, *built.operations["Hot"].nodal_forces,
+            ]
+
+        self.assertEqual({record.source_line for record in records(other["model"])}, {None})
+        # A line says where a record came from, not what it is: records still compare equal.
+        self.assertEqual(model.materials, other["model"].materials)
+        self.assertEqual(model.attributes, other["model"].attributes)
+
     def test_a_helper_called_twice_links_each_copy_to_its_own_call(self):
         # The friction example builds two copies with one helper in model.py: the
         # helper's line is shared, the call line tells the copies apart.
@@ -408,11 +460,17 @@ class TestStudioServer(unittest.TestCase):
         from tuba.analysis.provenance import build_solver_input_identity
 
         models = []
-        for code in (_BUILDER_SCRIPT, _BUILDER_SCRIPT.replace("with model.pipe", "\nwith model.pipe")):
+        for code in (_BUILDER_SCRIPT, _BUILDER_SCRIPT.replace("model.add_material", "\nmodel.add_material")):
             namespace: dict = {"__name__": "__main__"}  # how the studio runs model.py
             exec(compile(code, "model.py", "exec"), namespace)
             models.append(namespace["model"])
-        lines = [[item.source_line for item in [*model.elements, *model.supports]] for model in models]
+        lines = [
+            [
+                item.source_line
+                for item in [*model.elements, *model.supports, *model.nodes.values(), *model.materials.values()]
+            ]
+            for model in models
+        ]
 
         self.assertEqual([line + 1 for line in lines[0]], lines[1])
         self.assertEqual(
