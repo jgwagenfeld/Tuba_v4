@@ -158,7 +158,7 @@ The doctor must report `command: ready` before a production solve.
 | `TUBA_CODE_ASTER_PYTHON` | Host-executable Python for the in-process bridge |
 | `TUBA_RUN_CODE_ASTER_INTEGRATION` | Set to `1` to opt in to the real-solver smoke test |
 
-Docker remains a fallback and requires a verified Code_Aster image. A mutable or placeholder image name is not a production dependency.
+A Code_Aster run executed through Docker is always unverified, and Tuba does not publish unverified results in a review or scene. A mutable or placeholder image name is not a production dependency.
 
 ## Open the notebooks
 
