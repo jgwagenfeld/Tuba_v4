@@ -1,9 +1,12 @@
+import copy
+import json
 import unittest
 
 import numpy as np
 
 from tuba import Model
-from tuba.builder import PipeRunRecipe
+from tuba.builder import BuildStep, PipeRunRecipe
+from tuba.patches import ModelPatch, ModelTransaction
 
 
 def _model(name: str) -> Model:
@@ -83,6 +86,83 @@ class TestPipeRunRecipe(unittest.TestCase):
         self.assertEqual(regen.get_element(built.element_ids[0]).route_id, "P-100")
         self.assertAlmostEqual(regen.get_element(built.element_ids[0]).station_start, 0.0)
         self.assertAlmostEqual(regen.get_element(built.element_ids[0]).station_end, 2.0)
+
+
+class TestRememberedPipeRuns(unittest.TestCase):
+    def test_a_pipe_block_remembers_its_steps_the_records_they_created_and_where_it_began(self):
+        model = _model("remembered")
+        model.add_node([9.0, 9.0, 9.0])
+        with model.pipe("DN100", "steel", route="P-100") as b:
+            b.start([0.0, 0.0, 0.0], support="anchor")
+            b.run(2.0)
+            b.bend(radius=0.15, angle=90, plane="XY")
+            b.add_support(type="guide")
+            b.run(3.0)
+
+        [run] = model.pipe_runs
+        self.assertEqual(run.offsets, (1, 0, 0))
+        self.assertEqual(run.node_ids, ["N1", "N2", "N3", "N4"])
+        self.assertEqual(run.element_ids, ["pipe_str_0", "pipe_bend_0", "pipe_str_1"])
+        self.assertEqual(run.support_ids, ["support_0", "support_1"])
+        self.assertEqual([step.op for step in run.recipe.steps], ["start", "run", "bend", "add_support", "run"])
+        self.assertEqual((run.recipe.section, run.recipe.material, run.recipe.route_id), ("DN100", "steel", "P-100"))
+
+    def test_a_model_call_inside_the_block_is_not_part_of_the_run(self):
+        model = _model("foreign")
+        with model.pipe("DN100", "steel") as b:
+            b.start([0.0, 0.0, 0.0])
+            b.run(2.0)
+            model.add_support(b.last_node_id, "anchor")
+            b.run(1.0)
+
+        [run] = model.pipe_runs
+        self.assertEqual(run.node_ids, ["N0", "N1", "N2"])
+        self.assertEqual(run.support_ids, [])
+        self.assertEqual([support.id for support in model.supports], ["support_0"])
+
+    def test_a_recipe_build_remembers_the_run_it_returns(self):
+        model = _model("built")
+        recipe = PipeRunRecipe(
+            section="DN100",
+            material="steel",
+            steps=[
+                BuildStep(op="start", params={"point": [0.0, 0.0, 0.0], "support": "anchor"}),
+                BuildStep(op="run", params={"length": 2.0}),
+            ],
+        )
+
+        built = recipe.build(model)
+
+        self.assertEqual(model.pipe_runs, [built])
+        self.assertEqual(
+            (built.node_ids, built.element_ids, built.support_ids), (["N0", "N1"], ["pipe_str_0"], ["support_0"])
+        )
+        self.assertEqual(built.recipe.steps, recipe.steps)
+        self.assertEqual(built.offsets, (0, 0, 0))
+
+    def test_a_block_that_creates_nothing_is_not_remembered(self):
+        model = _model("nothing")
+        model.add_node([0.0, 0.0, 0.0])
+        with model.pipe("DN100", "steel") as b:
+            b.start([0.0, 0.0, 0.0])  # snaps onto the existing node
+
+        self.assertEqual(model.pipe_runs, [])
+
+    def test_copies_and_patches_keep_the_runs_and_the_model_json_never_carries_them(self):
+        model = _model("kept")
+        _authored_run(model)
+        patch = ModelPatch.from_dict(
+            {
+                "operations": [{"op": "add_node", "local_id": "extra", "coords": [9.0, 0.0, 0.0]}],
+                "provenance": {"source": "test"},
+            }
+        )
+        ModelTransaction(model).apply(patch, validate=False)
+
+        self.assertEqual(len(model.pipe_runs), 1)
+        self.assertEqual(copy.deepcopy(model).pipe_runs, model.pipe_runs)
+        self.assertNotIn("pipe_runs", json.dumps(model.to_dict()))
+        self.assertEqual(Model.from_dict(model.to_dict()).pipe_runs, [])
 
 
 if __name__ == "__main__":

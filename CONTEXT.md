@@ -148,6 +148,10 @@ _Avoid_: Exported script
 A model script written by an engineer; tools read it and may propose changes, but never rewrite it.
 _Avoid_: Hand-edited generated script
 
+**Pipe run**:
+The nodes, elements and supports that one `model.pipe(...)` block, or one replayed pipe-run recipe, builds from builder steps with one section and one material; a generated model script writes it back as those steps.
+_Avoid_: Route, piping run
+
 **Authoring session**:
 A live working copy of one project's model, shared by agents and engineers through the project's model script, that knows whether the project's review is still current.
 _Avoid_: MCP session, studio session, preview session

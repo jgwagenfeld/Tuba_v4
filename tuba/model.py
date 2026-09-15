@@ -37,6 +37,7 @@ from tuba.refs import EntityRef, resolve_entity_ref
 
 if TYPE_CHECKING:
     from tuba.analysis.run import AnalysisRun
+    from tuba.builder import BuiltRun
     from tuba.solver.modelisation import PipeModelization
 
 
@@ -607,6 +608,11 @@ class TubaModel:
         self.ports: Dict[str, Port] = {}
         self.mesh_groups: Dict[str, MeshGroup] = {}
         self.couplings: Dict[str, CouplingSpec] = {}
+
+        # Pipe runs built through pipe() or PipeRunRecipe.build, in the order they finished.
+        # Runtime only, like source lines: never serialized, so a generated model script can
+        # write each run back as its steps without changing model.json or the fingerprint.
+        self.pipe_runs: List["BuiltRun"] = []
 
         self._node_counter: int = 0
         self._element_counters: Dict[str, int] = {}
@@ -1223,7 +1229,10 @@ class TubaModel:
 
     @contextmanager
     def pipe(self, section: str, material: str, route: Optional[str] = None):
-        """Context manager that yields a :class:`PipingBuilder`."""
+        """Context manager that yields a :class:`PipingBuilder`.
+
+        When the block ends, the run it built is remembered on :attr:`pipe_runs`.
+        """
         from tuba.builder import PipingBuilder
 
         builder = PipingBuilder(
@@ -1233,6 +1242,7 @@ class TubaModel:
             route_id=route,
         )
         yield builder
+        builder.remember_run()
 
     def place_fragment(self, fragment, coordinate_system, *, name: str):
         """Place a local-coordinate fragment into this model."""

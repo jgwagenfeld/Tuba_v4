@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
@@ -64,8 +64,18 @@ class PipingBuilder:
         # Re-evaluable record of every geometry command, for regeneration.
         self.steps: List["BuildStep"] = []
 
+        # What this builder's own steps created, and where the model's node, element and
+        # support sequences stood at its first step: the pipe run a generated model script
+        # writes back as these steps (see remember_run).
+        self.created_node_ids: List[str] = []
+        self.created_element_ids: List[str] = []
+        self.created_support_ids: List[str] = []
+        self.offsets: Optional[Tuple[int, int, int]] = None
+
     def _record(self, op: str, **params: Any) -> None:
         """Record one command so the run can be re-emitted from :attr:`recipe`."""
+        if self.offsets is None:
+            self.offsets = (len(self.model.nodes), len(self.model.elements), len(self.model.supports))
         self.steps.append(BuildStep(op=op, params=params))
 
     @property
@@ -84,6 +94,34 @@ class PipingBuilder:
             route_id=self.route_id,
         )
 
+    def remember_run(self) -> "BuiltRun":
+        """What these steps built, remembered on the model's ``pipe_runs`` when they created records.
+
+        Runtime only, like source lines: ``tuba.project.script`` writes a remembered run back
+        as this block of steps.
+        """
+        run = BuiltRun(
+            node_ids=list(self.created_node_ids),
+            element_ids=list(self.created_element_ids),
+            support_ids=list(self.created_support_ids),
+            recipe=self.recipe,
+            offsets=self.offsets or (len(self.model.nodes), len(self.model.elements), len(self.model.supports)),
+        )
+        if run.node_ids or run.element_ids or run.support_ids:
+            self.model.pipe_runs.append(run)
+        return run
+
+    def _add_node(self, point) -> str:
+        node_id = self.model.add_node(point)
+        self.created_node_ids.append(node_id)
+        return node_id
+
+    def _add_element(self, **record: Any) -> None:
+        self.created_element_ids.append(self.model.add_element(**record).id)
+
+    def _add_support(self, node_id: str, type: str, **options: Any) -> None:
+        self.created_support_ids.append(self.model.add_support(node_id, type, **options).id)
+
     # -- Geometry commands ---------------------------------------------------
 
     def start(
@@ -100,22 +138,22 @@ class PipingBuilder:
         if existing_nid is not None:
             self.last_node_id = existing_nid
         else:
-            self.last_node_id = self.model.add_node(self.cursor)
+            self.last_node_id = self._add_node(self.cursor)
 
         if support:
-            self.model.add_support(self.last_node_id, support)
+            self._add_support(self.last_node_id, support)
         return self
 
     def run(self, length: float) -> "PipingBuilder":
         """Extend a straight pipe segment of *length* [m] in the current direction."""
         self._record("run", length=length)
         target = self.cursor + self.direction * length
-        node_id = self.model.add_node(target)
+        node_id = self._add_node(target)
         elem_id = self.model.next_element_id("pipe_str")
         station_start = self.station
         station_end = station_start + abs(float(length))
 
-        self.model.add_element(
+        self._add_element(
             id=elem_id,
             type="pipe_straight",
             n1=self.last_node_id,
@@ -237,9 +275,9 @@ class PipingBuilder:
 
         station_start = self.station
         station_end = station_start + float(radius) * math.radians(abs(geometry.angle))
-        exit_node_id = self.model.add_node(target)
+        exit_node_id = self._add_node(target)
         elem_id = self.model.next_element_id("pipe_bend")
-        self.model.add_element(
+        self._add_element(
             id=elem_id,
             type="pipe_bend",
             n1=self.last_node_id,
@@ -292,9 +330,9 @@ class PipingBuilder:
         )
         station_start = self.station
         station_end = station_start + float(radius) * abs(theta)
-        exit_node_id = self.model.add_node(bend_exit)
+        exit_node_id = self._add_node(bend_exit)
         elem_id = self.model.next_element_id("pipe_bend")
-        self.model.add_element(
+        self._add_element(
             id=elem_id,
             type="pipe_bend",
             n1=self.last_node_id,
@@ -358,7 +396,7 @@ class PipingBuilder:
             normal_stiffness=normal_stiffness,
             tangential_stiffness=tangential_stiffness,
         )
-        self.model.add_support(
+        self._add_support(
             self.last_node_id,
             type,
             direction=direction,
@@ -395,7 +433,7 @@ class PipingBuilder:
         """Extend a segment of *length* [m] in the current direction with a specific element type."""
         self._record("run_element", length=length, element_type=element_type, twist_angle=twist_angle)
         target = self.cursor + self.direction * length
-        node_id = self.model.add_node(target)
+        node_id = self._add_node(target)
 
         prefix = "pipe_str"
         if element_type == "beam":
@@ -409,7 +447,7 @@ class PipingBuilder:
         station_start = self.station
         station_end = station_start + abs(float(length))
 
-        self.model.add_element(
+        self._add_element(
             id=elem_id,
             type=element_type,
             n1=self.last_node_id,
@@ -455,9 +493,9 @@ class PipingBuilder:
             dist = np.linalg.norm(target - self.cursor)
             if dist > 1e-6:
                 # Insert a closing straight run
-                node_id = self.model.add_node(target)
+                node_id = self._add_node(target)
                 elem_id = self.model.next_element_id("pipe_str")
-                self.model.add_element(
+                self._add_element(
                     id=elem_id,
                     type="pipe_straight",
                     n1=self.last_node_id,
@@ -473,7 +511,7 @@ class PipingBuilder:
                 self.last_node_id = node_id
 
         if support:
-            self.model.add_support(self.last_node_id, support)
+            self._add_support(self.last_node_id, support)
         return self
 
     def set_direction(self, direction: List[float]) -> "PipingBuilder":
@@ -505,10 +543,17 @@ class BuildStep:
 
 @dataclass(frozen=True)
 class BuiltRun:
-    """Ids created by replaying a :class:`PipeRunRecipe` onto a model."""
+    """A pipe run built onto a model.
+
+    The ids its own steps created, the recipe that replays them, and the model's node,
+    element and support counts when its first step executed.
+    """
 
     node_ids: List[str]
     element_ids: List[str]
+    support_ids: List[str]
+    recipe: "PipeRunRecipe"
+    offsets: Tuple[int, int, int]
 
 
 @dataclass
@@ -538,14 +583,10 @@ class PipeRunRecipe:
     route_id: Optional[str] = None
 
     def build(self, model) -> BuiltRun:
-        """Replay the recorded commands onto *model*; return the ids created.
+        """Replay the recorded commands onto *model*; return the run they built.
 
-        Created ids are found by diffing the model's nodes/elements before and
-        after replay, so the same recipe can be re-emitted onto any model.
+        The run is remembered on ``model.pipe_runs``, as a ``model.pipe`` block's is.
         """
-        nodes_before = set(model.nodes)
-        elements_before = {elem.id for elem in model.elements}
-
         builder = PipingBuilder(
             model=model,
             section_name=self.section,
@@ -555,10 +596,7 @@ class PipeRunRecipe:
         builder.up_vector = np.asarray(self.up_vector, dtype=float)
         for step in self.steps:
             getattr(builder, step.op)(**step.params)
-
-        new_nodes = [nid for nid in model.nodes if nid not in nodes_before]
-        new_elements = [elem.id for elem in model.elements if elem.id not in elements_before]
-        return BuiltRun(node_ids=new_nodes, element_ids=new_elements)
+        return builder.remember_run()
 
     def with_step_params(self, index: int, **params: Any) -> "PipeRunRecipe":
         """Return a copy with *params* merged into the step at *index*.
