@@ -262,7 +262,10 @@ def _validate_lineage(
                 f"Result state {state.id!r} references unknown model element(s): "
                 f"{sorted(unknown_elements)}."
             )
-        if not isinstance(state.metadata.get("solve_attestation"), dict):
+        if (
+            not isinstance(state.metadata.get("solve_attestation"), dict)
+            or state.metadata.get("result_trust") != "verified"
+        ):
             raise EngineeringReviewError(
                 f"Result state {state.id!r} requires a verified Code_Aster solve attestation "
                 "before it can enter an engineering review."

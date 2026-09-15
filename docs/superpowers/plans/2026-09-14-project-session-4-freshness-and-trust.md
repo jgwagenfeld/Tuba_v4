@@ -998,7 +998,7 @@ Deferred, each to the plan that reworks its code:
     - an unexpected error in `review_stale` during the first script run makes `start()` return before the evidence import;
     - `GET /api/project` has no error guard;
     - a corrupt review bundle left on disk fails the studio's construction.
-  - `review_stale` runs outside error handling in the `else:` branches of `_prepare_review` and `_solve`, and in `_publish_scene`. An unexpected exception there ends the thread without an event.
+  - `review_stale` runs outside error handling in the `else:` branches of `_prepare_review` and `_solve`. An unexpected exception there ends the thread without an event.
   - The two imported-review studio tests duplicate their copy, start and 120 s import setup.
 - **No target plan:**
   - No test asserts that a volume `.comm` omits the `TAB_SIGM` block when tensor stress is off. The export file list is pinned, and the block is gated.

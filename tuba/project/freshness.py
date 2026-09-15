@@ -10,10 +10,13 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tuba.analysis.provenance import SolverInputIdentity
 from tuba.model import TubaModel
+
+if TYPE_CHECKING:
+    from tuba.solver.aster import CodeAsterSolver
 
 
 def expected_identity(
@@ -72,7 +75,12 @@ def attested_identities(review_bundle: str | Path) -> list[SolverInputIdentity]:
     return [SolverInputIdentity.from_dict(record) for record in scene.get("solver_input_identities", [])]
 
 
-def _identity(solver: Any, model: TubaModel, operation: str, volume_export: Mapping[str, Any] | None) -> SolverInputIdentity:
+def _identity(
+    solver: CodeAsterSolver,
+    model: TubaModel,
+    operation: str,
+    volume_export: Mapping[str, Any] | None,
+) -> SolverInputIdentity:
     if volume_export:
         return solver.volume_study_inputs(model, operation, **dict(volume_export)).solver_input_identity
     return solver.analysis_study_inputs(model, operation).solver_input_identity

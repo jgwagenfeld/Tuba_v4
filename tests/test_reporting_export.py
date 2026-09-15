@@ -58,7 +58,7 @@ def solved_review() -> EngineeringReviewPackage:
             }
         },
         files={"result": "artifacts/hot/study.rmed"},
-        metadata={"solve_attestation": {"fixture": "validated Code_Aster solve"}},
+        metadata={"result_trust": "verified", "solve_attestation": {"fixture": "validated Code_Aster solve"}},
     )
     return build_engineering_review(
         model,

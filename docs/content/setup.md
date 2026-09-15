@@ -154,11 +154,11 @@ The doctor must report `command: ready` before a production solve.
 | `TUBA_CODE_ASTER_EXEC_METHOD` | `auto` (default), `wsl`, `docker`, `command`, or `python_bridge` |
 | `TUBA_CODE_ASTER_WSL_DISTRO` | WSL distribution, normally `Ubuntu` |
 | `TUBA_CODE_ASTER_RUNNER_COMMAND` / `TUBA_CODE_ASTER_RUNNER` | Explicit `run_aster` command for `command` mode |
-| `TUBA_CODE_ASTER_DOCKER_IMAGE` | Advanced fallback image; pin a verified digest before production use |
+| `TUBA_CODE_ASTER_DOCKER_IMAGE` | Advanced fallback image; a run through it is always unverified |
 | `TUBA_CODE_ASTER_PYTHON` | Host-executable Python for the in-process bridge |
 | `TUBA_RUN_CODE_ASTER_INTEGRATION` | Set to `1` to opt in to the real-solver smoke test |
 
-A Code_Aster run executed through Docker is always unverified, and Tuba does not publish unverified results in a review or scene. A mutable or placeholder image name is not a production dependency.
+A Code_Aster run executed through Docker is always unverified: an engineering review refuses its results, and so does a scene built from analysis runs. A mutable or placeholder image name is not a production dependency.
 
 ## Open the notebooks
 

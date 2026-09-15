@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence
 
 from tuba.analysis.provenance import (
     CODE_ASTER_COMPILER_ID,
@@ -430,7 +430,7 @@ def validate_code_aster_execution_attestation(
     return payload
 
 
-def execution_trust(attestation: Mapping[str, Any] | None) -> str:
+def execution_trust(attestation: Mapping[str, Any] | None) -> Literal["verified", "unverified"]:
     """The one trust judgement (spec decision 17): ``"verified"`` or ``"unverified"``.
 
     A run is verified when it has a validated attestation, whose artifact inventory is then

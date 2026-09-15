@@ -66,6 +66,7 @@ def code_aster_result_state() -> ResultState:
         files={"result": "artifacts/hot/study.rmed"},
         metadata={
             "parser_diagnostics": ["SIEQ table omitted one optional component."],
+            "result_trust": "verified",
             "solve_attestation": {"fixture": "validated Code_Aster solve"},
         },
     )
@@ -344,6 +345,22 @@ def test_unverified_result_state_cannot_build_engineering_review(
             studies=[code_aster_study],
             result_states=[unverified],
         )
+
+
+def test_a_docker_attested_result_state_cannot_build_engineering_review(
+    review_model, code_aster_study, code_aster_result_state
+):
+    docker = replace(
+        code_aster_result_state,
+        metadata={
+            **code_aster_result_state.metadata,
+            "result_trust": "unverified",
+            "solve_attestation": {"execution_method": "docker"},
+        },
+    )
+
+    with pytest.raises(EngineeringReviewError, match="verified Code_Aster solve attestation"):
+        build_engineering_review(review_model, studies=[code_aster_study], result_states=[docker])
 
 
 def test_study_without_results_is_listed_but_not_solved(review_model, code_aster_study):
