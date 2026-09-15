@@ -289,6 +289,43 @@ class TestNodeTemperatureCompiler(unittest.TestCase):
         self.assertEqual(_node_rows(_crea_champ(comm, "TEMP_FIELD")), [(name, f"{value:.6E}") for name, value in expected])
         self.assertIn("GROUP_NO NOM=GN_elbow_s0_mid", mail)
 
+    def test_written_values_follow_the_analysis_mesh_parametric_t(self):
+        # The writer's fractions and the mesh's node_sources are two copies of one rule; this holds them together.
+        for modelization in (PipeModelization.TUYAU_3M, PipeModelization.POU_D_T):
+            model = _elbow_model()
+            tip = model.add_node([4.5, 1.5, 0.0])
+            model.add_element(id="beam", type="beam", n1="N2", n2=tip, section="PipeSec", material="Steel")
+            operating = model.define_operation("Operating", gravity=False, temperature=20.0, ref_temperature=20.0)
+            # The beam's far end has no node temperature, so it keeps the operation's 20 degrees.
+            ends = {"N0": 100.0, "N1": 180.0, "N2": 260.0, tip: 20.0}
+            for node_id in ("N0", "N1", "N2"):
+                operating.add_field("temperature", ends[node_id], node_ids=[node_id])
+
+            with TemporaryDirectory() as tmpdir:
+                solver = CodeAsterSolver(work_dir=tmpdir, pipe_modelization=modelization)
+                root = Path(solver.export_analysis_study(model, "Operating", tmpdir).work_dir)
+                manifest = json.loads((root / "study_manifest.json").read_text(encoding="utf-8"))
+                names = json.loads((root / "study_tuba_fem.json").read_text(encoding="utf-8"))["name_map"]
+                comm = (root / "study.comm").read_text(encoding="utf-8")
+            mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
+            written = {name: float(value) for name, value in _node_rows(_crea_champ(comm, "TEMP_FIELD"))}
+
+            with self.subTest(modelization=modelization.value):
+                generated = {
+                    node_id: source for node_id, source in mesh.node_sources.items() if source.source_ref.kind == "element"
+                }
+                self.assertEqual({source.source_ref.id for source in generated.values()}, {"run", "elbow", "beam"})
+                for node_id, source in generated.items():
+                    elem = model.get_element(source.source_ref.id)
+                    t = source.parametric_t
+                    name = names[f"GN_{node_id}"]
+                    self.assertIn(name, written, f"{node_id} has no temperature row")
+                    self.assertAlmostEqual(
+                        written.pop(name), (1.0 - t) * ends[elem.n1] + t * ends[elem.n2], places=3, msg=node_id
+                    )
+                # What is left are the four end nodes, each at its own value.
+                self.assertEqual(written, {names[f"GN_{node_id}"]: value for node_id, value in ends.items()})
+
     def test_an_uncovered_end_takes_the_value_its_neighbour_field_gives_it(self):
         model = _two_element_route()
         operating = model.define_operation("Operating", gravity=False, temperature=20.0, ref_temperature=20.0)
