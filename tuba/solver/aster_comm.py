@@ -28,6 +28,7 @@ from tuba.solver.modelisation import (
     modelisation_assignments,
     PipeModelization,
     needs_discrete_element,
+    spring_links,
 )
 from tuba.solver.aster_loads import (
     group_ma_value,
@@ -59,6 +60,23 @@ def _held_dofs(support) -> list[str]:
     if support.type == "guide" and support.direction:
         return [names[i] for i, value in enumerate(support.direction) if abs(value) > 1e-12]
     return names[:3]
+
+
+def _spring_stiffness(support) -> list[float]:
+    """The six global stiffnesses [Kx, Ky, Kz, Krx, Kry, Krz] of a spring support."""
+    if support.stiffness_matrix:
+        return support.stiffness_matrix
+    if not support.direction:
+        raise ValueError(
+            f"Spring support at node {support.node} uses scalar stiffness without direction. "
+            "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
+        )
+    value = support.stiffness if support.stiffness is not None else 1.0e6
+    stiffness = [0.0] * 6
+    for index, component in enumerate(support.direction):
+        if abs(component) > 1e-12:
+            stiffness[index] = value
+    return stiffness
 
 
 def _pipe_orientation_vector(model: TubaModel, pipe_straights: list, pipe_bends: list) -> tuple[float, float, float]:
@@ -147,6 +165,7 @@ class _CommWriterMixin:
         bend_elems = pipe_bends
         map_name = name_map or (lambda value: value)
         contacts = shoes(model, self.pipe_modelization)
+        links = spring_links(model)
         native_path = self.load_path is not None
         if native_path and (not beam_pipes or cable_elems):
             raise ValueError('Native contact load paths require beam piping without cables.')
@@ -496,21 +515,8 @@ class _CommWriterMixin:
         for contact in contacts:
             discret_entries.append(f"_F(GROUP_MA='{map_name(contact.group)}',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),")
         for s in model.supports:
-            if s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None):
-                if s.stiffness_matrix:
-                    k = s.stiffness_matrix
-                else:
-                    val = s.stiffness if s.stiffness is not None else 1.0e6
-                    k = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    if s.direction:
-                        for idx, v in enumerate(s.direction):
-                            if abs(v) > 1e-12:
-                                k[idx] = val
-                    else:
-                        raise ValueError(
-                            f"Spring support at node {s.node} uses scalar stiffness without direction. "
-                            "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
-                        )
+            if s.type == "spring" and s.attached_to is None and (s.stiffness_matrix is not None or s.stiffness is not None):
+                k = _spring_stiffness(s)
                 discret_entries.append(
                     f"        _F(\n"
                     f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
@@ -535,6 +541,16 @@ class _CommWriterMixin:
                     f"            VALE=({s.mass:.8E}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),\n"
                     f"        ),"
                 )
+        for link in links:
+            k = _spring_stiffness(link.support)
+            discret_entries.append(
+                f"        _F(\n"
+                f"            GROUP_MA='{map_name(link.group)}',\n"
+                f"            REPERE='GLOBAL',\n"
+                f"            CARA='K_TR_D_L',\n"
+                f"            VALE=({k[0]:.8E}, {k[1]:.8E}, {k[2]:.8E}, {k[3]:.8E}, {k[4]:.8E}, {k[5]:.8E}),\n"
+                f"        ),"
+            )
         if discret_entries:
             w("    DISCRET=(")
             for entry in discret_entries:
@@ -694,6 +710,15 @@ class _CommWriterMixin:
         if not native_path:
             for index, contact in enumerate(contacts):
                 active_bcs.append(write_shoe_anchor(w, index, contact, map_name))
+        for index, link in enumerate(links):
+            helper = map_name(link.helper)
+            other = map_name(f"GN_{link.support.attached_to}")
+            ties = ",".join(
+                f"_F(GROUP_NO=('{helper}','{other}'),DDL=('{dof}','{dof}'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)"
+                for dof in ("DX", "DY", "DZ", "DRX", "DRY", "DRZ")
+            )
+            w(f"SPRING{index} = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=({ties}))")
+            active_bcs.append(f"SPRING{index}")
 
         if native_path:
             write_contact_solve(w, model, load_case, self.load_path, contacts, map_name, affe_entries, active_bcs, self.load_step)
@@ -772,7 +797,7 @@ class _CommWriterMixin:
             # ==============================================================
             # Thermal load (uniform temperature field for expansion)
             # ==============================================================
-            has_discrete_supports = bool(contacts) or any(needs_discrete_element(s) for s in model.supports)
+            has_discrete_supports = bool(contacts) or bool(links) or any(needs_discrete_element(s) for s in model.supports)
             structural_groups = [
                 group
                 for group, present in (
@@ -845,6 +870,7 @@ class _CommWriterMixin:
                     for support in model.supports:
                         if needs_discrete_element(support):
                             elastic_groups.append(discrete_support_group(support.node))
+                    elastic_groups.extend(link.group for link in links)
                     w("    COMPORTEMENT=(")
                     if elastic_groups:
                         w("        _F(")

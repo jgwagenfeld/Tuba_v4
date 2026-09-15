@@ -1042,7 +1042,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         # _parse_result_table, not the raw CSV: a load-path solve writes every
         # increment to this table and only the requested instant is the result.
         rows = self._parse_result_table(work_dir / "study_reac.csv")
-        support_nodes = {s.node for s in model.supports}
+        # An attached support hands its load to the node it is attached to, so that node's reaction is kept too.
+        support_nodes = {s.node for s in model.supports} | {s.attached_to for s in model.supports if s.attached_to is not None}
         # CABLE and BARRE elements carry three translational degrees of freedom
         # and no rotations, so Code_Aster prints "-" for DRX/DRY/DRZ at a node
         # attached only to them - the same "-" the element-force parser above

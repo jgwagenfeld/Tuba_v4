@@ -11,6 +11,7 @@ model, which is exactly the sort of duplication that drifts. This module owns it
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -33,10 +34,34 @@ def discrete_support_group(node: str) -> str:
 
 def needs_discrete_element(support: "Support") -> bool:
     """True when a support is realised as a POI1 discrete element."""
-    is_discrete_spring = support.type == "spring" and (
+    is_discrete_spring = support.type == "spring" and support.attached_to is None and (
         support.stiffness_matrix is not None or support.stiffness is not None
     )
     return is_discrete_spring or support.mass > 0.0
+
+
+@dataclass(frozen=True)
+class SpringLink:
+    """An attached spring: a SEG2 from a helper node to the support node, the helper tied to the attached node."""
+
+    support: "Support"
+    group: str
+    helper: str
+
+
+def spring_links(model: "TubaModel") -> list[SpringLink]:
+    links = [
+        SpringLink(support, f"SPRING_{index}", f"SPRHLP_{index}")
+        for index, support in enumerate(model.supports)
+        if support.type == "spring"
+        and support.attached_to is not None
+        and (support.stiffness_matrix is not None or support.stiffness is not None)
+    ]
+    authored = set(model.nodes) | {element.id for element in model.elements} | set(model.groups)
+    collisions = authored.intersection(name for link in links for name in (link.group, link.helper))
+    if collisions:
+        raise ValueError(f"Attached spring helper names collide with authored names: {sorted(collisions)}.")
+    return links
 
 
 def modelisation_assignments(
@@ -63,6 +88,8 @@ def modelisation_assignments(
     for support in model.supports:
         if needs_discrete_element(support):
             assignments[discrete_support_group(support.node)] = "DIS_TR"
+    for link in spring_links(model):
+        assignments[link.group] = "DIS_TR"
     from tuba.solver.aster_contact import shoes
     for shoe in shoes(model, pipe_modelization):
         assignments[shoe.group] = 'DIS_T'

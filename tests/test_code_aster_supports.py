@@ -146,3 +146,16 @@ def test_attached_anchor_between_coincident_nodes_matches_a_shared_node():
         shared_run.results.node_results[shared_top].displacement[:3],
         atol=1e-6,
     )
+
+
+def test_attached_spring_moves_by_force_over_stiffness():
+    model, left, right = rack_with_pipe_on_top("RackSprings")
+    for index, (pipe_node, rack_node) in enumerate((left, right)):
+        model.add_support(pipe_node, "spring", attached_to=rack_node,
+                          stiffness_matrix=[0.0, 0.0, 1.0e7, 0.0, 0.0, 0.0], id=f"spring_{index}")
+    run = solve(model, "Operating", "rack-springs")
+    for pipe_node, rack_node in (left, right):
+        force = run.results.node_results[rack_node].reaction_force[2]
+        relative = run.results.node_results[rack_node].displacement[2] - run.results.node_results[pipe_node].displacement[2]
+        assert abs(force) == pytest.approx(2629.4, rel=0.02)
+        assert relative == pytest.approx(abs(force) / 1.0e7, rel=0.01)

@@ -126,6 +126,17 @@ class AttachedExport(unittest.TestCase):
         self.assertIn(f"'GN_{other}'),DDL=('DZ','DZ')", comm)
         self.assertNotIn("DDL_IMPO=_F(GROUP_NO='GROUND_", comm)
 
+    def test_attached_spring_is_a_helper_seg2_tied_to_the_attached_node(self):
+        model, tip, other = attached_model("spring", stiffness_matrix=[0.0, 0.0, 1.0e7, 0.0, 0.0, 0.0])
+        comm, mail = export(model)
+        self.assertIn("CARA='K_TR_D_L'", comm)
+        self.assertNotIn("CREA_POI1", comm)
+        self.assertIn("MODELISATION='DIS_TR'", comm)
+        self.assertIn("SPRING0 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(", comm)
+        self.assertIn(f"'GN_{other}'),DDL=('DRZ','DRZ')", comm)
+        self.assertIn("    AFFE_VARC=_F(\n        GROUP_MA=('AllPipes', 'G_TUBE'),\n", comm)
+        self.assertIn(f" SPRING_2 SPRHLP_2 {tip}", mail)
+
 
 if __name__ == "__main__":
     unittest.main()
