@@ -1,4 +1,4 @@
-"""Quantity, weight, cost, and wind-load takeoff helpers."""
+"""Quantity, weight, cost, and wind-area takeoff helpers."""
 
 from __future__ import annotations
 
