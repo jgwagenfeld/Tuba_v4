@@ -115,7 +115,8 @@ hot.add_field("temperature", 180.0, route_id="P-100", station_start=0.0, station
 Each element then holds a single temperature, so a profile along a route becomes a staircase. A node temperature gives a model node its own value instead:
 
 ```python
-hot.add_field("temperature", 180.0, node_ids=["N3", "N4"])
+profile = model.define_operation("Profile", temperature=20.0, ref_temperature=20.0)
+profile.add_field("temperature", 180.0, node_ids=["N3", "N4"])
 ```
 
 Every element that touches a node temperature varies linearly between its two end values:
@@ -136,14 +137,15 @@ What the helpers write depends on the quantity:
 
 - For `temperature` they write node temperatures.
 - For `pressure`, `wind` and `line_load` they write one field per element, evaluated at its midpoint. Wind and line loads also need `direction=`.
-- `group=`, `route_id=`, `station_start=`, `station_end=` and `element_ids=` select targets as they do for `add_field`.
+- `field_from_cloud` and `field_from_function` take `group=`, `route_id=`, `station_start=`, `station_end=` and `element_ids=`, which select targets as they do for `add_field`. `field_from_route_table` takes `station_start=` and `station_end=` to narrow its route.
 
 ```python
 import numpy as np
 from tuba.sampling import field_from_cloud
 
+measured = model.define_operation("Measured", temperature=20.0, ref_temperature=20.0)
 cloud = np.loadtxt("wall_temperature.csv", delimiter=",", skiprows=1)  # x, y, z in metres, then T in degrees C
-field_from_cloud(model, hot, "temperature", cloud[:, :3], cloud[:, 3])
+field_from_cloud(model, measured, "temperature", cloud[:, :3], cloud[:, 3])
 model.validate()
 ```
 
