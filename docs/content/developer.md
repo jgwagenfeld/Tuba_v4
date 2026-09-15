@@ -8,6 +8,7 @@ Tuba is split by ownership: model authoring, Code_Aster export/execution/import,
 | --- | --- |
 | `tuba.model` | Materials, sections, nodes, elements, supports, loads, operations, and serialization |
 | `tuba.builder` | Cursor-based pipe authoring through `model.pipe(...)` |
+| `tuba.sampling` | Operation fields sampled from CFD point clouds, Python functions and route tables |
 | `tuba.validation` | Pre-export model invariants |
 | `tuba.schema` | Model and patch JSON schemas |
 | `tuba.routing` | Requests, grid search, expansion candidates, network routing, solver-loop review, reports |

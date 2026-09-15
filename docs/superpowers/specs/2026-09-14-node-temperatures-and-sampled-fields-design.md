@@ -1,6 +1,6 @@
 # Node Temperatures and Sampled Fields — Design
 
-**Status:** approved in brainstorming 2026-09-14, awaiting spec review
+**Status:** approved 2026-09-14; implemented on feat/node-temperatures-and-sampled-fields
 **Scope:** 1D Code_Aster studies (`TUYAU_3M`, `POU_D_T`). This brings over the sound parts of the stashed
 generalized-fields work (stash message "generalized-fields WIP set aside for the line-loads merge (2026-09-14)").
 
@@ -123,8 +123,10 @@ two elements with different values takes whichever element's group was written l
 
 - **Quantity.** One of `temperature`, `pressure`, `wind`, `line_load`. `direction` is required for `wind` and
   `line_load`, and refused for the others.
-- **Scope keywords.** `group`, `route_id`, `station_start`, `station_end` and `element_ids` pick the scope exactly as
-  they do in `add_field`.
+- **Scope keywords.** `group`, `route_id`, `station_start`, `station_end` and `element_ids` pick the scope as they do
+  in `add_field`. Unlike `add_field`, which keeps ignored keywords on the stored field, a helper refuses more than one
+  of `group`, `route_id` and `element_ids`, and a station range without `route_id`, because the fields it writes would
+  drop them.
 - **Selection.** Elements come from `model.resolve_operation_field_elements` on a probe `OperationField` built from the
   same keywords. The helpers therefore follow the field rules exactly:
   - with no scope keyword, the helper selects what scope `all` selects;
@@ -178,9 +180,12 @@ two elements with different values takes whichever element's group was written l
 - **Table.** `table` is a sequence of `(station, value)` rows: at least 2, all finite, with strictly increasing
   stations.
 - **Value.** A target takes the linear interpolation of the table at its station.
-- **Refusal.** A target whose station lies outside `[first station, last station]` raises `ValueError` naming the target
-  and its station; the table is not extrapolated. A station range limits the helper to the part of the route the table
-  covers.
+- **Refusal.**
+  - A `route_id` that is `None` or empty is refused before anything is selected, since the selection would otherwise
+    span every run in the model. Unnamed runs get a name through `model.pipe(..., route=...)`.
+  - A target whose station lies outside `[first station, last station]` raises `ValueError` naming the target and its
+    station; the table is not extrapolated. A station range limits the helper to the part of the route the table
+    covers.
 
 ## Verification
 
@@ -220,7 +225,7 @@ two elements with different values takes whichever element's group was written l
 - **Check.**
   - The free end is unrestrained, so it moves by α ∫ (T(s) − T_ref) t(s) ds along the centreline. Here t(s) is the unit
     tangent, and T is linear in arc length on each element between its end values.
-  - The solved tip displacement must be within 1% of that vector's magnitude, on both `TUYAU_3M` and `POU_D_T`.
+  - The solved tip displacement must be within 0.25% of that vector's magnitude, on both `TUYAU_3M` and `POU_D_T`.
 - **Why it matters.** The check fails if generated nodes keep the base temperature, which was the stash's bug.
 
 ### Docs

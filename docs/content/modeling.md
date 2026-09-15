@@ -137,7 +137,7 @@ What the helpers write depends on the quantity:
 
 - For `temperature` they write node temperatures.
 - For `pressure`, `wind` and `line_load` they write one field per element, evaluated at its midpoint. Wind and line loads also need `direction=`.
-- `field_from_cloud` and `field_from_function` take `group=`, `route_id=`, `station_start=`, `station_end=` and `element_ids=`, which select targets as they do for `add_field`. `field_from_route_table` takes `station_start=` and `station_end=` to narrow its route.
+- `field_from_cloud` and `field_from_function` take one of `group=`, `route_id=` or `element_ids=`, which select targets as they do for `add_field`, and `station_start=` and `station_end=` narrow a `route_id=`. Conflicting or unused scope keywords are refused. `field_from_route_table` takes `station_start=` and `station_end=` to narrow its route.
 
 ```python
 import numpy as np
