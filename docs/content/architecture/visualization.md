@@ -65,23 +65,15 @@ extremes are named - bore and outer surface - because calling a sector
 
 ## Review tasks and evidence
 
-Task mode and evidence destination are independent state. Choosing a task changes the review emphasis and display preset; it does not silently move the evidence dock.
+Choosing a task changes the review emphasis and display preset.
 
 | Task mode | Purpose |
 | --- | --- |
-| Review | Governing status and overall context |
 | Model | Authored geometry and model records |
 | Results | Solver-backed fields and result geometry |
 | Issues | Diagnostics and issue-focused geometry |
 
-| Evidence destination | Purpose |
-| --- | --- |
-| Summary | Review status and governing values |
-| Diagnostics | Parser, provenance, scene, and issue diagnostics |
-| Compliance | Supplied code checks or an explicit unavailable state |
-| Reports | Downloadable review artifacts |
-
-These are four independent evidence destinations, not aliases for the four task modes.
+The review's tables live in the generated report that the header links to.
 
 ## Result and deformation selection
 

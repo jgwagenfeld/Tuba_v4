@@ -118,23 +118,9 @@ Missing or empty required result rows indicate a failed or incomplete run.
 
 ## Review controls
 
-The browser review keeps task mode independent from evidence destination.
+The browser review offers the Model, Results, and Issues tasks; see [visualization architecture](architecture/visualization.md) for what each shows. The review's tables live in the generated report that the header links to.
 
-| Task modes | Purpose |
-| --- | --- |
-| Review | Governing status and overall context |
-| Model | Authored geometry and model records |
-| Results | Solver-backed fields and result geometry |
-| Issues | Diagnostics and issue-focused geometry |
-
-| Evidence destinations | Purpose |
-| --- | --- |
-| Summary | Review status and governing values |
-| Diagnostics | Parser, provenance, scene, and issue diagnostics |
-| Compliance | Supplied code checks or an explicit unavailable state |
-| Reports | Downloadable review artifacts |
-
-Changing a task does not silently change the selected evidence destination. The Display controls provide load-case and result-field selection, physical or visual deformation, camera presets, zoom, and a true six-plane section box. Section inputs clip crossing geometry in the renderer; they are not object-level hide/show filters.
+The Display controls provide load-case and result-field selection, physical or visual deformation, camera presets, zoom, and a true six-plane section box. Section inputs clip crossing geometry in the renderer; they are not object-level hide/show filters.
 
 [Open the Code_Aster review scene](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).
 
