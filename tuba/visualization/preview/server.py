@@ -786,18 +786,14 @@ class ProjectStudioServer(PreviewServer):
         model = self.model
         if model is None:
             return 400, {"ok": False, "error": "model.py has not run successfully yet."}
+        from tuba.project.freshness import export_study
         from tuba.solver.aster import CodeAsterSolver
 
-        volume_export = getattr(self.study, "VOLUME_EXPORT", None)
         # ignore_cleanup_errors: on Windows a mesher can still hold a file in the folder for a moment.
         with tempfile.TemporaryDirectory(prefix="tuba-comm-", ignore_cleanup_errors=True) as work:
             try:
                 solver = CodeAsterSolver(work_dir=work, **dict(getattr(self.study, "SOLVER_OPTIONS", None) or {}))
-                study = (
-                    solver.export_volume_study(model, case, work, **volume_export, export_tensor_stress=False)
-                    if volume_export
-                    else solver.export_analysis_study(model, case, work)
-                )
+                study = export_study(solver, model, case, work, getattr(self.study, "VOLUME_EXPORT", None))
                 code = Path(study.input_files["comm"]).read_text(encoding="utf-8")
             except Exception as exc:  # invalid study options or a case the model can no longer compile
                 return 422, {"ok": False, "error": f"{type(exc).__name__}: {exc}"}

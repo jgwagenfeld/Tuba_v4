@@ -25,7 +25,7 @@ from tuba.model import TubaModel
 from tuba.project import STUDY_SCRIPT, Project
 from tuba.project.claim import claim_solve
 from tuba.project.evidence import evidence_dir, promote_evidence
-from tuba.project.freshness import expected_identity
+from tuba.project.freshness import expected_identity, export_study
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.code_aster_runtime import execution_trust, load_code_aster_execution_attestation
 
@@ -94,11 +94,7 @@ def solve_project(
             for operation in solve:
                 folder = staging / operation
                 folder.mkdir(parents=True)
-                exported = (
-                    exporter.export_volume_study(model, operation, folder, **dict(volume_export), export_tensor_stress=False)
-                    if volume_export
-                    else exporter.export_analysis_study(model, operation, folder)
-                )
+                exported = export_study(exporter, model, operation, folder, volume_export)
                 runs[operation] = port.solve_exported_study(model, exported)
             for operation in operations:
                 if operation not in runs:

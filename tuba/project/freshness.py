@@ -16,6 +16,7 @@ from tuba.analysis.provenance import SolverInputIdentity
 from tuba.model import TubaModel
 
 if TYPE_CHECKING:
+    from tuba.analysis.study import AnalysisStudy
     from tuba.solver.aster import CodeAsterSolver
 
 
@@ -73,6 +74,23 @@ def attested_identities(review_bundle: str | Path) -> list[SolverInputIdentity]:
     except FileNotFoundError:  # no review yet, or a bundle being swapped
         return []
     return [SolverInputIdentity.from_dict(record) for record in scene.get("solver_input_identities", [])]
+
+
+def export_study(
+    solver: CodeAsterSolver,
+    model: TubaModel,
+    operation: str,
+    output_dir: str | Path,
+    volume_export: Mapping[str, Any] | None,
+) -> AnalysisStudy:
+    """Export what a solve of *operation* compiles into *output_dir*, choosing as :func:`_identity` does.
+
+    A study with a volume export compiles 3D solids without the tensor-stress table (spec decision 19);
+    every other study compiles its beams and pipes. Solves and the studio's command preview share this choice.
+    """
+    if volume_export:
+        return solver.export_volume_study(model, operation, output_dir, **dict(volume_export), export_tensor_stress=False)
+    return solver.export_analysis_study(model, operation, output_dir)
 
 
 def _identity(

@@ -16,6 +16,7 @@ from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 RACK = EXAMPLES / "support-rack-review"
 PROFILE = EXAMPLES / "profile-orientation-review"
+TEE = EXAMPLES / "pipe-tee-volume-review"
 VOLUME_MODEL = """from tuba import Model
 
 model = Model("ProjectVolume")
@@ -173,6 +174,15 @@ def test_a_volume_study_exports_its_solids_without_the_tensor_stress_table(tmp_p
     assert study.metadata["compiler_inputs"]["export_tensor_stress"] is False
     assert not (root / "evidence").exists()
     assert not (root / ".tuba" / "staging").exists()
+
+
+def test_a_volume_project_reuses_its_committed_evidence_without_exporting(tmp_path):
+    project = _copy(tmp_path, TEE)
+
+    outcome = solve_project(project, solver=_RefuseToSolve())
+
+    assert (outcome.solved, outcome.reused, outcome.unverified) == ((), ("Operating",), ())
+    assert outcome.runs["Operating"].study.metadata["volume_analysis"]
 
 
 def test_an_interrupted_promotion_leaves_the_operation_unsolved_and_the_next_solve_repeats_it(tmp_path, monkeypatch):

@@ -8,7 +8,7 @@ import pytest
 from tuba import Model
 from tuba.analysis.provenance import SolverInputIdentity
 from tuba.project import run_model_script
-from tuba.project.freshness import attested_identities, expected_identity, stale_operations
+from tuba.project.freshness import attested_identities, expected_identity, export_study, stale_operations
 from tuba.solver.aster import CodeAsterSolver
 
 SUPPORT_RACK = Path(__file__).resolve().parents[1] / "examples" / "support-rack-review"
@@ -54,7 +54,7 @@ def _rack_attestation() -> list[SolverInputIdentity]:
 def test_expected_identity_is_the_identity_a_beam_export_writes(tmp_path, options):
     model = _hot_line()
 
-    study = CodeAsterSolver(**options).export_analysis_study(model, "Hot", tmp_path)
+    study = export_study(CodeAsterSolver(**options), model, "Hot", tmp_path, None)
 
     assert expected_identity(model, "Hot", solver_options=options) == study.solver_input_identity
 
@@ -63,7 +63,7 @@ def test_expected_identity_is_the_identity_a_volume_export_writes(tmp_path):
     model = _pressure_pipe()
     volume = {"element_ids": ["pipe_0"], "max_element_size": 0.005}
 
-    study = CodeAsterSolver().export_volume_study(model, "Pressure", tmp_path, **volume)
+    study = export_study(CodeAsterSolver(), model, "Pressure", tmp_path, volume)
 
     assert expected_identity(model, "Pressure", volume_export=volume) == study.solver_input_identity
 
