@@ -128,6 +128,17 @@ def test_an_unverified_run_is_written_and_reported(tmp_path):
     assert json.loads(written.read_text(encoding="utf-8"))["execution_method"] == "docker"
 
 
+def test_an_unverified_run_is_solved_again_rather_than_reused(tmp_path):
+    project = _copy(tmp_path, RACK, evidence=False)
+    solve_project(project, solver=ReplaySolver(RACK / "evidence", execution_method="docker"))
+
+    verified = ReplaySolver(RACK / "evidence")
+    outcome = solve_project(project, solver=verified)
+
+    assert (outcome.solved, outcome.reused, outcome.unverified) == (("Operating",), (), ())
+    assert verified.solved == ["Operating"]
+
+
 def test_a_project_another_solve_claims_is_busy(tmp_path):
     project = _copy(tmp_path, RACK, evidence=False)
 

@@ -1,10 +1,11 @@
 """Project solve: bring a project's evidence up to date with its model and study.
 
-Spec decision 13: evidence whose attested solver input matches what the model and study would compile now
-is reused, unless the solve is forced. Decision 11: the rest is solved and lands in ``evidence/<operation>/``
-(decision 12: nothing lands before every operation has solved and passed the study's check, and an
-interrupted promotion leaves operations unsolved, never falsely attested). Decision 18: an unverified run is
-written and reported. Decision 20: the solve holds the project's claim throughout.
+Spec decision 13: evidence is reused only when its attested solver input matches what the model and study
+would compile now and its run was verified, unless the solve is forced. Decision 11: the rest is solved and
+lands in ``evidence/<operation>/`` (decision 12: nothing lands before every operation has solved and passed
+the study's check, and an interrupted promotion leaves operations unsolved, never falsely attested).
+Decision 18: an unverified run is written and reported. Decision 20: the solve holds the project's claim
+throughout.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ from tuba.project.claim import claim_solve
 from tuba.project.evidence import evidence_dir, promote_evidence
 from tuba.project.freshness import expected_identity
 from tuba.solver.aster import CodeAsterSolver
-from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
+from tuba.solver.code_aster_runtime import execution_trust, load_code_aster_execution_attestation
 
 STAGING = Path(".tuba") / "staging"
 
@@ -124,9 +125,17 @@ def solve_project(
 
 
 def _evidence_attests(folder: Path, identity: SolverInputIdentity) -> bool:
-    """Whether *folder* holds intact evidence attesting *identity*. Damaged evidence is solved again, not trusted."""
+    """Whether *folder* holds intact evidence of a verified run attesting *identity*.
+
+    Damaged evidence is solved again, not trusted. Unverified evidence is solved again rather than reused,
+    because no review accepts it.
+    """
     try:
         attestation = load_code_aster_execution_attestation(folder)
     except ValueError:
         return False
-    return attestation is not None and SolverInputIdentity.from_dict(attestation["solver_input_identity"]) == identity
+    return (
+        attestation is not None
+        and execution_trust(attestation) == "verified"
+        and SolverInputIdentity.from_dict(attestation["solver_input_identity"]) == identity
+    )
