@@ -698,6 +698,7 @@ def test_fe_stress_is_explicitly_not_code_stress(solved_review):
     assert row["von_mises_n2_pa"] == 15.0e6
     assert row["max_von_mises_pa"] == 15.0e6
     assert "code_utilization" not in row
+    assert "compliance" not in row
 
 
 def test_elements_without_fe_stress_are_unavailable_not_zero(
