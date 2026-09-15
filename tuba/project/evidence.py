@@ -17,20 +17,25 @@ from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 EVIDENCE = "evidence"
 ATTESTATION = "study_execution.json"
 _UNSAFE = frozenset('<>:"/\\|?*')
-_RESERVED = frozenset({"CON", "PRN", "AUX", "NUL", *(f"COM{n}" for n in range(1, 10)), *(f"LPT{n}" for n in range(1, 10))})
+# Windows device names, alone or before an extension: no folder can take one.
+_RESERVED = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$", *(f"{port}{digit}" for port in ("COM", "LPT") for digit in "0123456789¹²³")}
+)
 
 
 def evidence_dir(project_root: str | Path, operation: str) -> Path:
     """``<project>/evidence/<operation>/``, refusing an operation name that cannot be one folder name.
 
     The rule is what Windows and Linux both accept: no separator or reserved character, no control
-    character, no trailing space or dot, and no Windows device name.
+    character, no trailing space or dot, no Windows device name, and no more than 255 UTF-8 bytes
+    (Linux's limit).
     """
     if (
         not operation
         or operation[-1] in " ."
         or any(character in _UNSAFE or ord(character) < 32 for character in operation)
         or operation.split(".")[0].upper() in _RESERVED
+        or len(operation.encode("utf-8")) > 255
     ):
         raise ValueError(f"Operation {operation!r} cannot name an evidence folder.")
     return Path(project_root) / EVIDENCE / operation

@@ -104,9 +104,14 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
     study = project.load_study(args.study)
     if study is None:
         parser.error(f"{project.root} has no {args.study}.")
+    from tuba.project.study import study_settings
+
+    try:
+        operations = study_settings(study).operations
+    except ValueError as exc:
+        parser.error(f"{args.study}: {exc}")
     namespace = project.run_model()
     artifact_dir = args.artifact_dir
-    operations = tuple(getattr(study, "LOAD_CASES", None) or ())
     if artifact_dir is None and operations:
         from tuba.project.claim import SolveBusy
         from tuba.project.evidence import study_artifact_dir

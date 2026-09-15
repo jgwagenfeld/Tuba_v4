@@ -93,3 +93,17 @@ def test_the_project_command_reports_a_busy_project(tmp_path, capsys):
         assert main([str(project), "--output", str(tmp_path / "review")], solver=solver) == 1
 
     assert "already being solved" in capsys.readouterr().err
+
+
+def test_the_project_command_refuses_a_study_it_cannot_solve_before_running_the_model(tmp_path, capsys):
+    from tests.project_replay import ReplaySolver
+    from tuba.project import main
+
+    study = 'LOAD_CASES = ("Operating",)\nSOLVER_OPTIONS = {"exec_method": "docker"}\n'
+    project = _project(tmp_path, 'raise AssertionError("model.py must not run")\n', study)
+
+    with pytest.raises(SystemExit) as exited:
+        main([str(project), "--output", str(tmp_path / "review")], solver=ReplaySolver(SUPPORT_RACK / "evidence"))
+
+    assert exited.value.code == 2
+    assert "study.py: SOLVER_OPTIONS cannot choose how Code_Aster runs on this machine: exec_method" in capsys.readouterr().err

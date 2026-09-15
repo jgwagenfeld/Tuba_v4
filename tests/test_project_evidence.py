@@ -23,7 +23,12 @@ def _files(folder: Path) -> dict[str, bytes]:
 def test_each_operation_has_one_evidence_folder_named_after_it(tmp_path):
     assert evidence_dir(tmp_path, "Operating") == tmp_path / "evidence" / "Operating"
     assert evidence_dir(tmp_path, "Load case 1") == tmp_path / "evidence" / "Load case 1"
-    for name in ("", ".", "..", "a/b", "a\\b", "Hot:Cold", "Hot?", "CON", "nul.txt", "Hot ", "Hot.", "tab\there"):
+    assert evidence_dir(tmp_path, "x" * 255) == tmp_path / "evidence" / ("x" * 255)
+    for name in (
+        "", ".", "..", "a/b", "a\\b", "Hot:Cold", "Hot?", "CON", "nul.txt", "Hot ", "Hot.", "tab\there",
+        # The rest of Windows' device names, and a name over Linux's limit of 255 bytes (not characters).
+        "COM0", "lpt0", "COM¹", "LPT³.log", "CONIN$", "conout$", "é" * 128,
+    ):
         with pytest.raises(ValueError, match="cannot name an evidence folder"):
             evidence_dir(tmp_path, name)
 

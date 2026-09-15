@@ -160,6 +160,19 @@ def test_a_study_without_operations_has_nothing_to_solve(tmp_path):
         solve_project(load_project(root))
 
 
+def test_a_study_naming_one_operation_twice_is_refused_before_the_model_runs(tmp_path):
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "model.py").write_text('raise AssertionError("model.py must not run")\n', encoding="utf-8")
+    (root / "study.py").write_text('LOAD_CASES = ("Operating", "operating")\n', encoding="utf-8")
+
+    # Both names would share one evidence folder on Windows: nothing runs, is claimed or is written.
+    with pytest.raises(ValueError, match="twice"):
+        solve_project(load_project(root), solver=_RefuseToSolve())
+
+    assert sorted(path.name for path in root.iterdir()) == ["model.py", "study.py"]
+
+
 def test_a_volume_study_exports_its_solids_without_the_tensor_stress_table(tmp_path):
     root = tmp_path / "project"
     root.mkdir()
