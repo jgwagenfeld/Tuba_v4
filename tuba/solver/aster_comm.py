@@ -190,7 +190,7 @@ class _CommWriterMixin:
             w("    CREA_POI1=(")
             for s in model.supports:
                 if needs_discrete_element(s):
-                    w(f"        _F(NOM_GROUP_MA='{map_name(discrete_support_group(s.node))}', NOEUD='{map_name(s.node)}'),")
+                    w(f"        _F(NOM_GROUP_MA='{map_name(discrete_support_group(s.node))}', GROUP_NO='{map_name(f'GN_{s.node}')}'),")
             w("    ),")
             w(");")
         else:

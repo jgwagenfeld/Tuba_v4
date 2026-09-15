@@ -404,7 +404,8 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
             study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
             comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
 
-        self.assertIn(f"_F(NOM_GROUP_MA='DIS_{n1}', NOEUD='{n1}'),", comm)
+        self.assertIn(f"_F(NOM_GROUP_MA='DIS_{n1}', GROUP_NO='GN_{n1}'),", comm)
+        self.assertNotIn("NOEUD=", comm)
         self.assertIn("CARA='K_TR_D_N'", comm)
         self.assertIn("CARA='M_TR_D_N'", comm)
         self.assertNotIn("NOM_NOEUD", comm)
