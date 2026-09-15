@@ -107,6 +107,9 @@ class TestVisualizationScene(unittest.TestCase):
         data = {
             "scene_id": "legacy",
             "model_id": "model",
+            "objects": [{"id": "pipe", "kind": "pipe", "style_id": "pipe"}],
+            "overlays": [{"id": "clearance", "kind": "clearance", "object_ids": ["pipe"], "style_id": "pipe"}],
+            "route_reviews": [{"request_id": "P-100", "patch_preview": {"operations": []}}],
             "materials": [{"id": "steel"}],
             "styles": [{"id": "pipe", "material_id": "steel"}],
             "agent_proposals": [{"proposal_id": "p1"}],
@@ -116,7 +119,12 @@ class TestVisualizationScene(unittest.TestCase):
         scene.validate()
         restored = scene.to_dict()
         for key in ("materials", "styles", "agent_proposals", "scene_diffs"):
+            self.assertEqual(scene.extra[key], data[key])
             self.assertEqual(restored[key], data[key])
+        self.assertEqual(scene.objects[0].extra, {"style_id": "pipe"})
+        self.assertEqual(restored["objects"][0]["style_id"], "pipe")
+        self.assertEqual(restored["overlays"][0]["style_id"], "pipe")
+        self.assertEqual(restored["route_reviews"][0]["patch_preview"], {"operations": []})
 
     def test_scene_label_adds_accessible_object_asset_and_shared_layer(self):
         scene = self._minimal_scene()
