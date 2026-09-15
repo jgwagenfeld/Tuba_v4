@@ -136,14 +136,18 @@ class FrictionCompilation(unittest.TestCase):
             self.assertFalse(Path(root,'study.comm').exists())
 
     def test_load_path_and_load_step_are_refused_before_writing_the_study(self):
+        path_message="load_path histories require pipe_modelization='POU_D_T' and a resting shoe."
+        step_message='load_step must be finite and in (0, 1].'
         refusals=(
-            (dict(load_path=['Cold','Hot']),'Hot',"load_path histories require pipe_modelization='POU_D_T' and a resting shoe."),
-            (dict(pipe_modelization='POU_D_T',load_step=0.0),'Cold','load_step must be finite and in (0, 1].'),
+            ('load_path',path_message,lambda root: CodeAsterSolver(load_path=['Cold','Hot']).export_analysis_study(friction_model(),'Hot',root)),
+            ('load_step=0.0',step_message,lambda root: CodeAsterSolver(pipe_modelization='POU_D_T',load_step=0.0)),
+            ('load_step=-0.1',step_message,lambda root: CodeAsterSolver(pipe_modelization='POU_D_T',load_step=-0.1)),
+            ('load_step=inf',step_message,lambda root: CodeAsterSolver(pipe_modelization='POU_D_T',load_step=float('inf'))),
         )
-        for options, case, message in refusals:
-            with self.subTest(options=options), TemporaryDirectory() as root:
+        for label, message, call in refusals:
+            with self.subTest(refusal=label), TemporaryDirectory() as root:
                 with self.assertRaisesRegex(ValueError,re.escape(message)):
-                    CodeAsterSolver(**options).export_analysis_study(friction_model(),case,root)
+                    call(root)
                 self.assertEqual(list(Path(root).iterdir()),[])
 
 

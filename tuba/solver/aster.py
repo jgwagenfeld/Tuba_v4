@@ -138,6 +138,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     ) -> None:
         if isinstance(line_segments, bool) or not isinstance(line_segments, int) or line_segments < 1:
             raise ValueError("line_segments must be a positive integer.")
+        if isinstance(load_step, bool) or not isinstance(load_step, (int, float)) or not math.isfinite(load_step) or not 0 < load_step <= 1:
+            raise ValueError("load_step must be finite and in (0, 1].")
         self.line_segments = line_segments
         self.pipe_modelization = PipeModelization(pipe_modelization)
         if isinstance(load_path, str):
@@ -279,8 +281,6 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         if self.load_path is not None and (not contact_specs or self.pipe_modelization is not PipeModelization.POU_D_T):
             raise ValueError("load_path histories require pipe_modelization='POU_D_T' and a resting shoe.")
         if contact_specs:
-            if not math.isfinite(self.load_step) or not 0 < self.load_step <= 1:
-                raise ValueError('load_step must be finite and in (0, 1].')
             if self.load_path is not None:
                 names, _cases = validate_path(model, load_case, self.load_path)
             else:
