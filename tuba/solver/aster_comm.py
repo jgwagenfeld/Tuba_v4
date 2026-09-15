@@ -6,12 +6,13 @@ mixed into ``CodeAsterSolver`` and keeps ``self`` access to mesh helpers.
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
 from tuba.physical import physical_properties_for_element
-from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables
+from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor
 
 from tuba.model import (
     BarSection,
@@ -134,7 +135,7 @@ class _CommWriterMixin:
         bend_elems = pipe_bends
         map_name = name_map or (lambda value: value)
         contacts = shoes(model, self.pipe_modelization)
-        native_path = bool(contacts) or self.load_path is not None
+        native_path = self.load_path is not None
         if native_path and (not beam_pipes or cable_elems):
             raise ValueError('Native contact load paths require beam piping without cables.')
 
@@ -148,20 +149,11 @@ class _CommWriterMixin:
         # Check for POI1 requirements (discrete springs or masses)
         has_poi1 = any(needs_discrete_element(s) for s in model.supports)
 
-        # Supports that need a unilateral contact zone. Kept apart from
-        # is_nonlinear because DEFI_CONTACT needs at least one ZONE to declare,
-        # and a nonlinear run does not imply there is one.
-        unilateral_supports = [s for s in model.supports if s.type == "rest"]
-
-        # Check if the model requires non-linear simulation (contact, friction,
-        # rests, cables). A cable carries no compression and starts from N_INIT,
-        # so CABLE elements are nonlinear by construction: MECA_STATIQUE would
-        # solve them as bars that push back and drop the pretension entirely.
-        # The nonlinear branch has always written their COMPORTEMENT; nothing
-        # but this flag reached it unless the model also had a rest or friction.
-        is_nonlinear = bool(unilateral_supports) or bool(cable_elems) or any(
-            s.friction_coefficient > 0.0 for s in model.supports
-        )
+        # Shoes and cables are nonlinear by construction. A shoe opens and
+        # closes (every rest is one, and friction exists only on rests). A cable
+        # carries no compression and starts from N_INIT, so MECA_STATIQUE would
+        # solve it as a bar that pushes back and drops the pretension entirely.
+        is_nonlinear = bool(contacts) or bool(cable_elems)
 
         comm: List[str] = []
 
@@ -647,18 +639,9 @@ class _CommWriterMixin:
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
                 elif sup.type == "rest":
-                    # A rest never gets a bilateral DDL_IMPO. Its restraint is
-                    # unilateral - a LIAISON_UNIL zone, or a native contact shoe -
-                    # and any rest at all sets is_nonlinear, so the bilateral
-                    # branch that used to sit here could never run. It defaulted
-                    # to DY, which read as if a directionless rest held the pipe
-                    # sideways; the zone actually written is NOM_CMP='DZ'.
-                    #
-                    # What it does still owe is the warping restraint every other
-                    # support type gets through append_pipe_warping_bc. A TUYAU
-                    # node needs WO fixed or the section is free to warp there;
-                    # a node on a beam formulation has no warping DOF to fix, so
-                    # there is nothing to write and the support is skipped.
+                    # A rest is a contact shoe (aster_contact.shoes), never a
+                    # bilateral DDL_IMPO. It still owes the warping restraint every
+                    # support gets: a TUYAU node needs WO fixed; a beam node has none.
                     if sup.node not in pipe_nodes_with_warping:
                         continue
                     write_bc = True
@@ -689,6 +672,10 @@ class _CommWriterMixin:
                     w(line)
                 w()
                 active_bcs.append(char_name)
+
+        if not native_path:
+            for index, contact in enumerate(contacts):
+                active_bcs.append(write_shoe_anchor(w, index, contact, map_name))
 
         if native_path:
             write_contact_solve(w, model, load_case, self.load_path, contacts, map_name, affe_entries, active_bcs, self.load_step)
@@ -779,35 +766,8 @@ class _CommWriterMixin:
                 )
 
             # ==============================================================
-            # DEFI_CONTACT & Solve
+            # Solve
             # ==============================================================
-            has_unilateral = bool(unilateral_supports) and not native_path
-            if has_unilateral:
-                w("# ----- Unilateral contacts -----")
-                w("UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);")
-                w("UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);")
-                w()
-                w("contact = DEFI_CONTACT(")
-                w("    MODELE=MODELE,")
-                w("    FORMULATION='LIAISON_UNIL',")
-                w("    ZONE=(")
-                for sup in unilateral_supports:
-                    grp_name = map_name(f"GN_{sup.node}")
-                    cmp_name = "DZ"
-                    if sup.direction:
-                        dof_map = {0: "DX", 1: "DY", 2: "DZ"}
-                        for idx, val in enumerate(sup.direction):
-                            if abs(val) > 1e-12:
-                                cmp_name = dof_map[idx]
-                                break
-                    w(
-                        f"        _F(GROUP_NO='{grp_name}', NOM_CMP='{cmp_name}', "
-                        "COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),"
-                    )
-                w("    ),")
-                w(");")
-                w()
-
             w("# ----- Solve -----")
 
             # Build EXCIT list
@@ -828,7 +788,12 @@ class _CommWriterMixin:
                 excit_entries.append("        _F(CHARGE=POINT_FORCE),")
 
             if is_nonlinear:
-                w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
+                if contacts:
+                    if not math.isfinite(self.load_step) or not 0 < self.load_step <= 1:
+                        raise ValueError("load_step must be finite and in (0, 1].")
+                    w(f"lst_inst = DEFI_LIST_REEL(DEBUT=0.0, INTERVALLE=_F(JUSQU_A=1.0, NOMBRE={math.ceil(1 / self.load_step)}));")
+                else:
+                    w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
                 w("times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));")
                 w()
                 w("RESU = STAT_NON_LINE(")
@@ -839,7 +804,7 @@ class _CommWriterMixin:
                 for entry in excit_entries:
                     w(entry)
                 w("    ),")
-                if cable_elems:
+                if cable_elems or contacts:
                     elastic_groups: List[str] = []
                     if pipe_straights or pipe_bends:
                         elastic_groups.append("AllPipes")
@@ -848,19 +813,22 @@ class _CommWriterMixin:
                     if bar_elems:
                         elastic_groups.append("G_BAR")
                     for support in model.supports:
-                        if (support.type == "spring" and (support.stiffness_matrix is not None or support.stiffness is not None)) or support.mass > 0.0:
-                            elastic_groups.append(f"DIS_{support.node}")
+                        if needs_discrete_element(support):
+                            elastic_groups.append(discrete_support_group(support.node))
                     w("    COMPORTEMENT=(")
                     if elastic_groups:
                         w("        _F(")
                         w(f"            GROUP_MA={group_ma_value(elastic_groups, map_name)},")
                         w("            RELATION='ELAS',")
                         w("        ),")
-                    w("        _F(")
-                    w(f"            GROUP_MA='{map_name('G_CABLE')}',")
-                    w("            RELATION='CABLE',")
-                    w("            DEFORMATION='GROT_GDEP',")
-                    w("        ),")
+                    if cable_elems:
+                        w("        _F(")
+                        w(f"            GROUP_MA='{map_name('G_CABLE')}',")
+                        w("            RELATION='CABLE',")
+                        w("            DEFORMATION='GROT_GDEP',")
+                        w("        ),")
+                    for contact in contacts:
+                        w(f"        _F(GROUP_MA='{map_name(contact.group)}', RELATION='DIS_CHOC', RESI_INTE=1e-9),")
                     w("    ),")
                 else:
                     w("    COMPORTEMENT=_F(")
@@ -870,8 +838,6 @@ class _CommWriterMixin:
                 w("    INCREMENT=_F(")
                 w("        LIST_INST=times,")
                 w("    ),")
-                if has_unilateral:
-                    w("    CONTACT=contact,")
                 if cable_elems:
                     w("    CONVERGENCE=_F(ITER_GLOB_MAXI=100),")
                     w("    RECH_LINEAIRE=_F(METHODE='CORDE'),")
@@ -931,7 +897,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='EFGE_ELNO',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),")
-        if is_nonlinear and not native_path:
+        if is_nonlinear and not contacts:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -951,7 +917,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='DEPL',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),")
-        if is_nonlinear and not native_path:
+        if is_nonlinear and not contacts:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -971,7 +937,7 @@ class _CommWriterMixin:
         w("        NOM_CHAM='REAC_NODA',")
         w("        TOUT='OUI',")
         w("        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),")
-        if is_nonlinear and not native_path:
+        if is_nonlinear and not contacts:
             w("        INST=1.0,")
         w("    ),")
         w(");")
@@ -992,7 +958,7 @@ class _CommWriterMixin:
             w("        NOM_CHAM='SIEQ_ELNO',")
             w("        TOUT='OUI',")
             w("        NOM_CMP=('VMIS',),")
-            if is_nonlinear:
+            if is_nonlinear and not contacts:
                 w("        INST=1.0,")
             w("    ),")
             w(");")

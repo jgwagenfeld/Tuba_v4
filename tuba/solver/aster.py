@@ -277,12 +277,17 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         from tuba.solver.aster_contact import shoes, validate_path
         contact_specs = shoes(model, self.pipe_modelization)
         if self.load_path is not None and not contact_specs:
-            raise ValueError('load_path currently requires a native POU_D_T resting shoe.')
+            raise ValueError('load_path currently requires a resting shoe.')
         if contact_specs:
-            names, cases = validate_path(model, load_case, self.load_path)
-            compiler_inputs = dict(compiler_inputs or {}, load_path=list(names), load_step=self.load_step,
-                                  contact_law='DIS_CHOC', contact_stiffness_defaults=[1e10, 1e8],
-                                  load_path_inputs={name: model.to_dict()['load_cases'][name] for name in names})
+            if self.load_path is not None:
+                names, _cases = validate_path(model, load_case, self.load_path)
+            else:
+                names = (load_case_name,)
+            compiler_inputs = dict(compiler_inputs or {}, pipe_modelization=self.pipe_modelization.value,
+                                  load_path=list(names), load_step=self.load_step,
+                                  contact_law='DIS_CHOC', contact_stiffness_defaults=[1e10, 1e8])
+            if self.load_path is not None:
+                compiler_inputs['load_path_inputs'] = {name: model.to_dict()['load_cases'][name] for name in names}
         solver_input_identity = build_solver_input_identity(
             model, load_case_name, compiler_inputs=compiler_inputs,
         )

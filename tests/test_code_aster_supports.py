@@ -39,3 +39,26 @@ def test_ground_spring_acts_on_its_own_node():
     run = solve(model, "Hot", "ground-spring")
     # Hand theory: the tip spring carries 325 N and the tip sags 3.25 mm. Unsupported it would sag 40.5 mm.
     assert run.results.node_results[tip].displacement[2] == pytest.approx(-3.25e-3, rel=0.01)
+
+
+@pytest.mark.parametrize("modelization", ["TUYAU_3M", "POU_D_T"])
+def test_rest_carries_three_eighths_of_the_span_weight(modelization):
+    model, _root, tip = cantilever(f"Rest {modelization}")
+    model.add_support(tip, "rest", id="rest")
+    model.define_load_case("Gravity", gravity=True, pressure=0.0, temperature=20.0, ref_temperature=20.0)
+    run = solve(model, "Gravity", f"rest-{modelization}", pipe_modelization=modelization)
+    tip_result = run.results.node_results[tip]
+    assert tip_result.reaction_force[2] == pytest.approx(3.0 / 8.0 * SPAN_WEIGHT_N, rel=0.01)
+    assert abs(tip_result.displacement[2]) < 1.0e-5
+
+
+def test_rest_lifts_off_under_uplift():
+    model, _root, tip = cantilever("RestUplift")
+    model.add_support(tip, "rest", id="rest")
+    case = model.define_load_case("Uplift", gravity=True, pressure=0.0, temperature=20.0, ref_temperature=20.0)
+    case.add_nodal_force(tip, force=[0.0, 0.0, 2000.0])
+    run = solve(model, "Uplift", "rest-uplift")
+    contact = run.results.contact_results["rest"]
+    assert contact.status == "open"
+    assert abs(contact.normal_force) < 1.0
+    assert run.results.node_results[tip].displacement[2] > 0.0

@@ -48,7 +48,7 @@ def read_contact_history(model, root, study, parser):
         stage_index = max(0, min(len(path), math.ceil(instant-1e-10)))
         results.metadata.update(pseudo_time=instant, stage_index=stage_index,
             stage_label='Reference' if instant == 0 else path[stage_index-1],
-            run_id=study.solver_input_identity.fingerprint, formulation='POU_D_T / DIS_CHOC',
+            run_id=study.solver_input_identity.fingerprint, formulation=f"{inputs['pipe_modelization']} / DIS_CHOC",
             convergence_status='converged', contact_status_tolerances={'force_N':1.,'relative_force':.001,'slip_m':1e-9,'gap_m':1e-9},
             contact_variable_mapping={'N':'local compression negative','V4':'0 sticking, 1 sliding, 2 open','V5':'local y slip','V6':'local z slip'},
             source='Code_Aster study_contact.json')

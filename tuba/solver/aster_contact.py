@@ -1,11 +1,9 @@
-"""Native point-contact compilation for fixed-frame beam piping shoes."""
+"""Native point-contact compilation for fixed-frame piping shoes."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 import math
 import numpy as np
-
-from tuba.solver.modelisation import PipeModelization
 
 
 @dataclass(frozen=True)
@@ -29,11 +27,11 @@ def shoes(model, formulation):
         if support.id is not None and support.id in ids:
             raise ValueError(f'Duplicate support id: {support.id}')
         ids.add(support.id)
-        if support.friction_coefficient and (support.type != 'rest' or formulation != PipeModelization.POU_D_T):
-            raise ValueError('Native friction requires a rest support and pipe_modelization=POU_D_T.')
-        if support.type != 'rest' or formulation != PipeModelization.POU_D_T:
+        if support.friction_coefficient and support.type != 'rest':
+            raise ValueError('Friction requires a rest support.')
+        if support.type != 'rest':
             if support.gap != 0 or support.normal_stiffness is not None or support.tangential_stiffness is not None:
-                raise ValueError('Contact gap/stiffness parameters require a rest support and pipe_modelization=POU_D_T.')
+                raise ValueError('Contact gap/stiffness parameters require a rest support.')
             continue
         if not isinstance(support.id, str) or not support.id.strip():
             raise ValueError('Native shoes require persistent nonempty support IDs.')
@@ -57,12 +55,12 @@ def shoes(model, formulation):
                            support.normal_stiffness or 1e10, support.tangential_stiffness or 1e8))
     if result and any(s.imposed_displacement is not None for s in model.supports):
         raise ValueError("Native contact paths do not support prescribed support movement.")
-    if result and any(s.type == "spring" or s.mass > 0 for s in model.supports):
-        raise ValueError("Native shoes with discrete springs or support masses are not yet qualified.")
     return result
 
 
 def validate_path(model, load_case, load_path):
+    if any(s.type == "spring" or s.mass > 0 for s in model.supports):
+        raise ValueError("Native shoes with discrete springs or support masses are not yet qualified.")
     names = tuple(load_path) if load_path is not None else (load_case.name,)
     if not names or any(not isinstance(name, str) or name not in model.load_cases for name in names):
         raise ValueError('load_path must contain existing load-case names.')
@@ -81,6 +79,13 @@ def validate_path(model, load_case, load_path):
     return names, cases
 
 
+def write_shoe_anchor(w, index, spec, map_name):
+    """Hold a shoe's helper node in space and return the load name for EXCIT."""
+    name = f'GROUND{index}'
+    w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='{map_name(spec.ground)}',DX=0.,DY=0.,DZ=0.))")
+    return name
+
+
 def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_entries, active_bcs, step):
     """Emit a single stateful nonlinear evolution, including thermal history."""
     names, cases = validate_path(model, load_case, load_path)
@@ -94,8 +99,7 @@ def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_en
     w("GRAVITY = AFFE_CHAR_MECA(MODELE=MODELE, PESANTEUR=_F(GRAVITE=9.81,DIRECTION=(0.,0.,-1.)))")
     entries = [f'_F(CHARGE={bc})' for bc in active_bcs] + ['_F(CHARGE=GRAVITY,FONC_MULT=GRAMP)']
     for i, spec in enumerate(specs):
-        w(f"GROUND{i} = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='{map_name(spec.ground)}',DX=0.,DY=0.,DZ=0.))")
-        entries.append(f'_F(CHARGE=GROUND{i})')
+        entries.append(f'_F(CHARGE={write_shoe_anchor(w, i, spec, map_name)})')
     node_ids = sorted({force.node for case in cases for force in case.nodal_forces})
     for ni, node_id in enumerate(node_ids):
         for component, key in enumerate(('FX','FY','FZ','MX','MY','MZ')):

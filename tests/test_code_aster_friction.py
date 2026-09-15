@@ -26,10 +26,12 @@ def friction_model():
 
 
 class FrictionCompilation(unittest.TestCase):
-    def test_unqualified_formulation_cannot_silently_omit_friction(self):
+    def test_friction_requires_a_rest(self):
+        model = friction_model()
+        model.supports[-1].type = 'anchor'
         with TemporaryDirectory() as root:
-            with self.assertRaisesRegex(ValueError, 'friction requires'):
-                CodeAsterSolver().export_study(friction_model(), 'Hot', root)
+            with self.assertRaisesRegex(ValueError, 'Friction requires a rest support'):
+                CodeAsterSolver().export_study(model, 'Hot', root)
 
     def test_native_law_and_stateful_path_are_emitted(self):
         model = friction_model()
@@ -63,19 +65,19 @@ class FrictionCompilation(unittest.TestCase):
 
     def test_contact_parameters_cannot_be_ignored(self):
         for field, value in (('gap',.001),('normal_stiffness',1e10),('tangential_stiffness',1e8)):
-            for formulation, kind in (('TUYAU_3M','rest'),('POU_D_T','anchor'),('POU_D_T','guide')):
+            for formulation, kind in (('TUYAU_3M','anchor'),('POU_D_T','anchor'),('POU_D_T','guide')):
                 with self.subTest(field=field, formulation=formulation, kind=kind), TemporaryDirectory() as root:
                     model=friction_model()
                     support=model.supports[-1]
                     support.friction_coefficient=0.
                     support.type=kind
                     setattr(support,field,value)
-                    with self.assertRaisesRegex(ValueError,'gap/stiffness parameters require'):
+                    with self.assertRaisesRegex(ValueError,'gap/stiffness parameters require a rest'):
                         CodeAsterSolver(pipe_modelization=formulation).export_study(model,'Cold',root)
                     self.assertFalse(Path(root,'study.comm').exists())
         model=friction_model()
         model.supports[-1].friction_coefficient=0.
-        self.assertEqual(shoes(model,'TUYAU_3M'),[])
+        self.assertEqual(len(shoes(model,'TUYAU_3M')),1)
 
     def test_contact_helper_names_cannot_overwrite_authored_entities(self):
         for namespace in ('nodes','elements','groups','materials','sections'):
@@ -108,7 +110,7 @@ class FrictionCompilation(unittest.TestCase):
                 lambda: CodeAsterSolver().export_mixed_analysis_study(model,'Cold',root),
             )
             for call in calls:
-                with self.assertRaisesRegex(ValueError,'Native friction requires'):
+                with self.assertRaisesRegex(ValueError,'Friction requires a rest support'):
                     call()
             self.assertEqual(list(Path(root).iterdir()),[])
 
