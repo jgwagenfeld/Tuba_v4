@@ -104,11 +104,15 @@ class FrictionCompilation(unittest.TestCase):
                     self.assertFalse(Path(root,'study.mail').exists())
 
     def test_volume_and_mixed_entrypoints_reject_friction_before_meshing(self):
-        for kind, message in (('anchor','Friction requires a rest support'),
-                              ('rest','Friction, gap and contact stiffness require a 1D study (TUYAU_3M or POU_D_T).')):
+        for kind, attached, message in (('anchor',False,'Friction requires a rest support'),
+                                        ('rest',False,'Friction, gap and contact stiffness require a 1D study (TUYAU_3M or POU_D_T).'),
+                                        ('anchor',True,'Attached supports require a 1D study (TUYAU_3M or POU_D_T).')):
             model=friction_model()
             model.supports[-1].type=kind
-            with self.subTest(kind=kind), TemporaryDirectory() as root:
+            if attached:
+                model.supports[-1].friction_coefficient=0.
+                model.supports[-1].attached_to=model.supports[0].node
+            with self.subTest(kind=kind, attached=attached), TemporaryDirectory() as root:
                 calls=(
                     lambda: PipeVolumeStudyExporter().export_analysis_study(model,'Cold',root,element_ids=['pipe'],max_element_size=.1),
                     lambda: MixedCodeAsterStudyExporter().export_analysis_study(model,'Cold',root),

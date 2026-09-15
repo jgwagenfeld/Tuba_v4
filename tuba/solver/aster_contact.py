@@ -31,6 +31,8 @@ def shoes(model, formulation):
         ids.add(support.id)
         if support.friction_coefficient and support.type != 'rest':
             raise ValueError('Friction requires a rest support.')
+        if formulation == PipeModelization.SOLID_3D and support.attached_to is not None:
+            raise ValueError('Attached supports require a 1D study (TUYAU_3M or POU_D_T).')
         if support.type != 'rest':
             if support.gap != 0 or support.normal_stiffness is not None or support.tangential_stiffness is not None:
                 raise ValueError('Contact gap/stiffness parameters require a rest support.')

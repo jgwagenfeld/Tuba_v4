@@ -82,6 +82,13 @@ class SupportAttachment(unittest.TestCase):
         with self.assertRaisesRegex(ModelValidationError, "Support 'moved' is attached to a node, so it cannot impose a displacement"):
             model.validate()
 
+    def test_attached_spring_cannot_also_block_dofs(self):
+        model, _root, tip = cantilever()
+        rack = model.add_node([6.0, 0.0, -0.25])
+        model.add_support(tip, "spring", attached_to=rack, stiffness_matrix=[0.0, 0.0, 1.0e7, 0.0, 0.0, 0.0], blocked_dof=[0, 0, 1, 0, 0, 0], id="blocking")
+        with self.assertRaisesRegex(ModelValidationError, "Support 'blocking' is an attached spring, so it cannot also block DOFs"):
+            model.validate()
+
 
 def export(model, case="Hot", **options):
     with TemporaryDirectory() as tmpdir:

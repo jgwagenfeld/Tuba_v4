@@ -59,6 +59,8 @@ def validate_model(model: TubaModel) -> None:
                 )
             if support.imposed_displacement is not None:
                 errors.append(f"Support {support.id!r} is attached to a node, so it cannot impose a displacement.")
+            if support.type == "spring" and support.blocked_dof is not None:
+                errors.append(f"Support {support.id!r} is an attached spring, so it cannot also block DOFs.")
 
     for name, section in model.sections.items():
         _validate_section(name, section, errors)
