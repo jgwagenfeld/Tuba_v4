@@ -497,6 +497,30 @@ def test_engineering_profile_cross_checks_attestation_identity(tmp_path: Path) -
         validate_official_bundle(tmp_path, "engineering-review")
 
 
+def test_engineering_profile_reads_the_attestation_in_the_folder_its_result_names(tmp_path: Path) -> None:
+    """Catches a validator that assumes a flat artifacts/ folder (spec decision 14 stages artifacts/<operation>/)."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    flat, operation = tmp_path / "artifacts", tmp_path / "artifacts" / "Operating"
+    operation.mkdir()
+    for path in [path for path in flat.iterdir() if path.is_file()]:
+        path.rename(operation / path.name)
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    for record in review["provenance"]:
+        record["files"] = {role: uri.replace("artifacts/", "artifacts/Operating/") for role, uri in record["files"].items()}
+    _save_bundle(tmp_path, scene, review)
+
+    validate_official_bundle(tmp_path, "engineering-review")
+
+    # A valid flat copy does not stand in for the run the result names.
+    for path in operation.iterdir():
+        (flat / path.name).write_bytes(path.read_bytes())
+    execution = json.loads((operation / "study_execution.json").read_text(encoding="utf-8"))
+    execution["solver_input_identity"]["fingerprint"] = "b" * 64
+    (operation / "study_execution.json").write_text(json.dumps(execution), encoding="utf-8")
+    with pytest.raises(ValueError, match="identity"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
 @pytest.mark.parametrize(
     ("relative_path", "contents"),
     [

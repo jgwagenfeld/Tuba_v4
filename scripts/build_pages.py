@@ -7,6 +7,7 @@ from collections.abc import Mapping
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -335,23 +336,24 @@ def validate_official_bundle(root: Path, profile: str) -> None:
         raise ValueError("Engineering-review bundles require all four layer categories.")
     if profile == "contact-engineering-review":
         _validate_contact_result_fields(scene)
-        raw_contacts = json.loads(_bundle_path(root, "artifacts/study_contact.json").read_text(encoding="utf-8"))
-        solved_steps = {(row["support_id"], row["instant"]) for row in raw_contacts}
-        displayed_steps = {
-            (support_id, overlay["data"]["metadata"]["pseudo_time"])
-            for overlay in scene["overlays"] if overlay.get("kind") == "result_state"
-            for support_id in overlay["data"]["contact_results"]
-        }
-        if solved_steps != displayed_steps:
-            raise ValueError("Contact review must display every attested shoe increment.")
     elif profile == "beam-engineering-review":
         _validate_beam_review(root, scene, review)
     else:
         _validate_engineering_result_fields(scene, volume=profile == "volume-engineering-review")
     if profile != "beam-engineering-review":
         identity = _validate_engineering_provenance(scene, review)
-        _validate_execution_attestation(root, identity)
+        result = next(record for record in review["provenance"] if isinstance(record, dict) and record.get("kind") == "result_state")
+        evidence = _validate_execution_attestation(root, identity, result)
         if profile == "contact-engineering-review":
+            contacts = _bundle_path(root, posixpath.join(evidence, "study_contact.json"))
+            solved_steps = {(row["support_id"], row["instant"]) for row in json.loads(contacts.read_text(encoding="utf-8"))}
+            displayed_steps = {
+                (support_id, overlay["data"]["metadata"]["pseudo_time"])
+                for overlay in scene["overlays"] if overlay.get("kind") == "result_state"
+                for support_id in overlay["data"]["contact_results"]
+            }
+            if solved_steps != displayed_steps:
+                raise ValueError("Contact review must display every attested shoe increment.")
             _validate_contact_provenance(scene, review, identity)
     _validate_portable_provenance_files(root, review)
     _validate_embedded_portability(root)
@@ -387,11 +389,7 @@ def _validate_beam_review(root: Path, scene: dict[str, Any], review: dict[str, A
             raise ValueError("Beam result fields must match their state load case.")
         _validate_engineering_result_fields(dict(scene, result_fields=fields),
                                            families={"displacement", "reaction_force", "reaction_moment"})
-        execution_uri = by_kind["result_state"].get("files", {}).get("execution")
-        if not isinstance(execution_uri, str):
-            raise ValueError("Beam result requires its execution envelope.")
-        artifacts = _bundle_path(root, execution_uri).parent
-        _validate_execution_attestation(root, reference, artifacts_root=artifacts)
+        _validate_execution_attestation(root, reference, by_kind["result_state"])
     if any(field.get("result_state_id") not in state_ids for field in scene.get("result_fields", [])):
         raise ValueError("Beam review contains a field outside its load cases.")
     states_by_id = {state["id"]: state for state in states}
@@ -584,13 +582,22 @@ def _validate_engineering_provenance(
     return reference
 
 
-def _validate_execution_attestation(root: Path, identity: dict[str, Any], *, artifacts_root: Path | None = None) -> None:
-    artifacts_root = root / "artifacts" if artifacts_root is None else artifacts_root
-    attestation = load_code_aster_execution_attestation(artifacts_root)
+def _validate_execution_attestation(root: Path, identity: dict[str, Any], result: dict[str, Any]) -> str:
+    """Check the attestation beside *result*'s execution envelope against *identity*; return that folder's URI.
+
+    The folder is the one the envelope's reference names, so a run staged in ``artifacts/`` and runs staged in
+    ``artifacts/<operation>/`` (spec decision 14) validate alike.
+    """
+    files = result.get("files")
+    execution_uri = files.get("execution") if isinstance(files, dict) else None
+    if not isinstance(execution_uri, str):
+        raise ValueError("Engineering-review result requires its execution envelope.")
+    attestation = load_code_aster_execution_attestation(_bundle_path(root, execution_uri).parent)
     if attestation is None:
         raise ValueError("Engineering-review bundles require a validated Code_Aster execution attestation.")
     if attestation["solver_input_identity"] != identity:
         raise ValueError("Engineering-review execution attestation identity must match provenance.")
+    return posixpath.dirname(execution_uri)
 
 
 def _validate_embedded_portability(root: Path) -> None:
