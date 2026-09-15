@@ -77,4 +77,4 @@ def test_node_temperatures_expand_the_whole_cantilever(modelization):
     observed = np.asarray(run.results.node_results[tip].displacement[:3], dtype=float)
     expected = free_expansion(120.0, 200.0, 260.0)
     print(f"node temperatures {modelization}: tip {observed.tolist()}, expected {expected.tolist()}")
-    assert float(np.linalg.norm(observed - expected)) <= 0.01 * float(np.linalg.norm(expected))
+    assert float(np.linalg.norm(observed - expected)) <= 0.0025 * float(np.linalg.norm(expected))
