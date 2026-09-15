@@ -539,6 +539,7 @@ class ProjectStudioServer(PreviewServer):
         debounce_s: float = 0.2,
     ) -> None:
         from tuba.project import load_project
+        from tuba.project.freshness import attested_identities
 
         self.project = load_project(project)
         super().__init__(
@@ -554,6 +555,9 @@ class ProjectStudioServer(PreviewServer):
         self.namespace: dict[str, Any] | None = None
         self.study = self.project.load_study()
         self.review_error: str | None = None
+        # review_stale runs on every save, and a review scene can be tens of MB: read its identities
+        # once per bundle, here for a bundle left on disk and in _produce_review for each new one.
+        self._review_identities = attested_identities(self.out_dir / "review")
         self._solve_lock = threading.Lock()
         # Busy with a review (the startup import or a Solve); _preparing marks the import.
         self._solving = False
@@ -660,11 +664,11 @@ class ProjectStudioServer(PreviewServer):
     @property
     def review_stale(self) -> bool:
         """Spec decision 15: an operation the review was solved for would now attest a different identity."""
-        from tuba.project.freshness import attested_identities, stale_operations
+        from tuba.project.freshness import stale_operations
 
         if self.model is None or self.study is None:
             return False
-        attested = attested_identities(self.out_dir / "review")
+        attested = self._review_identities
         if not attested:
             return False
         try:
@@ -716,10 +720,14 @@ class ProjectStudioServer(PreviewServer):
         shutil.rmtree(retired, ignore_errors=True)
 
     def _produce_review(self, namespace: dict[str, Any], *, artifact_dir: Path | None, force: bool = False) -> None:
+        from tuba.project.freshness import attested_identities
+
         work = self.out_dir / ".review-work"
         shutil.rmtree(work, ignore_errors=True)
         root = self.study.build_review(namespace, work, artifact_dir=artifact_dir, force=force)
+        identities = attested_identities(Path(root))
         self._swap_bundle("review", Path(root))
+        self._review_identities = identities
         self.review_error = None
         shutil.rmtree(work, ignore_errors=True)
 

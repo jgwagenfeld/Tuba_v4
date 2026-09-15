@@ -125,6 +125,8 @@ class StudioProjectModeTest(unittest.TestCase):
             "the committed evidence never imported",
             timeout=120.0,
         )
+        # Saves judge staleness from the identities read when the review was produced.
+        (server.out_dir / "review" / "scene.json").write_text("not json", encoding="utf-8")
         self.assertIsNone(server.review_error)
         self.assertFalse(self._get(server, "api/project")["review_stale"])
 
