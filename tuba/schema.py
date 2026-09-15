@@ -317,13 +317,17 @@ MODEL_SCHEMA_V4 = {
                 "quantity": {"enum": ["pressure", "temperature", "wind", "line_load"]},
                 "value": {"type": "number"},
                 "direction": {"$ref": "#/$defs/vector3"},
-                "scope": {"enum": ["all", "group", "route", "elements"]},
+                "scope": {"enum": ["all", "group", "route", "elements", "nodes"]},
                 "profile": {"enum": ["uniform", "linear", "piecewise"]},
                 "group": {"type": "string"},
                 "route_id": {"type": "string"},
                 "station_start": {"type": "number"},
                 "station_end": {"type": "number"},
                 "element_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "node_ids": {
                     "type": "array",
                     "items": {"type": "string"},
                 },

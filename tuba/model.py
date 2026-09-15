@@ -408,6 +408,7 @@ class OperationField:
     station_start: Optional[float] = None
     station_end: Optional[float] = None
     element_ids: List[str] = field(default_factory=list)
+    node_ids: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -514,6 +515,7 @@ class Operation:
         station_start: Optional[float] = None,
         station_end: Optional[float] = None,
         element_ids: Optional[List[str]] = None,
+        node_ids: Optional[List[str]] = None,
         direction: Optional[List[float]] = None,
     ) -> OperationField:
         if group is not None:
@@ -522,6 +524,8 @@ class Operation:
             scope = "route"
         elif element_ids is not None:
             scope = "elements"
+        elif node_ids is not None:
+            scope = "nodes"
         field_record = OperationField(
             quantity=quantity,
             value=float(value),
@@ -533,6 +537,7 @@ class Operation:
             station_start=station_start,
             station_end=station_end,
             element_ids=list(element_ids or []),
+            node_ids=list(node_ids or []),
         )
         self.fields.append(field_record)
         return field_record
@@ -1678,6 +1683,8 @@ def _operation_field_to_dict(field_record: OperationField) -> Dict[str, Any]:
         data["station_end"] = field_record.station_end
     if field_record.element_ids:
         data["element_ids"] = list(field_record.element_ids)
+    if field_record.node_ids:
+        data["node_ids"] = list(field_record.node_ids)
     if field_record.direction is not None:
         data["direction"] = [float(value) for value in field_record.direction]
     return data

@@ -169,7 +169,7 @@ def _platform_stable(value: Any) -> Any:
 
 
 def _operation_field_payload(field: Any) -> dict[str, Any]:
-    return {
+    payload = {
         "quantity": field.quantity,
         "value": float(field.value),
         "direction": list(field.direction) if field.direction is not None else None,
@@ -181,3 +181,7 @@ def _operation_field_payload(field: Any) -> dict[str, Any]:
         "station_end": field.station_end,
         "element_ids": list(field.element_ids),
     }
+    # Only node-scoped fields carry node_ids, so every other fingerprint stays as it was.
+    if field.node_ids:
+        payload["node_ids"] = list(field.node_ids)
+    return payload

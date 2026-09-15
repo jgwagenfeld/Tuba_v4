@@ -1179,7 +1179,7 @@ def _section_total_mass_kg(
 
 
 def _operation_field_dict(field: OperationField) -> dict[str, Any]:
-    return {
+    row = {
         "quantity": field.quantity,
         "value": field.value,
         "direction": _optional_list(field.direction),
@@ -1191,6 +1191,9 @@ def _operation_field_dict(field: OperationField) -> dict[str, Any]:
         "station_end": field.station_end,
         "element_ids": list(field.element_ids),
     }
+    if field.node_ids:
+        row["node_ids"] = list(field.node_ids)
+    return row
 
 
 def _sorted_mapping(value: Mapping[str, Any]) -> dict[str, Any]:

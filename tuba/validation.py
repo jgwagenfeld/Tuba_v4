@@ -122,11 +122,19 @@ def _validate_bend_geometry_record(elem, errors: list[str]) -> None:
 
 def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
     valid_quantities = {"pressure", "temperature", "wind", "line_load"}
-    valid_scopes = {"all", "group", "route", "elements"}
+    valid_scopes = {"all", "group", "route", "elements", "nodes"}
     valid_profiles = {"uniform", "linear", "piecewise"}
+    pipe_nodes = {
+        node_id
+        for elem in model.elements
+        if elem.type in {"pipe_straight", "pipe_bend"}
+        for node_id in (elem.n1, elem.n2)
+    }
 
     for operation_name, operation in getattr(model, "operations", {}).items():
         seen: dict[str, dict[str, float]] = {}
+        node_temperatures: dict[str, float] = {}
+        element_temperature_nodes: dict[str, set[int]] = {}
         for index, field_record in enumerate(getattr(operation, "fields", [])):
             label = f"Operation {operation_name!r} field {index}"
             if field_record.quantity not in valid_quantities:
@@ -143,6 +151,21 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
                 continue
             if not np.isfinite(float(field_record.value)):
                 errors.append(f"{label} has a non-finite value.")
+                continue
+            if field_record.scope == "nodes" or field_record.node_ids:
+                problem = _node_field_problem(field_record, model, pipe_nodes)
+                if problem is not None:
+                    errors.append(f"{label} {problem}")
+                    continue
+                value = float(field_record.value)
+                for node_id in field_record.node_ids:
+                    previous = node_temperatures.get(node_id)
+                    if previous is not None and previous != value:
+                        errors.append(
+                            f"Operation {operation_name!r} has overlapping incompatible temperature fields "
+                            f"on node {node_id!r}: {previous!r} vs {value!r}."
+                        )
+                    node_temperatures[node_id] = value
                 continue
             if field_record.profile != "uniform":
                 if not (
@@ -199,6 +222,11 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
                     errors.append(f"{label} selects no pipe elements.")
                 continue
 
+            if field_record.quantity == "temperature":
+                for elem in selected:
+                    for node_id in (elem.n1, elem.n2):
+                        element_temperature_nodes.setdefault(node_id, set()).add(index)
+
             quantity_values = seen.setdefault(field_record.quantity, {})
             for elem in selected:
                 value_key = _operation_field_value_key(field_record)
@@ -216,6 +244,40 @@ def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
                         f"{previous!r} vs {value_key!r}."
                     )
                 quantity_values[elem.id] = value_key
+
+        shared = sorted(set(node_temperatures) & set(element_temperature_nodes))
+        if shared:
+            indices = sorted({index for node_id in shared for index in element_temperature_nodes[node_id]})
+            errors.append(
+                f"Operation {operation_name!r} gives nodes {shared!r} a node temperature, but they belong to "
+                f"elements that element temperature fields {indices!r} cover; a node takes one or the other."
+            )
+
+
+def _node_field_problem(field_record, model: TubaModel, pipe_nodes: set[str]) -> str | None:
+    """The first reason a node-scoped operation field is invalid, or None."""
+    if field_record.scope != "nodes":
+        return f"lists node_ids but has scope {field_record.scope!r}; node_ids need scope 'nodes'."
+    if field_record.quantity != "temperature" or field_record.profile != "uniform":
+        return f"scopes {field_record.quantity!r} to nodes; only uniform temperature fields take node_ids."
+    if not field_record.node_ids:
+        return "has scope 'nodes' but no node_ids."
+    if (
+        field_record.group is not None
+        or field_record.route_id is not None
+        or field_record.station_start is not None
+        or field_record.station_end is not None
+        or field_record.element_ids
+        or field_record.direction is not None
+    ):
+        return "scopes to nodes, so it takes no group, route_id, station range, element_ids or direction."
+    missing = [node_id for node_id in field_record.node_ids if node_id not in model.nodes]
+    if missing:
+        return f"references missing nodes {missing!r}."
+    off_pipe = [node_id for node_id in field_record.node_ids if node_id not in pipe_nodes]
+    if off_pipe:
+        return f"gives a temperature to nodes on no pipe element: {off_pipe!r}."
+    return None
 
 
 def _operation_field_value_key(field_record) -> tuple[Any, ...]:
