@@ -1818,26 +1818,26 @@ exits with 1."
 
 Rulings and changes made while executing this plan, which amend the text above:
 
-- **Base:** the plan names `9745229`; after Task 7 the branch was rebased onto `main` at `4a7f2d1`, and the rebase merged main's GET `/api/comm` into Task 6's `server.py`.
+- **Base:** the plan names `9745229`; after Task 7 the branch was rebased onto `main` at `4a7f2d1`, and that rebase merged main's GET `/api/comm` into Task 6's `server.py`; after the fix wave it was rebased again onto `d8c698d` (geometry-first script links), with no overlapping files.
 - **No commit trailer** (Global Constraints) held: no commit of this plan carries `Co-Authored-By`.
-- **Commits:** plan `87e65ce`; Task 1 `5faf65b`; Task 2 `560c6a5`; Task 3 `00d2bab`; Task 4 `6cf0764`; Task 5 `5be943d`; Task 6 `1e538e6`; Task 7 `a2614b7`; then two fixes and this section.
-- **Reuse needs verified evidence** (`4c573a3`): `_evidence_attests` also requires `execution_trust(attestation) == "verified"`, so an unverified run is solved again instead of reused. This narrows decision 13 as the Goal and Task 4 state it; Plan 6 revisits it when the builders accept unverified runs.
-- **"All or none"**, which the Goal, Task 2's title and the `560c6a5` and `6cf0764` messages promise, holds only for integrity failures: an OS error mid-move leaves operations unattested, and an interruption during the attestation pass lands the earlier ones.
-- **`solve.py` module docstring** (`5be943d`): "(decision 12: all operations or none)" became "nothing lands before every operation has solved and passed the study's check, and an interrupted promotion leaves operations unsolved, never falsely attested".
-- **`solve_project` docstring** (`5be943d`): it gains "; an interrupted promotion leaves the affected operations unsolved, never falsely attested."
-- **Port selection** (`5be943d`): `solver or exporter` became `solver if solver is not None else exporter`.
-- **Task 5 test** (`5be943d`): `test_an_interrupted_promotion_leaves_the_operation_unsolved_and_the_next_solve_repeats_it` is added, with `import os` and `from tuba.project import evidence, load_project`.
-- **Task 5 commit body** (`5be943d`): it gains "It also pins the interrupted-promotion path with a test."
-- **`evidence.py` module docstring** (`1e538e6`): "lands all of its operations or none" became the integrity-check and interrupted-promotion wording.
-- **Task 6 commit body** (`1e538e6`): it gains "It also corrects the evidence module's promise about interrupted promotions."
-- **`server.py`, from the rebase** (`1e538e6`): main's `tempfile`, `parse_qs`, `comm_handler`, GET `/api/comm` and `code_aster_commands` sit beside Task 6, and `project_info` also carries `"load_cases"`.
-- **`tests/test_studio_project.py`, from the rebase** (`1e538e6`): the file also holds main's `/api/comm` test, which starts a stub with `LOAD_CASES = ("Operating",)`.
+- **Commits:** plan `3ca130b`; Task 1 `1d7f9a7`; Task 2 `694ca39`; Task 3 `94e1f46`; Task 4 `1682074`; Task 5 `e5dfc96`; Task 6 `e0a085a`; Task 7 `8101a23`; then two fixes and this section.
+- **Reuse needs verified evidence** (`6d2b05a`): `_evidence_attests` also requires `execution_trust(attestation) == "verified"`, so an unverified run is solved again instead of reused. This narrows decision 13 as the Goal and Task 4 state it; Plan 6 revisits it when the builders accept unverified runs.
+- **"All or none"**, which the Goal, Task 2's title and the `694ca39` and `1682074` messages promise, holds only for integrity failures: an OS error mid-move leaves operations unattested, and an interruption during the attestation pass lands the earlier ones.
+- **`solve.py` module docstring** (`e5dfc96`): "(decision 12: all operations or none)" became "nothing lands before every operation has solved and passed the study's check, and an interrupted promotion leaves operations unsolved, never falsely attested".
+- **`solve_project` docstring** (`e5dfc96`): it gains "; an interrupted promotion leaves the affected operations unsolved, never falsely attested."
+- **Port selection** (`e5dfc96`): `solver or exporter` became `solver if solver is not None else exporter`.
+- **Task 5 test** (`e5dfc96`): `test_an_interrupted_promotion_leaves_the_operation_unsolved_and_the_next_solve_repeats_it` is added, with `import os` and `from tuba.project import evidence, load_project`.
+- **Task 5 commit body** (`e5dfc96`): it gains "It also pins the interrupted-promotion path with a test."
+- **`evidence.py` module docstring** (`e0a085a`): "lands all of its operations or none" became the integrity-check and interrupted-promotion wording.
+- **Task 6 commit body** (`e0a085a`): it gains "It also corrects the evidence module's promise about interrupted promotions."
+- **`server.py`, from the rebase** (`e0a085a`): main's `tempfile`, `parse_qs`, `comm_handler`, GET `/api/comm` and `code_aster_commands` sit beside Task 6, and `project_info` also carries `"load_cases"`.
+- **`tests/test_studio_project.py`, from the rebase** (`e0a085a`): the file also holds main's `/api/comm` test, which starts a stub with `LOAD_CASES = ("Operating",)`.
 - **Test scope:** replay tests cover beam projects only. Gmsh does not re-mesh the tee byte for byte, so the tee's `check` on a freshly solved run is exercised only in production.
 - **Fix wave:**
-  - `4c573a3`: reuse needs verified evidence (above);
-  - `ab5b340`: tests pin both branches of `study_artifact_dir`, and the busy CLI test injects a replay solver; `tuba/project/__init__.py`'s docstring says "first" once, and `code_aster_commands`'s says "would compile now", not "would run now";
+  - `6d2b05a`: reuse needs verified evidence (above);
+  - `4b94661`: tests pin both branches of `study_artifact_dir`, and the busy CLI test injects a replay solver; `tuba/project/__init__.py`'s docstring says "first" once, and `code_aster_commands`'s says "would compile now", not "would run now";
   - then this section.
-- **Full suite** on `ab5b340`: 1120 passed / 34 skipped / 151 subtests, plus the two worktree-only `tests/test_package_release.py` failures (no `viewer/node_modules`) and the pre-existing zmq warning.
+- **Full suite** on the fix wave, before the rebase onto `d8c698d`: 1120 passed / 34 skipped / 151 subtests, plus the two worktree-only `tests/test_package_release.py` failures (no `viewer/node_modules`) and the pre-existing zmq warning.
 
 Deferred, each to the plan that reworks its code:
 
@@ -1851,6 +1851,7 @@ Deferred, each to the plan that reworks its code:
   - Duplicate operation names, or names differing only in case on Windows, fail late: the first is solved in full before the second's staging folder raises `FileExistsError`.
   - Reused runs are imported before promotion even without a study check, so an attested folder that fails to import discards the fresh solves.
   - No test shows that `--artifact-dir` still imports without solving.
+  - Some reuse wording still describes the identity-only rule and omits that unverified evidence is solved again: `solve_project`'s summary line, the CLI's module docstring and `--help` description, and the reuse sentences in `docs/content/examples.md`, `docs/content/examples/native-friction.md` and `docs/content/examples/profile-orientation.md`.
   - The CLI discards the `ProjectSolve`, so it never names solved, reused or unverified operations, and an unverified run ends in the builder's traceback.
 - **Plan 7:**
   - The viewer says "Solve runs Code_Aster on model.py", although a Solve now reuses matching evidence; changing the copy needs a viewer rebuild.
