@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import math
 import numpy as np
 
+from tuba.solver.modelisation import PipeModelization
+
 
 @dataclass(frozen=True)
 class Shoe:
@@ -32,6 +34,11 @@ def shoes(model, formulation):
         if support.type != 'rest':
             if support.gap != 0 or support.normal_stiffness is not None or support.tangential_stiffness is not None:
                 raise ValueError('Contact gap/stiffness parameters require a rest support.')
+            continue
+        if formulation == PipeModelization.SOLID_3D:
+            # Volume and mixed studies write no shoes, so they cannot honour contact parameters.
+            if support.friction_coefficient or support.gap != 0 or support.normal_stiffness is not None or support.tangential_stiffness is not None:
+                raise ValueError('Friction, gap and contact stiffness require a 1D study (TUYAU_3M or POU_D_T).')
             continue
         if not isinstance(support.id, str) or not support.id.strip():
             raise ValueError('Native shoes require persistent nonempty support IDs.')
