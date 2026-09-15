@@ -155,6 +155,7 @@ const dom = {
   codeProblem: document.querySelector("[data-code-problem]"),
   codeFoot: document.querySelector("[data-code-foot]"),
   codeCallMark: document.querySelector('[data-code-mark="call"]'),
+  codeRevealMark: document.querySelector('[data-code-mark="reveal"]'),
   solveButton: document.querySelector("[data-solve]"),
   reviewEmpty: document.querySelector("[data-review-empty]"),
   reviewEmptyText: document.querySelector("[data-review-empty-text]"),
@@ -210,6 +211,10 @@ const studio = {
   selectionLine: null,
   callLine: null,
   revealedObjectId: null,
+  // The line a script link last revealed, marked until the selection or model.py changes.
+  revealLine: null,
+  // Whether the inspector was last drawn with the script's lines moved since the run.
+  linesMoved: false,
   tabLeavesEditor: false,
   // A project studio (model.py + study.py) also serves a review bundle beside the
   // live model, and can solve. Null for a plain model.json studio.
@@ -2017,6 +2022,8 @@ function renderIssues() {
 
 
 function renderProperties() {
+  // The script links below are drawn against this; model.py's input listener redraws when it flips.
+  studio.linesMoved = scriptLinesMoved();
   const summary = getSelectionSummary(currentState, selectedObjectId);
   dom.propertyActions.replaceChildren();
   dom.properties.replaceChildren();
@@ -3104,6 +3111,7 @@ async function showStudioBundle(mode) {
 function setScriptText(code) {
   dom.codeText.value = code;
   studio.ranCode = code;
+  studio.revealLine = null;
   renderGutter();
   renderCodeFoot();
 }
@@ -3208,6 +3216,8 @@ function renderScriptSelection() {
   studio.selectionLine = Number.isInteger(line) && line > 0 && !scriptLinesMoved() ? line : null;
   const callLine = Number(object?.metadata?.source_call_line);
   studio.callLine = studio.selectionLine && Number.isInteger(callLine) && callLine > 0 ? callLine : null;
+  // A revealed line belongs to the selection its link was clicked from.
+  if (studio.revealedObjectId !== (object?.id ?? null)) studio.revealLine = null;
   if (studio.selectionLine && studio.revealedObjectId !== object.id) {
     revealScriptLine(studio.selectionLine);
   }
@@ -3217,6 +3227,7 @@ function renderScriptSelection() {
 
 function renderCodeMarks() {
   placeCodeMark(dom.codeCallMark, studio.callLine);
+  placeCodeMark(dom.codeRevealMark, studio.revealLine);
   placeCodeMark(dom.codeSelectionMark, studio.selectionLine);
   placeCodeMark(dom.codeErrorMark, studio.error?.line ?? null);
 }
@@ -3326,6 +3337,12 @@ function scriptLineButton(line, label) {
 }
 
 function revealLineInScript(line) {
+  // The link was drawn against the run's line numbers; typing since may have moved them.
+  if (scriptLinesMoved()) {
+    render();
+    return;
+  }
+  studio.revealLine = line;
   showCodeTab(null); // a hidden textarea has no height to scroll to the line
   revealScriptLine(line, { focus: true });
 }
@@ -3357,8 +3374,11 @@ for (const button of [dom.solveButton, dom.reviewEmptySolve]) {
 dom.codeRun.addEventListener("click", () => void runScript());
 
 dom.codeText.addEventListener("input", () => {
+  studio.revealLine = null;
   renderGutter();
   renderCodeFoot();
+  // Redraw the inspector when its script links stop (or start again) matching the lines.
+  if (scriptLinesMoved() !== studio.linesMoved) render();
   renderScriptSelection();
 });
 

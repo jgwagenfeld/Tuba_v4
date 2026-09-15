@@ -2753,6 +2753,12 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   background: rgb(94 216 229 / 7%);
 }
 
+/* The line a script link revealed: as quiet as the call, with an edge to tell it apart. */
+.code-mark-reveal {
+  background: rgb(94 216 229 / 7%);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 /* Solve is the studio's one primary action, so it alone takes the accent fill. */
 .header-actions > .solve-button,
 .review-empty .solve-button {
