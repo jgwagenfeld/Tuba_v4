@@ -40,17 +40,18 @@ def stale_operations(
 ) -> list[str]:
     """The attested operations whose identity no longer matches what the model and study would solve.
 
-    An operation the current model can no longer resolve or validate counts as stale.
-    Invalid study solver options raise; they never read as stale.
+    An operation that can no longer be compiled counts as stale: a missing operation, a model that no
+    longer validates, or a load path the model or study cannot run. Solver options the solver itself
+    rejects (an unknown modelization, a line_segments below 1) raise instead.
     """
     from tuba.solver.aster import CodeAsterSolver
 
-    solver = CodeAsterSolver(**dict(solver_options or {}))  # invalid study options raise here, not "stale"
+    solver = CodeAsterSolver(**dict(solver_options or {}))  # options the solver rejects raise here, not "stale"
     stale = set()
     for identity in attested:
         try:
             current = _identity(solver, model, identity.load_case, volume_export)
-        except ValueError:  # a missing operation or a model that no longer validates
+        except ValueError:  # the operation can no longer be compiled
             current = None
         if current != identity:
             stale.add(identity.load_case)
