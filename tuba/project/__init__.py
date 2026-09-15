@@ -10,12 +10,16 @@ Build a project's review from the command line (from the repository root)::
     python -m tuba.project examples/native-friction-review --output .build/friction
     python -m tuba.project examples/native-friction-review --output .build/friction \\
         --artifact-dir examples/native-friction-review/evidence/Cold
+
+The first form solves the study's operations into the project's ``evidence/`` first, reusing evidence that
+still matches the model and study (``--force`` solves again). The second imports the folder it names.
 """
 
 from __future__ import annotations
 
 import argparse
 import runpy
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -86,9 +90,9 @@ def load_project(root: str | Path) -> Project:
     return project
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build a project's review: solve with Code_Aster, or import attested evidence."
+        description="Build a project's review: solve what its evidence no longer matches, or import attested evidence."
     )
     parser.add_argument("project", help="Folder holding model.py and study.py")
     parser.add_argument("--output", required=True, type=Path, help="Directory to write the review into")
@@ -100,6 +104,20 @@ def main(argv: list[str] | None = None) -> int:
     study = project.load_study(args.study)
     if study is None:
         parser.error(f"{project.root} has no {args.study}.")
-    root = study.build_review(project.run_model(), args.output, artifact_dir=args.artifact_dir, force=args.force)
+    namespace = project.run_model()
+    artifact_dir = args.artifact_dir
+    operations = tuple(getattr(study, "LOAD_CASES", None) or ())
+    if artifact_dir is None and operations:
+        from tuba.project.claim import SolveBusy
+        from tuba.project.evidence import study_artifact_dir
+        from tuba.project.solve import solve_project
+
+        try:
+            solve_project(project, namespace, study_file=args.study, force=args.force, solver=solver)
+        except SolveBusy as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        artifact_dir = study_artifact_dir(project.root, operations)
+    root = study.build_review(namespace, args.output, artifact_dir=artifact_dir)
     print(root)
     return 0

@@ -26,9 +26,10 @@ local y, and blue local z. These are section axes, not the viewer's global axes.
 
 The model is `examples/profile-orientation-review/model.py` and its review is
 `study.py` beside it. `python -m tuba.project examples/profile-orientation-review
---output <dir>` solves both cases; add
-`--artifact-dir examples/profile-orientation-review/evidence` to import
-the attested `global` and `local` folders. The bundle includes both complete evidence chains under
+--output <dir>` solves both cases into the project's `evidence/global` and
+`evidence/local` folders, reusing evidence that still matches (`--force` solves
+again); add `--artifact-dir examples/profile-orientation-review/evidence` to import
+the attested `global` and `local` folders without solving. The bundle includes both complete evidence chains under
 `artifacts/global` and `artifacts/local`, and `orientation-checks.json` records
 solved tip translations and rotations. Publication checks their signs and
 magnitudes against cantilever bending equations and checks local-load

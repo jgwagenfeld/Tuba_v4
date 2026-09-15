@@ -10,7 +10,7 @@ The model is `examples/native-friction-review/model.py`; the load path, solver s
 python -m tuba.cli_studio examples/native-friction-review
 ```
 
-Build shows `model.py` beside the scene, and Solve runs Code_Aster again. In Review, use Controls and Results to step through the shared converged history. The scene labels identify **Without friction - mu = 0** and **With friction - mu = 0.3**. Contact rows expose true gap, vector slip, force and utilization. Frictionless utilization remains unavailable and tangential force must remain zero. The friction copy must demonstrate sticking, sliding, opening, cooling reversal and final reseating.
+Build shows `model.py` beside the scene. Solve reuses the committed evidence while it still matches the model, and runs Code_Aster once an edit changes the solver input. In Review, use Controls and Results to step through the shared converged history. The scene labels identify **Without friction - mu = 0** and **With friction - mu = 0.3**. Contact rows expose true gap, vector slip, force and utilization. Frictionless utilization remains unavailable and tangential force must remain zero. The friction copy must demonstrate sticking, sliding, opening, cooling reversal and final reseating.
 
 The output contains one solver attestation, `contacts.csv`, `contact-history.svg`, and one scene with both pipe copies. To rebuild the review from the canonical attested artifacts:
 
@@ -18,6 +18,6 @@ The output contains one solver attestation, `contacts.csv`, `contact-history.svg
 python -m tuba.project examples/native-friction-review --output .build/native-friction-import --artifact-dir examples/native-friction-review/evidence/Cold
 ```
 
-Leave out `--artifact-dir` to solve with Code_Aster instead.
+Leave out `--artifact-dir` to solve into the project's `evidence/Cold/` instead; evidence that still matches is reused unless you add `--force`.
 
 Changing either copy, the coefficient, stiffness, load path or solver inputs invalidates the shared solver identity and stops artifact import. Penalty stiffnesses are numerical controls. This example qualifies the demonstrated small-displacement beam and fixed-frame shoe behavior; it does not establish piping-code compliance or numerical equivalence with another pipe-stress product.

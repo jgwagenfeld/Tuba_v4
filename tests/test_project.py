@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -11,6 +12,8 @@ MODEL = """from tuba import Model
 model = Model("ProjectDemo")
 model.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0, alpha=1.2e-5)
 """
+
+SUPPORT_RACK = Path(__file__).resolve().parents[1] / "examples" / "support-rack-review"
 
 
 def _project(tmp_path: Path, model: str, study: str | None = None) -> Path:
@@ -55,3 +58,36 @@ def test_the_project_command_runs_as_a_module():
     )
     assert completed.returncode == 0, completed.stderr
     assert "--artifact-dir" in completed.stdout
+
+
+def test_the_project_command_solves_into_the_project_evidence_and_reuses_it(tmp_path):
+    from tests.project_replay import ReplaySolver
+    from tuba.project import main
+
+    project = tmp_path / "support-rack-review"
+    shutil.copytree(SUPPORT_RACK, project, ignore=shutil.ignore_patterns("evidence"))
+    solver = ReplaySolver(SUPPORT_RACK / "evidence")
+
+    assert main([str(project), "--output", str(tmp_path / "first")], solver=solver) == 0
+    assert solver.solved == ["Operating"]
+    assert (project / "evidence" / "Operating" / "study_execution.json").is_file()
+    assert (tmp_path / "first" / "review_scene" / "scene.json").is_file()
+
+    assert main([str(project), "--output", str(tmp_path / "again")], solver=solver) == 0
+    assert solver.solved == ["Operating"]
+
+    assert main([str(project), "--output", str(tmp_path / "forced"), "--force"], solver=solver) == 0
+    assert solver.solved == ["Operating", "Operating"]
+
+
+def test_the_project_command_reports_a_busy_project(tmp_path, capsys):
+    from tuba.project import main
+    from tuba.project.claim import claim_solve
+
+    project = tmp_path / "support-rack-review"
+    shutil.copytree(SUPPORT_RACK, project, ignore=shutil.ignore_patterns("evidence"))
+
+    with claim_solve(project):
+        assert main([str(project), "--output", str(tmp_path / "review")]) == 1
+
+    assert "already being solved" in capsys.readouterr().err
