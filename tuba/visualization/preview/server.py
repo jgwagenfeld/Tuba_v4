@@ -12,13 +12,14 @@ import re
 import socket
 import struct
 import shutil
+import tempfile
 import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from tuba.model import TubaModel
 from tuba.visualization.viewer import LocalHTTPServer, viewer_assets_path
@@ -114,6 +115,7 @@ class PreviewServer:
             script_post_handler=getattr(self, "execute_python_code", None),
             solve_handler=getattr(self, "start_solve", None),
             project_handler=getattr(self, "project_info", None),
+            comm_handler=getattr(self, "code_aster_commands", None),
             bound_host=self.host,
         )
         self._httpd = LocalHTTPServer((self.host, self.port), handler)
@@ -160,6 +162,7 @@ def _handler_factory(
     script_post_handler: Any = None,
     solve_handler: Any = None,
     project_handler: Any = None,
+    comm_handler: Any = None,
     bound_host: str = "127.0.0.1",
 ):
     # Host names a request may address; the Host check stops DNS rebinding.
@@ -195,6 +198,17 @@ def _handler_factory(
             if parsed.path == "/api/project" and project_handler is not None:
                 data = json.dumps(project_handler()).encode("utf-8")
                 self.send_response(200)
+                self._response_headers()
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if parsed.path == "/api/comm" and comm_handler is not None:
+                status, result = comm_handler(parse_qs(parsed.query).get("case", [""])[0])
+                data = json.dumps(result).encode("utf-8")
+                self.send_response(status)
                 self._response_headers()
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Cache-Control", "no-store")
@@ -738,12 +752,41 @@ class ProjectStudioServer(PreviewServer):
             "has_study": self.study is not None,
             "can_solve": self.study is not None and self.namespace is not None,
             "solves": bool(getattr(self.study, "LOAD_CASES", ())),
+            "load_cases": list(getattr(self.study, "LOAD_CASES", ()) or ()),
             "has_review": (self.out_dir / "review" / "scene.json").is_file(),
             "review_stale": self.review_stale,
             "review_error": self.review_error,
             "solving": self._solving and not self._preparing,
             "preparing_review": self._preparing,
         }
+
+    def code_aster_commands(self, case: str) -> tuple[int, dict[str, Any]]:
+        """The ``study.comm`` a Solve of *case* would run now, compiled from model.py and study.py.
+
+        Generated on request into a scratch folder the same way the gallery studies export
+        before solving; nothing is solved and nothing is written into the project.
+        """
+        if case not in (getattr(self.study, "LOAD_CASES", ()) or ()):
+            return 404, {"ok": False, "error": f"study.py solves no load case {case!r}."}
+        model = self.model
+        if model is None:
+            return 400, {"ok": False, "error": "model.py has not run successfully yet."}
+        from tuba.solver.aster import CodeAsterSolver
+
+        volume_export = getattr(self.study, "VOLUME_EXPORT", None)
+        # ignore_cleanup_errors: on Windows a mesher can still hold a file in the folder for a moment.
+        with tempfile.TemporaryDirectory(prefix="tuba-comm-", ignore_cleanup_errors=True) as work:
+            try:
+                solver = CodeAsterSolver(work_dir=work, **dict(getattr(self.study, "SOLVER_OPTIONS", None) or {}))
+                study = (
+                    solver.export_volume_study(model, case, work, **volume_export, export_tensor_stress=False)
+                    if volume_export
+                    else solver.export_analysis_study(model, case, work)
+                )
+                code = Path(study.input_files["comm"]).read_text(encoding="utf-8")
+            except Exception as exc:  # invalid study options or a case the model can no longer compile
+                return 422, {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        return 200, {"ok": True, "case": case, "code": code}
 
     def start_solve(self) -> tuple[int, dict[str, Any]]:
         if self.study is None:

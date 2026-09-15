@@ -111,6 +111,35 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertFalse(payload["review_stale"])
         self.assertFalse(self._get(server, "api/project")["review_stale"])
 
+    def test_build_serves_the_code_aster_commands_a_solve_would_run_now(self):
+        root = Path(self.enterContext(TemporaryDirectory()))
+        server = self._start(root)
+        self.assertEqual(self._get(server, "api/project")["load_cases"], ["Operating"])
+
+        comm = self._get(server, "api/comm?case=Operating")
+        self.assertTrue(comm["ok"], comm)
+        self.assertIn("DEBUT", comm["code"])
+        # Generated on request, never written into the project folder.
+        self.assertEqual(sorted(path.name for path in (root / "project").iterdir()), ["model.py", "study.py"])
+
+        # It follows model.py: the next request compiles the saved model.
+        status, payload = self._post(server, "api/script", {"code": MODEL.replace("pressure=1.0e6", "pressure=2.5e6")})
+        self.assertEqual(status, 200, payload)
+        self.assertNotEqual(self._get(server, "api/comm?case=Operating")["code"], comm["code"])
+
+        def status_of(path: str) -> tuple[int, dict]:
+            try:
+                return 200, self._get(server, path)
+            except HTTPError as exc:
+                return exc.code, json.loads(exc.read().decode("utf-8"))
+
+        self.assertEqual(status_of("api/comm?case=Hydrotest")[0], 404)
+        # It follows study.py too: options the solver rejects are the answer, not a stale file.
+        server.study.SOLVER_OPTIONS = {"line_segments": 0}
+        status, payload = status_of("api/comm?case=Operating")
+        self.assertEqual((status, payload["ok"]), (422, False))
+        self.assertIn("line_segments", payload["error"])
+
     def test_an_imported_review_goes_stale_only_when_its_solver_input_changes(self):
         from tuba.visualization.preview.server import ProjectStudioServer
 

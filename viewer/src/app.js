@@ -144,6 +144,8 @@ const dom = {
   bundlePicker: document.querySelector("[data-bundle-picker]"),
   modeSwitch: document.querySelector("[data-mode-switch]"),
   codePane: document.querySelector("[data-code-pane]"),
+  codeTabs: document.querySelector("[data-code-tabs]"),
+  commText: document.querySelector("[data-comm-text]"),
   codeState: document.querySelector("[data-code-state]"),
   codeRun: document.querySelector("[data-code-run]"),
   codeGutter: document.querySelector("[data-code-gutter]"),
@@ -216,7 +218,10 @@ const studio = {
   reviewStale: false,
   solving: false,
   // The studio is importing attested evidence at startup: a review is on its way.
-  preparing: false
+  preparing: false,
+  // Build's open file: null is model.py, otherwise the load case whose .comm is shown.
+  codeTab: null,
+  commRequest: 0
 };
 
 async function main() {
@@ -2545,6 +2550,8 @@ async function handleLivePreviewEvent(raw) {
       // A project studio rebuilt one of its two bundles; the one not on screen
       // only moves the status.
       studio.reviewStale = Boolean(message.review_stale);
+      // A Run here or a save elsewhere: the open .comm follows the model that just ran.
+      if (message.bundle === "build") void loadComm();
       if (bundleKey(currentBundleUrl) !== message.bundle) {
         await refreshScriptFromDisk();
         render();
@@ -2892,7 +2899,78 @@ function renderMode() {
     button.setAttribute("aria-pressed", String(button.dataset.mode === document.body.dataset.mode));
   }
   dom.codePane.hidden = !build;
+  renderCodeTabs();
   renderSolveControls();
+}
+
+// -- Build mode's file tabs: model.py is the source, every .comm is generated --
+
+function renderCodeTabs() {
+  const cases = studio.project?.load_cases ?? [];
+  if (!cases.includes(studio.codeTab)) studio.codeTab = null;
+  const { codeTab } = studio;
+  const key = cases.join("\n");
+  if (dom.codeTabs.dataset.cases !== key || !dom.codeTabs.children.length) {
+    dom.codeTabs.dataset.cases = key;
+    dom.codeTabs.replaceChildren(
+      codeTabButton(null, "model.py", "source", "The source: every other file here is generated from it"),
+      ...cases.map((name) =>
+        codeTabButton(name, `${name}.comm`, "generated", "Generated from model.py and study.py: the Code_Aster commands a Solve would run now. Read-only.")
+      )
+    );
+  }
+  for (const button of dom.codeTabs.children) {
+    button.setAttribute("aria-pressed", String((button.dataset.codeTab || null) === codeTab));
+  }
+  dom.codeGutter.hidden = codeTab !== null;
+  dom.codeText.parentElement.hidden = codeTab !== null;
+  dom.commText.hidden = codeTab === null;
+}
+
+function codeTabButton(tab, file, role, title) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "code-file";
+  button.dataset.codeTab = tab ?? "";
+  button.title = title;
+  const tag = document.createElement("span");
+  tag.className = `code-role code-role-${role}`;
+  tag.textContent = role;
+  button.append(file, tag);
+  button.addEventListener("click", () => showCodeTab(tab));
+  return button;
+}
+
+function showCodeTab(tab) {
+  if (studio.codeTab === tab) return;
+  studio.codeTab = tab;
+  renderCodeTabs();
+  renderCodeFoot();
+  if (tab === null) {
+    renderCodeMarks();
+  } else {
+    dom.commText.textContent = "Generating…";
+    void loadComm();
+  }
+}
+
+async function loadComm() {
+  const tab = studio.codeTab;
+  if (tab === null) return;
+  const request = ++studio.commRequest;
+  let result;
+  try {
+    const response = await fetch(`/api/comm?case=${encodeURIComponent(tab)}`, { cache: "no-store" });
+    result = await response.json().catch(() => ({ error: `Studio answered ${response.status}` }));
+  } catch (error) {
+    result = { error: error.message };
+  }
+  // A later request, or another tab, owns the pane now.
+  if (request !== studio.commRequest || tab !== studio.codeTab) return;
+  const { scrollTop } = dom.commText;
+  dom.commText.dataset.state = result.ok ? "ready" : "error";
+  dom.commText.textContent = result.ok ? result.code : `${tab}.comm could not be generated.\n\n${result.error ?? ""}`;
+  dom.commText.scrollTop = scrollTop;
 }
 
 function renderSolveControls() {
@@ -3102,6 +3180,12 @@ function renderGutter() {
 }
 
 function renderCodeFoot() {
+  if (studio.codeTab !== null) {
+    const note = document.createElement("span");
+    note.textContent = "Generated from model.py + study.py · read-only · solver input, not results";
+    dom.codeFoot.replaceChildren(note);
+    return;
+  }
   const text = dom.codeText;
   const saved = document.createElement("span");
   saved.textContent = text.value === studio.ranCode ? "Saved to model.py" : "Edited · Ctrl+Enter runs and saves";
@@ -3230,7 +3314,10 @@ function scriptLineButton(line, label) {
   const code = document.createElement("code");
   code.textContent = scriptLine(dom.codeText.value, line).trim();
   button.append(where, code);
-  button.addEventListener("click", () => revealScriptLine(line, { focus: true }));
+  button.addEventListener("click", () => {
+    showCodeTab(null); // a hidden textarea has no height to scroll to the line
+    revealScriptLine(line, { focus: true });
+  });
   return button;
 }
 

@@ -54,7 +54,9 @@
              narrows beside the script instead of disappearing under it. -->
         <section id="model-script" class="code-pane" aria-label="model.py" data-code-pane hidden>
           <div class="code-pane-head">
-            <span class="code-file">model.py</span>
+            <!-- model.py is the one file written here. Each .comm tab is generated from
+                 it and study.py on request: the commands a Solve would run now. -->
+            <div class="code-tabs" role="group" aria-label="Files" data-code-tabs></div>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
             <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
               <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M1 1l7 4-7 4z" fill="currentColor" /></svg>
@@ -78,6 +80,7 @@
                 aria-describedby="code-keys"
               ></textarea>
             </div>
+            <pre class="code-generated" data-comm-text tabindex="0" aria-label="Generated Code_Aster commands" hidden></pre>
           </div>
           <p class="code-problem" data-code-problem role="alert" hidden></p>
           <div class="code-pane-foot" data-code-foot></div>

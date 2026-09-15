@@ -2443,6 +2443,8 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   inset: 0 auto 0 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
+  /* Without it, a generated .comm's longest line sets the column and widens the pane. */
+  grid-template-columns: minmax(0, 1fr);
   width: var(--controls-width);
   border-right: 1px solid var(--graphite-line);
   background: var(--graphite);
@@ -2462,16 +2464,75 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   background: var(--graphite-raised);
 }
 
-.code-file {
+.code-tabs {
   display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* model.py and each generated .comm; the open one keeps the underline. */
+.code-pane .code-file {
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
+  gap: 0.45rem;
+  width: auto;
   margin-bottom: -1px;
   padding: 0 1rem;
-  border-bottom: 2px solid #6b7a83;
-  background: var(--graphite);
-  color: var(--chrome-text);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--chrome-text-2);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.code-pane .code-file:hover {
+  color: var(--chrome-text);
+}
+
+.code-pane .code-file[aria-pressed="true"] {
+  border-bottom-color: #6b7a83;
+  background: var(--graphite);
+  color: var(--chrome-text);
+}
+
+.code-role {
+  color: var(--chrome-text-2);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.code-role-source {
+  color: var(--accent);
+}
+
+/* Generated text reads a step quieter than the source it came from. */
+.code-generated {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 0.625rem 0.75rem;
+  color: var(--chrome-text-2);
+  font: inherit;
+  scrollbar-color: var(--graphite-line) var(--graphite);
+  tab-size: 4;
+  white-space: pre;
+}
+
+.code-generated[data-state="error"] {
+  color: #ffcfcb;
+  white-space: pre-wrap;
+}
+
+.code-generated:focus-visible {
+  outline: 2px solid var(--focus-on-dark);
+  outline-offset: -2px;
 }
 
 .code-state {
