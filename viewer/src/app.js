@@ -197,7 +197,6 @@ let pointerDownPoint = null;
 let suppressNextCanvasClick = false;
 const bootId = globalThis.__tubaViewerBootId ?? `boot:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 globalThis.__tubaViewerBootId = bootId;
-globalThis.__tubaViewerPreviewEvents ??= [];
 
 // Build mode exists only when a studio server can run model.py. A static
 // bundle - Pages, a report folder - is review-only and never shows it.
@@ -2348,8 +2347,7 @@ function renderCanvas() {
     resultReview: {
       hotspots: getHotspots(currentState),
       legend: getScalarLegend(currentState)
-    },
-    previewEvents: [...globalThis.__tubaViewerPreviewEvents]
+    }
   };
   if (result.diagnostics.length > 0) {
     setStatus(`Ready with ${result.diagnostics.length} render warning(s)`, true);
@@ -2531,25 +2529,6 @@ async function handleLivePreviewEvent(raw) {
     setStatus("Live preview sent invalid JSON", true);
     return;
   }
-  globalThis.__tubaViewerPreviewEvents.push(message);
-  if (globalThis.__tubaViewer) {
-    globalThis.__tubaViewer.previewEvents = [...globalThis.__tubaViewerPreviewEvents];
-  }
-  if (message.type === "run_started") {
-    setStatus(message.revision === undefined ? "Preview run started" : `Preview run ${message.revision} started`);
-    return;
-  }
-  if (message.type === "diagnostic") {
-    const diagnostic = message.payload ?? message.diagnostic ?? {
-      severity: message.severity ?? "error",
-      code: "visualization.preview.diagnostic",
-      message: message.message ?? "Preview diagnostic"
-    };
-    dispatch({ type: "appendDiagnostic", diagnostic });
-    renderDiagnostics();
-    setStatus(diagnostic.message, true);
-    return;
-  }
   // model.py was saved from another editor and failed to run.
   if (message.type === "script_error") {
     if (studio.available) showScriptError(message);
@@ -2578,7 +2557,6 @@ async function handleLivePreviewEvent(raw) {
       await loadBundle(bundleUrl, { preserve: true });
       await refreshScriptFromDisk();
       render();
-      globalThis.__tubaViewerPreviewEvents = [...globalThis.__tubaViewerPreviewEvents];
       // In the studio the script pane already says what ran; a revision number
       // parked in the header only reads as jargon.
       setStatus(studio.available ? "Ready" : `Preview reloaded ${message.bundle_revision ?? ""}`.trim());
@@ -2586,31 +2564,6 @@ async function handleLivePreviewEvent(raw) {
       setStatus(error.message, true);
     }
     return;
-  }
-  if (message.type === "scene_diff") {
-    dispatch({ type: "applySceneDiff", diff: message.payload ?? message.diff ?? message.scene_diff ?? message });
-    if (currentState.lastSceneDiffStatus.applied) {
-      render();
-      setStatus(`Preview diff applied ${message.revision ?? ""}`.trim());
-      return;
-    }
-    if (message.bundle_url) {
-      currentBundleUrl = message.bundle_url;
-      try {
-        await loadBundle(message.bundle_url, { preserve: true });
-        render();
-        setStatus(`Preview diff fallback reloaded ${message.revision ?? ""}`.trim());
-      } catch (error) {
-        setStatus(error.message, true);
-      }
-      return;
-    }
-    renderDiagnostics();
-    setStatus("Preview diff requires full reload", true);
-    return;
-  }
-  if (message.type === "run_finished") {
-    setStatus(message.ok === false ? "Preview run failed" : "Preview run finished", message.ok === false);
   }
 }
 

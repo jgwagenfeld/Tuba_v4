@@ -67,10 +67,7 @@ function fixtureState() {
       ],
       overlays: [],
       issues: [],
-      route_reviews: [],
-      agent_proposals: [],
       views: [],
-      scene_diffs: [],
       diagnostics: []
     },
     objects: [],

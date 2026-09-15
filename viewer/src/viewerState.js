@@ -1,7 +1,6 @@
 import { applyTaskVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { cycleBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
-import { applySceneDiffToState } from "./sceneDiff.js";
 import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
 import { fitSelection, hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
@@ -58,33 +57,6 @@ export function reduceViewerState(state, action) {
       return cycleBodyOpacity(state, action.bodyId);
     case "setUnitSystem":
       return setUnitSystem(state, action.unitSystem);
-    case "applySceneDiff": {
-      const result = applySceneDiffToState(state, action.diff ?? action.sceneDiff);
-      if (result.applied) {
-        return {
-          ...result.state,
-          lastSceneDiffStatus: {
-            applied: true,
-            diffId: (action.diff ?? action.sceneDiff)?.diff_id ?? null
-          }
-        };
-      }
-      return {
-        ...state,
-        diagnostics: [
-          ...(state.diagnostics ?? []),
-          {
-            severity: "warning",
-            code: "visualization.scene_diff.fallback_required",
-            message: result.reason ?? "SceneDiff could not be applied."
-          }
-        ],
-        lastSceneDiffStatus: {
-          applied: false,
-          reason: result.reason
-        }
-      };
-    }
     case "activateTask":
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
     case "setWorkflowTab":
@@ -139,8 +111,6 @@ export function reduceViewerState(state, action) {
           }
         }
       };
-    case "appendDiagnostic":
-      return { ...state, diagnostics: [...(state.diagnostics ?? []), action.diagnostic] };
     default:
       return state;
   }

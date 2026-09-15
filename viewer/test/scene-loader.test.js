@@ -71,10 +71,7 @@ async function createFixtureBundle() {
     styles: [],
     overlays: [],
     issues: [],
-    route_reviews: [],
-    agent_proposals: [],
     views: [],
-    scene_diffs: [],
     diagnostics: []
   };
   await writeFile(join(root, "scene.json"), JSON.stringify(scene), "utf8");

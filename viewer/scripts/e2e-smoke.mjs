@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { createServer as createNetServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
@@ -1399,160 +1397,6 @@ const scenarios = {
       assert.equal(state.issueReviewState["issue:operating_clash"].status, "resolved");
       assert.equal(state.issueReviewState["issue:operating_clash"].comment, "Reviewed in browser");
     }
-  },
-  "live-preview": {
-    bundle: "/test/fixtures/smoke_scene",
-    minimumObjects: 3,
-    async setup() {
-      return startTestWebSocketServer();
-    },
-    query(runtime) {
-      return { preview_ws: runtime.url };
-    },
-    async run(page, runtime) {
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "viewer_smoke_scene");
-      await runtime.waitForClient();
-      runtime.send({ type: "run_started", run_id: "run:live-preview" });
-      await page.waitForFunction(() => /Preview run started/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
-
-      runtime.send({ type: "scene_reloaded", run_id: "run:live-preview", bundle_url: "/test/fixtures/code_aster_results" });
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "scene:code_aster_results");
-      assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.activeTab), "model");
-      const navigationCount = await page.evaluate(() => performance.getEntriesByType("navigation").length);
-      assert.equal(navigationCount, 1);
-
-      runtime.send({
-        type: "diagnostic",
-        run_id: "run:live-preview",
-        diagnostic: { severity: "error", code: "visualization.preview.python_error", message: "preview boom" }
-      });
-      await page.waitForFunction(() => /preview boom/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
-
-      const previewEvents = await page.evaluate(() => window.__tubaViewer?.previewEvents ?? []);
-      assert.deepEqual(previewEvents.map((event) => event.type), ["run_started", "scene_reloaded", "diagnostic"]);
-    }
-  },
-  "patch-preview": {
-    bundle: "/test/fixtures/smoke_scene",
-    minimumObjects: 3,
-    async setup() {
-      return startTestWebSocketServer();
-    },
-    query(runtime) {
-      return { preview_ws: runtime.url };
-    },
-    async run(page, runtime) {
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "viewer_smoke_scene");
-      await runtime.waitForClient();
-      runtime.send({ type: "run_started", mode: "json_patch", revision: 12 });
-      await page.waitForFunction(() => /Preview run 12 started/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
-
-      runtime.send({
-        type: "scene_reloaded",
-        mode: "json_patch",
-        revision: 12,
-        bundle_revision: 12,
-        bundle_url: "/test/fixtures/patch_preview_scene"
-      });
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "scene:patch_preview");
-      await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.objectIds ?? []).includes("object:proposal_pipe"));
-      const navigationCount = await page.evaluate(() => performance.getEntriesByType("navigation").length);
-      assert.equal(navigationCount, 1);
-
-      const layerText = await page.locator("[data-layer-list]").textContent();
-      assert.match(layerText, /Agent Proposal/);
-      const objectText = await page.locator("[data-object-list]").textContent();
-      assert.match(objectText, /Proposed pipe/);
-
-      runtime.send({
-        type: "diagnostic",
-        mode: "json_patch",
-        revision: 13,
-        payload: {
-          severity: "error",
-          code: "visualization.patch_preview.invalid_patch",
-          message: "patch schema failed"
-        }
-      });
-      await page.waitForFunction(() => /patch schema failed/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
-      await openIssuesTask(page);
-      const diagnostics = await page.locator("[data-diagnostic-list]").textContent();
-      assert.match(diagnostics, /visualization.patch_preview.invalid_patch/);
-
-      const previewEvents = await page.evaluate(() => window.__tubaViewer?.previewEvents ?? []);
-      assert.deepEqual(previewEvents.map((event) => event.type), ["run_started", "scene_reloaded", "diagnostic"]);
-    }
-  },
-  "scene-diff": {
-    bundle: "/test/fixtures/smoke_scene",
-    minimumObjects: 3,
-    async setup() {
-      return startTestWebSocketServer();
-    },
-    query(runtime) {
-      return { preview_ws: runtime.url };
-    },
-    async run(page, runtime) {
-      await openReviewControls(page);
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "viewer_smoke_scene");
-      // The object list is no longer a collapsed disclosure. Clicking the always
-      // visible search field opens the finder that owns it.
-      await page.locator("[data-search]").click();
-      await page.getByRole("button", { name: /Smoke pipe - pipe/ }).click();
-      await page.waitForFunction(() => (window.__tubaViewer?.state?.selectedObjectIds ?? []).includes("object:element:pipe_smoke"));
-      await runtime.waitForClient();
-
-      runtime.send({
-        type: "scene_diff",
-        revision: 21,
-        payload: {
-          diff_id: "diff:add-support",
-          base_scene_id: "viewer_smoke_scene",
-          added_objects: [
-            {
-              id: "object:diff_support",
-              kind: "support",
-              name: "Diff support",
-              geometry_asset_id: "asset:diff_support",
-              layer_ids: ["supports"]
-            }
-          ],
-          added_geometry_assets: [
-            {
-              id: "asset:diff_support",
-              format: "point",
-              bounds: [1, 0.45, 0, 1, 0.45, 0],
-              object_ids: ["object:diff_support"],
-              generation_config: { point: [1, 0.45, 0], radius_m: 0.08 }
-            }
-          ],
-          diagnostics: [{ severity: "warning", code: "visualization.scene_diff.partial", message: "partial diff applied" }]
-        }
-      });
-      await page.waitForFunction(() => window.__tubaViewer?.state?.lastSceneDiffStatus?.applied === true);
-      await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.objectIds ?? []).includes("object:diff_support"));
-      let state = await page.evaluate(() => window.__tubaViewer?.state);
-      assert.equal(state.sceneId, "viewer_smoke_scene");
-      assert.deepEqual(state.selectedObjectIds, ["object:element:pipe_smoke"]);
-      assert.match(await page.locator("[data-object-list]").textContent(), /Diff support/);
-      await openIssuesTask(page);
-      assert.match(await page.locator("[data-diagnostic-list]").textContent(), /visualization.scene_diff.partial/);
-      assert.equal(await page.evaluate(() => performance.getEntriesByType("navigation").length), 1);
-
-      runtime.send({
-        type: "scene_diff",
-        revision: 22,
-        bundle_url: "/test/fixtures/code_aster_results",
-        payload: { diff_id: "diff:fallback", base_scene_id: "scene:other", added_objects: [] }
-      });
-      await page.waitForFunction(() => window.__tubaViewer?.state?.sceneId === "scene:code_aster_results");
-      state = await page.evaluate(() => window.__tubaViewer?.state);
-      assert.equal(state.lastSceneDiffStatus?.applied, undefined);
-      assert.equal(await page.evaluate(() => performance.getEntriesByType("navigation").length), 1);
-
-      const previewEvents = await page.evaluate(() => window.__tubaViewer?.previewEvents ?? []);
-      assert.deepEqual(previewEvents.map((event) => event.type), ["scene_diff", "scene_diff"]);
-    }
   }
 };
 const selected = scenarios[scenario];
@@ -1568,10 +1412,8 @@ const staticSiteRoot = scenario.startsWith("pages-")
 
 let browser;
 let server;
-let runtime;
 
 try {
-  runtime = await selected.setup?.();
   server = await createServer({
     root: staticSiteRoot ?? viewerRoot,
     ...(staticSiteRoot ? { configFile: false } : {}),
@@ -1593,13 +1435,13 @@ try {
   // is the point - it used to announce "Copied" whether or not anything was.
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   page.setDefaultTimeout(15_000);
-  await selected.beforeNavigate?.(page, runtime);
+  await selected.beforeNavigate?.(page);
 
   const url = new URL(selected.path ?? "/", baseUrl);
   if (selected.bundle) {
     url.searchParams.set("bundle", selected.bundle);
   }
-  for (const [name, value] of Object.entries(selected.query?.(runtime) ?? {})) {
+  for (const [name, value] of Object.entries(selected.query?.() ?? {})) {
     url.searchParams.set(name, value);
   }
   await page.goto(url.toString(), { waitUntil: "domcontentloaded" });
@@ -1607,7 +1449,7 @@ try {
   if (selected.canvasFree) {
     // The gallery is a navigation surface: it never builds a viewport, so the
     // canvas and WebGL gates below have nothing to wait for.
-    await selected.run?.(page, runtime);
+    await selected.run?.(page);
     console.log(`${scenario} ok: canvas-free scenario`);
     await shutdown();
     process.exit(0);
@@ -1666,7 +1508,7 @@ try {
   assert.ok(canvasStats.renderedObjects >= selected.minimumObjects, `expected rendered objects, got ${canvasStats.renderedObjects}`);
   assert.ok(canvasStats.varied > 0, `expected nonblank canvas samples, got ${JSON.stringify(canvasStats)}`);
 
-  await selected.run?.(page, runtime);
+  await selected.run?.(page);
   console.log(`${scenario} ok: ${canvasStats.renderedObjects} objects, ${canvasStats.varied}/${canvasStats.sampled} varied samples`);
   await shutdown();
   process.exit(0);
@@ -1680,7 +1522,6 @@ async function shutdown() {
   browser?.process?.()?.kill();
   await boundedClose("browser", () => browser?.close());
   await boundedClose("vite server", () => server?.close());
-  await boundedClose("scenario runtime", () => runtime?.close?.());
 }
 
 async function boundedClose(label, close) {
@@ -1707,87 +1548,4 @@ function parseSiteRoot(scenario, args) {
     throw new Error(`Pages site root lacks viewer/index.html: ${siteRoot}`);
   }
   return siteRoot;
-}
-
-async function startTestWebSocketServer() {
-  const sockets = new Set();
-  let clientResolve;
-  const clientReady = new Promise((resolve) => {
-    clientResolve = resolve;
-  });
-  const wsServer = createNetServer((socket) => {
-    let buffer = "";
-    socket.on("data", (chunk) => {
-      buffer += chunk.toString("utf8");
-      if (!buffer.includes("\r\n\r\n")) {
-        return;
-      }
-      const key = buffer.match(/Sec-WebSocket-Key: (.+)\r\n/i)?.[1]?.trim();
-      if (!key) {
-        socket.destroy();
-        return;
-      }
-      const accept = createHash("sha1")
-        .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-        .digest("base64");
-      socket.write(
-        "HTTP/1.1 101 Switching Protocols\r\n" +
-          "Upgrade: websocket\r\n" +
-          "Connection: Upgrade\r\n" +
-          `Sec-WebSocket-Accept: ${accept}\r\n` +
-          "\r\n"
-      );
-      sockets.add(socket);
-      clientResolve();
-    });
-    socket.on("close", () => sockets.delete(socket));
-    socket.on("error", () => sockets.delete(socket));
-  });
-
-  await new Promise((resolveListen) => {
-    wsServer.listen(0, "127.0.0.1", resolveListen);
-  });
-  const address = wsServer.address();
-  return {
-    url: `ws://127.0.0.1:${address.port}`,
-    send(event) {
-      const frame = websocketTextFrame(JSON.stringify(event));
-      for (const socket of sockets) {
-        socket.write(frame);
-      }
-    },
-    waitForClient() {
-      return Promise.race([
-        clientReady,
-        new Promise((_resolve, reject) => {
-          setTimeout(() => reject(new Error("Timed out waiting for preview websocket client")), 5000);
-        })
-      ]);
-    },
-    close() {
-      for (const socket of sockets) {
-        socket.destroy();
-      }
-      return new Promise((resolveClose) => wsServer.close(resolveClose));
-    }
-  };
-}
-
-function websocketTextFrame(text) {
-  const payload = Buffer.from(text, "utf8");
-  if (payload.length < 126) {
-    return Buffer.concat([Buffer.from([0x81, payload.length]), payload]);
-  }
-  if (payload.length < 65536) {
-    const header = Buffer.alloc(4);
-    header[0] = 0x81;
-    header[1] = 126;
-    header.writeUInt16BE(payload.length, 2);
-    return Buffer.concat([header, payload]);
-  }
-  const header = Buffer.alloc(10);
-  header[0] = 0x81;
-  header[1] = 127;
-  header.writeBigUInt64BE(BigInt(payload.length), 2);
-  return Buffer.concat([header, payload]);
 }

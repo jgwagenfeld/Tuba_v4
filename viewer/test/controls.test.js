@@ -102,8 +102,6 @@ function fixtureState() {
           external_refs: { bcf: { topic_type: "Clash", topic_status: "Open" } }
         }
       ],
-      route_reviews: [],
-      agent_proposals: [],
       views: [
         {
           id: "view:issue:clash:element:pipe_0:obstacle:equipment_box",
@@ -117,7 +115,6 @@ function fixtureState() {
           camera: { mode: "orbit", target: [1, 0.12, 0], distance: 2 }
         }
       ],
-      scene_diffs: [],
       diagnostics: []
     },
     objects: [],
@@ -177,10 +174,7 @@ function fixtureEnvelopeState() {
         }
       ],
       issues: [],
-      route_reviews: [],
-      agent_proposals: [],
       views: [],
-      scene_diffs: [],
       diagnostics: []
     },
     objects: [],
@@ -231,10 +225,7 @@ function fixtureRuntimeState() {
         }
       ],
       issues: [],
-      route_reviews: [],
-      agent_proposals: [],
       views: [],
-      scene_diffs: [],
       diagnostics: []
     },
     objects: [],
