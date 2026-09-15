@@ -75,9 +75,10 @@ def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():
     #
     # Re-solved when the rest became a contact shoe and the spring and support
     # mass moved onto their own nodes: Ux 0.00502 -> 0.00473, Uz -0.1885 -> -0.1855.
+    # Re-solved with shoes converged as tightly as load paths: Ux +1.1e-8, Uz -2.1e-7.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][n5_matches[0]],
-        [0.004727616170, 0.0, -0.185451557764],
+        [0.004727627556, 0.0, -0.185451764522],
         rtol=2e-6,
     )
     assert abs(grid.point_data["DEPL"][n5_matches[0]][1]) < 1e-9, "no sag across the model"

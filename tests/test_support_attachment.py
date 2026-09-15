@@ -160,6 +160,9 @@ class RackExampleEvidence(unittest.TestCase):
         self.assertEqual(rack["support_count"], 2)
         carried = sum(shoe.normal_force for shoe in shoes)
         self.assertAlmostEqual(rack["force_z_n"], -carried, delta=0.02 * carried)
+        # The rack also takes the shoes' friction; a converged solve balances it to well under 1 N.
+        for axis, key in ((0, "force_x_n"), (1, "force_y_n")):
+            self.assertAlmostEqual(rack[key], -sum(shoe.tangential_force[axis] for shoe in shoes), delta=1.0)
 
 
 if __name__ == "__main__":
