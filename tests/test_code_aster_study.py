@@ -286,6 +286,8 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
         self.assertIn("GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO=", comm)
         self.assertIn("_F(CHARGE=GROUND0)", comm)
         self.assertIn("INTERVALLE=_F(JUSQU_A=1.0, NOMBRE=10)", comm)
+        # Converged as tightly as a load path, so the shoe forces balance the reactions.
+        self.assertIn("    CONVERGENCE=_F(RESI_GLOB_RELA=1e-8, ITER_GLOB_MAXI=50),", comm.splitlines())
         inputs = study.metadata["compiler_inputs"]
         self.assertEqual(inputs["contact_law"], "DIS_CHOC")
         self.assertEqual(inputs["pipe_modelization"], "TUYAU_3M")

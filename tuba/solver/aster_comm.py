@@ -889,8 +889,13 @@ class _CommWriterMixin:
                 w("    INCREMENT=_F(")
                 w("        LIST_INST=times,")
                 w("    ),")
-                if cable_elems:
+                if contacts:
+                    # As tight as a load path (aster_contact.py): the default RESI_GLOB_RELA=1e-6 is
+                    # relative to the anchors' thermal reactions and left shoe forces ~30 N out of balance.
+                    w(f"    CONVERGENCE=_F(RESI_GLOB_RELA=1e-8, ITER_GLOB_MAXI={100 if cable_elems else 50}),")
+                elif cable_elems:
                     w("    CONVERGENCE=_F(ITER_GLOB_MAXI=100),")
+                if cable_elems:
                     w("    RECH_LINEAIRE=_F(METHODE='CORDE'),")
                 w("    METHODE='NEWTON',")
                 w(");")
