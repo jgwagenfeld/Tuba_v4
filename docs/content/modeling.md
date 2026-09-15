@@ -103,6 +103,56 @@ A bend stores its center, normal, radius, angle, and tangent metadata. The finit
 
 Supports are boundary-condition records attached to real nodes. Their geometry is a review aid; the support record drives the solver constraint.
 
+## Operation temperatures and sampled fields
+
+An operation sets one temperature for the whole model, and operation fields change it locally. An element field gives whole elements one value. It selects them by `element_ids`, by a route with an optional station range, by a group, or all pipe elements:
+
+```python
+hot = model.define_operation("Hot", temperature=20.0, ref_temperature=20.0)
+hot.add_field("temperature", 180.0, route_id="P-100", station_start=0.0, station_end=12.0)
+```
+
+Each element then holds a single temperature, so a profile along a route becomes a staircase. A node temperature gives a model node its own value instead:
+
+```python
+hot.add_field("temperature", 180.0, node_ids=["N3", "N4"])
+```
+
+Every element that touches a node temperature varies linearly between its two end values:
+
+- Code_Aster receives a value at each of that element's solver nodes. These include bend, subdivision and `TUYAU_3M` midside nodes that the model does not have.
+- An end without a node temperature keeps what the rest of the operation gives it.
+- A node cannot have a node temperature and also belong to an element that an element temperature field covers. Validation names such nodes.
+
+`tuba.sampling` turns a source into these fields once, so the saved model holds only the numbers the solver receives:
+
+| Helper | Source |
+| --- | --- |
+| `field_from_cloud(model, operation, quantity, points, values)` | A CFD point cloud, averaged within a capture radius |
+| `field_from_function(model, operation, quantity, function)` | A Python callable `function(x, y, z)` |
+| `field_from_route_table(model, operation, quantity, route_id, table)` | `(station, value)` rows along one route |
+
+What the helpers write depends on the quantity:
+
+- For `temperature` they write node temperatures.
+- For `pressure`, `wind` and `line_load` they write one field per element, evaluated at its midpoint. Wind and line loads also need `direction=`.
+- `group=`, `route_id=`, `station_start=`, `station_end=` and `element_ids=` select targets as they do for `add_field`.
+
+```python
+import numpy as np
+from tuba.sampling import field_from_cloud
+
+cloud = np.loadtxt("wall_temperature.csv", delimiter=",", skiprows=1)  # x, y, z in metres, then T in degrees C
+field_from_cloud(model, hot, "temperature", cloud[:, :3], cloud[:, 3])
+model.validate()
+```
+
+A cloud value is the mean of the points within the capture radius:
+
+- The default radius is 1.25 times the pipe's bare outer radius, so wall points around a centreline node give its circumferential mean.
+- A node or element with no point inside is refused, and the error lists the nearest distances. Check the cloud's units, coordinate frame and coverage, or pass `capture_radius=`.
+- A refused call writes nothing.
+
 ## Schemas and serialized models
 
 `model.to_dict()` produces a JSON-compatible structure checked by `MODEL_SCHEMA_V4`. Schema validation checks record shape; `model.validate()` checks relationships and engineering semantics.

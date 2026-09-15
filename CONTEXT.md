@@ -108,6 +108,10 @@ _Avoid_: Distributed wind, nodal force
 Wind pressure on a pipe's exposed diameter; only the part crossing the pipe's axis loads it, reduced once more by the sine of the angle between wind and axis.
 _Avoid_: Line load
 
+**Node temperature**:
+An operation temperature given to one model node; each element touching the node varies linearly between its end values, at every solver node.
+_Avoid_: Element temperature, nodal field
+
 **Solver result**:
 A quantity returned by a verified Code_Aster analysis and retained with its result provenance.
 _Avoid_: Applied input, derived compliance quantity

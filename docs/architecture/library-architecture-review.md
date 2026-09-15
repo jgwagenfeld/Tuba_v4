@@ -139,6 +139,12 @@ quantities. It also supports `profile="linear"` for temperature fields scoped by
 route/station, exported as per-element midpoint temperature assignments through
 `CREA_CHAMP`. Non-uniform pressure, non-uniform wind, and piecewise profiles
 still fail validation before export.
+Temperature fields can also be scoped to nodes (`node_ids`). The writer then
+gives every solver node of each touched element a `GROUP_NO` value in the same
+`CREA_CHAMP`, interpolated along the element, including generated bend,
+subdivision and `TUYAU_3M` midside nodes. `tuba.sampling` writes such fields,
+and per-element pressure, wind and line-load fields, from CFD clouds, Python
+functions and route tables.
 A line load (`line_load`, newtons per metre along one global direction) loads
 pipe and beam elements in full through a plain `FORCE_POUTRE` under `TUYAU_3M`
 and `POU_D_T`; pipe-volume and native-contact studies refuse it.
@@ -320,7 +326,7 @@ for commands such as `DEFI_MATERIAU`.
 | Material assignment | `AFFE_MATERIAU` | Assigns materials and thermal reference variables to mesh groups. | [U4.43.03 AFFE_MATERIAU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.43.03.html) |
 | Element characteristics | `AFFE_CARA_ELEM` | Defines pipe, bend, beam, bar, cable, spring/mass, and `GENE_TUYAU` orientation data. | [U4.42.01 AFFE_CARA_ELEM](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.42.01.html) |
 | Supports, gravity, pressure, wind, line loads, mixed couplings | `AFFE_CHAR_MECA`, `AFFE_CHAR_MECA_F` | Writes `DDL_IMPO`, `PESANTEUR`, `FORCE_TUYAU`, beam-modeled wind through `FORCE_POUTRE(TYPE_CHARGE='VENT')`, `TUYAU_3M` wind through a plain `FORCE_POUTRE` carrying the same cross-flow rule, line loads through a plain `FORCE_POUTRE`, and `LIAISON_ELEM`. | [U4.44.01 AFFE_CHAR_MECA](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.01.html) |
-| Thermal expansion fields | `CREA_CHAMP` | Creates temperature fields for uniform and route/station-linear thermal expansion. | [U4.72.04 CREA_CHAMP](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.72.04.html) |
+| Thermal expansion fields | `CREA_CHAMP` | Creates temperature fields for uniform, route/station-linear and node-scoped thermal expansion: `GROUP_MA` rows per element, then `GROUP_NO` rows per solver node. | [U4.72.04 CREA_CHAMP](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.72.04.html) |
 | Nonlinear thermal evolution | `CREA_RESU` | Creates thermal result evolution used by nonlinear cases. | [U4.44.12 CREA_RESU](https://www-mdp.eng.cam.ac.uk/web/CD/engapps/aster_docs/UDocs-HTML/U44412g1/U44412g1.pdf.html) |
 | Rest/contact time list | `DEFI_LIST_REEL`, `DEFI_LIST_INST` | Defines the simple nonlinear solve increments. | [U4.34.01 DEFI_LIST_REEL](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.01.html), [U4.34.03 DEFI_LIST_INST](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.03.html) |
 | Unilateral rests | `DEFI_CONTACT(FORMULATION='LIAISON_UNIL')` | Models unilateral rest/lift-off behavior when support conditions are nonlinear. | [U4.44.11 DEFI_CONTACT](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.11.html) |
@@ -378,6 +384,9 @@ instead of local memory.
   sidecar lineage.
 - Local uniform pressure and temperature fields compiled into Code_Aster mesh
   groups.
+- Node temperatures compiled into per-solver-node `GROUP_NO` values,
+  interpolated along each touched element; `tuba.sampling` builds fields from
+  CFD clouds, Python functions and route tables.
 - Line loads compiled into a plain `FORCE_POUTRE` on pipe and beam elements
   under `TUYAU_3M` and `POU_D_T`.
 - Wind fields compiled by modelization: `FORCE_POUTRE(TYPE_CHARGE='VENT')` on
