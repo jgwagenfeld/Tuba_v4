@@ -642,3 +642,38 @@ result's execution envelope names, as the beam profile already did, and
 the contact profile reads study_contact.json from that folder. A bundle
 staged under artifacts/<operation>/ validates like a flat one."
 ```
+
+---
+
+## As executed (2026-09-15)
+
+**Commits:**
+- Task 1: 7bbe7a6.
+- Task 2: 706db43, plus fix round 4ca2ff4.
+- Task 3: c72d6b4, plus fix round 906f0a3.
+
+The final whole-branch review found the branch ready to merge, with no Critical or Important findings.
+
+**Departures from the plan:**
+- **Task 2, `timeout_seconds`.** The plan lists it among the refused runtime keys; it was executed without it (4ca2ff4). No environment variable or command-line flag sets a solve's timeout, so refusing it capped every project solve at 7200 s. The architecture decisions of 2026-09-15 (round 1, Q5) move the timeout to the Code_Aster runtime adapter and retire the study key.
+- **Task 3, the `artifacts/` guard (906f0a3).** The plan's `_validate_execution_attestation` had no folder rule. The task review found that evidence could then sit outside `artifacts/`, the only folder the portability scan reads. The guard refuses an execution envelope outside `artifacts/`, or one whose URI contains a backslash.
+- **Task 3, contact attestation.** The plan says the attestation covers `study_contact.json` "whenever it is present". In fact the loader hash-checks it only when the study manifest declares a contact law, and the contact profile does not require one. The gap predates this plan: before it, the rows were read with no attestation link at all.
+- **RED steps.** A collection error aborts the whole pytest session. So Task 1 showed the tee test passing early by running the solve tests alone, and Task 2's RED step ran as two commands.
+
+**Deferred, and superseded** by the architecture program accepted on 2026-09-15 (Solver study, Code_Aster runtime, Study, staged run and publication profile modules):
+- **From Task 1:**
+  - `export_study` shares its name with `CodeAsterSolver.export_study`;
+  - `_identity` relies on the `export_tensor_stress` default;
+  - the freshness module docstring;
+  - `export_study`'s positional `volume_export`.
+- **From Task 2:**
+  - unchecked container types for `SOLVER_OPTIONS` and `VOLUME_EXPORT`;
+  - an empty `load_path`, or a `load_step` outside (0, 1], passing the loader;
+  - an unchecked `timeout_seconds` value;
+  - `_RUNTIME` and `_VOLUME` copied from the solver's signatures.
+- **From Task 3:**
+  - no fast test for the contact block, and no nested contact bundle;
+  - provenance roles other than the execution envelope are still hash-checked only against review.json, so decoy result files validate;
+  - the guard's backslash case has no committed test.
+
+**After merging:** if support-attachment merges after this plan, rerun the Pages catalog test on the rebased branch. Its re-solved evidence goes through the new attestation lookup.
