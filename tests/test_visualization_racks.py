@@ -25,8 +25,10 @@ class TestVisualizationRacks(unittest.TestCase):
         )
         ModelTransaction(model).apply(rack.to_patch())
         if attach_support:
-            node_ref = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"]
-            support = model.add_support(node=node_ref.split(":", 1)[1], type="rest")
+            rack_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
+            x, y, z = model.nodes[rack_node].coords
+            pipe_node = model.add_node([x, y, z + 0.25])
+            support = model.add_support(node=pipe_node, type="rest", attached_to=rack_node)
         else:
             node = model.add_node([20.0, 0.0, 0.0])
             support = model.add_support(node=node, type="rest")
@@ -34,7 +36,7 @@ class TestVisualizationRacks(unittest.TestCase):
 
     def test_build_scene_adds_rack_assembly_and_load_path_overlays(self):
         model, support = self._rack_model()
-        report = analyze_load_paths(model, support_reactions={support.id: (100.0, 0.0, -1000.0)})
+        report = analyze_load_paths(model, node_reactions={support.attached_to: (100.0, 0.0, -1000.0)})
 
         scene = build_visualization_scene(model, load_path_report=report, scene_id="scene_rack_review")
         scene.validate()

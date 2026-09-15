@@ -14,7 +14,9 @@ from tuba.refs import EntityRef
 class SupportRackAssociation:
     support: EntityRef
     rack: EntityRef
+    #: The rack node the support is attached to.
     node: EntityRef
+    #: That node's attachment-point name on the rack, or "" for another rack node.
     attachment_point: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -43,74 +45,76 @@ class LoadPathReport:
 def analyze_load_paths(
     model: TubaModel,
     *,
-    support_reactions: dict[str, tuple[float, float, float]] | None = None,
+    node_reactions: dict[str, tuple[float, float, float]] | None = None,
     result_state: ResultState | None = None,
 ) -> LoadPathReport:
-    resolved_reactions = _support_reactions_from_result_state(model, result_state) if result_state is not None else {}
-    resolved_reactions.update(support_reactions or {})
-    attachments = _rack_attachment_nodes(model)
+    """Associate attached supports with racks and sum the reactions at their attached nodes.
+
+    Code_Aster reports a tie's force on the structure as REAC_NODA on the attached node,
+    so a rack's load is the sum over its distinct attached nodes.
+    """
+    reactions = _node_reactions_from_result_state(model, result_state) if result_state is not None else {}
+    reactions.update(node_reactions or {})
+    racks = _rack_nodes(model)
     associations: list[SupportRackAssociation] = []
     diagnostics: list[str] = []
-
     for support in model.supports:
-        match = attachments.get(support.node)
-        if match is None:
-            diagnostics.append(f"Support {support.id!r} is not associated with a rack attachment point.")
+        matches = racks.get(support.attached_to, []) if support.attached_to is not None else []
+        if not matches:
+            diagnostics.append(f"Support {support.id!r} is not associated with a rack.")
             continue
-        rack_name, attachment_point = match
-        associations.append(
-            SupportRackAssociation(
-                support=EntityRef("support", support.id),
-                rack=EntityRef("group", rack_name),
-                node=EntityRef("node", support.node),
-                attachment_point=attachment_point,
+        for rack_name, point_name in matches:
+            associations.append(
+                SupportRackAssociation(
+                    support=EntityRef("support", support.id),
+                    rack=EntityRef("group", rack_name),
+                    node=EntityRef("node", support.attached_to),
+                    attachment_point=point_name,
+                )
             )
-        )
-
-    rack_loads = _rack_loads(associations, resolved_reactions)
-    return LoadPathReport(associations=associations, rack_loads=rack_loads, diagnostics=diagnostics)
+    return LoadPathReport(associations=associations, rack_loads=_rack_loads(associations, reactions), diagnostics=diagnostics)
 
 
-def _rack_attachment_nodes(model: TubaModel) -> dict[str, tuple[str, str]]:
-    attachments: dict[str, tuple[str, str]] = {}
+def _rack_nodes(model: TubaModel) -> dict[str, list[tuple[str, str]]]:
+    racks: dict[str, list[tuple[str, str]]] = {}
     for group_name, group in model.groups.items():
         metadata = group.get("metadata", {})
         if metadata.get("assembly_type") != "rack_bay":
             continue
-        for point_name, node_ref in metadata.get("attachment_points", {}).items():
-            if isinstance(node_ref, str) and node_ref.startswith("node:"):
-                attachments[node_ref.split(":", 1)[1]] = (group_name, point_name)
-    return attachments
+        names = {
+            node_ref.split(":", 1)[1]: point_name
+            for point_name, node_ref in metadata.get("attachment_points", {}).items()
+            if isinstance(node_ref, str) and node_ref.startswith("node:")
+        }
+        for node_id in group.get("nodes", []):
+            racks.setdefault(node_id, []).append((group_name, names.get(node_id, "")))
+    return racks
 
 
 def _rack_loads(
     associations: list[SupportRackAssociation],
-    support_reactions: dict[str, tuple[float, float, float]],
+    node_reactions: dict[str, tuple[float, float, float]],
 ) -> dict[str, dict[str, float]]:
     loads: dict[str, dict[str, float]] = {}
+    counted: set[tuple[str, str]] = set()
     for association in associations:
-        rack_id = association.rack.id
-        support_id = association.support.id
         entry = loads.setdefault(
-            rack_id,
-            {
-                "support_count": 0,
-                "force_x_n": 0.0,
-                "force_y_n": 0.0,
-                "force_z_n": 0.0,
-            },
+            association.rack.id,
+            {"support_count": 0, "force_x_n": 0.0, "force_y_n": 0.0, "force_z_n": 0.0},
         )
         entry["support_count"] += 1
-        reaction = support_reactions.get(support_id)
-        if reaction is None:
+        key = (association.rack.id, association.node.id)
+        reaction = node_reactions.get(association.node.id)
+        if reaction is None or key in counted:
             continue
+        counted.add(key)
         entry["force_x_n"] += float(reaction[0])
         entry["force_y_n"] += float(reaction[1])
         entry["force_z_n"] += float(reaction[2])
     return loads
 
 
-def _support_reactions_from_result_state(
+def _node_reactions_from_result_state(
     model: TubaModel,
     result_state: ResultState,
 ) -> dict[str, tuple[float, float, float]]:
@@ -119,10 +123,8 @@ def _support_reactions_from_result_state(
         raise ValueError(
             f"Cannot analyze load paths for model revision {model_revision}; result state uses {result_state.model_revision}."
         )
-    reactions: dict[str, tuple[float, float, float]] = {}
-    for support in model.supports:
-        if support.node not in result_state.node_reactions:
-            continue
-        reaction = result_state.node_reactions[support.node]
-        reactions[support.id] = (float(reaction[0]), float(reaction[1]), float(reaction[2]))
-    return reactions
+    return {
+        node_id: (float(reaction[0]), float(reaction[1]), float(reaction[2]))
+        for node_id, reaction in result_state.node_reactions.items()
+        if all(component is not None for component in reaction[:3])
+    }
