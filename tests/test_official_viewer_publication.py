@@ -37,16 +37,22 @@ def _gallery_evidence_roots(gallery) -> list[Path]:
     return [gallery.artifact_dir / case for case in gallery.refresh_load_cases] or [gallery.artifact_dir]
 
 
-def _committed_evidence_sets() -> list[Path]:
-    """Every committed gallery evidence set, relative to the repository root."""
+def _gallery_evidence() -> list[tuple[object, Path]]:
+    """Each committed gallery evidence set, paired with the gallery that imports it."""
     return sorted(
-        {
-            Path(root).resolve().relative_to(REPO_ROOT)
+        (
+            (gallery, Path(root).resolve().relative_to(REPO_ROOT))
             for gallery in build_pages.OFFICIAL_GALLERIES
             if gallery.artifact_dir is not None
             for root in _gallery_evidence_roots(gallery)
-        }
+        ),
+        key=lambda pair: pair[1],
     )
+
+
+def _committed_evidence_sets() -> list[Path]:
+    """Every committed gallery evidence set, relative to the repository root."""
+    return sorted({root for _, root in _gallery_evidence()})
 
 
 def test_gmsh_mesh_viewer_recipe_builds_an_unsolved_scene() -> None:
@@ -335,19 +341,6 @@ def test_committed_gallery_artifact_bytes_match_the_execution_attestation(
         assert sha256(content).hexdigest() == expected["sha256"], filename
 
 
-def _gallery_evidence() -> list[tuple[object, Path]]:
-    """Each committed gallery evidence set, paired with the gallery that imports it."""
-    return sorted(
-        (
-            (gallery, Path(root).resolve().relative_to(REPO_ROOT))
-            for gallery in build_pages.OFFICIAL_GALLERIES
-            if gallery.artifact_dir is not None
-            for root in _gallery_evidence_roots(gallery)
-        ),
-        key=lambda pair: pair[1],
-    )
-
-
 @pytest.mark.parametrize(
     ("gallery", "artifact_root"),
     _gallery_evidence(),
@@ -355,7 +348,6 @@ def _gallery_evidence() -> list[tuple[object, Path]]:
 )
 def test_committed_evidence_matches_the_identity_its_study_would_attest_now(gallery, artifact_root: Path) -> None:
     """Spec decision 15: the current model and study options still produce every committed attestation."""
-    from tuba.analysis.provenance import SolverInputIdentity
     from tuba.project import load_project
     from tuba.project.freshness import expected_identity
 

@@ -28,10 +28,7 @@ def expected_identity(
     """
     from tuba.solver.aster import CodeAsterSolver
 
-    solver = CodeAsterSolver(**dict(solver_options or {}))
-    if volume_export:
-        return solver.volume_study_inputs(model, operation, **dict(volume_export)).solver_input_identity
-    return solver.analysis_study_inputs(model, operation).solver_input_identity
+    return _identity(CodeAsterSolver(**dict(solver_options or {})), model, operation, volume_export)
 
 
 def stale_operations(
@@ -44,15 +41,23 @@ def stale_operations(
     """The attested operations whose identity no longer matches what the model and study would solve.
 
     An operation the current model can no longer resolve or validate counts as stale.
+    Invalid study solver options raise; they never read as stale.
     """
+    from tuba.solver.aster import CodeAsterSolver
+
+    solver = CodeAsterSolver(**dict(solver_options or {}))  # invalid study options raise here, not "stale"
     stale = set()
     for identity in attested:
         try:
-            current = expected_identity(
-                model, identity.load_case, solver_options=solver_options, volume_export=volume_export
-            )
+            current = _identity(solver, model, identity.load_case, volume_export)
         except ValueError:  # a missing operation or a model that no longer validates
             current = None
         if current != identity:
             stale.add(identity.load_case)
     return sorted(stale)
+
+
+def _identity(solver: Any, model: TubaModel, operation: str, volume_export: Mapping[str, Any] | None) -> SolverInputIdentity:
+    if volume_export:
+        return solver.volume_study_inputs(model, operation, **dict(volume_export)).solver_input_identity
+    return solver.analysis_study_inputs(model, operation).solver_input_identity

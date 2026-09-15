@@ -86,7 +86,7 @@ class PipeVolumeStudyExporter:
         element_order: int = 2,
         export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
-        inputs = volume_study_inputs(
+        load_case_name, load_case, ids, line_elements, compiler_inputs, identity = volume_study_inputs(
             model,
             load_case_name,
             element_ids=element_ids,
@@ -94,8 +94,6 @@ class PipeVolumeStudyExporter:
             element_order=element_order,
             export_tensor_stress=export_tensor_stress,
         )
-        load_case_name, load_case, ids = inputs.load_case_name, inputs.load_case, inputs.element_ids
-        line_elements, compiler_inputs, identity = inputs.line_elements, inputs.compiler_inputs, inputs.solver_input_identity
         mixed_analysis = bool(line_elements)
         root = Path(output_dir)
         root.mkdir(parents=True, exist_ok=True)

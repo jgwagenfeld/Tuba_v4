@@ -68,6 +68,28 @@ def test_expected_identity_is_the_identity_a_volume_export_writes(tmp_path):
     assert expected_identity(model, "Pressure", volume_export=volume) == study.solver_input_identity
 
 
+def test_volume_study_inputs_refuse_a_load_path_like_the_volume_export():
+    with pytest.raises(ValueError, match="load paths"):
+        CodeAsterSolver(pipe_modelization="POU_D_T", load_path=["Pressure"]).volume_study_inputs(
+            _pressure_pipe(), "Pressure", element_ids=["pipe_0"], max_element_size=0.005
+        )
+
+
+def test_expected_identity_never_meshes(monkeypatch):
+    import tuba.solver.aster_volume as aster_volume
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("expected_identity must not mesh")
+
+    monkeypatch.setattr(aster_volume, "build_pipe_volume_mesh", refuse)
+
+    identity = expected_identity(
+        _pressure_pipe(), "Pressure", volume_export={"element_ids": ["pipe_0"], "max_element_size": 0.005}
+    )
+
+    assert identity.compiler_id == "tuba.code_aster.volume.v2"
+
+
 def test_committed_support_rack_evidence_is_fresh(tmp_path):
     assert stale_operations(_rack(tmp_path), _rack_attestation()) == []
 
@@ -90,6 +112,11 @@ def test_a_moved_node_makes_the_operation_stale(tmp_path):
 
 def test_a_changed_study_solver_option_makes_the_operation_stale(tmp_path):
     assert stale_operations(_rack(tmp_path), _rack_attestation(), solver_options={"line_segments": 4}) == ["Operating"]
+
+
+def test_invalid_study_solver_options_raise_instead_of_reading_as_stale(tmp_path):
+    with pytest.raises(ValueError, match="line_segments"):
+        stale_operations(_rack(tmp_path), _rack_attestation(), solver_options={"line_segments": 0})
 
 
 def test_an_operation_the_model_no_longer_defines_is_stale(tmp_path):
