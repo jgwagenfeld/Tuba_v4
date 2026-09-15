@@ -330,12 +330,15 @@ class BendGeometry:
         )
 
 
+SUPPORT_TYPES = ("anchor", "guide", "rest", "spring", "hanger", "custom")
+
+
 @dataclass
 class Support:
     """A boundary condition applied at a node."""
 
     node: str
-    type: str  # "anchor" | "guide" | "rest" | "spring" | "hanger" | "custom"
+    type: str  # one of SUPPORT_TYPES
     direction: Optional[List[float]] = None  # constrained direction [x, y, z]
     stiffness: Optional[float] = None  # spring stiffness [N/m]
     imposed_displacement: Optional[List[float]] = None  # [m]
@@ -351,6 +354,8 @@ class Support:
     source_call_line: Optional[int] = None
 
     def __post_init__(self):
+        if self.type not in SUPPORT_TYPES:
+            raise ValueError(f"Unknown support type {self.type!r}; use one of {', '.join(SUPPORT_TYPES)}.")
         for name in ('friction_coefficient', 'gap'):
             value = getattr(self, name)
             if not np.isfinite(value) or value < 0:

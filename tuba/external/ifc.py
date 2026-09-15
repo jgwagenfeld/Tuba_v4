@@ -583,7 +583,7 @@ class IfcImporter:
 
     def import_model(self, file_path: str | Path) -> TubaModel:
         """Parse an IFC file and extract piping, beams, columns, supports, and obstacles into a TubaModel."""
-        from tuba.model import TubaModel, IBeamSection, RectangularSection, BarSection, CableSection
+        from tuba.model import TubaModel, IBeamSection, RectangularSection, BarSection, CableSection, SUPPORT_TYPES
 
         ifc_file = ifcopenshell.open(str(file_path))
         model = TubaModel(project_name=Path(file_path).stem)
@@ -872,6 +872,7 @@ class IfcImporter:
                                 sup_type = t
                                 break
 
+                    sup_type = next((known for known in SUPPORT_TYPES if known in sup_type), "rest")
                     model.add_support(node=closest_node, type=sup_type, friction_coefficient=friction_coeff)
 
         # 4. Import Obstacles (IfcBuildingElementProxy)
