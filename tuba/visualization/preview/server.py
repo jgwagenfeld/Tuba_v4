@@ -665,14 +665,19 @@ class ProjectStudioServer(PreviewServer):
         if self.model is None or self.study is None:
             return False
         attested = attested_identities(self.out_dir / "review")
-        return bool(attested) and bool(
-            stale_operations(
+        if not attested:
+            return False
+        try:
+            stale = stale_operations(
                 self.model,
                 attested,
                 solver_options=getattr(self.study, "SOLVER_OPTIONS", None),
                 volume_export=getattr(self.study, "VOLUME_EXPORT", None),
             )
-        )
+        except (TypeError, ValueError):
+            # study.py's own solver options are invalid: staleness cannot be judged, and a Solve reports why.
+            return False
+        return bool(stale)
 
     def _publish_scene(self) -> dict[str, Any]:
         from tuba.visualization.builders import build_visualization_scene

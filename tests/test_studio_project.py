@@ -142,6 +142,33 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertTrue(payload["review_stale"])
         self.assertTrue(self._get(server, "api/project")["review_stale"])
 
+    def test_invalid_study_solver_options_leave_the_studio_usable(self):
+        from tuba.visualization.preview.server import ProjectStudioServer
+
+        root = Path(self.enterContext(TemporaryDirectory()))
+        project = root / "project"
+        shutil.copytree(Path(__file__).resolve().parents[1] / "examples" / "support-rack-review", project)
+        study = project / "study.py"
+        study.write_text(
+            study.read_text(encoding="utf-8").replace(
+                "SOLVER_OPTIONS: dict = {}", 'SOLVER_OPTIONS: dict = {"line_segments": 0}'
+            ),
+            encoding="utf-8",
+        )
+        server = ProjectStudioServer(project, root / "out", port=0, poll_interval_s=0.05, debounce_s=0.05)
+        self.addCleanup(server.stop)
+        server.start()
+        self._wait(
+            lambda: any(event.get("type") in {"review_ready", "review_failed"} for event in server.broker.events),
+            "the committed evidence never imported",
+            timeout=120.0,
+        )
+
+        self.assertFalse(self._get(server, "api/project")["review_stale"])
+        status, payload = self._post(server, "api/script", {"code": (project / "model.py").read_text(encoding="utf-8")})
+        self.assertEqual(status, 200, payload)
+        self.assertFalse(payload["review_stale"])
+
     def test_attested_evidence_imports_after_startup_without_holding_it_up(self):
         tmpdir = self.enterContext(TemporaryDirectory())
         server = self._server(Path(tmpdir), STUDY.replace("ARTIFACT_DIR = None", "ARTIFACT_DIR = Path(__file__).parent"))

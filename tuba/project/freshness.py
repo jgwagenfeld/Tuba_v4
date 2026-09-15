@@ -63,7 +63,7 @@ def stale_operations(
 def attested_identities(review_bundle: str | Path) -> list[SolverInputIdentity]:
     """The solver input identities a review bundle was built from, read from its ``scene.json``.
 
-    A review without solver evidence (model-only or mesh-only) has none, so it is never stale.
+    A review without solver evidence (a model-only review) has none, so it is never stale.
     """
     try:
         scene = json.loads((Path(review_bundle) / "scene.json").read_text(encoding="utf-8"))
