@@ -586,18 +586,22 @@ def _validate_execution_attestation(root: Path, identity: dict[str, Any], result
     """Check the attestation beside *result*'s execution envelope against *identity*; return that folder's URI.
 
     The folder is the one the envelope's reference names, so a run staged in ``artifacts/`` and runs staged in
-    ``artifacts/<operation>/`` (spec decision 14) validate alike.
+    ``artifacts/<operation>/`` (spec decision 14) validate alike; a folder outside ``artifacts/`` is refused.
     """
     files = result.get("files")
     execution_uri = files.get("execution") if isinstance(files, dict) else None
     if not isinstance(execution_uri, str):
         raise ValueError("Engineering-review result requires its execution envelope.")
+    folder = posixpath.dirname(execution_uri)
+    # Staged evidence belongs under artifacts/, the only folder _validate_embedded_portability scans.
+    if "\\" in execution_uri or folder.split("/")[0] != "artifacts":
+        raise ValueError("Engineering-review execution envelope must be staged under artifacts/.")
     attestation = load_code_aster_execution_attestation(_bundle_path(root, execution_uri).parent)
     if attestation is None:
         raise ValueError("Engineering-review bundles require a validated Code_Aster execution attestation.")
     if attestation["solver_input_identity"] != identity:
         raise ValueError("Engineering-review execution attestation identity must match provenance.")
-    return posixpath.dirname(execution_uri)
+    return folder
 
 
 def _validate_embedded_portability(root: Path) -> None:

@@ -521,6 +521,20 @@ def test_engineering_profile_reads_the_attestation_in_the_folder_its_result_name
         validate_official_bundle(tmp_path, "engineering-review")
 
 
+def test_engineering_profile_requires_its_evidence_under_artifacts(tmp_path: Path) -> None:
+    """Catches evidence staged outside artifacts/, where the portability scan never reads its JSON."""
+    _write_engineering_bundle(tmp_path, evidence=True)
+    (tmp_path / "artifacts").rename(tmp_path / "evidence")
+    (tmp_path / "artifacts").mkdir()
+    scene, review = _scene(tmp_path), _review(tmp_path)
+    for record in review["provenance"]:
+        record["files"] = {role: uri.replace("artifacts/", "evidence/") for role, uri in record["files"].items()}
+    _save_bundle(tmp_path, scene, review)
+
+    with pytest.raises(ValueError, match="staged under artifacts/"):
+        validate_official_bundle(tmp_path, "engineering-review")
+
+
 @pytest.mark.parametrize(
     ("relative_path", "contents"),
     [
