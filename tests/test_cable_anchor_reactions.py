@@ -56,10 +56,9 @@ def _row(node: str, translations: tuple[float, float, float], rotations: str | t
 def _parse(model: Model, work_dir: Path, rows: list[str]) -> FEAResults:
     (work_dir / "study_reac.csv").write_text("\n".join([_HEADER, *rows]) + "\n", encoding="utf-8")
     results = FEAResults(solver_name="Code_Aster", load_case="Wind")
-    for support in model.supports:
-        results.node_results[support.node] = NodeResult(
-            node_id=support.node, displacement=np.zeros(6)
-        )
+    # Every model node starts with an empty result, as in CodeAsterSolver's own parse.
+    for node_id in model.nodes:
+        results.node_results[node_id] = NodeResult(node_id=node_id, displacement=np.zeros(6))
     CodeAsterSolver()._parse_reac_table(model, work_dir, results, {})
     return results
 
@@ -105,3 +104,29 @@ def test_absent_rotations_are_still_rejected_where_the_node_has_them(tmp_path):
 
     with pytest.raises(RuntimeError, match="invalid reaction components"):
         _parse(model, tmp_path, [_row(mast_base, (2.1e3, 0.0, 4.9e3), "absent")])
+
+
+def test_the_node_a_support_is_attached_to_reports_its_reaction(tmp_path):
+    """An attached support hands its load to another node, so that node's reaction is kept, not dropped."""
+    model = _mast_with_one_guy()
+    mast_top = model.elements[0].n2
+    clamp = model.add_node([0.0, 0.2, 5.0])
+    model.add_support(clamp, "guide", direction=[1.0, 0.0, 0.0], attached_to=mast_top)
+    unsupported = model.add_node([0.0, 0.0, 2.5])
+
+    results = _parse(
+        model,
+        tmp_path,
+        [
+            _row(clamp, (1.5e3, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            _row(mast_top, (-1.5e3, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            _row(unsupported, (7.0e2, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        ],
+    )
+
+    np.testing.assert_allclose(
+        results.node_results[mast_top].reaction_force,
+        [-1.5e3, 0.0, 0.0, 0.0, 0.0, 0.0],
+    )
+    # A node that is neither supported nor attached to keeps no reaction.
+    assert results.node_results[unsupported].reaction_force is None

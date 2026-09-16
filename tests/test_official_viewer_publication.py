@@ -170,7 +170,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     assert {
         path.name for path in (tmp_path / "code-aster-review" / "artifacts").iterdir()
         if path.is_file()
-    } == {*ATTESTED_CODE_ASTER_FILES, "study_execution.json"}
+    } == {*ATTESTED_CODE_ASTER_FILES, "study_contact.json", "study_execution.json"}
     assert result_provenance["metadata"]["file_sha256"]["rmed"]
     assert result_provenance["metadata"]["file_sizes"]["rmed"] > 0
     assert all(

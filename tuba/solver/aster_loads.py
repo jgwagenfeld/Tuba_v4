@@ -372,6 +372,7 @@ def write_thermal_load(
     node_temperatures: NodeTemperatureEntries,
     affe_entries: List[str],
     is_nonlinear: bool,
+    varc_groups: Sequence[str] | None = None,
 ) -> None:
     w("# ----- Thermal expansion -----")
     if is_nonlinear:
@@ -418,7 +419,10 @@ def write_thermal_load(
         w(entry)
     w("    ),")
     w("    AFFE_VARC=_F(")
-    w("        TOUT='OUI',")
+    if varc_groups is None:
+        w("        TOUT='OUI',")
+    else:
+        w(f"        GROUP_MA={tuple(map_name(group) for group in varc_groups)!r},")
     w("        NOM_VARC='TEMP',")
     if is_nonlinear:
         w("        EVOL=TEMP_EVOL,")

@@ -40,6 +40,7 @@
     "GD44F702": "element:beam_0",
     "GD7E5501": "element:beam_1",
     "GDF9C698": "element:cable_0",
+    "GE3D248C": "support:support_4",
     "GE64D476": "element:beam_1",
     "GE9EE529": "element:pipe_bend_0",
     "GFB3FBAE": "element:cable_0",
@@ -49,6 +50,7 @@
   "name_map": {
     "AllPipes": "AllPipes",
     "AllSupports": "G2F28381",
+    "CONTACT_4": "GE3D248C",
     "DIS_N1": "DIS_N1",
     "DIS_N3": "DIS_N3",
     "DIS_N4": "DIS_N4",
@@ -58,6 +60,7 @@
     "GN_N3": "GN_N3",
     "GN_N4": "GN_N4",
     "GN_N7": "GN_N7",
+    "GROUND_4": "GROUND_4",
     "G_BAR": "G_BAR",
     "G_CABLE": "G_CABLE",
     "G_TUBE": "G_TUBE",
@@ -181,7 +184,7 @@
   "schema_version": 1,
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "e656f5317ad7d6c25b06da382b1c487fb0aacddc71fe0aa58ab1fcfb0f0aed43",
+    "fingerprint": "f2c9aed896583e28db896565f96460d18de5b9e88d84bbeb7071b685b1d4b85b",
     "load_case": "LoadCase1",
     "schema_id": "tuba.model.v4"
   },

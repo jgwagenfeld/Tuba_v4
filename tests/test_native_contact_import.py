@@ -95,6 +95,27 @@ class NativeContactImport(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Missing support'):
             self.read()
 
+    def test_single_operation_study_keeps_only_its_final_state(self):
+        self.parser = CodeAsterSolver(pipe_modelization='POU_D_T')
+        self.study = self.parser.export_analysis_study(self.model, 'Cold', self.root)
+        self.assertEqual(self.study.metadata['compiler_inputs']['load_path'], ['Cold'])
+        frames = self.read([{**self.rows[-1], 'instant': 1.}], times=[1.])
+        self.assertEqual([frame.metadata['pseudo_time'] for frame in frames], [1.])
+        self.assertEqual(frames[0].metadata['stage_label'], 'Cold')
+        self.assertEqual(frames[0].contact_results['shoe'].normal_force, 10000.)
+
+    def test_a_history_still_needs_its_reference_and_every_stage(self):
+        # Only a single-operation study may keep just its final state.
+        for times in (self.times[1:], self.times[-1:]):
+            rows = [row for row in self.rows if row['instant'] in times]
+            with self.subTest(times=times), self.assertRaisesRegex(ValueError, 'incomplete'):
+                self.read(rows, times=times)
+        # A one-stage explicit load path is still a history.
+        self.parser = CodeAsterSolver(pipe_modelization='POU_D_T', load_path=['Cold'])
+        self.study = self.parser.export_analysis_study(self.model, 'Cold', self.root)
+        with self.subTest(load_path=['Cold']), self.assertRaisesRegex(ValueError, 'incomplete'):
+            self.read([{**self.rows[-1], 'instant': 1.}], times=[1.])
+
     def test_vector_coulomb_bound_and_tensile_normal_force_fail(self):
         for changes in ({'N':10000.}, {'VY':2500., 'VZ':2500.}):
             with self.subTest(changes=changes), self.assertRaisesRegex(ValueError, 'force bounds'):

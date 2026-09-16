@@ -64,8 +64,8 @@ def run_demo(output_dir: str | Path = ".build/generated/future_ready_semantic_wo
 
     request = PipeRouteRequest(
         id="P-100",
-        start=RouteEndpoint(id="A", point=(0.0, 0.0, 1.5)),
-        goal=RouteEndpoint(id="B", point=(4.0, 0.0, 1.5)),
+        start=RouteEndpoint(id="A", point=(0.0, 0.5, 1.75)),
+        goal=RouteEndpoint(id="B", point=(4.0, 0.5, 1.75)),
         section="DN100",
         material="Steel",
         costs=RoutingCostWeights(length=1.0, bend=0.0, support_span=0.0),
@@ -85,15 +85,15 @@ def run_demo(output_dir: str | Path = ".build/generated/future_ready_semantic_wo
     model.assign_insulation("group:line_A", "mw_50")
     model.assign_insulation("route:P-100", "mw_50")
 
-    support_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
-    support = model.add_support(node=support_node, type="rest")
+    rack_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
+    support = model.add_support(node=model.find_node_by_point((0.0, 0.5, 1.75)), type="rest", attached_to=rack_node)
 
     takeoff = quantity_takeoff(model)
     bom = bom_to_dict(model)
     (output / "bom.csv").write_text(bom_to_csv(model), encoding="utf-8")
     benchmark_path = write_model_benchmark_summary(model, directory=output)
     route_cost = RouteCostModel.from_routing_weights(request.costs).evaluate_candidate(model, request, candidate)
-    load_paths = analyze_load_paths(model, support_reactions={support.id: (0.0, 0.0, -500.0)})
+    load_paths = analyze_load_paths(model, node_reactions={rack_node: (0.0, 0.0, -500.0)})
     rules = RuleEngine([SupportSpacingRule(max_span_m=5.0), ClashFreeRule()]).evaluate(model)
 
     summary = {

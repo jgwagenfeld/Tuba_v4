@@ -31,9 +31,12 @@ def read_contact_history(model, root, study, parser):
         indexed[key] = row
     instants = sorted({key[0] for key in indexed})
     path = inputs['load_path']
-    if instants[0] != 0 or abs(instants[-1] - len(path)) > 1e-10:
+    # A single-operation study keeps only its final state; a load-path history keeps every increment.
+    # Only an explicit load path records load_path_inputs, even when it has a single stage.
+    final_state = 'load_path_inputs' not in inputs and len(instants) == 1 and abs(instants[0] - 1) < 1e-10
+    if not final_state and (instants[0] != 0 or abs(instants[-1] - len(path)) > 1e-10):
         raise ValueError('Native contact history is incomplete at the load-path endpoints.')
-    for endpoint in range(len(path)+1):
+    for endpoint in ([] if final_state else range(len(path)+1)):
         if not any(abs(t-endpoint) < 1e-10 for t in instants):
             raise ValueError('Native contact history is missing an authored load stage.')
     displacement_times = {float(r['INST']) for r in parser._parse_csv_table(root/'study_depl.csv')}
@@ -48,7 +51,7 @@ def read_contact_history(model, root, study, parser):
         stage_index = max(0, min(len(path), math.ceil(instant-1e-10)))
         results.metadata.update(pseudo_time=instant, stage_index=stage_index,
             stage_label='Reference' if instant == 0 else path[stage_index-1],
-            run_id=study.solver_input_identity.fingerprint, formulation='POU_D_T / DIS_CHOC',
+            run_id=study.solver_input_identity.fingerprint, formulation=f"{inputs['pipe_modelization']} / DIS_CHOC",
             convergence_status='converged', contact_status_tolerances={'force_N':1.,'relative_force':.001,'slip_m':1e-9,'gap_m':1e-9},
             contact_variable_mapping={'N':'local compression negative','V4':'0 sticking, 1 sliding, 2 open','V5':'local y slip','V6':'local z slip'},
             source='Code_Aster study_contact.json')
@@ -60,6 +63,9 @@ def read_contact_history(model, root, study, parser):
             t1 = np.array(spec.tangent)
             t2 = np.cross(normal,t1)
             displacement = results.node_results[spec.support.node].displacement[:3]
+            if spec.support.attached_to is not None:
+                # The shoe's helper node is tied to the attached node: measure gap and movement against it.
+                displacement = displacement - results.node_results[spec.support.attached_to].displacement[:3]
             normal_force = -float(row['N'])
             tangential_force = -(row['VY']*t1 + row['VZ']*t2)
             slip = row['slip_y']*t1 + row['slip_z']*t2

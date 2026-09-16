@@ -263,18 +263,42 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
 
         self.assertEqual(len(group_lines), 1)
 
-    def test_export_analysis_study_writes_required_unilateral_contact_coefficients(self):
-        model = self._model_with_bend_and_structure()
-        model.add_support("N1", type="rest")
+    def test_export_analysis_study_writes_a_contact_shoe_for_every_rest(self):
+        model = Model(project_name="RestShoe")
+        model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([1.0, 0.0, 0.0])
+        model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+        model.add_support(n0, type="anchor")
+        model.add_support(n1, type="rest")
+        model.define_load_case("Hot", gravity=True, pressure=1.0e6, temperature=120.0, ref_temperature=20.0)
 
         with TemporaryDirectory() as tmpdir:
             study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
             comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
 
-        self.assertIn("UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);", comm)
-        self.assertIn("UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);", comm)
-        self.assertIn("COEF_IMPO=UNIL_ZERO", comm)
-        self.assertIn("COEF_MULT=UNIL_ONE", comm)
+        self.assertNotIn("LIAISON_UNIL", comm)
+        self.assertNotIn("DEFI_CONTACT", comm)
+        self.assertIn("DIS_CONTACT=_F(", comm)
+        self.assertIn("RELATION='DIS_CHOC'", comm)
+        self.assertIn("FORCE_TUYAU=_F(", comm)
+        self.assertIn("GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO=", comm)
+        self.assertIn("_F(CHARGE=GROUND0)", comm)
+        self.assertIn("INTERVALLE=_F(JUSQU_A=1.0, NOMBRE=10)", comm)
+        # Converged as tightly as a load path, so the shoe forces balance the reactions.
+        self.assertIn("    CONVERGENCE=_F(RESI_GLOB_RELA=1e-8, ITER_GLOB_MAXI=50),", comm.splitlines())
+        inputs = study.metadata["compiler_inputs"]
+        self.assertEqual(inputs["contact_law"], "DIS_CHOC")
+        self.assertEqual(inputs["pipe_modelization"], "TUYAU_3M")
+        self.assertEqual(inputs["load_path"], ["Hot"])
+        # A single-operation study keeps only its final state: the MED file,
+        # every result table and the shoe's contact tables print INST=1.0.
+        for block in ("IMPR_RESU(", "TAB_EFFO = CREA_TABLE(", "TAB_DEPL = CREA_TABLE(", "TAB_REAC = CREA_TABLE(", "TAB_SIEQ = CREA_TABLE("):
+            start = comm.index(block)
+            self.assertIn("        INST=1.0,", comm[start:comm.index(");", start)], block)
+        self.assertIn("NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))", comm)
+        self.assertIn("NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))", comm)
 
     def test_uniform_load_writer_preserves_legacy_pressure_and_temperature_syntax(self):
         model = Model(project_name="UniformLoadSyntax")
@@ -373,11 +397,11 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
             study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
             comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
 
-        self.assertIn("CONTACT=contact", comm)
+        self.assertIn("RELATION='DIS_CHOC'", comm)
         # Asserting "WO=0.0" in comm passed whatever the rest support did: the
         # anchor at n0 emits one too. Pin the rest node's own block instead.
         # Cut each AFFE_CHAR_MECA at its own closing ");" - the tail of a plain
-        # split also carries the LIAISON_UNIL zone, which names the same node.
+        # split also carries the commands after it.
         bodies = [chunk.split(");")[0] for chunk in comm.split("= AFFE_CHAR_MECA(")[1:]]
         blocks = [body for body in bodies if f"GROUP_NO='GN_{n1}'" in body]
         self.assertEqual(len(blocks), 1, f"expected one BC block for {n1}: {len(blocks)}")
@@ -404,7 +428,8 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
             study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
             comm = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
 
-        self.assertIn(f"_F(NOM_GROUP_MA='DIS_{n1}', NOEUD='{n1}'),", comm)
+        self.assertIn(f"_F(NOM_GROUP_MA='DIS_{n1}', GROUP_NO='GN_{n1}'),", comm)
+        self.assertNotIn("NOEUD=", comm)
         self.assertIn("CARA='K_TR_D_N'", comm)
         self.assertIn("CARA='M_TR_D_N'", comm)
         self.assertNotIn("NOM_NOEUD", comm)
@@ -561,6 +586,62 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
 
         self.assertEqual(calls, [("study.rmed", "med")])
         self.assertIsInstance(results.raw_mesh, FakeMesh)
+
+    def test_refreshable_galleries_keep_their_committed_study_text(self):
+        from importlib import import_module
+
+        galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+        checked = 0
+        for gallery in galleries:
+            if gallery.refresh_producer is None or gallery.volume_export or gallery.refresh_load_cases:
+                continue
+            with TemporaryDirectory() as scratch:
+                model, case = gallery.refresh_producer(Path(scratch))
+                solver = CodeAsterSolver(work_dir=scratch, **gallery.solver_options)
+                study = solver.export_analysis_study(model, case, scratch)
+                fresh = (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+                fresh_mail = (Path(study.work_dir) / "study.mail").read_text(encoding="utf-8")
+            committed = (gallery.artifact_dir / "study.comm").read_text(encoding="utf-8")
+            self.assertEqual(fresh, committed, gallery.id)
+            self.assertEqual(fresh_mail, (gallery.artifact_dir / "study.mail").read_text(encoding="utf-8"), gallery.id)
+            checked += 1
+        self.assertGreater(checked, 0)
+
+    def test_temperature_stays_off_discrete_support_elements(self):
+        def export(with_spring):
+            model = Model(project_name="SpringTemperature")
+            model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+            model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+            n0 = model.add_node([0.0, 0.0, 0.0])
+            n1 = model.add_node([1.0, 0.0, 0.0])
+            model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+            model.add_support(n0, type="anchor")
+            if with_spring:
+                model.add_support(n1, type="spring", stiffness_matrix=[0.0, 0.0, 1.0e5, 0.0, 0.0, 0.0])
+            model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+            with TemporaryDirectory() as tmpdir:
+                study = CodeAsterSolver(work_dir=tmpdir).export_analysis_study(model, "Hot", tmpdir)
+                return (Path(study.work_dir) / "study.comm").read_text(encoding="utf-8")
+
+        self.assertIn("    AFFE_VARC=_F(\n        GROUP_MA=('AllPipes',),\n", export(with_spring=True))
+        self.assertIn("    AFFE_VARC=_F(\n        TOUT='OUI',\n", export(with_spring=False))
+
+    def test_only_discrete_supports_add_the_discrete_support_nodes_input(self):
+        def compiler_inputs(kind, **support):
+            model = Model(project_name="DiscreteSupportNodes")
+            model.add_material("Steel", E=2.0e11, nu=0.3, alpha=1.2e-5)
+            model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+            n0 = model.add_node([0.0, 0.0, 0.0])
+            n1 = model.add_node([1.0, 0.0, 0.0])
+            model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
+            model.add_support(n0, type="anchor")
+            model.add_support(n1, type=kind, **support)
+            model.define_load_case("Hot", gravity=True, temperature=120.0, ref_temperature=20.0)
+            return CodeAsterSolver().analysis_study_inputs(model, "Hot").compiler_inputs or {}
+
+        spring = compiler_inputs("spring", stiffness_matrix=[0.0, 0.0, 1.0e5, 0.0, 0.0, 0.0])
+        self.assertEqual(spring.get("discrete_support_nodes"), "GROUP_NO")
+        self.assertNotIn("discrete_support_nodes", compiler_inputs("guide", direction=[0.0, 1.0, 0.0]))
 
 
 def _extract_gene_tuyau_vector(comm: str) -> np.ndarray:

@@ -1,4 +1,4 @@
-"""A DN100 line carried across a steel I-beam rack bay, analysed together with the rack."""
+"""A DN100 line resting on friction shoes on a steel I-beam rack bay, analysed together with the rack."""
 
 from tuba import Model
 from tuba.assemblies import RackBay
@@ -41,15 +41,18 @@ for node_id in rack["nodes"]:
 
 left = rack["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
 right = rack["metadata"]["attachment_points"]["level_1_right"].split(":", 1)[1]
-start = model.add_node((-2.0, -1.0, 3.0))
-end = model.add_node((6.0, -1.0, 3.0))
-model.add_element(id="pipe_inlet", type="pipe_straight", n1=start, n2=left, section="DN100", material="Steel", route_id="P-100")
-model.add_element(id="pipe_rack_span", type="pipe_straight", n1=left, n2=right, section="DN100", material="Steel", route_id="P-100")
-model.add_element(id="pipe_outlet", type="pipe_straight", n1=right, n2=end, section="DN100", material="Steel", route_id="P-100")
+# The pipe centreline sits 0.25 m above the beam nodes: half the IPE140, the shoe and the pipe radius.
+start = model.add_node((-2.0, -1.0, 3.25))
+on_left = model.add_node((0.0, -1.0, 3.25))
+on_right = model.add_node((4.0, -1.0, 3.25))
+end = model.add_node((6.0, -1.0, 3.25))
+model.add_element(id="pipe_inlet", type="pipe_straight", n1=start, n2=on_left, section="DN100", material="Steel", route_id="P-100")
+model.add_element(id="pipe_rack_span", type="pipe_straight", n1=on_left, n2=on_right, section="DN100", material="Steel", route_id="P-100")
+model.add_element(id="pipe_outlet", type="pipe_straight", n1=on_right, n2=end, section="DN100", material="Steel", route_id="P-100")
 model.add_support(start, "anchor")
 model.add_support(end, "anchor")
-model.add_support(left, "rest")
-model.add_support(right, "rest")
+model.add_support(on_left, "rest", attached_to=left, friction_coefficient=0.3)
+model.add_support(on_right, "rest", attached_to=right, friction_coefficient=0.3)
 model.define_load_case(
     "Operating",
     gravity=True,

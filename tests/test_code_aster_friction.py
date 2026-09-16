@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -26,10 +27,12 @@ def friction_model():
 
 
 class FrictionCompilation(unittest.TestCase):
-    def test_unqualified_formulation_cannot_silently_omit_friction(self):
+    def test_friction_requires_a_rest(self):
+        model = friction_model()
+        model.supports[-1].type = 'anchor'
         with TemporaryDirectory() as root:
-            with self.assertRaisesRegex(ValueError, 'friction requires'):
-                CodeAsterSolver().export_study(friction_model(), 'Hot', root)
+            with self.assertRaisesRegex(ValueError, 'Friction requires a rest support'):
+                CodeAsterSolver().export_study(model, 'Hot', root)
 
     def test_native_law_and_stateful_path_are_emitted(self):
         model = friction_model()
@@ -40,9 +43,12 @@ class FrictionCompilation(unittest.TestCase):
             self.assertIn("RELATION='DIS_CHOC'", comm)
             self.assertNotIn("FORMULATION='LIAISON_UNIL'", comm)
             self.assertEqual(comm.count('RESU = STAT_NON_LINE'),1)
+            # A load-path history keeps every increment in its MED file and tables.
+            self.assertNotIn('INST=1.0', comm)
             self.assertIn('study_contact.json', Path(root,'study.export').read_text())
             self.assertIn('load_path', study.metadata['compiler_inputs'])
             self.assertIn('DIRECTION=(0.,0.,-1.)', comm)
+            self.assertIn("AFFE_VARC=_F(GROUP_MA=('AllPipes',),", comm)
 
     def test_default_native_shoe_normal_is_global_up(self):
         model = friction_model()
@@ -63,19 +69,19 @@ class FrictionCompilation(unittest.TestCase):
 
     def test_contact_parameters_cannot_be_ignored(self):
         for field, value in (('gap',.001),('normal_stiffness',1e10),('tangential_stiffness',1e8)):
-            for formulation, kind in (('TUYAU_3M','rest'),('POU_D_T','anchor'),('POU_D_T','guide')):
+            for formulation, kind in (('TUYAU_3M','anchor'),('POU_D_T','anchor'),('POU_D_T','guide')):
                 with self.subTest(field=field, formulation=formulation, kind=kind), TemporaryDirectory() as root:
                     model=friction_model()
                     support=model.supports[-1]
                     support.friction_coefficient=0.
                     support.type=kind
                     setattr(support,field,value)
-                    with self.assertRaisesRegex(ValueError,'gap/stiffness parameters require'):
+                    with self.assertRaisesRegex(ValueError,'gap/stiffness parameters require a rest'):
                         CodeAsterSolver(pipe_modelization=formulation).export_study(model,'Cold',root)
                     self.assertFalse(Path(root,'study.comm').exists())
         model=friction_model()
         model.supports[-1].friction_coefficient=0.
-        self.assertEqual(shoes(model,'TUYAU_3M'),[])
+        self.assertEqual(len(shoes(model,'TUYAU_3M')),1)
 
     def test_contact_helper_names_cannot_overwrite_authored_entities(self):
         for namespace in ('nodes','elements','groups','materials','sections'):
@@ -98,19 +104,25 @@ class FrictionCompilation(unittest.TestCase):
                     self.assertFalse(Path(root,'study.mail').exists())
 
     def test_volume_and_mixed_entrypoints_reject_friction_before_meshing(self):
-        model=friction_model()
-        model.supports[-1].type='anchor'
-        with TemporaryDirectory() as root:
-            calls=(
-                lambda: PipeVolumeStudyExporter().export_analysis_study(model,'Cold',root,element_ids=['pipe'],max_element_size=.1),
-                lambda: MixedCodeAsterStudyExporter().export_analysis_study(model,'Cold',root),
-                lambda: CodeAsterSolver().export_volume_study(model,'Cold',root,element_ids=['pipe'],max_element_size=.1),
-                lambda: CodeAsterSolver().export_mixed_analysis_study(model,'Cold',root),
-            )
-            for call in calls:
-                with self.assertRaisesRegex(ValueError,'Native friction requires'):
-                    call()
-            self.assertEqual(list(Path(root).iterdir()),[])
+        for kind, attached, message in (('anchor',False,'Friction requires a rest support'),
+                                        ('rest',False,'Friction, gap and contact stiffness require a 1D study (TUYAU_3M or POU_D_T).'),
+                                        ('anchor',True,'Attached supports require a 1D study (TUYAU_3M or POU_D_T).')):
+            model=friction_model()
+            model.supports[-1].type=kind
+            if attached:
+                model.supports[-1].friction_coefficient=0.
+                model.supports[-1].attached_to=model.supports[0].node
+            with self.subTest(kind=kind, attached=attached), TemporaryDirectory() as root:
+                calls=(
+                    lambda: PipeVolumeStudyExporter().export_analysis_study(model,'Cold',root,element_ids=['pipe'],max_element_size=.1),
+                    lambda: MixedCodeAsterStudyExporter().export_analysis_study(model,'Cold',root),
+                    lambda: CodeAsterSolver().export_volume_study(model,'Cold',root,element_ids=['pipe'],max_element_size=.1),
+                    lambda: CodeAsterSolver().export_mixed_analysis_study(model,'Cold',root),
+                )
+                for call in calls:
+                    with self.assertRaisesRegex(ValueError,re.escape(message)):
+                        call()
+                self.assertEqual(list(Path(root).iterdir()),[])
 
     def test_volume_and_mixed_wrappers_reject_load_path(self):
         model=friction_model()
@@ -129,6 +141,21 @@ class FrictionCompilation(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'prescribed support movement'):
                 CodeAsterSolver(pipe_modelization='POU_D_T').export_analysis_study(model,'Cold',root)
             self.assertFalse(Path(root,'study.comm').exists())
+
+    def test_load_path_and_load_step_are_refused_before_writing_the_study(self):
+        path_message="load_path histories require pipe_modelization='POU_D_T' and a resting shoe."
+        step_message='load_step must be finite and in (0, 1].'
+        refusals=(
+            ('load_path',path_message,lambda root: CodeAsterSolver(load_path=['Cold','Hot']).export_analysis_study(friction_model(),'Hot',root)),
+            ('load_step=0.0',step_message,lambda root: CodeAsterSolver(pipe_modelization='POU_D_T',load_step=0.0)),
+            ('load_step=-0.1',step_message,lambda root: CodeAsterSolver(pipe_modelization='POU_D_T',load_step=-0.1)),
+            ('load_step=inf',step_message,lambda root: CodeAsterSolver(pipe_modelization='POU_D_T',load_step=float('inf'))),
+        )
+        for label, message, call in refusals:
+            with self.subTest(refusal=label), TemporaryDirectory() as root:
+                with self.assertRaisesRegex(ValueError,re.escape(message)):
+                    call(root)
+                self.assertEqual(list(Path(root).iterdir()),[])
 
 
 if __name__ == '__main__':

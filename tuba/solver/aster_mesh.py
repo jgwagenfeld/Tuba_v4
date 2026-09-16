@@ -17,7 +17,7 @@ import numpy as np
 from tuba.model import Element, TubaModel
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
 from tuba.refs import EntityRef
-from tuba.solver.modelisation import PipeModelization, modelisation_assignments
+from tuba.solver.modelisation import PipeModelization, modelisation_assignments, spring_links
 from tuba.solver.aster_contact import shoes
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,7 @@ class _MeshWriterMixin:
         N = self._BEND_SEGMENTS  # shorthand
         map_name = name_map or (lambda value: value)
         contacts = shoes(model, self.pipe_modelization)
+        links = spring_links(model)
 
         # --- Ordered node / element lists ---------------------------------
         node_ids = list(model.nodes.keys())
@@ -123,6 +124,9 @@ class _MeshWriterMixin:
         for contact in contacts:
             xyz = model.nodes[contact.support.node].coords - (1. + contact.support.gap) * np.asarray(contact.normal)
             lines.append(f"  {map_name(contact.ground)} " + ' '.join(f'{v:+.10E}' for v in xyz))
+        for link in links:
+            xyz = model.nodes[link.support.node].coords - np.array([0.0, 0.0, 1.0])
+            lines.append(f"  {map_name(link.helper)} " + ' '.join(f'{v:+.10E}' for v in xyz))
         for nid in node_ids:
             n = model.nodes[nid]
             x, y, z = n.coords
@@ -156,14 +160,19 @@ class _MeshWriterMixin:
         lines.append("FINSF")
         lines.append("")
 
-        if contacts:
+        if contacts or links:
             lines.append('SEG2')
             for contact in contacts:
                 lines.append(f' {map_name(contact.group)} {map_name(contact.ground)} {map_name(contact.support.node)}')
+            for link in links:
+                lines.append(f' {map_name(link.group)} {map_name(link.helper)} {map_name(link.support.node)}')
             lines.append('FINSF')
             for contact in contacts:
                 lines.extend([f'GROUP_MA NOM={map_name(contact.group)}', map_name(contact.group), 'FINSF',
                               f'GROUP_NO NOM={map_name(contact.ground)}', map_name(contact.ground), 'FINSF'])
+            for link in links:
+                lines.extend([f'GROUP_MA NOM={map_name(link.group)}', map_name(link.group), 'FINSF',
+                              f'GROUP_NO NOM={map_name(link.helper)}', map_name(link.helper), 'FINSF'])
 
         # --- SEG3 for pipe straights --------------------------------------
         if pipe_straights and not beam_pipes:
@@ -311,6 +320,7 @@ class _MeshWriterMixin:
         # --- GROUP_NO for supports and concentrated nodal loads -----------
         grouped_node_ids = sorted(
             {sup.node for sup in model.supports} | _nodal_force_node_ids(model) | self._node_temperature_node_ids(model)
+            | {sup.attached_to for sup in model.supports if sup.attached_to is not None}
         )
         for node_id in grouped_node_ids:
             grp_name = f"GN_{node_id}"
@@ -482,6 +492,7 @@ class _MeshWriterMixin:
             {support.node for support in model.supports}
             | _nodal_force_node_ids(model)
             | self._node_temperature_node_ids(model)
+            | {support.attached_to for support in model.supports if support.attached_to is not None}
         ):
             groups[f"GN_{node_id}"] = (node_id,)
         if model.supports:
@@ -494,6 +505,13 @@ class _MeshWriterMixin:
             element_sources[contact.group] = MeshElementSource(element_id=contact.group, source_ref=EntityRef('support', contact.support.id), role='contact_connector')
             groups[contact.ground] = (contact.ground,)
             groups[contact.group] = (contact.group,)
+        for link in spring_links(model):
+            nodes[link.helper] = tuple(model.nodes[link.support.node].coords - np.array([0.0, 0.0, 1.0]))
+            node_sources[link.helper] = MeshNodeSource(node_id=link.helper, source_ref=EntityRef('support', link.support.id), role='spring_helper')
+            elements[link.group] = (link.helper, link.support.node)
+            element_sources[link.group] = MeshElementSource(element_id=link.group, source_ref=EntityRef('support', link.support.id), role='spring_connector')
+            groups[link.helper] = (link.helper,)
+            groups[link.group] = (link.group,)
         return AnalysisMesh(
             id=mesh_id,
             model_revision=model_revision,

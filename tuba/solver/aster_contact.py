@@ -1,4 +1,4 @@
-"""Native point-contact compilation for fixed-frame beam piping shoes."""
+"""Native point-contact compilation for fixed-frame piping shoes."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,11 +29,18 @@ def shoes(model, formulation):
         if support.id is not None and support.id in ids:
             raise ValueError(f'Duplicate support id: {support.id}')
         ids.add(support.id)
-        if support.friction_coefficient and (support.type != 'rest' or formulation != PipeModelization.POU_D_T):
-            raise ValueError('Native friction requires a rest support and pipe_modelization=POU_D_T.')
-        if support.type != 'rest' or formulation != PipeModelization.POU_D_T:
+        if support.friction_coefficient and support.type != 'rest':
+            raise ValueError('Friction requires a rest support.')
+        if formulation == PipeModelization.SOLID_3D and support.attached_to is not None:
+            raise ValueError('Attached supports require a 1D study (TUYAU_3M or POU_D_T).')
+        if support.type != 'rest':
             if support.gap != 0 or support.normal_stiffness is not None or support.tangential_stiffness is not None:
-                raise ValueError('Contact gap/stiffness parameters require a rest support and pipe_modelization=POU_D_T.')
+                raise ValueError('Contact gap/stiffness parameters require a rest support.')
+            continue
+        if formulation == PipeModelization.SOLID_3D:
+            # Volume and mixed studies write no shoes, so they cannot honour contact parameters.
+            if support.friction_coefficient or support.gap != 0 or support.normal_stiffness is not None or support.tangential_stiffness is not None:
+                raise ValueError('Friction, gap and contact stiffness require a 1D study (TUYAU_3M or POU_D_T).')
             continue
         if not isinstance(support.id, str) or not support.id.strip():
             raise ValueError('Native shoes require persistent nonempty support IDs.')
@@ -57,12 +64,12 @@ def shoes(model, formulation):
                            support.normal_stiffness or 1e10, support.tangential_stiffness or 1e8))
     if result and any(s.imposed_displacement is not None for s in model.supports):
         raise ValueError("Native contact paths do not support prescribed support movement.")
-    if result and any(s.type == "spring" or s.mass > 0 for s in model.supports):
-        raise ValueError("Native shoes with discrete springs or support masses are not yet qualified.")
     return result
 
 
 def validate_path(model, load_case, load_path):
+    if any(s.type == "spring" or s.mass > 0 for s in model.supports):
+        raise ValueError("Native shoes with discrete springs or support masses are not yet qualified.")
     names = tuple(load_path) if load_path is not None else (load_case.name,)
     if not names or any(not isinstance(name, str) or name not in model.load_cases for name in names):
         raise ValueError('load_path must contain existing load-case names.')
@@ -81,6 +88,27 @@ def validate_path(model, load_case, load_path):
     return names, cases
 
 
+def write_tie(w, name, helper, attached_to, dofs, map_name):
+    """Write load `name`: helper node group `helper` moves with model node `attached_to` on each of `dofs`.
+
+    Both names are raw Tuba names; they are mapped here.
+    """
+    helper, other = map_name(helper), map_name(f'GN_{attached_to}')
+    ties = ','.join(f"_F(GROUP_NO=('{helper}','{other}'),DDL=('{dof}','{dof}'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)"
+                    for dof in dofs)
+    w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=({ties}))")
+
+
+def write_shoe_anchor(w, index, spec, map_name):
+    """Hold a shoe's helper node: fixed in space, or tied to the node its rest is attached to."""
+    name = f'GROUND{index}'
+    if spec.support.attached_to is None:
+        w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='{map_name(spec.ground)}',DX=0.,DY=0.,DZ=0.))")
+    else:
+        write_tie(w, name, spec.ground, spec.support.attached_to, ('DX', 'DY', 'DZ'), map_name)
+    return name
+
+
 def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_entries, active_bcs, step):
     """Emit a single stateful nonlinear evolution, including thermal history."""
     names, cases = validate_path(model, load_case, load_path)
@@ -94,8 +122,7 @@ def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_en
     w("GRAVITY = AFFE_CHAR_MECA(MODELE=MODELE, PESANTEUR=_F(GRAVITE=9.81,DIRECTION=(0.,0.,-1.)))")
     entries = [f'_F(CHARGE={bc})' for bc in active_bcs] + ['_F(CHARGE=GRAVITY,FONC_MULT=GRAMP)']
     for i, spec in enumerate(specs):
-        w(f"GROUND{i} = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='{map_name(spec.ground)}',DX=0.,DY=0.,DZ=0.))")
-        entries.append(f'_F(CHARGE=GROUND{i})')
+        entries.append(f'_F(CHARGE={write_shoe_anchor(w, i, spec, map_name)})')
     node_ids = sorted({force.node for case in cases for force in case.nodal_forces})
     for ni, node_id in enumerate(node_ids):
         for component, key in enumerate(('FX','FY','FZ','MX','MY','MZ')):
@@ -112,14 +139,14 @@ def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_en
     for temperature in temperatures:
         w(f"TFIELDS.append(CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',OPERATION='AFFE',MAILLAGE=MAIL,AFFE=_F(TOUT='OUI',NOM_CMP='TEMP',VALE={temperature!r})))")
     w(f"THERM = CREA_RESU(OPERATION='AFFE',TYPE_RESU='EVOL_THER',NOM_CHAM='TEMP',AFFE=tuple(_F(CHAM_GD=f,INST=t) for f,t in zip(TFIELDS,{times!r})))")
-    w('CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL,AFFE=(')
-    for entry in affe_entries:
-        w(entry)
-    w(f"), AFFE_VARC=_F(TOUT='OUI',NOM_VARC='TEMP',EVOL=THERM,VALE_REF={cases[0].ref_temperature!r}))")
     elastic_groups = [name for name in ('AllPipes','G_TUBE','G_BAR')
                       if (name == 'AllPipes' and any(e.type.startswith('pipe_') for e in model.elements))
                       or (name == 'G_TUBE' and any(e.type == 'beam' for e in model.elements))
                       or (name == 'G_BAR' and any(e.type == 'bar' for e in model.elements))]
+    w('CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL,AFFE=(')
+    for entry in affe_entries:
+        w(entry)
+    w(f"), AFFE_VARC=_F(GROUP_MA={tuple(map_name(x) for x in elastic_groups)!r},NOM_VARC='TEMP',EVOL=THERM,VALE_REF={cases[0].ref_temperature!r}))")
     elastic_groups.extend(f'DIS_{s.node}' for s in model.supports if s.type == 'spring' or s.mass > 0.)
     elastic_groups = tuple(map_name(x) for x in dict.fromkeys(elastic_groups))
     intervals = tuple(_ for _ in range(1, len(cases)+1))
@@ -136,14 +163,15 @@ def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_en
     w("),INCREMENT=_F(LIST_INST=times),NEWTON=_F(MATRICE='TANGENTE',REAC_ITER=1),CONVERGENCE=_F(RESI_GLOB_RELA=1e-8,ITER_GLOB_MAXI=50))")
 
 
-def write_contact_tables(w, specs, map_name):
-    """Solver-side JSON preserves exact support identifiers and all increments."""
+def write_contact_tables(w, specs, map_name, instant=None):
+    """Solver-side JSON preserves exact support identifiers, at every increment or only at ``instant``."""
+    select = '' if instant is None else f',INST={instant!r}'
     w('import json')
     w('contact_rows = []')
     for spec in specs:
-        w(f"CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'))")
+        w(f"CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI'{select}))")
         w('forces = CT.EXTR_TABLE().values()')
-        w(f"VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'))")
+        w(f"VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='{map_name(spec.group)}',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI'{select}))")
         w('variables = VT.EXTR_TABLE().values()')
         w("if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')")
         w('iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}')

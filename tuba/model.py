@@ -350,12 +350,15 @@ class BendGeometry:
         )
 
 
+SUPPORT_TYPES = ("anchor", "guide", "rest", "spring", "hanger", "custom")
+
+
 @dataclass
 class Support:
     """A boundary condition applied at a node."""
 
     node: str
-    type: str  # "anchor" | "guide" | "rest" | "spring" | "hanger" | "custom"
+    type: str  # one of SUPPORT_TYPES
     direction: Optional[List[float]] = None  # constrained direction [x, y, z]
     stiffness: Optional[float] = None  # spring stiffness [N/m]
     imposed_displacement: Optional[List[float]] = None  # [m]
@@ -367,10 +370,13 @@ class Support:
     gap: float = 0.0
     normal_stiffness: Optional[float] = None
     tangential_stiffness: Optional[float] = None
+    attached_to: Optional[str] = None  # the node the restraint acts against; None means ground
     source_line: Optional[int] = None  # user script lines, not serialized (see Element)
     source_call_line: Optional[int] = None
 
     def __post_init__(self):
+        if self.type not in SUPPORT_TYPES:
+            raise ValueError(f"Unknown support type {self.type!r}; use one of {', '.join(SUPPORT_TYPES)}.")
         for name in ('friction_coefficient', 'gap'):
             value = getattr(self, name)
             if not np.isfinite(value) or value < 0:
@@ -903,6 +909,7 @@ class TubaModel:
         gap: float = 0.0,
         normal_stiffness: Optional[float] = None,
         tangential_stiffness: Optional[float] = None,
+        attached_to: Optional[str] = None,
     ) -> Support:
         support_id = id or self.next_support_id()
         sup = Support(
@@ -919,6 +926,7 @@ class TubaModel:
             gap=gap,
             normal_stiffness=normal_stiffness,
             tangential_stiffness=tangential_stiffness,
+            attached_to=attached_to,
         )
         sup.source_line, sup.source_call_line = _script_lines()
         self.supports.append(sup)
@@ -1352,7 +1360,7 @@ class TubaModel:
         solver = CodeAsterSolver(**kwargs)
         if selected_modelization is PipeModelization.SOLID_3D:
             if load_path is not None or any(s.friction_coefficient for s in self.supports):
-                raise ValueError('Native contact load paths require POU_D_T; solid contact is not implemented.')
+                raise ValueError('Friction, gap, contact stiffness and load-path histories require a 1D study (TUYAU_3M or POU_D_T).')
             if not volume_element_ids or max_element_size is None:
                 raise ValueError("SOLID_3D requires volume_element_ids and max_element_size.")
             return solver.solve_volume_study(
@@ -1469,6 +1477,7 @@ class TubaModel:
                     **({"gap": s.gap} if s.gap != 0.0 else {}),
                     **({"normal_stiffness": s.normal_stiffness} if s.normal_stiffness is not None else {}),
                     **({"tangential_stiffness": s.tangential_stiffness} if s.tangential_stiffness is not None else {}),
+                    **({"attached_to": s.attached_to} if s.attached_to is not None else {}),
                 }
                 for s in self.supports
             ],

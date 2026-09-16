@@ -6,12 +6,13 @@ mixed into ``CodeAsterSolver`` and keeps ``self`` access to mesh helpers.
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
 from tuba.physical import physical_properties_for_element
-from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables
+from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
 
 from tuba.model import (
     BarSection,
@@ -27,6 +28,7 @@ from tuba.solver.modelisation import (
     modelisation_assignments,
     PipeModelization,
     needs_discrete_element,
+    spring_links,
 )
 from tuba.solver.aster_loads import (
     group_ma_value,
@@ -46,6 +48,35 @@ from tuba.solver.aster_loads import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _held_dofs(support) -> list[str]:
+    """The DOFs a two-way support holds, exactly as the grounded branch blocks them."""
+    names = ["DX", "DY", "DZ", "DRX", "DRY", "DRZ"]
+    if support.blocked_dof is not None:
+        return [names[i] for i, value in enumerate(support.blocked_dof) if value not in (False, 0, "0", "x", "X", None)]
+    if support.type == "anchor":
+        return names
+    if support.type == "guide" and support.direction:
+        return [names[i] for i, value in enumerate(support.direction) if abs(value) > 1e-12]
+    return names[:3]
+
+
+def _spring_stiffness(support) -> list[float]:
+    """The six global stiffnesses [Kx, Ky, Kz, Krx, Kry, Krz] of a spring support."""
+    if support.stiffness_matrix:
+        return support.stiffness_matrix
+    if not support.direction:
+        raise ValueError(
+            f"Spring support at node {support.node} uses scalar stiffness without direction. "
+            "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
+        )
+    value = support.stiffness if support.stiffness is not None else 1.0e6
+    stiffness = [0.0] * 6
+    for index, component in enumerate(support.direction):
+        if abs(component) > 1e-12:
+            stiffness[index] = value
+    return stiffness
 
 
 def _pipe_orientation_vector(model: TubaModel, pipe_straights: list, pipe_bends: list) -> tuple[float, float, float]:
@@ -134,7 +165,8 @@ class _CommWriterMixin:
         bend_elems = pipe_bends
         map_name = name_map or (lambda value: value)
         contacts = shoes(model, self.pipe_modelization)
-        native_path = bool(contacts) or self.load_path is not None
+        links = spring_links(model)
+        native_path = self.load_path is not None
         if native_path and (not beam_pipes or cable_elems):
             raise ValueError('Native contact load paths require beam piping without cables.')
 
@@ -148,20 +180,11 @@ class _CommWriterMixin:
         # Check for POI1 requirements (discrete springs or masses)
         has_poi1 = any(needs_discrete_element(s) for s in model.supports)
 
-        # Supports that need a unilateral contact zone. Kept apart from
-        # is_nonlinear because DEFI_CONTACT needs at least one ZONE to declare,
-        # and a nonlinear run does not imply there is one.
-        unilateral_supports = [s for s in model.supports if s.type == "rest"]
-
-        # Check if the model requires non-linear simulation (contact, friction,
-        # rests, cables). A cable carries no compression and starts from N_INIT,
-        # so CABLE elements are nonlinear by construction: MECA_STATIQUE would
-        # solve them as bars that push back and drop the pretension entirely.
-        # The nonlinear branch has always written their COMPORTEMENT; nothing
-        # but this flag reached it unless the model also had a rest or friction.
-        is_nonlinear = bool(unilateral_supports) or bool(cable_elems) or any(
-            s.friction_coefficient > 0.0 for s in model.supports
-        )
+        # Shoes and cables are nonlinear by construction. A shoe opens and
+        # closes (every rest is one, and friction exists only on rests). A cable
+        # carries no compression and starts from N_INIT, so MECA_STATIQUE would
+        # solve it as a bar that pushes back and drops the pretension entirely.
+        is_nonlinear = bool(contacts) or bool(cable_elems)
 
         comm: List[str] = []
 
@@ -190,7 +213,7 @@ class _CommWriterMixin:
             w("    CREA_POI1=(")
             for s in model.supports:
                 if needs_discrete_element(s):
-                    w(f"        _F(NOM_GROUP_MA='{map_name(discrete_support_group(s.node))}', NOEUD='{map_name(s.node)}'),")
+                    w(f"        _F(NOM_GROUP_MA='{map_name(discrete_support_group(s.node))}', GROUP_NO='{map_name(f'GN_{s.node}')}'),")
             w("    ),")
             w(");")
         else:
@@ -492,21 +515,8 @@ class _CommWriterMixin:
         for contact in contacts:
             discret_entries.append(f"_F(GROUP_MA='{map_name(contact.group)}',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),")
         for s in model.supports:
-            if s.type == "spring" and (s.stiffness_matrix is not None or s.stiffness is not None):
-                if s.stiffness_matrix:
-                    k = s.stiffness_matrix
-                else:
-                    val = s.stiffness if s.stiffness is not None else 1.0e6
-                    k = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    if s.direction:
-                        for idx, v in enumerate(s.direction):
-                            if abs(v) > 1e-12:
-                                k[idx] = val
-                    else:
-                        raise ValueError(
-                            f"Spring support at node {s.node} uses scalar stiffness without direction. "
-                            "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
-                        )
+            if s.type == "spring" and s.attached_to is None and (s.stiffness_matrix is not None or s.stiffness is not None):
+                k = _spring_stiffness(s)
                 discret_entries.append(
                     f"        _F(\n"
                     f"            GROUP_MA='{map_name(f'DIS_{s.node}')}',\n"
@@ -531,6 +541,16 @@ class _CommWriterMixin:
                     f"            VALE=({s.mass:.8E}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),\n"
                     f"        ),"
                 )
+        for link in links:
+            k = _spring_stiffness(link.support)
+            discret_entries.append(
+                f"        _F(\n"
+                f"            GROUP_MA='{map_name(link.group)}',\n"
+                f"            REPERE='GLOBAL',\n"
+                f"            CARA='K_TR_D_L',\n"
+                f"            VALE=({k[0]:.8E}, {k[1]:.8E}, {k[2]:.8E}, {k[3]:.8E}, {k[4]:.8E}, {k[5]:.8E}),\n"
+                f"        ),"
+            )
         if discret_entries:
             w("    DISCRET=(")
             for entry in discret_entries:
@@ -594,15 +614,32 @@ class _CommWriterMixin:
             grp_name = map_name(f"GN_{sup.node}")
             char_name = f"BC_{i}"
 
+            if sup.attached_to is not None and sup.type not in ("rest", "spring"):
+                dofs = _held_dofs(sup)
+                if not dofs:
+                    continue
+                other = map_name(f"GN_{sup.attached_to}")
+                w(f"{char_name} = AFFE_CHAR_MECA(")
+                w("    MODELE=MODELE,")
+                w("    LIAISON_DDL=(")
+                for dof in dofs:
+                    w(f"        _F(GROUP_NO=('{grp_name}', '{other}'), DDL=('{dof}', '{dof}'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),")
+                w("    ),")
+                if sup.node in pipe_nodes_with_warping:
+                    w("    DDL_IMPO=_F(")
+                    w(f"        GROUP_NO='{grp_name}',")
+                    w("        WO=0.0,")
+                    w("    ),")
+                w(");")
+                w()
+                active_bcs.append(char_name)
+                continue
+
             write_bc = False
             lines_bc = []
 
             if sup.blocked_dof is not None:
-                dof_names = ["DX", "DY", "DZ", "DRX", "DRY", "DRZ"]
-                blocked = []
-                for idx, val in enumerate(sup.blocked_dof):
-                    if val not in (False, 0, '0', 'x', 'X', None):
-                        blocked.append(dof_names[idx])
+                blocked = _held_dofs(sup)
                 if blocked:
                     write_bc = True
                     lines_bc.append(f"{char_name} = AFFE_CHAR_MECA(")
@@ -631,34 +668,15 @@ class _CommWriterMixin:
                     lines_bc.append(f"    MODELE=MODELE,")
                     lines_bc.append(f"    DDL_IMPO=_F(")
                     lines_bc.append(f"        GROUP_NO='{grp_name}',")
-                    if sup.direction:
-                        dof_map = {0: "DX", 1: "DY", 2: "DZ"}
-                        blocked = []
-                        for idx, val in enumerate(sup.direction):
-                            if abs(val) > 1e-12:
-                                blocked.append(dof_map[idx])
-                        for dof in blocked:
-                            lines_bc.append(f"        {dof}=0.0,")
-                    else:
-                        lines_bc.append(f"        DX=0.0,")
-                        lines_bc.append(f"        DY=0.0,")
-                        lines_bc.append(f"        DZ=0.0,")
+                    for dof in _held_dofs(sup):
+                        lines_bc.append(f"        {dof}=0.0,")
                     append_pipe_warping_bc(lines_bc, sup.node)
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
                 elif sup.type == "rest":
-                    # A rest never gets a bilateral DDL_IMPO. Its restraint is
-                    # unilateral - a LIAISON_UNIL zone, or a native contact shoe -
-                    # and any rest at all sets is_nonlinear, so the bilateral
-                    # branch that used to sit here could never run. It defaulted
-                    # to DY, which read as if a directionless rest held the pipe
-                    # sideways; the zone actually written is NOM_CMP='DZ'.
-                    #
-                    # What it does still owe is the warping restraint every other
-                    # support type gets through append_pipe_warping_bc. A TUYAU
-                    # node needs WO fixed or the section is free to warp there;
-                    # a node on a beam formulation has no warping DOF to fix, so
-                    # there is nothing to write and the support is skipped.
+                    # A rest is a contact shoe (aster_contact.shoes), never a
+                    # bilateral DDL_IMPO. It still owes the warping restraint every
+                    # support gets: a TUYAU node needs WO fixed; a beam node has none.
                     if sup.node not in pipe_nodes_with_warping:
                         continue
                     write_bc = True
@@ -677,9 +695,8 @@ class _CommWriterMixin:
                     lines_bc.append(f"    MODELE=MODELE,")
                     lines_bc.append(f"    DDL_IMPO=_F(")
                     lines_bc.append(f"        GROUP_NO='{grp_name}',")
-                    lines_bc.append(f"        DX=0.0,")
-                    lines_bc.append(f"        DY=0.0,")
-                    lines_bc.append(f"        DZ=0.0,")
+                    for dof in _held_dofs(sup):
+                        lines_bc.append(f"        {dof}=0.0,")
                     append_pipe_warping_bc(lines_bc, sup.node)
                     lines_bc.append(f"    ),")
                     lines_bc.append(f");")
@@ -689,6 +706,14 @@ class _CommWriterMixin:
                     w(line)
                 w()
                 active_bcs.append(char_name)
+
+        if not native_path:
+            for index, contact in enumerate(contacts):
+                active_bcs.append(write_shoe_anchor(w, index, contact, map_name))
+        for index, link in enumerate(links):
+            write_tie(w, f"SPRING{index}", link.helper, link.support.attached_to,
+                      ("DX", "DY", "DZ", "DRX", "DRY", "DRZ"), map_name)
+            active_bcs.append(f"SPRING{index}")
 
         if native_path:
             write_contact_solve(w, model, load_case, self.load_path, contacts, map_name, affe_entries, active_bcs, self.load_step)
@@ -767,6 +792,17 @@ class _CommWriterMixin:
             # ==============================================================
             # Thermal load (uniform temperature field for expansion)
             # ==============================================================
+            has_discrete_supports = bool(contacts) or bool(links) or any(needs_discrete_element(s) for s in model.supports)
+            structural_groups = [
+                group
+                for group, present in (
+                    ("AllPipes", bool(pipe_straights or pipe_bends)),
+                    ("G_TUBE", bool(beam_elems)),
+                    ("G_BAR", bool(bar_elems)),
+                    ("G_CABLE", bool(cable_elems)),
+                )
+                if present
+            ]
             if has_temperature:
                 write_thermal_load(
                     w,
@@ -776,38 +812,12 @@ class _CommWriterMixin:
                     node_temperatures=node_temperatures,
                     affe_entries=affe_entries,
                     is_nonlinear=is_nonlinear,
+                    varc_groups=structural_groups if has_discrete_supports else None,
                 )
 
             # ==============================================================
-            # DEFI_CONTACT & Solve
+            # Solve
             # ==============================================================
-            has_unilateral = bool(unilateral_supports) and not native_path
-            if has_unilateral:
-                w("# ----- Unilateral contacts -----")
-                w("UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);")
-                w("UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);")
-                w()
-                w("contact = DEFI_CONTACT(")
-                w("    MODELE=MODELE,")
-                w("    FORMULATION='LIAISON_UNIL',")
-                w("    ZONE=(")
-                for sup in unilateral_supports:
-                    grp_name = map_name(f"GN_{sup.node}")
-                    cmp_name = "DZ"
-                    if sup.direction:
-                        dof_map = {0: "DX", 1: "DY", 2: "DZ"}
-                        for idx, val in enumerate(sup.direction):
-                            if abs(val) > 1e-12:
-                                cmp_name = dof_map[idx]
-                                break
-                    w(
-                        f"        _F(GROUP_NO='{grp_name}', NOM_CMP='{cmp_name}', "
-                        "COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),"
-                    )
-                w("    ),")
-                w(");")
-                w()
-
             w("# ----- Solve -----")
 
             # Build EXCIT list
@@ -828,7 +838,12 @@ class _CommWriterMixin:
                 excit_entries.append("        _F(CHARGE=POINT_FORCE),")
 
             if is_nonlinear:
-                w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
+                if contacts:
+                    # Mechanical loads act in full from the first increment; only the
+                    # temperature ramps over the load_step increments.
+                    w(f"lst_inst = DEFI_LIST_REEL(DEBUT=0.0, INTERVALLE=_F(JUSQU_A=1.0, NOMBRE={math.ceil(1 / self.load_step)}));")
+                else:
+                    w("lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));")
                 w("times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));")
                 w()
                 w("RESU = STAT_NON_LINE(")
@@ -839,7 +854,7 @@ class _CommWriterMixin:
                 for entry in excit_entries:
                     w(entry)
                 w("    ),")
-                if cable_elems:
+                if cable_elems or contacts:
                     elastic_groups: List[str] = []
                     if pipe_straights or pipe_bends:
                         elastic_groups.append("AllPipes")
@@ -848,19 +863,23 @@ class _CommWriterMixin:
                     if bar_elems:
                         elastic_groups.append("G_BAR")
                     for support in model.supports:
-                        if (support.type == "spring" and (support.stiffness_matrix is not None or support.stiffness is not None)) or support.mass > 0.0:
-                            elastic_groups.append(f"DIS_{support.node}")
+                        if needs_discrete_element(support):
+                            elastic_groups.append(discrete_support_group(support.node))
+                    elastic_groups.extend(link.group for link in links)
                     w("    COMPORTEMENT=(")
                     if elastic_groups:
                         w("        _F(")
                         w(f"            GROUP_MA={group_ma_value(elastic_groups, map_name)},")
                         w("            RELATION='ELAS',")
                         w("        ),")
-                    w("        _F(")
-                    w(f"            GROUP_MA='{map_name('G_CABLE')}',")
-                    w("            RELATION='CABLE',")
-                    w("            DEFORMATION='GROT_GDEP',")
-                    w("        ),")
+                    if cable_elems:
+                        w("        _F(")
+                        w(f"            GROUP_MA='{map_name('G_CABLE')}',")
+                        w("            RELATION='CABLE',")
+                        w("            DEFORMATION='GROT_GDEP',")
+                        w("        ),")
+                    for contact in contacts:
+                        w(f"        _F(GROUP_MA='{map_name(contact.group)}', RELATION='DIS_CHOC', RESI_INTE=1e-9),")
                     w("    ),")
                 else:
                     w("    COMPORTEMENT=_F(")
@@ -870,10 +889,13 @@ class _CommWriterMixin:
                 w("    INCREMENT=_F(")
                 w("        LIST_INST=times,")
                 w("    ),")
-                if has_unilateral:
-                    w("    CONTACT=contact,")
-                if cable_elems:
+                if contacts:
+                    # As tight as a load path (aster_contact.py): the default RESI_GLOB_RELA=1e-6 is
+                    # relative to the anchors' thermal reactions and left shoe forces ~30 N out of balance.
+                    w(f"    CONVERGENCE=_F(RESI_GLOB_RELA=1e-8, ITER_GLOB_MAXI={100 if cable_elems else 50}),")
+                elif cable_elems:
                     w("    CONVERGENCE=_F(ITER_GLOB_MAXI=100),")
+                if cable_elems:
                     w("    RECH_LINEAIRE=_F(METHODE='CORDE'),")
                 w("    METHODE='NEWTON',")
                 w(");")
@@ -912,6 +934,10 @@ class _CommWriterMixin:
         w("    UNITE=80,")
         w("    RESU=_F(")
         w("        RESULTAT=RESU,")
+        # A load-path history keeps every increment; a single-operation shoe
+        # study keeps only its final state, in the MED file and in every table.
+        if contacts and not native_path:
+            w("        INST=1.0,")
         if has_pipe_stress:
             w("        CARA_ELEM=CARA,")
             w("        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),")
@@ -992,7 +1018,7 @@ class _CommWriterMixin:
             w("        NOM_CHAM='SIEQ_ELNO',")
             w("        TOUT='OUI',")
             w("        NOM_CMP=('VMIS',),")
-            if is_nonlinear:
+            if is_nonlinear and not native_path:
                 w("        INST=1.0,")
             w("    ),")
             w(");")
@@ -1010,7 +1036,7 @@ class _CommWriterMixin:
         # FIN
         # ==============================================================
         if contacts:
-            write_contact_tables(w, contacts, map_name)
+            write_contact_tables(w, contacts, map_name, instant=None if native_path else 1.0)
         w("FIN();")
 
         path.write_text("\n".join(comm), encoding="utf-8")

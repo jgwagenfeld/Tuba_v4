@@ -159,3 +159,11 @@ _Avoid_: MCP session, studio session, preview session
 **Stale review**:
 A review whose evidence no longer matches the model, because the model fingerprint of at least one of its operations has changed since it was solved.
 _Avoid_: Outdated results, dirty review
+
+**Attached support**:
+A support whose restraint acts between its node and another model node instead of a point fixed in space.
+_Avoid_: Linked support, connector
+
+**Shoe**:
+The one-way contact every rest compiles to: it carries compression, slides with its friction coefficient and lifts off.
+_Avoid_: Unilateral zone

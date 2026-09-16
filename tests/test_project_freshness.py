@@ -105,7 +105,7 @@ def test_a_rename_or_an_unsolved_load_case_leaves_the_evidence_fresh(tmp_path):
 
 
 def test_a_moved_node_makes_the_operation_stale(tmp_path):
-    model = _rack(tmp_path, lambda text: text.replace("(-2.0, -1.0, 3.0)", "(-2.5, -1.0, 3.0)"))
+    model = _rack(tmp_path, lambda text: text.replace("(-2.0, -1.0, 3.25)", "(-2.5, -1.0, 3.25)"))
 
     assert stale_operations(model, _rack_attestation()) == ["Operating"]
 

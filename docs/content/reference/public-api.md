@@ -31,7 +31,7 @@ The pipe context returns the current fluent builder.
 
 `Model.solve()` runs the Code_Aster-backed solve path and returns an `AnalysisRun`. Use the artifact importer when Code_Aster has already produced the study result directory; it returns the same type.
 
-For native beam-shoe friction, select `pipe_modelization="POU_D_T"` and use `load_path=["Cold", "Hot", "Cold"]` with existing absolute load cases. `run.result_states` retains every converged increment; `run.result_state` and `run.results` refer to the final state. A stage index and pseudo-time distinguish repeated case names.
+Rest friction works in single-operation studies on `TUYAU_3M` and `POU_D_T`; only load-path histories, such as `load_path=["Cold", "Hot", "Cold"]` with existing absolute load cases, require `pipe_modelization="POU_D_T"`. `run.result_states` retains every converged increment; `run.result_state` and `run.results` refer to the final state. A stage index and pseudo-time distinguish repeated case names.
 
 Rest supports accept `friction_coefficient`, `gap` in metres, `normal_stiffness` and `tangential_stiffness` in N/m. `direction` is the outward shoe normal (default +Z). The selected `DIS_CHOC` stiffnesses are numerical penalty controls: defaults are 1e10/1e8 N/m, and model-specific sensitivity still matters. Contact records contain forces **on the pipe**, true gap, total relative displacement, native slip and the status source. See the [solved example](../examples/native-friction.md) and [qualification](../engineering/native-friction-qualification.md) for supported scope and the native-status caveats.
 

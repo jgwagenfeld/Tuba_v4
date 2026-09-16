@@ -38,16 +38,16 @@ class TestFutureReadyIntegration(unittest.TestCase):
 
         request = PipeRouteRequest(
             id="P-100",
-            start=RouteEndpoint(id="A", point=(0.0, 0.0, 1.5)),
-            goal=RouteEndpoint(id="B", point=(4.0, 0.0, 1.5)),
+            start=RouteEndpoint(id="A", point=(0.0, 0.5, 1.75)),
+            goal=RouteEndpoint(id="B", point=(4.0, 0.5, 1.75)),
             section="PipeSec",
             material="Steel",
             costs=RoutingCostWeights(length=1.0, bend=0.0, support_span=0.0),
         )
         candidate = PipeRouteCandidate(
             request_id="P-100",
-            points=[(0.0, 0.0, 1.5), (4.0, 0.0, 1.5)],
-            segments=[RouteSegment((0.0, 0.0, 1.5), (4.0, 0.0, 1.5), "straight")],
+            points=[(0.0, 0.5, 1.75), (4.0, 0.5, 1.75)],
+            segments=[RouteSegment((0.0, 0.5, 1.75), (4.0, 0.5, 1.75), "straight")],
             cost=0.0,
             cost_breakdown={},
         )
@@ -58,14 +58,14 @@ class TestFutureReadyIntegration(unittest.TestCase):
         model.assign_insulation("group:line_A", "mw_50")
         model.assign_insulation("route:P-100", "mw_50")
 
-        support_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
-        support = model.add_support(node=support_node, type="rest")
+        rack_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
+        support = model.add_support(node=model.find_node_by_point((0.0, 0.5, 1.75)), type="rest", attached_to=rack_node)
 
         takeoff = quantity_takeoff(model)
         bom = bom_to_dict(model)
         pipe_row = next(row for row in bom["rows"] if row["element_id"] in created_elements)
         cost = RouteCostModel.from_routing_weights(request.costs).evaluate_candidate(model, request, candidate)
-        load_paths = analyze_load_paths(model, support_reactions={support.id: (0.0, 0.0, -500.0)})
+        load_paths = analyze_load_paths(model, node_reactions={rack_node: (0.0, 0.0, -500.0)})
         rules = RuleEngine([SupportSpacingRule(max_span_m=5.0), ClashFreeRule()]).evaluate(model)
 
         self.assertAlmostEqual(takeoff.groups["line_A"]["length_m"], 4.0)

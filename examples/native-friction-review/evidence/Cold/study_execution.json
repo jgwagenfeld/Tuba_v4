@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "study.comm": {
-      "sha256": "b943ae897a88620b76346be22e0b56a507cf980057f0339f16452ea52bbb7be3",
-      "size_bytes": 12806
+      "sha256": "229e88fda2f167c48244ae083bf901577887d7cb4d16610f9d5f91ffb53c99a7",
+      "size_bytes": 12818
     },
     "study.export": {
       "sha256": "58c126e2d2bf87bedd28c395e588931203b5a712de6725b633a419f9e2cb2198",
@@ -13,11 +13,11 @@
       "size_bytes": 21162
     },
     "study.mess": {
-      "sha256": "2216857033d2a9528c53a15ae8b1a994cc8425b14c99fd72edd2ae5f6a479f05",
-      "size_bytes": 215492
+      "sha256": "36de0dbb1c757c0571a9e351f8e6e968afb1ca396dfc228767c61fe48bf44d70",
+      "size_bytes": 215499
     },
     "study.rmed": {
-      "sha256": "563561027251de8a47ad557037791d1e9dbf7a4b42f422f1bde8aef579deafbc",
+      "sha256": "3486a3c7cd5356c7db12e46fe57811752514fcee0bd07f6e01c239af43b62f40",
       "size_bytes": 1662999
     },
     "study_contact.json": {
@@ -25,11 +25,11 @@
       "size_bytes": 34045
     },
     "study_depl.csv": {
-      "sha256": "858f509f60cc378b8475ba3a97f3e670cf7a37db46aba13a7c25390b9a827891",
+      "sha256": "a881309f668e554f965ee95a5b6041cd006496c8f279970987debb364c89c84c",
       "size_bytes": 2248636
     },
     "study_effo.csv": {
-      "sha256": "f24fea4b7a8579ae96e37a61499b8f0deca76d9795a41efc11d443c2b6cd1e86",
+      "sha256": "bdc879a42ee2327d7bc725429328fdb413ce47a158a6a33baa7730d7ef9ba3de",
       "size_bytes": 4901162
     },
     "study_manifest.json": {
@@ -37,7 +37,7 @@
       "size_bytes": 182006
     },
     "study_reac.csv": {
-      "sha256": "fc1f872356b65e1e61b58d74fb5d0e93ed4332724b6f6ed09c7010f40f2e0ef0",
+      "sha256": "17c1c58c87088fc64728e74b1ff772f95fca682bc7f12abb8121d714c0ba5381",
       "size_bytes": 2248636
     },
     "study_tuba_fem.json": {
@@ -47,7 +47,7 @@
   },
   "execution_method": "wsl",
   "schema_version": "tuba.code_aster_execution.v1",
-  "solved_at": "2026-09-10T07:10:52.775223Z",
+  "solved_at": "2026-09-15T17:34:18.107899Z",
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
     "fingerprint": "f99039167fb067a52a9bc54f3117b8b624bede3a5b95352617f7dfe573b760bd",

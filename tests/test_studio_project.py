@@ -177,7 +177,7 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertEqual(status, 200, payload)
         self.assertFalse(payload["review_stale"])
 
-        moved = model.replace("(-2.0, -1.0, 3.0)", "(-2.5, -1.0, 3.0)")
+        moved = model.replace("(-2.0, -1.0, 3.25)", "(-2.5, -1.0, 3.25)")
         status, payload = self._post(server, "api/script", {"code": moved})
         self.assertEqual(status, 200, payload)
         self.assertTrue(payload["review_stale"])

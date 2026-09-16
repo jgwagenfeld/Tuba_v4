@@ -61,7 +61,7 @@ from tuba.analysis.tuyau import (
     DISPLAY_GENERATRICE,
     subpoint_station,
 )
-from tuba.solver.modelisation import PipeModelization
+from tuba.solver.modelisation import PipeModelization, needs_discrete_element
 from tuba.analysis.provenance import (
     SolverInputIdentity,
     build_solver_input_identity,
@@ -138,6 +138,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     ) -> None:
         if isinstance(line_segments, bool) or not isinstance(line_segments, int) or line_segments < 1:
             raise ValueError("line_segments must be a positive integer.")
+        if isinstance(load_step, bool) or not isinstance(load_step, (int, float)) or not math.isfinite(load_step) or not 0 < load_step <= 1:
+            raise ValueError("load_step must be finite and in (0, 1].")
         self.line_segments = line_segments
         self.pipe_modelization = PipeModelization(pipe_modelization)
         if isinstance(load_path, str):
@@ -274,15 +276,24 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         )
         if any(len(self._straight_segment_node_pairs(e)) > 1 for e in model.elements if e.type != "pipe_bend"):
             compiler_inputs = dict(compiler_inputs or {}, line_segments=self.line_segments)
+        if any(needs_discrete_element(s) for s in model.supports):
+            # CREA_POI1 once named its node with NOEUD and put these supports on the wrong node;
+            # evidence solved before GROUP_NO lacks this input, so it reads stale.
+            compiler_inputs = dict(compiler_inputs or {}, discrete_support_nodes="GROUP_NO")
         from tuba.solver.aster_contact import shoes, validate_path
         contact_specs = shoes(model, self.pipe_modelization)
-        if self.load_path is not None and not contact_specs:
-            raise ValueError('load_path currently requires a native POU_D_T resting shoe.')
+        if self.load_path is not None and (not contact_specs or self.pipe_modelization is not PipeModelization.POU_D_T):
+            raise ValueError("load_path histories require pipe_modelization='POU_D_T' and a resting shoe.")
         if contact_specs:
-            names, cases = validate_path(model, load_case, self.load_path)
-            compiler_inputs = dict(compiler_inputs or {}, load_path=list(names), load_step=self.load_step,
-                                  contact_law='DIS_CHOC', contact_stiffness_defaults=[1e10, 1e8],
-                                  load_path_inputs={name: model.to_dict()['load_cases'][name] for name in names})
+            if self.load_path is not None:
+                names, _cases = validate_path(model, load_case, self.load_path)
+            else:
+                names = (load_case_name,)
+            compiler_inputs = dict(compiler_inputs or {}, pipe_modelization=self.pipe_modelization.value,
+                                  load_path=list(names), load_step=self.load_step,
+                                  contact_law='DIS_CHOC', contact_stiffness_defaults=[1e10, 1e8])
+            if self.load_path is not None:
+                compiler_inputs['load_path_inputs'] = {name: model.to_dict()['load_cases'][name] for name in names}
         solver_input_identity = build_solver_input_identity(
             model, load_case_name, compiler_inputs=compiler_inputs,
         )
@@ -1035,7 +1046,8 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         # _parse_result_table, not the raw CSV: a load-path solve writes every
         # increment to this table and only the requested instant is the result.
         rows = self._parse_result_table(work_dir / "study_reac.csv")
-        support_nodes = {s.node for s in model.supports}
+        # An attached support hands its load to the node it is attached to, so that node's reaction is kept too.
+        support_nodes = {s.node for s in model.supports} | {s.attached_to for s in model.supports if s.attached_to is not None}
         # CABLE and BARRE elements carry three translational degrees of freedom
         # and no rotations, so Code_Aster prints "-" for DRX/DRY/DRZ at a node
         # attached only to them - the same "-" the element-force parser above

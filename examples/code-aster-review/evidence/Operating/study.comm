@@ -15,6 +15,11 @@ MODELE = AFFE_MODELE(
             PHENOMENE='MECANIQUE',
             MODELISATION='TUYAU_3M',
         ),
+        _F(
+            GROUP_MA='GCC48F90',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
     ),
 );
 
@@ -28,14 +33,16 @@ MAT_STEEL = DEFI_MATERIAU(
     ),
 );
 
+CM0 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.0,DIST_1=1.0))
 # ----- Material assignment -----
 CHMAT = AFFE_MATERIAU(
     MAILLAGE=MAIL,
     AFFE=(
         _F(
-            TOUT='OUI',
+            GROUP_MA='G5AF7883',
             MATER=MAT_STEEL,
         ),
+_F(GROUP_MA='GCC48F90',MATER=CM0),
     ),
 );
 
@@ -64,7 +71,11 @@ CARA = AFFE_CARA_ELEM(
         ),
         _F(GROUP_MA='G21F400B', SECTION='COUDE'),
     ),
+    DISCRET=(
+_F(GROUP_MA='GCC48F90',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+    ),
     ORIENTATION=(
+_F(GROUP_MA='GCC48F90',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
         _F(
             GROUP_NO='G06D7539',
             CARA='GENE_TUYAU',
@@ -111,6 +122,7 @@ BC_3 = AFFE_CHAR_MECA(
     ),
 );
 
+GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='GROUND_2',DX=0.,DY=0.,DZ=0.))
 # ----- Gravity -----
 GRAVITY = AFFE_CHAR_MECA(
     MODELE=MODELE,
@@ -166,12 +178,13 @@ CHMAT = AFFE_MATERIAU(
     MAILLAGE=MAIL,
     AFFE=(
         _F(
-            TOUT='OUI',
+            GROUP_MA='G5AF7883',
             MATER=MAT_STEEL,
         ),
+_F(GROUP_MA='GCC48F90',MATER=CM0),
     ),
     AFFE_VARC=_F(
-        TOUT='OUI',
+        GROUP_MA=('AllPipes',),
         NOM_VARC='TEMP',
         EVOL=TEMP_EVOL,
         NOM_CHAM='TEMP',
@@ -179,20 +192,8 @@ CHMAT = AFFE_MATERIAU(
     ),
 );
 
-# ----- Unilateral contacts -----
-UNIL_ZERO = DEFI_CONSTANTE(VALE=0.0);
-UNIL_ONE = DEFI_CONSTANTE(VALE=1.0);
-
-contact = DEFI_CONTACT(
-    MODELE=MODELE,
-    FORMULATION='LIAISON_UNIL',
-    ZONE=(
-        _F(GROUP_NO='GN_N3', NOM_CMP='DZ', COEF_IMPO=UNIL_ZERO, COEF_MULT=UNIL_ONE),
-    ),
-);
-
 # ----- Solve -----
-lst_inst = DEFI_LIST_REEL(VALE=(0.0, 1.0));
+lst_inst = DEFI_LIST_REEL(DEBUT=0.0, INTERVALLE=_F(JUSQU_A=1.0, NOMBRE=10));
 times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));
 
 RESU = STAT_NON_LINE(
@@ -204,17 +205,21 @@ RESU = STAT_NON_LINE(
         _F(CHARGE=BC_1),
         _F(CHARGE=BC_2),
         _F(CHARGE=BC_3),
+        _F(CHARGE=GROUND0),
         _F(CHARGE=GRAVITY),
         _F(CHARGE=PRESSURE),
     ),
-    COMPORTEMENT=_F(
-        TOUT='OUI',
-        RELATION='ELAS',
+    COMPORTEMENT=(
+        _F(
+            GROUP_MA='AllPipes',
+            RELATION='ELAS',
+        ),
+        _F(GROUP_MA='GCC48F90', RELATION='DIS_CHOC', RESI_INTE=1e-9),
     ),
     INCREMENT=_F(
         LIST_INST=times,
     ),
-    CONTACT=contact,
+    CONVERGENCE=_F(RESI_GLOB_RELA=1e-8, ITER_GLOB_MAXI=50),
     METHODE='NEWTON',
 );
 
@@ -233,6 +238,7 @@ IMPR_RESU(
     UNITE=80,
     RESU=_F(
         RESULTAT=RESU,
+        INST=1.0,
         CARA_ELEM=CARA,
         NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),
     ),
@@ -314,4 +320,17 @@ IMPR_TABLE(
     SEPARATEUR=',',
 );
 
+import json
+contact_rows = []
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GCC48F90',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GCC48F90',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='support_2',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+with open('fort.42','w') as stream: json.dump(contact_rows,stream,allow_nan=False)
 FIN();

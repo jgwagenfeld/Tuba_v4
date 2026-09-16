@@ -54,6 +54,7 @@ class AddSupport:
     gap: float = 0.0
     normal_stiffness: float | None = None
     tangential_stiffness: float | None = None
+    attached_to: str | None = None
 
 
 @dataclass(frozen=True)
@@ -273,6 +274,7 @@ class ModelTransaction:
             gap=operation.gap,
             normal_stiffness=operation.normal_stiffness,
             tangential_stiffness=operation.tangential_stiffness,
+            attached_to=node_ids.get(operation.attached_to, operation.attached_to) if operation.attached_to is not None else None,
         )
 
     def _apply_add_insulation_spec(self, target: TubaModel, operation: AddInsulationSpec) -> None:

@@ -419,7 +419,8 @@ def test_artifact_review_uses_the_observed_solve_timestamp(tmp_path):
                         "size_bytes": (artifact_dir / filename).stat().st_size,
                         "sha256": hashlib.sha256((artifact_dir / filename).read_bytes()).hexdigest(),
                     }
-                    for filename in ATTESTED_CODE_ASTER_FILES
+                    # The rest is a contact shoe, so its contact history is attested too.
+                    for filename in (*ATTESTED_CODE_ASTER_FILES, "study_contact.json")
                 },
             }
         ),

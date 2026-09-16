@@ -14,8 +14,8 @@ are included only where stated.
 
 A 180 C line routed around equipment with an automatically selected expansion loop. The review shows thermal displacement and clearance violations around a cable tray.
 
-The reported gap decreases from 150.0 mm cold to 137.6 mm in the operating
-state. The clearance check reports a 6.8 mm violation of the configured 100 mm
+The reported gap decreases from 150.0 mm cold to 131.3 mm in the operating
+state. The clearance check reports a 13.2 mm violation of the configured 100 mm
 clearance band, flagged `introduced_by_deformation`. The tray and clearance
 band are model inputs; displacement comes from imported Code_Aster results.
 The router's reserved corridor also includes the declared insulation.
@@ -71,7 +71,7 @@ displacement, terminal resultants and stress field stay separately inspectable.
 
 [![Load transfer review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
 
-An I-beam rack and pipe analysed together under gravity, 1.5 MPa internal pressure, and a temperature increase from 20 C to 180 C, with no imposed nodal forces. The review shows support reactions and a support-spacing check.
+A DN100 line resting on friction shoes on an I-beam rack, analysed together with the rack under gravity, 1.5 MPa internal pressure and a temperature increase from 20 C to 180 C, with no imposed nodal forces. The review shows the shoe forces, the load the shoes put on the rack, and a support-spacing check.
 
 An engineer-authored 3.5 m support-spacing rule flags the 4 m rack span.
 This project rule annotates the solver evidence; it does not establish

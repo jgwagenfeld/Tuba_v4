@@ -26,10 +26,12 @@ def test_load_rmed_preserves_quadratic_lines_and_normalizes_latest_results(monke
     grid = pipeline.load_rmed(str(RMED))
 
     assert calls == [(RMED, "med")]
-    assert grid.n_points == 71
-    assert grid.n_cells == 35
-    assert set(grid.celltypes) == {21}  # VTK_QUADRATIC_EDGE
-    assert list(grid.get_cell(0).point_ids) == [0, 1, 36]
+    # The rest is solved as a contact shoe: a helper node and a two-node line
+    # from it to the pipe, which is cell 0. The pipe edges stay quadratic.
+    assert grid.n_points == 72
+    assert grid.n_cells == 36
+    assert set(grid.celltypes) == {3, 21}  # VTK_LINE, VTK_QUADRATIC_EDGE
+    assert list(grid.get_cell(1).point_ids) == [1, 2, 37]
     # Reference values from the artifacts re-solved with gravity along -Z. The
     # values before that were computed with gravity along -Y, which loaded this
     # line across itself rather than down it.
@@ -40,15 +42,20 @@ def test_load_rmed_preserves_quadratic_lines_and_normalizes_latest_results(monke
     # section effect should look like.
     #
     # Re-solved once more when the riser to the far anchor grew from 2 m to 3 m.
+    #
+    # Re-solved again when the rest became a contact shoe.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][-1],
-        [0.000471237817, 0.003939980094, -0.004650298795],
+        [0.003312064928, 0.007295506559, -0.004043201424],
         rtol=0,
         atol=5e-8,
     )
     # The longer riser raised peak displacement about 21% and lowered peak von Mises 0.3%.
-    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.00629904209835321)
-    assert np.isclose(grid.point_data["VMIS"].max(), 332030662.86319536)
+    # The shoe raised peak displacement about 44% and peak von Mises about 5%.
+    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.00909002553351697)
+    # The shoe's helper node carries no stress, so its VMIS is NaN.
+    assert np.flatnonzero(np.isnan(grid.point_data["VMIS"])).tolist() == [0]
+    assert np.isclose(np.nanmax(grid.point_data["VMIS"]), 349965981.94583714)
 
 
 def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():
@@ -65,9 +72,13 @@ def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():
     # the old number was that artifact. With interior nodes the cable hangs, so
     # the displacement is downward and roughly three times larger. Uy stays at
     # zero either way, which is the invariant this test is really guarding.
+    #
+    # Re-solved when the rest became a contact shoe and the spring and support
+    # mass moved onto their own nodes: Ux 0.00502 -> 0.00473, Uz -0.1885 -> -0.1855.
+    # Re-solved with shoes converged as tightly as load paths: Ux +1.1e-8, Uz -2.1e-7.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][n5_matches[0]],
-        [0.005018335600, 0.0, -0.188512031613],
+        [0.004727627556, 0.0, -0.185451764522],
         rtol=2e-6,
     )
     assert abs(grid.point_data["DEPL"][n5_matches[0]][1]) < 1e-9, "no sag across the model"
