@@ -2,6 +2,8 @@
 
 Date: 2026-09-13
 Status: accepted
+Amended by `2026-09-16-deep-modules-for-solve-and-publication-design.md`: it supersedes parts of
+decisions 1, 13, 14, 17, 19, 23 and 24, and replaces roadmap steps 6 and 7.
 
 Terms follow `CONTEXT.md` (Project, Model script, Generated and Authored model
 script, Authoring session, Study, Standard review, Solver study, Evidence,

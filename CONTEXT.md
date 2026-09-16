@@ -57,7 +57,7 @@ The shareable semantic view used by a review consumer to inspect geometry, solve
 _Avoid_: Quick-look view
 
 **Official gallery**:
-A centrally registered, validated publication record that owns its bundle producer, audience, profile, and solver-backed refresh metadata when applicable.
+A centrally registered publication record: its card, its audience and its publication profile, pointing at the project and study whose review it publishes.
 _Avoid_: Parallel gallery lists, unregistered publication bundle
 
 **Quick-look view**:
@@ -167,3 +167,19 @@ _Avoid_: Linked support, connector
 **Shoe**:
 The one-way contact every rest compiles to: it carries compression, slides with its friction coefficient and lifts off.
 _Avoid_: Unilateral zone
+
+**Solver choices**:
+A study's declared choices for compiling its operations: the pipe modelization, the solver segments, a load path and its step, and which elements become 3D solids. They are part of the model fingerprint, and they never say how Code_Aster runs.
+_Avoid_: Solver options dict, runtime settings
+
+**Code_Aster runtime**:
+How Code_Aster runs on this machine: execution method, distribution or image, bridge, command and timeout. Never a study's choice; it is the production adapter behind the solver port.
+_Avoid_: Solver choices, solver configuration
+
+**Staged run**:
+An analysis run's evidence copied into a review bundle, one folder per operation, with every file the bundle names covered by that run's attestation.
+_Avoid_: Artifact directory, bundle assets
+
+**Publication profile**:
+What a review bundle of one kind must hold, run by run, to be published: the result families each run shows, and the files its attestation must cover.
+_Avoid_: Bundle type string, gallery badge
