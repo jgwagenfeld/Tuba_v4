@@ -2,20 +2,23 @@
 
 A run is staged into ``artifacts/<operation>/``, the folder its own attested operation names, so a bundle
 can be read back from the attestation it carries rather than from the path a caller happened to pick.
+Reading it back is validating it: :func:`read_staged_runs` joins every provenance file role to the
+attestation covering that run's folder, and refuses the bundle when one of them does not belong there.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import replace
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 import hashlib
+import json
 from pathlib import Path, PureWindowsPath
 import shutil
-from typing import Any
+from typing import Any, Literal
 
 from tuba.analysis.provenance import SolverInputIdentity, require_matching_solver_input_identities
 from tuba.analysis.run import AnalysisRun
-from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
+from tuba.solver.code_aster_runtime import execution_trust, load_code_aster_execution_attestation
 
 ARTIFACTS = "artifacts"
 _UNSAFE = frozenset('<>:"/\\|?*')
@@ -188,6 +191,111 @@ def _stage_run(artifact: AnalysisRun, bundle_root: Path, operation: str) -> Anal
         artifact, study=study, analysis_mesh=mesh,
         result_state=result_states[-1] if result_states else result_state,
         result_states=result_states,
+    )
+
+
+@dataclass(frozen=True)
+class StagedRun:
+    """One Analysis run's staged Evidence, as the attestation covering its folder describes it.
+
+    A caller reads the run rather than re-deriving it from the review document that points at it.
+    """
+
+    root: Path                           # the bundle holding this run
+    operation: str                       # the attested load case; also the folder name
+    folder: str                          # "artifacts/<operation>", bundle-relative POSIX
+    identity: SolverInputIdentity        # from the attestation, never from review.json
+    trust: Literal["verified", "unverified"]
+    modelization: str | None             # compiler_inputs.pipe_modelization, when the study names one
+    contact: bool                        # the attested inventory carries the contact rows
+    inventory: tuple[str, ...]           # attested basenames, sorted
+    files: Mapping[str, str]             # role -> bundle-relative POSIX path, every one attested
+
+    def path(self, role: str) -> Path:
+        """*role*'s staged file, absolute; ``KeyError`` for a role this run does not carry."""
+        return self.root / self.files[role]
+
+
+def read_staged_runs(bundle_root: str | Path) -> tuple[StagedRun, ...]:
+    """Every run staged in this bundle, ordered by operation; reading is validating.
+
+    A bundle without a review document holds no runs, which is the right answer for a model review and
+    a mesh review. Every other bundle is refused unless each run's file roles land on the evidence its
+    own attestation covers.
+    """
+    root = Path(bundle_root).resolve()
+    review = root / "review.json"
+    if not review.is_file():
+        return ()
+    groups = _records_by_identity(json.loads(review.read_text(encoding="utf-8")))
+    return tuple(sorted((_read_run(root, group) for group in groups), key=lambda run: run.operation))
+
+
+def _records_by_identity(review: Mapping[str, Any]) -> list[list[Mapping[str, Any]]]:
+    """Group a review's provenance records into runs, one group per solver input identity."""
+    groups: dict[str, list[Mapping[str, Any]]] = {}
+    for record in review.get("provenance", ()):
+        metadata = record.get("metadata") if isinstance(record, Mapping) else None
+        identity = metadata.get("solver_input_identity") if isinstance(metadata, Mapping) else None
+        if not isinstance(identity, Mapping):
+            name = record.get("id") if isinstance(record, Mapping) else None
+            raise ValueError(f"Provenance record {name!r} carries no solver input identity.")
+        # Only the grouping reads this identity; every run's own identity comes from its attestation.
+        groups.setdefault(json.dumps(identity, sort_keys=True), []).append(record)
+    return list(groups.values())
+
+
+def _read_run(root: Path, group: Sequence[Mapping[str, Any]]) -> StagedRun:
+    """Read one run back from the folder its execution envelope names, validating as it goes."""
+    records = {record.get("kind"): record for record in group}
+    # A name for the refusals below only; the attestation decides the operation.
+    case = group[0].get("load_case")
+    missing = [kind for kind in ("study", "analysis_mesh", "result_state") if kind not in records]
+    if missing:
+        raise ValueError(f"Staged run {case!r} is missing its {', '.join(missing)} provenance record.")
+    envelope = records["result_state"].get("files", {}).get("execution")
+    if not isinstance(envelope, str):
+        raise ValueError(f"Staged run {case!r} carries no 'execution' envelope naming its evidence folder.")
+    folder = _artifact_source(envelope, evidence_root=root).parent
+    if root not in folder.parents:
+        raise ValueError(f"Staged run {case!r} names an execution envelope outside its bundle: {envelope!r}.")
+    folder_uri = folder.relative_to(root).as_posix()
+    # Loading re-hashes every attested file, so one flipped byte is refused here.
+    attestation = load_code_aster_execution_attestation(folder)
+    if attestation is None:
+        raise ValueError(f"Staged run {case!r} has no execution attestation in {folder_uri!r}.")
+    identity = SolverInputIdentity.from_dict(attestation["solver_input_identity"])
+    operation = identity.load_case
+    if folder.name != operation:
+        raise ValueError(f"Bundle folder {folder_uri!r} holds evidence attested for operation {operation!r}.")
+    inventory = tuple(sorted(attestation["artifacts"]))
+    attested = {*inventory, "study_execution.json"}
+    for path in sorted(folder.iterdir()):
+        if path.name not in attested:
+            raise ValueError(
+                f"Staged run {operation!r} carries {path.name!r}, which its attestation does not cover."
+            )
+    files: dict[str, str] = {}
+    for record in group:
+        for role, uri in record.get("files", {}).items():
+            source = _artifact_source(uri, evidence_root=root)
+            if source.parent != folder or source.name not in attested:
+                raise ValueError(
+                    f"Staged run {operation!r} role {role!r} names {uri!r}, "
+                    "which its attestation does not cover."
+                )
+            files[role] = source.relative_to(root).as_posix()
+    manifest = json.loads((folder / "study_manifest.json").read_text(encoding="utf-8"))
+    return StagedRun(
+        root=root,
+        operation=operation,
+        folder=folder_uri,
+        identity=identity,
+        trust=execution_trust(attestation),
+        modelization=manifest["study"]["metadata"].get("compiler_inputs", {}).get("pipe_modelization"),
+        contact="study_contact.json" in inventory,
+        inventory=inventory,
+        files=files,
     )
 
 
