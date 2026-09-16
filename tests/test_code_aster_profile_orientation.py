@@ -19,7 +19,8 @@ def build_model():
 
 def check_solved_response(model, runs):
     return _STUDY.check_solved_response(model, runs, rolls=ROLLS, length=_NAMESPACE["LENGTH"])
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts, stage_code_aster_artifact_evidence
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.analysis.staged_run import stage_runs
 from tuba.geometry.section_mesh import beam_local_frame
 from tuba.analysis.provenance import build_solver_input_identity
 
@@ -47,7 +48,7 @@ def test_disconnected_cantilevers_and_solved_orientation():
     assert len(check_solved_response(model,runs)) == 6
 
 
-def test_artifact_subdirectory_cannot_escape_bundle(tmp_path):
+def test_an_operation_name_cannot_escape_the_bundle(tmp_path):
     for unsafe in ("", ".", "../outside", str(tmp_path.parent)):
-        with pytest.raises(ValueError, match="within the review bundle"):
-            stage_code_aster_artifact_evidence(None,tmp_path,artifact_subdir=unsafe)
+        with pytest.raises(ValueError, match="cannot name"):
+            stage_runs({unsafe: None}, tmp_path)

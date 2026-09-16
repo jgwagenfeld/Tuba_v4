@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidence
+from tuba.analysis.staged_run import stage_runs
 from tuba.project import load_project
 from tuba.reporting import build_engineering_review
 from tuba.solver.modelisation import PipeModelization
@@ -59,7 +59,8 @@ def run_example(
         exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"),
     )
     solved_at = run.result_state.metadata["solve_attestation"]["solved_at"]
-    run = stage_code_aster_artifact_evidence(run, output / "review_scene")
+    operation = run.result_state.load_case
+    run = stage_runs({operation: run}, output / "review_scene")[operation]
     scene = build_visualization_scene(
         model,
         analysis_runs=[run],

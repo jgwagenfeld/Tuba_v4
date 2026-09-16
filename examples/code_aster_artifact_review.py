@@ -19,10 +19,8 @@ from tuba.analysis import (
     create_operating_geometry_state,
     create_visual_deformed_geometry_state,
 )
-from tuba.analysis.code_aster_artifacts import (
-    import_code_aster_artifacts,
-    stage_code_aster_artifact_evidence,
-)
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.analysis.staged_run import stage_runs
 from tuba.clash import ClashEngine
 from tuba.reporting import build_engineering_review
 from tuba.load_path import analyze_load_paths
@@ -120,7 +118,8 @@ def run_example(
 
     artifact = run if run is not None else import_code_aster_artifacts(model=resolved_model, work_dir=resolved_artifact_dir)
     solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
-    artifact = stage_code_aster_artifact_evidence(artifact, output_path / "review_scene")
+    operation = artifact.result_state.load_case
+    artifact = stage_runs({operation: artifact}, output_path / "review_scene")[operation]
     operating_state = create_operating_geometry_state(model=resolved_model, result_state=artifact.result_state)
     visual_state = create_visual_deformed_geometry_state(
         model=resolved_model,

@@ -6,7 +6,8 @@ from pathlib import Path
 import numpy as np
 
 from tuba.analysis import create_visual_deformed_geometry_state
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts, stage_code_aster_artifact_evidence
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.analysis.staged_run import stage_runs
 from tuba.geometry.section_mesh import _rotation_matrix, beam_local_frame
 from tuba.reporting import build_engineering_review
 from tuba.visualization import add_scene_label, build_visualization_scene, write_engineering_review_with_scene
@@ -109,7 +110,7 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     for run in runs:
         run.validate_for_publication(model)
     rows = check_solved_response(model, runs, rolls=rolls, length=namespace["LENGTH"])
-    runs = [stage_code_aster_artifact_evidence(run, bundle_root, artifact_subdir=f"artifacts/{run.result_state.load_case}") for run in runs]
+    runs = list(stage_runs({run.result_state.load_case: run for run in runs}, bundle_root).values())
     states = [create_visual_deformed_geometry_state(model=model, result_state=run.result_state, visual_scale=VISUAL_SCALE) for run in runs]
     solved_at = runs[0].result_state.metadata["solve_attestation"]["solved_at"]
     scene = build_visualization_scene(model, analysis_runs=runs, geometry_states=states,

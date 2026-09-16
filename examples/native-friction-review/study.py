@@ -9,7 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from tuba.analysis import create_visual_deformed_geometry_state
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts, stage_code_aster_artifact_evidence
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+from tuba.analysis.staged_run import stage_runs
 from tuba.reporting import build_engineering_review
 from tuba.visualization import add_scene_label, build_visualization_scene, write_engineering_review_with_scene
 
@@ -88,7 +89,8 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     run.validate_for_publication(model)
     check(SimpleNamespace(model=model, namespace=namespace, runs={LOAD_CASES[0]: run}))
     bundle_root = output / "review_scene"
-    run = stage_code_aster_artifact_evidence(run, bundle_root)
+    operation = run.result_state.load_case
+    run = stage_runs({operation: run}, bundle_root)[operation]
     states = run.result_states or (run.result_state,)
     geometry_states = [replace(create_visual_deformed_geometry_state(model=model, result_state=state, visual_scale=20.0),
                                id=f"geometry_state:{state.id}:visual") for state in states]

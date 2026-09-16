@@ -13,7 +13,7 @@ import pytest
 from scripts import build_pages
 from scripts.build_pages import build_examples, validate_official_bundle, write_bundle_catalog
 from tuba.analysis import AnalysisRun
-from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidence
+from tuba.analysis.staged_run import stage_runs
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.provenance import CODE_ASTER_COMPILER_ID, SolverInputIdentity
 from tuba.analysis.results import ResultState
@@ -162,13 +162,13 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     study_provenance = next(item for item in review["provenance"] if item["kind"] == "study")
     assert "work_dir" not in study_provenance["metadata"]
     result_provenance = next(item for item in review["provenance"] if item["kind"] == "result_state")
-    assert all(value.startswith("artifacts/") for value in result_provenance["files"].values())
+    assert all(value.startswith("artifacts/Operating/") for value in result_provenance["files"].values())
     assert {"stdout", "stderr"}.isdisjoint(result_provenance["files"])
-    assert result_provenance["files"]["execution"] == "artifacts/study_execution.json"
-    assert result_provenance["files"]["mess"] == "artifacts/study.mess"
+    assert result_provenance["files"]["execution"] == "artifacts/Operating/study_execution.json"
+    assert result_provenance["files"]["mess"] == "artifacts/Operating/study.mess"
     assert (tmp_path / "code-aster-review" / result_provenance["files"]["execution"]).is_file()
     assert {
-        path.name for path in (tmp_path / "code-aster-review" / "artifacts").iterdir()
+        path.name for path in (tmp_path / "code-aster-review" / "artifacts" / "Operating").iterdir()
         if path.is_file()
     } == {*ATTESTED_CODE_ASTER_FILES, "study_contact.json", "study_execution.json"}
     assert result_provenance["metadata"]["file_sha256"]["rmed"]
@@ -417,7 +417,7 @@ def test_evidence_staging_requires_a_validated_solve_attestation(tmp_path: Path)
     artifact = _artifact_with_files({"comm": str(source / "study.comm")}, work_dir=source)
 
     with pytest.raises(ValueError, match="attestation"):
-        stage_code_aster_artifact_evidence(artifact, tmp_path / "bundle")
+        stage_runs({"Operating": artifact}, tmp_path / "bundle")
 
 
 def test_engineering_profile_rejects_missing_portable_provenance_file(tmp_path: Path) -> None:
@@ -583,7 +583,7 @@ def test_evidence_staging_rejects_unsafe_or_ambiguous_sources(tmp_path: Path, ki
     artifact = _artifact_with_files(files, work_dir=source, attested=True)
 
     with pytest.raises(ValueError, match="missing|collision|symlinks"):
-        stage_code_aster_artifact_evidence(artifact, tmp_path / "bundle")
+        stage_runs({"Operating": artifact}, tmp_path / "bundle")
 
 
 def test_evidence_staging_resolves_committed_windows_relative_paths_from_the_evidence_root(tmp_path: Path) -> None:
@@ -597,9 +597,9 @@ def test_evidence_staging_resolves_committed_windows_relative_paths_from_the_evi
         {"comm": "inputs\\study.comm"}, work_dir=evidence_root, attested=True
     )
 
-    staged = stage_code_aster_artifact_evidence(artifact, tmp_path / "bundle")
+    staged = stage_runs({"Operating": artifact}, tmp_path / "bundle")
 
-    assert staged.study.input_files["comm"] == "artifacts/study.comm"
+    assert staged["Operating"].study.input_files["comm"] == "artifacts/Operating/study.comm"
 
 
 def test_evidence_staging_rejects_a_symlinked_parent_directory(tmp_path: Path) -> None:
@@ -617,7 +617,7 @@ def test_evidence_staging_rejects_a_symlinked_parent_directory(tmp_path: Path) -
     )
 
     with pytest.raises(ValueError, match="symlinks"):
-        stage_code_aster_artifact_evidence(artifact, tmp_path / "bundle")
+        stage_runs({"Operating": artifact}, tmp_path / "bundle")
 
 
 @pytest.mark.parametrize("unsafe", ("\\\\server\\share\\file", "/tmp/file"))

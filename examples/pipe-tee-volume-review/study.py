@@ -3,7 +3,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidence
+from tuba.analysis.staged_run import stage_runs
 from tuba.reporting import build_engineering_review
 from tuba.visualization import build_visualization_scene, write_engineering_review_with_scene
 
@@ -38,7 +38,8 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     )
     check(SimpleNamespace(model=model, namespace=namespace, runs={LOAD_CASES[0]: artifact}))
     solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
-    artifact = stage_code_aster_artifact_evidence(artifact, output / "review_scene")
+    operation = artifact.result_state.load_case
+    artifact = stage_runs({operation: artifact}, output / "review_scene")[operation]
     scene = build_visualization_scene(
         model,
         analysis_runs=[artifact],
