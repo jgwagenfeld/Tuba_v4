@@ -13,7 +13,7 @@ Tuba model -> Code_Aster solve -> imported artifacts -> processed result review
 ## Execution sequence
 
 1. Author through `model.pipe(...)` and other model APIs.
-2. Run `model.validate()` and fix the complete error batch.
+2. Run `model.verify()` and fix the blocking errors; it composes structural validation, the join-aware cold-model clash check, and the rule engine. `model.validate()` alone is the structural subset.
 3. Use `export_analysis_study(...)` to write the `.mail`, `.comm`, `.export`, manifest, and sidecar handoff files.
 4. Execute Code_Aster through the configured runtime.
 5. Import the produced CSV/RMED artifacts into a provenance-bearing `AnalysisRun`, whose persistent authority is `ResultState` and whose transient numerical carrier is `FEAResults`.
@@ -154,8 +154,8 @@ Provides standardized MCP tools for join-aware clash detection, model queries, c
 ### Teach your agent the authoring contract
 
 Tuba ships an agent skill so a coding agent knows how to write `model.py` and
-verify it before solving - procedural authoring, the full `ClashEngine.check_all`
-gate, the bend-sign semantics of the fluent builder, and route-endpoint proof.
+verify it before solving - procedural authoring, the one `model.verify()` gate,
+the bend-sign semantics of the fluent builder, and route-endpoint proof.
 Install it into your agent harness's skills folder:
 
 ```bash

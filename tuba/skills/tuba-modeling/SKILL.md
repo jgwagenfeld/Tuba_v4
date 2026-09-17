@@ -45,20 +45,21 @@ bridge, shoe supports at beam midpoints, and two routed process lines.
 
 ## Verify before you solve
 
-Run the **full cold-model check** after every routing change — the same one Tuba
-Studio runs:
+`model.verify()` is the one cold-model gate; every surface that solves runs it
+and refuses on a blocking error. Run it after every routing change:
 
 ```python
-from tuba.clash import ClashEngine
-
-clashes = ClashEngine().check_all(model)   # obstacles + self + duplicate nodes
+report = model.verify()               # validation + clashes + rules
+assert report.passed, report.errors   # blocking: bad refs, hard clashes, error rules
+print(report.warnings)                # clearance clashes and warnings, non-blocking
 ```
 
-`check_model(model)` covers obstacles only. `check_self(model)` covers element
-vs element without a topological connection (shared node, support link, shared
-coupling target). A route that doubles back onto itself passes obstacle checks
-and fails `check_self` in Studio. Never treat a green obstacle-only test as
-"clash free".
+Under it, `ClashEngine().check_all(model)` is the full cold-model triple —
+obstacles, self, and duplicate nodes. `check_model(model)` covers obstacles
+only. `check_self(model)` covers element vs element without a topological
+connection (shared node, support link, shared coupling target). A route that
+doubles back onto itself passes obstacle checks and fails `check_self`. Never
+treat a green obstacle-only test as "clash free".
 
 ## Prove every route by its endpoints
 

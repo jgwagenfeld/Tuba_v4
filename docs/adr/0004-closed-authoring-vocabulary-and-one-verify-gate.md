@@ -1,0 +1,11 @@
+---
+status: accepted
+---
+
+# Author through a closed vocabulary, resolve intent, and verify once
+
+A Tuba model is authored only through the `PipingBuilder` verbs (`model.pipe(...)`: `start`, `run`, `bend*`, `end`, `beam`, `bar`, `cable`, the point properties) and through construction units applied with `assemble(model, ref, ...)`. `add_node`, `add_element` and `add_support` stay public as the generated model script's replayed records, but a hand-authored `model.py` keeps to a structural budget and grows by adding a unit, not by unrolling geometry. Every primitive records its resolved intent rather than its ambiguous input: a bend stores the axis it turned about, and an assembly is a retained recipe reapplied with `assemble`, not a one-shot patch, so re-evaluating a script reproduces the geometry byte-for-byte. This is the property that makes agent output trustworthy: the vocabulary is closed by construction, so an agent cannot ship structure the builder or a unit cannot express, and a reviewer reads intent, not a coordinate dump.
+
+One gate judges a model before it is solved. `verify_model(model)` composes structural validation (`validate_model`), the join-aware cold-model clash check (`ClashEngine.check_all`) and the rule engine into a single `VerifyReport`; every surface that solves — the project build, Tuba Studio, the MCP server — runs it and refuses to solve while a blocking error stands, reporting advisories separately. The model-script lint is a finding of that same gate, never a rewrite, and it exempts generated scripts, which must unroll singles to keep the studio's code link.
+
+We chose this over leaving validation, clash detection and rules as three separate entry points, which is why agents and engineers skip the inconvenient two and why a green obstacle-only test reads as "clash free"; and over banning `add_node` in `model.py` outright, which generated scripts legitimately need. As consequences: the gate is the path of least resistance and cannot be partially run, the lint starts advisory so legacy authored scripts and generated scripts are not broken and can be promoted to blocking in one place later, and mixed/STEP and imported-component studies keep their own validation path until they fold into the same gate.
