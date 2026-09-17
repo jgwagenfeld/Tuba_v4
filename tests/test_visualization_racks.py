@@ -1,7 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.assemblies import RackBay
+from tuba.assemblies import RackBay, RackRow
 from tuba.load_path import analyze_load_paths
 from tuba.patches import ModelTransaction
 from tuba.visualization import build_visualization_scene
@@ -56,6 +56,46 @@ class TestVisualizationRacks(unittest.TestCase):
         load_overlay = next(overlay for overlay in scene.overlays if overlay.kind == "load_path")
         self.assertIn(vector.id, load_overlay.object_ids)
         self.assertEqual(load_overlay.data["rack_loads"]["rack_A"]["force_z_n"], -1000.0)
+
+    def test_row_bays_emit_a_rack_assembly_overlay_each(self):
+        model = Model(project_name="RowRackReview")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_rectangular_section("RackSec", height_y=0.1, height_z=0.1, thickness_y=0.01, thickness_z=0.01)
+        pipe = [model.add_node([x, 1.0, 0.0]) for x in (0.0, 2.0, 4.0)]
+        row = RackRow(
+            name_prefix="rack_A",
+            origin=(0.0, 0.0, -3.0),
+            material="Steel",
+            section="RackSec",
+            bays=2,
+            bay_length=2.0,
+            width=2.0,
+            height=3.0,
+            levels=(2.75,),
+            shoe_level=2.75,
+            shoes=tuple((node, station) for station, node in enumerate(pipe)),
+            anchor_feet=False,
+            zone="yard",
+        )
+        ModelTransaction(model).apply(row.to_patch())
+        report = analyze_load_paths(model)
+
+        scene = build_visualization_scene(model, load_path_report=report, scene_id="scene_row_rack")
+        scene.validate()
+
+        overlays = sorted(
+            (overlay for overlay in scene.overlays if overlay.kind == "rack_assembly"),
+            key=lambda overlay: overlay.data["rack_id"],
+        )
+        self.assertEqual([overlay.data["rack_id"] for overlay in overlays], ["rack_A0", "rack_A1"])
+        for overlay in overlays:
+            self.assertEqual(overlay.data["assembly_type"], "rack_row_bay")
+            self.assertEqual(overlay.data["zone"], "yard")
+            self.assertEqual(overlay.data["levels"], [2.75])
+            self.assertTrue(all(ref.startswith("node:") for ref in overlay.data["attachment_points"].values()))
+            self.assertGreaterEqual(len(overlay.object_ids), 1)
+        self.assertEqual(set(overlays[0].data["attachment_points"]), {"mid_0", "mid_1"})
+        self.assertEqual(set(overlays[1].data["attachment_points"]), {"mid_1", "mid_2"})
 
     def test_unassociated_support_becomes_review_issue(self):
         model, _support = self._rack_model(attach_support=False)

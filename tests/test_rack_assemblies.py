@@ -1,7 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.assemblies import RackBay, RackCorner, RackRow
+from tuba.assemblies import RackBay, RackCorner, RackRow, rack_assemblies
 from tuba.clash import ClashEngine
 from tuba.patches import AddElement, ModelTransaction
 from tuba.schema import validate_patch_dict
@@ -60,6 +60,37 @@ class TestRackAssemblies(unittest.TestCase):
         self.assertGreaterEqual(len(group["elements"]), 12)
         self.assertTrue(group["metadata"]["attachment_points"]["level_1_left"].startswith("node:N"))
         self.assertEqual(loaded.get_attributes("group:rack_A")["rack.zone"], "north")
+
+    def test_rack_assemblies_reports_bay_points_as_node_ids(self):
+        model = self._model()
+        rack = RackBay(
+            name="rack_A",
+            origin=(10.0, 0.0, 0.0),
+            length=4.0,
+            width=1.0,
+            height=3.0,
+            levels=(1.5, 3.0),
+            section="RackSec",
+            material="Steel",
+            zone="north",
+        )
+        ModelTransaction(model).apply(rack.to_patch())
+
+        records = rack_assemblies(model)
+
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual(record.group_name, "rack_A")
+        self.assertEqual(record.assembly_type, "rack_bay")
+        self.assertEqual(record.levels, (1.5, 3.0))
+        self.assertEqual(record.zone, "north")
+        self.assertEqual(
+            set(record.attachment_points),
+            {"level_1_left", "level_1_right", "level_2_left", "level_2_right"},
+        )
+        for node_id in record.attachment_points.values():
+            self.assertIn(node_id, record.nodes)
+            self.assertIn(node_id, model.nodes)
 
     def test_rack_bay_assigns_sections_by_member_role(self):
         rack = RackBay(
@@ -161,6 +192,39 @@ class TestRackRow(unittest.TestCase):
             self._row(shoes=(("N0", 7),)).to_patch()
         with self.assertRaises(ValueError):
             self._row(shoe_level=None, shoes=(("N0", 1),)).to_patch()
+
+    def test_row_bays_carry_their_midpoint_attachment_points(self):
+        model = self._model()
+        pipe = [model.add_node([x, 1.0, 0.0]) for x in (-10.0, -8.0, -6.0)]
+        row = self._row(shoes=tuple((node, station) for station, node in enumerate(pipe)))
+        ModelTransaction(model).apply(row.to_patch())
+
+        records = rack_assemblies(model)
+
+        self.assertEqual([record.group_name for record in records], ["rack_A0", "rack_A1"])
+        self.assertTrue(all(record.assembly_type == "rack_row_bay" for record in records))
+        self.assertTrue(all(record.levels == (2.75,) for record in records))
+        self.assertTrue(all(record.zone == "yard" for record in records))
+        self.assertEqual(
+            {name for record in records for name in record.attachment_points},
+            {"mid_0", "mid_1", "mid_2"},
+        )
+        # Station 1 belongs to both bays; stations 0 and 2 to one each.
+        self.assertEqual(sum(len(record.attachment_points) for record in records), 4)
+        for record in records:
+            for node_id in record.attachment_points.values():
+                self.assertIn(node_id, record.nodes)
+                self.assertIn(node_id, model.nodes)
+
+    def test_row_without_shoe_level_has_no_attachment_points(self):
+        model = self._model()
+        row = self._row(shoe_level=None, shoes=())
+        ModelTransaction(model).apply(row.to_patch())
+
+        records = rack_assemblies(model)
+
+        self.assertEqual([record.group_name for record in records], ["rack_A0", "rack_A1"])
+        self.assertTrue(all(record.attachment_points == {} for record in records))
 
     def test_row_builds_each_cross_beam_once(self):
         model = self._model()

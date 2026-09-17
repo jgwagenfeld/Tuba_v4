@@ -549,6 +549,12 @@ class RackRow:
                 "assembly_type": "rack_row_bay",
                 "row": self.name_prefix,
                 "bay_index": bay,
+                "levels": list(self.levels),
+                "attachment_points": {
+                    f"mid_{station}": f"node:{mid}"
+                    for station, mid in mid_at_station.items()
+                    if bay in station_bays(station)
+                },
             }
             if self.zone is not None:
                 metadata["zone"] = self.zone
@@ -798,3 +804,48 @@ def rack_corner(model, first, **params):
     ``turn``, ``bays``, ``bay_length``, ``shoes``, ``zone`` and the optional overrides.
     """
     return ModelTransaction(model).apply(RackCorner(first=RackRow(**first), **params).to_patch(), validate=True)
+
+
+RACK_ASSEMBLY_TYPES = ("rack_bay", "rack_row_bay")
+
+
+@dataclass(frozen=True)
+class RackAssembly:
+    """A rack as the model carries it: its group, its nodes, and its named attachment points."""
+
+    group_name: str
+    assembly_type: str
+    levels: tuple[float, ...]
+    zone: str | None
+    attachment_points: dict[str, str]
+    nodes: tuple[str, ...]
+
+
+def rack_assemblies(model: Any) -> list[RackAssembly]:
+    """Every rack group in *model*, in group order, with attachment points resolved to node ids.
+
+    A rack bay and a rack row bay are the same rack unit; a row bay names its midpoint
+    hangers, a bay names its level corners and midpoints. Consumers project this one
+    record instead of matching ``assembly_type`` strings and parsing ``node:`` refs.
+    """
+    records: list[RackAssembly] = []
+    for group_name, group in model.groups.items():
+        metadata = group.get("metadata", {})
+        if metadata.get("assembly_type") not in RACK_ASSEMBLY_TYPES:
+            continue
+        points = {
+            point_name: node_ref.split(":", 1)[1]
+            for point_name, node_ref in metadata.get("attachment_points", {}).items()
+            if isinstance(node_ref, str) and node_ref.startswith("node:")
+        }
+        records.append(
+            RackAssembly(
+                group_name=group_name,
+                assembly_type=str(metadata["assembly_type"]),
+                levels=tuple(float(level) for level in metadata.get("levels", ())),
+                zone=metadata.get("zone"),
+                attachment_points=points,
+                nodes=tuple(group.get("nodes", ())),
+            )
+        )
+    return records

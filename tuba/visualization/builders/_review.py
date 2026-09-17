@@ -5,6 +5,7 @@ from typing import Any
 from typing import Iterable
 import numpy as np
 
+from tuba.assemblies import rack_assemblies
 from tuba.model import TubaModel
 from tuba.quantities import quantity_takeoff
 from tuba.refs import EntityRef
@@ -436,26 +437,24 @@ def _build_field_context_scene(
     return objects, assets, overlay
 def _build_rack_assembly_overlays(model: TubaModel) -> list[Overlay]:
     overlays: list[Overlay] = []
-    for group_name, group in model.groups.items():
-        metadata = group.get("metadata", {})
-        if metadata.get("assembly_type") != "rack_bay":
-            continue
+    for rack in rack_assemblies(model):
+        group = model.groups.get(rack.group_name, {})
         object_ids = [_object_id(EntityRef("element", element_id)) for element_id in group.get("elements", [])]
         data = {
-            "rack_id": group_name,
-            "assembly_type": metadata.get("assembly_type"),
-            "levels": list(metadata.get("levels", [])),
-            "attachment_points": dict(metadata.get("attachment_points", {})),
+            "rack_id": rack.group_name,
+            "assembly_type": rack.assembly_type,
+            "levels": list(rack.levels),
+            "attachment_points": {name: f"node:{node}" for name, node in rack.attachment_points.items()},
         }
-        if metadata.get("zone") is not None:
-            data["zone"] = metadata["zone"]
+        if rack.zone is not None:
+            data["zone"] = rack.zone
         overlays.append(
             Overlay(
-                id=f"overlay:rack_assembly:{group_name}",
+                id=f"overlay:rack_assembly:{rack.group_name}",
                 kind="rack_assembly",
                 object_ids=object_ids,
-                entity_refs=[EntityRef("group", group_name)],
-                name=f"Rack {group_name}",
+                entity_refs=[EntityRef("group", rack.group_name)],
+                name=f"Rack {rack.group_name}",
                 data=data,
             )
         )

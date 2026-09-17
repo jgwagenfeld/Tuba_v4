@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from tuba.analysis.results import ResultState
+from tuba.assemblies import rack_assemblies
 from tuba.model import TubaModel
 from tuba.refs import EntityRef
 
@@ -77,17 +78,10 @@ def analyze_load_paths(
 
 def _rack_nodes(model: TubaModel) -> dict[str, list[tuple[str, str]]]:
     racks: dict[str, list[tuple[str, str]]] = {}
-    for group_name, group in model.groups.items():
-        metadata = group.get("metadata", {})
-        if metadata.get("assembly_type") != "rack_bay":
-            continue
-        names = {
-            node_ref.split(":", 1)[1]: point_name
-            for point_name, node_ref in metadata.get("attachment_points", {}).items()
-            if isinstance(node_ref, str) and node_ref.startswith("node:")
-        }
-        for node_id in group.get("nodes", []):
-            racks.setdefault(node_id, []).append((group_name, names.get(node_id, "")))
+    for rack in rack_assemblies(model):
+        names = {node_id: point_name for point_name, node_id in rack.attachment_points.items()}
+        for node_id in rack.nodes:
+            racks.setdefault(node_id, []).append((rack.group_name, names.get(node_id, "")))
     return racks
 
 

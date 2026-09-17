@@ -1,10 +1,13 @@
 import unittest
+from pathlib import Path
 
 from tuba import Model
-from tuba.assemblies import RackBay
+from tuba.assemblies import RackBay, RackRow
 from tuba.analysis import ResultState
+from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.load_path import analyze_load_paths
 from tuba.patches import ModelTransaction
+from tuba.project import load_project
 
 
 class TestLoadPath(unittest.TestCase):
@@ -83,6 +86,91 @@ class TestLoadPath(unittest.TestCase):
         report = analyze_load_paths(model)
         self.assertEqual(report.associations, [])
         self.assertIn(f"Support {support.id!r} is not associated", " ".join(report.diagnostics))
+
+
+class TestRackRowLoadPath(unittest.TestCase):
+    def _row_model(self):
+        model = Model(project_name="RowLoadPath")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_rectangular_section("RackSec", height_y=0.1, height_z=0.1, thickness_y=0.01, thickness_z=0.01)
+        pipe = [model.add_node([x, 1.0, 0.0]) for x in (0.0, 2.0, 4.0)]
+        row = RackRow(
+            name_prefix="rack_A",
+            origin=(0.0, 0.0, -3.0),
+            material="Steel",
+            section="RackSec",
+            bays=2,
+            bay_length=2.0,
+            width=2.0,
+            height=3.0,
+            levels=(2.75,),
+            shoe_level=2.75,
+            shoes=tuple((node, station) for station, node in enumerate(pipe)),
+            anchor_feet=False,
+        )
+        ModelTransaction(model).apply(row.to_patch())
+        return model
+
+    def _mid_nodes(self, model):
+        points = {}
+        for group_name in ("rack_A0", "rack_A1"):
+            for point_name, node_ref in model.groups[group_name]["metadata"]["attachment_points"].items():
+                points[point_name] = node_ref.split(":", 1)[1]
+        return points
+
+    def test_row_shoes_associate_with_every_bay_they_span(self):
+        model = self._row_model()
+        report = analyze_load_paths(model)
+
+        self.assertEqual(report.diagnostics, [])
+        self.assertEqual(
+            [(association.rack.id, association.attachment_point) for association in report.associations],
+            [
+                ("rack_A0", "mid_0"),
+                ("rack_A0", "mid_1"),
+                ("rack_A1", "mid_1"),
+                ("rack_A1", "mid_2"),
+            ],
+        )
+
+    def test_each_bay_carries_the_reactions_at_its_midpoints_once(self):
+        model = self._row_model()
+        mid = self._mid_nodes(model)
+        report = analyze_load_paths(
+            model,
+            node_reactions={
+                mid["mid_0"]: (0.0, 0.0, -100.0),
+                mid["mid_1"]: (0.0, 0.0, -200.0),
+                mid["mid_2"]: (0.0, 0.0, -300.0),
+            },
+        )
+
+        self.assertEqual(report.rack_loads["rack_A0"]["support_count"], 2)
+        self.assertEqual(report.rack_loads["rack_A0"]["force_z_n"], -300.0)
+        self.assertEqual(report.rack_loads["rack_A1"]["support_count"], 2)
+        self.assertEqual(report.rack_loads["rack_A1"]["force_z_n"], -500.0)
+
+
+class RackRowExampleEvidence(unittest.TestCase):
+    def test_the_bridge_line_loads_every_bay_midpoint(self):
+        project = Path(__file__).resolve().parents[1] / "examples" / "rack_bridge_demo"
+        model = load_project(project).run_model()["model"]
+        run = import_code_aster_artifacts(model=model, work_dir=project / "evidence" / "Operating")
+
+        report = analyze_load_paths(model, result_state=run.result_state)
+
+        attached = [support for support in model.supports if support.attached_to is not None]
+        grounded_ids = {support.id for support in model.supports if support.attached_to is None}
+        self.assertEqual(len(attached), 5)
+        # Five station shoes; the two inner stations belong to two bays each.
+        self.assertEqual(len(report.associations), 8)
+        self.assertTrue(all(association.attachment_point.startswith("mid_") for association in report.associations))
+        # Every diagnostic names a grounded support: the shoes all found their rack.
+        self.assertTrue(all(message.split("'")[1] in grounded_ids for message in report.diagnostics))
+        self.assertEqual(set(report.rack_loads), {"bridge_rack0", "bridge_rack1", "bridge_rack2", "bridge_rack3"})
+        for bay, loads in report.rack_loads.items():
+            self.assertEqual(loads["support_count"], 2, bay)
+            self.assertGreater(abs(loads["force_z_n"]), 0.0, bay)
 
 
 if __name__ == "__main__":
