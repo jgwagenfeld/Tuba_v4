@@ -463,7 +463,8 @@ class TestOperationFields(unittest.TestCase):
             model.validate()
 
     def test_line_loads_on_one_element_of_a_load_case_are_refused_at_export(self):
-        # Validation does not walk load-case fields, so the export resolver refuses the overlap itself.
+        # Validation does not walk load-case fields, so the export resolver runs the same rule
+        # table: overlapping line loads are refused there too.
         model = _two_element_route()
         load_case = model.define_load_case("Both", gravity=False)
         for _ in range(2):
@@ -473,7 +474,7 @@ class TestOperationFields(unittest.TestCase):
                 )
             )
 
-        with self.assertRaisesRegex(ValueError, r"field 1 for 'line_load' loads element 'pipe_str_0'.*line loads add"):
+        with self.assertRaisesRegex(ValueError, "overlapping line_load fields on element 'pipe_str_0'.*line loads add"):
             resolve_line_load_groups(model, load_case)
 
     def test_line_loads_are_refused_where_they_are_not_realized(self):

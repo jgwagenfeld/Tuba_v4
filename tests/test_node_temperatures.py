@@ -7,9 +7,8 @@ from tempfile import TemporaryDirectory
 
 from tuba import Model
 from tuba.analysis import AnalysisMesh
-from tuba.analysis.provenance import _operation_field_payload
-from tuba.model import BendGeometry, OperationField, _operation_field_to_dict
-from tuba.reporting.tables import _operation_field_dict
+from tuba.model import BendGeometry, OperationField
+from tuba.reporting.tables import build_load_cases_table
 from tuba.sampling import field_from_function
 from tuba.schema import validate_model_dict
 from tuba.solver.aster import CodeAsterSolver
@@ -58,14 +57,46 @@ class TestNodeTemperatureAuthoring(unittest.TestCase):
 
     def test_element_fields_keep_their_serialized_shape(self):
         element_field = OperationField("temperature", 120.0, scope="route", route_id="P-100")
-        self.assertNotIn("node_ids", _operation_field_to_dict(element_field))
-        self.assertNotIn("node_ids", _operation_field_payload(element_field))
-        self.assertNotIn("node_ids", _operation_field_dict(element_field))
+        self.assertEqual(
+            element_field.to_dict(),
+            {"quantity": "temperature", "value": 120.0, "scope": "route", "profile": "uniform", "route_id": "P-100"},
+        )
 
         node_field = OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"])
-        self.assertEqual(_operation_field_to_dict(node_field)["node_ids"], ["N1"])
-        self.assertEqual(_operation_field_payload(node_field)["node_ids"], ["N1"])
-        self.assertEqual(_operation_field_dict(node_field)["node_ids"], ["N1"])
+        self.assertEqual(node_field.to_dict()["node_ids"], ["N1"])
+
+    def test_a_field_round_trips_through_its_canonical_payload(self):
+        field_record = OperationField(
+            "wind",
+            500.0,
+            direction=[0.0, 1.0, 0.0],
+            scope="route",
+            route_id="P-100",
+            station_start=0.0,
+            station_end=2.0,
+            element_ids=["pipe_str_0"],
+        )
+
+        self.assertEqual(OperationField(**field_record.to_dict()), field_record)
+        # Absent selectors stay absent, so the canonical payload is the compact one.
+        self.assertEqual(
+            OperationField("temperature", 120.0).to_dict(),
+            {"quantity": "temperature", "value": 120.0, "scope": "all", "profile": "uniform"},
+        )
+
+    def test_report_rows_project_the_canonical_payload(self):
+        model = _two_element_route()
+        operating = model.define_operation("Operating", gravity=False)
+        operating.add_field("temperature", 180.0, node_ids=["N1"])
+
+        table = build_load_cases_table(model)
+        row = next(row for row in table.rows if row["load_case"] == "Operating")
+        field_row = row["fields"][0]
+
+        self.assertEqual(field_row["node_ids"], ["N1"])
+        self.assertEqual(field_row["element_ids"], [])
+        self.assertIsNone(field_row["direction"])
+        self.assertEqual(field_row["quantity"], "temperature")
 
     def test_node_fields_take_only_uniform_temperatures_on_existing_nodes(self):
         cases = (
@@ -439,14 +470,14 @@ class TestNodeTemperatureCompiler(unittest.TestCase):
                     OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
                     OperationField("temperature", 90.0, scope="nodes", node_ids=["N1"]),
                 ],
-                r"field 1 gives node 'N1' 90\.0, but an earlier node field gives it 120\.0",
+                r"has overlapping incompatible temperature fields on node 'N1': 120\.0 vs 90\.0",
             ),
             (
                 [
                     OperationField("temperature", 120.0, scope="nodes", node_ids=["N1"]),
                     OperationField("temperature", 90.0, scope="elements", element_ids=["pipe_str_0"]),
                 ],
-                r"Nodes \['N1'\] have a node temperature and belong to elements",
+                r"gives nodes \['N1'\] a node temperature, but they belong to elements that",
             ),
         )
         for fields, message in cases:

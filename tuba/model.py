@@ -364,6 +364,35 @@ class OperationField:
     element_ids: List[str] = field(default_factory=list)
     node_ids: List[str] = field(default_factory=list)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """The canonical payload: absent selectors stay absent, direction is float-cast.
+
+        This is the one encoding of a field. The fingerprint hashes it, generated scripts
+        write it, and reports project it; nothing may read the dataclass attributes into a
+        second shape.
+        """
+        data: Dict[str, Any] = {
+            "quantity": self.quantity,
+            "value": self.value,
+            "scope": self.scope,
+            "profile": self.profile,
+        }
+        if self.group is not None:
+            data["group"] = self.group
+        if self.route_id is not None:
+            data["route_id"] = self.route_id
+        if self.station_start is not None:
+            data["station_start"] = self.station_start
+        if self.station_end is not None:
+            data["station_end"] = self.station_end
+        if self.element_ids:
+            data["element_ids"] = list(self.element_ids)
+        if self.node_ids:
+            data["node_ids"] = list(self.node_ids)
+        if self.direction is not None:
+            data["direction"] = [float(value) for value in self.direction]
+        return data
+
 
 @dataclass
 class NodalForce:
@@ -1365,7 +1394,7 @@ class TubaModel:
                     "temperature": op.temperature,
                     "ref_temperature": op.ref_temperature,
                     "metadata": op.metadata,
-                    "fields": [_operation_field_to_dict(field_record) for field_record in op.fields],
+                    "fields": [field_record.to_dict() for field_record in op.fields],
                     **({"nodal_forces": [force.to_dict() for force in op.nodal_forces]} if op.nodal_forces else {}),
                 }
                 for name, op in self.operations.items()
@@ -1598,30 +1627,6 @@ def _serialize_specs(specs: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, An
             else:
                 serialized[kind][spec_id] = spec
     return serialized
-
-
-def _operation_field_to_dict(field_record: OperationField) -> Dict[str, Any]:
-    data: Dict[str, Any] = {
-        "quantity": field_record.quantity,
-        "value": field_record.value,
-        "scope": field_record.scope,
-        "profile": field_record.profile,
-    }
-    if field_record.group is not None:
-        data["group"] = field_record.group
-    if field_record.route_id is not None:
-        data["route_id"] = field_record.route_id
-    if field_record.station_start is not None:
-        data["station_start"] = field_record.station_start
-    if field_record.station_end is not None:
-        data["station_end"] = field_record.station_end
-    if field_record.element_ids:
-        data["element_ids"] = list(field_record.element_ids)
-    if field_record.node_ids:
-        data["node_ids"] = list(field_record.node_ids)
-    if field_record.direction is not None:
-        data["direction"] = [float(value) for value in field_record.direction]
-    return data
 
 
 def make_bend_geometry(

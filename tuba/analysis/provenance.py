@@ -78,7 +78,7 @@ def build_solver_input_identity(
             "internal_pressure": float(resolved_case.internal_pressure),
             "temperature": float(resolved_case.temperature),
             "ref_temperature": float(resolved_case.ref_temperature),
-            "fields": [_operation_field_payload(field) for field in resolved_case.fields],
+            "fields": [field.to_dict() for field in resolved_case.fields],
             "nodal_forces": [force.to_dict() for force in resolved_case.nodal_forces],
         },
     }
@@ -169,20 +169,4 @@ def _platform_stable(value: Any) -> Any:
     return value
 
 
-def _operation_field_payload(field: Any) -> dict[str, Any]:
-    payload = {
-        "quantity": field.quantity,
-        "value": float(field.value),
-        "direction": list(field.direction) if field.direction is not None else None,
-        "scope": field.scope,
-        "profile": field.profile,
-        "group": field.group,
-        "route_id": field.route_id,
-        "station_start": field.station_start,
-        "station_end": field.station_end,
-        "element_ids": list(field.element_ids),
-    }
-    # Only node-scoped fields carry node_ids, so every other fingerprint stays as it was.
-    if field.node_ids:
-        payload["node_ids"] = list(field.node_ids)
-    return payload
+

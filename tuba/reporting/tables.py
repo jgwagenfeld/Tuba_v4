@@ -309,7 +309,7 @@ def build_load_cases_table(model: TubaModel) -> ReportTable:
             "nodal_load_count": len(definition.nodal_forces),
             "field_count": len(definition.fields),
             "nodal_forces": [force.to_dict() for force in definition.nodal_forces],
-            "fields": [_operation_field_dict(field) for field in definition.fields],
+            "fields": [_operation_field_row(field) for field in definition.fields],
             "metadata": (
                 _sorted_mapping(definition.metadata)
                 if isinstance(definition, Operation)
@@ -1045,21 +1045,28 @@ def _section_total_mass_kg(
     return total
 
 
-def _operation_field_dict(field: OperationField) -> dict[str, Any]:
+def _operation_field_row(field: OperationField) -> dict[str, Any]:
+    """One report row, projected from the canonical payload onto the field's declared columns.
+
+    Reporting may shape its own row, but it does not re-encode the field: every value comes
+    from :meth:`OperationField.to_dict`, so a field added there reaches this row, and the
+    round-trip test is the only drift guard needed.
+    """
+    payload = field.to_dict()
     row = {
-        "quantity": field.quantity,
-        "value": field.value,
-        "direction": _optional_list(field.direction),
-        "scope": field.scope,
-        "profile": field.profile,
-        "group": field.group,
-        "route_id": field.route_id,
-        "station_start": field.station_start,
-        "station_end": field.station_end,
-        "element_ids": list(field.element_ids),
+        "quantity": payload["quantity"],
+        "value": payload["value"],
+        "direction": payload.get("direction"),
+        "scope": payload["scope"],
+        "profile": payload["profile"],
+        "group": payload.get("group"),
+        "route_id": payload.get("route_id"),
+        "station_start": payload.get("station_start"),
+        "station_end": payload.get("station_end"),
+        "element_ids": payload.get("element_ids", []),
     }
-    if field.node_ids:
-        row["node_ids"] = list(field.node_ids)
+    if "node_ids" in payload:
+        row["node_ids"] = payload["node_ids"]
     return row
 
 
