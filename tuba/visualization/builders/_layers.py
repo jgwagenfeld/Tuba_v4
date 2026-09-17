@@ -151,7 +151,10 @@ def build_layer_registry(
             default_visible=not (
                 (layer_id.startswith("physical_envelope:") and layer_id != "physical_envelope:insulation")
                 or (layer_id.startswith("deformed:") and layer_id.endswith("_envelope"))
-                or layer_id.startswith("analysis_mesh:")
+                # The analysis mesh starts hidden, except the volume skin: a
+                # volume study carries no procedural pipe geometry, so the skin
+                # is the model a reviewer opens the scene to see.
+                or (layer_id.startswith("analysis_mesh:") and layer_id != "analysis_mesh:volume_skin")
             ),
         )
 

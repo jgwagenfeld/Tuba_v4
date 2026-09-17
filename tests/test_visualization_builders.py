@@ -97,6 +97,9 @@ class TestVisualizationBuilders(unittest.TestCase):
         asset = next(item for item in scene.geometry_assets if item.id == scene_object.geometry_asset_id)
 
         expected = {
+            # The restraint links back to its support record (viewer selection
+            # and contact review read this), so the id is part of the contract.
+            "support_id": support.id,
             "support_type": "custom",
             "direction": [0.0, 0.0, 1.0],
             "stiffness": 125000.0,
