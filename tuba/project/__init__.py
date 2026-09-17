@@ -111,12 +111,16 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
     except ValueError as exc:
         parser.error(f"{args.study}: {exc}")
     namespace = project.run_model()
+    from tuba.project.script import require_model_script_style
     from tuba.verify import verify_model
 
-    report = verify_model(
-        namespace["model"],
-        script=project.model_path.read_text(encoding="utf-8"),
-    )
+    script_text = project.model_path.read_text(encoding="utf-8")
+    try:
+        require_model_script_style(script_text)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    report = verify_model(namespace["model"], script=script_text)
     for warning in report.warnings:
         print(f"warning: {warning}", file=sys.stderr)
     if not report.passed:
