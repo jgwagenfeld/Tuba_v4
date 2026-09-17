@@ -82,7 +82,7 @@ def test_a_built_pipe_run_is_saved_as_its_steps_through_a_reload_and_a_patch(tmp
             "with model.pipe(section='DN100_SCH40', material='P265GH') as builder:",
             "    builder.start([0.0, 0.0, 0.0], support='anchor')",
             "    builder.run(5.0)",
-            "    builder.bend(radius=0.1524, angle=90.0, plane='XY')",
+            "    builder.bend(radius=0.1524, angle=90.0, axis=[0.0, 0.0, 1.0])",
             "    builder.run(3.0)",
         ]
     )

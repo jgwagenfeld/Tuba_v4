@@ -174,6 +174,7 @@ class PipingBuilder:
         radius: float,
         angle: float,
         plane: str = "XY",
+        axis: Optional[List[float]] = None,
     ) -> "PipingBuilder":
         """Insert an elbow/bend and rotate the forward direction.
 
@@ -186,12 +187,20 @@ class PipingBuilder:
             looking down the rotation axis.
         plane : str
             Plane in which the bend occurs: ``"XY"``, ``"XZ"``, or ``"YZ"``.
+            Its normal is resolved from the *current heading* when the bend is
+            authored, and that absolute axis is what the run records, so
+            replaying or editing a recipe cannot re-resolve it differently.
+        axis : list[float], optional
+            Rotation axis to use instead of resolving *plane*. The builder
+            records the resolved axis either way; pass this only to force a
+            specific absolute axis.
         """
-        self._record("bend", radius=radius, angle=angle, plane=plane)
+        resolved = np.asarray(axis, dtype=float) if axis is not None else self._axis_for_plane(plane)
+        self._record("bend", radius=radius, angle=angle, axis=[float(value) for value in resolved])
         return self._bend_with_axis(
             radius=radius,
             angle=angle,
-            axis=self._axis_for_plane(plane),
+            axis=resolved,
             mode="bend",
         )
 

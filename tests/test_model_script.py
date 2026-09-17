@@ -155,7 +155,7 @@ def test_a_pipe_block_is_written_as_the_steps_that_built_it():
     assert _block(
         "start([0.0, 0.0, 0.0], support='anchor')",
         "run(4.0)",
-        "bend(radius=0.3, angle=90.0, plane='XY')",
+        "bend(radius=0.3, angle=90.0, axis=[0.0, 0.0, 1.0])",
         "add_support(type='guide')",
         "run(2.0)",
         "end(support='anchor')",
@@ -281,12 +281,12 @@ def test_generated_elements_link_to_their_steps_and_supports_to_their_points(tmp
 
     assert {element.id: step(element) for element in rebuilt.elements} == {
         "pipe_str_0": "builder.run(4.0)",
-        "pipe_bend_0": "builder.bend(radius=0.3, angle=90.0, plane='XY')",
+        "pipe_bend_0": "builder.bend(radius=0.3, angle=90.0, axis=[0.0, 0.0, 1.0])",
         "pipe_str_1": "builder.run(2.0)",
     }
     assert {support.id: step(rebuilt.nodes[support.node]) for support in rebuilt.supports} == {
         "support_0": "builder.start([0.0, 0.0, 0.0], support='anchor')",
-        "support_1": "builder.bend(radius=0.3, angle=90.0, plane='XY')",
+        "support_1": "builder.bend(radius=0.3, angle=90.0, axis=[0.0, 0.0, 1.0])",
         "support_2": "builder.run(2.0)",
     }
 

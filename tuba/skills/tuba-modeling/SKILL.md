@@ -93,6 +93,11 @@ p.bend_by_orientation(radius=0.4, angle=90.0, axis=[0.0, -1.0, 0.0])   # +X -> +
 p.bend_by_orientation(radius=0.4, angle=90.0, axis=[0.0, 1.0, 0.0])    # +Z -> +X
 ```
 
+The builder resolves `bend(plane=...)` against the heading when you call it and
+records that absolute axis, so a saved recipe replays the same turn even if an
+earlier step changes. While authoring, `bend_by_orientation` still states your
+intent most clearly.
+
 A 90° bend consumes `r * tan(45°)` of straight leg on each side, so runs that
 must land on a target need to account for the tangent length.
 
