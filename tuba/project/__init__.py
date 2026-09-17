@@ -111,6 +111,15 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
     except ValueError as exc:
         parser.error(f"{args.study}: {exc}")
     namespace = project.run_model()
+    from tuba.verify import verify_model
+
+    report = verify_model(namespace["model"])
+    for warning in report.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    if not report.passed:
+        for error in report.errors:
+            print(f"error: {error}", file=sys.stderr)
+        return 1
     artifact_dir = args.artifact_dir
     if artifact_dir is None and operations:
         from tuba.project.claim import SolveBusy

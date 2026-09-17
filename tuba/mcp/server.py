@@ -966,20 +966,50 @@ def check_clashes(
 
 
 @mcp.tool()
+def verify_model(clearance_m: float = 0.0) -> Dict[str, Any]:
+    """Run the one cold-model verification gate before solving.
+
+    Returns every blocking error (structural validation, hard clashes, error rules)
+    and every advisory (clearance clashes, warning rules) in one report.
+    ``solve_model`` refuses while a blocking error stands.
+    """
+    from tuba.verify import verify_model as _verify
+
+    model = get_active_model()
+    return _verify(model, clearance_m=clearance_m).to_dict()
+
+
+@mcp.tool()
 def solve_model(
     load_case: Optional[str] = None,
+    force: bool = False,
 ) -> Dict[str, Any]:
     """Evaluate the active piping model with the Code_Aster FEA solver.
 
     Adheres strictly to the Tuba v4 contract: runs actual Code_Aster FEA and returns
     solver metrics and results artifacts. If Code_Aster is not available in the environment,
     fails loudly with actionable diagnostics.
+
+    The cold-model verification gate runs first: a blocking structural, clash or rule
+    error refuses the solve. *force* bypasses the gate for diagnostics only; it never
+    fabricates a result and the solver still runs or fails on its own.
     """
     model = get_active_model()
     if not model.elements:
         return {"status": "error", "message": "Cannot solve empty model: no elements defined."}
     if not model.supports:
         return {"status": "error", "message": "Cannot solve model without boundary conditions (supports)."}
+
+    from tuba.verify import verify_model as _verify
+
+    report = _verify(model).to_dict()
+    if not report["passed"] and not force:
+        return {
+            "status": "error",
+            "message": "Model verification failed; no solver run. "
+                       "Fix the errors or pass force=True.",
+            "verification": report,
+        }
 
     try:
         run = model.solve(load_case=load_case)

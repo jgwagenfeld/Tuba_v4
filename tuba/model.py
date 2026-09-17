@@ -1230,6 +1230,12 @@ class TubaModel:
 
         validate_model(self)
 
+    def verify(self, **options: Any):
+        """Run the one cold-model verification gate; see :func:`tuba.verify.verify_model`."""
+        from tuba.verify import verify_model
+
+        return verify_model(self, **options)
+
     def replace_with(self, other: "TubaModel") -> None:
         """Adopt *other*'s state in place, replacing this model's own.
 
