@@ -58,12 +58,28 @@ def _counts_as_raw(attr: ast.Attribute) -> bool:
     )
 
 
+def _module_level_calls(node: ast.AST):
+    """Yield call nodes at module scope; a ``def``/``class`` body is a unit, not a dump.
+
+    A loop is one call site however many records it builds, and so is a construction
+    unit: the lint measures records unrolled straight into the script, which is what
+    ``assemble(model, ...)`` and the builder exist to replace.
+    """
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        if isinstance(child, ast.Call):
+            yield child
+        yield from _module_level_calls(child)
+
+
 def check_model_script(text: str) -> list[str]:
     """Advisory findings against an authored model script; a generated script is exempt.
 
-    Only the raw-record dump is flagged: ``add_node``/``add_element`` call sites above
-    ``RAW_STRUCTURE_BUDGET``. Supports are exempt, the builder and ``assemble`` calls are
-    the remedy, and this never rewrites anything.
+    Only the raw-record dump is flagged: module-level ``add_node``/``add_element``
+    call sites above ``RAW_STRUCTURE_BUDGET``. Supports are exempt, and a loop or a
+    construction unit is one call site, so the builder and ``assemble`` calls are the
+    remedy. This never rewrites anything.
     """
     if is_generated(text):
         return []
@@ -73,8 +89,8 @@ def check_model_script(text: str) -> list[str]:
         return [f"model script does not parse: {exc}"]
     raw = sum(
         1
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and _counts_as_raw(node.func)
+        for node in _module_level_calls(tree)
+        if isinstance(node.func, ast.Attribute) and _counts_as_raw(node.func)
     )
     if raw > RAW_STRUCTURE_BUDGET:
         return [

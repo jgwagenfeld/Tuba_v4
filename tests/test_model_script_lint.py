@@ -32,6 +32,20 @@ class TestModelScriptLint(unittest.TestCase):
         self.assertIn("12", findings[0])
         self.assertIn("assemble", findings[0])
 
+    def test_a_unit_body_is_not_a_dump(self):
+        text = (
+            "from tuba import Model\n"
+            "from tuba.assemblies import assemble\n"
+            'model = Model("P")\n'
+            "def tee(model, station=0.0):\n"
+            "    hub = model.add_node([station, 0.0, 0.0])\n"
+            "    for i in range(20):\n"
+            "        other = model.add_node([station + float(i), 0.0, 0.0])\n"
+            "        model.add_element(id=f'e{i}', type='beam', n1=hub, n2=other, section='S', material='M')\n"
+            "assemble(model, 'tee')\n"
+        )
+        self.assertEqual(check_model_script(text), [])
+
     def test_generated_script_is_exempt(self):
         text = GENERATED_HEADER + "\n" + "".join(
             f"model.add_node([{i}.0, 0.0, 0.0])\n" for i in range(50)
