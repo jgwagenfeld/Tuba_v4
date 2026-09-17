@@ -7,7 +7,7 @@ from pathlib import Path
 
 from tuba.clash import ClashEngine
 from tuba.project import load_project
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1] / "examples" / "hydrogen-plant-layout"
 
@@ -123,7 +123,7 @@ def test_hydrogen_plant_scene_bundle_export(tmp_path: Path):
     project = load_project(PROJECT_ROOT)
     model = project.run_model()["model"]
 
-    scene = build_visualization_scene(model, scene_id="scene:hydrogen_plant_test")
+    scene = build_visualization_scene(SceneRequest(model, scene_id="scene:hydrogen_plant_test"))
     study = project.load_study("study.py")
     study._add_obstacle_labels(scene, model)
     bundle = write_scene_bundle(scene, tmp_path / "bundle", source=project.model_path)

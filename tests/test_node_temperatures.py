@@ -14,7 +14,7 @@ from tuba.schema import validate_model_dict
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.modelisation import PipeModelization
 from tuba.validation import ModelValidationError
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 def _model(name: str = "NodeTemperatures") -> Model:
@@ -431,7 +431,7 @@ class TestNodeTemperatureCompiler(unittest.TestCase):
         self.assertIn("GN_N2", mesh.groups)
         self.assertIn("GN_pipe_str_0_mid", mesh.groups)
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
 
         # The anchors at N0 and N3, and the Load operation's force at N1.
         self.assertEqual(

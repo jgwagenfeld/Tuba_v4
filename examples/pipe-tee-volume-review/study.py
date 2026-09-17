@@ -7,6 +7,7 @@ from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidenc
 from tuba.reporting import build_engineering_review
 from tuba.visualization import (
     add_scene_label,
+    SceneRequest,
     build_visualization_scene,
     write_engineering_review_with_scene,
 )
@@ -43,7 +44,7 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     check(SimpleNamespace(model=model, namespace=namespace, runs={LOAD_CASES[0]: artifact}))
     solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
     artifact = stage_code_aster_artifact_evidence(artifact, output / "review_scene")
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         analysis_runs=[artifact],
         field_notes=[
@@ -56,7 +57,7 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
         ],
         scene_id="scene:pipe_tee_volume_review",
         created_at=solved_at,
-    )
+    ))
     add_scene_label(scene, "3D Solid Tee (HEXA20)", [0.0, 0.04, 0.09], label_id="label-solid-tee", height=0.035)
     add_scene_label(scene, "1D Pipe Run (TUYAU_3M)", [-0.15, 0.0, 0.08], label_id="label-1d-pipe", height=0.035)
     add_scene_label(scene, "Kinematic Coupling (3D_TUYAU)", [0.0, 0.14, 0.08], label_id="label-coupling", height=0.035)

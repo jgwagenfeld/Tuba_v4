@@ -13,7 +13,7 @@ from tuba.analysis.study import AnalysisStudy
 from tuba.reporting import EngineeringReviewError, build_engineering_review
 from tuba.solver.base import FEAResults
 from tuba.solver.code_aster_runtime import expected_code_aster_artifact_files
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 @pytest.fixture
@@ -226,7 +226,7 @@ def test_analysis_run_publication_rejects_unverified_lineage(
 
     with pytest.raises(error_type, match=message):
         if consumer == "scene":
-            build_visualization_scene(review_model, analysis_runs=[invalid_run])
+            build_visualization_scene(SceneRequest(review_model, analysis_runs=[invalid_run]))
         else:
             build_engineering_review(review_model, analysis_runs=[invalid_run])
 

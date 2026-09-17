@@ -17,6 +17,7 @@ from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
+from tuba.visualization.builders._contract import SceneContribution
 from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint, model_span
 def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, Overlay]:
     object_id = f"object:result_state:{result_state.id}"
@@ -130,7 +131,9 @@ def _build_result_state_result_scene(
 
     objects.extend(subpoint_objects)
     assets.extend(subpoint_assets)
-    return objects, assets, overlays, diagnostics
+    return SceneContribution(
+        objects=tuple(objects), assets=tuple(assets), overlays=tuple(overlays), diagnostics=tuple(diagnostics)
+    )
 
 
 def _result_state_volume_stress_scene(

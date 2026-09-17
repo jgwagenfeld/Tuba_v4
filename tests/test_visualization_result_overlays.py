@@ -4,14 +4,14 @@ from dataclasses import replace
 from tuba import Model
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource, ResultState
 from tuba.refs import EntityRef
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationResultOverlays(unittest.TestCase):
     def test_result_state_labels_fe_stress_without_code_utilization(self):
         model, result_state = _model_and_result_state()
 
-        scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:result_overlays")
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state], scene_id="scene:result_overlays"))
         scene.validate()
 
         stress = _result_overlay(scene, "stress")
@@ -42,7 +42,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         element_result["forces_n1"] = [100.0, None, None, None, None, None]
         result_state = replace(result_state, element_results={"pipe_0": element_result})
 
-        scene = build_visualization_scene(model, result_states=[result_state])
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state]))
         metadata = _result_overlay(scene, "stress").data["element_results"]["object:element:pipe_0"]
 
         self.assertEqual(metadata["forces_n1"], [100.0, None, None, None, None, None])
@@ -50,7 +50,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
     def test_result_state_adds_displacement_reaction_and_parser_diagnostic_overlays(self):
         model, result_state = _model_and_result_state()
 
-        scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:result_vectors")
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state], scene_id="scene:result_vectors"))
         scene.validate()
 
         displacement = _result_overlay(scene, "displacement")
@@ -88,7 +88,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
     def test_result_state_missing_element_results_emit_diagnostics(self):
         model, result_state = _model_and_result_state(element_results=False)
 
-        scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:missing_result_overlay")
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state], scene_id="scene:missing_result_overlay"))
         scene.validate()
 
         diagnostic_codes = {diagnostic.code for diagnostic in scene.diagnostics}
@@ -100,7 +100,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         data["max_von_mises"] = float("nan")
         result_state = replace(result_state, element_results={"pipe_0": data})
 
-        scene = build_visualization_scene(model, result_states=[result_state])
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state]))
 
         self.assertNotIn(
             "stress",
@@ -140,12 +140,12 @@ class TestVisualizationResultOverlays(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             result_states=[result_state],
             analysis_meshes=[mesh],
             scene_id="scene:mapped_displacement",
-        )
+        ))
         scene.validate()
 
         displacement = _result_overlay(scene, "displacement")
@@ -204,7 +204,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(model, result_states=[result_state], analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state], analysis_meshes=[mesh]))
         scene.validate()
 
         volume_object = next(obj for obj in scene.objects if obj.kind == "volume_stress_field")
@@ -247,7 +247,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
             node_displacements={**result_state.node_displacements, "missing_node": (0.1, 0.0, 0.0, 0.0, 0.0, 0.0)},
         )
 
-        scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:unmapped_displacement")
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state], scene_id="scene:unmapped_displacement"))
 
         self.assertIn("result_state.missing_node_geometry", {item.code for item in scene.diagnostics})
 
@@ -293,7 +293,7 @@ class TestVisualizationResultOverlays(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(model, result_states=[result_state], scene_id="scene:tuyau_subpoints")
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state], scene_id="scene:tuyau_subpoints"))
         scene.validate()
 
         subpoint = next(obj for obj in scene.objects if obj.kind == "tuyau_subpoint_field")

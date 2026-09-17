@@ -1,14 +1,14 @@
 import unittest
 
 from tuba import Model
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationFieldNotes(unittest.TestCase):
     def test_field_note_descriptors_are_scene_objects(self):
         model = Model(project_name="FieldNoteReview")
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             field_notes=[
                 {
@@ -19,7 +19,7 @@ class TestVisualizationFieldNotes(unittest.TestCase):
                 }
             ],
             scene_id="scene_field_notes",
-        )
+        ))
         scene.validate()
 
         note = next(obj for obj in scene.objects if obj.kind == "field_note")

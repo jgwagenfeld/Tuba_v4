@@ -12,7 +12,7 @@ from tuba.routing.adapter import apply_candidate_to_model
 from tuba.routing.postprocess import build_segments
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, RouteEndpoint, RoutingConstraints
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationAnalysisMesh(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
 
         model_objects = {
             str(obj.entity_ref): obj
@@ -94,7 +94,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
         layers = {layer.id: layer for layer in scene.layers}
         pipe_objects = [obj for obj in scene.objects if obj.kind == "pipe"]
 
@@ -139,7 +139,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(Model("VolumeSkin"), analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(Model("VolumeSkin"), analysis_meshes=[mesh]))
 
         asset = next(
             asset
@@ -175,7 +175,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             solver_input_identity=None,
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh")
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh"))
         scene.validate()
 
         node_objects = [obj for obj in scene.objects if obj.kind == "analysis_mesh_node"]
@@ -238,7 +238,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             element_sources={},
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh_diagnostics")
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh_diagnostics"))
         scene.validate()
 
         diagnostic_codes = {diagnostic.code for diagnostic in scene.diagnostics}

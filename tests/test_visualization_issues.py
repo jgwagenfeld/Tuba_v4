@@ -2,7 +2,7 @@ import unittest
 
 from tuba import Model
 from tuba.clash import ClashEngine
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationIssues(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestVisualizationIssues(unittest.TestCase):
     def test_build_scene_adds_clash_issue_marker_overlay_and_view(self):
         model, clash = self._model_and_clash()
 
-        scene = build_visualization_scene(model, clash_results=[clash], scene_id="scene_clash_review")
+        scene = build_visualization_scene(SceneRequest(model, clash_results=[clash], scene_id="scene_clash_review"))
         scene.validate()
 
         self.assertEqual(len(scene.issues), 1)
@@ -66,7 +66,7 @@ class TestVisualizationIssues(unittest.TestCase):
     def test_clash_issue_carries_raw_clash_payload(self):
         model, clash = self._model_and_clash()
 
-        scene = build_visualization_scene(model, clash_results=[clash], scene_id="scene_clash_review")
+        scene = build_visualization_scene(SceneRequest(model, clash_results=[clash], scene_id="scene_clash_review"))
         issue = scene.issues[0]
 
         self.assertEqual(issue.external_refs["clash"]["left"], {"kind": "element", "id": "pipe_0"})

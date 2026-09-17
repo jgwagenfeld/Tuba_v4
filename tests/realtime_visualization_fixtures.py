@@ -19,7 +19,7 @@ from tuba.analysis import (
 )
 from tuba.clash import ClashResult
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import SceneBundle, VisualizationScene, build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneBundle, VisualizationScene, SceneRequest, build_visualization_scene, write_scene_bundle
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ def operating_state_review_fixture(output_dir: Path) -> RealtimeVisualizationFix
         envelope_type="insulation",
         analysis_mesh=analysis_mesh,
     )
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         analysis_meshes=[analysis_mesh],
         operating_clash_results=operating_clashes,
@@ -70,7 +70,7 @@ def operating_state_review_fixture(output_dir: Path) -> RealtimeVisualizationFix
         geometry_states=[cold_state, operating_state, visual_state],
         scene_id="scene:realtime_visualization_fixture",
         created_at="2026-06-21T00:00:00Z",
-    )
+    ))
     bundle = write_scene_bundle(scene, output_dir / "review_scene")
     expected_counts = {
         "analysis_mesh_nodes": len(analysis_mesh.nodes),

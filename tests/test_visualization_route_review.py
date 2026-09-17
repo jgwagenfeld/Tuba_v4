@@ -8,7 +8,7 @@ from tuba.routing.types import (
     RouteEndpoint,
     RouteSegment,
 )
-from tuba.visualization import SceneBuildOptions, build_visualization_scene
+from tuba.visualization import SceneBuildOptions, SceneRequest, build_visualization_scene
 
 
 class TestVisualizationRouteReview(unittest.TestCase):
@@ -47,12 +47,12 @@ class TestVisualizationRouteReview(unittest.TestCase):
     def test_build_scene_adds_route_candidate_objects_and_overlay(self):
         model, result = self._model_and_result()
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             options=SceneBuildOptions(include_elements=False, include_supports=False, include_obstacles=False),
             route_results=[result],
             scene_id="scene_route_review",
-        )
+        ))
         scene.validate()
 
         route_objects = [obj for obj in scene.objects if obj.kind == "route_candidate"]
@@ -69,7 +69,7 @@ class TestVisualizationRouteReview(unittest.TestCase):
     def test_build_scene_adds_route_review_comparison_data(self):
         model, result = self._model_and_result()
 
-        scene = build_visualization_scene(model, route_results=[result], scene_id="scene_route_review")
+        scene = build_visualization_scene(SceneRequest(model, route_results=[result], scene_id="scene_route_review"))
         review = scene.route_reviews[0]
 
         self.assertEqual(review.request_id, "P-100")
@@ -82,7 +82,7 @@ class TestVisualizationRouteReview(unittest.TestCase):
     def test_route_candidate_geometry_assets_preserve_points_for_viewer(self):
         model, result = self._model_and_result()
 
-        scene = build_visualization_scene(model, route_results=[result], scene_id="scene_route_review")
+        scene = build_visualization_scene(SceneRequest(model, route_results=[result], scene_id="scene_route_review"))
         route_asset = next(asset for asset in scene.geometry_assets if asset.id == "geometry:route:P-100:candidate:0")
 
         self.assertEqual(route_asset.format, "polyline")

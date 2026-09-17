@@ -1,26 +1,16 @@
 """Scene orchestrator: build_visualization_scene."""
 
 from __future__ import annotations
-from dataclasses import replace
 from datetime import datetime
 from datetime import timezone
 from typing import Any
-from typing import Iterable
 from tuba.analysis.mesh import AnalysisMesh
-from tuba.analysis.run import AnalysisRun
-from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
 from tuba.analysis.provenance import (
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
-from tuba.analysis.states import GeometryState
-from tuba.refs import EntityRef
 from tuba.solver.compiler_contract import compiler_id_for
-from tuba.clash.types import ClashResult
-from tuba.load_path import LoadPathReport
-from tuba.routing.types import PipeRouteResult
-from tuba.rules import RuleResult
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Issue
 from tuba.visualization.scene import Overlay
@@ -29,7 +19,8 @@ from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.scene import ViewState
 from tuba.visualization.scene import VisualizationScene
-from tuba.visualization.builders._helpers import SceneBuildOptions, _default_scene_id, _normalize_ifc_guid_map
+from tuba.visualization.builders._contract import SceneBuildOptions, SceneRequest, SceneContribution
+from tuba.visualization.builders._helpers import _default_scene_id, _normalize_ifc_guid_map
 from tuba.visualization.builders._objects import _build_element_object, _build_obstacle_object, _build_support_link_object, _build_support_object
 from tuba.visualization.builders._imported import _build_imported_component_scene
 from tuba.visualization.builders._layers import build_layer_registry, build_result_fields
@@ -39,28 +30,26 @@ from tuba.visualization.builders._results import _build_result_state_record, _bu
 from tuba.visualization.builders._review import _build_clash_issue_scene, _build_cost_quantity_overlays, _build_field_context_scene, _build_load_path_scene, _build_route_result_scene, _build_rule_issue_scene
 
 
-def build_visualization_scene(
-    model: TubaModel,
-    *,
-    options: SceneBuildOptions | None = None,
-    route_results: Iterable[PipeRouteResult] | None = None,
-    clash_results: Iterable[ClashResult] | None = None,
-    operating_clash_results: Iterable[ClashResult] | None = None,
-    rule_results: Iterable[RuleResult] | None = None,
-    load_path_report: LoadPathReport | None = None,
-    analysis_runs: Iterable[AnalysisRun] = (),
-    result_states: Iterable[ResultState] | None = None,
-    geometry_states: Iterable[GeometryState] | None = None,
-    analysis_meshes: Iterable[AnalysisMesh] | None = None,
-    include_analysis_mesh: bool | None = None,
-    ifc_guid_map: dict[str | EntityRef, str] | None = None,
-    ifc_context: dict[str, Any] | None = None,
-    field_notes: Iterable[dict[str, Any]] | None = None,
-    scene_id: str | None = None,
-    model_id: str | None = None,
-    created_at: str | None = None,
-) -> VisualizationScene:
-    """Build a semantic scene manifest from a Tuba model."""
+def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
+    """Build a semantic scene manifest from one :class:`SceneRequest`."""
+    model = request.model
+    options = request.options
+    route_results = request.route_results
+    clash_results = request.clash_results
+    operating_clash_results = request.operating_clash_results
+    rule_results = request.rule_results
+    load_path_report = request.load_path_report
+    analysis_runs = request.analysis_runs
+    result_states = request.result_states
+    geometry_states = request.geometry_states
+    analysis_meshes = request.analysis_meshes
+    include_analysis_mesh = request.include_analysis_mesh
+    ifc_guid_map = request.ifc_guid_map
+    ifc_context = request.ifc_context
+    field_notes = request.field_notes
+    scene_id = request.scene_id
+    model_id = request.model_id
+    created_at = request.created_at
     opts = options or SceneBuildOptions()
     resolved_scene_id = scene_id or _default_scene_id(model)
     resolved_ifc_guid_map = _normalize_ifc_guid_map(ifc_guid_map)
@@ -160,29 +149,21 @@ def build_visualization_scene(
     route_reviews: list[RouteReview] = []
     views: list[ViewState] = []
 
+    def merge(contribution: SceneContribution) -> None:
+        objects.extend(contribution.objects)
+        assets.extend(contribution.assets)
+        overlays.extend(contribution.overlays)
+        issues.extend(contribution.issues)
+        route_reviews.extend(contribution.route_reviews)
+        views.extend(contribution.views)
+        diagnostics.extend(contribution.diagnostics)
+
     if opts.include_elements:
         for elem in model.elements:
-            scene_object, asset, object_diagnostics, envelope_objects, envelope_assets, envelope_overlays = (
-                _build_element_object(model, elem, opts, resolved_ifc_guid_map)
-            )
-            if elem.type.startswith("pipe") and (
+            volume_skin = elem.type.startswith("pipe") and (
                 unscoped_volume_skin or f"element:{elem.id}" in volume_element_refs
-            ):
-                objects.append(
-                    replace(
-                        scene_object,
-                        geometry_asset_id=None,
-                        layer_ids=["analysis_mesh:volume_skin"],
-                    )
-                )
-                diagnostics.extend(object_diagnostics)
-                continue
-            objects.append(scene_object)
-            assets.append(asset)
-            diagnostics.extend(object_diagnostics)
-            objects.extend(envelope_objects)
-            assets.extend(envelope_assets)
-            overlays.extend(envelope_overlays)
+            )
+            merge(_build_element_object(model, elem, opts, resolved_ifc_guid_map, volume_skin=volume_skin))
 
     if opts.include_supports:
         for support in model.supports:
@@ -202,53 +183,31 @@ def build_visualization_scene(
             assets.append(asset)
 
     if opts.include_loads:
-        load_objects, load_assets, load_case_overlays = build_load_scene(model)
-        objects.extend(load_objects)
-        assets.extend(load_assets)
-        overlays.extend(load_case_overlays)
+        merge(build_load_scene(model))
 
     if opts.include_imported_components:
-        mixed_objects, mixed_assets, mixed_diagnostics = _build_imported_component_scene(model)
-        objects.extend(mixed_objects)
-        assets.extend(mixed_assets)
-        diagnostics.extend(mixed_diagnostics)
+        merge(_build_imported_component_scene(model))
 
     for route_result in route_results or []:
-        route_objects, route_assets, overlay, review = _build_route_result_scene(route_result)
-        objects.extend(route_objects)
-        assets.extend(route_assets)
-        overlays.append(overlay)
-        route_reviews.append(review)
+        merge(_build_route_result_scene(route_result))
 
     for clash in clash_results or []:
-        marker_object, marker_asset, overlay, issue, view = _build_clash_issue_scene(model, clash)
-        objects.append(marker_object)
-        assets.append(marker_asset)
-        overlays.append(overlay)
-        issues.append(issue)
-        views.append(view)
+        merge(_build_clash_issue_scene(model, clash))
 
     for clash in operating_clash_results or []:
-        marker_object, marker_asset, overlay, issue, view = _build_clash_issue_scene(model, clash)
-        objects.append(marker_object)
-        assets.append(marker_asset)
-        overlays.append(overlay)
-        issues.append(issue)
-        views.append(view)
+        merge(_build_clash_issue_scene(model, clash))
 
     for result_state in result_state_records:
         state_object, state_overlay = _build_result_state_record(result_state)
         objects.append(state_object)
         overlays.append(state_overlay)
-        result_objects, result_assets, result_overlays, result_diagnostics = _build_result_state_result_scene(
-            model,
-            result_state,
-            analysis_meshes_by_id.get(result_state.mesh_id or ""),
+        merge(
+            _build_result_state_result_scene(
+                model,
+                result_state,
+                analysis_meshes_by_id.get(result_state.mesh_id or ""),
+            )
         )
-        objects.extend(result_objects)
-        assets.extend(result_assets)
-        overlays.extend(result_overlays)
-        diagnostics.extend(result_diagnostics)
 
     for geometry_state in geometry_state_records:
         state_object, state_overlay = _build_geometry_state_record(geometry_state)
@@ -256,48 +215,28 @@ def build_visualization_scene(
         overlays.append(state_overlay)
 
     for analysis_mesh in analysis_mesh_records:
-        mesh_objects, mesh_assets, mesh_diagnostics = _build_analysis_mesh_scene(analysis_mesh, model)
-        objects.extend(mesh_objects)
-        assets.extend(mesh_assets)
-        diagnostics.extend(mesh_diagnostics)
+        merge(_build_analysis_mesh_scene(analysis_mesh, model))
 
-    deformed_objects, deformed_assets, deformed_diagnostics = _build_deformed_state_scene(
-        model,
-        result_state_records,
-        geometry_state_records,
-        analysis_mesh_records,
+    merge(
+        _build_deformed_state_scene(
+            model,
+            result_state_records,
+            geometry_state_records,
+            analysis_mesh_records,
+        )
     )
-    objects.extend(deformed_objects)
-    assets.extend(deformed_assets)
-    diagnostics.extend(deformed_diagnostics)
 
     for result in rule_results or []:
-        marker_object, marker_asset, overlay, issue, view = _build_rule_issue_scene(model, result)
-        objects.append(marker_object)
-        assets.append(marker_asset)
-        overlays.append(overlay)
-        issues.append(issue)
-        views.append(view)
+        merge(_build_rule_issue_scene(model, result))
 
     if load_path_report is not None:
-        rack_overlays, load_objects, load_assets, load_overlays, load_issues = _build_load_path_scene(
-            model,
-            load_path_report,
-        )
-        overlays.extend(rack_overlays)
-        objects.extend(load_objects)
-        assets.extend(load_assets)
-        overlays.extend(load_overlays)
-        issues.extend(load_issues)
+        merge(_build_load_path_scene(model, load_path_report))
 
     if opts.include_cost_overlays:
         overlays.extend(_build_cost_quantity_overlays(model, opts.cost_metric))
 
     if field_notes:
-        field_objects, field_assets, field_overlay = _build_field_context_scene(field_notes)
-        objects.extend(field_objects)
-        assets.extend(field_assets)
-        overlays.append(field_overlay)
+        merge(_build_field_context_scene(field_notes))
 
     layers, layer_diagnostics = build_layer_registry(objects, overlays, analysis_mesh_records)
     diagnostics.extend(layer_diagnostics)

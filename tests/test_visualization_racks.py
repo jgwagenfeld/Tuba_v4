@@ -4,7 +4,7 @@ from tuba import Model
 from tuba.assemblies import RackBay, RackRow
 from tuba.load_path import analyze_load_paths
 from tuba.patches import ModelTransaction
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationRacks(unittest.TestCase):
@@ -38,7 +38,7 @@ class TestVisualizationRacks(unittest.TestCase):
         model, support = self._rack_model()
         report = analyze_load_paths(model, node_reactions={support.attached_to: (100.0, 0.0, -1000.0)})
 
-        scene = build_visualization_scene(model, load_path_report=report, scene_id="scene_rack_review")
+        scene = build_visualization_scene(SceneRequest(model, load_path_report=report, scene_id="scene_rack_review"))
         scene.validate()
 
         rack_overlay = next(overlay for overlay in scene.overlays if overlay.kind == "rack_assembly")
@@ -80,7 +80,7 @@ class TestVisualizationRacks(unittest.TestCase):
         ModelTransaction(model).apply(row.to_patch())
         report = analyze_load_paths(model)
 
-        scene = build_visualization_scene(model, load_path_report=report, scene_id="scene_row_rack")
+        scene = build_visualization_scene(SceneRequest(model, load_path_report=report, scene_id="scene_row_rack"))
         scene.validate()
 
         overlays = sorted(
@@ -101,7 +101,7 @@ class TestVisualizationRacks(unittest.TestCase):
         model, _support = self._rack_model(attach_support=False)
         report = analyze_load_paths(model)
 
-        scene = build_visualization_scene(model, load_path_report=report, scene_id="scene_rack_review")
+        scene = build_visualization_scene(SceneRequest(model, load_path_report=report, scene_id="scene_rack_review"))
         issue = next(issue for issue in scene.issues if issue.type == "load_path")
 
         self.assertEqual(issue.severity, "warning")
@@ -111,7 +111,7 @@ class TestVisualizationRacks(unittest.TestCase):
     def test_attached_support_emits_a_link_to_its_structure_node(self):
         model, support = self._rack_model()
 
-        scene = build_visualization_scene(model, scene_id="scene_rack_review")
+        scene = build_visualization_scene(SceneRequest(model, scene_id="scene_rack_review"))
         scene.validate()
 
         link = next(obj for obj in scene.objects if obj.kind == "support_link")
@@ -138,7 +138,7 @@ class TestVisualizationRacks(unittest.TestCase):
     def test_ground_support_emits_no_link(self):
         model, _support = self._rack_model(attach_support=False)
 
-        scene = build_visualization_scene(model, scene_id="scene_rack_review")
+        scene = build_visualization_scene(SceneRequest(model, scene_id="scene_rack_review"))
         scene.validate()
 
         self.assertEqual([obj for obj in scene.objects if obj.kind == "support_link"], [])

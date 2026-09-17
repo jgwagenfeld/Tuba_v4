@@ -14,7 +14,7 @@ from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.external.ifc import IfcExporter
 from tuba.solver import parse_tables
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 _ATTESTED_FILES = (
@@ -63,13 +63,13 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
 
         operating_state = create_operating_geometry_state(model=model, result_state=result_state)
         visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=25.0)
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             analysis_meshes=[artifact.analysis_mesh],
             result_states=[result_state],
             geometry_states=[operating_state, visual_state],
             scene_id="scene:real_code_aster_artifacts",
-        )
+        ))
         scene.validate()
 
         stress = next(overlay for overlay in scene.overlays if overlay.kind == "solver_result" and overlay.data["result_type"] == "stress")
@@ -306,13 +306,13 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, allow_unverified=True)
             operating_state = create_operating_geometry_state(model=model, result_state=artifact.result_state)
             visual_state = create_visual_deformed_geometry_state(model=model, result_state=artifact.result_state, visual_scale=25.0)
-            scene = build_visualization_scene(
+            scene = build_visualization_scene(SceneRequest(
                 model,
                 analysis_meshes=[artifact.analysis_mesh],
                 result_states=[artifact.result_state],
                 geometry_states=[operating_state, visual_state],
                 scene_id="scene:code_aster_to_ifc_release_gate",
-            )
+            ))
             scene.validate()
 
             ifc_path = work_dir / "review.ifc"

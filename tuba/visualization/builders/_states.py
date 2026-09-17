@@ -18,6 +18,7 @@ from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
+from tuba.visualization.builders._contract import SceneContribution
 from tuba.visualization.builders._helpers import _bounds_for_points, _dedupe, _node_coords, _safe_bounds_for_points
 
 
@@ -99,7 +100,7 @@ def _build_deformed_state_scene(
         objects.extend(mesh_objects)
         assets.extend(mesh_assets)
 
-    return objects, assets, diagnostics
+    return SceneContribution(objects=tuple(objects), assets=tuple(assets), diagnostics=tuple(diagnostics))
 def _build_deformed_centerline_scene(
     model: TubaModel,
     result_state: ResultState,
@@ -672,7 +673,7 @@ def _build_analysis_mesh_scene(
             )
         )
 
-    return objects, assets, diagnostics
+    return SceneContribution(objects=tuple(objects), assets=tuple(assets), diagnostics=tuple(diagnostics))
 def _analysis_mesh_source_metadata(
     *,
     mesh_id: str,

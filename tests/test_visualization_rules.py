@@ -2,7 +2,7 @@ import unittest
 
 from tuba import Model
 from tuba.rules import RuleEngine, SupportSpacingRule
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationRules(unittest.TestCase):
@@ -19,7 +19,7 @@ class TestVisualizationRules(unittest.TestCase):
     def test_build_scene_adds_rule_issue_marker_overlay_and_view(self):
         model, result = self._model_and_rule_result()
 
-        scene = build_visualization_scene(model, rule_results=[result], scene_id="scene_rule_review")
+        scene = build_visualization_scene(SceneRequest(model, rule_results=[result], scene_id="scene_rule_review"))
         scene.validate()
 
         issue = next(issue for issue in scene.issues if issue.type == "rule")
@@ -47,7 +47,7 @@ class TestVisualizationRules(unittest.TestCase):
     def test_rule_issue_carries_rule_report_payload_for_details_panel(self):
         model, result = self._model_and_rule_result()
 
-        scene = build_visualization_scene(model, rule_results=[result], scene_id="scene_rule_review")
+        scene = build_visualization_scene(SceneRequest(model, rule_results=[result], scene_id="scene_rule_review"))
         issue = next(issue for issue in scene.issues if issue.type == "rule")
 
         self.assertEqual(issue.external_refs["rule"]["rule_id"], "support_spacing")

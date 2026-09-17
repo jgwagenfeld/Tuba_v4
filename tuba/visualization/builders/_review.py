@@ -21,6 +21,7 @@ from tuba.visualization.scene import RouteReview
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.scene import ViewState
+from tuba.visualization.builders._contract import SceneContribution
 from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _candidate_length, _clash_envelope_source, _clash_issue_id, _clash_location, _dedupe, _issue_severity_for_clash, _object_id, _point_for_refs, _reaction_for_association, _route_candidate_entity_id, _route_candidate_ref, _route_candidate_summary, _route_cost_terms, _route_points, _route_segment_to_dict, _rule_issue_id, _safe_bounds_for_points, _safe_id, _support_point, _vector_endpoint, model_span
 
 
@@ -110,7 +111,9 @@ def _build_route_result_scene(
             for message in result.diagnostics
         ],
     )
-    return objects, assets, overlay, review
+    return SceneContribution(
+        objects=tuple(objects), assets=tuple(assets), overlays=(overlay,), route_reviews=(review,)
+    )
 def _build_clash_issue_scene(
     model: TubaModel,
     clash: ClashResult,
@@ -200,7 +203,9 @@ def _build_clash_issue_scene(
         active_overlay_ids=[overlay_id],
         issue_id=issue_id,
     )
-    return marker_object, marker_asset, overlay, issue, view
+    return SceneContribution(
+        objects=(marker_object,), assets=(marker_asset,), overlays=(overlay,), issues=(issue,), views=(view,)
+    )
 def _clash_review_payload(clash: ClashResult, involved_object_ids: list[str]) -> dict[str, Any]:
     metadata = dict(clash.metadata)
     object_pair = [str(clash.left), str(clash.right)]
@@ -301,7 +306,9 @@ def _build_rule_issue_scene(
         active_overlay_ids=[overlay_id],
         issue_id=issue_id,
     )
-    return marker_object, marker_asset, overlay, issue, view
+    return SceneContribution(
+        objects=(marker_object,), assets=(marker_asset,), overlays=(overlay,), issues=(issue,), views=(view,)
+    )
 def _build_cost_quantity_overlays(model: TubaModel, metric: str) -> list[Overlay]:
     takeoff = quantity_takeoff(model)
     values: dict[str, float] = {}
@@ -393,7 +400,9 @@ def _build_load_path_scene(
         )
         for index, diagnostic in enumerate(report.diagnostics)
     ]
-    return rack_overlays, objects, assets, load_overlays, issues
+    return SceneContribution(
+        overlays=tuple([*rack_overlays, *load_overlays]), objects=tuple(objects), assets=tuple(assets), issues=tuple(issues)
+    )
 def _build_field_context_scene(
     field_notes: Iterable[dict[str, Any]],
 ) -> tuple[list[SceneObject], list[GeometryAsset], Overlay]:
@@ -434,7 +443,7 @@ def _build_field_context_scene(
         name="Field context",
         data={"field_note_count": len(objects)},
     )
-    return objects, assets, overlay
+    return SceneContribution(objects=tuple(objects), assets=tuple(assets), overlays=(overlay,))
 def _build_rack_assembly_overlays(model: TubaModel) -> list[Overlay]:
     overlays: list[Overlay] = []
     for rack in rack_assemblies(model):

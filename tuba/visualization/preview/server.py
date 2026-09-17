@@ -227,10 +227,10 @@ class ProjectStudioServer(PreviewServer):
         return bool(stale)
 
     def _publish_scene(self) -> dict[str, Any]:
-        from tuba.visualization.builders import build_visualization_scene
+        from tuba.visualization.builders import SceneRequest, build_visualization_scene
 
         self.revision += 1
-        scene = build_visualization_scene(self.model, include_analysis_mesh=True, clash_results=self._model_clashes())
+        scene = build_visualization_scene(SceneRequest(self.model, include_analysis_mesh=True, clash_results=self._model_clashes()))
         staging = self.out_dir / ".build-staging"
         shutil.rmtree(staging, ignore_errors=True)
         write_scene_bundle(scene, staging)

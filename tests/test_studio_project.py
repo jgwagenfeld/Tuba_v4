@@ -24,7 +24,7 @@ with model.pipe(section="DN100", material="Steel") as builder:
 STUDY = """import threading
 from pathlib import Path
 
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 
 LOAD_CASES = ()
 SOLVER_OPTIONS = {}
@@ -38,7 +38,7 @@ GATE.set()
 def build_review(namespace, output, *, artifact_dir=None, force=False):
     GATE.wait(10)
     root = Path(output) / "review_scene"
-    write_scene_bundle(build_visualization_scene(namespace["model"]), root)
+    write_scene_bundle(build_visualization_scene(SceneRequest(namespace["model"])), root)
     return root
 """
 

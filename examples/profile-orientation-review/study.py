@@ -9,7 +9,7 @@ from tuba.analysis import create_visual_deformed_geometry_state
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts, stage_code_aster_artifact_evidence
 from tuba.geometry.section_mesh import _rotation_matrix, beam_local_frame
 from tuba.reporting import build_engineering_review
-from tuba.visualization import add_scene_label, build_visualization_scene, write_engineering_review_with_scene
+from tuba.visualization import add_scene_label, SceneRequest, build_visualization_scene, write_engineering_review_with_scene
 from tuba.visualization.scene import GeometryAsset, SceneLayer, SceneObject
 
 #: Two ordinary linear solves, one per case; the evidence has one folder each.
@@ -112,8 +112,8 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     runs = [stage_code_aster_artifact_evidence(run, bundle_root, artifact_subdir=f"artifacts/{run.result_state.load_case}") for run in runs]
     states = [create_visual_deformed_geometry_state(model=model, result_state=run.result_state, visual_scale=VISUAL_SCALE) for run in runs]
     solved_at = runs[0].result_state.metadata["solve_attestation"]["solved_at"]
-    scene = build_visualization_scene(model, analysis_runs=runs, geometry_states=states,
-                                      scene_id="scene:profile-orientation-review", created_at=solved_at)
+    scene = build_visualization_scene(SceneRequest(model, analysis_runs=runs, geometry_states=states,
+                                      scene_id="scene:profile-orientation-review", created_at=solved_at))
     _add_frames(scene, model, runs, states, rolls)
     for index, roll in enumerate(rolls):
         add_scene_label(scene, f"{roll} deg roll", [-0.2, index * 1.2, 0.3], label_id=f"roll-{roll}", height=0.15)

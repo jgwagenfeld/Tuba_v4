@@ -1,7 +1,7 @@
 import unittest
 from tuba.model import TubaModel, Element, Support
 from tuba.solver.aster_mesh import generate_analysis_mesh
-from tuba.visualization import build_visualization_scene, SceneBuildOptions
+from tuba.visualization import SceneRequest, build_visualization_scene, SceneBuildOptions
 from tuba.visualization.builders._layers import mesh_identity
 
 
@@ -32,7 +32,7 @@ class TestPresolveMesh(unittest.TestCase):
 
     def test_build_visualization_scene_with_presolve_mesh(self):
         model = self._create_test_model()
-        scene = build_visualization_scene(model, include_analysis_mesh=True)
+        scene = build_visualization_scene(SceneRequest(model, include_analysis_mesh=True))
         scene.validate()
 
         mesh_elements = [obj for obj in scene.objects if obj.kind == "analysis_mesh_element"]
@@ -54,7 +54,7 @@ class TestPresolveMesh(unittest.TestCase):
         model = self._create_test_model()
         mid_node = list(model.nodes.keys())[1]
         model.add_support(node=mid_node, type="rest", friction_coefficient=0.3)
-        scene = build_visualization_scene(model, include_analysis_mesh=True)
+        scene = build_visualization_scene(SceneRequest(model, include_analysis_mesh=True))
         scene.validate()
 
         # Contact helpers should be routed to analysis_mesh:helpers, not physical analysis_mesh:elements

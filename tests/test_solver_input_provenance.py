@@ -21,7 +21,7 @@ from tuba.solver.code_aster_runtime import (
     CodeAsterRuntimeCandidate,
     write_code_aster_execution_attestation,
 )
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 def _operation_model():
@@ -69,7 +69,7 @@ def test_operation_results_use_resolved_case_for_web_and_pyvista(tmp_path: Path)
     study = CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
     state = result_state_from_fea_results(model=model, study=study, results=results)
 
-    scene = build_visualization_scene(model, result_states=[state])
+    scene = build_visualization_scene(SceneRequest(model, result_states=[state]))
 
     stress = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "stress")
     load = next(overlay for overlay in scene.overlays if overlay.kind == "load_case" and overlay.data["load_case"] == "Hot")
@@ -395,7 +395,7 @@ def test_scene_rejects_ownerless_analysis_mesh_with_known_identity(tmp_path: Pat
     mesh = analysis.AnalysisMesh.from_dict(manifest["analysis_mesh"])
 
     with pytest.raises(ValueError, match="analysis mesh.*owning result state"):
-        build_visualization_scene(model, analysis_meshes=[mesh])
+        build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
 
 
 def test_report_rejects_ownerless_analysis_mesh_with_known_identity(tmp_path: Path):
@@ -415,7 +415,7 @@ def test_model_mutation_after_result_creation_is_rejected_by_scene_and_report(tm
     model.nodes["N1"].coords[0] = 2.0
 
     with pytest.raises(ValueError, match="solver input fingerprint"):
-        build_visualization_scene(model, result_states=[state])
+        build_visualization_scene(SceneRequest(model, result_states=[state]))
     with pytest.raises(EngineeringReviewError, match="solver input fingerprint"):
         build_engineering_review(model, studies=[study], result_states=[state])
 
@@ -441,7 +441,7 @@ def test_unknown_result_case_keeps_fe_stress_without_code_utilization(tmp_path: 
     state = result_state_from_fea_results(model=model, study=study, results=results)
     legacy_unknown = replace(state, load_case="Missing", solver_input_identity=None)
 
-    scene = build_visualization_scene(model, result_states=[legacy_unknown])
+    scene = build_visualization_scene(SceneRequest(model, result_states=[legacy_unknown]))
     stress = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "stress")
 
     assert "utilization_values" not in stress.data

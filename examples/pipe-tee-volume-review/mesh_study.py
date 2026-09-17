@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 from tuba.meshing import build_pipe_volume_mesh
 from tuba.project import load_project
-from tuba.visualization import SceneDiagnostic, build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneDiagnostic, SceneRequest, build_visualization_scene, write_scene_bundle
 
 LOAD_CASES = ()
 SOLVER_OPTIONS: dict = {}
@@ -55,11 +55,11 @@ def _build_scene(model, output: Path):
         id="analysis_mesh:gmsh_tee_unsolved",
         files={"med": "study.med"},
     )
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         mesh_model,
         analysis_meshes=[analysis_mesh],
         scene_id="scene:gmsh_tee_mesh_review",
-    )
+    ))
     scene.diagnostics.append(
         SceneDiagnostic(
             code="publication.mesh_review.no_solver_results",

@@ -14,7 +14,7 @@ from tuba.analysis.states import (
 from tuba.clash import ClashEngine
 from tuba.solver.base import ElementResult, FEAResults, NodeResult
 from tuba.solver.code_aster_runtime import expected_code_aster_artifact_files
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 from tests.operating_state_fixtures import straight_pipe_hot_clash_fixture
 
 
@@ -105,12 +105,12 @@ class TestVisualizationResults(unittest.TestCase):
             visual_scale=10.0,
         )
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             analysis_runs=[run],
             geometry_states=[visual_state],
             scene_id="scene_result_review",
-        )
+        ))
         scene.validate()
 
         deformed = next(obj for obj in scene.objects if obj.kind == "deformed_centerline")
@@ -139,7 +139,7 @@ class TestVisualizationResults(unittest.TestCase):
         ):
             with self.subTest(records=tuple(records)):
                 with self.assertRaisesRegex(ValueError, "analysis_runs.*lower-level"):
-                    build_visualization_scene(model, analysis_runs=[run], **records)
+                    build_visualization_scene(SceneRequest(model, analysis_runs=[run], **records))
 
     def test_scene_analysis_run_validates_persistent_record_lineage(self):
         model, run = self._analysis_run()
@@ -170,13 +170,13 @@ class TestVisualizationResults(unittest.TestCase):
         for name, invalid_run, message in invalid_runs:
             with self.subTest(name=name):
                 with self.assertRaisesRegex(ValueError, message):
-                    build_visualization_scene(model, analysis_runs=[invalid_run])
+                    build_visualization_scene(SceneRequest(model, analysis_runs=[invalid_run]))
 
     def test_web_scene_rejects_raw_solver_results_keyword(self):
         model, run = self._analysis_run()
 
         with self.assertRaisesRegex(TypeError, "unexpected keyword argument 'solver_results'"):
-            build_visualization_scene(model, solver_results=run.results)
+            build_visualization_scene(SceneRequest(model, solver_results=run.results))
 
     def test_build_scene_adds_result_and_geometry_state_records(self):
         fixture = straight_pipe_hot_clash_fixture()
@@ -200,13 +200,13 @@ class TestVisualizationResults(unittest.TestCase):
             envelope_type="bare",
         )
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             fixture.model,
             result_states=[result_state],
             geometry_states=[operating_state, visual_state],
             operating_clash_results=operating_clashes,
             scene_id="scene_operating_state",
-        )
+        ))
         scene.validate()
 
         result_object = next(obj for obj in scene.objects if obj.kind == "result_state")

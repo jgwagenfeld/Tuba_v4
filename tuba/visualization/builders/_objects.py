@@ -1,7 +1,7 @@
 """Model-object builders: elements, supports, obstacles, envelopes."""
 
 from __future__ import annotations
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Any
 from tuba.model import Element
 from tuba.model import TubaModel
@@ -14,7 +14,8 @@ from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
-from tuba.visualization.builders._helpers import SceneBuildOptions, _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields
+from tuba.visualization.builders._contract import SceneBuildOptions, SceneContribution
+from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields
 
 
 _PROFILE_DIMENSION_KEYS = {
@@ -48,7 +49,10 @@ def _build_element_object(
     elem: Element,
     options: SceneBuildOptions,
     ifc_guid_map: dict[str, str] | None = None,
-) -> tuple[SceneObject, GeometryAsset, list[SceneDiagnostic], list[SceneObject], list[GeometryAsset], list[Overlay]]:
+    *,
+    volume_skin: bool = False,
+) -> SceneContribution:
+    """One element's scene contribution; *volume_skin* hides its display geometry behind the mesh."""
     diagnostics: list[SceneDiagnostic] = []
     entity_ref = EntityRef("element", elem.id)
     asset_id = _asset_id(entity_ref)
@@ -169,7 +173,17 @@ def _build_element_object(
             points=points,
             physical=physical,
         )
-    return scene_object, asset, diagnostics, envelope_objects, envelope_assets, envelope_overlays
+    if volume_skin:
+        return SceneContribution(
+            objects=(replace(scene_object, geometry_asset_id=None, layer_ids=["analysis_mesh:volume_skin"]),),
+            diagnostics=tuple(diagnostics),
+        )
+    return SceneContribution(
+        objects=tuple([scene_object, *envelope_objects]),
+        assets=tuple([asset, *envelope_assets]),
+        diagnostics=tuple(diagnostics),
+        overlays=tuple(envelope_overlays),
+    )
 def _build_physical_envelopes(
     *,
     elem: Element,

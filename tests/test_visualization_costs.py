@@ -2,7 +2,7 @@ import unittest
 
 from tuba import Model
 from tuba.quantities import quantity_takeoff
-from tuba.visualization import SceneBuildOptions, build_visualization_scene
+from tuba.visualization import SceneBuildOptions, SceneRequest, build_visualization_scene
 
 
 class TestVisualizationCosts(unittest.TestCase):
@@ -23,11 +23,11 @@ class TestVisualizationCosts(unittest.TestCase):
     def test_cost_heatmap_overlay_matches_quantity_takeoff_records(self):
         model = self._model()
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             options=SceneBuildOptions(include_cost_overlays=True, cost_metric="insulation_cost"),
             scene_id="scene_cost_review",
-        )
+        ))
         scene.validate()
 
         heatmap = next(overlay for overlay in scene.overlays if overlay.kind == "cost_heatmap")
@@ -43,11 +43,11 @@ class TestVisualizationCosts(unittest.TestCase):
         model = self._model()
         takeoff = quantity_takeoff(model)
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             options=SceneBuildOptions(include_cost_overlays=True, cost_metric="insulation_cost"),
             scene_id="scene_cost_review",
-        )
+        ))
         summary = next(overlay for overlay in scene.overlays if overlay.kind == "quantity_summary")
 
         self.assertEqual(summary.data["totals"], takeoff.totals)

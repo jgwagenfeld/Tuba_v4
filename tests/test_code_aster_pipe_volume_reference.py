@@ -11,7 +11,7 @@ from tuba.model import make_bend_geometry
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_volume_results import _rows, _volume_node_id
 from tuba.solver.modelisation import PipeModelization
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 pytestmark = pytest.mark.skipif(
@@ -72,11 +72,11 @@ def test_pressurized_pipe_volume_matches_lame_and_builds_result_scene(tmp_path, 
     assert abs(hoop - expected_hoop) / expected_hoop < 0.05
     assert abs(radial + pressure) / pressure < 0.08
 
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         result_states=[run.result_state],
         analysis_meshes=[run.analysis_mesh],
-    )
+    ))
     scene.validate()
     json.dumps(scene.to_dict(), allow_nan=False)
     assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
@@ -134,11 +134,11 @@ def test_pressurized_bend_volume_balances_pressure_and_builds_result_scene(tmp_p
     expected = pressure * math.pi * inner_radius**2 * math.sqrt(2.0)
     assert abs(np.linalg.norm(reaction) - expected) / expected < 0.03
 
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         result_states=[run.result_state],
         analysis_meshes=[run.analysis_mesh],
-    )
+    ))
     scene.validate()
     assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
     assert any(obj.kind == "volume_displacement_field" for obj in scene.objects)

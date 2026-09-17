@@ -31,6 +31,7 @@ from tuba.rules import RuleEngine
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import (
     SceneBuildOptions,
+    SceneRequest,
     build_visualization_scene,
     write_engineering_review_with_scene,
 )
@@ -142,7 +143,7 @@ def run_example(
         else []
     )
     rule_report = RuleEngine(list(model_rules)).evaluate(resolved_model) if model_rules else None
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         resolved_model,
         options=scene_options,
         analysis_runs=[artifact],
@@ -165,7 +166,7 @@ def run_example(
         ),
         scene_id=scene_id,
         created_at=solved_at,
-    )
+    ))
     if scene_modifier is not None:
         scene_modifier(scene)
     review = build_engineering_review(

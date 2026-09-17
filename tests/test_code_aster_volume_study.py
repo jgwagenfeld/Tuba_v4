@@ -13,7 +13,7 @@ from tuba.refs import EntityRef
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.modelisation import PipeModelization
 from tuba.solver.aster_volume_results import parse_volume_result_artifacts
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 def _pressurized_pipe_model():
@@ -314,7 +314,7 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
     reconstructed = fea_results_from_result_state(model=model, result_state=state)
     assert reconstructed.volume_von_mises == results.volume_von_mises
     assert len(reconstructed.tuyau_subpoints) == 1
-    scene = build_visualization_scene(model, result_states=[state], analysis_meshes=[mesh])
+    scene = build_visualization_scene(SceneRequest(model, result_states=[state], analysis_meshes=[mesh]))
     assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
     assert any(obj.kind == "tuyau_subpoint_field" for obj in scene.objects)
 

@@ -11,7 +11,7 @@ from tuba.analysis.code_aster_artifacts import stage_code_aster_artifact_evidenc
 from tuba.project import load_project
 from tuba.reporting import build_engineering_review
 from tuba.solver.modelisation import PipeModelization
-from tuba.visualization import build_visualization_scene, write_engineering_review_with_scene
+from tuba.visualization import SceneRequest, build_visualization_scene, write_engineering_review_with_scene
 
 #: The solved tee's own project: this review extends that model rather than copying it.
 TEE_PROJECT = load_project(Path(__file__).resolve().parent / "pipe-tee-volume-review")
@@ -42,7 +42,7 @@ def run_example(
     )
     solved_at = run.result_state.metadata["solve_attestation"]["solved_at"]
     run = stage_code_aster_artifact_evidence(run, output / "review_scene")
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         analysis_runs=[run],
         field_notes=[
@@ -55,7 +55,7 @@ def run_example(
         ],
         scene_id="scene:pipe_tee_mixed_review",
         created_at=solved_at,
-    )
+    ))
     review = build_engineering_review(
         model,
         analysis_runs=[run],

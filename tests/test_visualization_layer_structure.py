@@ -13,7 +13,7 @@ from tuba.solver.modelisation import (
     modelisation_assignments,
     needs_discrete_element,
 )
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 from tuba.visualization.builders._layers import (
     OBJECT_KIND_CATEGORY,
     OVERLAY_KIND_CATEGORY,
@@ -136,7 +136,7 @@ class TestMeshIdentity(unittest.TestCase):
 
 class TestAppliedLoads(unittest.TestCase):
     def setUp(self):
-        self.scene = build_visualization_scene(build_review_model())
+        self.scene = build_visualization_scene(SceneRequest(build_review_model()))
         self.loads = [obj for obj in self.scene.objects if obj.kind == "applied_load"]
 
     def test_forces_and_moments_are_separate_glyphs(self):
@@ -176,7 +176,7 @@ class TestAppliedLoads(unittest.TestCase):
             profile="linear",
         )
 
-        scene = build_visualization_scene(model)
+        scene = build_visualization_scene(SceneRequest(model))
         overlay = next(item for item in scene.overlays if item.id == "overlay:load_case:LinearPressure")
 
         self.assertEqual(
@@ -211,7 +211,7 @@ class TestAppliedLoads(unittest.TestCase):
         op = model.define_operation("Operating", gravity=False)
         op.add_field("line_load", 350.0, direction=[0.0, 0.0, -1.0])
 
-        scene = build_visualization_scene(model)
+        scene = build_visualization_scene(SceneRequest(model))
         scene.validate()
 
         line_loads = [o for o in scene.objects if o.kind == "applied_load" and o.metadata.get("vector_kind") == "line_load"]
@@ -243,7 +243,7 @@ class TestAppliedLoads(unittest.TestCase):
     def test_loads_can_be_excluded(self):
         from tuba.visualization import SceneBuildOptions
 
-        scene = build_visualization_scene(build_review_model(), options=SceneBuildOptions(include_loads=False))
+        scene = build_visualization_scene(SceneRequest(build_review_model(), options=SceneBuildOptions(include_loads=False)))
         self.assertEqual([obj for obj in scene.objects if obj.kind == "applied_load"], [])
 
     def scene_load_cases(self):
@@ -254,13 +254,13 @@ class TestLayerRegistry(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         fixture = operating_state_review_fixture(Path(self._tmp.name))
-        self.scene = build_visualization_scene(
+        self.scene = build_visualization_scene(SceneRequest(
             fixture.model,
             result_states=[fixture.result_state],
             geometry_states=[fixture.operating_state, fixture.visual_state, fixture.cold_state],
             analysis_meshes=[fixture.analysis_mesh],
             operating_clash_results=fixture.operating_clashes,
-        )
+        ))
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -320,11 +320,11 @@ class TestResultFieldCatalogue(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         fixture = operating_state_review_fixture(Path(self._tmp.name))
-        self.scene = build_visualization_scene(
+        self.scene = build_visualization_scene(SceneRequest(
             fixture.model,
             result_states=[fixture.result_state],
             analysis_meshes=[fixture.analysis_mesh],
-        )
+        ))
 
     def tearDown(self):
         self._tmp.cleanup()

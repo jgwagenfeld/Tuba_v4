@@ -35,6 +35,7 @@ from tuba.visualization import (
     SceneObject,
     VisualizationScene,
     add_scene_label,
+    SceneRequest,
     build_visualization_scene,
     write_scene_bundle,
 )
@@ -98,7 +99,7 @@ def fig_tutorial_model() -> VisualizationScene:
     """The tutorial's model before it is solved: geometry and supports only."""
     from tuba.project import load_project
 
-    return build_visualization_scene(load_project(REPO_ROOT / "examples" / "code-aster-review").run_model()["model"])
+    return build_visualization_scene(SceneRequest(load_project(REPO_ROOT / "examples" / "code-aster-review").run_model()["model"]))
 
 
 def fig_element_triad() -> VisualizationScene:
@@ -110,7 +111,7 @@ def fig_element_triad() -> VisualizationScene:
         pipe.run(2.5)
     element = model.elements[0]
     start, end = model.nodes[element.n1].coords, model.nodes[element.n2].coords
-    scene = build_visualization_scene(model)
+    scene = build_visualization_scene(SceneRequest(model))
     # At the pipe end rather than mid-span, where the pipe would hide local X.
     _add_axes(scene, end, beam_local_frame(start, end), axes_id="element", length=0.7,
               labels={"x": "local X (along the pipe)", "y": "local Y", "z": "local Z"})
@@ -129,7 +130,7 @@ def fig_placement_frame() -> VisualizationScene:
         for point in ((0.0, 0.45, 0.0), (1.8, 0.45, 0.0))
     )
     model.add_element(id="rack_pipe", type="pipe_straight", n1=n1, n2=n2, section="DN100", material="steel")
-    scene = build_visualization_scene(model)
+    scene = build_visualization_scene(SceneRequest(model))
     cs = frame.to_coordinate_system()
     _add_axes(scene, (0.0, 0.0, 0.0), np.eye(3), axes_id="world", length=1.1,
               labels={"x": "world X", "y": "world Y", "z": "world Z"})
@@ -150,7 +151,7 @@ def fig_builder_route() -> VisualizationScene:
         pipe.bend(radius=0.3, angle=90.0, plane="XZ")
         pipe.run(1.2)
         pipe.end(support="anchor")
-    scene = build_visualization_scene(model)
+    scene = build_visualization_scene(SceneRequest(model))
     for index, element in enumerate(e for e in model.elements if e.type == "pipe_straight"):
         start, end = model.nodes[element.n1].coords, model.nodes[element.n2].coords
         frame = beam_local_frame(start, end)
@@ -180,7 +181,7 @@ def fig_supports() -> VisualizationScene:
         pipe.add_support(type="spring", direction=[0.0, 0.0, 1.0], stiffness=2.0e5)
         pipe.run(1.5)
         pipe.end(support="anchor")
-    scene = build_visualization_scene(model)
+    scene = build_visualization_scene(SceneRequest(model))
     for support in model.supports:
         above = np.asarray(model.nodes[support.node].coords) + [0.0, 0.0, 0.45]
         add_scene_label(scene, support.type, above.tolist(), label_id=f"support-{support.id}", height=LABEL_HEIGHT)
@@ -203,7 +204,7 @@ def fig_route_candidates() -> VisualizationScene:
     )
     result = GridRouter(RoutingGridSpec(cell_size=0.25, margin=1.0), candidate_count=3).route(model, request)
     apply_candidate_to_model(model, result.selected, request, add_supports=False)
-    scene = build_visualization_scene(model, route_results=[result])
+    scene = build_visualization_scene(SceneRequest(model, route_results=[result]))
     for role, endpoint in (("start", request.start), ("goal", request.goal)):
         below = np.asarray(endpoint.point) + [0.0, 0.0, -0.3]
         add_scene_label(scene, f"{role} {endpoint.id}", below.tolist(), label_id=f"route-{role}", height=LABEL_HEIGHT)

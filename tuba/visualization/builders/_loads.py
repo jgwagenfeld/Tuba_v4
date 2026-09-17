@@ -14,6 +14,7 @@ import numpy as np
 from tuba.model import LoadCase, NodalForce, OperationField, TubaModel, sample_bend_geometry
 from tuba.refs import EntityRef
 from tuba.solver.aster_loads import resolve_operation_field_groups
+from tuba.visualization.builders._contract import SceneContribution
 from tuba.visualization.builders._helpers import (
     _bounds_for_points,
     _node_coords,
@@ -108,7 +109,7 @@ def build_load_scene(model: TubaModel) -> tuple[list[SceneObject], list[Geometry
                     case_object_ids.append(glyph_objects.id)
         overlays.append(_load_case_overlay(model, case_name, load_case, case_object_ids))
 
-    return objects, assets, overlays
+    return SceneContribution(objects=tuple(objects), assets=tuple(assets), overlays=tuple(overlays))
 
 
 def _force_glyphs(

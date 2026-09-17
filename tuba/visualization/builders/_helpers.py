@@ -1,7 +1,7 @@
 """Shared leaf helpers and options for scene builders."""
 
 from __future__ import annotations
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import Any
 from typing import Iterable
 import numpy as np
@@ -15,23 +15,6 @@ from tuba.load_path import SupportRackAssociation
 from tuba.routing.types import PipeRouteCandidate
 from tuba.routing.types import RouteSegment
 from tuba.rules import RuleResult
-
-
-@dataclass(frozen=True)
-class SceneBuildOptions:
-    include_elements: bool = True
-    include_supports: bool = True
-    include_obstacles: bool = True
-    include_loads: bool = True
-    include_imported_components: bool = True
-    include_physical: bool = True
-    include_quantities: bool = True
-    include_attributes: bool = True
-    include_physical_envelopes: bool = False
-    include_analysis_mesh: bool = False
-    clearance_m: float = 0.0
-    include_cost_overlays: bool = False
-    cost_metric: str = "insulation_cost"
 def _normalised_vector(values: Any) -> list[float] | None:
     vector = _numeric_triplet(values)
     if vector is None:

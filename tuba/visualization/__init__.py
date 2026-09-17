@@ -22,7 +22,7 @@ from tuba.visualization.scene import (
     ViewState,
     VisualizationScene,
 )
-from tuba.visualization.builders import SceneBuildOptions, build_visualization_scene
+from tuba.visualization.builders import SceneBuildOptions, SceneContribution, SceneRequest, build_visualization_scene
 from tuba.visualization.schema import SceneValidationError
 from tuba.visualization.web_export import SceneBundle, write_scene_bundle
 from tuba.visualization.reporting_adapter import write_engineering_review_with_scene
@@ -47,6 +47,8 @@ __all__ = [
     "ViewState",
     "VisualizationScene",
     "SceneBuildOptions",
+    "SceneContribution",
+    "SceneRequest",
     "build_visualization_scene",
     "SceneBundle",
     "write_scene_bundle",

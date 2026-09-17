@@ -8,7 +8,7 @@ reviewable web-scene bundle.
 from pathlib import Path
 
 from tuba import Model
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 
 
 def main() -> Path:
@@ -66,7 +66,7 @@ def main() -> Path:
     )
 
     # 5. Build visualization scene & write bundle
-    scene = build_visualization_scene(model)
+    scene = build_visualization_scene(SceneRequest(model))
     scene.validate()
 
     out_dir = Path(".build/line-load-demo-scene").resolve()
