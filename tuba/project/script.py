@@ -42,6 +42,57 @@ def is_generated(text: str) -> bool:
     return text.lstrip("\ufeff").startswith(GENERATED_HEADER)
 
 
+#: How many syntactic ``model.add_node`` / ``model.add_element`` call sites an authored
+#: model script may hold before the lint asks for a construction unit. A loop or a unit
+#: is one call site however many records it builds, so a dump is what crosses this line.
+RAW_STRUCTURE_BUDGET = 8
+
+
+def _counts_as_raw(attr: ast.Attribute) -> bool:
+    """Whether *attr* is a ``model.add_node`` / ``model.add_element`` call qualifier."""
+    if attr.attr not in {"add_node", "add_element"}:
+        return False
+    value = attr.value
+    return (isinstance(value, ast.Name) and value.id == "model") or (
+        isinstance(value, ast.Attribute) and value.attr == "model"
+    )
+
+
+def check_model_script(text: str) -> list[str]:
+    """Advisory findings against an authored model script; a generated script is exempt.
+
+    Only the raw-record dump is flagged: ``add_node``/``add_element`` call sites above
+    ``RAW_STRUCTURE_BUDGET``. Supports are exempt, the builder and ``assemble`` calls are
+    the remedy, and this never rewrites anything.
+    """
+    if is_generated(text):
+        return []
+    try:
+        tree = ast.parse(text)
+    except SyntaxError as exc:
+        return [f"model script does not parse: {exc}"]
+    raw = sum(
+        1
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and _counts_as_raw(node.func)
+    )
+    if raw > RAW_STRUCTURE_BUDGET:
+        return [
+            f"model script makes {raw} raw add_node/add_element calls "
+            f"(budget {RAW_STRUCTURE_BUDGET}): express the repeated cluster as a construction "
+            "unit in def form and apply it with assemble(model, ...), or route it with "
+            "model.pipe(...). Raw records are generated-script output, not an authoring medium."
+        ]
+    return []
+
+
+def require_model_script_style(text: str) -> None:
+    """Refuse an authored model script that dumps raw records; the strict entry point."""
+    findings = check_model_script(text)
+    if findings:
+        raise ValueError("\n".join(findings))
+
+
 def same_model(first: TubaModel, second: TubaModel) -> bool:
     """Whether two models serialise to the same JSON text, key order included."""
     return _json_text(first) == _json_text(second)
