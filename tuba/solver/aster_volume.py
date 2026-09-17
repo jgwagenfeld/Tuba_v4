@@ -9,11 +9,10 @@ from typing import Any, Iterable, NamedTuple
 
 from tuba.analysis import AnalysisStudy
 from tuba.analysis.provenance import (
-    MIXED_CODE_ASTER_COMPILER_ID,
-    VOLUME_CODE_ASTER_COMPILER_ID,
     SolverInputIdentity,
     build_solver_input_identity,
 )
+from tuba.solver.compiler_contract import volume_contract
 from tuba.meshing import build_pipe_volume_mesh
 from tuba.model import PipeSection, TubaModel
 from tuba.solver.aster_comm import _pipe_orientation_vector
@@ -55,21 +54,21 @@ def volume_study_inputs(
         raise ValueError("Insulated pipe-volume studies are not supported; use the pipe beam/TUYAU solver so insulation weight is included.")
     ids = tuple(element_ids)
     line_elements = [element for element in model.elements if element.id not in ids]
-    mixed_analysis = bool(line_elements)
-    compiler_inputs = {
-        "element_ids": sorted(ids),
-        **({"line_element_ids": sorted(element.id for element in line_elements)} if mixed_analysis else {}),
-        "element_order": element_order,
-        "max_element_size": float(max_element_size),
-        "export_tensor_stress": bool(export_tensor_stress),
-    }
+    contract = volume_contract(
+        model,
+        element_ids=ids,
+        line_element_ids=[element.id for element in line_elements],
+        element_order=element_order,
+        max_element_size=max_element_size,
+        export_tensor_stress=export_tensor_stress,
+    )
     identity = build_solver_input_identity(
         model,
         load_case_name,
-        compiler_id=(MIXED_CODE_ASTER_COMPILER_ID if mixed_analysis else VOLUME_CODE_ASTER_COMPILER_ID),
-        compiler_inputs=compiler_inputs,
+        compiler_id=contract.compiler_id,
+        compiler_inputs=contract.compiler_inputs,
     )
-    return VolumeStudyInputs(load_case_name, load_case, ids, line_elements, compiler_inputs, identity)
+    return VolumeStudyInputs(load_case_name, load_case, ids, line_elements, contract.compiler_inputs, identity)
 
 
 class PipeVolumeStudyExporter:

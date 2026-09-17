@@ -9,12 +9,10 @@ from typing import Any
 import numpy as np
 
 from tuba.solver.base import ContactResult, ElementResult, FEAResults, NodeResult
+from tuba.solver.compiler_contract import compiler_id_for
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.study import AnalysisStudy
 from tuba.analysis.provenance import (
-    CODE_ASTER_COMPILER_ID,
-    MIXED_CODE_ASTER_COMPILER_ID,
-    VOLUME_CODE_ASTER_COMPILER_ID,
     SolverInputIdentity,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
@@ -127,12 +125,7 @@ def result_state_from_fea_results(
         raise ValueError(
             f"Cannot create ResultState for model revision {model_revision}; study uses revision {study.model_revision}."
         )
-    if study.metadata.get("mixed_analysis"):
-        compiler_id = MIXED_CODE_ASTER_COMPILER_ID
-    elif study.metadata.get("volume_analysis"):
-        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID
-    else:
-        compiler_id = CODE_ASTER_COMPILER_ID
+    compiler_id = compiler_id_for(study.metadata)
     compiler_inputs = study.metadata.get("compiler_inputs")
     validate_solver_input_identity(
         model,
@@ -299,13 +292,7 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
         result_state.solver_input_identity,
         context=f"ResultState {result_state.id!r}",
         expected_load_case=result_state.load_case,
-        expected_compiler_id=(
-            MIXED_CODE_ASTER_COMPILER_ID
-            if is_mixed
-            else VOLUME_CODE_ASTER_COMPILER_ID
-            if is_volume
-            else CODE_ASTER_COMPILER_ID
-        ),
+        expected_compiler_id=compiler_id_for(result_state.metadata),
         compiler_inputs=result_state.metadata.get("compiler_inputs"),
     )
 

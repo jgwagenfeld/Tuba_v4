@@ -11,13 +11,11 @@ from tuba.analysis.results import ResultState
 from tuba.analysis.run import AnalysisRun
 from tuba.analysis.study import AnalysisStudy
 from tuba.analysis.provenance import (
-    CODE_ASTER_COMPILER_ID,
-    MIXED_CODE_ASTER_COMPILER_ID,
-    VOLUME_CODE_ASTER_COMPILER_ID,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
 from tuba.model import TubaModel
+from tuba.solver.compiler_contract import compiler_id_for
 from tuba.reporting.model import (
     EngineeringReviewError,
     EngineeringReviewPackage,
@@ -439,11 +437,7 @@ def _compact_result_metadata(state: ResultState) -> dict[str, Any]:
 
 
 def _compiler_contract(metadata: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
-    if metadata.get("mixed_analysis"):
-        return MIXED_CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
-    if metadata.get("volume_analysis"):
-        return VOLUME_CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
-    return CODE_ASTER_COMPILER_ID, metadata.get("compiler_inputs")
+    return compiler_id_for(metadata), metadata.get("compiler_inputs")
 
 
 def _default_package_id(model: TubaModel) -> str:

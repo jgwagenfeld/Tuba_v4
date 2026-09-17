@@ -10,15 +10,13 @@ from typing import Any, Iterable
 
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.provenance import (
-    CODE_ASTER_COMPILER_ID,
-    MIXED_CODE_ASTER_COMPILER_ID,
-    VOLUME_CODE_ASTER_COMPILER_ID,
     SolverInputIdentity,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
 from tuba.analysis.study import AnalysisStudy
 from tuba.solver.code_aster_runtime import validate_code_aster_execution_attestation
+from tuba.solver.compiler_contract import compiler_id_for
 
 
 MAX_ASTER_NAME_LEN = 24
@@ -134,12 +132,7 @@ def load_and_validate_artifact_chain(
         )
 
     sidecar, sidecar_identity = _load_sidecar(root)
-    if loaded_study.metadata.get("mixed_analysis"):
-        compiler_id = MIXED_CODE_ASTER_COMPILER_ID
-    elif loaded_study.metadata.get("volume_analysis"):
-        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID
-    else:
-        compiler_id = CODE_ASTER_COMPILER_ID
+    compiler_id = compiler_id_for(loaded_study.metadata)
     _validate_artifact_identities(
         model=model,
         study=loaded_study,

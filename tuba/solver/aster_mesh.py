@@ -17,6 +17,7 @@ import numpy as np
 from tuba.model import Element, TubaModel
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource
 from tuba.refs import EntityRef
+from tuba.solver.compiler_contract import bend_segments, subdivides_straight_segments
 from tuba.solver.modelisation import PipeModelization, modelisation_assignments, spring_links
 from tuba.solver.aster_contact import shoes
 
@@ -45,7 +46,9 @@ def _rotate_about_axis(vector: np.ndarray, unit_axis: np.ndarray, angle: float) 
 
 class _MeshWriterMixin:
     SOLVER_NAME: str = "Code_Aster"
-    _BEND_SEGMENTS: int = 16
+    # ``_BEND_SEGMENTS`` is set from :func:`tuba.solver.compiler_contract.bend_segments`; it has no
+    # class default, so a writer without a contract cannot silently mesh bends at the wrong density.
+    _BEND_SEGMENTS: int
     pipe_modelization: PipeModelization = PipeModelization.TUYAU_3M
     line_segments: int = 8
 
@@ -578,10 +581,9 @@ class _MeshWriterMixin:
         return midpoints
 
     def _straight_segment_node_pairs(self, elem: Element) -> list[tuple[str, str, str]]:
-        subdivide = elem.type in ("beam", "cable") or (
-            elem.type == "pipe_straight" and self.pipe_modelization is PipeModelization.POU_D_T
-        )
-        if not subdivide or self.line_segments == 1:
+        if not subdivides_straight_segments(
+            elem, pipe_modelization=self.pipe_modelization, line_segments=self.line_segments
+        ):
             return [(elem.id, elem.n1, elem.n2)]
         return self._bend_segment_node_pairs(elem, self.line_segments)
 
@@ -838,7 +840,7 @@ class AsterMeshGenerator(_MeshWriterMixin):
     ) -> None:
         self.pipe_modelization = PipeModelization(pipe_modelization)
         self.line_segments = line_segments
-        self._BEND_SEGMENTS = 32 if self.pipe_modelization is PipeModelization.POU_D_T else 16
+        self._BEND_SEGMENTS = bend_segments(self.pipe_modelization)
         self._bend_node_cache: dict = {}
 
 

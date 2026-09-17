@@ -41,7 +41,8 @@ from tuba.solver.code_aster_runtime import (
 )
 from tuba.analysis import AnalysisRun, AnalysisStudy
 from tuba.project.evidence import exported_study_matches
-from tuba.solver.modelisation import PipeModelization, needs_discrete_element
+from tuba.solver.compiler_contract import beam_contract, bend_segments
+from tuba.solver.modelisation import PipeModelization
 from tuba.analysis.provenance import (
     SolverInputIdentity,
     build_solver_input_identity,
@@ -127,8 +128,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             raise ValueError("load_path must be a sequence of names, not a string.")
         self.load_path = tuple(load_path) if load_path is not None else None
         self.load_step = load_step
-        if self.pipe_modelization is PipeModelization.POU_D_T:
-            self._BEND_SEGMENTS = 32
+        self._BEND_SEGMENTS = bend_segments(self.pipe_modelization)
         self.work_dir = Path(work_dir) if work_dir else None
         self.exec_method = exec_method or os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto")
         self.docker_image = docker_image or os.environ.get("TUBA_CODE_ASTER_DOCKER_IMAGE") or "simvia/code_aster:stable"
@@ -253,36 +253,19 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             load_case_name = self.load_path[-1]
         load_case_name, load_case = model.resolve_load_case(load_case_name)
         model.validate()
-        compiler_inputs = (
-            {"pipe_modelization": self.pipe_modelization.value, "bend_segments": self._BEND_SEGMENTS}
-            if self.pipe_modelization is PipeModelization.POU_D_T else None
+        contract = beam_contract(
+            model,
+            load_case_name,
+            load_case,
+            pipe_modelization=self.pipe_modelization,
+            line_segments=self.line_segments,
+            load_path=self.load_path,
+            load_step=self.load_step,
         )
-        if any(len(self._straight_segment_node_pairs(e)) > 1 for e in model.elements if e.type != "pipe_bend"):
-            compiler_inputs = dict(compiler_inputs or {}, line_segments=self.line_segments)
-        if any(needs_discrete_element(s) for s in model.supports):
-            # CREA_POI1 once named its node with NOEUD and put these supports on the wrong node;
-            # evidence solved before GROUP_NO lacks this input, so it reads stale.
-            compiler_inputs = dict(compiler_inputs or {}, discrete_support_nodes="GROUP_NO")
-        from tuba.solver.aster_contact import shoes, validate_path
-        contact_specs = shoes(model, self.pipe_modelization)
-        if self.load_path is not None and (not contact_specs or self.pipe_modelization is not PipeModelization.POU_D_T):
-            raise ValueError("load_path histories require pipe_modelization='POU_D_T' and a resting shoe.")
-        if contact_specs:
-            if self.load_path is not None:
-                names, _cases = validate_path(model, load_case, self.load_path)
-            else:
-                names = (load_case_name,)
-            compiler_inputs = dict(compiler_inputs or {}, pipe_modelization=self.pipe_modelization.value,
-                                  load_path=list(names), load_step=self.load_step,
-                                  contact_law='DIS_CHOC', contact_stiffness_defaults=[1e10, 1e8])
-            if self.load_path is not None:
-                model_dict = model.to_dict()
-                all_cases = {**model_dict.get('load_cases', {}), **model_dict.get('operations', {})}
-                compiler_inputs['load_path_inputs'] = {name: all_cases[name] for name in names}
         solver_input_identity = build_solver_input_identity(
-            model, load_case_name, compiler_inputs=compiler_inputs,
+            model, load_case_name, compiler_inputs=contract.compiler_inputs,
         )
-        return StudyInputs(load_case_name, load_case, compiler_inputs, solver_input_identity)
+        return StudyInputs(load_case_name, load_case, contract.compiler_inputs, solver_input_identity)
 
     def export_analysis_study(
         self,
@@ -521,9 +504,6 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     # Mesh generation (.mail)
     # ==================================================================
 
-    # Number of linear subdivisions per pipe bend element before writing
-    # each solver segment as a quadratic SEG3 pipe element.
-    _BEND_SEGMENTS = 16
     _ASTER_ENTITY_NAME_LEN = 8
 
 

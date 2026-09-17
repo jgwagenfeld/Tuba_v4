@@ -11,14 +11,12 @@ from tuba.analysis.run import AnalysisRun
 from tuba.model import TubaModel
 from tuba.analysis.results import ResultState
 from tuba.analysis.provenance import (
-    CODE_ASTER_COMPILER_ID,
-    MIXED_CODE_ASTER_COMPILER_ID,
-    VOLUME_CODE_ASTER_COMPILER_ID,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
 from tuba.analysis.states import GeometryState
 from tuba.refs import EntityRef
+from tuba.solver.compiler_contract import compiler_id_for
 from tuba.clash.types import ClashResult
 from tuba.load_path import LoadPathReport
 from tuba.routing.types import PipeRouteResult
@@ -129,15 +127,7 @@ def build_visualization_scene(
                 "owning result state."
             )
     for result_state in result_state_records:
-        is_volume = bool(result_state.metadata.get("volume_analysis"))
-        is_mixed = bool(result_state.metadata.get("mixed_analysis"))
-        compiler_id = (
-            MIXED_CODE_ASTER_COMPILER_ID
-            if is_mixed
-            else VOLUME_CODE_ASTER_COMPILER_ID
-            if is_volume
-            else CODE_ASTER_COMPILER_ID
-        )
+        compiler_id = compiler_id_for(result_state.metadata)
         compiler_inputs = result_state.metadata.get("compiler_inputs")
         validate_solver_input_identity(
             model,
