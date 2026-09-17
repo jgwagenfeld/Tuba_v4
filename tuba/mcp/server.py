@@ -864,9 +864,90 @@ def run_model_code(code: str) -> Dict[str, Any]:
     }
 
 
+def _element_inspection(element) -> Dict[str, Any]:
+    """One element in the builder's vocabulary: route and station range included."""
+    view: Dict[str, Any] = {
+        "id": element.id,
+        "type": element.type,
+        "n1": element.n1,
+        "n2": element.n2,
+        "section": element.section,
+        "material": element.material,
+    }
+    if element.type == "pipe_bend":
+        view["bend_radius"] = element.bend_radius
+        view["bend_angle"] = element.bend_angle
+    if element.route_id is not None:
+        view["route_id"] = element.route_id
+    if element.station_start is not None:
+        view["station_start"] = element.station_start
+    if element.station_end is not None:
+        view["station_end"] = element.station_end
+    return view
+
+
+def _support_inspection(support) -> Dict[str, Any]:
+    """One support named the way ``add_support`` names it."""
+    view: Dict[str, Any] = {"id": support.id, "node": support.node, "type": support.type}
+    if support.direction:
+        view["direction"] = support.direction
+    if support.attached_to is not None:
+        view["attached_to"] = support.attached_to
+    if support.friction_coefficient:
+        view["friction_coefficient"] = support.friction_coefficient
+    return view
+
+
+def _route_inspection(model: TubaModel) -> Dict[str, Any]:
+    """Route id -> its elements, section and material, and station span (min start, max end)."""
+    routes: Dict[str, Any] = {}
+    for element in model.elements:
+        if element.route_id is None:
+            continue
+        route = routes.setdefault(
+            element.route_id,
+            {
+                "elements": [],
+                "section": element.section,
+                "material": element.material,
+                "station_start": None,
+                "station_end": None,
+            },
+        )
+        route["elements"].append(element.id)
+        if element.station_start is not None:
+            route["station_start"] = (
+                element.station_start
+                if route["station_start"] is None
+                else min(route["station_start"], element.station_start)
+            )
+        if element.station_end is not None:
+            route["station_end"] = (
+                element.station_end
+                if route["station_end"] is None
+                else max(route["station_end"], element.station_end)
+            )
+    return routes
+
+
+def _attachment_points_inspection(group) -> Dict[str, str]:
+    """A group's named attachment points, with the ``node:`` ref prefix stripped."""
+    points = group.get("metadata", {}).get("attachment_points", {})
+    return {
+        name: (ref.split(":", 1)[1] if isinstance(ref, str) and ":" in ref else ref)
+        for name, ref in points.items()
+    }
+
+
 @mcp.tool()
 def inspect_model() -> Dict[str, Any]:
-    """Inspect current model topology, elements, supports, and operational load cases.
+    """Inspect the model in the vocabulary it was authored in, so you can select by name.
+
+    ``routes`` maps each route id to its elements, section, material and station
+    span; elements carry ``route_id``, ``station_start`` and ``station_end``.
+    Supports carry their ``id`` and, when attached, ``attached_to``. Each group
+    carries its ``attachment_points`` (name -> node id, the ``node:`` ref
+    stripped), so a rack's ``level_1_mid_left`` is a name, not a coordinate.
 
     ``groups`` maps each clash's element ids back to the rack bay (or other
     group) that built them, and ``assembly_calls`` replays each recorded unit
@@ -878,27 +959,19 @@ def inspect_model() -> Dict[str, Any]:
         "project_name": model.project_name,
         "standard": model.standard,
         "nodes": {nid: node.coords.tolist() for nid, node in model.nodes.items()},
-        "elements": [
-            {
-                "id": e.id,
-                "type": e.type,
-                "n1": e.n1,
-                "n2": e.n2,
-                "section": e.section,
-                "material": e.material,
-                **({"bend_radius": e.bend_radius, "bend_angle": e.bend_angle} if e.type == "pipe_bend" else {}),
-            }
-            for e in model.elements
-        ],
-        "supports": [
-            {"node": s.node, "type": s.type, **({"direction": s.direction} if s.direction else {})}
-            for s in model.supports
-        ],
+        "elements": [_element_inspection(element) for element in model.elements],
+        "supports": [_support_inspection(support) for support in model.supports],
+        "routes": _route_inspection(model),
         "groups": {
             name: {
                 "nodes": list(group.get("nodes", [])),
                 "elements": list(group.get("elements", [])),
                 "metadata": _json_safe(dict(group.get("metadata", {}))),
+                **(
+                    {"attachment_points": _attachment_points_inspection(group)}
+                    if group.get("metadata", {}).get("attachment_points")
+                    else {}
+                ),
             }
             for name, group in model.groups.items()
         },
