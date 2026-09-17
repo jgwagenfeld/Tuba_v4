@@ -856,16 +856,19 @@ const scenarios = {
       assert.deepEqual(
         await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.galleryCard)),
         [
-          "autorouted-expansion-loop",
-          "code-aster-review",
-          "elements-supports-review",
-          "guyed-mast-review",
-          "imported_component_mixed_demo",
-          "native-friction-review",
-          "pipe-tee-volume-review",
-          "profile-orientation-review",
-          "support-rack-review"
-        ]
+            "autorouted-expansion-loop",
+            "code-aster-review",
+            "elements-supports-review",
+            "guyed-mast-review",
+            "hydrogen-plant-layout",
+            "imported_component_mixed_demo",
+            "line-load-studio",
+            "native-friction-review",
+            "pipe-tee-volume-review",
+            "profile-orientation-review",
+            "rack_bridge_demo",
+            "support-rack-review"
+          ]
       );
 
       // The card says which elements the review solved. Without this the chips

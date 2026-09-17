@@ -27,12 +27,16 @@ components* show imported Code_Aster results.
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png" width="250" alt="Elements and supports review in the Tuba viewer"></a><br><b>Elements and supports</b><br>Do bars, cables and spring supports survive the trip to the solver?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png" width="250" alt="Imported components model review in the Tuba viewer"></a><br><b>Imported components</b><br>How does a supplied component join an authored line?</td>
 </tr>
+<tr>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png" width="250" alt="Plant layout review in the Tuba viewer"></a><br><b>Plant layout</b><br>How do two process lines and their rack fit together on a hydrogen plant site?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png" width="250" alt="Line loads review in the Tuba viewer"></a><br><b>Line loads</b><br>Where does a distributed line load go once the line is restrained?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png" width="250" alt="Road crossing review in the Tuba viewer"></a><br><b>Road crossing</b><br>How does a line cross an 8 m roadway on a shoe-supported rack bridge?</td>
+</tr>
 </table>
 
 ## Example
 
-Define a pipe with two straight runs, a bend, anchored ends, and an operating
-load case, then solve it with Code_Aster:
+Define a pipe with two straight runs, a bend, anchored ends, and an operating load case, then solve it with Code_Aster:
 
 ```python
 from tuba import Model
@@ -96,9 +100,7 @@ python -m venv .venv
 .venv/bin/python -m pip install .        # Windows: .\.venv\Scripts\python.exe
 ```
 
-Analysis requires [Code_Aster](https://code-aster.org), installed separately.
-Modeling, geometric routing, and viewing existing results do not require a local
-solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
+Analysis requires [Code_Aster](https://code-aster.org), installed separately. Modeling, geometric routing, and viewing existing results do not require a local solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
 
 **[Setup →](https://jgwagenfeld.github.io/Tuba_v4/setup.html)** ·
 **[Tutorial →](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html)** ·
@@ -107,9 +109,7 @@ solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
 
 ## Solver results
 
-Stress, displacement, and reaction results require a completed Code_Aster run
-and imported result files. Exporting `.comm`, `.mail`, and `.export` input files
-does not run an analysis. Imported results retain model and study identifiers
+Stress, displacement, and reaction results require a completed Code_Aster run and imported result files. Exporting `.comm`, `.mail`, and `.export` input files does not run an analysis. Imported results retain model and study identifiers
 for checking which model was analysed.
 
 ## Engineering and standards disclaimer

@@ -13,6 +13,7 @@ from examples.code_aster_artifact_review import run_example, solve_or_import
 LOAD_CASES = ('Operating',)
 SOLVER_OPTIONS: dict = {}
 VOLUME_EXPORT = None
+ARTIFACT_DIR = Path(__file__).resolve().parent / "evidence" / LOAD_CASES[0]
 
 
 def build_review(namespace, output, *, artifact_dir=None, force=False):

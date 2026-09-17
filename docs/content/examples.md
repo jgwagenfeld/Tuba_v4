@@ -99,6 +99,30 @@ Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. The 
 
 See the [profile-orientation example](examples/profile-orientation.md) for the two load cases, local-axis convention and numerical reference checks.
 
+## Plant layout
+
+[![Plant layout review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
+
+A green-hydrogen facility in plan: an electrolyzer hall, a compressor station, storage bullets and a four-bay pipe rack, with the LP and HP hydrogen lines routed between them under pressure and thermal load. The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout) &middot; Evidence: **Results**
+
+## Line loads
+
+[![Line loads review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio)
+
+A DN100 line on an I-beam crossbeam carries a 350 N/m downward line load, a 500 N/m lateral load on the beam, and a 3.5 kN force with a moment at its elbow. The review shows the deflection, stresses and support reaction from Code_Aster.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio) &middot; Evidence: **Results**
+
+## Road crossing
+
+[![Road crossing review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo)
+
+A DN150 process line rises from ground sleepers over an 8 m roadway on a four-bay steel rack bridge, then drops back to grade. Friction shoes carry it at every bay midpoint. The review shows thermal displacement, wall stress and support reactions from Code_Aster.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo) &middot; Evidence: **Results**
+
 ## Local examples
 
 Run an example with:
@@ -134,7 +158,7 @@ No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** wri
 
 ## Gallery projects
 
-Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review` and `support-rack-review`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
+Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review`, `support-rack-review`, `hydrogen-plant-layout`, `line-load-studio` and `rack_bridge_demo`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
 
 ```powershell
 python -m tuba.cli_studio examples/code-aster-review

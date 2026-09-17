@@ -46,6 +46,18 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
     **Imported components** — How does a supplied component join an authored line?
 
+-   [![Plant layout review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
+
+    **Plant layout** — How do two process lines and their rack fit together on a hydrogen plant site?
+
+-   [![Line loads review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio)
+
+    **Line loads** — Where does a distributed line load go once the line is restrained?
+
+-   [![Road crossing review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo)
+
+    **Road crossing** — How does a line cross an 8 m roadway on a shoe-supported rack bridge?
+
 </div>
 
 ## Start here

@@ -85,6 +85,9 @@ notebooks/advanced_piping_rack.ifc
 
 /viewer/public/native-friction-review/
 /viewer/public/profile-orientation-review/
+/viewer/public/hydrogen-plant-layout/
+/viewer/public/line-load-studio/
+/viewer/public/rack_bridge_demo/
 
 # Vite build scratch output
 /.tmp/

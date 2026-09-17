@@ -246,6 +246,20 @@ OFFICIAL_GALLERIES = (
         ),
     ),
     _project_gallery(
+        "hydrogen-plant-layout",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "hydrogen-plant-layout",
+        title="Plant layout",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="How do two process lines and their rack fit together on a hydrogen plant site?",
+        summary=(
+            "A green-hydrogen facility in plan: an electrolyzer hall, a compressor station, storage bullets "
+            "and a four-bay pipe rack, with the LP and HP hydrogen lines routed between them under pressure and thermal load. "
+            "The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster."
+        ),
+    ),
+    _project_gallery(
         "imported_component_mixed_demo",
         frozenset({"dev", "pages"}),
         "model-review",
@@ -256,6 +270,20 @@ OFFICIAL_GALLERIES = (
         summary=(
             "A STEP/STL component placed beside Tuba pipework, showing connection ports, "
             "local frames and coupling. This example contains geometry only, with no solver results."
+        ),
+    ),
+    _project_gallery(
+        "line-load-studio",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "line-load-studio",
+        title="Line loads",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="Where does a distributed line load go once the line is restrained?",
+        summary=(
+            "A DN100 line on an I-beam crossbeam carries a 350 N/m downward line load, a 500 N/m lateral load "
+            "on the beam, and a 3.5 kN force with a moment at its elbow. The review shows the deflection, "
+            "stresses and support reaction from Code_Aster."
         ),
     ),
     _project_gallery(
@@ -299,6 +327,20 @@ OFFICIAL_GALLERIES = (
         ),
     ),
     _project_gallery(
+        "rack_bridge_demo",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "rack_bridge_demo",
+        title="Road crossing",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="How does a line cross an 8 m roadway on a shoe-supported rack bridge?",
+        summary=(
+            "A DN150 process line rises from ground sleepers over an 8 m roadway on a four-bay steel rack bridge, "
+            "then drops back to grade. Friction shoes carry it at every bay midpoint. The review shows thermal "
+            "displacement, wall stress and support reactions from Code_Aster."
+        ),
+    ),
+    _project_gallery(
         "support-rack-review",
         frozenset({"dev", "pages"}),
         "engineering-review",
@@ -311,6 +353,7 @@ OFFICIAL_GALLERIES = (
             "and thermal expansion. The review shows ground and element rest shoe reactions, steel deflection, and support spacing."
         ),
     ),
+
 )
 
 

@@ -58,9 +58,12 @@ def test_official_gallery_records_own_refresh_metadata():
         "code-aster-review",
         "elements-supports-review",
         "guyed-mast-review",
+        "hydrogen-plant-layout",
+        "line-load-studio",
         "native-friction-review",
         "pipe-tee-volume-review",
         "profile-orientation-review",
+        "rack_bridge_demo",
         "support-rack-review",
     )
     assert all(gallery.artifact_dir is not None for gallery in engineering)
