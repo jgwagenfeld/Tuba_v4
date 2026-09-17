@@ -113,7 +113,10 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
     namespace = project.run_model()
     from tuba.verify import verify_model
 
-    report = verify_model(namespace["model"])
+    report = verify_model(
+        namespace["model"],
+        script=project.model_path.read_text(encoding="utf-8"),
+    )
     for warning in report.warnings:
         print(f"warning: {warning}", file=sys.stderr)
     if not report.passed:

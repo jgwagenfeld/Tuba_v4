@@ -25,11 +25,12 @@ _BLOCKING_CLASH_SEVERITIES: frozenset[str] = frozenset(
 
 @dataclass(frozen=True)
 class VerifyReport:
-    """The three checks' native records."""
+    """The three checks' native records, plus model-script findings."""
 
     validation_errors: list[str] = field(default_factory=list)
     clashes: list[ClashResult] = field(default_factory=list)
     rules: RuleReport = field(default_factory=RuleReport)
+    script_findings: list[str] = field(default_factory=list)
 
     @property
     def errors(self) -> list[str]:
@@ -48,13 +49,14 @@ class VerifyReport:
 
     @property
     def warnings(self) -> list[str]:
-        """Advisory findings: clearance clashes and warning rules."""
+        """Advisory findings: clearance clashes, warning rules, model-script findings."""
         found = [
             f"{clash.left} is within clearance of {clash.right}: {clash.distance_m:.6g} m."
             for clash in self.clashes
             if clash.severity not in _BLOCKING_CLASH_SEVERITIES
         ]
         found += [result.message for result in self.rules.results if not result.passed and result.severity != "error"]
+        found += list(self.script_findings)
         return found
 
     @property
@@ -69,6 +71,7 @@ class VerifyReport:
             "validation_errors": list(self.validation_errors),
             "clashes": [clash.to_dict() for clash in self.clashes],
             "rules": self.rules.to_dict(),
+            "script_findings": list(self.script_findings),
         }
 
 
@@ -78,16 +81,18 @@ def verify_model(
     clearance_m: float = 0.0,
     duplicate_tol_m: float | None = None,
     rules: Iterable[ModelRule] = (),
+    script: str | None = None,
 ) -> VerifyReport:
     """Run every cold-model check in one pass and report what blocks a solve.
 
     Structural validation runs first. When it fails, the geometry stages are skipped
     (the clash engine and the geometric rules need a model whose nodes and references
-    exist), so the report carries the validation errors alone.
+    exist), so the report carries the validation errors and any model-script findings.
 
     *rules* is supplementary engineering rules (for example
     ``SupportSpacingRule(max_span_m=...)``); the clash check is always run here and
-    must not be repeated in *rules*.
+    must not be repeated in *rules*. *script* is the model-script text, linted as
+    advisories when given; generated scripts are exempt inside the lint.
     """
     validation_errors: list[str] = []
     try:
@@ -95,8 +100,14 @@ def verify_model(
     except ModelValidationError as exc:
         validation_errors = [line for line in str(exc).splitlines() if line]
 
+    script_findings: list[str] = []
+    if script is not None:
+        from tuba.project.script import check_model_script
+
+        script_findings = check_model_script(script)
+
     if validation_errors:
-        return VerifyReport(validation_errors=validation_errors)
+        return VerifyReport(validation_errors=validation_errors, script_findings=script_findings)
 
     clashes = ClashEngine().check_all(
         model, clearance_m=clearance_m, duplicate_tol_m=duplicate_tol_m
@@ -107,4 +118,5 @@ def verify_model(
         validation_errors=validation_errors,
         clashes=clashes,
         rules=report,
+        script_findings=script_findings,
     )

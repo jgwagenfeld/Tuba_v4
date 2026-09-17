@@ -976,7 +976,7 @@ def verify_model(clearance_m: float = 0.0) -> Dict[str, Any]:
     from tuba.verify import verify_model as _verify
 
     model = get_active_model()
-    return _verify(model, clearance_m=clearance_m).to_dict()
+    return _verify(model, clearance_m=clearance_m, script=_SCRIPT_TEXT).to_dict()
 
 
 @mcp.tool()

@@ -62,6 +62,14 @@ class TestVerify(unittest.TestCase):
 
         self.assertTrue(report.passed)
 
+    def test_script_findings_are_advisory(self):
+        calls = "".join(f"model.add_node([{i}.0, 0.0, 0.0])\n" for i in range(12))
+        report = verify_model(self._model(), script=calls)
+
+        self.assertTrue(report.passed)  # the finding never blocks
+        self.assertEqual(len(report.script_findings), 1)
+        self.assertIn(report.script_findings[0], report.warnings)
+
 
 if __name__ == "__main__":
     unittest.main()
