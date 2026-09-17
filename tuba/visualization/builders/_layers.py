@@ -40,6 +40,7 @@ OBJECT_KIND_CATEGORY: dict[str, str] = {
     "rack_member": "design",
     "element": "design",
     "support": "design",
+    "support_link": "design",
     "applied_load": "design",
     "obstacle": "design",
     "physical_envelope": "design",
@@ -95,6 +96,7 @@ LAYER_ID_PREFIX_CATEGORY: tuple[tuple[str, str], ...] = (
     ("imported_components", "design"),
     ("mixed_", "design"),
     ("local_coordinate_axes", "design"),
+    ("analysis_mesh:helpers", "annotations"),
     ("analysis_mesh:", "analysis_mesh"),
     ("result:", "results"),
     ("solver_result:", "results"),
@@ -149,6 +151,7 @@ def build_layer_registry(
             default_visible=not (
                 (layer_id.startswith("physical_envelope:") and layer_id != "physical_envelope:insulation")
                 or (layer_id.startswith("deformed:") and layer_id.endswith("_envelope"))
+                or layer_id.startswith("analysis_mesh:")
             ),
         )
 

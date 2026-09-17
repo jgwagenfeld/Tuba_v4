@@ -117,6 +117,11 @@ Build one semantic scene, write a portable bundle, and optionally place that sce
       show_source: false
       members_order: source
 
+::: tuba.visualization.add_scene_label
+    options:
+      show_source: false
+      members_order: source
+
 ## User-owned standards checks
 
 Tuba does not implement piping-standard calculations or choose an applicable code.

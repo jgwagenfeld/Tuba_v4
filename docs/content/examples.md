@@ -60,7 +60,7 @@ A STEP/STL component placed beside Tuba pipework, showing connection ports, loca
 
 [![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
 
-A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction.
+A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. The review shows kinematic shell-to-solid coupling and stress transition across the junction.
 
 FE von Mises is not piping-code stress. The design tubes, analysis skin,
 displacement, terminal resultants and stress field stay separately inspectable.
@@ -71,7 +71,7 @@ displacement, terminal resultants and stress field stay separately inspectable.
 
 [![Load transfer review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
 
-A DN100 line resting on friction shoes on an I-beam rack, analysed together with the rack under gravity, 1.5 MPa internal pressure and a temperature increase from 20 C to 180 C, with no imposed nodal forces. The review shows the shoe forces, the load the shoes put on the rack, and a support-spacing check.
+A DN100 line centered in an I-beam rack under distributed line loading, internal pressure and thermal expansion. The review shows ground and element rest shoe reactions, steel deflection, and support spacing.
 
 An engineer-authored 3.5 m support-spacing rule flags the 4 m rack span.
 This project rule annotates the solver evidence; it does not establish

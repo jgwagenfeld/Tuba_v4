@@ -5,11 +5,12 @@ import json
 import math
 import numpy as np
 
+from tuba.solver import parse_tables
 from tuba.solver.aster_contact import shoes
 from tuba.solver.base import ContactResult
 
 
-def read_contact_history(model, root, study, parser):
+def read_contact_history(model, root, study):
     inputs = study.metadata.get('compiler_inputs', {})
     if inputs.get('contact_law') != 'DIS_CHOC':
         raise ValueError('Unsupported native contact law in result metadata.')
@@ -39,12 +40,12 @@ def read_contact_history(model, root, study, parser):
     for endpoint in ([] if final_state else range(len(path)+1)):
         if not any(abs(t-endpoint) < 1e-10 for t in instants):
             raise ValueError('Native contact history is missing an authored load stage.')
-    displacement_times = {float(r['INST']) for r in parser._parse_csv_table(root/'study_depl.csv')}
+    displacement_times = {float(r['INST']) for r in parse_tables.parse_csv_table(root/'study_depl.csv')}
     if len(displacement_times) != len(instants) or any(not any(abs(t-d)<1e-10 for d in displacement_times) for t in instants):
         raise ValueError('Contact and displacement histories have different increments.')
     history = []
     for instant in instants:
-        results = parser._parse_results(model,root,instant=instant)
+        results = parse_tables.parse_results(model, root, instant=instant)
         results.load_case = study.load_case
         if any(results.node_results[s.node].reaction_force is None for s in model.supports):
             raise ValueError('Missing native support reaction at a converged increment.')

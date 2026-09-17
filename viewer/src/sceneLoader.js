@@ -141,6 +141,7 @@ export function createViewerState(bundle) {
     resultVectorScales: { displacement: 1, reaction: 1, moment: 1 },
     utilizationThreshold: null,
     visualDeformationScale: Number(activeGeometryState?.data?.visual_scale ?? activeGeometryState?.data?.displacement_scale ?? 1),
+    modelColorBy: "default",
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id),
     visibleObjectIds: []
   };

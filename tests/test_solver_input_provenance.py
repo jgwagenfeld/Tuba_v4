@@ -328,8 +328,7 @@ def test_direct_parse_rejects_identity_free_sidecar_before_reading_tables(
     sidecar["name_map"] = {"N0": "STALE_NODE"}
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
     monkeypatch.setattr(
-        CodeAsterSolver,
-        "_parse_results",
+        "tuba.solver.parse_tables.parse_results",
         lambda *_args, **_kwargs: pytest.fail("identity-free sidecar reached table parsing"),
     )
 
@@ -340,7 +339,7 @@ def test_direct_parse_rejects_identity_free_sidecar_before_reading_tables(
 def test_direct_parse_rejects_requested_load_case_mismatch(tmp_path: Path, monkeypatch):
     model, _, results = _operation_model()
     CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
-    monkeypatch.setattr(CodeAsterSolver, "_parse_results", lambda *_args, **_kwargs: results)
+    monkeypatch.setattr("tuba.solver.parse_tables.parse_results", lambda *_args, **_kwargs: results)
 
     with pytest.raises(ValueError, match="load case.*Cold.*Hot"):
         CodeAsterSolver().parse_result_artifacts(model, tmp_path, "Cold")
@@ -361,7 +360,7 @@ def test_artifact_import_preserves_fully_legacy_identity_chain(
     sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
     sidecar.pop("solver_input_identity")
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
-    monkeypatch.setattr(CodeAsterSolver, "_parse_result_artifacts_after_validation", lambda *_args, **_kwargs: results)
+    monkeypatch.setattr("tuba.solver.parse_tables.parse_result_artifacts_after_validation", lambda *_args, **_kwargs: results)
 
     imported = import_code_aster_artifacts(model=model, work_dir=tmp_path, allow_unverified=True)
 
@@ -382,7 +381,7 @@ def test_direct_parse_preserves_fully_legacy_identity_chain(tmp_path: Path, monk
     sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
     sidecar.pop("solver_input_identity")
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
-    monkeypatch.setattr(CodeAsterSolver, "_parse_results", lambda *_args, **_kwargs: results)
+    monkeypatch.setattr("tuba.solver.parse_tables.parse_results", lambda *_args, **_kwargs: results)
 
     parsed = CodeAsterSolver().parse_result_artifacts(model, tmp_path, "Hot")
 

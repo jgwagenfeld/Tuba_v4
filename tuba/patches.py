@@ -222,8 +222,7 @@ class ModelTransaction:
             validate_model(candidate)
 
         # Publish candidate to committed model on complete success only
-        self.model.__dict__.clear()
-        self.model.__dict__.update(candidate.__dict__)
+        self.model.replace_with(candidate)
         return result
 
     def _apply_add_node(self, target: TubaModel, operation: AddNode) -> str:

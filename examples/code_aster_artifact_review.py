@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from tuba import Model
 from tuba.analysis import (
@@ -82,6 +82,7 @@ def run_example(
     clash_clearance_m: float | None = None,
     model_rules: list[Any] | None = None,
     scene_options: SceneBuildOptions | None = None,
+    scene_modifier: Callable[[Any], None] | None = None,
     source: str | Path | None = None,
 ) -> dict[str, Any]:
     """Write the review package without running Code_Aster.
@@ -165,6 +166,8 @@ def run_example(
         scene_id=scene_id,
         created_at=solved_at,
     )
+    if scene_modifier is not None:
+        scene_modifier(scene)
     review = build_engineering_review(
         resolved_model,
         analysis_runs=[artifact],

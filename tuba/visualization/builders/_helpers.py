@@ -28,6 +28,7 @@ class SceneBuildOptions:
     include_quantities: bool = True
     include_attributes: bool = True
     include_physical_envelopes: bool = False
+    include_analysis_mesh: bool = False
     clearance_m: float = 0.0
     include_cost_overlays: bool = False
     cost_metric: str = "insulation_cost"

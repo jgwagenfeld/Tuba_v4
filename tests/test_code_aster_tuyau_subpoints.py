@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tuba import Model
-from tuba.solver.aster import CodeAsterSolver
+from tuba.solver import parse_tables
 
 
 class TestCodeAsterTuyauSubpoints(unittest.TestCase):
@@ -61,7 +61,7 @@ class TestCodeAsterTuyauSubpoints(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            results = CodeAsterSolver()._parse_results(model, root)
+            results = parse_tables.parse_results(model, root)
 
         self.assertEqual(len(results.tuyau_subpoints), 3)
         self.assertEqual(results.tuyau_subpoints[0]["subpoint_index"], 1)

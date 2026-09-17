@@ -18,6 +18,7 @@ from tuba.analysis.provenance import (
     validate_solver_input_identity,
 )
 from tuba.analysis.study import AnalysisStudy
+from tuba.solver.code_aster_runtime import validate_code_aster_execution_attestation
 
 
 MAX_ASTER_NAME_LEN = 24
@@ -150,6 +151,36 @@ def load_and_validate_artifact_chain(
         compiler_inputs=loaded_study.metadata.get("compiler_inputs"),
     )
     return loaded_study, manifest_study, analysis_mesh, sidecar
+
+
+def load_and_attest_artifact_chain(
+    model: Any,
+    work_dir: str | Path,
+    *,
+    study: AnalysisStudy | None = None,
+    requested_load_case: str | None = None,
+) -> tuple[AnalysisStudy, AnalysisMesh | None, dict[str, Any] | None, dict[str, Any] | None]:
+    """Load the validated artifact chain and bind any execution attestation to it.
+
+    Returns ``(study, analysis_mesh, sidecar, attestation)``:
+    :func:`load_and_validate_artifact_chain`, then the execution attestation, which, when the
+    directory carries one, must match every artifact identity. ``attestation`` is None for a
+    directory solved before attestations existed.
+    """
+    loaded_study, _, analysis_mesh, sidecar = load_and_validate_artifact_chain(
+        model, work_dir, study=study, requested_load_case=requested_load_case
+    )
+    sidecar_identity = (
+        None if sidecar is None or sidecar.get("solver_input_identity") is None
+        else SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
+    )
+    attestation = validate_code_aster_execution_attestation(
+        work_dir,
+        study_identity=loaded_study.solver_input_identity,
+        mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
+        sidecar_identity=sidecar_identity,
+    )
+    return loaded_study, analysis_mesh, sidecar, attestation
 
 
 def _load_manifest_records(work_dir: Path) -> tuple[AnalysisStudy | None, AnalysisMesh | None]:

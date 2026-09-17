@@ -67,7 +67,7 @@ class AttributeAssignment:
     value: Any
     source: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    # Where the running script assigned it (tuba.model._script_lines): never serialized, never compared.
+    # Where the running script assigned it (tuba.codelink.script_lines): never serialized, never compared.
     source_line: int | None = field(default=None, compare=False, repr=False)
     source_call_line: int | None = field(default=None, compare=False, repr=False)
 

@@ -88,9 +88,36 @@ function fixtureState() {
 }
 
 test("renderer declares all RV08 asset formats", () => {
-  for (const format of ["tube", "polyline", "point", "vector", "marker", "aabb", "mesh", "tuyau_subpoint_glyphs", "label"]) {
+  for (const format of ["tube", "polyline", "point", "vector", "marker", "aabb", "cylinder", "mesh", "tuyau_subpoint_glyphs", "label"]) {
     assert.ok(SUPPORTED_RENDER_FORMATS.has(format), `${format} is supported`);
   }
+});
+
+test("cylinder obstacles render as a horizontal bullet along their longest extent", () => {
+  // The HP storage bullets in the hydrogen plant layout are cylinder obstacles;
+  // without a renderer they came back as invalid assets and never drew.
+  const state = fixtureState();
+  state.geometryAssets.push({
+    id: "geometry:bullet",
+    format: "cylinder",
+    bounds: [34, -5, 0, 46, -1.5, 3.5],
+    object_ids: ["object:bullet"],
+    generation_config: { source: "tuba.obstacle" }
+  });
+
+  const graph = createThreeSceneGraph({
+    ...state,
+    visibleObjectIds: [...state.visibleObjectIds, "object:bullet"]
+  });
+
+  assert.equal(graph.diagnostics.length, 0);
+  const bullet = graph.objectsByObjectId.get("object:bullet");
+  assert.ok(bullet, "the bullet renders");
+  assert.equal(bullet.geometry.type, "CylinderGeometry");
+  // 12 m along X, 3.5 m across: the X axis is the barrel, so the radius is 1.75.
+  assert.ok(Math.abs(bullet.geometry.parameters.height - 12) < 1e-9);
+  assert.ok(Math.abs(bullet.geometry.parameters.radiusTop - 1.75) < 1e-9);
+  assert.deepEqual(bullet.position.toArray(), [40, -3.25, 1.75]);
 });
 
 test("scene graph renders visible geometry with stable scene object metadata", () => {
@@ -330,14 +357,16 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
     .children.filter((part) => part.userData.supportPart === "restraint-cone");
   assert.deepEqual(restCones.map((cone) => cone.userData.supportAxis), [2, 2]);
   assert.deepEqual(glyphs.map((glyph) => glyph.userData.supportGlyph), ["dof", "dof", "dof", "dof", "dof"]);
+  // Grounded fixtures carry a hatch plate; the DOF parts are unchanged.
+  assert.deepEqual(glyphs.map((glyph) => glyph.userData.supportAttachment), ["ground", "ground", "ground", "ground", "ground"]);
   assert.deepEqual(
     glyphs.map((glyph) => glyph.children.map((child) => child.userData.supportPart).filter(Boolean).sort().join(",")),
     [
-      "fixed-block",
-      "restraint-cone,restraint-cone",
-      "restraint-cone,restraint-cone",
-      "restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-cone",
-      "restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-rotation"
+      "fixed-block,ground-hatch",
+      "ground-hatch,restraint-cone,restraint-cone",
+      "ground-hatch,restraint-cone,restraint-cone",
+      "ground-hatch,restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-cone",
+      "ground-hatch,restraint-cone,restraint-cone,restraint-cone,restraint-cone,restraint-rotation"
     ]
   );
   for (const glyph of glyphs) {
@@ -348,6 +377,137 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
       assert.equal(part.material.color.getHex(), 0xdaa520);
     }
   }
+});
+
+test("rest support with friction generates contact shoe pad and friction badge", () => {
+  const canvasFactory = () => ({
+    width: 0,
+    height: 0,
+    getContext: () => ({
+      fillRect() {},
+      fillText() {},
+      beginPath() {},
+      roundRect() {},
+      fill() {},
+      stroke() {},
+      measureText: (text) => ({ width: text.length * 16 })
+    })
+  });
+  const graph = createThreeSceneGraph(
+    {
+      bounds: [0, -1, -1, 5, 1, 1],
+      geometryAssets: [
+        {
+          id: "geometry:support:shoe-rest",
+          format: "point",
+          bounds: [2, 0, 3, 2, 0, 3],
+          object_ids: ["object:support:shoe-rest"],
+          generation_config: {
+            point: [2, 0, 3],
+            source: "tuba.support",
+            support_type: "rest",
+            friction_coefficient: 0.3,
+            attached_to: "N_beam",
+            contact_normal: [0, 0, 1]
+          }
+        }
+      ],
+      geometryPayloads: [],
+      visibleObjectIds: ["object:support:shoe-rest"]
+    },
+    { canvasFactory }
+  );
+
+  const glyph = graph.objectsByObjectId.get("object:support:shoe-rest");
+  assert.ok(glyph, "support glyph created");
+
+  const pad = glyph.children.find((p) => p.userData.supportPart === "contact-shoe-pad");
+  assert.ok(pad, "contact shoe pad mesh created");
+
+  const badge = glyph.children.find((p) => p.userData.supportPart === "friction-badge");
+  assert.ok(badge, "friction micro-badge sprite created");
+
+  const guides = pad.children.find((c) => c.name === "sliding-plane-guides");
+  assert.ok(guides, "sliding plane guides created on shoe pad");
+});
+
+test("ground hatch hugs the glyph underside instead of floating below it", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 10, 1, 1],
+    geometryAssets: [
+      {
+        id: "geometry:support:anchor",
+        format: "point",
+        bounds: [0, 0, 0, 0, 0, 0],
+        object_ids: ["object:support:anchor"],
+        generation_config: { point: [0, 0, 0], source: "tuba.support", support_type: "anchor" }
+      },
+      {
+        id: "geometry:support:rest",
+        format: "point",
+        bounds: [2, 0, 0, 2, 0, 0],
+        object_ids: ["object:support:rest"],
+        generation_config: { point: [2, 0, 0], source: "tuba.support", support_type: "rest" }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:anchor", "object:support:rest"]
+  });
+  for (const id of ["object:support:anchor", "object:support:rest"]) {
+    const glyph = graph.objectsByObjectId.get(id);
+    const plate = glyph.children.find((part) => part.userData.supportPart === "ground-hatch");
+    assert.ok(plate, `${id} carries a ground hatch`);
+    // Lowest DOF part, measured without the plate itself.
+    const holder = new Group();
+    for (const part of glyph.children.filter((part) => part !== plate)) holder.add(part.clone());
+    holder.position.copy(glyph.position);
+    holder.updateMatrixWorld(true);
+    const restMin = new Box3().setFromObject(holder).min.z - glyph.position.z;
+    const plateTop = plate.position.z + plate.geometry.parameters.depth / 2;
+    assert.ok(restMin - plateTop >= 0, "plate clears the glyph");
+    assert.ok(restMin - plateTop < 0.5, `plate hugs the glyph (gap ${restMin - plateTop})`);
+  }
+});
+
+test("an attached support skips the ground hatch and draws a dashed link", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 10, 1, 1],
+    geometryAssets: [
+      {
+        id: "geometry:support:shoe",
+        format: "point",
+        bounds: [0, 0, 3, 0, 0, 3],
+        object_ids: ["object:support:shoe"],
+        generation_config: { point: [0, 0, 3], source: "tuba.support", support_type: "rest", attached_to: "N9" }
+      },
+      {
+        id: "geometry:support_link:shoe",
+        format: "polyline",
+        bounds: [0, 0, 2.75, 0, 0, 3],
+        object_ids: ["object:support_link:shoe"],
+        generation_config: {
+          source: "tuba.support_link",
+          support_id: "shoe",
+          node: "N1",
+          attached_to: "N9",
+          points: [[0, 0, 3], [0, 0, 2.75]],
+          color: "#64748b"
+        }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:shoe", "object:support_link:shoe"]
+  });
+  const glyph = graph.objectsByObjectId.get("object:support:shoe");
+  assert.equal(glyph.userData.supportAttachment, "attached");
+  assert.equal(
+    glyph.children.some((part) => part.userData.supportPart === "ground-hatch"),
+    false,
+    "attached glyphs carry no ground hatch"
+  );
+  const link = graph.objectsByObjectId.get("object:support_link:shoe");
+  assert.equal(link.userData.supportLink, "attachment");
+  assert.equal(link.material.isLineDashedMaterial, true);
 });
 
 test("a support glyph clears the pipe radius the asset carries", () => {
@@ -1438,3 +1598,143 @@ test("moment glyphs use their own scale independently of reaction forces", () =>
     assert.deepEqual(config.end, [length, 0, 0]);
   }
 });
+
+test("line_load_comb assets create an arrow group and crest rail tagged with object IDs", () => {
+  const state = fixtureState();
+  const combAsset = {
+    id: "geometry:line-load",
+    format: "line_load_comb",
+    bounds: [0, 0, 0, 2, 0, 0.5],
+    object_ids: ["object:line-load"],
+    generation_config: {
+      source: "tuba.applied_loads",
+      color: "#0284c7",
+      vector_kind: "line_load",
+      arrow_starts: [[0, 0, 0.5], [1, 0, 0.5], [2, 0, 0.5]],
+      arrow_ends: [[0, 0, 0], [1, 0, 0], [2, 0, 0]],
+      crest_points: [[0, 0, 0.5], [1, 0, 0.5], [2, 0, 0.5]],
+      value_npm: 300,
+      direction: [0, 0, -1]
+    }
+  };
+  state.geometryAssets.push(combAsset);
+  state.objects = [{ id: "object:line-load", kind: "applied_load", geometry_asset_id: combAsset.id, layer_ids: ["design:loads"] }];
+  state.visibleObjectIds = ["object:line-load"];
+
+  const graph = createThreeSceneGraph(state);
+  const rendered = graph.objectsByObjectId.get("object:line-load");
+  assert.ok(rendered);
+  assert.equal(rendered.isGroup, true);
+  const arrows = rendered.children.filter((c) => c.name === "line-load-arrow");
+  const crest = rendered.children.find((c) => c.name === "line-load-crest");
+  assert.equal(arrows.length, 3);
+  assert.ok(crest);
+  assert.equal(crest.isLine, true);
+  assert.equal(rendered.userData.primaryObjectId, "object:line-load");
+});
+
+test("applied loads render badges for force, moment, and line loads", () => {
+  const state = fixtureState();
+  const canvasCalls = [];
+  const canvasFactory = () => ({
+    width: 0,
+    height: 0,
+    getContext: () => ({
+      font: "",
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 0,
+      textAlign: "",
+      textBaseline: "",
+      fillRect() {},
+      beginPath() {},
+      roundRect() {},
+      fill() {},
+      stroke() {},
+      measureText: (text) => ({ width: text.length * 20 }),
+      fillText(text) {
+        canvasCalls.push(text);
+      }
+    })
+  });
+
+  const forceAsset = {
+    id: "geometry:force",
+    format: "vector",
+    bounds: [0, 0, 0, 0, 0, 1],
+    object_ids: ["object:force"],
+    generation_config: {
+      source: "tuba.applied_loads",
+      vector_kind: "force",
+      start: [0, 0, 1],
+      end: [0, 0, 0],
+      components: [0, 0, -3500],
+      unit: "N"
+    }
+  };
+  const momentAsset = {
+    id: "geometry:moment",
+    format: "vector",
+    bounds: [0, 0, 0, 0, 1, 0],
+    object_ids: ["object:moment"],
+    generation_config: {
+      source: "tuba.applied_loads",
+      vector_kind: "moment",
+      start: [0, 0, 0],
+      end: [0, 1, 0],
+      components: [0, 500, 0],
+      unit: "N*m"
+    }
+  };
+  const combAsset = {
+    id: "geometry:line-load",
+    format: "line_load_comb",
+    bounds: [0, 0, 0, 2, 0, 0.5],
+    object_ids: ["object:line-load"],
+    generation_config: {
+      source: "tuba.applied_loads",
+      vector_kind: "line_load",
+      arrow_starts: [[0, 0, 0.5], [1, 0, 0.5]],
+      arrow_ends: [[0, 0, 0], [1, 0, 0]],
+      crest_points: [[0, 0, 0.5], [1, 0, 0.5]],
+      value_npm: 350,
+      show_badge: true
+    }
+  };
+
+  state.geometryAssets.push(forceAsset, momentAsset, combAsset);
+  state.objects = [
+    { id: "object:force", kind: "applied_load", geometry_asset_id: forceAsset.id, layer_ids: ["design:loads"] },
+    { id: "object:moment", kind: "applied_load", geometry_asset_id: momentAsset.id, layer_ids: ["design:loads:moments"] },
+    { id: "object:line-load", kind: "applied_load", geometry_asset_id: combAsset.id, layer_ids: ["design:loads"] }
+  ];
+  state.visibleObjectIds = ["object:force", "object:moment", "object:line-load"];
+
+  const graph = createThreeSceneGraph(state, { canvasFactory });
+  const renderedForce = graph.objectsByObjectId.get("object:force");
+  const renderedMoment = graph.objectsByObjectId.get("object:moment");
+  const renderedComb = graph.objectsByObjectId.get("object:line-load");
+
+  assert.ok(renderedForce);
+  assert.ok(renderedMoment);
+  assert.ok(renderedComb);
+
+  const forceBadge = renderedForce.children.find((c) => c.userData?.loadPart === "load-badge");
+  const momentBadge = renderedMoment.children.find((c) => c.userData?.loadPart === "load-badge");
+  const combBadge = renderedComb.children.find((c) => c.userData?.loadPart === "load-badge");
+
+  assert.ok(forceBadge);
+  assert.equal(forceBadge.isSprite, true);
+  assert.equal(forceBadge.userData.pickable, false);
+
+  assert.ok(momentBadge);
+  assert.equal(momentBadge.isSprite, true);
+
+  assert.ok(combBadge);
+  assert.equal(combBadge.isSprite, true);
+
+  assert.ok(canvasCalls.includes("F = 3.5 kN"));
+  assert.ok(canvasCalls.includes("M = 500 N·m"));
+  assert.ok(canvasCalls.includes("q = 350 N/m"));
+});
+

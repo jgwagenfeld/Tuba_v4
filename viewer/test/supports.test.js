@@ -87,9 +87,78 @@ function supportFixture(metadata, assetConfig = {}) {
 test("the panel leads with what the support does, not with its id", () => {
   const summary = getSelectionSummary(supportFixture({ support_type: "anchor", node: "N0" }), "object:support:s0");
   assert.equal(summary.title, "Anchor");
-  assert.equal(summary.lede, "Fixes all six degrees of freedom at node N0.");
+  assert.equal(summary.lede, "Fixes all six degrees of freedom at node N0. Anchored to ground.");
   assert.equal(summary.meta, "s0 · node N0 · 2, 0, 0 m");
   assert.deepEqual(summary.dofs.map((dof) => dof.state), Array(6).fill("fixed"));
+});
+
+test("a grounded support restrains to ground while an attached one names its node", () => {
+  const ground = getSelectionSummary(supportFixture({ support_type: "anchor", node: "N0" }), "object:support:s0");
+  const groundDef = ground.sections.find((section) => section.title === "Definition");
+  assert.deepEqual(groundDef.lines[0], { kind: "row", label: "Restrained to", value: "Ground" });
+  assert.match(ground.lede, /Anchored to ground/);
+
+  const attached = getSelectionSummary(
+    supportFixture(
+      { support_type: "rest", node: "N1", attached_to: "N9", attached_to_groups: ["rack_A"] },
+      { source: "tuba.support", attached_to: "N9", attached_to_groups: ["rack_A"] }
+    ),
+    "object:support:s0"
+  );
+  const attachedDef = attached.sections.find((section) => section.title === "Definition");
+  assert.deepEqual(attachedDef.lines[0], { kind: "row", label: "Restrained to", value: "N9 (rack_A)" });
+  assert.match(attached.lede, /Acts against node N9/);
+});
+
+test("the member the support sits on is labelled On element, not Attached to", () => {
+  const objects = [{
+    id: "object:support:s0",
+    entity_ref: "support:s0",
+    kind: "support",
+    name: "s0",
+    geometry_asset_id: "geometry:support:s0",
+    metadata: { support_type: "rest", node: "N1" }
+  }, {
+    id: "object:element:pipe_0",
+    entity_ref: "element:pipe_0",
+    kind: "pipe",
+    name: "pipe_0",
+    geometry_asset_id: "geometry:element:pipe_0",
+    metadata: { nodes: ["N0", "N1"] }
+  }];
+  const assets = [{
+    id: "geometry:support:s0",
+    format: "point",
+    bounds: [2, 0, 0, 2, 0, 0],
+    object_ids: ["object:support:s0"],
+    generation_config: { source: "tuba.support", point: [2, 0, 0] }
+  }];
+  const summary = getSelectionSummary(stateWith(objects, assets), "object:support:s0");
+  const def = summary.sections.find((section) => section.title === "Definition");
+  const labels = def.lines.map((line) => line.label);
+  assert.ok(labels.includes("On element"), "sitting member reads as On element");
+  assert.equal(labels.includes("Attached to"), false, "Attached to no longer names the sitting member");
+  assert.equal(def.lines.find((line) => line.label === "On element").value, "pipe_0");
+});
+
+test("a selected attachment link names both ends", () => {
+  const objects = [{
+    id: "object:support_link:s0",
+    kind: "support_link",
+    name: "s0 link",
+    geometry_asset_id: "geometry:support_link:s0",
+    metadata: { support_id: "s0", node: "N1", attached_to: "N9", attached_to_groups: ["rack_A"] }
+  }];
+  const assets = [{
+    id: "geometry:support_link:s0",
+    format: "polyline",
+    bounds: [0, 0, 0, 1, 0, 0],
+    object_ids: ["object:support_link:s0"],
+    generation_config: { source: "tuba.support_link", points: [[0, 0, 0], [1, 0, 0]] }
+  }];
+  const summary = getSelectionSummary(stateWith(objects, assets), "object:support_link:s0");
+  assert.equal(summary.title, "Support attachment");
+  assert.equal(summary.lede, "Links node N1 to N9 (rack_A).");
 });
 
 test("a rest says it lifts off, and carries its gap and friction into the sentence", () => {

@@ -93,8 +93,7 @@ def place_fragment(
         return PlacementResult(group_name=name, node_ids=result.node_ids, element_ids=result.element_ids)
     except Exception:
         restored = TubaModel.from_dict(snapshot)
-        model.__dict__.clear()
-        model.__dict__.update(restored.__dict__)
+        model.replace_with(restored)
         raise
 
 

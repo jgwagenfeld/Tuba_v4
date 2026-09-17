@@ -148,7 +148,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
         next(overlay for overlay in tee["overlays"] if overlay["id"] == field["overlay_id"])["data"]["result_type"]
         for field in tee["result_fields"]
     }
-    assert tee_fields == {"stress", "displacement", "reaction_force", "reaction_moment"}
+    assert tee_fields == {"stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"}
     assert any(obj["kind"] == "analysis_mesh_surface" for obj in tee["objects"])
     assert any(obj["kind"] == "volume_stress_field" for obj in tee["objects"])
     assert "visualization_only_not_asme_code_stress" in json.dumps(tee)

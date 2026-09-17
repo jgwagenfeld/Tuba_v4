@@ -14,8 +14,8 @@ import numpy as np
 import pytest
 
 from tuba import Model
+from tuba.solver import parse_tables
 from tuba.solver.base import FEAResults, NodeResult
-from tuba.solver.aster import CodeAsterSolver
 
 
 _HEADER = "RESULTAT,NOM_CHAM,INST,NUME_ORDRE,NOEUD,COOR_X,COOR_Y,COOR_Z,DX,DY,DZ,DRX,DRY,DRZ"
@@ -59,7 +59,7 @@ def _parse(model: Model, work_dir: Path, rows: list[str]) -> FEAResults:
     # Every model node starts with an empty result, as in CodeAsterSolver's own parse.
     for node_id in model.nodes:
         results.node_results[node_id] = NodeResult(node_id=node_id, displacement=np.zeros(6))
-    CodeAsterSolver()._parse_reac_table(model, work_dir, results, {})
+    parse_tables.parse_reac_table(model, work_dir, results, {})
     return results
 
 

@@ -52,6 +52,7 @@ import {
   getFieldOptions,
   shouldShowComplianceNotice
 } from "./coloring.js";
+import { MODEL_COLOR_MODES, getModelColoring } from "./modelColoring.js";
 import {
   colorForScalarValue,
   getActiveLoadCaseDefinition,
@@ -115,6 +116,9 @@ const dom = {
   bodyLegendToggle: document.querySelector("[data-body-legend-toggle]"),
   layerList: document.querySelector("[data-layer-list]"),
   layerTally: document.querySelector("[data-layer-tally]"),
+  modelToolsHome: document.querySelector("[data-model-tools-home]"),
+  modelControls: document.querySelector("[data-model-controls]"),
+  modelLegend: document.querySelector("[data-model-legend]"),
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
   resultControls: document.querySelector("[data-result-controls]"),
   resultLegend: document.querySelector("[data-result-legend]"),
@@ -126,6 +130,7 @@ const dom = {
   searchInput: document.querySelector("[data-search]"),
 
   issueList: document.querySelector("[data-issue-list]"),
+  buildIssues: document.querySelector("[data-build-issues]"),
   objectList: document.querySelector("[data-object-list]"),
   savedViews: document.querySelector("[data-saved-views]"),
   properties: document.querySelector("[data-properties]"),
@@ -143,6 +148,7 @@ const dom = {
   codeTabs: document.querySelector("[data-code-tabs]"),
   commText: document.querySelector("[data-comm-text]"),
   codeState: document.querySelector("[data-code-state]"),
+  codeMeshToggle: document.querySelector("[data-code-mesh-toggle]"),
   codeRun: document.querySelector("[data-code-run]"),
   codeGutter: document.querySelector("[data-code-gutter]"),
   codeText: document.querySelector("[data-code-text]"),
@@ -150,6 +156,7 @@ const dom = {
   codeErrorMark: document.querySelector('[data-code-mark="error"]'),
   codeProblem: document.querySelector("[data-code-problem]"),
   codeFoot: document.querySelector("[data-code-foot]"),
+  codeResize: document.querySelector("[data-code-resize]"),
   codeCallMark: document.querySelector('[data-code-mark="call"]'),
   codeRevealMark: document.querySelector('[data-code-mark="reveal"]'),
   solveButton: document.querySelector("[data-solve]"),
@@ -361,9 +368,11 @@ function render() {
   renderTaskRail();
   renderDisplayStrip();
   renderViewportLegend();
+  renderModelControls();
   renderResultControls();
   renderDiagnostics();
   renderIssues();
+  renderBuildIssues();
   renderTaskPanel();
   renderProperties();
   renderScriptSelection();
@@ -451,13 +460,15 @@ function activateTask(id) {
 
 function renderTaskPanel() {
   dom.taskPanel.replaceChildren();
-  // No model home any more: Tree, Search and Objects used to live there, and the
-  // bodies panel below is what the Model task actually shows.
   const home = {
+    model: dom.modelToolsHome,
     results: dom.resultToolsHome,
     diagnostics: dom.issueToolsHome
   }[currentState.activeTab];
-  if (home) dom.taskPanel.append(home);
+  if (home) {
+    home.hidden = false;
+    dom.taskPanel.append(home);
+  }
 }
 
 function renderSavedViews() {
@@ -533,6 +544,66 @@ function renderStatusChip() {
 
 
 
+
+function renderModelControls() {
+  if (!dom.modelControls || !dom.modelLegend) return;
+  dom.modelControls.replaceChildren();
+  dom.modelLegend.replaceChildren();
+  if (currentState.activeTab !== "model") return;
+
+  const mode = currentState.modelColorBy ?? "default";
+  dom.modelControls.append(railGroup("Colouring", mode === "default" ? "ROLE" : mode.toUpperCase()));
+  dom.modelControls.append(
+    propertyRow(
+      "Colour by",
+      plainSelect(mode, MODEL_COLOR_MODES, (value) => {
+        dispatch({ type: "setModelColorBy", colorBy: value });
+        render();
+      })
+    )
+  );
+
+  if (mode !== "default") {
+    const coloring = getModelColoring(currentState, mode);
+    if (coloring.items.length === 0) {
+      dom.modelLegend.append(metaLine("No model elements found."));
+      return;
+    }
+    const container = document.createElement("div");
+    container.className = "model-legend-list";
+    container.setAttribute("role", "list");
+    container.setAttribute("aria-label", `Colouring legend by ${mode}`);
+
+    for (const item of coloring.items) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "model-legend-chip";
+      chip.setAttribute("role", "listitem");
+      chip.title = `Click to select ${item.count} elements with ${mode} "${item.label}"`;
+
+      const swatch = document.createElement("span");
+      swatch.className = "model-legend-swatch";
+      swatch.style.backgroundColor = item.color;
+
+      const label = document.createElement("span");
+      label.className = "model-legend-label";
+      label.textContent = item.label;
+
+      const tally = document.createElement("span");
+      tally.className = "model-legend-tally";
+      tally.textContent = String(item.count);
+
+      chip.append(swatch, label, tally);
+      chip.addEventListener("click", () => {
+        dispatch({ type: "selectObjects", objectIds: item.objectIds });
+        selectedObjectId = currentState.selectedObjectIds[0] ?? null;
+        render();
+      });
+      container.append(chip);
+    }
+    dom.modelLegend.append(container);
+  }
+}
 
 function renderResultControls() {
   dom.resultControls.replaceChildren();
@@ -1404,6 +1475,7 @@ function renderViewportLegend() {
     const label = {
       applied_force: "Applied force — authored input",
       applied_moment: "Applied moment — authored input, right-hand rule",
+      applied_line_load: "Applied line load — authored input",
       reaction_force: "Reaction force — Code_Aster result",
       reaction_moment: "Reaction moment — Code_Aster result, right-hand rule"
     }[key];
@@ -2005,6 +2077,37 @@ function renderIssues() {
       });
       dom.issueList.append(button);
     }
+  }
+}
+
+
+function renderBuildIssues() {
+  // Build mode hides the rail, so the live model's own issues would have no
+  // list UI at all. They surface here, in the code pane: one row per issue,
+  // each focusing the 3D camera exactly like its review-rail twin. Review
+  // bundles keep their rail list; each mode shows its own bundle's issues.
+  dom.buildIssues.replaceChildren();
+  const issues = isBuildMode() ? (currentState.issues ?? []) : [];
+  dom.buildIssues.hidden = issues.length === 0;
+  if (issues.length === 0) return;
+  const heading = document.createElement("h2");
+  heading.textContent = `Model issues (${issues.length})`;
+  dom.buildIssues.append(heading);
+  for (const issue of issues) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = issue.id === currentState.activeIssueId ? "selected" : "";
+    button.dataset.focusKey = `build-issue:${issue.id}`;
+    button.textContent = `${String(issue.severity ?? "warning").toUpperCase()} - ${issue.title ?? issue.id}`;
+    button.addEventListener("click", () => {
+      dispatch({ type: "focusIssue", issueId: issue.id });
+      const marker = currentState.selectedObjectIds
+        .map((objectId) => currentState.objects.find((obj) => obj.id === objectId))
+        .find((obj) => obj?.kind === "clash_marker");
+      selectedObjectId = marker?.id ?? currentState.selectedObjectIds[0] ?? null;
+      render();
+    });
+    dom.buildIssues.append(button);
   }
 }
 
@@ -2849,7 +2952,23 @@ function renderMode() {
   }
   dom.codePane.hidden = !build;
   renderCodeTabs();
+  renderCodeMeshToggle();
   renderSolveControls();
+}
+
+function renderCodeMeshToggle() {
+  if (!dom.codeMeshToggle) return;
+  const meshBody = getBodies(currentState).find((candidate) => candidate.id === "analysis_mesh");
+  if (!meshBody) {
+    dom.codeMeshToggle.hidden = true;
+    return;
+  }
+  dom.codeMeshToggle.hidden = false;
+  const isVisible = meshBody.visible;
+  dom.codeMeshToggle.setAttribute("aria-pressed", String(isVisible));
+  dom.codeMeshToggle.title = isVisible
+    ? "Hide 1D analysis mesh (Alt+M)"
+    : "Show 1D analysis mesh elements and nodes (Alt+M)";
 }
 
 // -- Build mode's file tabs: model.py is the source, every .comm is generated --
@@ -3141,7 +3260,16 @@ function renderCodeFoot() {
   saved.textContent = text.value === studio.ranCode ? "Saved to model.py" : "Edited · Ctrl+Enter runs and saves";
   const position = document.createElement("span");
   position.textContent = `Ln ${lineAtOffset(text.value, text.selectionStart ?? 0)}`;
-  dom.codeFoot.replaceChildren(saved, position);
+  const foot = [saved, position];
+  if (studio.available && (studio.project?.load_cases ?? []).length === 0) {
+    // Model-only project: a single model.py tab with no .comm beside it. Say why,
+    // instead of leaving the missing tabs unexplained.
+    const hint = document.createElement("span");
+    hint.dataset.noStudyHint = "";
+    hint.textContent = "No study.py load cases — add LOAD_CASES to study.py for .comm tabs and Solve";
+    foot.push(hint);
+  }
+  dom.codeFoot.replaceChildren(...foot);
 }
 
 function renderScriptSelection() {
@@ -3306,7 +3434,78 @@ for (const button of [dom.solveButton, dom.reviewEmptySolve]) {
   button.addEventListener("click", () => void solveProject());
 }
 
+dom.codeMeshToggle?.addEventListener("click", () => {
+  if (!currentState) return;
+  const meshBody = getBodies(currentState).find((candidate) => candidate.id === "analysis_mesh");
+  const nextVisible = !(meshBody?.visible ?? false);
+  dispatch({
+    type: "setBodyVisibility",
+    bodyId: "analysis_mesh",
+    visible: nextVisible
+  });
+  dispatch({
+    type: "setBodyOpacity",
+    bodyId: "geometry",
+    opacity: nextVisible ? 0.35 : 1.0
+  });
+  render();
+});
+
 dom.codeRun.addEventListener("click", () => void runScript());
+
+// -- Script pane resize: drag the right edge; double-click resets to the default --
+const CODE_PANE_MIN_PX = 300;
+const CODE_PANE_WIDTH_KEY = "tuba.codePaneWidthPx";
+
+function clampCodePaneWidth(px) {
+  return Math.min(Math.max(Math.round(px), CODE_PANE_MIN_PX), Math.floor(window.innerWidth * 0.75));
+}
+
+function applyCodePaneWidth(px) {
+  dom.codePane.style.setProperty("--controls-width", `${clampCodePaneWidth(px)}px`);
+  try {
+    window.localStorage.setItem(CODE_PANE_WIDTH_KEY, String(clampCodePaneWidth(px)));
+  } catch {
+    // Private browsing and the like: the drag still works for this visit.
+  }
+}
+
+function resetCodePaneWidth() {
+  dom.codePane.style.removeProperty("--controls-width");
+  try {
+    window.localStorage.removeItem(CODE_PANE_WIDTH_KEY);
+  } catch {
+    // Nothing persisted, nothing to clear.
+  }
+}
+
+try {
+  const stored = Number.parseInt(window.localStorage.getItem(CODE_PANE_WIDTH_KEY) ?? "", 10);
+  if (Number.isFinite(stored)) dom.codePane.style.setProperty("--controls-width", `${clampCodePaneWidth(stored)}px`);
+} catch {
+  // No stored width: the stylesheet default applies.
+}
+
+dom.codeResize.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  dom.codeResize.setPointerCapture(event.pointerId);
+  dom.codeResize.dataset.dragging = "";
+  const move = (moveEvent) => {
+    applyCodePaneWidth(moveEvent.clientX - dom.codePane.getBoundingClientRect().left);
+  };
+  const stop = () => {
+    delete dom.codeResize.dataset.dragging;
+    dom.codeResize.removeEventListener("pointermove", move);
+    dom.codeResize.removeEventListener("pointerup", stop);
+    dom.codeResize.removeEventListener("pointercancel", stop);
+  };
+  dom.codeResize.addEventListener("pointermove", move);
+  dom.codeResize.addEventListener("pointerup", stop);
+  dom.codeResize.addEventListener("pointercancel", stop);
+});
+
+dom.codeResize.addEventListener("dblclick", resetCodePaneWidth);
 
 dom.codeText.addEventListener("input", () => {
   studio.revealLine = null;
@@ -3342,12 +3541,24 @@ dom.codeText.addEventListener("keydown", (event) => {
     studio.tabLeavesEditor = true;
     return;
   }
+  if (event.altKey && event.key.toLowerCase() === "m") {
+    event.preventDefault();
+    dom.codeMeshToggle?.click();
+    return;
+  }
   if (event.key !== "Tab" || event.shiftKey || modifier || event.altKey || studio.tabLeavesEditor) return;
   event.preventDefault();
   // insertText keeps the browser's undo history; setRangeText is the fallback.
   if (!document.execCommand("insertText", false, "    ")) {
     dom.codeText.setRangeText("    ", dom.codeText.selectionStart, dom.codeText.selectionEnd, "end");
     renderGutter();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.altKey && event.key.toLowerCase() === "m" && isBuildMode()) {
+    event.preventDefault();
+    dom.codeMeshToggle?.click();
   }
 });
 

@@ -11,6 +11,8 @@ rebuilds a model that serialises to the same JSON text as the model it was gener
 
 from __future__ import annotations
 
+import ast
+import contextlib
 import inspect
 import json
 import math
@@ -45,12 +47,114 @@ def same_model(first: TubaModel, second: TubaModel) -> bool:
     return _json_text(first) == _json_text(second)
 
 
-def generate_model_script(model: TubaModel, *, pipe_runs: bool = True) -> str:
+def call_span(call: dict[str, Any]) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+    """The record span an invocation covers, as (start, end) index triples."""
+    return (
+        (call["node0"], call["element0"], call["support0"]),
+        (call["node1"], call["element1"], call["support1"]),
+    )
+
+
+def format_call(call: dict[str, Any]) -> str:
+    """One invocation replayed as the call that built it."""
+    arguments = ", ".join([f"{_literal(call['ref'])}"] + [f"{key}={_literal(value)}" for key, value in call["params"].items()])
+    return f"assemble(model, {arguments})"
+
+
+def owned_records(calls: list[dict[str, Any]]) -> tuple[dict[str, set], dict[str, list[tuple[int, int]]]]:
+    """Records replayed invocations rebuild: skipped keyed names and list index ranges."""
+    keyed: dict[str, set] = {}
+    ranges: dict[str, list[tuple[int, int]]] = {}
+
+    def skip_keyed(kind: str, names: list) -> None:
+        if names:
+            keyed.setdefault(kind, set()).update(names)
+
+    def skip_range(kind: str, span: list) -> None:
+        ranges.setdefault(kind, []).append((span[0], span[1]))
+
+    for call in calls:
+        created = call.get("created") or {}
+        for kind, names in (created.get("keyed") or {}).items():
+            skip_keyed(kind, names)
+        for kind, span in (created.get("lists") or {}).items():
+            skip_range(kind, span)
+        for kind, names in (created.get("specs") or {}).items():
+            skip_keyed(f"specs:{kind}", names)
+    return keyed, ranges
+
+
+def range_skipped(ranges: dict[str, list[tuple[int, int]]], kind: str, index: int) -> bool:
+    return any(start <= index < end for start, end in ranges.get(kind, []))
+
+
+def prologue_nodes(text: str | None) -> tuple[list[str], int, list[ast.stmt], list[ast.stmt]]:
+    """One walk of the leading prologue a generated script carries over verbatim.
+
+    The prologue is the leading run of docstring/import/def statements. It returns the
+    segment source the writer re-emits, the line just past the run where a new def
+    belongs, the executable import/def nodes a snippet resolves its units against, and
+    the statements that follow (a generated script's first is ``model = ...``). ``None``
+    (no previous file) yields ``([], 0, [], [])``; a syntax error raises ``ValueError``.
+    """
+    if text is None:
+        return [], 0, [], []
+    try:
+        tree = ast.parse(text)
+    except SyntaxError as exc:
+        raise ValueError(f"The model script does not parse, so its prologue cannot be read: {exc}") from exc
+    segments: list[str] = []
+    runnable: list[ast.stmt] = []
+    rest: list[ast.stmt] = []
+    insert_at = 0
+    for node in tree.body:
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+            insert_at = node.end_lineno  # the module docstring (the generated header) is re-emitted canonically
+            continue
+        if not rest and isinstance(node, (ast.Import, ast.ImportFrom, ast.FunctionDef, ast.AsyncFunctionDef)):
+            segment = ast.get_source_segment(text, node)
+            if segment is None:  # pragma: no cover - ast always recovers segments it parsed
+                raise ValueError("A def or import in the model script cannot be read back; edit it by hand instead.")
+            segments.append(segment)
+            runnable.append(node)
+            insert_at = node.end_lineno
+        else:
+            rest.append(node)
+    return segments, insert_at, runnable, rest
+
+
+def _prologue_segments(text: str | None) -> list[str]:
+    """Import and def blocks a generated script carries over verbatim.
+
+    Construction units live here: ``def`` blocks in model.py itself, and imports of
+    ``units/`` modules. Only the leading run of docstring/import/def statements is read;
+    everything from the first other statement on is regenerated state and is rewritten
+    from the model (edits made elsewhere are absorbed through ``init_session`` reload,
+    as before). A non-docstring statement *inside* the leading run is refused loudly
+    rather than silently dropped, so the writer never destroys code it cannot reproduce.
+    ``None`` (no previous file) carries nothing over.
+    """
+    segments, _, _, rest = prologue_nodes(text)
+    if rest and not (
+        isinstance(rest[0], ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "model" for target in rest[0].targets)
+    ):
+        raise ValueError(
+            f"The model script holds {type(rest[0]).__name__} code among its defs and imports "
+            f"(line {rest[0].lineno}), which the writer does not preserve: move construction logic "
+            "into a def or a units/ module, or keep the file hand-written."
+        )
+    return segments
+
+
+def generate_model_script(model: TubaModel, *, pipe_runs: bool = True, prologue: list[str] | None = None) -> str:
     """The generated model script that rebuilds *model*.
 
     With *pipe_runs*, each pipe run the model remembers is written as its builder steps
     where a block reproduces it; ``pipe_runs=False`` writes every node, element and
-    support as one call.
+    support as one call. Recorded assembly invocations replay as ``assemble()`` calls
+    in either variant. *prologue* (from :func:`_prologue_segments`) is re-emitted
+    verbatim above the regenerated state, so units defined in model.py survive.
     """
     from tuba.attributes import InsulationSpec
 
@@ -61,14 +165,29 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True) -> str:
             "this model's node ids are not in that sequence."
         )
     data = model.to_dict()
+    calls = list(model.assembly_calls) if pipe_runs else []
     lines = [
         GENERATED_HEADER,
         "",
         "from tuba.model import BendGeometry, IBeamSection, TubaModel",
         "from tuba.placements import PlacementAssignment, PlacementFrame",
-        "",
-        f"model = TubaModel(project_name={_literal(model.project_name)}, standard={_literal(model.standard)})",
     ]
+    prologue = list(prologue or [])
+    if calls:
+        lines.append("from tuba.assemblies import assemble")
+    emitted = {line.strip() for line in lines}
+    lines.append("")
+    for segment in prologue:
+        # The canonical imports above are always emitted; a carried-over single-line copy
+        # would duplicate them. Multi-line segments pass through untouched.
+        stripped = segment.strip()
+        if "\n" not in stripped and stripped in emitted:
+            continue
+        lines.append(segment)
+        lines.append("")
+    lines.append(
+        f"model = TubaModel(project_name={_literal(model.project_name)}, standard={_literal(model.standard)})"
+    )
     for name, material in model.materials.items():
         lines.append(
             f"model.add_material({_literal(name)}, E={_literal(material.E)}, nu={_literal(material.nu)}, "
@@ -77,8 +196,12 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True) -> str:
         )
     for name, section in model.sections.items():
         lines.append(_section_line(name, section))
-    lines.extend(_geometry_lines(model, data, model.pipe_runs if pipe_runs else []))
+    geometry, replayed = _geometry_lines(model, data, model.pipe_runs if pipe_runs else [], calls)
+    lines.extend(geometry)
+    owned_keyed, owned_ranges = owned_records(replayed)
     for name, case in model.load_cases.items():
+        if name in owned_keyed.get("load_cases", ()):
+            continue  # rebuilt by its invocation call above
         lines.append(
             f"model.define_load_case({_literal(name)}, gravity={_literal(case.gravity)}, "
             f"pressure={_literal(case.internal_pressure)}, temperature={_literal(case.temperature)}, "
@@ -89,6 +212,8 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True) -> str:
                 f"model.load_cases[{_literal(name)}].add_nodal_force({_literal(force.node)}, {_literal(force.components)})"
             )
     for name, operation in model.operations.items():
+        if name in owned_keyed.get("operations", ()):
+            continue  # rebuilt by its invocation call above
         lines.append(
             f"model.define_operation({_literal(name)}, gravity={_literal(operation.gravity)}, "
             f"pressure={_literal(operation.internal_pressure)}, temperature={_literal(operation.temperature)}, "
@@ -100,24 +225,39 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True) -> str:
                 f"model.operations[{_literal(name)}].add_nodal_force({_literal(force.node)}, {_literal(force.components)})"
             )
     for node_id, tee in model.tees.items():
+        if node_id in owned_keyed.get("tees", ()):
+            continue  # rebuilt by its invocation call above
         lines.append(
             f"model.define_tee({_literal(node_id)}, type={_literal(tee.type)}, pad_thickness={_literal(tee.pad_thickness)})"
         )
-    for obstacle in model.obstacles:
+    for index, obstacle in enumerate(model.obstacles):
+        if range_skipped(owned_ranges, "obstacles", index):
+            continue  # rebuilt by its invocation call above
         lines.append(f"model.add_obstacle({_keywords(obstacle)})")
     # No public call reproduces every group exactly (patch-created groups gain keys), so groups are literals.
     for name, group in model.groups.items():
+        if name in owned_keyed.get("groups", ()):
+            continue  # rebuilt by its invocation call above
         lines.append(f"model.groups[{_literal(name)}] = {_literal(group)}")
-    for frame in model.placement_frames.values():
+    for name, frame in model.placement_frames.items():
+        if name in owned_keyed.get("placement_frames", ()):
+            continue  # rebuilt by its invocation call above
         lines.append(f"model.add_placement_frame(PlacementFrame({_record_keywords(frame)}))")
-    for assignment in model.placement_assignments:
+    for index, assignment in enumerate(model.placement_assignments):
+        if range_skipped(owned_ranges, "placement_assignments", index):
+            continue  # rebuilt by its invocation call above
         lines.append(f"model.assign_placement(PlacementAssignment({_record_keywords(assignment)}))")
     for kind, entries in model.specs.items():
-        if kind == "insulation" and entries and all(isinstance(spec, InsulationSpec) for spec in entries.values()):
-            lines.extend(f"model.add_insulation_spec({_record_keywords(spec)})" for spec in entries.values())
+        remaining = {name: entry for name, entry in entries.items() if name not in owned_keyed.get(f"specs:{kind}", ())}
+        if kind == "insulation" and remaining and all(isinstance(spec, InsulationSpec) for spec in remaining.values()):
+            lines.extend(f"model.add_insulation_spec({_record_keywords(spec)})" for spec in remaining.values())
+        elif not remaining and entries:
+            continue  # rebuilt by its invocation call above
         else:
-            lines.append(f"model.specs[{_literal(kind)}] = {_literal(dict(entries))}")
-    for assignment in model.attributes:
+            lines.append(f"model.specs[{_literal(kind)}] = {_literal(dict(remaining))}")
+    for index, assignment in enumerate(model.attributes):
+        if range_skipped(owned_ranges, "attributes", index):
+            continue  # rebuilt by its invocation call above
         lines.append(
             f"model.assign_attribute({_literal(str(assignment.target))}, {_literal(assignment.key)}, "
             f"{_literal(assignment.value)}, source={_literal(assignment.source)}, metadata={_literal(assignment.metadata)})"
@@ -130,7 +270,19 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True) -> str:
         ("add_mesh_group", model.mesh_groups),
         ("add_coupling", model.couplings),
     ):
-        lines.extend(f"model.{method}({_record_keywords(record)})" for record in records.values())
+        kind = {
+            "add_cad_asset": "cad_assets",
+            "add_imported_component": "imported_components",
+            "add_analysis_region": "analysis_regions",
+            "add_port": "ports",
+            "add_mesh_group": "mesh_groups",
+            "add_coupling": "couplings",
+        }[method]
+        lines.extend(
+            f"model.{method}({_record_keywords(record)})"
+            for name, record in records.items()
+            if name not in owned_keyed.get(kind, ())
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -145,38 +297,53 @@ def write_model_script(path: str | Path, model: TubaModel, *, last_text: str | N
     """
     target = Path(path)
     _check_rewritable(target, last_text)
-    text = _rebuilding_text(model)
+    text = _rebuilding_text(model, _prologue_segments(last_text), script_dir=target.parent)
     if text is None:
         raise ValueError(f"The generated script for {target} does not rebuild the model exactly, so it was not written.")
     # Check again: the proof takes time, and an editor may have saved the file meanwhile.
     _check_rewritable(target, last_text)
     target.parent.mkdir(parents=True, exist_ok=True)
     # ponytail: written in place, not via a temporary file and os.replace: on Windows a replace can collide
-    # with the studio watcher's periodic reads of model.py, and the watcher stops on that sharing violation
-    # (_file_fingerprint catches only FileNotFoundError), while a read of a half-written file just reruns once
+    # with the studio watcher's periodic reads of model.py, and the watcher skips an unreadable file
+    # until the next poll, while a read of a half-written file just reruns once
     # the write completes. Ceiling: a process killed mid-write leaves a truncated model.py. Switch to
     # os.replace with short retries once the watcher tolerates sharing violations.
     target.write_text(text, encoding="utf-8", newline="")
     return text
 
 
-def _rebuilding_text(model: TubaModel) -> str | None:
+def _rebuilding_text(model: TubaModel, prologue: list[str] | None = None, *, script_dir: str | Path | None = None) -> str | None:
     """The generated text that rebuilds *model*: with pipe-run blocks when that one does, else with single calls."""
-    if model.pipe_runs:
+    if model.pipe_runs or model.assembly_calls:
         # ponytail: one run that replays inexactly flattens the whole script; prove runs one by one if that matters.
         try:
-            text = generate_model_script(model)
-            if _rebuilds(model, text):
+            text = generate_model_script(model, prologue=prologue)
+            if _rebuilds(model, text, script_dir):
                 return text
         except Exception:  # a block that cannot even run is a failed proof too
             pass
-    text = generate_model_script(model, pipe_runs=False)
-    return text if _rebuilds(model, text) else None
+    text = generate_model_script(model, pipe_runs=False, prologue=prologue)
+    return text if _rebuilds(model, text, script_dir) else None
 
 
-def _rebuilds(model: TubaModel, text: str) -> bool:
+def _rebuilds(model: TubaModel, text: str, script_dir: str | Path | None = None) -> bool:
     namespace: dict[str, Any] = {"__name__": "tuba_generated_model_check"}  # not __main__: no source lines needed
-    exec(compile(text, "<generated model script>", "exec"), namespace)
+    if script_dir is None:
+        exec(compile(text, "<generated model script>", "exec"), namespace)
+    else:
+        # A replayed assemble() call may import the project's units/ package, which lives
+        # beside the script rather than on sys.path.
+        import sys
+
+        path = str(script_dir)
+        sys.path.insert(0, path)
+        try:
+            exec(compile(text, "<generated model script>", "exec"), namespace)
+        finally:
+            try:
+                sys.path.remove(path)
+            except ValueError:
+                pass
     return same_model(model, namespace["model"])
 
 
@@ -232,22 +399,132 @@ _POSITIONAL_STEPS = frozenset({"start", "run", "run_element", "beam", "bar", "ca
 _DEFAULT_UP_VECTOR = (0.0, 0.0, 1.0)
 
 
-def _geometry_lines(model: TubaModel, data: dict[str, Any], runs: list[BuiltRun]) -> list[str]:
-    """Nodes, elements and supports in creation order, each replayable pipe run as its block of steps."""
+def prologue_namespace(text: str | None) -> dict[str, Any]:
+    """model.py's own defs and imports, executed into a fresh namespace.
+
+    Snippets and bare unit refs resolve model.py-defined construction units through
+    this; only import/def statements run, so it cannot mutate any model.
+    """
+    namespace: dict[str, Any] = {}
+    if not text:
+        return namespace
+    _, _, runnable, _ = prologue_nodes(text)
+    if not runnable:
+        return namespace
+    module = ast.Module(body=runnable, type_ignores=[])
+    ast.fix_missing_locations(module)
+    try:
+        exec(compile(module, "<model.py prologue>", "exec"), namespace)
+    except Exception as exc:
+        raise RuntimeError(f"The session model.py prologue failed ({type(exc).__name__}: {exc}); nothing was changed.") from exc
+    return namespace
+
+
+@contextlib.contextmanager
+def project_on_path(path: str | Path | None):
+    """Let agent code and unit modules ``import units.*`` from the project folder."""
+    import sys as _sys
+
+    if path is None or str(path) in _sys.path:
+        yield
+        return
+    _sys.path.insert(0, str(path))
+    try:
+        yield
+    finally:
+        try:
+            _sys.path.remove(str(path))
+        except ValueError:
+            pass
+
+
+
+
+
+def _geometry_lines(
+    model: TubaModel, data: dict[str, Any], runs: list[BuiltRun], calls: list[dict[str, Any]]
+) -> list[str]:
+    """Nodes, elements and supports in creation order: replayable pipe runs as step blocks,
+    recorded assembly invocations as assemble() calls, everything else as single calls.
+
+    Calls win over runs: a run executed inside a unit replays as part of the call, and a
+    run spanning a call flattens to singles around it, so nothing is ever built twice.
+    Partially overlapping spans cannot replay exactly and are refused loudly.
+    """
     nodes = list(model.nodes.values())
     sequences = (
         [node.id for node in nodes],
         [element.id for element in model.elements],
         [support.id for support in model.supports],
     )
+    totals = tuple(len(sequence) for sequence in sequences)
+    blocks: list[tuple[tuple[int, int, int], tuple[int, int, int], str, Any]] = []
+    for run in _replayable_runs(runs, sequences):
+        blocks.append((run.offsets, _run_end(run), "run", run))
+    for call in calls:
+        start, end = call_span(call)
+        if start == end:
+            continue  # a unit that built nothing leaves no call behind
+        blocks.append((start, end, "call", call))
+    for (start, end, kind, _) in blocks:
+        if not all(s <= e for s, e in zip(start, end)) or any(e > t for e, t in zip(end, totals)):
+            raise ValueError("An assembly invocation covers records outside the model; rebuild it by hand instead.")
+    blocks.sort(key=lambda block: block[0])
+    kept: list[tuple[tuple[int, int, int], tuple[int, int, int], str, Any]] = []
+    for block in blocks:
+        start, end, kind, _ = block
+        drop_new = False
+        remove: list[int] = []
+        for index, (kept_start, kept_end, kept_kind, _) in enumerate(kept):
+            dims = list(zip(kept_start, start, end, kept_end))
+            new_in_kept = all(ks <= s and e <= ke for ks, s, e, ke in dims)
+            kept_in_new = all(s <= ks and ke <= e for ks, s, e, ke in dims)
+            if not new_in_kept and not kept_in_new:
+                if any(s < ke and ks < e for ks, s, e, ke in dims):
+                    raise ValueError(
+                        "A pipe run and an assembly invocation partially overlap, so neither replays "
+                        "inside the other and the script cannot be regenerated. "
+                        "Rebuild the overlap by hand instead."
+                    )
+                continue
+            if new_in_kept and kept_in_new:
+                # Identical spans reference the same created records: the call replays them.
+                if kind == "call" or kept_kind == "call":
+                    if kind == "call":
+                        remove.append(index)
+                    else:
+                        drop_new = True
+                    break
+                continue  # run-in-run keeps the legacy behavior below
+            if new_in_kept:
+                if kept_kind == "call":
+                    drop_new = True  # nested: the outer call replays it (run or call alike)
+                    break
+                if kind == "call":
+                    remove.append(index)  # the call replays; the run it sits in flattens to singles
+                # run-in-run keeps the legacy behavior below
+            else:  # kept_in_new
+                if kind == "call":
+                    remove.append(index)  # the outer call replays everything inside, runs included
+                elif kept_kind == "call":
+                    drop_new = True  # the new run flattens around the kept call
+                # run-in-run keeps the legacy behavior below
+        for index in sorted(remove, reverse=True):
+            del kept[index]
+        if not drop_new:
+            kept.append(block)
     lines: list[str] = []
     written = (0, 0, 0)
-    for run in _replayable_runs(runs, sequences):
-        lines.extend(_single_calls(nodes, data, written, run.offsets))
-        lines.extend(_block_lines(run))
-        written = _run_end(run)
-    lines.extend(_single_calls(nodes, data, written, tuple(len(sequence) for sequence in sequences)))
-    return lines
+    for start, end, kind, obj in kept:
+        lines.extend(_single_calls(nodes, data, written, start))
+        if kind == "call":
+            lines.append(_call_summary(obj, model))
+            lines.append(format_call(obj))
+        else:
+            lines.extend(_block_lines(obj))
+        written = end
+    lines.extend(_single_calls(nodes, data, written, totals))
+    return lines, [obj for _, _, kind, obj in kept if kind == "call"]
 
 
 def _replayable_runs(runs: list[BuiltRun], sequences: tuple[list[str], list[str], list[str]]) -> list[BuiltRun]:
@@ -279,13 +556,44 @@ def _single_calls(nodes: list[Any], data: dict[str, Any], start: tuple[int, ...]
     return lines
 
 
+#: A run of at least this many identical builder steps replays as a loop.
+_LOOP_MIN_RUN = 3
+
+
 def _block_lines(run: BuiltRun) -> list[str]:
     recipe = run.recipe
     route = "" if recipe.route_id is None else f", route={_literal(recipe.route_id)}"
+    steps = [f"builder.{_step_call(step)}" for step in recipe.steps]
+    body: list[str] = []
+    index = 0
+    while index < len(steps):
+        end = index + 1
+        while end < len(steps) and steps[end] == steps[index]:
+            end += 1
+        if end - index >= _LOOP_MIN_RUN:
+            body.append(f"    for _ in range({end - index}):")
+            body.append(f"        {steps[index]}")
+        else:
+            body.extend(f"    {step}" for step in steps[index:end])
+        index = end
     return [
         f"with model.pipe(section={_literal(recipe.section)}, material={_literal(recipe.material)}{route}) as builder:",
-        *(f"    builder.{_step_call(step)}" for step in recipe.steps),
+        *body,
     ]
+
+
+def _call_summary(call: dict[str, Any], model: TubaModel) -> str:
+    """A comment above an invocation call saying what it builds (supports included)."""
+    _, end = call_span(call)
+    nodes = end[0] - call["node0"]
+    elements = end[1] - call["element0"]
+    supports = model.supports[call["support0"] : end[2]]
+    kinds: dict[str, int] = {}
+    for support in supports:
+        kinds[support.type] = kinds.get(support.type, 0) + 1
+    breakdown = ", ".join(f"{count} {kind}" for kind, count in sorted(kinds.items()))
+    what = f"{nodes} nodes, {elements} elements, {len(supports)} supports"
+    return f"# {call['ref']}: {what}" + (f" ({breakdown})" if breakdown else "")
 
 
 def _step_call(step: BuildStep) -> str:

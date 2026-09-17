@@ -508,7 +508,7 @@ def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool =
         "reaction_force": "solver_result",
         "reaction_moment": "solver_result",
     }
-    if not volume:
+    if not volume or any("tuyau_subpoints" in str(f.get("overlay_id", "")) for f in fields):
         expected["tuyau_subpoints"] = "solver_result"
     if families is not None:
         expected = {family: "solver_result" for family in families}

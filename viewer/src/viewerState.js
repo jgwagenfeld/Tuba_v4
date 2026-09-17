@@ -1,5 +1,5 @@
 import { applyTaskVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
-import { cycleBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
+import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { getVisibleCockpitTaskIds, setWorkflowTab } from "./workflowState.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
@@ -50,10 +50,14 @@ export function reduceViewerState(state, action) {
       return setOverlayVisibility(state, action.overlayId, action.visible);
     case "setBodyVisibility":
       return setBodyVisibility(state, action.bodyId, action.visible);
+    case "setBodyOpacity":
+      return setBodyOpacity(state, action.bodyId, action.opacity);
     case "cycleBodyOpacity":
       return cycleBodyOpacity(state, action.bodyId);
     case "setUnitSystem":
       return setUnitSystem(state, action.unitSystem);
+    case "setModelColorBy":
+      return { ...state, modelColorBy: action.colorBy ?? "default" };
     case "activateTask":
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
     case "setContactNeutral":
@@ -155,6 +159,7 @@ export function preserveViewerStateForReload(previousState, nextState) {
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
     unitSystem: previousState.unitSystem ?? nextState.unitSystem,
+    modelColorBy: previousState.modelColorBy ?? nextState.modelColorBy ?? "default",
     activeTab: getVisibleCockpitTaskIds(nextState).includes(previousState.activeTab)
       ? previousState.activeTab
       : nextState.activeTab,

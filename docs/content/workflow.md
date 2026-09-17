@@ -110,6 +110,59 @@ write_scene_bundle(scene, "runs/demo_hot/review_scene")
 
 Legacy scene-only bundles remain displayable without implying that missing review evidence exists. Neither visualization path makes Code_Aster optional.
 
+## Tuba Studio and Project Structure
+
+For interactive design, Tuba v4 provides a live engineering environment with real-time Three.js visualization, Code_Aster `.comm` compilation, and solver execution.
+
+### Project Layout
+
+A project directory separates structural authoring from FEA evaluation:
+
+- **`model.py`:** Authored parametric geometry, routes, sections, materials, supports, and operations.
+- **`study.py`:** FEA configuration declaring `LOAD_CASES = ("Operating", ...)`, solver options (`POU_D_T`, `TUYAU_3M`), and review builders.
+
+### Running Tuba Studio
+
+Launch the live studio on any project directory:
+
+```bash
+python -m tuba.cli_studio examples/line-load-studio
+```
+
+- **Live Scene Preview:** Changes saved in `model.py` are hot-reloaded automatically via WebSocket.
+- **Code_Aster `.comm` Inspector:** The tab strip generates and previews the exact Code_Aster commands that will be executed for each load case.
+- **Solve Integration:** Clicking **Solve** executes Code_Aster and automatically transitions the viewer to the solved engineering review bundle.
+
+### Static Scene Inspection
+
+To review a pre-compiled `.json` scene bundle without running a studio server:
+
+```bash
+python -m tuba.visualization.viewer .build/line-load-demo-scene
+```
+
+### AI & Headless Integration (MCP)
+
+For external agents (Claude Desktop, Cursor) operating without terminal access:
+
+```bash
+python -m tuba.mcp.server
+```
+
+Provides standardized MCP tools for join-aware clash detection, model queries, construction unit verification, and solver dispatch.
+
+### Teach your agent the authoring contract
+
+Tuba ships an agent skill so a coding agent knows how to write `model.py` and
+verify it before solving - procedural authoring, the full `ClashEngine.check_all`
+gate, the bend-sign semantics of the fluent builder, and route-endpoint proof.
+Install it into your agent harness's skills folder:
+
+```bash
+python -m tuba.skills --target ~/.config/opencode/skills   # or ~/.claude/skills, ~/.codex/skills
+python -m tuba.skills --list                               # show what this Tuba version ships
+```
+
 ## Geometry and model reports
 
 Model geometry and attributes such as insulation can be used for physical

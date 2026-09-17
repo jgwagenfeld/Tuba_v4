@@ -10,7 +10,10 @@ here, before the model runs:
 
 from __future__ import annotations
 
+import ast
+import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from tuba.project.evidence import evidence_dir
@@ -61,3 +64,130 @@ def study_settings(study: Any) -> StudySettings:
         if options.get("load_path") is not None:
             raise ValueError("VOLUME_EXPORT cannot follow a load_path: native contact load paths need POU_D_T beams.")
     return StudySettings(tuple(names), options, volume)
+
+
+#: Marker for a study.py the MCP server manages: LOAD_CASES is synced from model.py's load
+#: cases while it is present. A study without it is user-owned and never rewritten. The
+#: literal string is baked into generated studies, so it must not change.
+STUDY_MARKER = "TUBA_MCP_MANAGED_STUDY"
+
+
+def _slug(name: str) -> str:
+    """Filesystem/identifier-safe slug for scene ids derived from a project name."""
+    slug = re.sub(r"_+", "_", "".join(ch.lower() if ch.isalnum() else "_" for ch in name)).strip("_")
+    return slug or "model"
+
+
+def cases_literal(cases: list[str]) -> str:
+    """Python tuple literal for load-case names: () , ('Hot',) , ('A', 'B')."""
+    inner = ", ".join(repr(case) for case in cases)
+    return f"({inner}{',' if len(cases) == 1 else ''})"
+
+
+def study_scaffold(project_name: str, cases: list[str]) -> str:
+    """The managed study.py: solves each of *cases* with Code_Aster for studio review."""
+    slug = _slug(project_name)
+    return "\n".join(
+        [
+            f'"""Code_Aster study scaffolded by the Tuba MCP server ({STUDY_MARKER}).',
+            "",
+            "LOAD_CASES is synced from model.py's load cases while this marker is present, so the",
+            "studio's .comm tabs and Solve stay available. Edit build_review freely, or delete the",
+            "marker line to take full ownership (the server then leaves this file alone). Run the",
+            "studio from the repository root so the examples import below resolves.",
+            '"""',
+            "",
+            "from pathlib import Path",
+            "",
+            "from examples.code_aster_artifact_review import run_example, solve_or_import",
+            "",
+            f"LOAD_CASES = {cases_literal(cases)}",
+            "SOLVER_OPTIONS: dict = {}",
+            "VOLUME_EXPORT = None",
+            "",
+            "",
+            "def build_review(namespace, output, *, artifact_dir=None, force=False):",
+            '    """Solve the study cases with Code_Aster and publish the engineering review."""',
+            '    if not LOAD_CASES:',
+            '        raise ValueError("study.py defines no LOAD_CASES: add the load case to solve (e.g. LOAD_CASES = (\\"Operating\\",)).")',
+            '    model = namespace["model"]',
+            "    run = None if artifact_dir is not None else solve_or_import(model, LOAD_CASES[0], Path(output) / \"solver\", solver_options=SOLVER_OPTIONS)",
+            "    summary = run_example(",
+            "        output,",
+            "        artifact_dir=artifact_dir,",
+            "        run=run,",
+            "        model=model,",
+            f'        scene_id="scene:{slug}",',
+            f'        title="{project_name} review",',
+            '        source=namespace["__file__"],',
+            "    )",
+            '    return Path(summary["bundle_root"])',
+            "",
+        ]
+    )
+
+
+def load_cases_in(text: str) -> list[str] | None:
+    """LOAD_CASES parsed from study source without executing it; None when absent or not plain strings."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "LOAD_CASES"
+            and isinstance(node.value, (ast.Tuple, ast.List))
+            and all(isinstance(item, ast.Constant) and isinstance(item.value, str) for item in node.value.elts)
+        ):
+            return [item.value for item in node.value.elts]  # type: ignore[misc]
+    return None
+
+
+def replace_load_cases(text: str, cases: list[str]) -> str | None:
+    """Rewrite only the LOAD_CASES assignment in *text*; None when it cannot be located."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "LOAD_CASES"
+        ):
+            lines = text.splitlines(keepends=True)
+            lines[node.lineno - 1 : node.end_lineno] = [f"LOAD_CASES = {cases_literal(cases)}\n"]
+            return "".join(lines)
+    return None
+
+
+def ensure_study_file(path: Path, *, project_name: str, cases: list[str]) -> dict[str, Any]:
+    """Create the managed study.py at *path*, or sync its LOAD_CASES.
+
+    A missing study is scaffolded from *cases*. A managed study keeps its LOAD_CASES (and
+    only that line) in sync, so hand edits to build_review survive. A study without the
+    marker is user-owned: reported, never rewritten.
+    """
+    current = path.read_text(encoding="utf-8") if path.exists() else None
+    if current is None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(study_scaffold(project_name, cases), encoding="utf-8", newline="")
+        return {"exists": True, "managed": True, "load_cases": cases, "missing_cases": []}
+    if STUDY_MARKER not in current:
+        known = load_cases_in(current)
+        return {
+            "exists": True,
+            "managed": False,
+            "load_cases": known,
+            "missing_cases": [case for case in cases if known is None or case not in known],
+        }
+    synced = replace_load_cases(current, cases)
+    if synced is None:  # the marker survived but the assignment did not: re-scaffold
+        synced = study_scaffold(project_name, cases)
+    if synced != current:
+        path.write_text(synced, encoding="utf-8", newline="")
+    return {"exists": True, "managed": True, "load_cases": cases, "missing_cases": []}

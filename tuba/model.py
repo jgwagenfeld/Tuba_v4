@@ -12,17 +12,16 @@ from __future__ import annotations
 import copy
 import json
 import math
-import sys
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
 from tuba.attributes import AttributeAssignment, InsulationSpec, coerce_entity_ref
+from tuba.codelink import script_line_field, script_lines
 from tuba.coordinates import CoordinateSystem
 from tuba.placements import PlacementAssignment, PlacementFrame, resolve_placement_frame
 from tuba.mixed import (
@@ -33,48 +32,12 @@ from tuba.mixed import (
     MeshGroup,
     Port,
 )
-from tuba.refs import EntityRef, resolve_entity_ref
+from tuba.refs import EntityRef
 
 if TYPE_CHECKING:
     from tuba.analysis.run import AnalysisRun
     from tuba.builder import BuiltRun
     from tuba.solver.modelisation import PipeModelization
-
-
-_TUBA_DIR = Path(__file__).resolve().parent
-
-
-@cache
-def _inside_tuba(filename: str) -> bool:
-    return Path(filename).resolve().is_relative_to(_TUBA_DIR)
-
-
-def _script_lines() -> Tuple[Optional[int], Optional[int]]:
-    """Where the running script created a model record: ``(line, call_line)``.
-
-    Recorded for the code <-> 3D link and never serialized. ``line`` is the first
-    frame outside tuba, and it counts only when that frame runs as ``__main__`` -
-    the studio runs model.py that way - so the MCP server, a test or a helper module
-    gets no line rather than one from a file the viewer does not show. ``call_line``
-    is the outermost call in that same script when it differs: a helper function in
-    model.py that is called twice gives each copy its own call line.
-    """
-    frame = sys._getframe()
-    while frame is not None and _inside_tuba(frame.f_code.co_filename):
-        frame = frame.f_back
-    if frame is None or frame.f_globals.get("__name__") != "__main__":
-        return None, None
-    script, line, call_line = frame.f_code.co_filename, frame.f_lineno, None
-    while frame is not None:
-        if frame.f_code.co_filename == script and frame.f_globals.get("__name__") == "__main__":
-            call_line = frame.f_lineno
-        frame = frame.f_back
-    return line, (call_line if call_line != line else None)
-
-
-def _script_line_field() -> Any:
-    """A record's line in the running script (see _script_lines): never serialized, never compared."""
-    return field(default=None, compare=False, repr=False)
 
 
 # Stable model-schema identity. This intentionally does not track the package
@@ -98,8 +61,8 @@ class Material:
     alpha: float = 0.0  # Mean thermal expansion coeff [1/K]
     allowable_stress: Dict[float, float] = field(default_factory=dict)
     """Mapping of temperature [°C] → allowable stress [Pa]."""
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def G(self) -> float:
@@ -115,8 +78,8 @@ class PipeSection:
     OD: float  # Outer diameter [m]
     WT: float  # Wall thickness [m]
     corrosion_allowance: float = 0.0  # [m]
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def ID(self) -> float:  # noqa: N802 – intentional capital
@@ -165,8 +128,8 @@ class BarSection:
     name: str
     OD: float  # Outer diameter [m]
     WT: float  # Wall thickness [m] (0.0 if solid)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def area(self) -> float:
@@ -191,8 +154,8 @@ class CableSection:
     #: the usual value) when slackening is the point, as it is for a guy that
     #: sheds its load to the windward side.
     compression_modulus_ratio: float = 1.0
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def area(self) -> float:
@@ -208,8 +171,8 @@ class RectangularSection:
     height_z: float  # [m]
     thickness_y: float = 0.0  # [m], 0.0 if solid
     thickness_z: float = 0.0  # [m], 0.0 if solid
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def area(self) -> float:
@@ -231,8 +194,8 @@ class IBeamSection:
     name: str
     profile_name: str
     properties: Dict[str, float] = field(default_factory=dict)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @classmethod
     def load_from_db(cls, name: str, profile_name: str) -> IBeamSection:
@@ -249,8 +212,8 @@ class Node:
 
     id: str
     coords: np.ndarray  # shape (3,)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def __post_init__(self):
         self.coords = np.asarray(self.coords, dtype=float)
@@ -273,7 +236,7 @@ class Element:
     route_id: Optional[str] = None
     station_start: Optional[float] = None
     station_end: Optional[float] = None
-    # Where the user script built it (code <-> 3D link; see _script_lines). Deliberately
+    # Where the user script built it (code <-> 3D link; see tuba.codelink). Deliberately
     # not serialized: it must never change model.json or the solver-input fingerprint.
     source_line: Optional[int] = None
     source_call_line: Optional[int] = None
@@ -408,8 +371,8 @@ class NodalForce:
 
     node: str
     components: List[float]
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def __post_init__(self) -> None:
         if len(self.components) != 6:
@@ -450,8 +413,8 @@ class LoadCase:
     ref_temperature: float = 20.0  # [°C]
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def add_nodal_force(
         self,
@@ -460,7 +423,7 @@ class LoadCase:
         moment: Optional[List[float]] = None,
     ) -> NodalForce:
         load = NodalForce.from_force(node=node, force=force, moment=moment)
-        load.source_line, load.source_call_line = _script_lines()
+        load.source_line, load.source_call_line = script_lines()
         self.nodal_forces.append(load)
         return load
 
@@ -477,8 +440,8 @@ class Operation:
     metadata: Dict[str, Any] = field(default_factory=dict)
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def to_load_case(self) -> LoadCase:
         return LoadCase(
@@ -498,7 +461,7 @@ class Operation:
         moment: Optional[List[float]] = None,
     ) -> NodalForce:
         load = NodalForce.from_force(node=node, force=force, moment=moment)
-        load.source_line, load.source_call_line = _script_lines()
+        load.source_line, load.source_call_line = script_lines()
         self.nodal_forces.append(load)
         return load
 
@@ -585,6 +548,14 @@ class TubaModel:
         # write each run back as its steps without changing model.json or the fingerprint.
         self.pipe_runs: List["BuiltRun"] = []
 
+        # Assembly invocations applied through tuba.assemblies.assemble, in creation order.
+        # Runtime only, like pipe_runs: each entry records the unit ref, its replayable
+        # params and the record offsets it spans, so a generated model script can write it
+        # back as one assemble() call without changing model.json or the fingerprint.
+        # Entry shape: {"ref": str, "params": dict, "node0": int, "element0": int,
+        # "support0": int, "node1": int, "element1": int, "support1": int}.
+        self.assembly_calls: List[Dict[str, Any]] = []
+
         self._node_counter: int = 0
         self._element_counters: Dict[str, int] = {}
         self._support_counter: int = 0
@@ -611,7 +582,7 @@ class TubaModel:
             alpha=alpha,
             allowable_stress=allowable_stress or {},
         )
-        mat.source_line, mat.source_call_line = _script_lines()
+        mat.source_line, mat.source_call_line = script_lines()
         self.materials[name] = mat
         return mat
 
@@ -625,13 +596,13 @@ class TubaModel:
         corrosion_allowance: float = 0.0,
     ) -> PipeSection:
         sec = PipeSection(name=name, OD=OD, WT=WT, corrosion_allowance=corrosion_allowance)
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
     def add_bar_section(self, name: str, OD: float, WT: float) -> BarSection:
         sec = BarSection(name=name, OD=OD, WT=WT)
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
@@ -648,7 +619,7 @@ class TubaModel:
             pretension=pretension,
             compression_modulus_ratio=compression_modulus_ratio,
         )
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
@@ -667,13 +638,13 @@ class TubaModel:
             thickness_y=thickness_y,
             thickness_z=thickness_z,
         )
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
     def add_ibeam_section(self, name: str, profile_name: str) -> IBeamSection:
         sec = IBeamSection.load_from_db(name=name, profile_name=profile_name)
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
@@ -719,71 +690,9 @@ class TubaModel:
         id: str | None = None,
     ) -> CouplingSpec:
         """Create a pipe-to-port coupling with basic structural checks."""
-        pipe_ref = coerce_entity_ref(pipe)
-        node_ref = coerce_entity_ref(node)
-        port_ref = coerce_entity_ref(port)
+        from tuba.mixed import connect_pipe_to_port as _connect
 
-        if pipe_ref.kind != "element":
-            raise ValueError(f"pipe reference must target an element, got {pipe_ref.kind!r}.")
-        if node_ref.kind != "node":
-            raise ValueError(f"node reference must target a node, got {node_ref.kind!r}.")
-        if port_ref.kind != "port":
-            raise ValueError(f"port reference must target a port, got {port_ref.kind!r}.")
-
-        if method not in {"3D_TUYAU", "3D_POU", "COQ_TUYAU", "COQ_POU"}:
-            raise ValueError(f"Unsupported coupling method {method!r}.")
-
-        try:
-            element = resolve_entity_ref(self, pipe_ref)
-        except KeyError as exc:
-            raise ValueError(f"Unknown pipe element {pipe_ref!r}.") from exc
-        if element.type not in {"pipe_straight", "pipe_bend"}:
-            raise ValueError(
-                f"Element {element.id!r} type {element.type!r} is not valid for pipe-port coupling."
-            )
-
-        if node_ref.id not in {element.n1, element.n2}:
-            raise ValueError(
-                f"Node {node_ref.id!r} is not an endpoint of element {element.id!r}."
-            )
-
-        try:
-            port_entity = resolve_entity_ref(self, port_ref)
-        except KeyError as exc:
-            raise ValueError(f"Unknown port {port_ref!r}.") from exc
-
-        if not port_entity.face_group:
-            raise ValueError(f"Port {port_ref.id!r} must define a face_group.")
-
-        try:
-            section = self.sections[element.section]
-        except KeyError as exc:
-            raise ValueError(
-                f"Element {element.id!r} references missing section {element.section!r}."
-            ) from exc
-
-        if not hasattr(section, "OD"):
-            raise ValueError(
-                f"Section {element.section!r} does not define an OD for diameter comparison."
-            )
-
-        pipe_radius = float(section.OD) / 2.0
-        tolerance = max(0.001, pipe_radius * 0.02)
-        if abs(pipe_radius - port_entity.radius) > tolerance:
-            raise ValueError(
-                "Port diameter mismatch: pipe section OD and port radius differ beyond tolerance."
-            )
-
-        coupling_id = id or f"coupling_{len(self.couplings)}"
-        return self.add_coupling(
-            id=coupling_id,
-            kind="pipe_to_solid_port",
-            source=pipe_ref,
-            source_node=node_ref,
-            target=port_ref,
-            code_aster_keyword="LIAISON_ELEM",
-            code_aster_option=method,
-        )
+        return _connect(self, pipe=pipe, node=node, port=port, method=method, id=id)
 
     # -- Nodes ---------------------------------------------------------------
 
@@ -792,7 +701,7 @@ class TubaModel:
         node_id = f"N{self._node_counter}"
         self._node_counter += 1
         node = Node(id=node_id, coords=np.asarray(coords, dtype=float))
-        node.source_line, node.source_call_line = _script_lines()
+        node.source_line, node.source_call_line = script_lines()
         self.nodes[node_id] = node
         self._index_node(node_id)
         return node_id
@@ -817,7 +726,7 @@ class TubaModel:
 
     def add_element(self, **kwargs) -> Element:
         elem = Element(**kwargs)
-        elem.source_line, elem.source_call_line = _script_lines()
+        elem.source_line, elem.source_call_line = script_lines()
         self.elements.append(elem)
         self._element_ids.add(elem.id)
         self._element_by_id[elem.id] = elem
@@ -893,7 +802,7 @@ class TubaModel:
             tangential_stiffness=tangential_stiffness,
             attached_to=attached_to,
         )
-        sup.source_line, sup.source_call_line = _script_lines()
+        sup.source_line, sup.source_call_line = script_lines()
         self.supports.append(sup)
         self._sync_support_counter(support_id)
         return sup
@@ -946,7 +855,7 @@ class TubaModel:
         source: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> AttributeAssignment:
-        line, call_line = _script_lines()
+        line, call_line = script_lines()
         assignment = AttributeAssignment(
             target=coerce_entity_ref(target),
             key=key,
@@ -1044,7 +953,7 @@ class TubaModel:
             temperature=temperature,
             ref_temperature=ref_temperature,
         )
-        lc.source_line, lc.source_call_line = _script_lines()
+        lc.source_line, lc.source_call_line = script_lines()
         self.load_cases[name] = lc
         return lc
 
@@ -1071,7 +980,7 @@ class TubaModel:
             ref_temperature=ref_temperature,
             metadata=dict(metadata or {}),
         )
-        op.source_line, op.source_call_line = _script_lines()
+        op.source_line, op.source_call_line = script_lines()
         for field_record in fields or []:
             if isinstance(field_record, OperationField):
                 op.fields.append(field_record)
@@ -1300,46 +1209,37 @@ class TubaModel:
         -------
         AnalysisRun
         """
-        if load_case is not None and operation is not None:
-            raise ValueError("Pass either load_case or operation, not both.")
+        from tuba.solver.model_solve import solve_model
 
-        from tuba.solver.aster import CodeAsterSolver
-        from tuba.solver.modelisation import PipeModelization
-
-        lc_name = operation or load_case
-        if load_path is not None:
-            if load_case is not None or operation is not None or not load_path:
-                raise ValueError('load_path must be nonempty and cannot be combined with load_case or operation.')
-            lc_name = load_path[-1]
-        selected_modelization = PipeModelization(pipe_modelization or PipeModelization.TUYAU_3M)
-        if pipe_modelization is not None:
-            kwargs['pipe_modelization'] = (PipeModelization.TUYAU_3M if selected_modelization is PipeModelization.SOLID_3D else selected_modelization)
-        if load_path is not None:
-            kwargs['load_path'] = load_path
-        if load_path is not None or load_step != 0.1:
-            kwargs['load_step'] = load_step
-        solver = CodeAsterSolver(**kwargs)
-        if selected_modelization is PipeModelization.SOLID_3D:
-            if load_path is not None or any(s.friction_coefficient for s in self.supports):
-                raise ValueError('Friction, gap, contact stiffness and load-path histories require a 1D study (TUYAU_3M or POU_D_T).')
-            if not volume_element_ids or max_element_size is None:
-                raise ValueError("SOLID_3D requires volume_element_ids and max_element_size.")
-            return solver.solve_volume_study(
-                self,
-                lc_name,
-                element_ids=volume_element_ids,
-                max_element_size=max_element_size,
-                force=force,
-            )
-        if volume_element_ids is not None or max_element_size is not None:
-            raise ValueError("Volume mesh arguments require pipe_modelization=PipeModelization.SOLID_3D.")
-        return solver.solve(self, lc_name, force=force)
+        return solve_model(
+            self,
+            load_case=load_case,
+            operation=operation,
+            pipe_modelization=pipe_modelization,
+            load_path=load_path,
+            load_step=load_step,
+            volume_element_ids=volume_element_ids,
+            max_element_size=max_element_size,
+            force=force,
+            **kwargs,
+        )
 
     def validate(self) -> None:
         """Validate model references and structural invariants."""
         from tuba.validation import validate_model
 
         validate_model(self)
+
+    def replace_with(self, other: "TubaModel") -> None:
+        """Adopt *other*'s state in place, replacing this model's own.
+
+        The single adopt path for a ``__dict__`` swap: a transaction publishes its
+        candidate through this once the candidate validates, and a rollback restores a
+        snapshot through it, so neither ever half-replaces the committed model. *other*
+        is not copied; callers pass a candidate they own.
+        """
+        self.__dict__.clear()
+        self.__dict__.update(other.__dict__)
 
     # -- Serialisation -------------------------------------------------------
 

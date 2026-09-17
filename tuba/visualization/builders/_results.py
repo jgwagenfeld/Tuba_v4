@@ -95,6 +95,8 @@ def _build_result_state_result_scene(
             _result_state_volume_displacement_scene(result_state, analysis_mesh)
         )
         reaction_overlays = _result_state_volume_reaction_overlays(model, result_state, analysis_mesh)
+        if not reaction_overlays:
+            reaction_overlays = _result_state_reaction_overlays(model, result_state, analysis_mesh)
     else:
         displacement_overlay = _result_state_displacement_overlay(model, result_state, analysis_mesh, diagnostics)
         displacement_objects, displacement_assets = (

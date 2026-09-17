@@ -23,7 +23,7 @@ components* show imported Code_Aster results.
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png" width="250" alt="Nonlinear friction review in the Tuba viewer"></a><br><b>Nonlinear friction</b><br>How does friction change the same pipe and load path?</td>
 </tr>
 <tr>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png" width="250" alt="3D solid review in the Tuba viewer"></a><br><b>3D solid</b><br>Does stress concentrate where the branch meets the header?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png" width="250" alt="3D solid review in the Tuba viewer"></a><br><b>3D solid</b><br>How does 1D beam pipework transition into a 3D solid tee junction?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png" width="250" alt="Elements and supports review in the Tuba viewer"></a><br><b>Elements and supports</b><br>Do bars, cables and spring supports survive the trip to the solver?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png" width="250" alt="Imported components model review in the Tuba viewer"></a><br><b>Imported components</b><br>How does a supplied component join an authored line?</td>
 </tr>
@@ -73,6 +73,17 @@ Scene bundles contain model geometry, analysis meshes, results, and run metadata
   design rules.
 - Display results in PyVista or the web viewer, export glTF, PLY or Blender files, and
   exchange with IFC.
+
+## Tuba Studio & 3D Review
+
+Tuba separates parametric modeling (`model.py`) from FEA solver configuration (`study.py`):
+
+```bash
+python -m tuba.cli_studio examples/line-load-studio                          # Live Three.js studio, .comm inspector & solve
+python -m tuba.visualization.viewer .build/studio/line-load-studio/review    # Serve the bundle the studio wrote
+python -m tuba.mcp.server                                                    # Model Context Protocol for external AI agents
+python -m tuba.skills --target ~/.config/opencode/skills                     # Agent skill: how to author and verify model.py
+```
 
 ## Getting started
 

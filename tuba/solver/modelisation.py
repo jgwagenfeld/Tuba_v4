@@ -65,7 +65,10 @@ def spring_links(model: "TubaModel") -> list[SpringLink]:
 
 
 def modelisation_assignments(
-    model: "TubaModel", pipe_modelization: PipeModelization | str = PipeModelization.TUYAU_3M,
+    model: "TubaModel",
+    pipe_modelization: PipeModelization | str = PipeModelization.TUYAU_3M,
+    *,
+    volume_element_ids: Sequence[str] | None = None,
 ) -> dict[str, str]:
     """Return ``{GROUP_MA name: MODELISATION}`` in ``AFFE_MODELE`` order.
 
@@ -77,8 +80,19 @@ def modelisation_assignments(
         by_type[element.type] = True
 
     assignments: dict[str, str] = {}
+    pipe_mod = PipeModelization(pipe_modelization)
     if by_type.get("pipe_straight") or by_type.get("pipe_bend"):
-        assignments["AllPipes"] = PipeModelization(pipe_modelization).value
+        if pipe_mod == PipeModelization.SOLID_3D and volume_element_ids is not None:
+            vol_set = set(volume_element_ids)
+            pipe_elements = [e for e in model.elements if e.type in ("pipe_straight", "pipe_bend")]
+            has_vol = any(e.id in vol_set for e in pipe_elements)
+            has_pipe = any(e.id not in vol_set for e in pipe_elements)
+            if has_vol:
+                assignments["AllSolids"] = "3D"
+            if has_pipe:
+                assignments["AllPipes"] = "TUYAU_3M"
+        else:
+            assignments["AllPipes"] = pipe_mod.value
     if by_type.get("beam"):
         assignments["G_TUBE"] = "POU_D_T"
     if by_type.get("bar"):

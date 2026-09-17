@@ -44,10 +44,15 @@ def _rotate_about_axis(vector: np.ndarray, unit_axis: np.ndarray, angle: float) 
 
 
 class _MeshWriterMixin:
+    SOLVER_NAME: str = "Code_Aster"
+    _BEND_SEGMENTS: int = 16
+    pipe_modelization: PipeModelization = PipeModelization.TUYAU_3M
+    line_segments: int = 8
+
     def _write_mail(
         self,
         model: TubaModel,
-        path: Path,
+        path: Path | None = None,
         *,
         analysis_mesh_id: str | None = None,
         model_revision: int = 0,
@@ -64,6 +69,8 @@ class _MeshWriterMixin:
         directly.
         """
         lines: List[str] = []
+        if not hasattr(self, "_bend_node_cache"):
+            self._bend_node_cache = {}
         N = self._BEND_SEGMENTS  # shorthand
         map_name = name_map or (lambda value: value)
         contacts = shoes(model, self.pipe_modelization)
@@ -339,11 +346,13 @@ class _MeshWriterMixin:
 
         lines.append("FIN")
 
-        path.write_text("\n".join(lines), encoding="utf-8")
-        logger.info(
-            "Wrote mesh: %s (%d nodes, %d elements)",
-            path, len(node_ids), len(model.elements),
-        )
+        if path is not None:
+            path = Path(path)
+            path.write_text("\n".join(lines), encoding="utf-8")
+            logger.info(
+                "Wrote mesh: %s (%d nodes, %d elements)",
+                path, len(node_ids), len(model.elements),
+            )
         return analysis_mesh
 
     def _build_analysis_mesh_from_mail_parts(
@@ -361,7 +370,7 @@ class _MeshWriterMixin:
         bend_intermediate: dict[str, list[tuple[str, np.ndarray]]],
         pipe_midpoints: dict[str, _SegmentMidpoint],
         bend_segment_midpoints: dict[str, _SegmentMidpoint],
-        mail_path: Path,
+        mail_path: Path | None,
         n_segments: int,
     ) -> AnalysisMesh:
         nodes: dict[str, tuple[float, float, float]] = {}
@@ -521,7 +530,7 @@ class _MeshWriterMixin:
             groups=groups,
             node_sources=node_sources,
             element_sources=element_sources,
-            files={"mail": str(mail_path)},
+            files={"mail": str(mail_path)} if mail_path is not None else {},
             modelisations=modelisation_assignments(model, self.pipe_modelization),
         )
 
@@ -817,3 +826,41 @@ def _nodal_force_node_ids(model: TubaModel) -> set[str]:
         for force in getattr(case, "nodal_forces", []):
             node_ids.add(force.node)
     return node_ids
+
+
+class AsterMeshGenerator(_MeshWriterMixin):
+    """Standalone generator for Code_Aster analysis meshes (.mail) without solver invocation."""
+
+    def __init__(
+        self,
+        pipe_modelization: PipeModelization | str = PipeModelization.TUYAU_3M,
+        line_segments: int = 8,
+    ) -> None:
+        self.pipe_modelization = PipeModelization(pipe_modelization)
+        self.line_segments = line_segments
+        self._BEND_SEGMENTS = 32 if self.pipe_modelization is PipeModelization.POU_D_T else 16
+        self._bend_node_cache: dict = {}
+
+
+def generate_analysis_mesh(
+    model: TubaModel,
+    *,
+    pipe_modelization: PipeModelization | str = PipeModelization.TUYAU_3M,
+    line_segments: int = 8,
+    mesh_id: str | None = None,
+    mail_path: Path | str | None = None,
+) -> AnalysisMesh:
+    """Generate an AnalysisMesh directly from a TubaModel in pure Python/NumPy."""
+    resolved_id = mesh_id or f"analysis_mesh:model_{getattr(model, 'revision', 0)}"
+    resolved_path = Path(mail_path) if mail_path is not None else None
+    generator = AsterMeshGenerator(pipe_modelization=pipe_modelization, line_segments=line_segments)
+    mesh = generator._write_mail(
+        model,
+        resolved_path,
+        analysis_mesh_id=resolved_id,
+        model_revision=int(getattr(model, "revision", 0)),
+    )
+    if mesh is None:
+        raise RuntimeError("Failed to generate AnalysisMesh from model.")
+    return mesh
+

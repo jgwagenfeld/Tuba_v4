@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-D6XDVJo9.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CPFoDqd4.css">
+    <script type="module" crossorigin src="./assets/index-IQCbN7sp.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Cfv-YOF9.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -27,7 +27,7 @@
              shows the switch. -->
         <div class="mode-switch" role="group" aria-label="Workspace" data-mode-switch hidden>
           <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script">Build</button>
-          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Review</button>
+          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Results</button>
         </div>
         <div class="header-actions">
           <!-- The status band used to be a full row of its own restating what
@@ -59,6 +59,16 @@
                  it and study.py on request: the commands a Solve would run now. -->
             <div class="code-tabs" role="group" aria-label="Files" data-code-tabs></div>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
+            <button type="button" class="code-mesh-toggle" data-code-mesh-toggle aria-pressed="false" title="Toggle 1D analysis mesh (Alt+M)">
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="1" y1="8" x2="15" y2="8" />
+                <line x1="8" y1="1" x2="8" y2="15" />
+                <circle cx="8" cy="8" r="2.5" fill="currentColor" />
+                <circle cx="2" cy="8" r="1.5" fill="currentColor" />
+                <circle cx="14" cy="8" r="1.5" fill="currentColor" />
+              </svg>
+              Mesh
+            </button>
             <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
               <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M1 1l7 4-7 4z" fill="currentColor" /></svg>
               Run
@@ -85,7 +95,12 @@
             <pre class="code-generated" data-comm-text tabindex="0" aria-label="Generated Code_Aster commands" hidden></pre>
           </div>
           <p class="code-problem" data-code-problem role="alert" hidden></p>
+          <!-- Build mode has no rail: the live model's own issues (e.g.
+               clashes) surface here, one row each, focusing the 3D camera
+               like their review-rail twins. -->
+          <div class="build-issues" data-build-issues hidden></div>
           <div class="code-pane-foot" data-code-foot></div>
+          <div class="code-resize" data-code-resize role="separator" aria-orientation="vertical" aria-label="Resize script pane" title="Drag to resize the script pane (double-click resets)"></div>
           <p id="code-keys" class="visually-hidden">Tab indents. Press Escape, then Tab, to leave the editor. Control Enter runs the script.</p>
         </section>
         <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
@@ -99,6 +114,12 @@
           <div class="display-strip" data-display-strip>
             <div class="rail-pane" data-bodies-pane>
               <div class="task-panel" data-task-panel>
+                <div data-model-tools-home hidden>
+                  <section data-model-tools>
+                    <div class="result-controls" data-model-controls></div>
+                    <div class="model-legend" data-model-legend></div>
+                  </section>
+                </div>
                 <div data-result-tools-home>
                   <!-- Four bands in reading order: what colours the scene, what
                        that colour means, what shape it is drawn in, and where it

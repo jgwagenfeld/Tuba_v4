@@ -14,6 +14,7 @@ from tuba.analysis import AnalysisMesh, AnalysisStudy
 from tuba.routing.adapter import apply_candidate_to_model
 from tuba.routing.postprocess import build_segments
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, RouteEndpoint, RoutingConstraints
+from tuba.solver import parse_tables
 from tuba.solver.aster import CodeAsterSolver
 
 
@@ -166,7 +167,7 @@ class TestCodeAsterStudyManifest(unittest.TestCase):
             root = Path(study.work_dir)
             mail = (root / "study.mail").read_text(encoding="utf-8")
             sidecar = json.loads((root / "study_tuba_fem.json").read_text(encoding="utf-8"))
-            node_label_map, element_label_map = CodeAsterSolver._read_solver_label_maps(root)
+            node_label_map, element_label_map = parse_tables.read_solver_label_maps(root)
 
         coor_labels: list[str] = []
         element_labels: list[str] = []

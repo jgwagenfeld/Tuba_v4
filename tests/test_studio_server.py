@@ -54,6 +54,19 @@ def _line_of(script: str, text: str) -> int:
     return next(number for number, line in enumerate(script.splitlines(), 1) if text in line)
 
 
+class _RecordingClient:
+    """A broker client that keeps broadcasts in a list instead of a socket."""
+
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
+    def send_json(self, event: dict) -> None:
+        self.events.append(event)
+
+    def close(self) -> None:
+        pass
+
+
 class TestStudioServer(unittest.TestCase):
     def test_studio_server_serves_and_saves_model_py(self):
         tmpdir = self.enterContext(TemporaryDirectory())
@@ -73,7 +86,10 @@ class TestStudioServer(unittest.TestCase):
         project = root / "project"
         project.mkdir()
         (project / "model.py").write_text(script, encoding="utf-8")
-        server = ProjectStudioServer(project, root / "out", port=0, **kwargs).start()
+        server = ProjectStudioServer(project, root / "out", port=0, **kwargs)
+        server._recorder = _RecordingClient()
+        server.broker.add(server._recorder)
+        server.start()
         self.addCleanup(server.stop)
         return server
 
@@ -374,7 +390,7 @@ class TestStudioServer(unittest.TestCase):
 
         def script_errors():
             # A poll can land on the truncated file; that run fails without a line.
-            return [event for event in server.broker.events if event.get("type") == "script_error" and event.get("line")]
+            return [event for event in server._recorder.events if event.get("type") == "script_error" and event.get("line")]
 
         self._wait_for(script_errors, "a failing model.py did not broadcast script_error")
         event = script_errors()[0]
@@ -409,7 +425,7 @@ class TestStudioServer(unittest.TestCase):
     def test_studio_transport_refuses_a_port_another_server_is_serving(self):
         # Windows let a second server share a port an older studio still served
         # (SO_REUSEADDR), and the browser kept talking to the old one.
-        from tuba.visualization.preview.server import PreviewServer
+        from tuba.visualization.preview.transport import PreviewServer
 
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

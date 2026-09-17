@@ -310,6 +310,8 @@ def _build_deformed_mesh_scene(
         if analysis_mesh.surface_mesh is not None and len(node_ids) not in {2, 3}:
             continue
         source = analysis_mesh.element_sources.get(element_id)
+        if source is not None and source.role in {"contact_connector", "spring_connector"}:
+            continue
         points = [
             _deformed_mesh_point(analysis_mesh, result_state, node_id, factor)
             for node_id in node_ids
@@ -664,7 +666,7 @@ def _build_analysis_mesh_scene(
                 name=f"{element_id} ({role})",
                 geometry_asset_id=asset_id,
                 group_ids=groups,
-                layer_ids=_analysis_mesh_element_layers(groups),
+                layer_ids=_analysis_mesh_element_layers(role, groups),
                 metadata=metadata,
                 source={"analysis_mesh": {"id": analysis_mesh.id, "member_type": "element", "member_id": element_id}},
             )
@@ -706,6 +708,8 @@ def _analysis_mesh_groups_by_member(analysis_mesh: AnalysisMesh) -> dict[str, li
             groups.setdefault(member_id, []).append(group_id)
     return {member_id: sorted(group_ids) for member_id, group_ids in groups.items()}
 def _analysis_mesh_node_layers(role: str, groups: list[str]) -> list[str]:
+    if role in {"contact_ground", "spring_helper"}:
+        return ["analysis_mesh:helpers"]
     layers = ["analysis_mesh:nodes"]
     if role == "generated_bend_node":
         layers.append("analysis_mesh:generated_bend_nodes")
@@ -713,7 +717,9 @@ def _analysis_mesh_node_layers(role: str, groups: list[str]) -> list[str]:
         layers.append("analysis_mesh:groups")
         layers.extend(f"analysis_mesh:group:{group}" for group in groups)
     return _dedupe(layers)
-def _analysis_mesh_element_layers(groups: list[str]) -> list[str]:
+def _analysis_mesh_element_layers(role: str, groups: list[str]) -> list[str]:
+    if role in {"contact_connector", "spring_connector"}:
+        return ["analysis_mesh:helpers"]
     layers = ["analysis_mesh:elements"]
     if groups:
         layers.append("analysis_mesh:groups")

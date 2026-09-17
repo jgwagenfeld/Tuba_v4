@@ -86,7 +86,7 @@ function isFallbackRepresentation(obj, asset) {
     kind.endsWith("_vector") ||
     kind === "deformed_centerline" ||
     kind === "physical_envelope" ||
-    ["point", "marker", "vector"].includes(asset?.format)
+    ["point", "marker", "vector", "line_load_comb"].includes(asset?.format)
   );
 }
 

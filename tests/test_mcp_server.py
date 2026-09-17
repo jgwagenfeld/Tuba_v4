@@ -214,8 +214,8 @@ def test_a_model_py_session_refuses_a_hand_written_script(tmp_path: Path):
     hand_written = 'from tuba import Model\n\nmodel = Model("Hand written")\n'
     script.write_text(hand_written, encoding="utf-8")
 
-    with pytest.raises(ValueError, match="generated"):
-        init_session(file_path=str(script))
+    with pytest.raises(ValueError, match="hand-written"):
+        init_session(file_path=str(script), load_existing=False)
     assert script.read_text(encoding="utf-8") == hand_written
 
 

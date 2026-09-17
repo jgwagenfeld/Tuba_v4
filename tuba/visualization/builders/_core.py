@@ -32,7 +32,7 @@ from tuba.visualization.scene import SceneObject
 from tuba.visualization.scene import ViewState
 from tuba.visualization.scene import VisualizationScene
 from tuba.visualization.builders._helpers import SceneBuildOptions, _default_scene_id, _normalize_ifc_guid_map
-from tuba.visualization.builders._objects import _build_element_object, _build_obstacle_object, _build_support_object
+from tuba.visualization.builders._objects import _build_element_object, _build_obstacle_object, _build_support_link_object, _build_support_object
 from tuba.visualization.builders._imported import _build_imported_component_scene
 from tuba.visualization.builders._layers import build_layer_registry, build_result_fields
 from tuba.visualization.builders._loads import build_load_scene
@@ -54,6 +54,7 @@ def build_visualization_scene(
     result_states: Iterable[ResultState] | None = None,
     geometry_states: Iterable[GeometryState] | None = None,
     analysis_meshes: Iterable[AnalysisMesh] | None = None,
+    include_analysis_mesh: bool | None = None,
     ifc_guid_map: dict[str | EntityRef, str] | None = None,
     ifc_context: dict[str, Any] | None = None,
     field_notes: Iterable[dict[str, Any]] | None = None,
@@ -80,6 +81,15 @@ def build_visualization_scene(
         analysis_mesh_records = [
             run.analysis_mesh for run in analysis_run_records if run.analysis_mesh is not None
         ]
+    elif not analysis_mesh_records and model.elements:
+        should_include_mesh = include_analysis_mesh if include_analysis_mesh is not None else opts.include_analysis_mesh
+        if should_include_mesh:
+            from tuba.solver.aster_mesh import generate_analysis_mesh
+
+            try:
+                analysis_mesh_records = [generate_analysis_mesh(model)]
+            except Exception:
+                pass
     analysis_meshes_by_id = {analysis_mesh.id: analysis_mesh for analysis_mesh in analysis_mesh_records}
     volume_element_refs: set[str] = set()
     unscoped_volume_skin = False
@@ -189,6 +199,11 @@ def build_visualization_scene(
             scene_object, asset = _build_support_object(model, support)
             objects.append(scene_object)
             assets.append(asset)
+            link = _build_support_link_object(model, support)
+            if link is not None:
+                link_object, link_asset = link
+                objects.append(link_object)
+                assets.append(link_asset)
 
     if opts.include_obstacles:
         for obstacle in model.obstacles:

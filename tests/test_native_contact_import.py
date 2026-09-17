@@ -9,6 +9,7 @@ from unittest.mock import patch
 import numpy as np
 
 from test_code_aster_friction import friction_model
+from tuba.solver import parse_tables
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.base import FEAResults, NodeResult
 from tuba.solver.contact_results import read_contact_history
@@ -38,8 +39,8 @@ class NativeContactImport(unittest.TestCase):
             for node in model.nodes:
                 result.node_results[node] = NodeResult(node, np.array([instant*1e-4, -1e-6, 0., 0., 0., 0.]), np.zeros(6))
             return result
-        with patch.object(self.parser, '_parse_results', side_effect=frame):
-            return read_contact_history(self.model, self.root, self.study, self.parser)
+        with patch("tuba.solver.parse_tables.parse_results", side_effect=frame):
+            return read_contact_history(self.model, self.root, self.study)
 
     def test_shuffled_records_preserve_native_variables_and_full_precision_instants(self):
         frames = self.read(list(reversed(self.rows)))
@@ -82,7 +83,7 @@ class NativeContactImport(unittest.TestCase):
                 self.read(rows)
         (self.root/'study_contact.json').write_text('{invalid')
         with self.assertRaises(json.JSONDecodeError):
-            read_contact_history(self.model, self.root, self.study, self.parser)
+            read_contact_history(self.model, self.root, self.study)
 
     def test_missing_stage_support_and_displacement_increment_fail(self):
         for rows in (self.rows[1:], self.rows[:-1], [row for row in self.rows if row['instant'] != 3.]):
@@ -126,8 +127,7 @@ class NativeContactImport(unittest.TestCase):
     def test_csv_increment_filter_does_not_mix_nearby_converged_times(self):
         path = self.root/'precision.csv'
         path.write_text('INST,DX\n1.0000000000000000E+00,1\n1.0000000500000000E+00,2\n')
-        self.parser._result_time = 1.
-        self.assertEqual([row['DX'] for row in self.parser._parse_result_table(path)], ['1'])
+        self.assertEqual([row['DX'] for row in parse_tables.parse_result_table(path, instant=1.)], ['1'])
 
     def test_open_contact_cannot_publish_nonzero_contact_force(self):
         with self.assertRaises(ValueError):

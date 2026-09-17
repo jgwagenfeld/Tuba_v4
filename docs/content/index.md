@@ -36,7 +36,7 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
 -   [![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
 
-    **3D solid** — Does stress concentrate where the branch meets the header?
+    **3D solid** — How does 1D beam pipework transition into a 3D solid tee junction?
 
 -   [![Elements and supports review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review)
 

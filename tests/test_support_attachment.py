@@ -161,8 +161,8 @@ class RackExampleEvidence(unittest.TestCase):
         for shoe in shoes:
             self.assertEqual(shoe.status, "sliding")
             self.assertLess(shoe.gap, 1e-9)
-            # Read from the committed evidence: each shoe carries 2728.14 N.
-            self.assertAlmostEqual(shoe.normal_force, 2728.14, delta=0.05)
+            # Read from the committed evidence: each shoe carries 2412.36 N.
+            self.assertAlmostEqual(shoe.normal_force, 2412.36, delta=0.05)
         rack = analyze_load_paths(model, result_state=run.result_state).rack_loads["rack_A"]
         self.assertEqual(rack["support_count"], 2)
         carried = sum(shoe.normal_force for shoe in shoes)

@@ -1,13 +1,20 @@
 {
-  "analysis_mesh_id": "pipe-volume-f7a6908e817f473692c826bbd577163a",
+  "analysis_mesh_id": "pipe-volume-a7b1bf0a26d340ffb064d3d7ac0796da",
   "lineage": {
     "G_END_N1": "node:N1",
     "G_END_N2": "node:N2",
     "G_END_N3": "node:N3",
     "G_INNER_region_0": "group:G_INNER_region_0",
+    "G_NODE_N1": "node:N1",
+    "G_NODE_N2": "node:N2",
+    "G_NODE_N3": "node:N3",
+    "G_NODE_N4": "node:N4",
+    "G_NODE_N5": "node:N5",
+    "G_NODE_N6": "node:N6",
     "G_OUTER_region_0": "group:G_OUTER_region_0",
     "G_SOLID_region_0": "group:G_SOLID_region_0",
-    "G_TEE_N0": "node:N0"
+    "G_TEE_N0": "node:N0",
+    "G_TUBE": "group:G_TUBE"
   },
   "load_case": "Operating",
   "name_map": {
@@ -15,14 +22,21 @@
     "G_END_N2": "G_END_N2",
     "G_END_N3": "G_END_N3",
     "G_INNER_region_0": "G_INNER_region_0",
+    "G_NODE_N1": "G_NODE_N1",
+    "G_NODE_N2": "G_NODE_N2",
+    "G_NODE_N3": "G_NODE_N3",
+    "G_NODE_N4": "G_NODE_N4",
+    "G_NODE_N5": "G_NODE_N5",
+    "G_NODE_N6": "G_NODE_N6",
     "G_OUTER_region_0": "G_OUTER_region_0",
     "G_SOLID_region_0": "G_SOLID_region_0",
-    "G_TEE_N0": "G_TEE_N0"
+    "G_TEE_N0": "G_TEE_N0",
+    "G_TUBE": "G_TUBE"
   },
   "schema_version": 1,
   "solver_input_identity": {
-    "compiler_id": "tuba.code_aster.volume.v2",
-    "fingerprint": "16d0cb72759e8d0bf4ee7fd01fe0671907929d9da5ea3222eb3a928ef08d4768",
+    "compiler_id": "tuba.code_aster.mixed.v2",
+    "fingerprint": "3904621299f143928c4dc2cee11e10ce4662d228f25f2aa975c8caa8e1e33502",
     "load_case": "Operating",
     "schema_id": "tuba.model.v4"
   },

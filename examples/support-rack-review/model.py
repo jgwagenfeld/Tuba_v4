@@ -31,6 +31,7 @@ ModelTransaction(model).apply(
         column_section="RackColumnIPE",
         longitudinal_section="RackLongIPE",
         transverse_section="RackCrossIPE",
+        shoe_level=3.0,
     ).to_patch()
 )
 
@@ -39,25 +40,41 @@ for node_id in rack["nodes"]:
     if abs(float(model.nodes[node_id].coords[2])) < 1e-9:
         model.add_support(node_id, "anchor")
 
-left = rack["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
-right = rack["metadata"]["attachment_points"]["level_1_right"].split(":", 1)[1]
-# The pipe centreline sits 0.25 m above the beam nodes: half the IPE140, the shoe and the pipe radius.
-start = model.add_node((-2.0, -1.0, 3.25))
-on_left = model.add_node((0.0, -1.0, 3.25))
-on_right = model.add_node((4.0, -1.0, 3.25))
-end = model.add_node((6.0, -1.0, 3.25))
-model.add_element(id="pipe_inlet", type="pipe_straight", n1=start, n2=on_left, section="DN100", material="Steel", route_id="P-100")
+mid_left = rack["metadata"]["attachment_points"]["level_1_mid_left"].split(":", 1)[1]
+mid_right = rack["metadata"]["attachment_points"]["level_1_mid_right"].split(":", 1)[1]
+# The pipe centreline sits 0.25 m above the beam nodes (half the IPE140, the shoe and the pipe radius)
+# and runs right down the middle of the rack along Y = 0.0.
+start = model.add_node((-2.0, 0.0, 3.25))
+approach = model.add_node((-1.0, 0.0, 3.25))
+on_left = model.add_node((0.0, 0.0, 3.25))
+on_right = model.add_node((4.0, 0.0, 3.25))
+end = model.add_node((6.0, 0.0, 3.25))
+model.add_element(id="pipe_inlet", type="pipe_straight", n1=start, n2=approach, section="DN100", material="Steel", route_id="P-100")
+model.add_element(id="pipe_approach", type="pipe_straight", n1=approach, n2=on_left, section="DN100", material="Steel", route_id="P-100")
 model.add_element(id="pipe_rack_span", type="pipe_straight", n1=on_left, n2=on_right, section="DN100", material="Steel", route_id="P-100")
 model.add_element(id="pipe_outlet", type="pipe_straight", n1=on_right, n2=end, section="DN100", material="Steel", route_id="P-100")
+
+# Ground-connected supports:
 model.add_support(start, "anchor")
+model.add_support(approach, "guide", direction=[0.0, 1.0, 0.0])
 model.add_support(end, "anchor")
-model.add_support(on_left, "rest", attached_to=left, friction_coefficient=0.3)
-model.add_support(on_right, "rest", attached_to=right, friction_coefficient=0.3)
-model.define_load_case(
+
+# Element-connected supports (rest shoes on the rack beams):
+model.add_support(on_left, "rest", attached_to=mid_left, friction_coefficient=0.3)
+model.add_support(on_right, "rest", attached_to=mid_right, friction_coefficient=0.3)
+
+# Operating condition with thermal expansion, pressure, and distributed line load:
+op = model.define_operation(
     "Operating",
-    gravity=True,
+    gravity=False,
     pressure=1.5e6,
     temperature=180.0,
     ref_temperature=20.0,
+)
+op.add_field(
+    "line_load",
+    value=350.0,
+    direction=[0.0, 0.0, -1.0],
+    route_id="P-100",
 )
 model.validate()

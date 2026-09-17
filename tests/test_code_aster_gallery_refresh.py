@@ -483,7 +483,18 @@ def test_declared_gallery_elements_match_the_models_they_publish():
             if gallery.volume_export
             else gallery.solver_options.get("pipe_modelization", PipeModelization.TUYAU_3M)
         )
-        solved = set(modelisation_assignments(model, pipe_modelization).values())
+        volume_element_ids = (
+            gallery.volume_export.get("element_ids")
+            if isinstance(gallery.volume_export, dict)
+            else None
+        )
+        solved = set(
+            modelisation_assignments(
+                model,
+                pipe_modelization,
+                volume_element_ids=volume_element_ids,
+            ).values()
+        )
         assert set(gallery.elements) == solved, (
             f"{gallery.id}: card declares {sorted(gallery.elements)} but the model solves "
             f"{sorted(solved)}"

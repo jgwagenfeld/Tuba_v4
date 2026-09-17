@@ -68,6 +68,42 @@ class TestVisualizationRacks(unittest.TestCase):
         self.assertEqual(issue.status, "open")
         self.assertIn("not associated", issue.description)
 
+    def test_attached_support_emits_a_link_to_its_structure_node(self):
+        model, support = self._rack_model()
+
+        scene = build_visualization_scene(model, scene_id="scene_rack_review")
+        scene.validate()
+
+        link = next(obj for obj in scene.objects if obj.kind == "support_link")
+        self.assertEqual(link.metadata["support_id"], support.id)
+        self.assertEqual(link.metadata["attached_to"], support.attached_to)
+        self.assertIn("rack_A", link.metadata["attached_to_groups"])
+        asset = next(item for item in scene.geometry_assets if item.id == link.geometry_asset_id)
+        self.assertEqual(asset.format, "polyline")
+        self.assertEqual(
+            asset.generation_config["points"],
+            [
+                [float(value) for value in model.nodes[support.node].coords.tolist()],
+                [float(value) for value in model.nodes[support.attached_to].coords.tolist()],
+            ],
+        )
+        self.assertIn("support_link", {layer.id for layer in scene.layers})
+
+        support_object = next(
+            obj for obj in scene.objects if obj.kind == "support" and obj.name == support.id
+        )
+        self.assertEqual(support_object.metadata["attached_to"], support.attached_to)
+        self.assertIn("rack_A", support_object.metadata["attached_to_groups"])
+
+    def test_ground_support_emits_no_link(self):
+        model, _support = self._rack_model(attach_support=False)
+
+        scene = build_visualization_scene(model, scene_id="scene_rack_review")
+        scene.validate()
+
+        self.assertEqual([obj for obj in scene.objects if obj.kind == "support_link"], [])
+        self.assertNotIn("support_link", {layer.id for layer in scene.layers})
+
 
 if __name__ == "__main__":
     unittest.main()

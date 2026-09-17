@@ -413,3 +413,13 @@ test("label layer visibility survives result changes and full reload", () => {
   assert.equal(preserved.layers["annotations:labels"].visible, false);
   assert.equal(preserved.visibleObjectIds.includes("label:comparison"), false);
 });
+
+test("reduceViewerState handles setBodyOpacity action", () => {
+  const state = createViewerState(bundle());
+  const updated = reduceViewerState(state, {
+    type: "setBodyOpacity",
+    bodyId: "geometry",
+    opacity: 0.35
+  });
+  assert.equal(updated.bodyOpacity.geometry, 0.35);
+});

@@ -8,12 +8,23 @@ MAIL = MODI_MAILLAGE(
         GROUP_MA_VOLU=('G_SOLID_region_0',),
     ),
 );
+MAIL = DEFI_GROUP(
+    reuse=MAIL,
+    MAILLAGE=MAIL,
+    CREA_GROUP_NO=(
+        _F(NOM='G_NODE_N1', NOEUD='13'),
+        _F(NOM='G_NODE_N4', NOEUD='14'),
+        _F(NOM='G_NODE_N2', NOEUD='15'),
+        _F(NOM='G_NODE_N5', NOEUD='16'),
+        _F(NOM='G_NODE_N3', NOEUD='17'),
+        _F(NOM='G_NODE_N6', NOEUD='18'),
+    ),
+);
 MODELE = AFFE_MODELE(
     MAILLAGE=MAIL,
-    AFFE=_F(
-        TOUT='OUI',
-        PHENOMENE='MECANIQUE',
-        MODELISATION='3D',
+    AFFE=(
+        _F(GROUP_MA=('G_SOLID_region_0', 'G_INNER_region_0', 'G_OUTER_region_0', 'G_END_N1', 'G_END_N2', 'G_END_N3',), PHENOMENE='MECANIQUE', MODELISATION='3D'),
+        _F(GROUP_MA='G_TUBE', PHENOMENE='MECANIQUE', MODELISATION='TUYAU_3M'),
     ),
 );
 MAT = DEFI_MATERIAU(
@@ -26,18 +37,71 @@ MAT = DEFI_MATERIAU(
 );
 CHMAT = AFFE_MATERIAU(
     MAILLAGE=MAIL,
-    AFFE=_F(GROUP_MA='G_SOLID_region_0', MATER=MAT),
+    AFFE=_F(TOUT='OUI', MATER=MAT),
+);
+CARA = AFFE_CARA_ELEM(
+    MODELE=MODELE,
+    POUTRE=_F(
+        GROUP_MA='G_TUBE',
+        SECTION='CERCLE',
+        CARA=('R', 'EP'),
+        VALE=(5.00000000E-02, 1.00000000E-02),
+    ),
+    ORIENTATION=(
+        _F(
+            GROUP_NO='G_NODE_N1',
+            CARA='GENE_TUYAU',
+            VALE=(0.00000000E+00, 0.00000000E+00, 1.00000000E+00),
+        ),
+        _F(
+            GROUP_NO='G_NODE_N2',
+            CARA='GENE_TUYAU',
+            VALE=(0.00000000E+00, 0.00000000E+00, 1.00000000E+00),
+        ),
+        _F(
+            GROUP_NO='G_NODE_N3',
+            CARA='GENE_TUYAU',
+            VALE=(0.00000000E+00, 0.00000000E+00, 1.00000000E+00),
+        ),
+    ),
 );
 BC = AFFE_CHAR_MECA(
     MODELE=MODELE,
     DDL_IMPO=(
-        _F(GROUP_MA='G_END_N1', DX=0.0, DY=0.0, DZ=0.0),
+        _F(GROUP_NO='G_NODE_N4', BLOCAGE=('DEPLACEMENT', 'ROTATION'), WO=0.0),
+    ),
+    LIAISON_ELEM=(
+        _F(
+            OPTION='3D_TUYAU',
+            CARA_ELEM=CARA,
+            AXE_POUTRE=(-1.00000000E+00, 0.00000000E+00, 0.00000000E+00),
+            GROUP_MA_1='G_END_N1',
+            GROUP_NO_2='G_NODE_N1',
+        ),
+        _F(
+            OPTION='3D_TUYAU',
+            CARA_ELEM=CARA,
+            AXE_POUTRE=(1.00000000E+00, 0.00000000E+00, 0.00000000E+00),
+            GROUP_MA_1='G_END_N2',
+            GROUP_NO_2='G_NODE_N2',
+        ),
+        _F(
+            OPTION='3D_TUYAU',
+            CARA_ELEM=CARA,
+            AXE_POUTRE=(0.00000000E+00, 1.00000000E+00, 0.00000000E+00),
+            GROUP_MA_1='G_END_N3',
+            GROUP_NO_2='G_NODE_N3',
+        ),
     ),
 );
 PRESSURE = AFFE_CHAR_MECA(
     MODELE=MODELE,
     PRES_REP=_F(
         GROUP_MA='G_INNER_region_0',
+        PRES=1.000000000000E+06,
+    ),
+    FORCE_TUYAU=_F(
+        GROUP_MA='G_TUBE',
         PRES=1.000000000000E+06,
     ),
 );
@@ -48,33 +112,39 @@ GRAVITY = AFFE_CHAR_MECA(
 RESU = MECA_STATIQUE(
     MODELE=MODELE,
     CHAM_MATER=CHMAT,
+    CARA_ELEM=CARA,
     EXCIT=(_F(CHARGE=BC), _F(CHARGE=PRESSURE), _F(CHARGE=GRAVITY),),
 );
 RESU = CALC_CHAMP(
     reuse=RESU,
     RESULTAT=RESU,
-    CONTRAINTE=('SIGM_ELGA', 'SIGM_ELNO'),
+    CONTRAINTE=('SIGM_ELGA', 'SIGM_ELNO', 'EFGE_ELNO', 'SIEF_ELNO'),
     CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
     FORCE='REAC_NODA',
 );
 IMPR_RESU(
     FORMAT='MED',
     UNITE=80,
-    RESU=_F(RESULTAT=RESU, NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'REAC_NODA')),
+    RESU=_F(RESULTAT=RESU, CARA_ELEM=CARA, NOM_CHAM=('DEPL', 'SIGM_ELNO', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA')),
 );
 TAB_DEPL = CREA_TABLE(
     RESU=_F(RESULTAT=RESU, NOM_CHAM='DEPL', TOUT='OUI',
-            NOM_CMP=('DX', 'DY', 'DZ')),
+            NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ')),
 );
 IMPR_TABLE(TABLE=TAB_DEPL, FORMAT='TABLEAU', UNITE=39, SEPARATEUR=',');
 TAB_REAC = CREA_TABLE(
     RESU=_F(RESULTAT=RESU, NOM_CHAM='REAC_NODA', TOUT='OUI',
-            NOM_CMP=('DX', 'DY', 'DZ')),
+            NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ')),
 );
 IMPR_TABLE(TABLE=TAB_REAC, FORMAT='TABLEAU', UNITE=40, SEPARATEUR=',');
 TAB_SIEQ = CREA_TABLE(
     RESU=_F(RESULTAT=RESU, NOM_CHAM='SIEQ_ELNO', TOUT='OUI',
-            NOM_CMP=('VMIS', 'TRESCA')),
+            NOM_CMP=('VMIS',)),
 );
 IMPR_TABLE(TABLE=TAB_SIEQ, FORMAT='TABLEAU', UNITE=41, SEPARATEUR=',');
+TAB_EFFO = CREA_TABLE(
+    RESU=_F(RESULTAT=RESU, NOM_CHAM='EFGE_ELNO', TOUT='OUI',
+            NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ')),
+);
+IMPR_TABLE(TABLE=TAB_EFFO, FORMAT='TABLEAU', UNITE=38, SEPARATEUR=',');
 FIN();

@@ -2547,6 +2547,39 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.code-pane .code-mesh-toggle {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 0.35rem;
+  width: auto;
+  min-height: 1.5rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  background: transparent;
+  color: var(--chrome-text-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.15rem 0.55rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.code-pane .code-mesh-toggle:hover {
+  border-color: var(--focus-on-dark);
+  color: var(--chrome-text);
+}
+
+.code-pane .code-mesh-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #102d34;
+  color: var(--accent);
+}
+
+.code-pane .code-mesh-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
 
 .code-pane .code-run {
   display: inline-flex;
@@ -2666,6 +2699,56 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   display: none;
 }
 
+.build-issues {
+  display: grid;
+  gap: 0.3rem;
+  max-height: 10rem;
+  overflow: auto;
+  border-top: 1px solid var(--graphite-line);
+  background: var(--graphite-raised);
+  padding: 0.45rem 0.85rem 0.6rem;
+}
+
+.build-issues[hidden] {
+  display: none;
+}
+
+.build-issues h2 {
+  margin: 0;
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.build-issues button {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.15rem;
+  background: transparent;
+  color: #d9e0e2;
+  font-size: 0.72rem;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+}
+
+.build-issues button:hover {
+  border-color: #687780;
+}
+
+.build-issues button:focus-visible {
+  outline: 2px solid var(--focus-on-dark);
+  outline-offset: -2px;
+}
+
+.build-issues button.selected {
+  border-color: var(--accent-ink);
+}
+
 .code-pane-foot {
   display: flex;
   align-items: center;
@@ -2678,6 +2761,30 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   padding: 0 0.85rem;
+}
+
+/* Drag handle on the script pane's right edge: the pane keeps the 3D view's
+   width via --controls-width, set on the pane itself so it wins over the default. */
+.code-resize {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  bottom: 0;
+  z-index: 7;
+  width: 11px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.code-resize:hover::after,
+.code-resize[data-dragging]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 5px;
+  bottom: 0;
+  width: 1px;
+  background: var(--accent);
 }
 
 /* The inspector's link back to the script. */
@@ -2831,3 +2938,63 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
   font-size: 0.72rem;
   line-height: 1.35;
 }
+
+/* Model Property Categorical Legend */
+.model-legend {
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+.model-legend-list {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.model-legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.3rem 0.45rem;
+  background: var(--graphite-raised);
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.25rem;
+  color: var(--chrome-text);
+  font-family: inherit;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.model-legend-chip:hover {
+  background: var(--graphite-highlight);
+  border-color: var(--chrome-text-3);
+}
+
+.model-legend-swatch {
+  flex: 0 0 auto;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 0.15rem;
+  border: 1px solid rgb(255 255 255 / 20%);
+}
+
+.model-legend-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.model-legend-tally {
+  flex: 0 0 auto;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 0.05rem 0.25rem;
+  background: rgb(0 0 0 / 25%);
+  border-radius: 0.2rem;
+}
+

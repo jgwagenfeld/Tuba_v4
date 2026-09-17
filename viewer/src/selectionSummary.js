@@ -36,7 +36,8 @@ const KIND_TITLES = Object.freeze({
   pipe: "Pipe",
   reaction_vector: "Reaction",
   route_candidate: "Route candidate",
-  support: "Support"
+  support: "Support",
+  support_link: "Support attachment"
 });
 
 // Identity, Geometry and Provenance are the sections the panel used to open
@@ -88,12 +89,15 @@ const nonZero = (value) => Number.isFinite(number(value)) && number(value) !== 0
 
 function supportLede(config, states, node) {
   const at = node ? ` at node ${node}` : "";
+  const against = config.attached_to
+    ? ` Acts against node ${config.attached_to}.`
+    : " Anchored to ground.";
   const fixed = axesWith(states, "fixed");
   const oneWay = axesWith(states, "one-way");
   const springs = axesWith(states, "spring");
 
   if (fixed.length === DOF_AXES.length) {
-    return `Fixes all six degrees of freedom${at}.`;
+    return `Fixes all six degrees of freedom${at}.${against}`;
   }
   if (oneWay.length > 0) {
     const extras = [];
@@ -102,13 +106,13 @@ function supportLede(config, states, node) {
       extras.push(`friction ${MICRO} ${formatNumber(config.friction_coefficient)}`);
     }
     const tail = extras.length > 0 ? ` ${titleCase(extras.join(", "))}.` : "";
-    return `Carries compression only along ${oneWay.join(" and ")} and lifts off in tension.${tail}`;
+    return `Carries compression only along ${oneWay.join(" and ")} and lifts off in tension.${tail}${against}`;
   }
   if (springs.length > 0 && fixed.length === 0) {
-    return `Spring on ${springs.join(" and ")}${at}. Carries no rigid restraint ${EMDASH} the solver adds a discrete spring element.`;
+    return `Spring on ${springs.join(" and ")}${at}. Carries no rigid restraint ${EMDASH} the solver adds a discrete spring element.${against}`;
   }
   if (fixed.length === 0) {
-    return `Holds no degree of freedom${at}.`;
+    return `Holds no degree of freedom${at}.${against}`;
   }
   const freeTranslations = axesWith(states, "free").filter((axis) => !axis.startsWith("R"));
   const rotationsFree = axesWith(states, "free").filter((axis) => axis.startsWith("R")).length === 3;
@@ -118,12 +122,21 @@ function supportLede(config, states, node) {
   } else if (rotationsFree) {
     parts.push("All three rotations run free.");
   }
+  parts.push(against.trim());
   return parts.join(" ");
 }
 
 function definitionSection(config, state, system) {
   const lines = [];
   const push = (label, value) => lines.push({ kind: "row", label, value });
+
+  // What the restraint acts against, first: it decides where the load goes.
+  if (config.attached_to) {
+    const groups = Array.isArray(config.attached_to_groups) ? config.attached_to_groups.filter(Boolean) : [];
+    push("Restrained to", groups.length > 0 ? `${config.attached_to} (${groups.join(", ")})` : String(config.attached_to));
+  } else {
+    push("Restrained to", "Ground");
+  }
 
   const direction = componentsOf(config, "direction");
   if (direction) push("Direction", `[${direction.map((value) => formatNumber(value)).join(", ")}]`);
@@ -144,7 +157,8 @@ function definitionSection(config, state, system) {
   if (imposed) push("Imposed displacement", imposed.map((value) => formatQuantity(value, "m", system)).join(", "));
 
   // Elements name their end nodes in metadata.nodes; older bundles spell them
-  // n1/n2. Either way this answers "what is this support actually holding".
+  // n1/n2. This is the member the support sits on, not what it acts against -
+  // that is the "Restrained to" row above.
   const attached = (state.objects ?? [])
     .filter((candidate) => {
       const ends = candidate.metadata?.nodes ?? [candidate.metadata?.n1, candidate.metadata?.n2];
@@ -152,7 +166,7 @@ function definitionSection(config, state, system) {
     })
     .map((candidate) => candidate.name)
     .filter(Boolean);
-  if (attached.length > 0) push("Attached to", attached.join(", "));
+  if (attached.length > 0) push("On element", attached.join(", "));
 
   return lines.length > 0 ? [{ title: "Definition", lines }] : [];
 }
@@ -270,10 +284,39 @@ function loadSection(obj) {
   const metadata = obj.metadata ?? {};
   if (obj.kind !== "applied_load" || !metadata.load_case) return [];
   const sourceLine = metadata.property_lines?.load_case;
+  const lines = [
+    { kind: "row", label: "Load case", value: metadata.load_case, ...(sourceLine ? { sourceLine } : {}) }
+  ];
+  if (metadata.vector_kind === "line_load") {
+    lines.push({ kind: "row", label: "Kind", value: "Distributed line load" });
+    if (metadata.value_npm != null) {
+      lines.push({ kind: "row", label: "Intensity", value: `${metadata.value_npm} N/m` });
+    }
+    if (metadata.direction) {
+      lines.push({ kind: "row", label: "Direction", value: `[${metadata.direction.join(", ")}]` });
+    }
+    if (metadata.element_id) {
+      lines.push({ kind: "row", label: "Element", value: metadata.element_id });
+    }
+    if (metadata.route_id) {
+      lines.push({ kind: "row", label: "Route", value: metadata.route_id });
+    }
+  }
   return [{
     title: "Load",
-    lines: [{ kind: "row", label: "Load case", value: metadata.load_case, ...(sourceLine ? { sourceLine } : {}) }]
+    lines
   }];
+}
+
+// The dashed P->A link: name both ends, including the authored group that
+// owns the far end when the scene says so.
+function supportLinkLede(obj) {
+  const metadata = obj.metadata ?? {};
+  const from = metadata.node ?? "?";
+  const to = metadata.attached_to ?? "?";
+  const groups = Array.isArray(metadata.attached_to_groups) ? metadata.attached_to_groups.filter(Boolean) : [];
+  const target = groups.length > 0 ? `${to} (${groups.join(", ")})` : to;
+  return `Links node ${from} to ${target}.`;
 }
 
 export function getSelectionSummary(state, objectId) {
@@ -312,9 +355,11 @@ export function getSelectionSummary(state, objectId) {
     badge: contact.badge,
     lede: isSupport
       ? supportLede(config, dofStates, node)
-      : obj.kind === "clash_marker"
-        ? clashLede(obj, system)
-        : elementLede(obj, system),
+      : obj.kind === "support_link"
+        ? supportLinkLede(obj)
+        : obj.kind === "clash_marker"
+          ? clashLede(obj, system)
+          : elementLede(obj, system),
     meta: [
       obj.name,
       node ? `node ${node}` : null,

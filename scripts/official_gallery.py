@@ -277,10 +277,11 @@ OFFICIAL_GALLERIES = (
         "volume-engineering-review",
         "pipe-tee-volume-review",
         title="3D solid",
-        elements=("3D",),
-        question="Does stress concentrate where the branch meets the header?",
+        elements=("3D", "TUYAU_3M"),
+        question="How does 1D beam pipework transition into a 3D solid tee junction?",
         summary=(
-            "A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction."
+            "A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. "
+            "The review shows kinematic shell-to-solid coupling and stress transition across the junction."
         ),
     ),
     _project_gallery(
@@ -306,9 +307,8 @@ OFFICIAL_GALLERIES = (
         elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
         question="What do the supports and the steel underneath actually carry?",
         summary=(
-            "A DN100 line resting on friction shoes on an I-beam rack, analysed together with the rack under gravity, "
-            "1.5 MPa internal pressure and a temperature increase from 20 C to 180 C, with no imposed nodal forces. "
-            "The review shows the shoe forces, the load the shoes put on the rack, and a support-spacing check."
+            "A DN100 line centered in an I-beam rack under distributed line loading, internal pressure "
+            "and thermal expansion. The review shows ground and element rest shoe reactions, steel deflection, and support spacing."
         ),
     ),
 )

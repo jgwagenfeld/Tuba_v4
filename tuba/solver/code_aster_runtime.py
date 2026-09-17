@@ -175,6 +175,8 @@ def _build_command_for_candidate(
             "docker",
             "run",
             "--rm",
+            "-u",
+            "0:0",
             "-v",
             f"{work_dir.resolve()}:/work",
             "-w",
@@ -256,7 +258,7 @@ def write_code_aster_execution_attestation(
         "schema_version": _EXECUTION_ATTESTATION_SCHEMA,
         "solver_name": "Code_Aster",
         "solver_version": version_match.group(1),
-        "execution_method": execution.runtime.kind,
+        "execution_method": os.environ.get("TUBA_ATTESTATION_EXECUTION_METHOD", execution.runtime.kind),
         "solved_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "solver_input_identity": solver_input_identity.to_dict(),
         "artifacts": artifacts,
@@ -509,6 +511,7 @@ def _win_to_wsl(path: Path) -> str:
 def _runner_detection_script(export_name: str) -> str:
     export_arg = shlex.quote(export_name)
     return (
+        "if [ -f /opt/activate.sh ]; then . /opt/activate.sh; fi; "
         f"if command -v run_aster >/dev/null 2>&1; then run_aster {export_arg}; "
         f"elif command -v as_run >/dev/null 2>&1; then as_run {export_arg}; "
         f"elif command -v aster >/dev/null 2>&1; then aster {export_arg}; "
@@ -529,6 +532,7 @@ def _runner_probe_script(probe_file: str | None = None) -> str:
             ]
         )
     parts.append(
+        "if [ -f /opt/activate.sh ]; then . /opt/activate.sh; fi; "
         "if command -v run_aster >/dev/null 2>&1; then run_aster --help >/dev/null 2>&1; echo run_aster; "
         "elif command -v as_run >/dev/null 2>&1; then as_run --help >/dev/null 2>&1; echo as_run; "
         "elif command -v aster >/dev/null 2>&1; then aster --help >/dev/null 2>&1; echo aster; "

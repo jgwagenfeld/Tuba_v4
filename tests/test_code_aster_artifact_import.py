@@ -12,6 +12,7 @@ from tuba import Model
 from tuba.analysis import AnalysisRun, create_operating_geometry_state, create_visual_deformed_geometry_state
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.external.ifc import IfcExporter
+from tuba.solver import parse_tables
 from tuba.solver.aster import CodeAsterSolver
 from tuba.visualization import build_visualization_scene
 
@@ -234,10 +235,10 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
     def test_import_deduplicates_existing_string_parser_diagnostics(self):
         model, n0, n1 = self._model()
         warning = "Legacy parser warning."
-        parse_result_artifacts = CodeAsterSolver._parse_result_artifacts_after_validation
+        parse_result_artifacts = parse_tables.parse_result_artifacts_after_validation
 
-        def parse_with_duplicate_diagnostics(solver, *args, **kwargs):
-            results = parse_result_artifacts(solver, *args, **kwargs)
+        def parse_with_duplicate_diagnostics(model, *args, **kwargs):
+            results = parse_result_artifacts(model, *args, **kwargs)
             results.parser_diagnostics.extend([warning, warning])
             return results
 
@@ -246,7 +247,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
             CodeAsterSolver(work_dir=work_dir).export_analysis_study(model, "Hot", work_dir)
             _write_solver_tables(work_dir, n0=n0, n1=n1)
 
-            with patch.object(CodeAsterSolver, "_parse_result_artifacts_after_validation", parse_with_duplicate_diagnostics):
+            with patch("tuba.solver.parse_tables.parse_result_artifacts_after_validation", parse_with_duplicate_diagnostics):
                 artifact = import_code_aster_artifacts(model=model, work_dir=work_dir, allow_unverified=True)
 
         self.assertEqual(artifact.result_state.metadata["parser_diagnostics"], [warning])
@@ -275,7 +276,7 @@ class TestCodeAsterArtifactImport(unittest.TestCase):
         # source, and the single-operation study keeps only its final state.
         self.assertEqual(summary["result_source"], "Code_Aster study_contact.json")
         self.assertEqual(summary["artifact_provenance"], "committed_real_code_aster_artifacts")
-        self.assertEqual(summary["result_state_id"], "result_state:Operating:step:0")
+        self.assertEqual(summary["result_state_id"], "result_state:Operating")
         self.assertGreater(summary["counts"]["scene_objects"], 0)
         self.assertIn("solver_result", {overlay["kind"] for overlay in scene["overlays"]})
         self.assertTrue(all(output_files.values()), output_files)

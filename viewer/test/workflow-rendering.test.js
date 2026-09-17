@@ -52,6 +52,23 @@ test("workflow rendering uses a scene-first responsive shell and preserves embed
   assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace,\s*body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)[^}]*grid-template-areas:\s*"viewport"/s);
 });
 
+test("build mode lists the live model's issues in the code pane, not the rail", async () => {
+  const app = await readViewerFile("src/app.js");
+  const html = await readViewerFile("index.html");
+  const css = await readViewerFile("src/styles.css");
+
+  // The rail stays a review surface: it remains hidden in Build mode.
+  assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded \|\| isBuildMode\(\);/);
+  // Build issues surface in the code pane instead, one row per issue with the
+  // same camera-focusing click as the rail list.
+  assert.match(html, /<div class="build-issues" data-build-issues hidden><\/div>/);
+  assert.match(app, /function renderBuildIssues\(\)/);
+  assert.match(app, /dom\.buildIssues\.hidden = issues\.length === 0/);
+  assert.match(app, /dispatch\(\{ type: "focusIssue", issueId: issue\.id \}\);/);
+  assert.match(css, /\.build-issues\[hidden\]\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /\.build-issues button\.selected/);
+});
+
 test("workflow rendering uses explicit labeled status, verdict, and severity badges", async () => {
   const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");
