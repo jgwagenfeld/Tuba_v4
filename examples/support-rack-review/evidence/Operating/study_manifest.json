@@ -1,6 +1,14 @@
 {
   "analysis_mesh": {
     "element_sources": {
+      "CONTACT_6": {
+        "element_id": "CONTACT_6",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_6",
+          "kind": "support"
+        }
+      },
       "CONTACT_7": {
         "element_id": "CONTACT_7",
         "role": "contact_connector",
@@ -9,43 +17,35 @@
           "kind": "support"
         }
       },
-      "CONTACT_8": {
-        "element_id": "CONTACT_8",
-        "role": "contact_connector",
-        "source_ref": {
-          "id": "support_8",
-          "kind": "support"
-        }
-      },
-      "pipe_approach": {
-        "element_id": "pipe_approach",
+      "pipe_str_0": {
+        "element_id": "pipe_str_0",
         "role": "native_element",
         "source_ref": {
-          "id": "pipe_approach",
+          "id": "pipe_str_0",
           "kind": "element"
         }
       },
-      "pipe_inlet": {
-        "element_id": "pipe_inlet",
+      "pipe_str_1": {
+        "element_id": "pipe_str_1",
         "role": "native_element",
         "source_ref": {
-          "id": "pipe_inlet",
+          "id": "pipe_str_1",
           "kind": "element"
         }
       },
-      "pipe_outlet": {
-        "element_id": "pipe_outlet",
+      "pipe_str_2": {
+        "element_id": "pipe_str_2",
         "role": "native_element",
         "source_ref": {
-          "id": "pipe_outlet",
+          "id": "pipe_str_2",
           "kind": "element"
         }
       },
-      "pipe_rack_span": {
-        "element_id": "pipe_rack_span",
+      "pipe_str_3": {
+        "element_id": "pipe_str_3",
         "role": "native_element",
         "source_ref": {
-          "id": "pipe_rack_span",
+          "id": "pipe_str_3",
           "kind": "element"
         }
       },
@@ -771,29 +771,29 @@
       }
     },
     "elements": {
+      "CONTACT_6": [
+        "GROUND_6",
+        "N12"
+      ],
       "CONTACT_7": [
         "GROUND_7",
-        "N12"
-      ],
-      "CONTACT_8": [
-        "GROUND_8",
         "N13"
       ],
-      "pipe_approach": [
-        "N11",
-        "N12"
-      ],
-      "pipe_inlet": [
+      "pipe_str_0": [
         "N10",
         "N11"
       ],
-      "pipe_outlet": [
-        "N13",
-        "N14"
+      "pipe_str_1": [
+        "N11",
+        "N12"
       ],
-      "pipe_rack_span": [
+      "pipe_str_2": [
         "N12",
         "N13"
+      ],
+      "pipe_str_3": [
+        "N13",
+        "N14"
       ],
       "rack_A_beam_0_s0": [
         "N0",
@@ -1121,10 +1121,10 @@
     },
     "groups": {
       "AllPipes": [
-        "pipe_inlet",
-        "pipe_approach",
-        "pipe_rack_span",
-        "pipe_outlet"
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3"
       ],
       "AllSupports": [
         "N0",
@@ -1133,15 +1133,15 @@
         "N3",
         "N10",
         "N11",
-        "N14",
         "N12",
-        "N13"
+        "N13",
+        "N14"
+      ],
+      "CONTACT_6": [
+        "CONTACT_6"
       ],
       "CONTACT_7": [
         "CONTACT_7"
-      ],
-      "CONTACT_8": [
-        "CONTACT_8"
       ],
       "GN_N0": [
         "N0"
@@ -1176,11 +1176,11 @@
       "GN_N9": [
         "N9"
       ],
+      "GROUND_6": [
+        "GROUND_6"
+      ],
       "GROUND_7": [
         "GROUND_7"
-      ],
-      "GROUND_8": [
-        "GROUND_8"
       ],
       "G_TUBE": [
         "rack_A_beam_0_s0",
@@ -1265,10 +1265,10 @@
         "rack_A_beam_9_s7"
       ],
       "MAT_Steel": [
-        "pipe_inlet",
-        "pipe_approach",
-        "pipe_rack_span",
-        "pipe_outlet",
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3",
         "rack_A_beam_0_s0",
         "rack_A_beam_0_s1",
         "rack_A_beam_0_s2",
@@ -1354,16 +1354,16 @@
         "N10"
       ],
       "PipeStraights": [
-        "pipe_inlet",
-        "pipe_approach",
-        "pipe_rack_span",
-        "pipe_outlet"
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3"
       ],
       "SEC_DN100": [
-        "pipe_inlet",
-        "pipe_approach",
-        "pipe_rack_span",
-        "pipe_outlet"
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3"
       ],
       "SEC_RackColumnIPE": [
         "rack_A_beam_0_s0",
@@ -1451,17 +1451,17 @@
         "rack_A_beam_5_s6",
         "rack_A_beam_5_s7"
       ],
-      "pipe_approach": [
-        "pipe_approach"
+      "pipe_str_0": [
+        "pipe_str_0"
       ],
-      "pipe_inlet": [
-        "pipe_inlet"
+      "pipe_str_1": [
+        "pipe_str_1"
       ],
-      "pipe_outlet": [
-        "pipe_outlet"
+      "pipe_str_2": [
+        "pipe_str_2"
       ],
-      "pipe_rack_span": [
-        "pipe_rack_span"
+      "pipe_str_3": [
+        "pipe_str_3"
       ],
       "rack_A_beam_0": [
         "rack_A_beam_0_s0",
@@ -1568,24 +1568,24 @@
     "model_revision": 0,
     "modelisations": {
       "AllPipes": "TUYAU_3M",
+      "CONTACT_6": "DIS_T",
       "CONTACT_7": "DIS_T",
-      "CONTACT_8": "DIS_T",
       "G_TUBE": "POU_D_T"
     },
     "node_sources": {
+      "GROUND_6": {
+        "node_id": "GROUND_6",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_6",
+          "kind": "support"
+        }
+      },
       "GROUND_7": {
         "node_id": "GROUND_7",
         "role": "contact_ground",
         "source_ref": {
           "id": "support_7",
-          "kind": "support"
-        }
-      },
-      "GROUND_8": {
-        "node_id": "GROUND_8",
-        "role": "contact_ground",
-        "source_ref": {
-          "id": "support_8",
           "kind": "support"
         }
       },
@@ -1709,43 +1709,43 @@
           "kind": "node"
         }
       },
-      "pipe_approach_mid": {
-        "node_id": "pipe_approach_mid",
+      "pipe_str_0_mid": {
+        "node_id": "pipe_str_0_mid",
         "parametric_t": 0.5,
         "role": "generated_pipe_mid_node",
         "segment_index": 0,
         "source_ref": {
-          "id": "pipe_approach",
+          "id": "pipe_str_0",
           "kind": "element"
         }
       },
-      "pipe_inlet_mid": {
-        "node_id": "pipe_inlet_mid",
+      "pipe_str_1_mid": {
+        "node_id": "pipe_str_1_mid",
         "parametric_t": 0.5,
         "role": "generated_pipe_mid_node",
         "segment_index": 0,
         "source_ref": {
-          "id": "pipe_inlet",
+          "id": "pipe_str_1",
           "kind": "element"
         }
       },
-      "pipe_outlet_mid": {
-        "node_id": "pipe_outlet_mid",
+      "pipe_str_2_mid": {
+        "node_id": "pipe_str_2_mid",
         "parametric_t": 0.5,
         "role": "generated_pipe_mid_node",
         "segment_index": 0,
         "source_ref": {
-          "id": "pipe_outlet",
+          "id": "pipe_str_2",
           "kind": "element"
         }
       },
-      "pipe_rack_span_mid": {
-        "node_id": "pipe_rack_span_mid",
+      "pipe_str_3_mid": {
+        "node_id": "pipe_str_3_mid",
         "parametric_t": 0.5,
         "role": "generated_pipe_mid_node",
         "segment_index": 0,
         "source_ref": {
-          "id": "pipe_rack_span",
+          "id": "pipe_str_3",
           "kind": "element"
         }
       },
@@ -2451,12 +2451,12 @@
       }
     },
     "nodes": {
-      "GROUND_7": [
+      "GROUND_6": [
         0.0,
         0.0,
         2.25
       ],
-      "GROUND_8": [
+      "GROUND_7": [
         4.0,
         0.0,
         2.25
@@ -2536,23 +2536,23 @@
         0.0,
         3.0
       ],
-      "pipe_approach_mid": [
-        -0.5,
-        0.0,
-        3.25
-      ],
-      "pipe_inlet_mid": [
+      "pipe_str_0_mid": [
         -1.5,
         0.0,
         3.25
       ],
-      "pipe_outlet_mid": [
-        5.0,
+      "pipe_str_1_mid": [
+        -0.5,
         0.0,
         3.25
       ],
-      "pipe_rack_span_mid": [
+      "pipe_str_2_mid": [
         2.0,
+        0.0,
+        3.25
+      ],
+      "pipe_str_3_mid": [
+        5.0,
         0.0,
         3.25
       ],
@@ -2909,7 +2909,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "5725645fb77cca1fa18c96ba5319ebf3d46e065aa3cc7ce6770478af9b81b477",
+      "fingerprint": "d2af6ffb7dfdc63aca2fe8602153871ded1bee450964fe79997fd7621929a075",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -2946,7 +2946,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "5725645fb77cca1fa18c96ba5319ebf3d46e065aa3cc7ce6770478af9b81b477",
+      "fingerprint": "d2af6ffb7dfdc63aca2fe8602153871ded1bee450964fe79997fd7621929a075",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

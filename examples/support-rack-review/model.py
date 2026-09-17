@@ -41,26 +41,20 @@ for node_id in rack["nodes"]:
 
 mid_left = rack["metadata"]["attachment_points"]["level_1_mid_left"].split(":", 1)[1]
 mid_right = rack["metadata"]["attachment_points"]["level_1_mid_right"].split(":", 1)[1]
-# The pipe centreline sits 0.25 m above the beam nodes (half the IPE140, the shoe and the pipe radius)
-# and runs right down the middle of the rack along Y = 0.0.
-start = model.add_node((-2.0, 0.0, 3.25))
-approach = model.add_node((-1.0, 0.0, 3.25))
-on_left = model.add_node((0.0, 0.0, 3.25))
-on_right = model.add_node((4.0, 0.0, 3.25))
-end = model.add_node((6.0, 0.0, 3.25))
-model.add_element(id="pipe_inlet", type="pipe_straight", n1=start, n2=approach, section="DN100", material="Steel", route_id="P-100")
-model.add_element(id="pipe_approach", type="pipe_straight", n1=approach, n2=on_left, section="DN100", material="Steel", route_id="P-100")
-model.add_element(id="pipe_rack_span", type="pipe_straight", n1=on_left, n2=on_right, section="DN100", material="Steel", route_id="P-100")
-model.add_element(id="pipe_outlet", type="pipe_straight", n1=on_right, n2=end, section="DN100", material="Steel", route_id="P-100")
 
-# Ground-connected supports:
-model.add_support(start, "anchor")
-model.add_support(approach, "guide", direction=[0.0, 1.0, 0.0])
-model.add_support(end, "anchor")
-
-# Element-connected supports (rest shoes on the rack beams):
-model.add_support(on_left, "rest", attached_to=mid_left, friction_coefficient=0.3)
-model.add_support(on_right, "rest", attached_to=mid_right, friction_coefficient=0.3)
+# The pipe centreline sits 0.25 m above the beam nodes (half the IPE140, the shoe and
+# the pipe radius) and runs right down the middle of the rack along Y = 0.0. The two
+# rest shoes hang from the rack's cross-beam midpoints; the guide restrains Y.
+with model.pipe(section="DN100", material="Steel", route="P-100") as pipe:
+    pipe.start([-2.0, 0.0, 3.25], support="anchor")
+    pipe.run(1.0)                     # approach node (-1.0, 0.0, 3.25)
+    pipe.add_support("guide", direction=[0.0, 1.0, 0.0])
+    pipe.run(1.0)                     # on the rack's left beam (0.0, 0.0, 3.25)
+    pipe.add_support("rest", attached_to=mid_left, friction_coefficient=0.3)
+    pipe.run(4.0)                     # on the rack's right beam (4.0, 0.0, 3.25)
+    pipe.add_support("rest", attached_to=mid_right, friction_coefficient=0.3)
+    pipe.run(2.0)                     # outlet node (6.0, 0.0, 3.25)
+    pipe.end(support="anchor")
 
 # Operating condition with thermal expansion, pressure, and distributed line load:
 op = model.define_operation(

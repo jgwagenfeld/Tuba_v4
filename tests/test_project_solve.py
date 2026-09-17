@@ -89,7 +89,7 @@ def test_matching_evidence_is_reused_and_force_solves_again(tmp_path):
 @pytest.mark.parametrize(
     ("script", "old", "new"),
     [
-        ("model.py", "(-2.0, -1.0, 3.25)", "(-2.5, -1.0, 3.25)"),
+            ("model.py", "[-2.0, 0.0, 3.25]", "[-2.5, 0.0, 3.25]"),
         ("study.py", "SOLVER_OPTIONS: dict = {}", 'SOLVER_OPTIONS: dict = {"line_segments": 4}'),
     ],
 )
