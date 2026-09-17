@@ -59,13 +59,16 @@ def run_demo(output_dir: str | Path = ".build/generated/future_ready_semantic_wo
         section="RackSec",
         material="Steel",
         zone="north",
+        # The pipe rides the level-1 cross-beam midpoint, like a shoe on the
+        # steel, instead of the leg line where it clashed with the columns.
+        shoe_level=1.5,
     )
     ModelTransaction(model).apply(rack.to_patch())
 
     request = PipeRouteRequest(
         id="P-100",
-        start=RouteEndpoint(id="A", point=(0.0, 0.5, 1.75)),
-        goal=RouteEndpoint(id="B", point=(4.0, 0.5, 1.75)),
+        start=RouteEndpoint(id="A", point=(0.0, 0.0, 1.75)),
+        goal=RouteEndpoint(id="B", point=(4.0, 0.0, 1.75)),
         section="DN100",
         material="Steel",
         costs=RoutingCostWeights(length=1.0, bend=0.0, support_span=0.0),
@@ -85,8 +88,8 @@ def run_demo(output_dir: str | Path = ".build/generated/future_ready_semantic_wo
     model.assign_insulation("group:line_A", "mw_50")
     model.assign_insulation("route:P-100", "mw_50")
 
-    rack_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
-    support = model.add_support(node=model.find_node_by_point((0.0, 0.5, 1.75)), type="rest", attached_to=rack_node)
+    rack_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_mid_left"].split(":", 1)[1]
+    support = model.add_support(node=model.find_node_by_point((0.0, 0.0, 1.75)), type="rest", attached_to=rack_node)
 
     takeoff = quantity_takeoff(model)
     bom = bom_to_dict(model)
