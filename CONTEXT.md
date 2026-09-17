@@ -36,6 +36,10 @@ _Avoid_: Study, export deck
 The attested artifacts an analysis run leaves behind, kept in the project it belongs to; reviews are built from copies of it.
 _Avoid_: Results folder, artifact directory, fixture results
 
+**Reusable evidence**:
+Evidence whose execution attestation is intact and verified and whose model fingerprint still matches the model and study, so a solve may reuse it instead of solving the operation again.
+_Avoid_: Cached result, fresh run
+
 **Analysis mesh**:
 The solver-facing discretization retained with stable groups and source-entity lineage as part of an analysis run.
 _Avoid_: Display mesh, design geometry
@@ -91,6 +95,10 @@ _Avoid_: Reaction force, reactions
 **Pipe modelization**:
 The engineer-selected structural idealization of a pipe, limited to validated choices such as beam or `TUYAU_3M` and retained with the analysis evidence.
 _Avoid_: Arbitrary solver modelization string
+
+**Combined modelization**:
+A solver formulation of one model that mixes element families, such as pipe or beam elements with 3D solids joined by couplings.
+_Avoid_: Mixed analysis, hybrid mesh, mixed export
 
 **Reference validation case**:
 A piping case with an independently established expected response used to validate Tuba's complete engineering translation and result path.
@@ -167,3 +175,23 @@ _Avoid_: Linked support, connector
 **Shoe**:
 The one-way contact every rest compiles to: it carries compression, slides with its friction coefficient and lifts off.
 _Avoid_: Unilateral zone
+
+**Restraint state**:
+The condition one support restrains each degree of freedom with: fixed, one-way, spring, or free; authored supports compile to these states.
+_Avoid_: DOF flag, boundary condition
+
+**Rack**:
+A steel frame that carries attached supports and the loads they deliver; each rack owns the attachment points its supports land on.
+_Avoid_: Support structure, frame, trestle
+
+**Rack row**:
+A rack built as a marching series of bays that share their station nodes.
+_Avoid_: Rack line, pipe rack
+
+**Rack bay**:
+One bay of a rack: the unit that owns attachment points and carries the load path; in a rack row, each bay is a rack in its own right.
+_Avoid_: Rack section, span
+
+**Attachment point**:
+A named node on a rack where an attached support lands, associating the support with the rack that carries it.
+_Avoid_: Connection point, anchor point
