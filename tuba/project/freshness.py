@@ -1,8 +1,10 @@
 """Freshness: whether a project's evidence still belongs to its model and study (spec decision 15).
 
-A review is stale when, for any operation it was solved for, the identity a solve would attest now
-differs from the attested one. "Now" means the current model plus the study's current solver options,
-computed by the same code the Code_Aster exporters run, so a study-option change also makes it stale.
+A review is stale when, for any operation it was solved for, a solve would not reuse the project's
+evidence (ADR-0005): the folder is missing, damaged, or unverified, or the identity a solve would
+attest now differs from the attested one. "Now" means the current model plus the study's current
+solver options, computed by the same code the Code_Aster exporters run, so a study-option change
+also makes it stale.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from tuba.analysis.provenance import SolverInputIdentity
 from tuba.model import TubaModel
+from tuba.project.evidence import evidence_dir, evidence_verdict
 
 if TYPE_CHECKING:
     from tuba.analysis.study import AnalysisStudy
@@ -41,14 +44,16 @@ def stale_operations(
     model: TubaModel,
     attested: Iterable[SolverInputIdentity],
     *,
+    project_root: str | Path,
     solver_options: Mapping[str, Any] | None = None,
     volume_export: Mapping[str, Any] | None = None,
 ) -> list[str]:
-    """The attested operations whose identity no longer matches what the model and study would solve.
+    """The attested operations whose evidence a solve would not reuse.
 
-    An operation that can no longer be compiled counts as stale: a missing operation, a model that no
-    longer validates, or a load path the model or study cannot run. Solver options the solver itself
-    rejects (an unknown modelization, a line_segments below 1) raise instead.
+    Stale means not reusable (ADR-0005): missing evidence, damaged or unverified evidence, an
+    identity that no longer matches what the model and study would compile, or an operation that
+    can no longer be compiled at all. Solver options the solver itself rejects (an unknown
+    modelization, a line_segments below 1) raise instead.
     """
     from tuba.solver.aster import CodeAsterSolver
 
@@ -59,7 +64,15 @@ def stale_operations(
             current = _identity(solver, model, identity.load_case, volume_export)
         except ValueError:  # the operation can no longer be compiled
             current = None
-        if current != identity:
+        if current is None:
+            stale.add(identity.load_case)
+            continue
+        try:
+            folder = evidence_dir(project_root, identity.load_case)
+        except ValueError:  # the operation cannot name an evidence folder
+            stale.add(identity.load_case)
+            continue
+        if not evidence_verdict(folder, current).reusable:
             stale.add(identity.load_case)
     return sorted(stale)
 

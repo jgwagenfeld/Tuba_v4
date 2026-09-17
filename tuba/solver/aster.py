@@ -36,11 +36,11 @@ from tuba.solver.aster_sidecar import (
 from tuba.solver.code_aster_runtime import (
     CodeAsterExecution,
     CodeAsterRuntimeConfig,
-    load_code_aster_execution_attestation,
     run_code_aster_export,
     write_code_aster_execution_attestation,
 )
 from tuba.analysis import AnalysisRun, AnalysisStudy
+from tuba.project.evidence import exported_study_matches
 from tuba.solver.modelisation import PipeModelization, needs_discrete_element
 from tuba.analysis.provenance import (
     SolverInputIdentity,
@@ -95,6 +95,13 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
 
     # Name reported in :class:`FEAResults`
     SOLVER_NAME = "Code_Aster"
+
+    #: Constructor options that choose how Code_Aster runs on this machine: not the study's
+    #: choice and not part of the solver input identity. ``timeout_seconds`` is not here,
+    #: because no environment variable or command-line flag sets a solve's timeout.
+    RUNTIME_OPTIONS = frozenset(
+        {"work_dir", "exec_method", "docker_image", "wsl_distro", "runner_command", "bridge_python"}
+    )
 
     def __init__(
         self,
@@ -488,7 +495,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         if manifest_study is not None:
             self._require_solve_ready_study(manifest_study)
         identity = (manifest_study or study).solver_input_identity
-        if force or not self._attested_solve_matches(work_dir, identity):
+        if force or not exported_study_matches(work_dir, identity):
             execution = self._execute(work_dir)
             write_code_aster_execution_attestation(work_dir, execution, identity)
         else:
@@ -496,25 +503,6 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 
         return import_code_aster_artifacts(model=model, work_dir=work_dir, study=study)
-
-    @staticmethod
-    def _attested_solve_matches(work_dir: Path, identity: SolverInputIdentity) -> bool:
-        """Report whether ``work_dir`` already holds a solve for this identity.
-
-        This is a cheap reuse probe, not the trust check. Any unreadable,
-        mismatched, or incomplete attestation is a miss that re-executes, so a
-        half-deleted work directory still solves instead of raising.
-        ``import_code_aster_artifacts`` still runs the full attestation
-        validation on whatever is reused.
-        """
-        try:
-            payload = load_code_aster_execution_attestation(work_dir)
-            if payload is None:
-                return False
-            attested = SolverInputIdentity.from_dict(payload["solver_input_identity"])
-        except (KeyError, OSError, TypeError, ValueError):
-            return False
-        return attested == identity
 
     def _require_solve_ready_study(self, study: AnalysisStudy) -> None:
         metadata = study.metadata

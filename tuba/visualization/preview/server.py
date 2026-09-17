@@ -8,11 +8,14 @@ import threading
 import time
 import traceback
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tuba.model import TubaModel
 from tuba.visualization.preview.transport import PreviewServer
 from tuba.visualization.web_export import write_scene_bundle
+
+if TYPE_CHECKING:
+    from tuba.project.study import StudySettings
 
 
 class ProjectStudioServer(PreviewServer):
@@ -63,14 +66,55 @@ class ProjectStudioServer(PreviewServer):
         #: The operations the last Solve left unverified (spec decision 18).
         self.unverified: tuple[str, ...] = ()
 
+    def _study_settings(self) -> "StudySettings":
+        """The study's validated settings; raises when there is no study or they are invalid."""
+        from tuba.project.study import study_settings
+
+        if self.study is None:
+            raise ValueError(f"{self.project.name} has no study.py to solve.")
+        return study_settings(self.study)
+
+    def _study_settings_or_none(self) -> "StudySettings | None":
+        """Validated settings for display and staleness; None when there is no study or it is invalid."""
+        if self.study is None:
+            return None
+        try:
+            return self._study_settings()
+        except ValueError:
+            return None
+
+    def _declared_operations(self) -> tuple[str, ...]:
+        """The operations study.py declares: what it would solve, even when its options are invalid."""
+        settings = self._study_settings_or_none()
+        if settings is not None:
+            return settings.operations
+        return tuple(getattr(self.study, "LOAD_CASES", ()) or ())
+
+    def _declared_artifact_dir(self) -> Path | None:
+        """study.py's declared ARTIFACT_DIR: the import-only review path needs no solver options."""
+        settings = self._study_settings_or_none()
+        if settings is not None:
+            return settings.artifact_dir
+        declared = getattr(self.study, "ARTIFACT_DIR", None)
+        return Path(declared) if declared is not None else None
+
+    def _review_builder(self):
+        """The study's review builder; the import-only path does not need valid solver options."""
+        settings = self._study_settings_or_none()
+        builder = settings.build_review if settings is not None else getattr(self.study, "build_review", None)
+        if not callable(builder):
+            raise ValueError(f"{self.project.name}'s study.py defines no build_review(namespace, output, ...).")
+        return builder
+
     def start(self) -> "ProjectStudioServer":
         super().start()
         result, event = self._run_script()
         if not result["ok"]:
             self.broker.broadcast(event)
             return self
-        artifact_dir = getattr(self.study, "ARTIFACT_DIR", None)
-        if self.study is not None and (artifact_dir is not None or not getattr(self.study, "LOAD_CASES", ())):
+        artifact_dir = self._declared_artifact_dir()
+        operations = self._declared_operations()
+        if self.study is not None and (artifact_dir is not None or not operations):
             # Attested evidence imports without a solver, and a study with no solver
             # has nothing to wait for; a study that must solve waits for Solve. It runs
             # in the background: the viewer is already up and hears review_ready.
@@ -158,11 +202,15 @@ class ProjectStudioServer(PreviewServer):
 
     @property
     def review_stale(self) -> bool:
-        """Spec decision 15: an operation the review was solved for would now attest a different identity."""
+        """Spec decision 15 and ADR-0005: the review is stale when its evidence is no longer reusable."""
         from tuba.project.freshness import stale_operations
 
         if self.model is None or self.study is None:
             return False
+        settings = self._study_settings_or_none()
+        if settings is None:
+            # study.py's solver options are invalid: nothing it would solve can match the review, and a Solve reports why.
+            return True
         attested = self._review_identities
         if not attested:
             return False
@@ -170,11 +218,11 @@ class ProjectStudioServer(PreviewServer):
             stale = stale_operations(
                 self.model,
                 attested,
-                solver_options=getattr(self.study, "SOLVER_OPTIONS", None),
-                volume_export=getattr(self.study, "VOLUME_EXPORT", None),
+                project_root=self.project.root,
+                solver_options=settings.solver_options,
+                volume_export=settings.volume_export,
             )
         except (TypeError, ValueError):
-            # study.py's solver options are invalid: nothing it would solve can match the review, and a Solve reports why.
             return True
         return bool(stale)
 
@@ -235,7 +283,7 @@ class ProjectStudioServer(PreviewServer):
 
         work = self.out_dir / ".review-work"
         shutil.rmtree(work, ignore_errors=True)
-        root = self.study.build_review(namespace, work, artifact_dir=artifact_dir)
+        root = self._review_builder()(namespace, work, artifact_dir=artifact_dir)
         identities = attested_identities(Path(root))
         self._swap_bundle("review", Path(root))
         self._review_identities = identities
@@ -245,13 +293,14 @@ class ProjectStudioServer(PreviewServer):
     def project_info(self) -> dict[str, Any]:
         from tuba.project.claim import solve_claimed
 
+        operations = self._declared_operations()
         return {
             "ok": True,
             "name": self.project.name,
             "has_study": self.study is not None,
             "can_solve": self.study is not None and self.namespace is not None,
-            "solves": bool(getattr(self.study, "LOAD_CASES", ())),
-            "load_cases": list(getattr(self.study, "LOAD_CASES", ()) or ()),
+            "solves": bool(operations),
+            "load_cases": list(operations),
             "has_review": (self.out_dir / "review" / "scene.json").is_file(),
             "review_stale": self.review_stale,
             "review_error": self.review_error,
@@ -266,21 +315,25 @@ class ProjectStudioServer(PreviewServer):
         Generated on request into a scratch folder the same way the gallery studies export
         before solving; nothing is solved and nothing is written into the project.
         """
-        if case not in (getattr(self.study, "LOAD_CASES", ()) or ()):
+        if self.study is None:
+            return 404, {"ok": False, "error": f"study.py solves no load case {case!r}."}
+        try:
+            settings = self._study_settings()
+        except ValueError as exc:  # invalid solver options are the answer, not a stale file
+            return 422, {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        if case not in settings.operations:
             return 404, {"ok": False, "error": f"study.py solves no load case {case!r}."}
         model = self.model
         if model is None:
             return 400, {"ok": False, "error": "model.py has not run successfully yet."}
         from tuba.project.freshness import export_study
-        from tuba.solver.aster import CodeAsterSolver
 
         # ignore_cleanup_errors: on Windows a mesher can still hold a file in the folder for a moment.
         with tempfile.TemporaryDirectory(prefix="tuba-comm-", ignore_cleanup_errors=True) as work:
             try:
-                solver = CodeAsterSolver(work_dir=work, **dict(getattr(self.study, "SOLVER_OPTIONS", None) or {}))
-                study = export_study(solver, model, case, work, getattr(self.study, "VOLUME_EXPORT", None))
+                study = export_study(settings.solver(work), model, case, work, settings.volume_export)
                 code = Path(study.input_files["comm"]).read_text(encoding="utf-8")
-            except Exception as exc:  # invalid study options or a case the model can no longer compile
+            except Exception as exc:  # a case the model can no longer compile
                 return 422, {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         return 200, {"ok": True, "case": case, "code": code}
 
@@ -309,7 +362,7 @@ class ProjectStudioServer(PreviewServer):
 
         self.broker.broadcast({"type": "solve_started"})
         try:
-            operations = tuple(getattr(self.study, "LOAD_CASES", None) or ())
+            operations = self._study_settings().operations
             artifact_dir = None
             if operations:
                 # Spec decisions 11 and 13: bring the project's evidence up to date, then review it.

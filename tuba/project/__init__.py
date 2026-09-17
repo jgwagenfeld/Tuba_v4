@@ -23,9 +23,12 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tuba.model import TubaModel
+
+if TYPE_CHECKING:
+    from tuba.project.study import StudySettings
 
 MODEL_SCRIPT = "model.py"
 STUDY_SCRIPT = "study.py"
@@ -82,6 +85,16 @@ class Project:
         # Not __main__: a study is configuration and review code, not model lines.
         return SimpleNamespace(**runpy.run_path(str(path), run_name=f"tuba_study.{self.name}.{path.stem}"))
 
+    def load_settings(self, filename: str = STUDY_SCRIPT) -> "StudySettings":
+        """The study's validated settings, or the empty record when it has no study.
+
+        Every one-shot surface loads a study through here, so validation happens once. The
+        studio revalidates per use instead, because study.py can be edited while it runs.
+        """
+        from tuba.project.study import study_settings
+
+        return study_settings(self.load_study(filename))
+
 
 def load_project(root: str | Path) -> Project:
     project = Project(Path(root).resolve())
@@ -101,15 +114,13 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
     parser.add_argument("--study", default=STUDY_SCRIPT, help="Study file inside the project (default: study.py)")
     args = parser.parse_args(argv)
     project = load_project(args.project)
-    study = project.load_study(args.study)
-    if study is None:
+    if not (project.root / args.study).is_file():
         parser.error(f"{project.root} has no {args.study}.")
-    from tuba.project.study import study_settings
-
     try:
-        operations = study_settings(study).operations
+        settings = project.load_settings(args.study)
     except ValueError as exc:
         parser.error(f"{args.study}: {exc}")
+    operations = settings.operations
     namespace = project.run_model()
     from tuba.project.script import require_model_script_style
     from tuba.verify import verify_model
@@ -139,6 +150,8 @@ def main(argv: list[str] | None = None, *, solver: Any = None) -> int:
             print(exc, file=sys.stderr)
             return 1
         artifact_dir = study_artifact_dir(project.root, operations)
-    root = study.build_review(namespace, args.output, artifact_dir=artifact_dir)
+    if settings.build_review is None:
+        parser.error(f"{args.study} defines no build_review(namespace, output, ...).")
+    root = settings.build_review(namespace, args.output, artifact_dir=artifact_dir)
     print(root)
     return 0

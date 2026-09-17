@@ -18,17 +18,13 @@ from types import SimpleNamespace
 from typing import Any, Protocol
 
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
-from tuba.analysis.provenance import SolverInputIdentity
 from tuba.analysis.run import AnalysisRun
 from tuba.analysis.study import AnalysisStudy
 from tuba.model import TubaModel
 from tuba.project import STUDY_SCRIPT, Project
 from tuba.project.claim import claim_solve
-from tuba.project.evidence import evidence_dir, promote_evidence
+from tuba.project.evidence import evidence_dir, evidence_verdict, promote_evidence
 from tuba.project.freshness import expected_identity, export_study
-from tuba.project.study import study_settings
-from tuba.solver.aster import CodeAsterSolver
-from tuba.solver.code_aster_runtime import execution_trust, load_code_aster_execution_attestation
 
 STAGING = Path(".tuba") / "staging"
 
@@ -70,23 +66,22 @@ def solve_project(
     evidence as it was; an interrupted promotion leaves the affected operations unsolved, never falsely
     attested.
     """
-    study = project.load_study(study_file)
-    settings = study_settings(study)
+    settings = project.load_settings(study_file)
     operations, options, volume_export = settings.operations, settings.solver_options, settings.volume_export
     if not operations:
         raise ValueError(f"{project.name} has no study operations to solve.")
     namespace = project.run_model() if namespace is None else namespace
     model = namespace["model"]
     folders = {operation: evidence_dir(project.root, operation) for operation in operations}
-    exporter = CodeAsterSolver(**options)
+    exporter = settings.solver()
     with claim_solve(project.root):
         solve = operations if force else tuple(
             operation
             for operation in operations
-            if not _evidence_attests(
+            if not evidence_verdict(
                 folders[operation],
                 expected_identity(model, operation, solver_options=options, volume_export=volume_export),
-            )
+            ).reusable
         )
         staging = project.root / STAGING
         shutil.rmtree(staging, ignore_errors=True)
@@ -101,7 +96,7 @@ def solve_project(
             for operation in operations:
                 if operation not in runs:
                     runs[operation] = import_code_aster_artifacts(model=model, work_dir=folders[operation])
-            check = getattr(study, "check", None)
+            check = settings.check
             if check is not None:
                 check(SimpleNamespace(model=model, namespace=namespace, runs={operation: runs[operation] for operation in operations}))
             promote_evidence({staging / operation: folders[operation] for operation in solve})
@@ -119,21 +114,4 @@ def solve_project(
         unverified=tuple(
             operation for operation, run in runs.items() if run.result_state.metadata.get("result_trust") != "verified"
         ),
-    )
-
-
-def _evidence_attests(folder: Path, identity: SolverInputIdentity) -> bool:
-    """Whether *folder* holds intact evidence of a verified run attesting *identity*.
-
-    Damaged evidence is solved again, not trusted. Unverified evidence is solved again rather than reused,
-    because no review accepts it.
-    """
-    try:
-        attestation = load_code_aster_execution_attestation(folder)
-    except ValueError:
-        return False
-    return (
-        attestation is not None
-        and execution_trust(attestation) == "verified"
-        and SolverInputIdentity.from_dict(attestation["solver_input_identity"]) == identity
     )

@@ -12,27 +12,62 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from tuba.project.evidence import evidence_dir
 from tuba.solver.aster import CodeAsterSolver
 
-#: How Code_Aster runs on this machine: not the study's choice, and not part of the solver input identity.
-#: A study may set ``timeout_seconds``, because no environment variable or command-line flag sets a solve's timeout.
-_RUNTIME = frozenset({"work_dir", "exec_method", "docker_image", "wsl_distro", "runner_command", "bridge_python"})
 _VOLUME_REQUIRED = ("element_ids", "max_element_size")
 _VOLUME = frozenset({*_VOLUME_REQUIRED, "element_order"})
 
 
+class Study(Protocol):
+    """What a ``study.py`` provides; :func:`study_settings` validates it into :class:`StudySettings`.
+
+    ``ARTIFACT_DIR`` and ``check`` are optional: a study that imports attested evidence instead
+    of solving, or that checks nothing beyond the solve, simply omits them. ``build_review`` may
+    take further optional keywords beyond the declared signature.
+    """
+
+    LOAD_CASES: tuple[str, ...]
+    SOLVER_OPTIONS: dict[str, Any]
+    VOLUME_EXPORT: dict[str, Any] | None
+
+    def build_review(
+        self,
+        namespace: Mapping[str, Any],
+        output: str | Path,
+        *,
+        artifact_dir: str | Path | None = None,
+    ) -> Path: ...
+
+
 @dataclass(frozen=True)
 class StudySettings:
-    """A study's validated settings; ``volume_export`` is None for a study of beams and pipes."""
+    """A study's validated settings, as one record every surface reads.
+
+    ``volume_export`` is None for a study of beams and pipes; ``artifact_dir`` is the evidence
+    a review imports instead of solving; ``build_review`` and ``check`` are the study's own
+    review builder and solve check, when it declares them. The empty record is a project
+    without a study.
+    """
 
     operations: tuple[str, ...]
     solver_options: dict[str, Any]
     volume_export: dict[str, Any] | None
+    artifact_dir: Path | None = None
+    build_review: Callable[..., Any] | None = None
+    check: Callable[..., Any] | None = None
+
+    def solver(self, work_dir: str | Path | None = None) -> CodeAsterSolver:
+        """The study's solver for *work_dir*: the one place ``SOLVER_OPTIONS`` are applied."""
+        options = dict(self.solver_options)
+        if work_dir is not None:
+            options["work_dir"] = work_dir
+        return CodeAsterSolver(**options)
 
 
 def study_settings(study: Any) -> StudySettings:
@@ -49,7 +84,7 @@ def study_settings(study: Any) -> StudySettings:
     if len({name.casefold() for name in names}) != len(names):
         raise ValueError(f"LOAD_CASES names an operation twice (names differing only in case share a folder): {names!r}.")
     options = dict(getattr(study, "SOLVER_OPTIONS", None) or {})
-    if runtime := sorted(_RUNTIME & set(options)):
+    if runtime := sorted(CodeAsterSolver.RUNTIME_OPTIONS & set(options)):
         raise ValueError(f"SOLVER_OPTIONS cannot choose how Code_Aster runs on this machine: {', '.join(runtime)}.")
     try:
         CodeAsterSolver(**options)
@@ -63,7 +98,15 @@ def study_settings(study: Any) -> StudySettings:
             raise ValueError(f"VOLUME_EXPORT needs {' and '.join(missing)}.")
         if options.get("load_path") is not None:
             raise ValueError("VOLUME_EXPORT cannot follow a load_path: native contact load paths need POU_D_T beams.")
-    return StudySettings(tuple(names), options, volume)
+    artifact_dir = getattr(study, "ARTIFACT_DIR", None)
+    artifact_dir = Path(artifact_dir) if artifact_dir is not None else None
+    build_review = getattr(study, "build_review", None)
+    if build_review is not None and not callable(build_review):
+        raise ValueError("build_review must be callable.")
+    check = getattr(study, "check", None)
+    if check is not None and not callable(check):
+        raise ValueError("check must be callable.")
+    return StudySettings(tuple(names), options, volume, artifact_dir, build_review, check)
 
 
 #: Marker for a study.py the MCP server manages: LOAD_CASES is synced from model.py's load
