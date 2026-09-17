@@ -8,7 +8,15 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-from tuba.patches import AddElement, AddNode, AddSupport, AssignAttribute, CreateGroup, ModelPatch
+from tuba.patches import (
+    AddElement,
+    AddNode,
+    AddSupport,
+    AssignAttribute,
+    CreateGroup,
+    ModelPatch,
+    ModelTransaction,
+)
 from tuba.routing.types import Point3D
 
 
@@ -748,3 +756,45 @@ class RackCorner:
                 "turn": self.turn,
             },
         )
+
+
+# ---------------------------------------------------------------------------
+# Construction units: the authored path for an assembly
+#
+# Applied with ``assemble(model, "tuba.assemblies:rack_bay", **params)``, these make the
+# invocation a retained recipe: the generated model script replays one ``assemble()``
+# call instead of unrolling the assembly's records, and the parameters stay editable.
+# The dataclasses above remain the patch builders.
+# ---------------------------------------------------------------------------
+
+def rack_bay(model, **params):
+    """Construction unit: build one rack bay and apply its patch.
+
+    Parameters are :class:`RackBay`'s: ``name``, ``origin``, ``length``, ``width``,
+    ``height``, ``levels``, ``section`` and ``material`` (required), plus optional
+    ``zone``, per-role sections and ``shoe_level``.
+    """
+    return ModelTransaction(model).apply(RackBay(**params).to_patch(), validate=True)
+
+
+def rack_row(model, **params):
+    """Construction unit: build one rack row and apply its patch.
+
+    Parameters are :class:`RackRow`'s: ``name_prefix``, ``origin``, ``material``,
+    ``section`` (required), plus ``direction``, ``bays``, ``bay_length``, ``width``,
+    ``height``, ``levels``, ``shoe_level``, ``shoes``, ``anchor_feet``,
+    ``friction_coefficient``, ``zone`` and per-role sections. ``shoes`` is a list of
+    ``[pipe_node_id, station]`` pairs; the pipe run that created those nodes must
+    replay before this call.
+    """
+    return ModelTransaction(model).apply(RackRow(**params).to_patch(), validate=True)
+
+
+def rack_corner(model, first, **params):
+    """Construction unit: build an L-corner (its first row plus the second) and apply its patch.
+
+    *first* is :class:`RackRow`'s parameters as a JSON dict, since ``assemble`` params
+    are literals; the remaining parameters are :class:`RackCorner`'s: ``name_prefix``,
+    ``turn``, ``bays``, ``bay_length``, ``shoes``, ``zone`` and the optional overrides.
+    """
+    return ModelTransaction(model).apply(RackCorner(first=RackRow(**first), **params).to_patch(), validate=True)

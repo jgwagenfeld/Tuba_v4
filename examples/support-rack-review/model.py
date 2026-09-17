@@ -1,8 +1,7 @@
 """A DN100 line resting on friction shoes on a steel I-beam rack bay, analysed together with the rack."""
 
 from tuba import Model
-from tuba.assemblies import RackBay
-from tuba.patches import ModelTransaction
+from tuba.assemblies import assemble
 
 model = Model("SupportRackReview")
 model.add_material(
@@ -17,22 +16,22 @@ model.add_ibeam_section("RackColumnIPE", "IPE160")
 model.add_ibeam_section("RackLongIPE", "IPE140")
 model.add_ibeam_section("RackCrossIPE", "IPE100")
 model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
-ModelTransaction(model).apply(
-    RackBay(
-        name="rack_A",
-        origin=(0.0, -1.0, 0.0),
-        length=4.0,
-        width=2.0,
-        height=3.0,
-        levels=(3.0,),
-        section="RackLongIPE",
-        material="Steel",
-        zone="north",
-        column_section="RackColumnIPE",
-        longitudinal_section="RackLongIPE",
-        transverse_section="RackCrossIPE",
-        shoe_level=3.0,
-    ).to_patch()
+assemble(
+    model,
+    "tuba.assemblies:rack_bay",
+    name="rack_A",
+    origin=(0.0, -1.0, 0.0),
+    length=4.0,
+    width=2.0,
+    height=3.0,
+    levels=(3.0,),
+    section="RackLongIPE",
+    material="Steel",
+    zone="north",
+    column_section="RackColumnIPE",
+    longitudinal_section="RackLongIPE",
+    transverse_section="RackCrossIPE",
+    shoe_level=3.0,
 )
 
 rack = model.groups["rack_A"]

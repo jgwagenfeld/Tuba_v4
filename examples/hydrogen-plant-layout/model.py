@@ -15,8 +15,7 @@ An industrial plant model featuring:
 """
 
 from tuba import Model
-from tuba.assemblies import RackRow
-from tuba.patches import ModelTransaction
+from tuba.assemblies import assemble
 
 # -----------------------------------------------------------------------------
 # 1. Project Engineering Parameters & Standards
@@ -175,7 +174,11 @@ with model.pipe(section="DN80_SCH80", material="SS316L", route="HP_H2") as p:
 # -----------------------------------------------------------------------------
 # 6. Central Structural Pipe Rack Assembly (RackRow)
 # -----------------------------------------------------------------------------
-rack = RackRow(
+# One assemble() call is the retained recipe: the rack's parameters stay editable, and
+# a generated model script replays this call instead of unrolling its records.
+assemble(
+    model,
+    "tuba.assemblies:rack_row",
     name_prefix="main_rack",
     origin=(RACK_ORIGIN_X, RACK_ORIGIN_Y, 0.0),
     material="StructuralSteel",
@@ -195,9 +198,6 @@ rack = RackRow(
     friction_coefficient=0.3,
     zone="process_corridor",
 )
-
-# Apply rack assembly patch to model
-ModelTransaction(model).apply(rack.to_patch(), validate=True)
 
 # -----------------------------------------------------------------------------
 # 7. Operating Load Case (Pressure + Temperature + Gravity)
