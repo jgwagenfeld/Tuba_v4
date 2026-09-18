@@ -30,5 +30,6 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
         scene_id="scene:street_rack_bridge",
         title="Street Rack Bridge review",
         source=namespace["__file__"],
+        include_load_paths=True,
     )
     return Path(summary["bundle_root"])
