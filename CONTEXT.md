@@ -172,6 +172,10 @@ _Avoid_: Outdated results, dirty review
 A support whose restraint acts between its node and another model node instead of a point fixed in space.
 _Avoid_: Linked support, connector
 
+**Grounded support**:
+A support whose restraint acts between its node and a point fixed in space; its load goes to foundation, and the load-path report lists it under grounded loads, not rack loads.
+_Avoid_: Fixed support, global support
+
 **Shoe**:
 The one-way contact every rest compiles to: it carries compression, slides with its friction coefficient and lifts off.
 _Avoid_: Unilateral zone

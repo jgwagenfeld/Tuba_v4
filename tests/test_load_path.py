@@ -85,7 +85,38 @@ class TestLoadPath(unittest.TestCase):
         support = model.add_support(node=rack_node, type="rest")
         report = analyze_load_paths(model)
         self.assertEqual(report.associations, [])
-        self.assertIn(f"Support {support.id!r} is not associated", " ".join(report.diagnostics))
+        # Grounded is by design, not a problem: no diagnostic, one grounded entry.
+        self.assertEqual(report.diagnostics, [])
+        self.assertEqual([load.support.id for load in report.grounded_loads], [support.id])
+        self.assertEqual(str(report.grounded_loads[0].node), f"node:{rack_node}")
+        # No reactions supplied: the force is unknown, not zero.
+        self.assertIsNone(report.grounded_loads[0].force_n)
+
+    def test_grounded_support_load_is_the_reaction_at_its_node(self):
+        model = self._rack_model()
+        rack_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
+        support = model.add_support(node=rack_node, type="anchor")
+        report = analyze_load_paths(model, node_reactions={rack_node: (10.0, 0.0, -2500.0)})
+        self.assertEqual(report.rack_loads, {})
+        load = report.grounded_loads[0]
+        self.assertEqual(load.support.id, support.id)
+        self.assertEqual(load.force_n, (10.0, 0.0, -2500.0))
+        self.assertEqual(
+            report.to_dict()["grounded_loads"][0]["force_n"], [10.0, 0.0, -2500.0]
+        )
+
+    def test_attached_support_on_a_non_rack_node_is_a_diagnostic(self):
+        model = self._rack_model()
+        stray = model.add_node([20.0, 0.0, 0.0])
+        pipe_node = model.add_node([20.0, 0.0, 0.25])
+        support = model.add_support(node=pipe_node, type="rest", attached_to=stray)
+        report = analyze_load_paths(model)
+        self.assertEqual(report.associations, [])
+        self.assertEqual(report.grounded_loads, [])
+        self.assertEqual(len(report.diagnostics), 1)
+        self.assertIn(support.id, report.diagnostics[0])
+        self.assertIn(stray, report.diagnostics[0])
+        self.assertIn("belongs to no rack", report.diagnostics[0])
 
 
 class TestRackRowLoadPath(unittest.TestCase):
@@ -165,8 +196,14 @@ class RackRowExampleEvidence(unittest.TestCase):
         # Five station shoes; the two inner stations belong to two bays each.
         self.assertEqual(len(report.associations), 8)
         self.assertTrue(all(association.attachment_point.startswith("mid_") for association in report.associations))
-        # Every diagnostic names a grounded support: the shoes all found their rack.
-        self.assertTrue(all(message.split("'")[1] in grounded_ids for message in report.diagnostics))
+        # Every shoe found its rack and every anchor is grounded by design: no diagnostics.
+        self.assertEqual(report.diagnostics, [])
+        # The twelve rack-foot anchors deliver their loads to foundation.
+        self.assertEqual({load.support.id for load in report.grounded_loads}, grounded_ids)
+        self.assertEqual(len(report.grounded_loads), 12)
+        for load in report.grounded_loads:
+            self.assertIsNotNone(load.force_n, load.support.id)
+        self.assertGreater(abs(sum(load.force_n[2] for load in report.grounded_loads)), 0.0)
         self.assertEqual(set(report.rack_loads), {"bridge_rack0", "bridge_rack1", "bridge_rack2", "bridge_rack3"})
         for bay, loads in report.rack_loads.items():
             self.assertEqual(loads["support_count"], 2, bay)

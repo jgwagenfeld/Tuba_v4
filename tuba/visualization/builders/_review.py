@@ -10,6 +10,7 @@ from tuba.model import TubaModel
 from tuba.quantities import quantity_takeoff
 from tuba.refs import EntityRef
 from tuba.clash.types import ClashResult
+from tuba.load_path import GroundedSupportLoad
 from tuba.load_path import LoadPathReport
 from tuba.load_path import SupportRackAssociation
 from tuba.routing.types import PipeRouteResult
@@ -370,18 +371,31 @@ def _build_load_path_scene(
         load_object_ids.extend([_object_id(association.support), vector_object.id])
         association_payloads.append(association.to_dict())
 
+    for grounded in report.grounded_loads:
+        load_object_ids.append(_object_id(grounded.support))
+        if grounded.force_n is None:
+            continue
+        vector_object, vector_asset = _build_grounded_load_vector(model, report, grounded)
+        objects.append(vector_object)
+        assets.append(vector_asset)
+        load_object_ids.append(vector_object.id)
+
     load_overlays: list[Overlay] = []
-    if report.associations or report.rack_loads:
+    if report.associations or report.rack_loads or report.grounded_loads:
         load_overlays.append(
             Overlay(
                 id="overlay:load_path",
                 kind="load_path",
                 object_ids=_dedupe(load_object_ids),
-                entity_refs=[association.support for association in report.associations],
+                entity_refs=[
+                    *[association.support for association in report.associations],
+                    *[grounded.support for grounded in report.grounded_loads],
+                ],
                 name="Load paths",
                 data={
                     "associations": association_payloads,
                     "rack_loads": {rack: dict(loads) for rack, loads in report.rack_loads.items()},
+                    "grounded_loads": [grounded.to_dict() for grounded in report.grounded_loads],
                     "diagnostics": list(report.diagnostics),
                 },
             )
@@ -474,7 +488,55 @@ def _load_path_reference(report: LoadPathReport) -> float:
         float(np.linalg.norm(np.asarray(_reaction_for_association(report, association), dtype=float)))
         for association in report.associations
     ]
+    magnitudes.extend(
+        float(np.linalg.norm(np.asarray(grounded.force_n, dtype=float)))
+        for grounded in report.grounded_loads
+        if grounded.force_n is not None
+    )
     return max([value for value in magnitudes if value > 0.0], default=0.0)
+
+
+def _build_grounded_load_vector(
+    model: TubaModel,
+    report: LoadPathReport,
+    grounded: GroundedSupportLoad,
+) -> tuple[SceneObject, GeometryAsset]:
+    reaction = [float(value) for value in grounded.force_n]
+    start = _support_point(model, grounded.support.id)
+    end = _vector_endpoint(
+        start,
+        reaction,
+        reference=_load_path_reference(report),
+        span=model_span(model),
+    )
+    object_id = f"object:load_path:{grounded.support.id}:ground"
+    asset_id = f"geometry:load_path:{grounded.support.id}:ground"
+    asset = GeometryAsset(
+        id=asset_id,
+        format="vector",
+        bounds=_bounds_for_points([start, end], 0.0),
+        object_ids=[object_id],
+        generation_config={
+            "source": "tuba.load_path",
+            "start": start,
+            "end": end,
+            "reaction_vector_n": reaction,
+            "grounded": grounded.to_dict(),
+        },
+    )
+    obj = SceneObject(
+        id=object_id,
+        kind="load_path_vector",
+        name=f"{grounded.support.id} to ground",
+        geometry_asset_id=asset_id,
+        metadata={
+            "support_id": grounded.support.id,
+            "node_id": grounded.node.id,
+            "target": "ground",
+            "reaction_n": reaction,
+        },
+    )
+    return obj, asset
 
 
 def _build_load_path_vector(

@@ -56,6 +56,38 @@ class TestVisualizationRacks(unittest.TestCase):
         load_overlay = next(overlay for overlay in scene.overlays if overlay.kind == "load_path")
         self.assertIn(vector.id, load_overlay.object_ids)
         self.assertEqual(load_overlay.data["rack_loads"]["rack_A"]["force_z_n"], -1000.0)
+        self.assertEqual(load_overlay.data["grounded_loads"], [])
+
+    def test_grounded_support_loads_draw_vectors_to_ground(self):
+        model, support = self._rack_model(attach_support=False)
+        report = analyze_load_paths(model, node_reactions={support.node: (0.0, 0.0, -500.0)})
+
+        scene = build_visualization_scene(SceneRequest(model, load_path_report=report, scene_id="scene_grounded"))
+        scene.validate()
+
+        vector = next(obj for obj in scene.objects if obj.kind == "load_path_vector")
+        self.assertEqual(vector.metadata["support_id"], support.id)
+        self.assertEqual(vector.metadata["target"], "ground")
+        self.assertEqual(vector.metadata["reaction_n"], [0.0, 0.0, -500.0])
+        load_overlay = next(overlay for overlay in scene.overlays if overlay.kind == "load_path")
+        self.assertIn(vector.id, load_overlay.object_ids)
+        self.assertEqual(load_overlay.data["rack_loads"], {})
+        self.assertEqual(len(load_overlay.data["grounded_loads"]), 1)
+        self.assertEqual(load_overlay.data["grounded_loads"][0]["force_n"], [0.0, 0.0, -500.0])
+        # Grounded is by design: no load-path issue.
+        self.assertEqual([issue for issue in scene.issues if issue.type == "load_path"], [])
+
+    def test_grounded_support_without_reactions_draws_no_vector(self):
+        model, support = self._rack_model(attach_support=False)
+        report = analyze_load_paths(model)
+
+        scene = build_visualization_scene(SceneRequest(model, load_path_report=report, scene_id="scene_grounded_unsolved"))
+        scene.validate()
+
+        self.assertEqual([obj for obj in scene.objects if obj.kind == "load_path_vector"], [])
+        load_overlay = next(overlay for overlay in scene.overlays if overlay.kind == "load_path")
+        self.assertEqual(len(load_overlay.data["grounded_loads"]), 1)
+        self.assertIsNone(load_overlay.data["grounded_loads"][0]["force_n"])
 
     def test_row_bays_emit_a_rack_assembly_overlay_each(self):
         model = Model(project_name="RowRackReview")
@@ -97,16 +129,22 @@ class TestVisualizationRacks(unittest.TestCase):
         self.assertEqual(set(overlays[0].data["attachment_points"]), {"mid_0", "mid_1"})
         self.assertEqual(set(overlays[1].data["attachment_points"]), {"mid_1", "mid_2"})
 
-    def test_unassociated_support_becomes_review_issue(self):
-        model, _support = self._rack_model(attach_support=False)
+    def test_misattached_support_becomes_review_issue(self):
+        model, _grounded = self._rack_model(attach_support=False)
+        stray = model.add_node([25.0, 0.0, 0.0])
+        pipe_node = model.add_node([25.0, 0.0, 0.25])
+        support = model.add_support(node=pipe_node, type="rest", attached_to=stray)
         report = analyze_load_paths(model)
 
         scene = build_visualization_scene(SceneRequest(model, load_path_report=report, scene_id="scene_rack_review"))
-        issue = next(issue for issue in scene.issues if issue.type == "load_path")
+        issues = [issue for issue in scene.issues if issue.type == "load_path"]
 
-        self.assertEqual(issue.severity, "warning")
-        self.assertEqual(issue.status, "open")
-        self.assertIn("not associated", issue.description)
+        # The misattached support is the one problem; the grounded one is by design.
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].severity, "warning")
+        self.assertEqual(issues[0].status, "open")
+        self.assertIn(support.id, issues[0].description)
+        self.assertIn("belongs to no rack", issues[0].description)
 
     def test_attached_support_emits_a_link_to_its_structure_node(self):
         model, support = self._rack_model()
