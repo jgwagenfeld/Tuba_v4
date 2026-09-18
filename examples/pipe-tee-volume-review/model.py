@@ -3,16 +3,6 @@
 from tuba import Model
 from tuba.assemblies import assemble
 
-model = Model("PipeTeeVolumeReview")
-model.add_material(
-    "Steel",
-    E=2.1e11,
-    nu=0.3,
-    rho=7850.0,
-    allowable_stress={20.0: 137.0e6},
-)
-model.add_pipe_section("Header", OD=0.1, WT=0.01)
-
 
 def tee_junction(model, section="Header", material="Steel", arm=0.08):
     """Build the 3D solid welding tee and return its ``(hub, left, right, branch)`` nodes.
@@ -30,6 +20,17 @@ def tee_junction(model, section="Header", material="Steel", arm=0.08):
     model.add_element(id="branch", type="pipe_straight", n1=hub, n2=branch, section=section, material=material)
     model.define_tee(hub, type="welding_tee")
     return hub, left, right, branch
+
+
+model = Model("PipeTeeVolumeReview")
+model.add_material(
+    "Steel",
+    E=2.1e11,
+    nu=0.3,
+    rho=7850.0,
+    allowable_stress={20.0: 137.0e6},
+)
+model.add_pipe_section("Header", OD=0.1, WT=0.01)
 
 
 # 3D solid tee junction (meshed with Gmsh as HEXA20 solids):

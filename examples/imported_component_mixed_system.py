@@ -16,7 +16,7 @@ import numpy as np
 import tuba
 from tuba.geometry.step_analysis_importer import StepAnalysisImporter
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 from tuba.visualization.scene import SceneDiagnostic
 
 

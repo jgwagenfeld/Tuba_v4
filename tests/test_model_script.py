@@ -12,7 +12,7 @@ from tuba.builder import BuildStep, PipeRunRecipe
 from tuba.model import TubaModel
 from tuba.patches import ModelPatch, ModelTransaction
 from tuba.project import load_project, run_model_script
-from tuba.project.script import GENERATED_HEADER, generate_model_script, is_generated, same_model
+from tuba.project.script import GENERATED_HEADER, _prologue_segments, generate_model_script, is_generated, same_model
 from tuba.project.script import AuthoredModelScript, ModelScriptChanged, write_model_script
 
 EXAMPLES = sorted(
@@ -59,7 +59,14 @@ def _sections_model(name: str) -> TubaModel:
 @pytest.mark.parametrize("folder", EXAMPLES, ids=lambda folder: folder.name)
 def test_a_generated_script_rebuilds_each_example_project(folder: Path):
     model = load_project(folder).run_model()["model"]
-    text = generate_model_script(model)
+    # Mirror the writer: units defined in the authored model.py ride along as the
+    # prologue. A script with engineering constants in its leading run is refused by
+    # the writer ("keep the file hand-written"); it defines no carry-able units.
+    try:
+        prologue = _prologue_segments((folder / "model.py").read_text(encoding="utf-8"))
+    except ValueError:
+        prologue = []
+    text = generate_model_script(model, prologue=prologue)
 
     assert is_generated(text)
     assert same_model(model, _rebuild(text))
