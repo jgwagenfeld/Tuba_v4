@@ -51,32 +51,14 @@ logger = logging.getLogger(__name__)
 
 
 def _held_dofs(support) -> list[str]:
-    """The DOFs a two-way support holds, exactly as the grounded branch blocks them."""
+    """The DOFs a two-way support holds: every axis its restraint fixes (one projection of it)."""
     names = ["DX", "DY", "DZ", "DRX", "DRY", "DRZ"]
-    if support.blocked_dof is not None:
-        return [names[i] for i, value in enumerate(support.blocked_dof) if value not in (False, 0, "0", "x", "X", None)]
-    if support.type == "anchor":
-        return names
-    if support.type == "guide" and support.direction:
-        return [names[i] for i, value in enumerate(support.direction) if abs(value) > 1e-12]
-    return names[:3]
+    return [name for name, state in zip(names, support.restraint().states) if state == "fixed"]
 
 
 def _spring_stiffness(support) -> list[float]:
     """The six global stiffnesses [Kx, Ky, Kz, Krx, Kry, Krz] of a spring support."""
-    if support.stiffness_matrix:
-        return support.stiffness_matrix
-    if not support.direction:
-        raise ValueError(
-            f"Spring support at node {support.node} uses scalar stiffness without direction. "
-            "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
-        )
-    value = support.stiffness if support.stiffness is not None else 1.0e6
-    stiffness = [0.0] * 6
-    for index, component in enumerate(support.direction):
-        if abs(component) > 1e-12:
-            stiffness[index] = value
-    return stiffness
+    return list(support.restraint().spring_stiffness)
 
 
 def _pipe_orientation_vector(model: TubaModel, pipe_straights: list, pipe_bends: list) -> tuple[float, float, float]:

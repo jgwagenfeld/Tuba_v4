@@ -277,3 +277,23 @@ test("a load arrow names its load case, linked to the line that defines the case
   const load = summary.sections.find((section) => section.title === "Load");
   assert.deepEqual(load.lines, [{ kind: "row", label: "Load case", value: "Operating", sourceLine: 12 }]);
 });
+
+test("a scene's own restraint states win over deriving them from raw keys", () => {
+  // tuba.model.Support.restraint() writes dof_states; the viewer renders them.
+  assert.equal(
+    states({
+      support_type: "guide",
+      direction: [1, 0, 0],
+      dof_states: ["free", "free", "one-way", "free", "free", "free"]
+    }),
+    "free,free,one-way,free,free,free"
+  );
+});
+
+test("a malformed dof_states field falls back to deriving them", () => {
+  assert.equal(states({ support_type: "rest", dof_states: ["fixed"] }), "free,free,one-way,free,free,free");
+  assert.equal(
+    states({ support_type: "rest", dof_states: ["fixed", "free", "free", "free", "free", "nonsense"] }),
+    "free,free,one-way,free,free,free"
+  );
+});

@@ -272,6 +272,8 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
     support_data = {
         "support_id": support.id,
         "support_type": support.type,
+        # The solver's own restraint states, so the viewer renders what Code_Aster compiles.
+        "dof_states": list(support.restraint().states),
         **{
             key: value
             for key, value in asdict(support).items()

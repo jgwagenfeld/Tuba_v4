@@ -108,6 +108,9 @@ class TestVisualizationBuilders(unittest.TestCase):
             "blocked_dof": [1, 1, 0, 0, 0, 1],
             "mass": 12.0,
             "friction_coefficient": 0.2,
+            # The solver's own restraint record: X/Y fixed by the override, RZ fixed
+            # by the override too, and the matrix springs the axes left free.
+            "dof_states": ["fixed", "fixed", "spring", "spring", "spring", "fixed"],
         }
         self.assertEqual(scene_object.metadata, {"node": "N1", **expected})
         self.assertEqual(

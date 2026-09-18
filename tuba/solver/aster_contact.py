@@ -54,7 +54,10 @@ def shoes(model, formulation):
             raise ValueError('Native shoe support movement is not implemented.')
         if any(s is not support and s.node == support.node and s.type not in ('rest', 'spring') for s in model.supports):
             raise ValueError(f'Contact at {support.node} overlaps another displacement restraint.')
-        n = np.asarray(support.direction or (0., 0., 1.), dtype=float)
+        # The one-way state says which axis the shoe acts on when no direction is authored.
+        restraint = support.restraint()
+        fallback_axis = restraint.states.index("one-way") if "one-way" in restraint.states else 2
+        n = np.asarray(support.direction or np.eye(3)[fallback_axis], dtype=float)
         n /= np.linalg.norm(n)
         axis = np.eye(3)[int(np.argmin(np.abs(n)))]
         tangent = axis - n * np.dot(axis, n)

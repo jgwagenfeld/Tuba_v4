@@ -318,6 +318,67 @@ class Support:
             if direction.shape != (3,) or not np.all(np.isfinite(direction)) or np.linalg.norm(direction) == 0:
                 raise ValueError('Support direction must be a finite nonzero three-vector.')
 
+    def restraint(self) -> "SupportRestraint":
+        """The six restraint states this support compiles to, and its resolved spring stiffness.
+
+        The solver's DDL emission, the contact shoe's one-way axis and the review glyph all read
+        this one record, so they cannot disagree about what a support does.
+        """
+        states = ["free"] * 6
+        stiffness = [0.0] * 6
+        direction = [float(value) for value in self.direction] if self.direction is not None else None
+        if self.stiffness_matrix is not None:
+            matrix = list(self.stiffness_matrix)
+            stiffness = [
+                float(matrix[index])
+                if index < len(matrix) and np.isfinite(float(matrix[index]))
+                else 0.0
+                for index in range(6)
+            ]
+        elif direction is not None:
+            value = self.stiffness if self.stiffness is not None else 1.0e6
+            for index in range(3):
+                if abs(direction[index]) > 1e-12:
+                    stiffness[index] = float(value)
+        elif self.type == "spring":
+            raise ValueError(
+                f"Spring support at node {self.node} uses scalar stiffness without direction. "
+                "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
+            )
+        if self.blocked_dof is not None:
+            for index, value in enumerate(self.blocked_dof[:6]):
+                states[index] = "fixed" if value not in (False, 0, "0", "x", "X", None) else "free"
+        elif self.type in ("anchor", "fixed"):
+            states = ["fixed"] * 6
+        elif self.type == "rest":
+            axis = 2
+            if direction is not None:
+                axis = next((index for index in range(3) if abs(direction[index]) > 1e-12), 2)
+            states[axis] = "one-way"
+        elif self.type == "guide" and direction is not None:
+            for index in range(3):
+                if abs(direction[index]) > 1e-12:
+                    states[index] = "fixed"
+        elif self.type != "spring":
+            # A guide with no direction, and the fallback for an unrecognised type: all translations.
+            states[0] = states[1] = states[2] = "fixed"
+        for index, value in enumerate(stiffness):
+            if states[index] == "free" and value != 0.0:
+                states[index] = "spring"
+        return SupportRestraint(tuple(states), tuple(stiffness))
+
+
+@dataclass(frozen=True)
+class SupportRestraint:
+    """One support's six restraint states (X, Y, Z, RX, RY, RZ) and its spring stiffnesses.
+
+    A state is ``fixed`` (a bilateral restraint), ``one-way`` (a shoe that lifts off),
+    ``spring`` (a discrete stiffness), or ``free``.
+    """
+
+    states: tuple[str, ...]
+    spring_stiffness: tuple[float, ...]
+
 
 TEE_TYPES = ("welding_tee", "reinforced_tee", "unreinforced_tee")
 

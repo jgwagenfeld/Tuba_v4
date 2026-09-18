@@ -422,7 +422,7 @@ export function categorizeLayers(layers) {
     const leaves = [];
     const groupLeaves = [];
     for (const layer of gates) {
-      const entry = { layerId: layer.id, label: leafLabel(layer.id), count: layer.count };
+      const entry = { layerId: layer.id, label: layer.label || leafLabel(layer.id), count: layer.count };
       if (/:group:[^:]+$/.test(layer.id)) {
         groupLeaves.push(entry);
       } else {

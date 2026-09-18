@@ -488,15 +488,27 @@ test("categorizeLayers orders categories and collapses mesh groups", () => {
   assert.deepEqual(design.leaves, [{ layerId: "pipe", label: "Pipe", count: 105 }]);
   assert.deepEqual(design.groups, []);
 
+  // A layer's own label (the scene writes it) is what the tree shows.
   const mesh = categories.find((category) => category.id === "analysis_mesh");
   assert.deepEqual(mesh.layerIds, ["analysis_mesh:nodes", "analysis_mesh:group:GN_N0", "analysis_mesh:group:MAT_Steel"]);
-  assert.deepEqual(mesh.leaves, [{ layerId: "analysis_mesh:nodes", label: "Nodes", count: 71 }]);
+  assert.deepEqual(mesh.leaves, [
+    { layerId: "analysis_mesh:nodes", label: "Analysis Mesh Nodes", count: 71 }
+  ]);
   assert.equal(mesh.groups.length, 1);
   assert.equal(mesh.groups[0].label, "Groups");
   assert.deepEqual(mesh.groups[0].leaves, [
-    { layerId: "analysis_mesh:group:GN_N0", label: "Nodes: N0", count: 1 },
-    { layerId: "analysis_mesh:group:MAT_Steel", label: "Material: Steel", count: 105 }
+    { layerId: "analysis_mesh:group:GN_N0", label: "Analysis Mesh Group GN N0", count: 1 },
+    { layerId: "analysis_mesh:group:MAT_Steel", label: "Analysis Mesh Group MAT Steel", count: 105 }
   ]);
+});
+
+test("a layer without its own label falls back to the leaf rule", () => {
+  const categories = categorizeLayers({
+    "analysis_mesh:group:GN_N0": { id: "analysis_mesh:group:GN_N0", count: 1, source: "object" }
+  });
+
+  const mesh = categories.find((category) => category.id === "analysis_mesh");
+  assert.deepEqual(mesh.groups[0].leaves, [{ layerId: "analysis_mesh:group:GN_N0", label: "Nodes: N0", count: 1 }]);
 });
 
 // The tree used to read as a list of solver identifiers with their capitals
@@ -542,7 +554,7 @@ test("categorizeLayers gives the support layer its engineering label", () => {
     support: {
       id: "support",
       category: "design",
-      label: "Support",
+      label: "Supports / constraints",
       visible: true,
       count: 4,
       source: "object",

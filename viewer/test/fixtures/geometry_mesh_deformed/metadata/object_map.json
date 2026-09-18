@@ -289,21 +289,6 @@
     "geometry_asset_id": "geometry:deformed_centerline:geometry_state:Hot:visual_x50:pipe_str_1",
     "kind": "deformed_centerline"
   },
-  "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation": {
-    "entity_ref": "element:pipe_bend_0",
-    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation",
-    "kind": "deformed_envelope"
-  },
-  "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation": {
-    "entity_ref": "element:pipe_str_0",
-    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation",
-    "kind": "deformed_envelope"
-  },
-  "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation": {
-    "entity_ref": "element:pipe_str_1",
-    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation",
-    "kind": "deformed_envelope"
-  },
   "object:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s0": {
     "entity_ref": "element:pipe_bend_0",
     "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s0",
