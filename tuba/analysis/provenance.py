@@ -53,6 +53,20 @@ class SolverInputIdentity:
         )
 
 
+# The solver reads group names (they are reserved in the compiler) and group
+# members (operation fields scope to member elements). Group metadata is rack
+# and inspection annotation the solver never reads, so it must not move the
+# fingerprint - W1 watched rack attachment points stale solved bridge evidence.
+_GROUP_MEMBER_KEYS = ("nodes", "elements", "supports")
+
+
+def _solver_groups_projection(groups: dict[str, Any]) -> dict[str, Any]:
+    return {
+        name: {key: list(group[key]) for key in _GROUP_MEMBER_KEYS if group.get(key)}
+        for name, group in groups.items()
+    }
+
+
 def build_solver_input_identity(
     model: Any,
     load_case: str | None,
@@ -68,10 +82,12 @@ def build_solver_input_identity(
         if compiler_id in {VOLUME_CODE_ASTER_COMPILER_ID, MIXED_CODE_ASTER_COMPILER_ID}
         else ()
     )
+    model_payload = {key: model_data.get(key) for key in model_keys}
+    model_payload["groups"] = _solver_groups_projection(model_data.get("groups") or {})
     payload = {
         "schema_id": MODEL_SCHEMA_ID,
         "compiler_id": compiler_id,
-        "model": {key: model_data.get(key) for key in model_keys},
+        "model": model_payload,
         "resolved_case": {
             "name": resolved_name,
             "gravity": bool(resolved_case.gravity),

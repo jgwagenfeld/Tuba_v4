@@ -481,6 +481,47 @@ def test_solver_input_identity_ignores_int_versus_float_literals():
     assert integers == floats
 
 
+def _grouped_model():
+    model = Model(project_name="Grouped")
+    model.add_material("Steel", E=2.0e11, nu=0.3)
+    model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+    node_a = model.add_node([0.0, 0.0, 0.0])
+    node_b = model.add_node([1.0, 0.0, 0.0])
+    model.add_element(id="run", type="pipe_straight", n1=node_a, n2=node_b, section="Pipe", material="Steel")
+    model.define_load_case("Operating", gravity=True)
+    model.groups["rack_A"] = {"elements": ["run"], "metadata": {"zone": "yard"}}
+    return model
+
+
+def test_group_metadata_does_not_move_the_solver_input_identity():
+    """Rack attachment points are inspection metadata; adding them must not re-solve.
+
+    W1 found this the hard way: extending a rack's attachment points staled the
+    bridge evidence, although the solver never reads group metadata. The identity
+    hashes the solver-relevant projection of groups - their names and members.
+    """
+    plain = build_solver_input_identity(_grouped_model(), "Operating")
+    annotated_model = _grouped_model()
+    annotated_model.groups["rack_A"]["metadata"]["attachment_points"] = {"level_1_left": "node:N0"}
+    annotated = build_solver_input_identity(annotated_model, "Operating")
+
+    assert plain == annotated
+
+
+def test_group_membership_moves_the_solver_input_identity():
+    """Members define what a group is; an operation field scoping to it must re-solve."""
+    plain = build_solver_input_identity(_grouped_model(), "Operating")
+    moved_model = _grouped_model()
+    moved_model.groups["rack_A"]["elements"] = []
+    moved = build_solver_input_identity(moved_model, "Operating")
+    renamed_model = _grouped_model()
+    renamed_model.groups["rack_B"] = renamed_model.groups.pop("rack_A")
+    renamed = build_solver_input_identity(renamed_model, "Operating")
+
+    assert moved != plain
+    assert renamed != plain
+
+
 def test_solver_input_identity_survives_last_bit_float_noise():
     """One model built on Windows and on Linux must keep one identity.
 
