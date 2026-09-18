@@ -86,6 +86,9 @@ anything else; write units that pass it the first time.
   JSON-serializable literals so invocations replay byte-identically.
 - `model` is always the first parameter; document what the unit builds and what
   each parameter means in the docstring.
+- Place unit defs in the leading run of `model.py` (docstring, imports, defs,
+  before `model = ...`): the script writer carries only that run, so a def below
+  the first assignment is invisible to generated round-trips.
 - Validate inputs and fail loudly (`ValueError` with the expected value), like
   the shoe-midpoint alignment check. Never `print`, never bare `except`.
 - Prefer the library (`tuba.assemblies.RackRow`, patch ops, `ModelTransaction`)
