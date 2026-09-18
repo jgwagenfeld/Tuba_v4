@@ -237,44 +237,23 @@ class ModelTransaction:
         n2 = node_ids.get(operation.n2, operation.n2)
         prefix = operation.id_prefix or _prefix_for_element_type(operation.type)
         elem_id = target.next_element_id(prefix)
-        target.add_element(
-            id=elem_id,
-            type=operation.type,
-            n1=n1,
-            n2=n2,
-            section=operation.section,
-            material=operation.material,
-            bend_radius=operation.bend_radius,
-            bend_angle=operation.bend_angle,
-            bend_geometry=(
-                BendGeometry.from_dict(operation.bend_geometry)
-                if isinstance(operation.bend_geometry, dict)
-                else operation.bend_geometry
-            ),
-            twist_angle=operation.twist_angle,
-            route_id=operation.route_id,
-            station_start=operation.station_start,
-            station_end=operation.station_end,
-        )
+        # Project the operation's own record: a new Element field flows through here
+        # without a second field list to keep in step.
+        payload = {
+            key: value for key, value in asdict(operation).items() if key not in {"local_id", "id_prefix"}
+        }
+        payload.update(id=elem_id, n1=n1, n2=n2)
+        if isinstance(payload["bend_geometry"], dict):
+            payload["bend_geometry"] = BendGeometry.from_dict(payload["bend_geometry"])
+        target.add_element(**payload)
         return elem_id
 
     def _apply_add_support(self, target: TubaModel, operation: AddSupport, node_ids: dict[str, str]) -> None:
-        node = node_ids.get(operation.node, operation.node)
-        target.add_support(
-            node=node,
-            type=operation.type,
-            direction=operation.direction,
-            stiffness=operation.stiffness,
-            imposed_displacement=operation.imposed_displacement,
-            stiffness_matrix=operation.stiffness_matrix,
-            blocked_dof=operation.blocked_dof,
-            mass=operation.mass,
-            friction_coefficient=operation.friction_coefficient,
-            gap=operation.gap,
-            normal_stiffness=operation.normal_stiffness,
-            tangential_stiffness=operation.tangential_stiffness,
-            attached_to=node_ids.get(operation.attached_to, operation.attached_to) if operation.attached_to is not None else None,
-        )
+        payload = asdict(operation)
+        payload["node"] = node_ids.get(operation.node, operation.node)
+        if operation.attached_to is not None:
+            payload["attached_to"] = node_ids.get(operation.attached_to, operation.attached_to)
+        target.add_support(**payload)
 
     def _apply_add_insulation_spec(self, target: TubaModel, operation: AddInsulationSpec) -> None:
         target.add_insulation_spec(

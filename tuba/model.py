@@ -241,6 +241,40 @@ class Element:
     source_line: Optional[int] = None
     source_call_line: Optional[int] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """The canonical payload: optional fields stay absent, declared floats are float.
+
+        The fingerprint hashes it, model.json writes it, and generated scripts project
+        it; nothing may read the dataclass attributes into a second shape.
+        """
+        data: Dict[str, Any] = {
+            "id": self.id,
+            "type": self.type,
+            "n1": self.n1,
+            "n2": self.n2,
+            "section": self.section,
+            "material": self.material,
+        }
+        # These are declared float, so serialize them as float even when the caller
+        # passed an int literal: JSON renders 90 and 90.0 differently, which would
+        # change the solver-input fingerprint of an otherwise identical model.
+        if self.bend_radius is not None:
+            data["bend_radius"] = float(self.bend_radius)
+        if self.bend_angle is not None:
+            data["bend_angle"] = float(self.bend_angle)
+        if self.bend_geometry is not None:
+            data["bend_geometry"] = self.bend_geometry.to_dict()
+        twist_angle = float(getattr(self, "twist_angle", 0.0))
+        if twist_angle != 0.0:
+            data["twist_angle"] = twist_angle
+        if self.route_id is not None:
+            data["route_id"] = self.route_id
+        if self.station_start is not None:
+            data["station_start"] = float(self.station_start)
+        if self.station_end is not None:
+            data["station_end"] = float(self.station_end)
+        return data
+
 
 @dataclass
 class BendGeometry:
@@ -301,6 +335,38 @@ class Support:
     attached_to: Optional[str] = None  # the node the restraint acts against; None means ground
     source_line: Optional[int] = None  # user script lines, not serialized (see Element)
     source_call_line: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """The canonical payload: optional fields stay absent.
+
+        Pinned: ``imposed_displacement`` is carried by the record and consumed by
+        reporting and contact code but is not encoded; making this encoding
+        canonical must not silently change that.
+        """
+        data: Dict[str, Any] = {"node": self.node, "type": self.type}
+        if self.id is not None:
+            data["id"] = self.id
+        if self.direction:
+            data["direction"] = self.direction
+        if self.stiffness is not None:
+            data["stiffness"] = self.stiffness
+        if self.stiffness_matrix is not None:
+            data["stiffness_matrix"] = self.stiffness_matrix
+        if self.blocked_dof is not None:
+            data["blocked_dof"] = self.blocked_dof
+        if self.mass != 0.0:
+            data["mass"] = self.mass
+        if self.friction_coefficient != 0.0:
+            data["friction_coefficient"] = self.friction_coefficient
+        if self.gap != 0.0:
+            data["gap"] = self.gap
+        if self.normal_stiffness is not None:
+            data["normal_stiffness"] = self.normal_stiffness
+        if self.tangential_stiffness is not None:
+            data["tangential_stiffness"] = self.tangential_stiffness
+        if self.attached_to is not None:
+            data["attached_to"] = self.attached_to
+        return data
 
     def __post_init__(self):
         if self.type not in SUPPORT_TYPES:
@@ -1398,46 +1464,8 @@ class TubaModel:
                 for name, s in self.sections.items()
             },
             "nodes": {nid: n.coords.tolist() for nid, n in self.nodes.items()},
-            "elements": [
-                {
-                    "id": e.id,
-                    "type": e.type,
-                    "n1": e.n1,
-                    "n2": e.n2,
-                    "section": e.section,
-                    "material": e.material,
-                    # These are declared float, so serialize them as float even when
-                    # the caller passed an int literal: JSON renders 90 and 90.0
-                    # differently, which would change the solver-input fingerprint
-                    # of an otherwise identical model.
-                    **({"bend_radius": float(e.bend_radius)} if e.bend_radius is not None else {}),
-                    **({"bend_angle": float(e.bend_angle)} if e.bend_angle is not None else {}),
-                    **({"bend_geometry": e.bend_geometry.to_dict()} if e.bend_geometry is not None else {}),
-                    **({"twist_angle": float(e.twist_angle)} if getattr(e, "twist_angle", 0.0) != 0.0 else {}),
-                    **({"route_id": e.route_id} if e.route_id is not None else {}),
-                    **({"station_start": float(e.station_start)} if e.station_start is not None else {}),
-                    **({"station_end": float(e.station_end)} if e.station_end is not None else {}),
-                }
-                for e in self.elements
-            ],
-            "supports": [
-                {
-                    "node": s.node,
-                    "type": s.type,
-                    **({"id": s.id} if s.id is not None else {}),
-                    **({"direction": s.direction} if s.direction else {}),
-                    **({"stiffness": s.stiffness} if s.stiffness is not None else {}),
-                    **({"stiffness_matrix": s.stiffness_matrix} if s.stiffness_matrix is not None else {}),
-                    **({"blocked_dof": s.blocked_dof} if s.blocked_dof is not None else {}),
-                    **({"mass": s.mass} if s.mass != 0.0 else {}),
-                    **({"friction_coefficient": s.friction_coefficient} if s.friction_coefficient != 0.0 else {}),
-                    **({"gap": s.gap} if s.gap != 0.0 else {}),
-                    **({"normal_stiffness": s.normal_stiffness} if s.normal_stiffness is not None else {}),
-                    **({"tangential_stiffness": s.tangential_stiffness} if s.tangential_stiffness is not None else {}),
-                    **({"attached_to": s.attached_to} if s.attached_to is not None else {}),
-                }
-                for s in self.supports
-            ],
+            "elements": [e.to_dict() for e in self.elements],
+            "supports": [s.to_dict() for s in self.supports],
             "load_cases": {
                 name: {
                     "gravity": lc.gravity,

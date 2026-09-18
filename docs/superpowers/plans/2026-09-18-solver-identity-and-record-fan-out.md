@@ -43,13 +43,24 @@ carry group metadata and were re-solved on the real runtime and re-promoted:
 the solved artifacts and the identity attestation moved. The other examples'
 evidence already matched (their projection is unchanged) and imports cleanly.
 
-## Task 2: Element/Support record fan-out (open)
+## Task 2: Element/Support record fan-out (landed)
 
-Mirror W3's `OperationField` method on `Element` and `Support`: one record
-definition as the single encoding, with the JSON schemas, patch dicts and script
-codegen as projections of it. Behavior-preserving: `to_dict()`/`from_dict()`,
-patch payloads and generated script lines stay byte-identical, so the fingerprint
-does not move again.
+**Files:** `tuba/model.py`, `tuba/schema.py`, `tuba/patches.py`, `tests/test_record_fanout.py`
+
+- [x] `Element.to_dict()` and `Support.to_dict()` are the canonical encodings;
+  `TubaModel.to_dict` projects them. Script codegen already projected the model
+  payload (`_element_line`, `add_support` lines), so it needed no change.
+- [x] `schema.py` holds one property table per record (`_ELEMENT_PROPERTIES`,
+  `_SUPPORT_PROPERTIES`); the model schema uses them whole, the patch schema drops
+  the model-assigned `id` and adds `op`/`local_id`/`id_prefix`.
+- [x] `_apply_add_element`/`_apply_add_support` project the patch record's own
+  fields (`asdict`) instead of restating them.
+- [x] `tests/test_record_fanout.py` pins the fan-out to the dataclasses: the model
+  schema, both patch schema entries and the `AddElement`/`AddSupport` field sets
+  must agree with the record fields, so a new field cannot land on one surface
+  alone.
+- [x] Behavior-preserving: the fingerprint did not move (freshness and evidence
+  tests pass on the existing committed attestations; no re-solve needed).
 
 ## Verification
 
@@ -61,3 +72,8 @@ does not move again.
 
 - The mixed study becoming solve-ready, the viewer god modules, and the
   duplicated bundle validation (unchanged follow-ups).
+- **`imposed_displacement` is not encoded.** The record carries it and reporting
+  and contact code read it, but `Support.to_dict()` has never emitted it, so a
+  model.json round-trip drops it. Task 2 pins the current behavior instead of
+  changing it; deciding whether the encoding should carry the field is its own
+  change (it moves fingerprints for any model that uses it).
