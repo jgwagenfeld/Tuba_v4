@@ -70,14 +70,10 @@ export function visibilityPresetForTask(taskId) {
 // rule below is a case in a function rather than a boolean recomputed from six
 // globals in whichever render function happens to need it.
 export function workspaceView(state = {}, session = {}) {
-  const stage = stageOf(state, session);
+  const stage = stageOf(state);
   const inReview = stage === "review";
   const tabs = inReview ? getVisibleCockpitTaskIds(state) : [];
-  // A task only means anything inside the review stage, and only if the rail is
-  // still offering it: swapping bundles can strip the content a task was for,
-  // and a rail marking a tab it did not draw is the kind of disagreement this
-  // module exists to make impossible.
-  const task = tabs.includes(state.activeTab) ? state.activeTab : tabs[0] ?? null;
+  const task = inReview ? activeTask(state) : null;
   return {
     stage,
     task,
@@ -98,16 +94,36 @@ export function workspaceView(state = {}, session = {}) {
   };
 }
 
-function stageOf(state, session) {
+export const STAGES = Object.freeze(["embed", "build", "review"]);
+
+// The stage is carried by the scene state rather than by a mode global, because
+// the scene itself depends on it: which layers are drawn and which colouring
+// channel governs are stage questions, and they are asked by pure functions
+// that are handed nothing but the state. Keeping it in a session global is what
+// forced those functions to read `activeTab !== "model"` as a stand-in, which
+// held only while Build was forcing the tab to "model".
+function stageOf(state) {
   if (state.embed) return "embed";
-  // A studio runs model.py; a published bundle shows the same pane frozen.
-  // Either way the stage is whichever of the two is driving.
-  const driver = session.studio?.available
-    ? session.studio
-    : session.sourceView?.available
-      ? session.sourceView
-      : null;
-  return driver?.mode === "build" ? "build" : "review";
+  return STAGES.includes(state.stage) ? state.stage : "review";
+}
+
+// The task the rail is really on: the one it is showing as current, which is
+// the requested tab when the rail still offers it and the first one it does
+// offer otherwise. Swapping bundles can strip the content a task was for.
+export function activeTask(state = {}) {
+  const tabs = getVisibleCockpitTaskIds(state);
+  return tabs.includes(state.activeTab) ? state.activeTab : tabs[0] ?? null;
+}
+
+// Which task governs the *scene* - what tints it, and which overlays belong.
+// Build inspects what was built, so the model channel governs it however the
+// rail was left; the embedded canvas is on no task at all and takes the scene
+// as the bundle declared it.
+export function sceneTask(state = {}) {
+  const stage = stageOf(state);
+  if (stage === "build") return "model";
+  if (stage === "embed") return EMBED_TASK_ID;
+  return activeTask(state);
 }
 
 // Which stage a studio opens on. A review that is present and current is what

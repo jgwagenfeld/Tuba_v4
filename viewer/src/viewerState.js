@@ -1,7 +1,7 @@
 import { applyTaskVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
-import { getVisibleCockpitTaskIds, setWorkflowTab } from "./workflowState.js";
+import { activeTask, setWorkflowTab } from "./workflowState.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
 import { fitSelection, hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
 import {
@@ -60,14 +60,15 @@ export function reduceViewerState(state, action) {
       return { ...state, modelColorBy: action.colorBy ?? "default" };
     case "activateTask":
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
-    case "enterBuild":
-      // Build is a stage, not a task: it takes its own layer preset and leaves
-      // the review's task alone, so a detour through the script returns you
-      // where you were. It used to set activeTab "model" only to get past a
-      // preset table keyed by task id - a tab the reader was not on, claimed
-      // to satisfy a lookup. workspaceView reports no active task outside the
-      // review stage, so there is nothing left to satisfy.
-      return applyTaskVisibilityPreset(state, "build");
+    case "setStage": {
+      // A stage change, not a task change: the stage picks the layer preset and
+      // leaves the review's task alone, so a detour through the script returns
+      // you where you were. This used to be "enterBuild", which set activeTab
+      // to "model" - a tab the reader was not on - purely to get past a preset
+      // table keyed by task id.
+      const staged = { ...state, stage: action.stage };
+      return applyTaskVisibilityPreset(staged, action.stage === "build" ? "build" : activeTask(staged));
+    }
     case "resetLayerVisibility": {
       // Back from Build: every layer returns to what the bundle declared, so the
       // review the reader opened is the review they come back to.
@@ -177,9 +178,13 @@ export function preserveViewerStateForReload(previousState, nextState) {
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
     unitSystem: previousState.unitSystem ?? nextState.unitSystem,
     modelColorBy: previousState.modelColorBy ?? nextState.modelColorBy ?? "default",
-    activeTab: getVisibleCockpitTaskIds(nextState).includes(previousState.activeTab)
-      ? previousState.activeTab
-      : nextState.activeTab,
+    // The requested task is carried across verbatim, even into a bundle that
+    // cannot offer it. It is intent, not a claim about what is on screen:
+    // workspaceView resolves it against the tabs the rail is really showing,
+    // so a detour through a build bundle - which has no results to offer - no
+    // longer throws the reader's task away on the way past.
+    activeTab: previousState.activeTab ?? nextState.activeTab,
+    stage: previousState.stage ?? nextState.stage,
     // Carried over so a reload keeps the user's field selection, then snapped
     // back onto what the new scene actually offers.
     coloring: previousState.coloring ?? nextState.coloring,

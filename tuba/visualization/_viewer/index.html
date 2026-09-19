@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-Bt66Wq9_.js"></script>
+    <script type="module" crossorigin src="./assets/index-rP_9-zaH.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-DfVnZTwH.css">
   </head>
   <body>
@@ -24,10 +24,18 @@
         </div>
         <!-- Build writes the model, Review reads what the solver made of it.
              Only a studio server can run model.py, so a static bundle never
-             shows the switch. -->
-        <div class="mode-switch" role="group" aria-label="Workspace" data-mode-switch hidden>
+             shows the switch.
+
+             These are the two stages, and their labels are their ids. Review
+             was briefly labelled "Results", which collided with the Results
+             task inside the rail it opens - one word for a stage and for one
+             of the three tasks within that stage. A reader told to look at
+             "Results" could not tell which was meant, and the rail the switch
+             controls is invisible from Build, so the collision hid a whole
+             stage rather than merely confusing a label. -->
+        <div class="mode-switch" role="group" aria-label="Stage" data-mode-switch hidden>
           <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script">Build</button>
-          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Results</button>
+          <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Review</button>
         </div>
         <!-- Actions only. The verdict and the runtime line moved to the status
              strip along the bottom, so the header is identity plus the three

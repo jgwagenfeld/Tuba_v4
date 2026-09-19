@@ -71,10 +71,11 @@ test("build mode lists the live model's issues in the code pane, not the rail", 
   // the same move took two actions and only the published one was tested.
   const setMode = app.slice(app.indexOf("async function setMode("), app.indexOf("async function showStudioBundle("));
   assert.equal(
-    (setMode.match(/type: "enterBuild"/g) ?? []).length, 2,
-    "both the studio and the published path enter Build the same way"
+    (setMode.match(/type: "setStage"/g) ?? []).length, 1,
+    "one stage transition serves the studio and the published bundle alike"
   );
   assert.doesNotMatch(setMode, /activateTask", tabId: "model"/, "entering Build does not claim a task");
+  assert.doesNotMatch(app, /studio\.mode|sourceView\.mode/, "the stage is not duplicated into the session");
   // Build issues surface in the code pane instead, one row per issue with the
   // same camera-focusing click as the rail list.
   assert.match(html, /<div class="build-issues" data-build-issues hidden><\/div>/);
@@ -253,8 +254,11 @@ test("the status chip carries exceptions only, and routes into the rail", async 
   assert.doesNotMatch(chip, /governingLoadCase|governingRatio/);
 
   // With the evidence dock gone the chip routes into the rail task that owns
-  // warnings, never into a tab list that no longer exists.
-  assert.match(chip, /getVisibleCockpitTaskIds\(currentState\)/);
+  // warnings, never into a tab list that no longer exists. It moves stage
+  // through setMode rather than assigning a driver's mode by hand, which for a
+  // published bundle sitting in Build used to set the wrong one and do nothing.
+  assert.match(chip, /void setMode\("review"\)/);
+  assert.match(chip, /currentWorkspace\(\)/);
   assert.match(chip, /activateTask\(/);
   assert.doesNotMatch(app, /activateEvidence|evidenceExpanded/);
 });
@@ -404,11 +408,12 @@ test("a studio opens a solved project on its results, not on the script", async 
   // Which stage that is now belongs to workflowState, where it is a pure
   // function with its own tests instead of a branch reachable only by driving
   // a browser and forging the project request.
-  assert.ok(init.includes("studio.mode = openingStage(studio);"), "the opening stage is asked for, not decided here");
-  assert.doesNotMatch(init, /studio\.mode = "build";/, "the opening stage may not be hardcoded");
+  assert.ok(init.includes("const stage = openingStage(studio);"), "the opening stage is asked for, not decided here");
+  assert.ok(init.includes('dispatch({ type: "setStage", stage });'), "and is carried by the scene state");
+  assert.doesNotMatch(init, /studio\.mode/, "the stage is not kept in a second place");
   assert.doesNotMatch(init, /hasReview && !studio\.reviewStale/, "nor re-derived inline");
   // The bundle has to follow the mode, or Results would draw the live model.
-  assert.ok(init.includes("await showStudioBundle(studio.mode);"), "the bundle follows the mode");
+  assert.ok(init.includes("await showStudioBundle(stage);"), "the bundle follows the stage");
   // Unchanged on purpose: this decides which mode opens, not what the rail
   // opens on. Clicking Results from Build also leaves the task on Model.
   assert.ok(init.includes('dispatch({ type: "activateTask", tabId: "model" });'));

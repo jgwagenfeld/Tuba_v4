@@ -86,7 +86,6 @@ import {
   EMBED_TASK_ID,
   WORKFLOW_TABS,
   createWorkflowState,
-  getVisibleCockpitTaskIds,
   openingStage,
   workflowTabForKey,
   workspaceView
@@ -215,7 +214,6 @@ globalThis.__tubaViewerBootId = bootId;
 // bundle - Pages, a report folder - is review-only and never shows it.
 const studio = {
   available: false,
-  mode: "review",
   // The script as last run. Line numbers in scene metadata refer to this text.
   ranCode: "",
   running: false,
@@ -249,7 +247,6 @@ const studio = {
 // Results side is the review.
 const sourceView = {
   available: false,
-  mode: "review",
   baseUrl: ".",
   scriptUri: null,
   // [{ name: load case, uri: comm path }], in the study's order.
@@ -380,7 +377,7 @@ async function loadBundle(bundleUrl, options = {}) {
   const nextState = { ...viewerState, ...workflowState };
   const loadedState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
   currentState = startupConfig.embed
-    ? { ...loadedState, embed: true, activeTab: EMBED_TASK_ID }
+    ? { ...loadedState, embed: true, stage: "embed", activeTab: EMBED_TASK_ID }
     : loadedState;
   // Deliberately NOT applying the task preset on arrival. A preset scopes the
   // view when the reviewer switches task - an explicit act. Applying it at load
@@ -499,7 +496,7 @@ function renderTaskPanel() {
     model: dom.modelToolsHome,
     results: dom.resultToolsHome,
     diagnostics: dom.issueToolsHome
-  }[currentState.activeTab];
+  }[currentWorkspace().task];
   if (home) {
     home.hidden = false;
     dom.taskPanel.append(home);
@@ -602,10 +599,15 @@ function renderStatusChip() {
     `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review tasks`
   );
   dom.statusChip.onclick = () => {
-    studio.mode = "review";
     railExpanded = true;
-    const visible = getVisibleCockpitTaskIds(currentState);
-    activateTask(visible.includes(target) ? target : visible[0]);
+    // setMode owns the stage move. This used to assign the studio's own mode
+    // field directly, which for a published bundle sitting in Build set the
+    // wrong driver and did nothing at all, while renderProjectStatusChip had
+    // always gone through setMode.
+    void setMode("review").then(() => {
+      const { tabs } = currentWorkspace();
+      activateTask(tabs.includes(target) ? target : tabs[0]);
+    });
   };
 }
 
@@ -619,7 +621,7 @@ function renderModelControls() {
   if (!dom.modelControls || !dom.modelLegend) return;
   dom.modelControls.replaceChildren();
   dom.modelLegend.replaceChildren();
-  if (currentState.activeTab !== "model") return;
+  if (currentWorkspace().task !== "model") return;
 
   const mode = currentState.modelColorBy ?? "default";
   dom.modelControls.append(railGroup("Colouring", mode === "default" ? "ROLE" : mode.toUpperCase()));
@@ -2197,7 +2199,7 @@ function renderProperties() {
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
   // The contact panel already owns shoe details; keep the viewport available
   // when selecting its row, especially on narrow screens.
-  const contactSelection = currentState.activeTab === "results" && Object.keys(contactRecords(currentState))
+  const contactSelection = currentWorkspace().task === "results" && Object.keys(contactRecords(currentState))
     .some(id => contactObjectId(currentState, id) === selectedObjectId);
   dom.inspector.hidden = contactSelection || (!summary && !issueSummary);
   if (contactSelection) return;
@@ -3008,9 +3010,10 @@ async function initStudio(catalog) {
   // loadStudioProject settled hasReview/reviewStale a few lines earlier, so the
   // rule itself lives in workflowState with the rest of the stage tree and is
   // tested there rather than through a browser.
-  studio.mode = openingStage(studio);
+  const stage = openingStage(studio);
   setScriptText(result.code);
-  await showStudioBundle(studio.mode);
+  await showStudioBundle(stage);
+  dispatch({ type: "setStage", stage });
   // Left on Model deliberately, which is where clicking Results from Build
   // lands you too: this decides which stage opens, not what the rail opens on.
   dispatch({ type: "activateTask", tabId: "model" });
@@ -3026,7 +3029,14 @@ function sameHostPreviewSocketUrl() {
 // rail flag and the embed flag for itself - which is how the opening stage
 // came to be hardcoded in initStudio where nothing could test it.
 function currentWorkspace() {
-  return workspaceView(currentState ?? {}, { studio, sourceView, railExpanded });
+  return workspaceView(currentState ?? {}, { railExpanded });
+}
+
+// The stage lives in the scene state, so moving stages is a dispatch. studio
+// and sourceView keep only what is theirs - whether they are available, what
+// they can solve - and no longer carry a second copy of which stage we are in.
+function currentStage() {
+  return currentWorkspace().stage;
 }
 
 function isBuildMode() {
@@ -3058,7 +3068,6 @@ async function loadBundleSource(baseUrl) {
 
 function clearBundleSource() {
   sourceView.available = false;
-  sourceView.mode = "review";
   sourceView.baseUrl = ".";
   sourceView.scriptUri = null;
   sourceView.loadCases = [];
@@ -3212,7 +3221,7 @@ function renderSolveControls() {
     button.disabled = studio.solving || studio.preparing;
     button.textContent = label;
   }
-  dom.reviewEmpty.hidden = !(project && studio.mode === "review" && !studio.hasReview);
+  dom.reviewEmpty.hidden = !(project && currentStage() === "review" && !studio.hasReview);
   dom.reviewEmptyText.textContent = studio.preparing
     ? "Importing the review…"
     : studio.solving
@@ -3319,7 +3328,7 @@ async function handleSolveEvent(message) {
   if (message.type === "solve_finished" || message.type === "review_ready") {
     studio.hasReview = true;
     studio.reviewStale = Boolean(message.review_stale);
-    if (studio.mode === "review") {
+    if (currentStage() === "review") {
       if (bundleKey(currentBundleUrl) === "review") {
         // A re-solve replaced the review on screen: reload it in place.
         try {
@@ -3335,35 +3344,26 @@ async function handleSolveEvent(message) {
   render();
 }
 
-async function setMode(mode) {
-  // A published bundle has no live model to swap in: the one scene it shipped
-  // is both the built model and the review, so the mode is only a view change.
-  if (!studio.available) {
-    if (!sourceView.available || sourceView.mode === mode) return;
-    sourceView.mode = mode;
-    if (mode === "build") {
-      studio.codeTab = null;
-      dispatch({ type: "enterBuild" });
-    } else {
-      // The review opens on what the bundle declared; leaving Build restores it
-      // so the authored solid and its mesh are not both drawing at once.
-      dispatch({ type: "resetLayerVisibility" });
-    }
-    render();
-    return;
+// One stage transition, whether a studio runs model.py or a published bundle
+// shows the same pane frozen. The two used to be separate branches holding
+// separate copies of which stage we were in, and they had drifted: the studio
+// dispatched activateTask("model") - forcing a tab and taking the Model preset
+// - while the published path dispatched enterBuild and took the Build preset.
+async function setMode(stage) {
+  if (!studio.available && !sourceView.available) return;
+  if (currentStage() === stage) return;
+  // Only a studio has a second bundle to swap in; a published bundle shipped
+  // one scene that is both the built model and the review.
+  if (studio.available) {
+    await showStudioBundle(stage);
+  } else if (stage === "build") {
+    studio.codeTab = null;
   }
-  if (studio.mode === mode) return;
-  studio.mode = mode;
-  await showStudioBundle(mode);
-  // One stage, one transition, whether a studio runs model.py or a published
-  // bundle shows it frozen. This used to dispatch activateTask("model"), so
-  // the same move through the same stage took two different actions: the
-  // studio got the Model preset and its task forced to Model, the published
-  // bundle got the Build preset and kept its task. The presets differ only on
-  // the analysis mesh, and the mesh stays hidden either way unless the bundle
-  // declares it visible - which is the volume review the Build preset is for.
-  if (mode === "build") {
-    dispatch({ type: "enterBuild" });
+  dispatch({ type: "setStage", stage });
+  if (stage !== "build" && !studio.available) {
+    // The review opens on what the bundle declared; leaving Build restores it
+    // so the authored solid and its mesh are not both drawing at once.
+    dispatch({ type: "resetLayerVisibility" });
   }
   render();
 }

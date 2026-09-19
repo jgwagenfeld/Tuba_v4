@@ -76,8 +76,33 @@ test("getModelObjectColor returns hex color when active and null when default", 
   // When mode is default, returns null
   assert.equal(getModelObjectColor({ ...state, modelColorBy: "default" }, ["p1"]), null);
 
-  // When active tab is results, returns null
-  assert.equal(getModelObjectColor({ ...state, activeTab: "results" }, ["p1"]), null);
+  // When the results task governs the scene, it yields the colouring channel.
+  // The scene has to actually carry results for Results to be a task the rail
+  // offers - otherwise it resolves back to Model, which is the point of the
+  // guard rather than a quirk of this fixture.
+  assert.equal(
+    getModelObjectColor({ ...state, activeTab: "results", resultFields: [{ id: "field:stress" }] }, ["p1"]),
+    null
+  );
+});
+
+test("Build colours by the model whatever task the rail was left on", () => {
+  // Build inspects what was built, so model colouring governs its scene. That
+  // used to hold only by accident: entering Build forced activeTab to "model",
+  // so `activeTab !== "model"` doubled as "results colouring is active". Once
+  // Build stopped claiming a task, a reader who left the rail on Results and
+  // switched to Build lost the model colouring with it.
+  const state = {
+    stage: "build",
+    activeTab: "results",
+    modelColorBy: "section",
+    resultFields: [{ id: "field:stress" }],
+    objects: [{ id: "p1", kind: "pipe", metadata: { section: "DN50" } }]
+  };
+
+  assert.notEqual(getModelObjectColor(state, ["p1"]), null);
+  // And the review stage still yields the scene to the results channel.
+  assert.equal(getModelObjectColor({ ...state, stage: "review" }, ["p1"]), null);
 });
 
 test("reduceViewerState handles setModelColorBy action", async () => {

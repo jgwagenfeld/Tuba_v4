@@ -1,3 +1,5 @@
+import { sceneTask } from "./workflowState.js";
+
 // Categorical color palette for model properties (Section, Material, Group, Insulation).
 // Accessible, high-contrast, visually distinct shades.
 export const CATEGORICAL_PALETTE = Object.freeze([
@@ -101,8 +103,10 @@ export function getModelColoring(state, mode = state?.modelColorBy || "default")
 export function getModelObjectColor(state, objectIds = []) {
   const mode = state?.modelColorBy;
   if (!mode || mode === "default") return null;
-  // If not in model task and results coloring is active, return null
-  if (state?.activeTab && state.activeTab !== "model") return null;
+  // The scene yields to the results channel when a results task governs it.
+  // Asked of the stage, not of the raw tab: Build inspects the built model, so
+  // model colouring holds there however the rail was left.
+  if (sceneTask(state) !== "model") return null;
 
   const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
   const coloring = getModelColoring(state, mode);

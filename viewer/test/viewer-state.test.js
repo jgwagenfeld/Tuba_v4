@@ -109,7 +109,7 @@ test("Build keeps a volume review's mesh and the review restores what the bundle
 
   assert.equal(state.layers["analysis_mesh:volume_skin"].visible, true);
 
-  const build = reduceViewerState(state, { type: "enterBuild" });
+  const build = reduceViewerState(state, { type: "setStage", stage: "build" });
   // Build is a stage, not a task, so entering it no longer claims one. It used
   // to set activeTab "model" purely to get past a preset table keyed by task
   // id, which meant leaving Build dropped you on Model however you arrived -
@@ -143,7 +143,7 @@ test("entering Build no longer resets the review's task", () => {
   assert.equal(onResults.activeTab, "results");
 
   const andBack = reduceViewerState(
-    reduceViewerState(onResults, { type: "enterBuild" }),
+    reduceViewerState(onResults, { type: "setStage", stage: "build" }),
     { type: "resetLayerVisibility" }
   );
 

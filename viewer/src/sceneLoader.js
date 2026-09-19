@@ -1,5 +1,5 @@
 import { loadOptionalReview } from "./reviewLoader.js";
-import { visibilityPresetForTask } from "./workflowState.js";
+import { sceneTask, visibilityPresetForTask } from "./workflowState.js";
 import { createColoringState } from "./coloring.js";
 import { contactColoringActive } from "./resultReview.js";
 
@@ -134,6 +134,10 @@ export function createViewerState(bundle) {
     isolatedObjectIds: [],
     activeIssueId: null,
     activeOverlayIds: [],
+    // Which stage the scene is being read in. A bundle opens as a review; the
+    // studio and the source-view pane move it, and the embedded canvas is set
+    // from the query string at load.
+    stage: "review",
     resultStates,
     geometryStates,
     resultFields: Array.isArray(scene.result_fields) ? scene.result_fields : [],
@@ -180,7 +184,9 @@ export function getVisibleObjectIds(state) {
   const hidden = new Set(state.hiddenObjectIds ?? []);
   const isolated = new Set(state.isolatedObjectIds ?? []);
   const hiddenOverlayObjectIds = overlayHiddenObjectIds(state);
-  const contactReview = state.activeTab !== "model" && contactColoringActive(state);
+  // Same question the colouring asks: is a results task governing the scene?
+  // Build inspects the built model, so its authored vectors stay drawn.
+  const contactReview = sceneTask(state) !== "model" && contactColoringActive(state);
   return state.objects
     .filter((obj) => !state.activeResultStateId || !obj.metadata?.result_state_id || obj.metadata.result_state_id === state.activeResultStateId)
     .filter((obj) => !state.activeGeometryStateId || !obj.metadata?.geometry_state_id || obj.metadata.geometry_state_id === state.activeGeometryStateId)

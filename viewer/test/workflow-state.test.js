@@ -21,6 +21,20 @@ const reviewFixture = {
   tables: {}
 };
 
+test("no stage and no task share a label", async () => {
+  // "Review" was briefly labelled "Results", colliding with the Results task
+  // inside the very rail that stage opens. Because Build hides the rail and its
+  // toggle, the collision did not merely confuse a label - it hid a stage.
+  const { readFile } = await import("node:fs/promises");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const stageLabels = [...html.matchAll(/data-mode="[a-z]+"[^>]*>([^<]+)</g)].map((m) => m[1].trim());
+
+  assert.deepEqual(stageLabels, ["Build", "Review"]);
+  for (const { label } of WORKFLOW_TABS) {
+    assert.ok(!stageLabels.includes(label), `task "${label}" must not also name a stage`);
+  }
+});
+
 test("workflow tabs follow the engineering review order", () => {
   assert.deepEqual(
     WORKFLOW_TABS.map(({ id, label }) => [id, label]),
@@ -139,46 +153,36 @@ test("workflow keyboard navigation supports Home and End in legacy mode", () => 
 // these tests exist to stop coming back. The rail's three tasks live *inside*
 // the review stage; Build is a sibling of that whole stage, not a fourth tab.
 
-const studioSession = (studio = {}, extra = {}) => ({
-  studio: { available: true, mode: "review", hasReview: true, reviewStale: false, ...studio },
-  sourceView: { available: false, mode: "review" },
-  railExpanded: true,
-  ...extra
-});
-
-const publishedSession = (mode = "review") => ({
-  studio: { available: false, mode: "review", hasReview: false, reviewStale: false },
-  sourceView: { available: true, mode },
-  railExpanded: true
-});
+// The stage is carried by the scene state; the session holds only what is
+// genuinely per-session, which is whether the reader has collapsed the rail.
+const at = (state, stage, extra = {}) => ({ ...state, stage, ...extra });
+const session = (railExpanded = true) => ({ railExpanded });
 
 test("the embedded canvas is a stage of its own and outranks every other", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: true });
 
-  // Even a studio sitting in Build renders as the bare embedded scene.
-  const view = workspaceView(state, studioSession({ mode: "build" }));
+  // Even a scene staged for Build renders as the bare embedded canvas.
+  const view = workspaceView(at(state, "build"), session());
   assert.equal(view.stage, "embed");
   assert.equal(view.railVisible, false);
   assert.equal(view.scriptVisible, false);
   assert.equal(view.headerVisible, false);
 });
 
-test("a studio's stage is its own mode, a published bundle's is its source view", () => {
+test("the stage is whatever the scene state says it is", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
 
-  assert.equal(workspaceView(state, studioSession({ mode: "build" })).stage, "build");
-  assert.equal(workspaceView(state, studioSession({ mode: "review" })).stage, "review");
-  assert.equal(workspaceView(state, publishedSession("build")).stage, "build");
-  assert.equal(workspaceView(state, publishedSession("review")).stage, "review");
+  assert.equal(workspaceView(at(state, "build"), session()).stage, "build");
+  assert.equal(workspaceView(at(state, "review"), session()).stage, "review");
+  // A bundle that has never been staged is a review, and an unknown stage is
+  // not honoured rather than being passed through to the renderer.
+  assert.equal(workspaceView(state, session()).stage, "review");
+  assert.equal(workspaceView(at(state, "nonsense"), session()).stage, "review");
 });
 
-test("a bundle with neither a studio nor a source view is simply a review", () => {
+test("a bundle that was never staged is simply a review", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
-  const view = workspaceView(state, {
-    studio: { available: false },
-    sourceView: { available: false },
-    railExpanded: true
-  });
+  const view = workspaceView(state, session());
 
   assert.equal(view.stage, "review");
   assert.equal(view.railVisible, true);
@@ -188,14 +192,14 @@ test("a bundle with neither a studio nor a source view is simply a review", () =
 test("the rail belongs to the review stage, and a collapsed rail keeps its toggle", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
 
-  const build = workspaceView(state, studioSession({ mode: "build" }));
+  const build = workspaceView(at(state, "build"), session());
   assert.equal(build.railVisible, false, "Build gives the rail's column to the script");
   assert.equal(build.scriptVisible, true);
   // The toggle is the rail's control, so it goes where the rail goes; in Build
   // there is no rail to toggle.
   assert.equal(build.railToggleVisible, false);
 
-  const collapsed = workspaceView(state, studioSession({ mode: "review" }, { railExpanded: false }));
+  const collapsed = workspaceView(at(state, "review"), session(false));
   assert.equal(collapsed.railVisible, false, "a collapsed rail is hidden");
   assert.equal(collapsed.railToggleVisible, true, "but its toggle stays, or it could never reopen");
   assert.equal(collapsed.scriptVisible, false, "collapsing the rail does not open the script");
@@ -204,13 +208,13 @@ test("the rail belongs to the review stage, and a collapsed rail keeps its toggl
 test("tasks exist only inside the review stage", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
 
-  const review = workspaceView(state, studioSession({ mode: "review" }));
+  const review = workspaceView(at(state, "review"), session());
   assert.equal(review.task, "model");
   assert.deepEqual(review.tabs, ["model", "results", "diagnostics"]);
 
   for (const view of [
-    workspaceView(state, studioSession({ mode: "build" })),
-    workspaceView(createWorkflowState({ review: reviewFixture, embed: true }), studioSession())
+    workspaceView(at(state, "build"), session()),
+    workspaceView(createWorkflowState({ review: reviewFixture, embed: true }), session())
   ]) {
     assert.equal(view.task, null, "no task is active outside the review stage");
     assert.deepEqual(view.tabs, [], "and the rail offers none");
@@ -222,10 +226,10 @@ test("the stage picks the layer preset, so Build stops posing as the Model task"
 
   // Was: dispatch enterBuild, which set activeTab "model" - a lie, since the
   // reader is in Build - and then looked "build" up in a table keyed by task.
-  assert.equal(workspaceView(state, studioSession({ mode: "build" })).visibility, "build");
-  assert.equal(workspaceView(state, studioSession({ mode: "review" })).visibility, "model");
+  assert.equal(workspaceView(at(state, "build"), session()).visibility, "build");
+  assert.equal(workspaceView(at(state, "review"), session()).visibility, "model");
   assert.equal(
-    workspaceView(createWorkflowState({ review: reviewFixture, embed: true }), studioSession()).visibility,
+    workspaceView(createWorkflowState({ review: reviewFixture, embed: true }), session()).visibility,
     null,
     "the embedded scene is shown as the bundle declared it"
   );
@@ -234,10 +238,10 @@ test("the stage picks the layer preset, so Build stops posing as the Model task"
 test("the review bundle is only loaded where a review is both wanted and present", () => {
   const state = createWorkflowState({ review: reviewFixture, embed: false });
 
-  assert.equal(workspaceView(state, studioSession({ mode: "review" })).bundle, "review");
-  assert.equal(workspaceView(state, studioSession({ mode: "build" })).bundle, "build");
+  assert.equal(workspaceView(at(state, "review"), { ...session(), studio: { hasReview: true } }).bundle, "review");
+  assert.equal(workspaceView(at(state, "build"), { ...session(), studio: { hasReview: true } }).bundle, "build");
   assert.equal(
-    workspaceView(state, studioSession({ mode: "review", hasReview: false })).bundle,
+    workspaceView(at(state, "review"), { ...session(), studio: { hasReview: false } }).bundle,
     "build",
     "Results with nothing solved still shows the live model"
   );
@@ -249,7 +253,7 @@ test("the rail never marks current a task it is not offering", () => {
   // The caller used to have to notice - preserveViewerStateForReload holds the
   // same rule - so the derived view could disagree with the rail beside it.
   const state = { ...createWorkflowState({ review: null, embed: false }), activeTab: "results" };
-  const view = workspaceView(state, studioSession({ mode: "review", hasReview: false }));
+  const view = workspaceView(at(state, "review"), session());
 
   assert.deepEqual(view.tabs, ["model", "diagnostics"]);
   assert.equal(view.task, "model", "falls back to the first task the rail actually offers");

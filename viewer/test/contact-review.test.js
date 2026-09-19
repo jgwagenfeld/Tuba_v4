@@ -9,7 +9,12 @@ function fixture() {
   const contact = { support_id: "S1", node_id: "N1", normal: [0,1,0], status: "sticking", status_source: "solver",
     normal_force: 10000, tangential_force: [-2000,0,0], gap: -1e-6, relative_displacement: [0.002,0,0], slip: [0,0,0], friction_limit: 3000, utilization: 2/3 };
   const resultStates = [0,1,2].map((i) => ({ kind: "result_state", id: `state-${i}`, data: { id: `state-${i}`, load_case: "thermal", metadata: { run_id: "run-1", stage_label: ["Heat","Cool","Uplift"][i], pseudo_time: i }, contact_results: i === 1 ? {} : { S1: { ...contact, ...(i === 2 ? { status: "open", normal_force: 0, tangential_force: [0,0,0], friction_limit: 0, utilization: null } : {}) } } } }));
-  return { reviewFocus: "contact", bounds: [0,0,0,4,1,1], resultStates, overlays: resultStates, activeResultStateId: "state-0", activeLoadCase: "thermal", visualDeformationScale: 50,
+  // Contact colouring is the Results channel, so that is the task a contact
+  // review is read on. This used to be left unset and relied on `activeTab !==
+  // "model"` treating undefined as "not the model task"; the app never has an
+  // unset task, and the scene now resolves the task properly rather than
+  // reading a bare inequality.
+  return { reviewFocus: "contact", activeTab: "results", bounds: [0,0,0,4,1,1], resultStates, overlays: resultStates, activeResultStateId: "state-0", activeLoadCase: "thermal", visualDeformationScale: 50,
     objects: [{ id: "shoe", entity_ref: "support:S1", geometry_asset_id: "shoe-asset" }], visibleObjectIds: ["shoe"], selectedObjectIds: ["shoe"], camera: { target: [1,2,3] },
     geometryAssets: [{ id: "shoe-asset", format: "point", object_ids: ["shoe"], bounds: [1,0,0,1,0,0], generation_config: { source: "tuba.support", point: [1,0,0], support_type: "rest" } }], geometryStates: [], geometryPayloads: [] };
 }
