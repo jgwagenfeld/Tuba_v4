@@ -20,6 +20,7 @@ from tuba.refs import EntityRef
 from tuba.solver.compiler_contract import bend_segments, subdivides_straight_segments
 from tuba.solver.modelisation import PipeModelization, modelisation_assignments, spring_links
 from tuba.solver.aster_contact import shoes
+from tuba.solver.code_aster_runtime import write_artifact_text
 
 logger = logging.getLogger(__name__)
 
@@ -351,7 +352,7 @@ class _MeshWriterMixin:
 
         if path is not None:
             path = Path(path)
-            path.write_text("\n".join(lines), encoding="utf-8")
+            write_artifact_text(path, "\n".join(lines))
             logger.info(
                 "Wrote mesh: %s (%d nodes, %d elements)",
                 path, len(node_ids), len(model.elements),

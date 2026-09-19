@@ -263,7 +263,7 @@ def write_code_aster_execution_attestation(
         "solver_input_identity": solver_input_identity.to_dict(),
         "artifacts": artifacts,
     }
-    (root / "study_execution.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_artifact_text(root / "study_execution.json", json.dumps(payload, indent=2, sort_keys=True))
     return payload
 
 
@@ -443,6 +443,19 @@ def execution_trust(attestation: Mapping[str, Any] | None) -> Literal["verified"
     if attestation is None or attestation.get("execution_method") == "docker":
         return "unverified"
     return "verified"
+
+
+def write_artifact_text(path: str | Path, text: str) -> None:
+    """Write a solver artifact without letting the platform choose its line endings.
+
+    The execution attestation binds every artifact's exact size and SHA-256, so
+    the bytes may not depend on where the study was compiled. Text mode rewrites
+    each "\\n" as "\\r\\n" on Windows, which left a study compiled there
+    unverifiable on Linux: the regenerated study.comm was one byte per line
+    shorter than the attestation demanded. Code_Aster's own outputs already
+    arrive as LF, so this keeps the whole inventory platform-independent.
+    """
+    Path(path).write_text(text, encoding="utf-8", newline="")
 
 
 def _file_integrity(path: Path) -> dict[str, int | str]:
@@ -648,13 +661,13 @@ def preflight_code_aster_runtimes(config: CodeAsterRuntimeConfig) -> list[CodeAs
 
 
 def _write_runtime_logs(work_dir: Path, execution: CodeAsterExecution) -> None:
-    (work_dir / f"stdout.{execution.runtime.kind}.log").write_text(execution.stdout, encoding="utf-8")
-    (work_dir / f"stderr.{execution.runtime.kind}.log").write_text(execution.stderr, encoding="utf-8")
+    write_artifact_text(work_dir / f"stdout.{execution.runtime.kind}.log", execution.stdout)
+    write_artifact_text(work_dir / f"stderr.{execution.runtime.kind}.log", execution.stderr)
 
 
 def _write_compat_logs(work_dir: Path, execution: CodeAsterExecution) -> None:
-    (work_dir / "stdout.log").write_text(execution.stdout, encoding="utf-8")
-    (work_dir / "stderr.log").write_text(execution.stderr, encoding="utf-8")
+    write_artifact_text(work_dir / "stdout.log", execution.stdout)
+    write_artifact_text(work_dir / "stderr.log", execution.stderr)
 
 
 def _should_try_next(exec_method: str, execution: CodeAsterExecution) -> bool:
