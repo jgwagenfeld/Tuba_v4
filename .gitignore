@@ -58,6 +58,13 @@ viewer/node_modules/
 # Agent workflow scratch
 .superpowers/
 .worktrees/
+.impeccable/
+# Per-machine agent settings. Also covered by a global ignore on one machine,
+# which does nothing for anyone else who clones this repo.
+.claude/settings.local.json
+# pytest-benchmark output. It carried solved .rmed and .csv artifacts once and
+# left about 98 MB of them in history before it stopped being tracked.
+.benchmarks/
 
 # Runtime logs
 *.log
@@ -73,7 +80,10 @@ notebooks/interactive_postprocessor_bundle/
 notebooks/bim_demo.ifc
 notebooks/bim_demo_model.json
 notebooks/advanced_piping_rack.ifc
-/imported_component_mixed_demo/run/
+# The whole directory is notebook 09's WORK_DIR: it mkdirs it and writes
+# local_equipment.stl/.step into it with trimesh, then run/ under that. Two of
+# those artifacts had been committed at its root before this covered them.
+/imported_component_mixed_demo/
 
 # Root demo outputs (written by the BIM notebooks)
 /advanced_piping_rack.ifc
