@@ -91,6 +91,23 @@ export function getActiveResultState(state) {
   );
 }
 
+// A contact review is one the solver actually decided contact for, and it is a
+// property of the whole run rather than of one increment: an increment where
+// every shoe has lifted off is still part of it. An ordinary rest shoe also
+// reports a record - derived, indeterminate - and counting those turned every
+// stress review that happens to sit on a shoe into a contact review, which cost
+// it its scalar legend, its load and reaction arrows, and its deformed state.
+export function isContactReview(state) {
+  return (state.resultStates ?? []).some((entry) =>
+    Object.values(entry.data?.contact_results ?? {}).some((contact) => contact?.status_source === "solver"));
+}
+
+// The one question four surfaces used to ask for themselves: is contact, not a
+// scalar field, what is describing the scene right now?
+export function contactColoringActive(state) {
+  return state.contactNeutral !== false && isContactReview(state);
+}
+
 export function getActiveLoadCase(state) {
   return state.activeLoadCase ?? state.resultStates?.[0]?.data?.load_case ?? solverResultOverlays(state)[0]?.data?.load_case ?? null;
 }
@@ -122,7 +139,7 @@ export function getSolverResultOverlays(state, resultType = null) {
 }
 
 export function getActiveScalarOverlay(state) {
-  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
+  if (contactColoringActive(state)) return null;
   // When the scene carries a field catalogue the choice is explicit. The
   // priority chain below is the legacy path for bundles written before it.
   if ((state.resultFields ?? []).length > 0) {
@@ -137,7 +154,7 @@ export function getActiveScalarOverlay(state) {
 }
 
 export function getScalarLegend(state) {
-  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
+  if (contactColoringActive(state)) return null;
   if ((state.resultFields ?? []).length > 0) {
     const legend = getColoringLegend(state);
     return legend

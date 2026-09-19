@@ -1,6 +1,7 @@
 import { loadOptionalReview } from "./reviewLoader.js";
 import { visibilityPresetForTask } from "./workflowState.js";
 import { createColoringState } from "./coloring.js";
+import { contactColoringActive } from "./resultReview.js";
 
 // Only reached now when a review was asked for, when a folder holds a single
 // bundle, or when the viewer is embedded: a multi-bundle landing page shows the
@@ -177,9 +178,7 @@ export function getVisibleObjectIds(state) {
   const hidden = new Set(state.hiddenObjectIds ?? []);
   const isolated = new Set(state.isolatedObjectIds ?? []);
   const hiddenOverlayObjectIds = overlayHiddenObjectIds(state);
-  const activeResult = (state.resultStates ?? []).find((overlay) => (overlay.data?.id ?? overlay.id) === state.activeResultStateId);
-  const contactReview = state.activeTab !== "model" && state.contactNeutral !== false &&
-    Object.keys(activeResult?.data?.contact_results ?? {}).length > 0;
+  const contactReview = state.activeTab !== "model" && contactColoringActive(state);
   return state.objects
     .filter((obj) => !state.activeResultStateId || !obj.metadata?.result_state_id || obj.metadata.result_state_id === state.activeResultStateId)
     .filter((obj) => !state.activeGeometryStateId || !obj.metadata?.geometry_state_id || obj.metadata.geometry_state_id === state.activeGeometryStateId)

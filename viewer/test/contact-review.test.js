@@ -6,7 +6,7 @@ import { createThreeSceneGraph } from "../src/renderer.js";
 
 // Deterministic unit-test data only; never shipped in a review bundle.
 function fixture() {
-  const contact = { support_id: "S1", node_id: "N1", normal: [0,1,0], status: "sticking", status_source: "derived",
+  const contact = { support_id: "S1", node_id: "N1", normal: [0,1,0], status: "sticking", status_source: "solver",
     normal_force: 10000, tangential_force: [-2000,0,0], gap: -1e-6, relative_displacement: [0.002,0,0], slip: [0,0,0], friction_limit: 3000, utilization: 2/3 };
   const resultStates = [0,1,2].map((i) => ({ kind: "result_state", id: `state-${i}`, data: { id: `state-${i}`, load_case: "thermal", metadata: { run_id: "run-1", stage_label: ["Heat","Cool","Uplift"][i], pseudo_time: i }, contact_results: i === 1 ? {} : { S1: { ...contact, ...(i === 2 ? { status: "open", normal_force: 0, tangential_force: [0,0,0], friction_limit: 0, utilization: null } : {}) } } } }));
   return { bounds: [0,0,0,4,1,1], resultStates, overlays: resultStates, activeResultStateId: "state-0", activeLoadCase: "thermal", visualDeformationScale: 50,
@@ -45,6 +45,44 @@ test("contact scene marks the true shoe location and independently toggles force
   assert.equal(createThreeSceneGraph(state).root.children.some((o) => o.userData.contactStatus), false);
 });
 
+test("contact marks follow the active result state's overlay visibility", () => {
+  const state = fixture();
+  state.visibleOverlayIds = ["state-0"];
+  assert.equal(createThreeSceneGraph(state).root.children.some((o) => o.userData.contactStatus), true);
+  // Build and Model presets hide the result state overlay; a solver mark drawn
+  // on a still-visible support must not survive the layer it belongs to.
+  state.visibleOverlayIds = [];
+  assert.equal(createThreeSceneGraph(state).root.children.some((o) => o.userData.contactStatus), false);
+});
+
+test("a sticking shoe draws force arrows only, and an over-limit pad carries the red", () => {
+  const state = fixture();
+  state.geometryAssets[0].generation_config.friction_coefficient = 0.3;
+  state.geometryAssets[0].generation_config.support_id = "S1";
+  const graph = createThreeSceneGraph(state);
+  const group = graph.root.children.find((o) => o.userData.contactStatus === "sticking");
+  assert.ok(group);
+  // Sticking is the rest state: no status glyph, just the two force arrows.
+  assert.equal(group.children.length, 2);
+  assert.ok(group.children.every((child) => child.userData.contactForce));
+
+  let pad = null;
+  graph.root.traverse((object) => { if (object.userData?.supportPart === "contact-shoe-pad") pad = object; });
+  assert.equal(pad.material.color.getHex(), 0x2563eb);
+
+  state.resultStates[0].data.contact_results.S1.utilization = 2;
+  const over = createThreeSceneGraph(state);
+  let overPad = null;
+  over.root.traverse((object) => { if (object.userData?.supportPart === "contact-shoe-pad") overPad = object; });
+  assert.equal(overPad.material.color.getHex(), 0xdc2626);
+
+  // The states that need saying keep their glyph beside the force arrows.
+  state.resultStates[0].data.contact_results.S1 = { ...state.resultStates[0].data.contact_results.S1, status: "sliding", utilization: 0.5 };
+  assert.equal(createThreeSceneGraph(state).root.children.find((o) => o.userData.contactStatus === "sliding").children.length, 3);
+  state.resultStates[0].data.contact_results.S1 = { ...state.resultStates[0].data.contact_results.S1, status: "open" };
+  assert.equal(createThreeSceneGraph(state).root.children.find((o) => o.userData.contactStatus === "open").children.length, 3);
+});
+
 test("malformed contact data is unavailable, never a zero-valued solved marker", () => {
   const state = fixture(); delete state.resultStates[0].data.contact_results.S1.slip;
   assert.deepEqual(contactRecords(state), {});
@@ -78,6 +116,29 @@ test("pseudo-time labels remove binary representation noise without changing sto
   const state = { resultStates: [{ data: { id: "step", metadata: { stage_label: "Cold", pseudo_time: value } } }] };
   assert.equal(getResultStateOptions(state)[0].label, "Cold / 0.3");
   assert.equal(state.resultStates[0].data.metadata.pseudo_time, value);
+});
+
+test("a rest shoe's derived contact leaves an ordinary stress review its legend", () => {
+  // Every rest is a DIS_CHOC shoe now, so a plain pressurised line reports one
+  // derived, indeterminate contact. Counting that as a contact review
+  // neutralised the pipe and took the scalar legend off seven galleries.
+  const state = fixture();
+  state.resultFields = [{ id: "field:stress", overlay_id: "state-0", label: "FE VMIS", support: "cell",
+    unit: "Pa", components: ["magnitude"], range: [1e6, 4e8], load_case: "thermal" }];
+  state.coloring = { fieldId: "field:stress", component: "magnitude", loadCase: "thermal" };
+
+  assert.equal(getScalarLegend(state), null, "a solver-decided contact review still neutralises the pipe");
+
+  const derived = { ...state, resultStates: state.resultStates.map((entry) => ({
+    ...entry,
+    data: {
+      ...entry.data,
+      contact_results: Object.fromEntries(Object.entries(entry.data.contact_results)
+        .map(([key, contact]) => [key, { ...contact, status_source: "derived", status: "indeterminate" }]))
+    }
+  })) };
+  derived.overlays = derived.resultStates;
+  assert.equal(getScalarLegend(derived).field, "FE VMIS (cell)");
 });
 
 test("history visibility isolates the active increment and contact-neutral review suppresses unrelated arrows", async () => {

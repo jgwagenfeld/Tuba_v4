@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
 import {
   colorForScalarValue,
+  getActiveResultState,
   getObjectScalarColor,
   getResultVectorScale,
   getScalarLegend,
@@ -1152,7 +1153,7 @@ function createLabel(asset, config, format, state) {
   return { format, object: sprite };
 }
 
-function createFrictionBadgeSprite(text, position, state, status = null, size = 0.1) {
+function createFrictionBadgeSprite(text, position, state, status = null, size = 0.1, overLimit = false) {
   const canvasFactory = state?.canvasFactory ?? (() => globalThis.document?.createElement?.("canvas"));
   const canvas = canvasFactory();
   if (!canvas) return null;
@@ -1173,7 +1174,10 @@ function createFrictionBadgeSprite(text, position, state, status = null, size = 
   let textColor = "#fef3c7";
   let bgColor = "rgba(15, 23, 42, 0.88)";
 
-  if (status === "sticking") {
+  if (overLimit) {
+    borderColor = "rgba(220, 38, 38, 0.9)";
+    textColor = "#fecaca";
+  } else if (status === "sticking") {
     borderColor = "rgba(59, 130, 246, 0.85)";
     textColor = "#dbeafe";
   } else if (status === "sliding") {
@@ -1448,12 +1452,14 @@ function createSupportGlyph(asset, config, format, point, state) {
     const normalAxis = Math.abs(normal.z) >= 0.8 ? 2 : (Math.abs(normal.y) >= 0.8 ? 1 : 0);
 
     let contactStatus = null;
+    let contactOverLimit = false;
     if (state) {
       const records = contactRecords(state);
       const key = config.support_id ?? config.id ?? asset.id?.split(":").pop();
       const contactRecord = records[key];
       if (contactRecord) {
         contactStatus = contactRecord.status;
+        contactOverLimit = Number(contactRecord.utilization) > 1.001;
       }
     }
 
@@ -1465,8 +1471,11 @@ function createSupportGlyph(asset, config, format, point, state) {
     const padPos = normal.clone().multiplyScalar(-pipeRadius - padThickness / 2);
     const padRot = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
 
+    // Utilization past the friction limit outranks the status colour: the shoe
+    // is over its Coulomb envelope whatever the state word says.
     let padColor = hasFriction ? 0xd97706 : 0xdaa520;
-    if (contactStatus === "sticking") padColor = 0x2563eb;
+    if (contactOverLimit) padColor = 0xdc2626;
+    else if (contactStatus === "sticking") padColor = 0x2563eb;
     else if (contactStatus === "sliding") padColor = 0x0f766e;
     else if (contactStatus === "open") padColor = 0x64748b;
 
@@ -1488,7 +1497,8 @@ function createSupportGlyph(asset, config, format, point, state) {
     padMesh.quaternion.copy(padRot);
     padMesh.userData.supportAxis = normalAxis;
 
-    const edgeColor = contactStatus === "sticking" ? 0x93c5fd :
+    const edgeColor = contactOverLimit ? 0xfca5a5 :
+                      contactStatus === "sticking" ? 0x93c5fd :
                       contactStatus === "sliding" ? 0x5eead4 :
                       contactStatus === "open" ? 0x94a3b8 :
                       (hasFriction ? 0xfef3c7 : 0xffffff);
@@ -1521,7 +1531,7 @@ function createSupportGlyph(asset, config, format, point, state) {
       const refTangent = Math.abs(normal.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
       const tangent = new THREE.Vector3().crossVectors(normal, refTangent).normalize();
       const badgePos = padPos.clone().add(tangent.multiplyScalar(padWidth * 0.85));
-      const badgeSprite = createFrictionBadgeSprite(badgeText, badgePos, state, contactStatus, size);
+      const badgeSprite = createFrictionBadgeSprite(badgeText, badgePos, state, contactStatus, size, contactOverLimit);
       if (badgeSprite) {
         glyph.add(badgeSprite);
       }
@@ -2327,6 +2337,14 @@ function invalidAsset(asset, message) {
 }
 
 function addContactMarkers(root, state) {
+  // Contact marks are solver output, so they answer to the result layers the
+  // task presets switch. Their supporting object is design (a visible shoe), so
+  // without this gate a Build or Model view kept drawing solved contact arrows
+  // over a scene whose result layers were all off.
+  const resultOverlayId = getActiveResultState(state)?.overlay?.id;
+  if (resultOverlayId && Array.isArray(state.visibleOverlayIds) && !state.visibleOverlayIds.includes(resultOverlayId)) {
+    return;
+  }
   const maxima = contactForceMaxima(state);
   const span = sizeOfBounds(state.bounds);
   const size = Math.max(span.x, span.y, span.z, 1) * 0.025;
@@ -2344,16 +2362,19 @@ function addContactMarkers(root, state) {
     group.userData = { objectIds: [objectId], format: "vector", contactStatus: contact.status };
     const color = contact.utilization > 1.001 ? 0xdc2626 : CONTACT_COLORS[contact.status] ?? CONTACT_COLORS.indeterminate;
     const material = new THREE.MeshBasicMaterial({ color, depthTest: false });
-    let marker;
+    // Sticking is the resting state, and the shoe already says so twice: its pad
+    // is painted blue and the mu badge carries the filled-square symbol. A cube
+    // for the norm was the largest mark on the model. Only the states that need
+    // saying - lift-off, slide, an indeterminate solve - get a glyph.
+    let marker = null;
     if (contact.status === "open") marker = new THREE.Mesh(new THREE.TorusGeometry(size * 0.45, size * 0.08, 8, 24), material);
-    else if (contact.status === "sticking") marker = new THREE.Mesh(new THREE.BoxGeometry(size * 0.7, size * 0.7, size * 0.7), material);
     else if (contact.status === "sliding") marker = new THREE.ArrowHelper(new THREE.Vector3(...contact.tangential_force).normalize(), new THREE.Vector3(), size, color, size * 0.5, size * 0.35);
-    else {
+    else if (contact.status !== "sticking") {
       marker = new THREE.Group();
       marker.add(new THREE.Mesh(new THREE.TorusGeometry(size * 0.3, size * 0.07, 8, 16, Math.PI * 1.5), material));
       const point = new THREE.Mesh(new THREE.SphereGeometry(size * 0.08, 8, 8), material); point.position.y = -size * 0.45; marker.add(point);
     }
-    group.add(marker);
+    if (marker) group.add(marker);
     for (const [quantity, vector, color] of [["normal", contact.normal.map((v) => v * contact.normal_force), 0x2563eb], ["tangential", contact.tangential_force, 0x0f766e]]) {
       const direction = new THREE.Vector3(...vector); const force = direction.length();
       if (state.contactArrows?.[quantity] === false || !(force > 0) || !(maxima[quantity] > 0)) continue;
