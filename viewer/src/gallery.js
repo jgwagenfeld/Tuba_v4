@@ -152,6 +152,21 @@ export function renderGallery(container, catalog) {
   const entries = normalizeCatalog(catalog);
   container.replaceChildren();
 
+  // This page is the URL people share, and it used to name the product
+  // nowhere: the word "Tuba" appeared only in <title>. A visitor arriving cold
+  // could read twelve cards, find "python -m tuba.cli_studio" on each of them,
+  // and still have nothing saying what Tuba is or where to get it.
+  const masthead = document.createElement("div");
+  masthead.className = "gallery-masthead";
+  const wordmark = document.createElement("span");
+  wordmark.className = "gallery-wordmark";
+  wordmark.textContent = "Tuba";
+  const tagline = document.createElement("span");
+  tagline.className = "gallery-tagline";
+  tagline.textContent = "Code_Aster-backed piping engineering and result review";
+  masthead.append(wordmark, tagline);
+  container.append(masthead);
+
   const heading = document.createElement("h1");
   heading.className = "gallery-heading";
   heading.textContent = "Structural and piping reviews";
@@ -172,5 +187,44 @@ export function renderGallery(container, catalog) {
     grid.append(card(entry));
   }
   container.append(grid);
+  container.append(galleryFooter());
   return entries.length;
+}
+
+//: Where the gallery sends a reader who has finished the grid.
+//
+// Peak-end: the last thing on this page was the bottom of the twelfth card,
+// so the journey ended by running out. Links are relative because the docs
+// site is this page's parent on Pages, which keeps them right on a fork or
+// any other host rather than pinning one deployment's domain.
+const FOOTER_LINKS = Object.freeze([
+  ["Setup", "../setup.html"],
+  ["Tutorial", "../tutorial.html"],
+  ["Modeling", "../modeling.html"],
+  ["Source", "https://github.com/jgwagenfeld/Tuba_v4"]
+]);
+
+function galleryFooter() {
+  const footer = document.createElement("footer");
+  footer.className = "gallery-footer";
+
+  const note = document.createElement("p");
+  note.className = "gallery-footer-note";
+  note.textContent =
+    "Tuba builds a piping model in Python, solves it with Code_Aster, and keeps the "
+    + "result together with the run that produced it. Every review above is published "
+    + "with its own evidence.";
+  footer.append(note);
+
+  const nav = document.createElement("nav");
+  nav.className = "gallery-footer-links";
+  nav.setAttribute("aria-label", "Tuba documentation");
+  for (const [label, href] of FOOTER_LINKS) {
+    const link = document.createElement("a");
+    link.href = href;
+    link.textContent = label;
+    nav.append(link);
+  }
+  footer.append(nav);
+  return footer;
 }

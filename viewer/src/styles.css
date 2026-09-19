@@ -184,13 +184,19 @@ textarea,
   flex: 0 0 auto;
 }
 
+/* Neutral by default. Every control in this bar used to be cyan, which made
+   the accent mean "a control" rather than "look here" - and the accent is
+   spent on the scene and on state, not on permanent chrome. Two later, more
+   specific rules opt back in: the Solve button, which is the studio's one
+   primary action and takes the accent as a fill, and the Report link, which
+   is the way out to the tables a reviewer signs off from. */
 .header-actions > a,
 .header-actions > button {
   width: auto;
   border: 1px solid var(--graphite-line);
   border-radius: 0.15rem;
   background: transparent;
-  color: var(--accent);
+  color: var(--chrome-text);
   font-size: 0.8rem;
   padding: 0.35rem 0.55rem;
   text-decoration: none;
@@ -298,6 +304,17 @@ textarea,
 
 .runtime-status[data-error="true"]::before {
   color: var(--danger-on-dark);
+}
+
+/* A render diagnostic stops nothing, so it reads as the warning it is rather
+   than borrowing the error's red. */
+.runtime-status[data-level="warn"] {
+  border-color: var(--warning-on-dark);
+  color: var(--warning-on-dark);
+}
+
+.runtime-status[data-level="warn"]::before {
+  color: var(--warning-on-dark);
 }
 
 /* The primary panel in the rail: it takes the height that is left and scrolls
@@ -684,6 +701,11 @@ textarea,
   align-items: center;
   gap: 0.35rem;
   flex: 1 1 auto;
+  /* WCAG 2.2 SC 2.5.8 wants 24x24 CSS px of pointer target. A bare checkbox is
+     13x13, but the label is what the pointer actually hits, so the row is the
+     target and it was already wide enough - it was 19px tall. This is the
+     floor, and it is min-height rather than height so a wrapped label grows. */
+  min-height: 1.5rem;
   /* Enough that the layer name never ellipsizes to nothing before the row wraps,
      and not so much that it forces a wrap at full rail width: the badge, the
      opacity chip and the caret need ~140px of the 244px row between them. */
@@ -1269,6 +1291,26 @@ textarea,
 
 .layer-tree > summary {
   cursor: pointer;
+}
+
+/* The same 24px pointer-target floor as .body-toggle, for the two other things
+   in this panel a pointer lands on: the "All layers" leaf checkboxes, whose
+   labels were 63x15, and the disclosure summaries, which were 232x14.
+   Both were wide enough and too short.
+
+   min-height, not display:flex, on the summaries: flex drops the native
+   disclosure triangle, and the triangle is what says the row opens. */
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.5rem;
+}
+
+.strip-drawer > summary,
+.layer-tree summary {
+  min-height: 1.5rem;
+  padding-block: 0.25rem;
 }
 
 /* Floated rather than flexed: `display: flex` on a summary drops the native
@@ -2136,6 +2178,33 @@ body[data-view="gallery"] {
   color: var(--chrome-text);
 }
 
+/* Everything in this column shares the grid's 68rem measure and its centring,
+   so the masthead, the heading, the prose and the cards all begin on one line
+   down the left. */
+.gallery-masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  max-width: 68rem;
+  margin: 0 auto 1.25rem;
+}
+
+.gallery-wordmark {
+  color: var(--chrome-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.gallery-tagline {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
 .gallery-heading {
   max-width: 68rem;
   margin: 0 auto 0.5rem;
@@ -2148,7 +2217,48 @@ body[data-view="gallery"] {
   margin: 0 auto 2.25rem;
   color: #b9c4c9;
   line-height: 1.5;
-  max-inline-size: 60ch;
+  /* Padding, not max-inline-size. A narrower box with `margin: 0 auto` centred
+     itself inside the column, so the prose started a couple of centimetres
+     right of the heading it belongs to. This shortens the line and leaves the
+     left edge where the heading put it. */
+  padding-right: max(0px, calc(68rem - 60ch));
+}
+
+.gallery-footer {
+  max-width: 68rem;
+  margin: 3rem auto 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--graphite-line);
+}
+
+.gallery-footer-note {
+  margin: 0 0 1rem;
+  color: var(--chrome-text-3);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding-right: max(0px, calc(68rem - 60ch));
+}
+
+.gallery-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.gallery-footer-links a {
+  min-height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--chrome-text-2);
+  font-size: 0.8rem;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.gallery-footer-links a:hover,
+.gallery-footer-links a:focus-visible {
+  color: var(--chrome-text);
+  border-bottom-color: var(--graphite-line);
 }
 
 .gallery-grid {
@@ -2201,7 +2311,10 @@ body[data-view="gallery"] {
 
 .gallery-card-title {
   margin: 0;
-  color: var(--accent);
+  /* An eyebrow on every card, so accenting it put twelve cyan labels on the
+     landing page and told the eye nothing. The card's accent is its hover and
+     focus border, which is state. */
+  color: var(--chrome-text-2);
   font-size: 0.8rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2259,7 +2372,7 @@ body[data-view="gallery"] {
 
 .gallery-back {
   align-self: flex-start;
-  color: var(--accent);
+  color: var(--chrome-text-2);
   font-size: 0.78rem;
   text-decoration: none;
 }
@@ -2526,8 +2639,10 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   text-transform: uppercase;
 }
 
+/* A permanent tag on the model.py tab, not a state, so it reads as a label
+   rather than as something that just happened. */
 .code-role-source {
-  color: var(--accent);
+  color: var(--chrome-text-2);
 }
 
 /* Generated text reads a step quieter than the source it came from. */

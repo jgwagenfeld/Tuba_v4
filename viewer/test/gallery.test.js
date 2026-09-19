@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 
 import {
   bundleIdsOf,
@@ -93,4 +94,30 @@ test("bundle keys compare ids, paths and trailing slashes as the same bundle", (
   assert.equal(bundleKey("./code-aster-review/"), "code-aster-review");
   assert.equal(bundleKey("code-aster-review"), "code-aster-review");
   assert.equal(bundleKey(null), "");
+});
+
+// The landing page is the URL people share. It named the product nowhere: the
+// word "Tuba" was in <title> and nothing else, there was no way back to the
+// documentation that sent you, and the last thing on the page was the bottom
+// of the twelfth card. These assert the source rather than a rendered DOM,
+// which is how the other viewer rendering tests here work.
+test("the gallery names the product and says what it is", async () => {
+  const source = await readFile(new URL("../src/gallery.js", import.meta.url), "utf-8");
+
+  assert.match(source, /gallery-masthead/);
+  assert.match(source, /wordmark\.textContent = "Tuba"/);
+  assert.match(source, /Code_Aster-backed piping engineering and result review/);
+});
+
+test("the gallery offers a way onward rather than ending at the last card", async () => {
+  const source = await readFile(new URL("../src/gallery.js", import.meta.url), "utf-8");
+
+  assert.match(source, /gallery-footer/);
+  for (const label of ["Setup", "Tutorial", "Modeling", "Source"]) {
+    assert.match(source, new RegExp(`"${label}"`), `footer is missing the ${label} link`);
+  }
+  // Relative, so a fork or any other host keeps working; absolute only for the
+  // repository, which is not part of the published site.
+  assert.match(source, /\["Setup", "\.\.\/setup\.html"\]/);
+  assert.match(source, /https:\/\/github\.com\/jgwagenfeld\/Tuba_v4/);
 });

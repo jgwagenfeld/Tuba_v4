@@ -1741,6 +1741,9 @@ function renderLayerTree(categories) {
 function layerToggle(leaf) {
   const layer = currentState.layers[leaf.layerId];
   const label = document.createElement("label");
+  // Classed so the row can carry a pointer-target floor: the checkbox itself is
+  // 13px, and the label is what a click actually lands on.
+  label.className = "layer-toggle";
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = layer?.visible !== false;
@@ -2479,7 +2482,7 @@ function renderCanvas() {
     }
   };
   if (result.diagnostics.length > 0) {
-    setStatus(`Ready with ${result.diagnostics.length} render warning(s)`, true);
+    setStatus(`Ready with ${result.diagnostics.length} render warning(s)`, "warn");
   } else {
     setStatus("Ready");
   }
@@ -2618,18 +2621,27 @@ dom.canvas.addEventListener("mousemove", (event) => {
   });
 });
 
-function setStatus(message, error = false) {
-  const flag = error ? "true" : "false";
+// Severity is three-valued, not two. It was a boolean, so a render warning had
+// to pass `true` and came out in the error treatment: a red-bordered chip that
+// was the loudest thing in the header, for diagnostics that do not stop
+// anything. And because the auto-hide keys on the literal text "Ready", a
+// message like "Ready with 2 render warning(s)" never hid either, so the
+// loudest element on screen was also permanent.
+//
+// `true` still means error, so the fifteen call sites that pass it keep working.
+function setStatus(message, severity = false) {
+  const level = severity === true ? "error" : severity || "ok";
   // [data-runtime-status] is role="status" aria-live="polite": rewriting announces.
   // renderCanvas ends with setStatus("Ready") on every render, so without this
   // guard a screen reader said "Ready" after every checkbox, tab, slider nudge
   // and opacity click.
-  if (dom.status.textContent === message && dom.status.dataset.error === flag) {
+  if (dom.status.textContent === message && dom.status.dataset.level === level) {
     return;
   }
   dom.status.textContent = message;
-  dom.status.dataset.error = flag;
-  dom.status.dataset.ready = String(!error && message === "Ready");
+  dom.status.dataset.level = level;
+  dom.status.dataset.error = String(level === "error");
+  dom.status.dataset.ready = String(level === "ok" && message === "Ready");
 }
 
 function connectLivePreview(wsUrl) {
