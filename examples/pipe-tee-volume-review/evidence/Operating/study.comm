@@ -94,6 +94,20 @@ BC = AFFE_CHAR_MECA(
         ),
     ),
 );
+POINT_FORCE = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    FORCE_NODALE=(
+        _F(
+            GROUP_NO='G_NODE_N6',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-4.00000000E+03,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+    ),
+);
 PRESSURE = AFFE_CHAR_MECA(
     MODELE=MODELE,
     PRES_REP=_F(
@@ -113,7 +127,7 @@ RESU = MECA_STATIQUE(
     MODELE=MODELE,
     CHAM_MATER=CHMAT,
     CARA_ELEM=CARA,
-    EXCIT=(_F(CHARGE=BC), _F(CHARGE=PRESSURE), _F(CHARGE=GRAVITY),),
+    EXCIT=(_F(CHARGE=BC), _F(CHARGE=PRESSURE), _F(CHARGE=GRAVITY), _F(CHARGE=POINT_FORCE),),
 );
 RESU = CALC_CHAMP(
     reuse=RESU,

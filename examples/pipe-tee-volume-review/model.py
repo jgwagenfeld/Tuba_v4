@@ -46,5 +46,8 @@ model.add_element(id="line_branch", type="pipe_straight", n1=branch, n2=outer_br
 
 # Anchor on the outer 1D pipe run:
 model.add_support(outer_left, type="anchor")
-model.define_load_case("Operating", gravity=True, pressure=1.0e6)
+# Operating case: pressure, gravity, and a 4 kN out-of-plane load at the free
+# branch end (an equivalent nozzle load) so the junction shows the hot spot.
+operating = model.define_load_case("Operating", gravity=True, pressure=1.0e6)
+operating.add_nodal_force(outer_branch, [0.0, 0.0, -4.0e3])
 model.validate()
