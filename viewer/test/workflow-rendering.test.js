@@ -114,7 +114,9 @@ test("workflow rendering parses embed once and pins reloads to the display workf
 
   assert.equal((app.match(/new URLSearchParams/g) ?? []).length, 1);
   assert.match(app, /const startupConfig\s*=/);
-  assert.match(app, /activeTab:\s*"3d"/);
+  // Was a literal "3d". The embed destination is a named constant now, so a
+  // rename cannot leave this assertion quietly passing against a stale string.
+  assert.match(app, /activeTab:\s*EMBED_TASK_ID/);
   assert.match(css, /\[data-embed="true"\]\s+\.app-header[\s\S]*display:\s*none/);
   assert.match(css, /\[data-embed="true"\]\s+\.cockpit-rail[\s\S]*display:\s*none/);
 });

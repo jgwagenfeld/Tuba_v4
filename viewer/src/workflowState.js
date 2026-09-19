@@ -1,9 +1,21 @@
 export const WORKFLOW_TABS = Object.freeze([
   { id: "model", label: "Model" },
   { id: "results", label: "Results" },
-  { id: "diagnostics", label: "Issues" },
-  { id: "3d", label: "Display" }
+  { id: "diagnostics", label: "Issues" }
 ]);
+
+//: The task an embedded scene sits in: no rail, no preset, the scene as loaded.
+//
+// This was a fourth entry in WORKFLOW_TABS, labelled "Display", and it was the
+// only one getVisibleCockpitTaskIds could never return - so the rail could not
+// offer it and setWorkflowTab would have thrown on it, while embed mode set it
+// directly. A tab nobody can reach is not a tab. It is still a real state, so
+// it keeps its id and loses the label that implied a control existed.
+//
+// tutorial.md used to send readers to find "the Display controls" for load-case
+// selection, deformation, camera presets and the section box. Those four live
+// in three different places, none of them a task.
+export const EMBED_TASK_ID = "3d";
 
 // The Results task owns the coloring channel now that the permanent bar above
 // the viewport is gone, so a scene carrying fields or result states must offer
@@ -24,7 +36,7 @@ export function getVisibleCockpitTaskIds(state = {}) {
 }
 
 export function defaultWorkflowTab({ review, embed } = {}) {
-  if (embed) return "3d";
+  if (embed) return EMBED_TASK_ID;
   return "model";
 }
 

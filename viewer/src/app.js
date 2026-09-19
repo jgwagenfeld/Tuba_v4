@@ -83,6 +83,7 @@ import { getPropertySections } from "./selection.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
+  EMBED_TASK_ID,
   WORKFLOW_TABS,
   createWorkflowState,
   getVisibleCockpitTaskIds,
@@ -373,7 +374,7 @@ async function loadBundle(bundleUrl, options = {}) {
   const nextState = { ...viewerState, ...workflowState };
   const loadedState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
   currentState = startupConfig.embed
-    ? { ...loadedState, embed: true, activeTab: "3d" }
+    ? { ...loadedState, embed: true, activeTab: EMBED_TASK_ID }
     : loadedState;
   // Deliberately NOT applying the task preset on arrival. A preset scopes the
   // view when the reviewer switches task - an explicit act. Applying it at load

@@ -120,7 +120,7 @@ Missing or empty required result rows indicate a failed or incomplete run.
 
 The browser review offers the Model, Results, and Issues tasks; see [visualization architecture](architecture/visualization.md) for what each shows. The review's tables live in the generated report that the header links to.
 
-The Display controls provide load-case and result-field selection, physical or visual deformation, camera presets, zoom, and a true six-plane section box. Section inputs clip crossing geometry in the renderer; they are not object-level hide/show filters.
+Those four controls live in three places, not in a task of their own. Load-case and result-field selection, and physical or visual deformation, are in the **Results** task. Camera presets and zoom sit on the viewport itself, beside the orientation gizmo. The six-plane section box is behind **Section box** at the foot of the rail. Section inputs clip crossing geometry in the renderer; they are not object-level hide/show filters.
 
 [Open the Code_Aster review scene](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review).
 
