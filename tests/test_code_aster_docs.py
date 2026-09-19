@@ -37,13 +37,6 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertNotIn("simvia/code_aster:stable", text)
         self.assertNotIn("your-tuba-v4-repo-url", text)
 
-    def test_welcome_notebook_points_to_solver_setup_before_execution(self):
-        notebook = json.loads(Path("notebooks/00_welcome_and_setup.ipynb").read_text(encoding="utf-8"))
-        source = "\n".join("".join(cell.get("source", [])) for cell in notebook.get("cells", []))
-
-        self.assertIn("pip installs Tuba, not Code_Aster", source)
-        self.assertIn("python -m tuba.solver.code_aster_doctor --check", source)
-
     def test_readme_states_that_results_require_the_solver(self):
         """The README states the solver and result-import requirements."""
         text = Path("README.md").read_text(encoding="utf-8")
@@ -71,8 +64,8 @@ class TestCodeAsterDocs(unittest.TestCase):
             Path("README.md"),
             Path("docs/content/setup.md"),
             Path("docs/content/tutorial.md"),
-            Path("notebooks/00_welcome_and_setup.ipynb"),
-            Path("notebooks/autorouting_quick_iteration.ipynb"),
+            Path("notebooks/04_visualization_gallery.ipynb"),
+            Path("notebooks/07_bim_data_exchange.ipynb"),
         ]
         texts = {path: path.read_text(encoding="utf-8") for path in paths}
 

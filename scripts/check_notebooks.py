@@ -14,12 +14,25 @@ from nbclient import NotebookClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VISIBLE_NOTEBOOKS = {
-    "00_welcome_and_setup.ipynb",
-    "03_stress_analysis_and_compliance.ipynb",
+#: The notebooks this repository keeps, and why there are only two.
+#:
+#: The course used to be fourteen. Twelve of them taught what the gallery,
+#: the tutorial and modeling.md now teach better - several by hand-copying a
+#: gallery model and reading that gallery's own evidence, two by stating that
+#: Tuba emits no friction law to Code_Aster while aster_comm.py writes
+#: COULOMB= and native-friction-review publishes the result. These two remain
+#: because nothing else in the repo runs what they run.
+EXPECTED_NOTEBOOKS = {
+    # The only exercise of PLY, glTF, Blender-script and standalone-HTML export.
     "04_visualization_gallery.ipynb",
-    "10_interactive_postprocessor.ipynb",
-    "visualize_elements_and_supports.ipynb",
+    # The only executed IFC4 export -> inspect -> re-import round-trip.
+    "07_bim_data_exchange.ipynb",
+}
+
+#: Notebooks that must emit an image, because a render is their whole point.
+#: 07 is text-only by design: it round-trips IFC and prints, so it is absent.
+VISIBLE_NOTEBOOKS = {
+    "04_visualization_gallery.ipynb",
 }
 
 
@@ -76,10 +89,18 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory(prefix="tuba-notebooks-") as tmpdir:
         snapshot = candidate_snapshot(Path(tmpdir))
         notebooks = sorted((snapshot / "notebooks").glob("*.ipynb"))
-        if len(notebooks) != 14:
-            raise RuntimeError(f"Expected 14 notebooks, found {len(notebooks)}")
+        # Names rather than a count: a count says fourteen became thirteen, a
+        # name says which one, and it catches a rename that a count sails past.
+        found = {path.name for path in notebooks}
+        if found != EXPECTED_NOTEBOOKS:
+            missing = sorted(EXPECTED_NOTEBOOKS - found)
+            unexpected = sorted(found - EXPECTED_NOTEBOOKS)
+            raise RuntimeError(
+                f"notebooks/ does not match EXPECTED_NOTEBOOKS; missing={missing} unexpected={unexpected}"
+            )
         if args.real_solver_smoke:
-            notebooks = [snapshot / "notebooks" / "visualize_elements_and_supports.ipynb"]
+            # 04 is the one that renders a solved result, so it is the smoke test.
+            notebooks = [snapshot / "notebooks" / "04_visualization_gallery.ipynb"]
         for path in notebooks:
             notebook = nbformat.read(path, as_version=nbformat.NO_CONVERT)
             nbformat.validate(notebook)

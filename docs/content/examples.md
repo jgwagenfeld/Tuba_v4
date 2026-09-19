@@ -139,8 +139,9 @@ git clean -fdX -- .build
 ```
 
 Committed Code_Aster evidence is never a cleanup target: each solved gallery
-project keeps its own under `examples/<project>/evidence/<operation>/`, and the
-notebooks keep theirs under `notebooks/code_aster_results/`.
+project keeps its own under `examples/<project>/evidence/<operation>/`. One
+private run remains under `notebooks/code_aster_results/bim_operating`, for the
+IFC round-trip notebook; the other four went with the notebooks that read them.
 
 | Example | Evidence status | Purpose |
 | --- | --- | --- |
@@ -183,7 +184,7 @@ See [Autorouting](autorouting.md) for the request fields, grid behavior, solver-
 After [Setup](setup.md) succeeds, open:
 
 ```powershell
-.\.venv\Scripts\jupyter.exe lab notebooks\10_interactive_postprocessor.ipynb
+.\.venv\Scripts\jupyter.exe lab notebooks\04_visualization_gallery.ipynb
 ```
 
 Examples that display stress, reaction, displacement, compliance, or operating-state results must either execute Code_Aster or load real preserved Code_Aster artifacts.

@@ -132,7 +132,7 @@ from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
 run = load_or_run_code_aster_results(
     model,
     "Operating",
-    "notebooks/code_aster_results/stress_analysis_operating",
+    "examples/code-aster-review/evidence/Operating",
     run_solver=True,
     exec_method="wsl",
     wsl_distro="Ubuntu",
@@ -146,48 +146,29 @@ With `run_solver=False`, the directory must already contain real Code_Aster arti
 
 The tutorial is complete only when Code_Aster has produced result artifacts and Tuba has imported them as an `AnalysisRun` with a persistent `ResultState`. Export-only output is useful for diagnostics and handoff review, but it is not an engineering evaluation.
 
-## The notebook course
+## The notebooks
 
-
-One install command provides every dependency used by all 14 course and
-supplemental notebooks:
+There were fourteen. Twelve taught what this page, [Modeling](modeling.md),
+[Autorouting](autorouting.md) and the [Examples](examples.md) gallery already
+teach better - several by hand-copying a gallery model and reading that
+gallery's own evidence, so one geometry change had to be chased through three
+copies. Two remain, because nothing else in the repository runs what they run.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install ".[course]"
-.\.venv\Scripts\jupyter.exe lab notebooks\00_welcome_and_setup.ipynb
 ```
 
-The first workflow in that notebook builds a piping model, loads or runs
-Code_Aster through the configured runtime, imports the generated result
-artifacts, and opens an interactive deformed-stress view. Continue with
-`notebooks\03_stress_analysis_and_compliance.ipynb` for stress-result review and
-`notebooks\04_visualization_gallery.ipynb` for additional result exports.
-
-Course sequence:
-
-| Notebook                                        | Purpose                                                       |
-| ----------------------------------------------- | ------------------------------------------------------------- |
-| `00_welcome_and_setup.ipynb`                  | Fast complete workflow: model, Code_Aster, interactive result |
-| `01_building_piping_systems.ipynb`            | Geometry authoring with the piping DSL                        |
-| `02_supports_and_loading.ipynb`               | Supports, boundary conditions, and load cases                 |
-| `03_stress_analysis_and_compliance.ipynb`     | Code_Aster-backed stress and independent engineering review                |
-| `04_visualization_gallery.ipynb`              | Result visualization and export formats                       |
-| `05_autorouting.ipynb`                        | Deterministic routing and Code_Aster study handoff            |
-| `06_structural_frames_and_optimization.ipynb` | Pipe racks and Code_Aster-backed design evaluation            |
-| `07_bim_data_exchange.ipynb`                  | JSON and IFC/BIM exchange with solver properties              |
-| `08_expansion_aware_autorouting.ipynb`        | Hot-line routing with reserved expansion envelopes            |
-| `09_imported_component_mixed_system.ipynb`    | Imported CAD component placement and pipe coupling            |
-| `10_interactive_postprocessor.ipynb`          | Focused Code_Aster artifact post-processing                   |
-
-Supplemental notebooks: `autorouting_quick_iteration.ipynb`,
-`visualize_elements_and_supports.ipynb`, and
-`advanced_piping_design_and_bim.ipynb`.
-
-For focused post-processing, open:
+| Notebook | What it runs that nothing else does |
+| --- | --- |
+| `04_visualization_gallery.ipynb` | PLY, glTF, Blender-script and standalone-HTML export of a solved result |
+| `07_bim_data_exchange.ipynb` | An IFC4 export, an `ifcopenshell` inspection, and a re-import back into a `TubaModel` |
 
 ```powershell
-.\.venv\Scripts\jupyter.exe lab notebooks\10_interactive_postprocessor.ipynb
+.\.venv\Scripts\jupyter.exe lab notebooks\04_visualization_gallery.ipynb
 ```
 
-It loads preserved Code_Aster artifacts by default, renders interactive
-PyVista result views, and writes a `viewer/` scene bundle for review.
+Both load committed Code_Aster artifacts by default and solve nothing unless
+you ask them to. For the ordinary review path - geometry, deformed shape,
+stress and support loads - open the [gallery](examples.md) in the browser
+instead: it is the same evidence, in the reviewer the documentation figures are
+shot in.

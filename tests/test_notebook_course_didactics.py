@@ -41,17 +41,6 @@ class TestNotebookCourseDidactics(unittest.TestCase):
         review_call = text[text.index("review = build_engineering_review(") :]
         self.assertIn("analysis_meshes=analysis_meshes", review_call.split(")", 1)[0])
 
-    def test_support_lesson_updates_existing_supports_instead_of_duplicating_them(self):
-        text = _notebook_text("02_supports_and_loading.ipynb")
-        self.assertIn("Adding another support would append", text)
-        self.assertNotIn('model.add_support(\n    node="N2"', text)
-        self.assertNotIn('model.add_support(\n    node="N3"', text)
-
-    def test_design_evaluation_lesson_does_not_claim_to_run_optimization(self):
-        text = _notebook_text("06_structural_frames_and_optimization.ipynb")
-        self.assertIn("No optimization is run in this lesson", text)
-        self.assertNotIn("Solver-Scored Support Optimization", text)
-
     def test_notebooks_use_plain_coordinates_for_add_node_examples(self):
         offenders: list[str] = []
         for path in sorted(NOTEBOOK_DIR.glob("*.ipynb")):
@@ -61,25 +50,14 @@ class TestNotebookCourseDidactics(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
-    def test_course_map_covers_all_numbered_notebooks(self):
-        welcome = _notebook_text("00_welcome_and_setup.ipynb")
-        # The course map moved out of the README when it stopped being a
-        # documentation dump; the Tutorial page owns it now.
-        tutorial = (NOTEBOOK_DIR.parent / "docs" / "content" / "tutorial.md").read_text(
-            encoding="utf-8"
-        )
-
-        for label in [f"{index:02d}" for index in range(11)]:
-            with self.subTest(label=label):
-                self.assertIn(f"**{label}**", welcome)
-                self.assertIn(f"{label}_", tutorial)
-
     def test_notebooks_that_print_n1_n2_also_show_endpoint_vectors(self):
+        # There was a numbered course of fourteen notebooks and a
+        # test_course_map_covers_all_numbered_notebooks that held the map in
+        # 00 and in tutorial.md in step. Twelve of them taught what the gallery
+        # and the docs teach better, so both the course and its map are gone;
+        # what is left is the two notebooks that run something nothing else does.
         expected_phrases = {
-            "01_building_piping_systems.ipynb": "element vector",
-            "06_structural_frames_and_optimization.ipynb": "Frame element endpoint vectors",
             "07_bim_data_exchange.ipynb": "First pipe endpoints",
-            "advanced_piping_design_and_bim.ipynb": "Frame element endpoint vectors",
         }
 
         missing = [

@@ -31,7 +31,6 @@ REQUIRED = {
     "viewer/pipe-tee-volume-review/scene.json",
     "viewer/profile-orientation-review/scene.json",
     "viewer/support-rack-review/scene.json",
-    "notebooks/10_interactive_postprocessor.ipynb",
     ".nojekyll",
 }
 OFFICIAL_BUNDLES = [
@@ -124,9 +123,6 @@ def _project_tree(root: Path) -> None:
     (viewer / "licenses" / "OFL-1.1.txt").write_text("OFL", encoding="utf-8")
     (viewer / "index.html").write_text("viewer", encoding="utf-8")
     (viewer / "bundles.json").write_text("[]\n", encoding="utf-8")
-    notebook = root / "notebooks" / "10_interactive_postprocessor.ipynb"
-    notebook.parent.mkdir()
-    notebook.write_text("{}", encoding="utf-8")
     (root / "docs" / "content").mkdir(parents=True)
 
 
