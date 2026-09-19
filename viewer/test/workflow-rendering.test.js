@@ -57,8 +57,10 @@ test("build mode lists the live model's issues in the code pane, not the rail", 
   const html = await readViewerFile("index.html");
   const css = await readViewerFile("src/styles.css");
 
-  // The rail stays a review surface: it remains hidden in Build mode.
-  assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded \|\| isBuildMode\(\);/);
+  // The rail stays a review surface: it remains hidden in the Build workspace,
+  // whether a studio edits model.py or a published bundle shows it frozen.
+  assert.match(app, /const scriptPane = isBuildMode\(\);/);
+  assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded \|\| scriptPane;/);
   // Build issues surface in the code pane instead, one row per issue with the
   // same camera-focusing click as the rail list.
   assert.match(html, /<div class="build-issues" data-build-issues hidden><\/div>/);

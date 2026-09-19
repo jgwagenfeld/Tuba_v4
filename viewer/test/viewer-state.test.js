@@ -84,6 +84,47 @@ test("overlay kind layers hide overlay-owned marker objects independently", () =
   assert.deepEqual(next.visibleObjectIds, ["object:cold", "object:deformed"]);
 });
 
+test("Build keeps a volume review's mesh and the review restores what the bundle declared", () => {
+  const base = bundle().scene;
+  const state = createViewerState(bundle({
+    objects: [
+      ...base.objects,
+      {
+        id: "object:skin",
+        kind: "analysis_mesh_surface",
+        name: "Volume skin",
+        geometry_asset_id: "asset:skin",
+        layer_ids: ["analysis_mesh:volume_skin"],
+      },
+    ],
+    geometry_assets: [
+      ...base.geometry_assets,
+      { id: "asset:skin", format: "mesh", bounds: [0, 0, 0, 1, 1, 1], object_ids: ["object:skin"], generation_config: {} },
+    ],
+    layers: [
+      { id: "analysis_mesh:volume_skin", category: "analysis_mesh", label: "Volume skin", default_visible: true },
+      { id: "analysis_mesh:identity:mesh", category: "analysis_mesh", label: "Mesh identity", default_visible: false },
+    ],
+  }));
+
+  assert.equal(state.layers["analysis_mesh:volume_skin"].visible, true);
+
+  const build = reduceViewerState(state, { type: "enterBuild" });
+  assert.equal(build.activeTab, "model");
+  // A volume review carries no procedural design geometry - the mesh skin is
+  // the model - so Build keeps it rather than emptying the canvas.
+  assert.equal(build.layers["analysis_mesh:volume_skin"].visible, true);
+  assert.ok(build.visibleObjectIds.includes("object:skin"));
+  // A layer the bundle declared hidden is not revived by the preset.
+  assert.equal(build.layers["analysis_mesh:identity:mesh"].visible, false);
+  // Result overlays belong to the review, not to the built model.
+  assert.equal(build.layers["overlay:result_state"].visible, false);
+
+  const review = reduceViewerState(build, { type: "resetLayerVisibility" });
+  assert.equal(review.layers["analysis_mesh:volume_skin"].visible, true);
+  assert.equal(review.layers["overlay:result_state"].visible, true);
+});
+
 test("reaction vectors can be hidden by result layer or solver overlay", () => {
   const base = bundle().scene;
   const state = createViewerState(bundle({

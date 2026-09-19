@@ -74,7 +74,7 @@ test("embed still defaults to the 3d canvas destination", () => {
   assert.equal(createWorkflowState({ review: reviewFixture, embed: true }).activeTab, "3d");
 });
 
-test("visibility presets hide analysis mesh everywhere and scope results/annotations per task", () => {
+test("visibility presets hide analysis mesh in the review tasks and scope results/annotations", () => {
   assert.deepEqual(visibilityPresetForTask("model"), {
     design: true, analysis_mesh: false, results: false, annotations: false
   });
@@ -83,6 +83,11 @@ test("visibility presets hide analysis mesh everywhere and scope results/annotat
   });
   assert.deepEqual(visibilityPresetForTask("diagnostics"), {
     design: true, analysis_mesh: false, results: false, annotations: true
+  });
+  // Build keeps the analysis mesh: in a volume or mesh review the mesh is the
+  // model, and there is no procedural geometry to show in its place.
+  assert.deepEqual(visibilityPresetForTask("build"), {
+    design: true, analysis_mesh: true, results: false, annotations: false
   });
   assert.equal(visibilityPresetForTask("3d"), null);
   assert.equal(visibilityPresetForTask("unknown"), null);

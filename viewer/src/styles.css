@@ -2433,7 +2433,7 @@ body[data-studio="true"] .app-identity {
 
 /* The script takes the rail's slot, wider: a builder call runs to about sixty
    characters and should neither wrap nor scroll sideways. */
-body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-workspace {
+body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   --controls-width: min(34rem, max(42vw, 20rem));
 }
 
@@ -2604,6 +2604,13 @@ body[data-mode="build"][data-studio="true"]:not([data-embed="true"]) .viewer-wor
 .code-pane .code-run:disabled {
   cursor: progress;
   opacity: 0.6;
+}
+
+/* A published bundle's pane is read-only, so the Run control is absent rather
+   than disabled: there is no server here that could run it. The author display
+   rule above would otherwise beat the user-agent [hidden] rule. */
+.code-pane .code-run[hidden] {
+  display: none;
 }
 
 .code-run kbd {

@@ -31,7 +31,13 @@ export function defaultWorkflowTab({ review, embed } = {}) {
 const TASK_VISIBILITY_PRESETS = Object.freeze({
   model: { design: true, analysis_mesh: false, results: false, annotations: false },
   results: { design: true, analysis_mesh: false, results: true, annotations: true },
-  diagnostics: { design: true, analysis_mesh: false, results: false, annotations: true }
+  diagnostics: { design: true, analysis_mesh: false, results: false, annotations: true },
+  // Build inspects what was built. A volume or mesh review carries no procedural
+  // design geometry - its analysis mesh is the model - so the mesh stays in view
+  // and only the result and annotation overlays drop. A layer declared hidden by
+  // the bundle still stays hidden, so a review with real design geometry keeps
+  // the mesh out of its Build view.
+  build: { design: true, analysis_mesh: true, results: false, annotations: false }
 });
 
 export function visibilityPresetForTask(taskId) {

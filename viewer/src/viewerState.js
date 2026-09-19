@@ -60,6 +60,19 @@ export function reduceViewerState(state, action) {
       return { ...state, modelColorBy: action.colorBy ?? "default" };
     case "activateTask":
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
+    case "enterBuild":
+      // Build is not a review task, so it escapes the tab validation activateTask
+      // applies; it lands on the Model tab and uses the build visibility preset.
+      return applyTaskVisibilityPreset({ ...state, activeTab: "model" }, "build");
+    case "resetLayerVisibility": {
+      // Back from Build: every layer returns to what the bundle declared, so the
+      // review the reader opened is the review they come back to.
+      let declared = state;
+      for (const layer of Object.values(state.layers ?? {})) {
+        declared = setLayerVisibility(declared, layer.id, layer.defaultVisible !== false);
+      }
+      return withVisibility(declared);
+    }
     case "setContactNeutral":
       return withVisibility({ ...state, contactNeutral: action.neutral });
     case "setContactArrows":

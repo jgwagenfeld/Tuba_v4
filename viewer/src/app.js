@@ -7,6 +7,7 @@ import {
   scriptLine,
   withRunLength
 } from "./codeLink.js";
+import { deriveBundleSource } from "./bundleSource.js";
 import { contactObjectId, contactRecords, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
@@ -231,6 +232,21 @@ const studio = {
   commRequest: 0
 };
 
+// A published bundle ships the model script that built it and the .comm each
+// load case produced. The viewer shows them in the same Build workspace a
+// studio edits; with no server here the pane is frozen read-only and the
+// Results side is the review.
+const sourceView = {
+  available: false,
+  mode: "review",
+  baseUrl: ".",
+  scriptUri: null,
+  // [{ name: load case, uri: comm path }], in the study's order.
+  loadCases: [],
+  // Fetched files, keyed by bundle-relative URI, so switching tabs is free.
+  text: new Map()
+};
+
 async function main() {
   const catalog = await loadBundleCatalog();
   document.body.dataset.embed = String(startupConfig.embed);
@@ -338,6 +354,13 @@ async function switchBundle(bundleId) {
 
 async function loadBundle(bundleUrl, options = {}) {
   currentBundle = await loadSceneBundleFromUrl(bundleUrl);
+  // A static bundle can show its origin script; a studio owns the live one, so
+  // it must not be overwritten by whatever the bundle happens to carry.
+  if (studio.project) {
+    clearBundleSource();
+  } else {
+    await loadBundleSource(bundleUrl);
+  }
   const viewerState = withDefaultBodyOpacity(createViewerState(currentBundle));
   const workflowState = createWorkflowState({
     review: viewerState.review,
@@ -420,9 +443,10 @@ function restoreFocus(focus) {
 }
 
 function renderTaskRail() {
+  const scriptPane = isBuildMode();
   dom.workflowTabs.replaceChildren();
-  dom.taskRail.hidden = currentState.embed || !railExpanded || isBuildMode();
-  dom.railToggle.hidden = currentState.embed || isBuildMode();
+  dom.taskRail.hidden = currentState.embed || !railExpanded || scriptPane;
+  dom.railToggle.hidden = currentState.embed || scriptPane;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
   dom.railToggle.textContent = railExpanded ? "\u2039" : "\u203a";
   dom.railToggle.title = railExpanded ? "Hide controls" : "Show controls";
@@ -2938,19 +2962,76 @@ function sameHostPreviewSocketUrl() {
   return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/preview/ws`;
 }
 
+// Build is a workspace mode, not a studio privilege: a studio runs model.py, a
+// published bundle shows the same pane frozen. Either way the rail yields to it.
+function buildWorkspaceMode() {
+  if (currentState?.embed) return null;
+  if (studio.available) return studio.mode;
+  if (sourceView.available) return sourceView.mode;
+  return null;
+}
+
 function isBuildMode() {
-  return studio.available && studio.mode === "build" && !currentState?.embed;
+  return buildWorkspaceMode() === "build";
+}
+
+// -- A published bundle's model.py and .comm, read-only -----------------------
+
+async function loadBundleSource(baseUrl) {
+  clearBundleSource();
+  const derived = deriveBundleSource(currentBundle?.scene, currentBundle?.review);
+  if (!derived) return;
+  const root = String(baseUrl).replace(/\/+$/, "");
+  let script;
+  try {
+    script = await fetchBundleText(root, derived.scriptUri);
+  } catch {
+    // A bundle that names a script it does not ship has nothing to show; the
+    // review stands on its own.
+    return;
+  }
+  sourceView.available = true;
+  sourceView.baseUrl = root;
+  sourceView.scriptUri = derived.scriptUri;
+  sourceView.loadCases = derived.loadCases;
+  sourceView.text.set(derived.scriptUri, script);
+  setScriptText(script);
+}
+
+function clearBundleSource() {
+  sourceView.available = false;
+  sourceView.mode = "review";
+  sourceView.baseUrl = ".";
+  sourceView.scriptUri = null;
+  sourceView.loadCases = [];
+  sourceView.text.clear();
+  if (!studio.available) studio.codeTab = null;
+}
+
+async function fetchBundleText(baseUrl, uri) {
+  const response = await fetch(`${baseUrl}/${uri}`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to load ${uri}: ${response.status} ${response.statusText}`);
+  }
+  const contentType = response.headers?.get?.("content-type") ?? "";
+  if (contentType.toLowerCase().includes("text/html")) {
+    throw new Error(`Expected text from ${uri}, but received HTML.`);
+  }
+  return response.text();
 }
 
 function renderMode() {
   const build = isBuildMode();
   document.body.dataset.studio = String(studio.available);
   document.body.dataset.mode = build ? "build" : "review";
-  dom.modeSwitch.hidden = !studio.available || currentState.embed;
+  dom.modeSwitch.hidden = !(studio.available || sourceView.available) || currentState.embed;
   for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
     button.setAttribute("aria-pressed", String(button.dataset.mode === document.body.dataset.mode));
   }
   dom.codePane.hidden = !build;
+  dom.codeText.readOnly = !studio.available;
+  dom.codeRun.hidden = !studio.available;
+  if (!studio.available) dom.codeState.textContent = "Read-only";
   renderCodeTabs();
   renderCodeMeshToggle();
   renderSolveControls();
@@ -2973,11 +3054,17 @@ function renderCodeMeshToggle() {
 
 // -- Build mode's file tabs: model.py is the source, every .comm is generated --
 
+// A studio owns the load cases in its study.py; a published bundle carries them
+// in its scene and review. Both feed the same tab strip.
+function codePaneCases() {
+  return studio.available ? (studio.project?.load_cases ?? []) : sourceView.loadCases.map((entry) => entry.name);
+}
+
 function renderCodeTabs() {
-  const cases = studio.project?.load_cases ?? [];
+  const cases = codePaneCases();
   if (!cases.includes(studio.codeTab)) studio.codeTab = null;
   const { codeTab } = studio;
-  const key = cases.join("\n");
+  const key = `${studio.available ? "studio" : "bundle"}\n${cases.join("\n")}`;
   if (dom.codeTabs.dataset.cases !== key || !dom.codeTabs.children.length) {
     dom.codeTabs.dataset.cases = key;
     dom.codeTabs.replaceChildren(
@@ -3017,7 +3104,7 @@ function showCodeTab(tab) {
   if (tab === null) {
     renderCodeMarks();
   } else {
-    dom.commText.textContent = "Generating…";
+    dom.commText.textContent = studio.available ? "Generating…" : "Loading…";
     void loadComm();
   }
 }
@@ -3027,17 +3114,34 @@ async function loadComm() {
   if (tab === null) return;
   const request = ++studio.commRequest;
   let result;
-  try {
-    const response = await fetch(`/api/comm?case=${encodeURIComponent(tab)}`, { cache: "no-store" });
-    result = await response.json().catch(() => ({ error: `Studio answered ${response.status}` }));
-  } catch (error) {
-    result = { error: error.message };
+  if (studio.available) {
+    try {
+      const response = await fetch(`/api/comm?case=${encodeURIComponent(tab)}`, { cache: "no-store" });
+      result = await response.json().catch(() => ({ error: `Studio answered ${response.status}` }));
+    } catch (error) {
+      result = { error: error.message };
+    }
+  } else {
+    const entry = sourceView.loadCases.find((candidate) => candidate.name === tab);
+    try {
+      if (!entry) throw new Error("This review ships no .comm for that load case.");
+      const cached = sourceView.text.get(entry.uri);
+      const code = cached ?? (await fetchBundleText(sourceView.baseUrl, entry.uri));
+      if (!cached) sourceView.text.set(entry.uri, code);
+      result = { ok: true, code };
+    } catch (error) {
+      result = { error: error.message };
+    }
   }
   // A later request, or another tab, owns the pane now.
   if (request !== studio.commRequest || tab !== studio.codeTab) return;
   const { scrollTop } = dom.commText;
   dom.commText.dataset.state = result.ok ? "ready" : "error";
-  dom.commText.textContent = result.ok ? result.code : `${tab}.comm could not be generated.\n\n${result.error ?? ""}`;
+  dom.commText.textContent = result.ok
+    ? result.code
+    : studio.available
+      ? `${tab}.comm could not be generated.\n\n${result.error ?? ""}`
+      : `${tab}.comm is not part of this review.\n\n${result.error ?? ""}`;
   dom.commText.scrollTop = scrollTop;
 }
 
@@ -3134,6 +3238,22 @@ async function handleSolveEvent(message) {
 }
 
 async function setMode(mode) {
+  // A published bundle has no live model to swap in: the one scene it shipped
+  // is both the built model and the review, so the mode is only a view change.
+  if (!studio.available) {
+    if (!sourceView.available || sourceView.mode === mode) return;
+    sourceView.mode = mode;
+    if (mode === "build") {
+      studio.codeTab = null;
+      dispatch({ type: "enterBuild" });
+    } else {
+      // The review opens on what the bundle declared; leaving Build restores it
+      // so the authored solid and its mesh are not both drawing at once.
+      dispatch({ type: "resetLayerVisibility" });
+    }
+    render();
+    return;
+  }
   if (studio.mode === mode) return;
   studio.mode = mode;
   await showStudioBundle(mode);
@@ -3249,6 +3369,14 @@ function renderGutter() {
 }
 
 function renderCodeFoot() {
+  if (!studio.available) {
+    const note = document.createElement("span");
+    note.textContent = studio.codeTab === null
+      ? "Shipped with this review · read-only"
+      : "Generated from model.py + study.py · read-only · solver input, not results";
+    dom.codeFoot.replaceChildren(note);
+    return;
+  }
   if (studio.codeTab !== null) {
     const note = document.createElement("span");
     note.textContent = "Generated from model.py + study.py · read-only · solver input, not results";
@@ -3330,7 +3458,9 @@ function renderScriptLink(object) {
   section.append(heading);
   const line = Number(object.metadata?.source_line);
   if (!Number.isInteger(line) || line < 1) {
-    section.append(metaLine("Run model.py to link this to the line that builds it."));
+    section.append(metaLine(studio.available
+      ? "Run model.py to link this to the line that builds it."
+      : "This review records no source line for the selection."));
     return section;
   }
   if (scriptLinesMoved()) {
@@ -3344,6 +3474,10 @@ function renderScriptLink(object) {
   if (Number.isInteger(callLine) && callLine > 0) {
     section.append(scriptLineButton(callLine, `called from model.py:${callLine}`));
   }
+
+  // A published bundle's pane is frozen: the link reveals the line, but there
+  // is nothing here that could rewrite it and run.
+  if (!studio.available) return section;
 
   const length = runLengthLiteral(source);
   if (length === null) return section;
