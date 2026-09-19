@@ -204,6 +204,8 @@ def mesh_identity(analysis_mesh: AnalysisMesh) -> dict[str, object]:
         "element_count": len(analysis_mesh.elements),
         "element_families": _element_families(analysis_mesh),
     }
+    if analysis_mesh.geometry_ref is not None:
+        identity["geometry_ref"] = analysis_mesh.geometry_ref
     discretisation = discretisation_summary(analysis_mesh)
     if discretisation is not None:
         identity["discretisation"] = discretisation

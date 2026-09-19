@@ -142,6 +142,10 @@ class AnalysisMesh:
     modelisations: dict[str, str] = field(default_factory=dict)
     solver_input_identity: SolverInputIdentity | None = None
     surface_mesh: dict[str, Any] | None = None
+    #: The ``VolumeGeometry`` this mesh discretises, when it is a pipe-volume
+    #: mesh. The id carries the geometry fingerprint, so mesh, solver input
+    #: identity, and scene all pin the same solid.
+    geometry_ref: str | None = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "AnalysisMesh id")
@@ -206,6 +210,8 @@ class AnalysisMesh:
             if node_ids:
                 surface_mesh["node_ids"] = node_ids
             object.__setattr__(self, "surface_mesh", surface_mesh)
+        if self.geometry_ref is not None and not self.geometry_ref:
+            raise ValueError("AnalysisMesh geometry_ref must not be empty when set.")
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -230,6 +236,8 @@ class AnalysisMesh:
             if "node_ids" in self.surface_mesh:
                 surface_mesh["node_ids"] = list(self.surface_mesh["node_ids"])
             data["surface_mesh"] = surface_mesh
+        if self.geometry_ref is not None:
+            data["geometry_ref"] = self.geometry_ref
         return data
 
     @classmethod
@@ -253,6 +261,7 @@ class AnalysisMesh:
                 else None
             ),
             surface_mesh=(dict(data["surface_mesh"]) if data.get("surface_mesh") is not None else None),
+            geometry_ref=data.get("geometry_ref"),
         )
 
 

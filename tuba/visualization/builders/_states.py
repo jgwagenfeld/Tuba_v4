@@ -543,6 +543,7 @@ def _build_analysis_mesh_scene(
                     "solver_name": analysis_mesh.solver_name,
                     "model_revision": analysis_mesh.model_revision,
                     "role": "analysis_input",
+                    **({"geometry_ref": analysis_mesh.geometry_ref} if analysis_mesh.geometry_ref else {}),
                 },
                 source={"analysis_mesh": {"id": analysis_mesh.id, "member_type": "surface_mesh"}},
             )

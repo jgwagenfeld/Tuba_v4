@@ -44,6 +44,10 @@ _Avoid_: Cached result, fresh run
 The solver-facing discretization retained with stable groups and source-entity lineage as part of an analysis run.
 _Avoid_: Display mesh, design geometry
 
+**Volume geometry**:
+The wall solid a pipe-volume study discretizes, derived once from the selected elements: the mesher builds it, the solver-input fingerprint hashes it, and the analysis mesh and scene name it, so no surface re-derives the solid for itself.
+_Avoid_: Mesh geometry, display solid
+
 **Result state**:
 The persistent authority for imported solver results and their identity, provenance, and diagnostics.
 _Avoid_: Plot data, transient results

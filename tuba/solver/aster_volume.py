@@ -12,6 +12,7 @@ from tuba.analysis.provenance import (
     SolverInputIdentity,
     build_solver_input_identity,
 )
+from tuba.geometry.volume import VolumeGeometry, build_volume_geometry
 from tuba.solver.compiler_contract import volume_contract
 from tuba.meshing import build_pipe_volume_mesh
 from tuba.model import PipeSection, TubaModel
@@ -30,6 +31,7 @@ class VolumeStudyInputs(NamedTuple):
     line_elements: list
     compiler_inputs: dict[str, Any]
     solver_input_identity: SolverInputIdentity
+    geometry: VolumeGeometry
 
 
 def volume_study_inputs(
@@ -54,6 +56,7 @@ def volume_study_inputs(
         raise ValueError("Insulated pipe-volume studies are not supported; use the pipe beam/TUYAU solver so insulation weight is included.")
     ids = tuple(element_ids)
     line_elements = [element for element in model.elements if element.id not in ids]
+    geometry = build_volume_geometry(model, ids)
     contract = volume_contract(
         model,
         element_ids=ids,
@@ -62,13 +65,22 @@ def volume_study_inputs(
         max_element_size=max_element_size,
         export_tensor_stress=export_tensor_stress,
     )
+    compiler_inputs = {**contract.compiler_inputs, "volume_geometry": geometry.to_dict()}
     identity = build_solver_input_identity(
         model,
         load_case_name,
         compiler_id=contract.compiler_id,
-        compiler_inputs=contract.compiler_inputs,
+        compiler_inputs=compiler_inputs,
     )
-    return VolumeStudyInputs(load_case_name, load_case, ids, line_elements, contract.compiler_inputs, identity)
+    return VolumeStudyInputs(
+        load_case_name,
+        load_case,
+        ids,
+        line_elements,
+        compiler_inputs,
+        identity,
+        geometry,
+    )
 
 
 class PipeVolumeStudyExporter:
@@ -85,7 +97,7 @@ class PipeVolumeStudyExporter:
         element_order: int = 2,
         export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
-        load_case_name, load_case, ids, line_elements, compiler_inputs, identity = volume_study_inputs(
+        load_case_name, load_case, ids, line_elements, compiler_inputs, identity, geometry = volume_study_inputs(
             model,
             load_case_name,
             element_ids=element_ids,
@@ -110,6 +122,7 @@ class PipeVolumeStudyExporter:
             element_ids=ids,
             max_element_size=max_element_size,
             element_order=element_order,
+            geometry=geometry,
         )
         analysis_mesh = replace(generated.analysis_mesh, solver_input_identity=identity)
         name_map = build_solver_name_map(generated.groups)

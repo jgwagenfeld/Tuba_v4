@@ -84,6 +84,10 @@ def test_exports_grouped_pipe_volume_study_without_claiming_results(tmp_path):
     assert "study_sigm.csv" not in Path(study.input_files["export"]).read_text(encoding="utf-8")
     assert Path(study.input_files["med"]).is_file()
     assert manifest["analysis_mesh"]["surface_mesh"]["faces"]
+    # Geometry -> mesh -> identity: the mesh names the exact solid it discretises.
+    geometry = study.metadata["compiler_inputs"]["volume_geometry"]
+    assert geometry["kind"] == "straight"
+    assert AnalysisMesh.from_dict(manifest["analysis_mesh"]).geometry_ref == geometry["id"]
 
 
 def test_volume_export_writes_the_tensor_stress_table_only_on_request(tmp_path):
@@ -132,6 +136,7 @@ def test_exports_solve_ready_tuyau_to_solid_couplings_from_one_mesh(tmp_path):
     assert study.metadata["code_aster_solve_ready"] is True
     assert mesh.groups[f"G_NODE_{nodes[1]}"]
     assert mesh.groups[f"G_NODE_{nodes[2]}"]
+    assert mesh.geometry_ref == study.metadata["compiler_inputs"]["volume_geometry"]["id"]
 
 
 def test_parses_real_volume_fields_on_analysis_nodes(tmp_path):

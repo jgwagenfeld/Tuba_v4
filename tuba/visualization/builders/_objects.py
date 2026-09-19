@@ -174,6 +174,9 @@ def _build_element_object(
             physical=physical,
         )
     if volume_skin:
+        # The mesh skin replaces this element's surface on screen. The skin is
+        # the discretisation of the same VolumeGeometry the element was meshed
+        # from, so the scene keeps one solid, not a second display sweep.
         return SceneContribution(
             objects=(replace(scene_object, geometry_asset_id=None, layer_ids=["analysis_mesh:volume_skin"]),),
             diagnostics=tuple(diagnostics),
