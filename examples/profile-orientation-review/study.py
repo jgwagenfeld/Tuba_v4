@@ -1,4 +1,4 @@
-"""Solve (or import) both load cases and check the rolled sections against beam theory."""
+"""Solve (or import) the one load case and check the rolled sections against beam theory."""
 
 import json
 from pathlib import Path
@@ -12,10 +12,10 @@ from tuba.reporting import build_engineering_review
 from tuba.visualization import add_scene_label, SceneRequest, build_visualization_scene, write_engineering_review_with_scene
 from tuba.visualization.scene import GeometryAsset, SceneLayer, SceneObject
 
-#: Two ordinary linear solves, one per case; the evidence has one folder each.
-LOAD_CASES = ("global", "local")
+#: One ordinary linear solve: the same 500 N tip force at every roll.
+LOAD_CASES = ("global",)
 SOLVER_OPTIONS: dict = {}
-ARTIFACT_DIR = Path(__file__).resolve().parent / "evidence"
+ARTIFACT_DIR = Path(__file__).resolve().parent / "evidence" / LOAD_CASES[0]
 VOLUME_EXPORT = None
 
 VISUAL_SCALE = 12.0
@@ -48,11 +48,9 @@ def check_solved_response(model, runs, *, rolls, length) -> list[dict]:
             np.testing.assert_allclose(rotation, expected_r, rtol=1e-5, atol=1e-7)
             rows.append({"load_case": state.load_case, "roll_deg": roll, "tip_global_m": solved[:3].tolist(),
                          "tip_local_m": displacement.tolist(), "rotation_local_rad": rotation.tolist()})
-    local = [r["tip_local_m"] for r in rows if r["load_case"] == "local"]
-    np.testing.assert_allclose(local, np.tile(local[0], (3, 1)), rtol=1e-6, atol=1e-9)
     global_rows = [r for r in rows if r["load_case"] == "global"]
     weak, mixed, strong = [abs(r["tip_global_m"][2]) for r in global_rows]
-    assert weak > mixed > strong, "Global loading must resolve distinct weak/mixed/strong responses."
+    assert weak > mixed > strong, "The same tip force must resolve distinct weak/mixed/strong responses."
     return rows
 
 
@@ -104,20 +102,20 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     rolls = namespace["ROLLS"]
     output = Path(output).resolve()
     bundle_root = output / "review_scene"
-    runs = [(import_code_aster_artifacts(model=model, work_dir=Path(artifact_dir) / case) if artifact_dir is not None else
-             model.solve(load_case=case, work_dir=str(output / "solver" / case), force=force)) for case in LOAD_CASES]
-    for run in runs:
-        run.validate_for_publication(model)
-    rows = check_solved_response(model, runs, rolls=rolls, length=namespace["LENGTH"])
-    runs = [stage_code_aster_artifact_evidence(run, bundle_root, artifact_subdir=f"artifacts/{run.result_state.load_case}") for run in runs]
-    states = [create_visual_deformed_geometry_state(model=model, result_state=run.result_state, visual_scale=VISUAL_SCALE) for run in runs]
-    solved_at = runs[0].result_state.metadata["solve_attestation"]["solved_at"]
-    scene = build_visualization_scene(SceneRequest(model, analysis_runs=runs, geometry_states=states,
+    case = LOAD_CASES[0]
+    run = (import_code_aster_artifacts(model=model, work_dir=Path(artifact_dir)) if artifact_dir is not None else
+           model.solve(load_case=case, work_dir=str(output / "solver" / case), force=force))
+    run.validate_for_publication(model)
+    rows = check_solved_response(model, [run], rolls=rolls, length=namespace["LENGTH"])
+    run = stage_code_aster_artifact_evidence(run, bundle_root, artifact_subdir=f"artifacts/{case}")
+    state = create_visual_deformed_geometry_state(model=model, result_state=run.result_state, visual_scale=VISUAL_SCALE)
+    solved_at = run.result_state.metadata["solve_attestation"]["solved_at"]
+    scene = build_visualization_scene(SceneRequest(model, analysis_runs=[run], geometry_states=[state],
                                       scene_id="scene:profile-orientation-review", created_at=solved_at))
-    _add_frames(scene, model, runs, states, rolls)
+    _add_frames(scene, model, [run], [state], rolls)
     for index, roll in enumerate(rolls):
         add_scene_label(scene, f"{roll} deg roll", [-0.2, index * 1.2, 0.3], label_id=f"roll-{roll}", height=0.15)
-    review = build_engineering_review(model, analysis_runs=runs, package_id="review:profile-orientation", created_at=solved_at)
+    review = build_engineering_review(model, analysis_runs=[run], package_id="review:profile-orientation", created_at=solved_at)
     write_engineering_review_with_scene(review, bundle_root, scene=scene, title=model.project_name, source=namespace["__file__"])
     (bundle_root / "orientation-checks.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     return bundle_root

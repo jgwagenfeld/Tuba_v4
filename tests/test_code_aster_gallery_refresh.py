@@ -96,11 +96,21 @@ def test_contact_gallery_refresh_preserves_beam_history_options(tmp_path, monkey
         refresh_code_aster_gallery.refresh_gallery(tmp_path, gallery="native-friction-review")
 
 
-def test_profile_refresh_solves_both_cases_in_separate_evidence_folders(tmp_path, monkeypatch):
+def test_a_multi_case_gallery_refreshes_each_case_into_its_own_folder(tmp_path, monkeypatch):
     calls = []
     def refresh(model, case, output, record):
         calls.append((id(model), case, output))
         return case
+    galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+    record = next(gallery for gallery in galleries if gallery.id == "profile-orientation-review")
+    monkeypatch.setattr(
+        refresh_code_aster_gallery,
+        "OFFICIAL_GALLERIES",
+        tuple(
+            replace(gallery, refresh_load_cases=("global", "local")) if gallery.id == record.id else gallery
+            for gallery in galleries
+        ),
+    )
     monkeypatch.setattr(refresh_code_aster_gallery, "_refresh_study", refresh)
     result = refresh_code_aster_gallery.refresh_gallery(tmp_path, gallery="profile-orientation-review")
     assert result == {"global": "global", "local": "local"}
