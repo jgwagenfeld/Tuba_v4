@@ -228,6 +228,20 @@ Common messages include `Pipe section ... WT is too large for OD`, missing secti
 
 Debug in that same order. Import the result artifacts before plotting, reviewing, or reporting stress, displacement, reaction, compliance, or operating-state results. Never replace a blocked solver or missing table with fabricated values.
 
+### A quantity the solver never computed stays undefined
+
+The same rule applies one level down, to individual components of a result. A
+node where only bars or cables meet carries no rotational stiffness, so
+Code_Aster reports no rotation there. Tuba leaves those components undefined
+rather than filling them with `0.0`.
+
+The distinction is not cosmetic. A zero reads as "the solver computed this and
+it did not move"; undefined reads as "this degree of freedom does not exist
+here". Writing a zero would turn a node with no rotational stiffness into one
+that appears rotationally restrained, which is the opposite of what the model
+says. Read a missing rotation as an absent degree of freedom, and check the
+elements meeting at that node before treating it as a result.
+
 ## Section catalogue
 
 I-beam profile data is loaded through `SectionCatalog` from `tuba.sections`.
