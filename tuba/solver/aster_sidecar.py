@@ -15,7 +15,7 @@ from tuba.analysis.provenance import (
     validate_solver_input_identity,
 )
 from tuba.analysis.study import AnalysisStudy
-from tuba.solver.code_aster_runtime import validate_code_aster_execution_attestation
+from tuba.solver.code_aster_runtime import validate_code_aster_execution_attestation, write_artifact_text
 from tuba.solver.compiler_contract import compiler_id_for
 
 
@@ -81,7 +81,7 @@ def dump_solver_sidecar(
         payload["mixed_analysis"] = mixed_analysis
     if solver_input_identity is not None:
         payload["solver_input_identity"] = solver_input_identity.to_dict()
-    Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_artifact_text(path, json.dumps(payload, indent=2, sort_keys=True))
 
 
 def dump_study_manifest(
@@ -99,13 +99,13 @@ def dump_study_manifest(
         analysis_mesh,
         files={role: PureWindowsPath(value).name for role, value in analysis_mesh.files.items()},
     )
-    Path(path).write_text(
+    write_artifact_text(
+        path,
         json.dumps(
             {"study": portable_study.to_dict(), "analysis_mesh": portable_mesh.to_dict()},
             indent=2,
             sort_keys=True,
         ),
-        encoding="utf-8",
     )
 
 

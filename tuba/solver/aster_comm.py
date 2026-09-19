@@ -13,6 +13,7 @@ from typing import Callable, Dict, List, Optional
 import numpy as np
 from tuba.physical import physical_properties_for_element
 from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
+from tuba.solver.code_aster_runtime import write_artifact_text
 
 from tuba.model import (
     BarSection,
@@ -1021,5 +1022,5 @@ class _CommWriterMixin:
             write_contact_tables(w, contacts, map_name, instant=None if native_path else 1.0)
         w("FIN();")
 
-        path.write_text("\n".join(comm), encoding="utf-8")
+        write_artifact_text(path, "\n".join(comm))
         logger.info("Wrote command file: %s", path)

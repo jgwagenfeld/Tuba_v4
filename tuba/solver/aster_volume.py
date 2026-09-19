@@ -16,6 +16,7 @@ from tuba.solver.compiler_contract import volume_contract
 from tuba.meshing import build_pipe_volume_mesh
 from tuba.model import PipeSection, TubaModel
 from tuba.solver.aster_comm import _pipe_orientation_vector
+from tuba.solver.code_aster_runtime import write_artifact_text
 from tuba.solver.aster_loads import resolve_operation_field_groups
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
 from tuba.solver.modelisation import PipeModelization
@@ -514,7 +515,7 @@ def _write_comm(
             "FIN();",
         ]
     )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_artifact_text(path, "\n".join(lines) + "\n")
 
 
 def _write_export(path: Path, *, export_tensor_stress: bool, mixed_analysis: bool) -> None:
@@ -538,10 +539,7 @@ def _write_export(path: Path, *, export_tensor_stress: bool, mixed_analysis: boo
         files.append("F effo study_effo.csv R 38")
     if export_tensor_stress:
         files.append("F sigm study_sigm.csv R 42")
-    path.write_text(
-        "\n".join(files) + "\n",
-        encoding="utf-8",
-    )
+    write_artifact_text(path, "\n".join(files) + "\n")
 
 
 def _group_lineage(group_name: str) -> str:

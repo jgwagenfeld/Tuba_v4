@@ -37,6 +37,7 @@ from tuba.solver.code_aster_runtime import (
     CodeAsterExecution,
     CodeAsterRuntimeConfig,
     run_code_aster_export,
+    write_artifact_text,
     write_code_aster_execution_attestation,
 )
 from tuba.analysis import AnalysisRun, AnalysisStudy
@@ -540,7 +541,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         ]
 
         export_path = work_dir / "study.export"
-        export_path.write_text("\n".join(lines), encoding="utf-8")
+        write_artifact_text(export_path, "\n".join(lines))
         logger.info("Wrote export file: %s", export_path)
 
     # ==================================================================

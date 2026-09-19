@@ -13,6 +13,7 @@ from tuba.meshing._gmsh import gmsh_model
 from tuba.model import TubaModel
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
+from tuba.solver.code_aster_runtime import write_artifact_text
 from tuba.solver.compiler_contract import mixed_contract
 
 
@@ -326,10 +327,11 @@ class MixedCodeAsterStudyExporter:
                 ]
             )
         lines.extend(["    ),", ")", "FIN()"])
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        write_artifact_text(path, "\n".join(lines) + "\n")
 
     def _write_export(self, root: Path, path: Path) -> None:
-        path.write_text(
+        write_artifact_text(
+            path,
             "\n".join(
                 [
                     "P actions make_etude",
@@ -340,7 +342,6 @@ class MixedCodeAsterStudyExporter:
                 ]
             )
             + "\n",
-            encoding="utf-8",
         )
 
     def _build_lineage(self, model: TubaModel, name_map: dict[str, str]) -> dict[str, str]:
