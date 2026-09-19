@@ -77,7 +77,7 @@ import {
   toDisplay,
   toStored
 } from "./units.js";
-import { cockpitStatusViewModel } from "./reviewTables.js";
+import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { getPropertySections } from "./selection.js";
 import { getSelectionSummary } from "./selectionSummary.js";
@@ -98,6 +98,10 @@ const dom = {
   sceneMeta: document.querySelector("[data-scene-meta]"),
   reportLink: document.querySelector("[data-report-link]"),
   statusChip: document.querySelector("[data-status-chip]"),
+  statusStrip: document.querySelector("[data-status-strip]"),
+  solverFact: document.querySelector("[data-solver-fact]"),
+  selectionFact: document.querySelector("[data-selection-fact]"),
+  stripUnits: document.querySelector("[data-strip-units]"),
   taskRail: document.querySelector("[data-task-rail]"),
   taskPanel: document.querySelector("[data-task-panel]"),
   workflowTabs: document.querySelector("[data-workflow-tabs]"),
@@ -392,7 +396,7 @@ function render() {
   const focus = captureFocus();
   renderMode();
   renderHeader();
-  renderStatusChip();
+  renderStatusStrip();
   renderTaskRail();
   renderDisplayStrip();
   renderViewportLegend();
@@ -524,6 +528,41 @@ function renderSavedViews() {
   }
 }
 
+
+// The one permanent line. Everything on it describes the session rather than a
+// panel, which is why none of it belongs to the rail: the rail is hidden in
+// Build mode and gone entirely in a narrow window, and the unit chip governing
+// every readout on screen went with it.
+function renderStatusStrip() {
+  dom.statusStrip.hidden = currentState.embed;
+  renderStatusChip();
+  renderSolverFact();
+  renderDiscretisationCheck();
+  renderSelectionFact();
+  dom.stripUnits.replaceChildren(...(currentState.embed ? [] : [unitSystemChip()]));
+}
+
+function renderSolverFact() {
+  const label = solverProvenanceLabel(currentState.review);
+  dom.solverFact.hidden = !label;
+  dom.solverFact.textContent = label;
+  dom.solverFact.title = label ? "Solver, runtime version and load cases behind this review" : "";
+}
+
+// What is selected, said once for the whole selection. The inspector describes
+// the primary object only, and says nothing at all about the other five when a
+// legend chip or a group header selects a set - so a multi-select was invisible
+// outside the 3D view that drew it.
+function renderSelectionFact() {
+  const ids = currentState.selectedObjectIds ?? [];
+  dom.selectionFact.hidden = ids.length === 0;
+  if (ids.length === 0) return;
+  const primaryId = selectedObjectId ?? ids[0];
+  const primary = currentState.objects.find((obj) => obj.id === primaryId);
+  const name = primary?.name || primaryId;
+  dom.selectionFact.textContent = ids.length > 1 ? `${name} · ${ids.length} selected` : name;
+  dom.selectionFact.title = `${ids.length} object${ids.length === 1 ? "" : "s"} selected`;
+}
 
 function renderStatusChip() {
   dom.statusChip.replaceChildren();
@@ -980,7 +1019,6 @@ function renderDisplayStrip() {
   renderOverlayList();
   renderProjectionNote();
   renderSectionProfile();
-  renderDiscretisationCheck();
   renderFindPane();
   renderLayerTree(categorizeLayers(currentState.layers));
   renderSectionBoxControls();
@@ -1316,47 +1354,40 @@ function sectionRosette(profile) {
 
 // A geometric fidelity check on the mesh, not a code check: how far the straight
 // chord falls inside the true bend arc, against a stated fraction of the radius.
+//
+// It reads as one line in the status strip now rather than a headed block in
+// the rail foot. It kept its pinning either way - the verdict is sign-off
+// evidence and must not be scrollable past - but the rail foot only pinned it
+// inside a panel that Build mode hides and a narrow window closes, and the
+// heading spent two rail rows saying what "Mesh" says here.
 function renderDiscretisationCheck() {
   dom.discretisationCheck.replaceChildren();
   const check = getDiscretisationCheck(currentState);
   dom.discretisationCheck.hidden = !check;
   if (!check) return;
 
-  dom.discretisationCheck.append(stripHeading("Discretisation check"));
-  dom.discretisationCheck.append(
-    checkRow("Elements per bend", `${check.min_elements_per_bend}`),
-    // The scene states the check in metres (check.unit); the chip decides how
-    // it reads, and the tolerance is a ratio, so it never converts.
-    checkRow("Chord deviation", formatQuantity(check.max_chord_deviation, check.unit, getUnitSystem(currentState)), {
-      ok: check.within_tolerance,
-      criterion: `≤ ${formatPercent(check.tolerance_ratio)} R`
-    })
-  );
-  const worst = check.worst_bend;
-  if (worst && check.bend_count > 1) {
-    dom.discretisationCheck.append(metaLine(`worst of ${check.bend_count} bends: ${worst.source_element_id}`));
-  }
-}
-
-function checkRow(labelText, valueText, verdict = null) {
-  const row = document.createElement("div");
-  row.className = "check-row";
   const label = document.createElement("span");
   label.className = "check-label";
-  label.textContent = labelText;
+  label.textContent = "Mesh";
   const value = document.createElement("span");
   value.className = "check-value";
-  value.textContent = valueText;
-  row.append(label, value);
-  if (verdict) {
-    const badge = document.createElement("span");
-    badge.className = `check-badge ${verdict.ok ? "check-ok" : "check-warn"}`;
-    // The criterion travels with the verdict: a bare "OK" invites the reader to
-    // assume a code check happened.
-    badge.textContent = `${verdict.ok ? "OK" : "COARSE"} ${verdict.criterion}`;
-    row.append(badge);
+  // The scene states the check in metres (check.unit); the chip decides how it
+  // reads, and the tolerance is a ratio, so it never converts.
+  value.textContent = `${check.min_elements_per_bend}/bend · chord ${formatQuantity(check.max_chord_deviation, check.unit, getUnitSystem(currentState))}`;
+  const badge = document.createElement("span");
+  badge.className = `check-badge ${check.within_tolerance ? "check-ok" : "check-warn"}`;
+  // The criterion travels with the verdict: a bare "OK" invites the reader to
+  // assume a code check happened.
+  badge.textContent = `${check.within_tolerance ? "OK" : "COARSE"} ≤ ${formatPercent(check.tolerance_ratio)} R`;
+  dom.discretisationCheck.append(label, value, badge);
+
+  const worst = check.worst_bend;
+  if (worst && check.bend_count > 1) {
+    const note = document.createElement("span");
+    note.className = "check-worst";
+    note.textContent = `worst of ${check.bend_count}: ${worst.source_element_id}`;
+    dom.discretisationCheck.append(note);
   }
-  return row;
 }
 
 // The coloring channel: one field, one component, one scale, plus the display
@@ -2058,9 +2089,9 @@ function renderRailUtility(shown = 0, hidden = 0) {
     tally.textContent = hidden > 0 ? `${shown} drawn · ${hidden} hidden` : `${shown} of ${currentState.objects.length}`;
     dom.railUtility.append(tally);
   }
-  // Pinned in the rail foot rather than a band: it restates every quantity on
-  // screen at once, so it belongs to the whole rail, not to the results task.
-  if (!currentState.embed) dom.railUtility.append(unitSystemChip());
+  // The unit chip used to end this row. It governs every quantity on screen,
+  // including the inspector's in Build mode where this rail does not exist, so
+  // it belongs to the session line at the bottom rather than to the rail.
 }
 
 let openPopoverId = null;
@@ -2709,13 +2740,6 @@ function metaLine(text) {
   line.className = "meta";
   line.textContent = text;
   return line;
-}
-
-function stripHeading(text) {
-  const heading = document.createElement("h3");
-  heading.className = "strip-subheading";
-  heading.textContent = text;
-  return heading;
 }
 
 // A band heading that carries the state it is set to. Uppercase name, mono

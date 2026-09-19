@@ -107,7 +107,7 @@ textarea,
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
   min-height: 0;
   overflow: hidden;
@@ -216,6 +216,73 @@ textarea,
 
 .header-actions > [hidden] {
   display: none;
+}
+
+/* The session line. One row, never wrapping and never scrolling: everything on
+   it is a fact about the whole review rather than about one panel, so it is
+   the one place on screen that does not move. It is also the only chrome that
+   survives every mode - the header loses its verdict in a published bundle and
+   the rail closes entirely in Build - which is why the unit chip governing all
+   the readouts had to end up here rather than in the rail foot. */
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 1.85rem;
+  border-top: 1px solid var(--graphite-line);
+  background: var(--graphite);
+  color: var(--chrome-text);
+  padding: 0.2rem 0.85rem;
+  overflow: hidden;
+}
+
+.status-strip[hidden] {
+  display: none;
+}
+
+/* Every segment ends in a name or a number, and two of them are element ids -
+   the mesh check's worst bend and whatever is selected - so without a rule
+   between them "worst of 2: pipe_bend_0 pipe_str_0" reads as one list of two
+   elements. The general sibling combinator keeps the rule off whichever
+   segment happens to be first: the chip, the provenance and the mesh check all
+   drop out on their own terms, and a leading divider with nothing to its left
+   is worse than none. The tail is exempt - it is pushed to the far edge, so its
+   own rule would draw against the last fact on the left with the whole gap
+   after it, and that gap is already the separation. */
+.status-strip > *:not([hidden]) ~ *:not([hidden]):not(.strip-tail) {
+  border-left: 1px solid var(--graphite-line);
+  padding-left: 0.55rem;
+}
+
+/* A fact, not a control. Mono because every one of them is a measurement or an
+   identifier, and dimmed because a permanent line must not compete with the
+   scene it describes. */
+.strip-fact {
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strip-fact[hidden] {
+  display: none;
+}
+
+/* The one segment with no ceiling on its length - an object name is whatever
+   model.py called it - so it is the one allowed to lose its tail. */
+.strip-selection {
+  flex: 0 1 auto;
+}
+
+.strip-tail {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 /* Replaces the status band. It is a control, not a readout: clicking it opens
@@ -581,8 +648,8 @@ textarea,
   color: var(--chrome-text);
 }
 
-/* Pinned: the discretisation verdict is sign-off evidence and must not be
-   something you can scroll past without noticing. */
+/* What is left once the discretisation verdict and the unit chip moved to the
+   status strip: the rail's own tools, and the popover they open. */
 .rail-foot {
   position: relative;
   flex: 0 0 auto;
@@ -656,15 +723,6 @@ textarea,
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--chrome-text-2);
-}
-
-.strip-subheading {
-  margin: 0 0 0.3rem;
-  font-size: 0.7rem;
-  font-weight: 650;
-  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--chrome-text-2);
 }
@@ -937,21 +995,27 @@ textarea,
   text-align: right;
 }
 
+/* Pinned: the discretisation verdict is sign-off evidence and must not be
+   something you can scroll past without noticing. That is why it reads as one
+   line in the status strip - the rail foot pinned it only inside a panel that
+   Build mode hides and a narrow window closes. */
 .mesh-check {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.check-row {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  flex: 0 0 auto;
 }
 
 .check-label {
-  flex: 1 1 auto;
   color: var(--chrome-text-2);
   font-size: 0.72rem;
+}
+
+.check-worst {
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
 }
 
 .check-value {
@@ -1122,11 +1186,10 @@ textarea,
   cursor: not-allowed;
 }
 
-/* Pushed to the end of the rail foot: it governs every readout on screen
-   rather than belonging to any one selector beside it. */
+/* Sits in the status strip's tail: it governs every readout on screen, in every
+   mode, rather than belonging to any one panel beside it. */
 .bar-units {
   min-height: 1.5rem;
-  margin-left: auto;
   padding-block: 0.15rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
@@ -2056,6 +2119,7 @@ pre {
 }
 
 [data-embed="true"] .app-header,
+[data-embed="true"] .status-strip,
 [data-embed="true"] .sidebar,
 [data-embed="true"] .cockpit-rail,
 [data-embed="true"] .inspector {
@@ -2099,6 +2163,15 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
 @media (max-width: 900px) {
   .app-header .meta {
+    display: none;
+  }
+
+  /* The strip gives way from the middle outwards. Provenance is recoverable
+     from the Issues task and the selection from the inspector; the verdict,
+     the mesh check and the unit the numbers are in are not recoverable from
+     anywhere else on screen, so they are the last to go. */
+  .status-strip [data-solver-fact],
+  .status-strip .strip-selection {
     display: none;
   }
 

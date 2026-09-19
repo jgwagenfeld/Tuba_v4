@@ -190,13 +190,25 @@ export function getScalarLegend(state) {
   };
 }
 
+// Which numbers the active scalar legend is actually reading. A bundle with a
+// field catalogue resolves a component; one written before it carries a single
+// scalar per object on the overlay itself. Three callers need that answer - the
+// hotspot list, the scene's own tint and the inspector probe - and the first
+// two each carried their own copy of the ternary.
+export function getScalarValues(state, overlay = getActiveScalarOverlay(state)) {
+  if (!overlay) {
+    return {};
+  }
+  return (state.resultFields ?? []).length > 0 ? getColoringValues(state) : overlay.data?.values ?? {};
+}
+
 export function getHotspots(state) {
   const overlay = getActiveScalarOverlay(state);
   if (!overlay) {
     return [];
   }
   const data = overlay.data ?? {};
-  const values = (state.resultFields ?? []).length > 0 ? getColoringValues(state) : data.values ?? {};
+  const values = getScalarValues(state, overlay);
   const hotspots = Array.isArray(data.hotspots) && data.hotspots.length > 0
     ? data.hotspots
     : Object.entries(values).map(([objectId, value]) => ({
@@ -235,7 +247,7 @@ export function getObjectScalarColor(state, objectIds, valueIds = []) {
     return null;
   }
   const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
-  const values = (state.resultFields ?? []).length > 0 ? getColoringValues(state) : overlay.data?.values ?? {};
+  const values = getScalarValues(state, overlay);
   const relatedValueIds = (overlay.data?.vectors ?? [])
     .filter((vector) => (vector.object_ids ?? []).some((id) => ids.includes(id)))
     .map((vector) => vector.node_id)

@@ -300,3 +300,30 @@ test("selection summary includes line load details when selecting an applied lin
   assert.equal(labels["Route"], "P-101");
 });
 
+
+// The question a click on a tinted model is asking. Result Values below the
+// probe still dumps the same number in stored Pa; this is the one that reads in
+// the units the legend beside it is drawn in.
+test("the probe reads the active colouring field at the selected object", () => {
+  const state = inspectionState();
+  // A second value so the field has a real range to rank against.
+  state.overlays[0].data.values["object:mesh"] = 12000000;
+
+  const summary = getSelectionSummary(state, "object:pipe");
+  const probe = summary.sections.find((section) => section.title === "Probe");
+  assert.ok(probe, "a tinted scene gives the selection a probe section");
+  assert.equal(summary.sections[0], probe, "the probe leads the panel");
+
+  const rows = Object.fromEntries(probe.lines.map((line) => [line.label, line.value]));
+  assert.equal(rows.max_von_mises, "57 MPa");
+  assert.equal(rows.Rank, "1 of 2 · peak");
+
+  const cooler = getSelectionSummary(state, "object:mesh").sections.find((s) => s.title === "Probe");
+  assert.equal(Object.fromEntries(cooler.lines.map((l) => [l.label, l.value])).Rank, "2 of 2");
+});
+
+test("the probe stays silent when nothing colours the scene", () => {
+  const summary = getSelectionSummary(fixtureState(), "object:element:pipe_0");
+
+  assert.equal(summary.sections.find((section) => section.title === "Probe"), undefined);
+});

@@ -14,7 +14,7 @@
 // spellings are dropped.
 
 import { contactRecords } from "./contactReview.js";
-import { getActiveResultState } from "./resultReview.js";
+import { getActiveResultState, getScalarLegend, getScalarValues } from "./resultReview.js";
 import { getPropertySections } from "./selection.js";
 import { DOF_AXES, supportDofStates } from "./supports.js";
 import { displayUnit, formatNumber, formatQuantity, getUnitSystem, toDisplay } from "./units.js";
@@ -229,6 +229,47 @@ function reactionSection(state, node, system) {
   return [{ title: caseName ? `Reactions ${MIDDOT} ${caseName}` : "Reactions", lines }];
 }
 
+// The probe: what the field currently colouring the scene reads at this object.
+//
+// Colouring answered "where is it hot" and the hotspot list answered "which are
+// the hottest", but nothing answered "what is it *here*" - the one question a
+// click on the model is asking. The Result Values section below is not that
+// answer: it dumps every overlay the bundle carries, in stored SI, with the
+// unit as a second row, so a pipe tinted near the top of an MPa legend read
+// `1.608e+8` next to `Pa` while the legend beside it said 160.8 MPa.
+//
+// Rank is the other half of a probe reading. A number alone cannot say whether
+// it matters; "3 of 86" places it against the same value set the legend was
+// built from, and the peak says so rather than making you compare against the
+// legend's top tick by eye.
+function probeSection(state, obj, system) {
+  const legend = getScalarLegend(state);
+  if (!legend) return [];
+  const values = getScalarValues(state);
+  const value = Number(values[obj.id]);
+  if (!Number.isFinite(value)) return [];
+
+  const finite = Object.values(values).map(Number).filter(Number.isFinite);
+  // Counting what beats it, rather than sorting and looking the value up: this
+  // runs on every render, and ties share the better rank either way.
+  const rank = finite.filter((other) => other > value).length + 1;
+  const lines = [{ kind: "row", label: legend.field, value: formatQuantity(value, legend.unit, system) }];
+  if (finite.length > 1) {
+    lines.push({
+      kind: "row",
+      label: "Rank",
+      value: `${rank} of ${finite.length}${rank === 1 ? ` ${MIDDOT} peak` : ""}`
+    });
+  }
+  const utilization = Number(legend.overlay?.data?.utilization_values?.[obj.id]);
+  if (Number.isFinite(utilization)) {
+    lines.push({ kind: "row", label: "Utilisation", value: formatNumber(utilization) });
+  }
+  // A pre-catalogue legend carries no load case of its own; its overlay does.
+  const loadCase = legend.loadCase ?? legend.overlay?.data?.load_case;
+  return [{ title: loadCase ? `Probe ${MIDDOT} ${loadCase}` : "Probe", lines }];
+}
+
 function contactSection(state, obj, system) {
   const entry = Object.values(contactRecords(state)).find((record) =>
     `support:${record.support_id}` === obj.entity_ref ||
@@ -367,14 +408,22 @@ export function getSelectionSummary(state, objectId) {
     ].filter(Boolean).join(` ${MIDDOT} `),
     dofs: dofStates ? DOF_AXES.map((axis, index) => ({ axis, state: dofStates[index] })) : null,
     restraintLine: isSupport ? obj.metadata?.property_lines?.restraint : undefined,
+    // The probe leads: when the scene is tinted, the first thing a click on it
+    // is asking is what the colour under the cursor is worth.
     sections: isSupport
       ? [
+          ...probeSection(state, obj, system),
           ...definitionSection(config, state, system),
           ...reactionSection(state, node, system),
           ...(contact.section ? [contact.section] : []),
           ...generic
         ]
-      : [...resultVectorSection(obj, asset, system), ...loadSection(obj), ...generic],
+      : [
+          ...probeSection(state, obj, system),
+          ...resultVectorSection(obj, asset, system),
+          ...loadSection(obj),
+          ...generic
+        ],
     reference: compact({
       entity_ref: obj.entity_ref,
       geometry: asset?.format,

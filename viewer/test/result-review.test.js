@@ -9,6 +9,7 @@ import {
   getLoadCaseOptions,
   getObjectScalarColor,
   getScalarLegend,
+  getScalarValues,
   getSolverResultOverlays,
   setActiveGeometryState,
   setActiveLoadCase,
@@ -317,4 +318,22 @@ test("the scalar ramp rises monotonically in perceived lightness", () => {
 
   const contrast = (steps.at(-1) + 0.05) / (steps[0] + 0.05);
   assert.ok(contrast > 10, `ends of the scale must be separable in greyscale, got ${contrast.toFixed(2)}:1`);
+});
+
+// One rule, three readers. The hotspot list, the scene's own tint and the
+// inspector probe all need the numbers the legend is built from, and the first
+// two used to carry their own copy of the catalogue-or-overlay ternary.
+test("scalar values resolve once for every reader of the active field", () => {
+  const state = resultState();
+
+  assert.deepEqual(getScalarValues(state), {
+    "object:pipe:cold": 6000000,
+    "object:pipe:hot": 57000000
+  });
+  // The hotspots are built from exactly these numbers, peak first.
+  assert.deepEqual(
+    getHotspots(state).map((hotspot) => [hotspot.objectId, hotspot.value]),
+    [["object:pipe:hot", 57000000], ["object:pipe:cold", 6000000]]
+  );
+  assert.deepEqual(getScalarValues({ objects: [], overlays: [] }), {});
 });

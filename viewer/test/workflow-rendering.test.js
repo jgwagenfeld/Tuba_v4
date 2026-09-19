@@ -351,3 +351,30 @@ test("gallery panel never overrides the hidden attribute", async () => {
   const block = css.slice(start, css.indexOf("}", start) + 1);
   assert.doesNotMatch(block, /display\s*:/, "the .gallery rule must not set display");
 });
+
+test("the status strip owns the session facts the header and the rail used to split", async () => {
+  const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
+
+  // One render entry point for the whole line, so a segment cannot be drawn by
+  // one path and left stale by another.
+  assert.match(app, /function renderStatusStrip\(\)/);
+  assert.match(app, /dom\.statusStrip\.hidden = currentState\.embed;/);
+  const stripBody = app.slice(app.indexOf("function renderStatusStrip()"), app.indexOf("function renderSolverFact()"));
+  for (const call of ["renderStatusChip()", "renderSolverFact()", "renderDiscretisationCheck()", "renderSelectionFact()"]) {
+    assert.ok(stripBody.includes(call), `${call} must be drawn by the status strip`);
+  }
+  assert.match(app, /solverProvenanceLabel\(currentState\.review\)/);
+
+  // The unit chip governs every readout in every mode, so it may not go back
+  // into the rail foot, which Build mode hides.
+  assert.match(app, /dom\.stripUnits\.replaceChildren\(/);
+  assert.doesNotMatch(app, /dom\.railUtility\.append\(unitSystemChip\(\)\)/);
+
+  assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto/s);
+  assert.match(css, /\.status-strip\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /\[data-embed="true"\][^{]*\.status-strip[^{]*\{[^}]*display:\s*none/s);
+  // The verdict and the mesh check are the last segments to give way, because
+  // nothing else on screen carries them.
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\[data-solver-fact\],\s*\.status-strip \.strip-selection\s*\{[^}]*display:\s*none/s);
+});

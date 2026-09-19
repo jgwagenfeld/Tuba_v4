@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cockpitStatusViewModel } from "../src/reviewTables.js";
+import { cockpitStatusViewModel, solverProvenanceLabel } from "../src/reviewTables.js";
 
 const reviewFixture = {
   analysis_status: "solved",
@@ -70,5 +70,40 @@ test("cockpit status reports the analysis status and counts warnings", () => {
     analysisStatus: "solved",
     warningCount: 2
   });
+});
+
+// The provenance records are written one per artifact, so the solver is named
+// three times over and the runtime version only once, on the result state.
+test("solver provenance names the solver, its runtime and the case count", () => {
+  const label = solverProvenanceLabel({
+    provenance: [
+      { kind: "study", solver_name: "Code_Aster", load_case: "Operating" },
+      { kind: "analysis_mesh", solver_name: "Code_Aster", load_case: "Operating" },
+      {
+        kind: "result_state",
+        solver_name: "Code_Aster",
+        load_case: "Operating",
+        metadata: { runtime_version: "18.0.12" }
+      },
+      { kind: "result_state", solver_name: "Code_Aster", load_case: "Hot" }
+    ]
+  });
+
+  assert.equal(label, "Code_Aster 18.0.12 · 2 cases");
+});
+
+test("solver provenance stays singular for one case and drops an absent runtime", () => {
+  assert.equal(
+    solverProvenanceLabel({ provenance: [{ solver_name: "Code_Aster", load_case: "Operating" }] }),
+    "Code_Aster · 1 case"
+  );
+});
+
+// Nothing here may invent a solver: a scene with no review, or a review whose
+// records name none, gets no line rather than a plausible one.
+test("solver provenance says nothing when no record names a solver", () => {
+  assert.equal(solverProvenanceLabel(null), "");
+  assert.equal(solverProvenanceLabel({}), "");
+  assert.equal(solverProvenanceLabel({ provenance: [{ kind: "study", load_case: "Operating" }] }), "");
 });
 
