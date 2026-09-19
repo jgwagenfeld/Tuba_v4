@@ -378,3 +378,22 @@ test("the status strip owns the session facts the header and the rail used to sp
   // nothing else on screen carries them.
   assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\[data-solver-fact\],\s*\.status-strip \.strip-selection\s*\{[^}]*display:\s*none/s);
 });
+
+test("a studio opens a solved project on its results, not on the script", async () => {
+  const app = await readViewerFile("src/app.js");
+  const init = app.slice(app.indexOf("async function initStudio("), app.indexOf("function sameHostPreviewSocketUrl("));
+
+  // Build used to be the unconditional front door, so a project with a finished
+  // review still opened on model.py - and Build hides the rail *and* its
+  // toggle, so nothing on screen said the review was there at all.
+  assert.ok(
+    init.includes('studio.mode = studio.hasReview && !studio.reviewStale ? "review" : "build";'),
+    "the opening mode must follow the review, and a stale one must still open on Build"
+  );
+  assert.doesNotMatch(init, /studio\.mode = "build";/, "the opening mode may not be hardcoded");
+  // The bundle has to follow the mode, or Results would draw the live model.
+  assert.ok(init.includes("await showStudioBundle(studio.mode);"), "the bundle follows the mode");
+  // Unchanged on purpose: this decides which mode opens, not what the rail
+  // opens on. Clicking Results from Build also leaves the task on Model.
+  assert.ok(init.includes('dispatch({ type: "activateTask", tabId: "model" });'));
+});

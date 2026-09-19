@@ -3003,9 +3003,21 @@ async function initStudio(catalog) {
   const result = await fetchStudioJson("/api/script");
   if (typeof result?.code !== "string") return;
   studio.available = true;
-  studio.mode = "build";
+  // A solved, current project opens on its results; anything else opens on the
+  // script. Build was the unconditional front door, which meant a project with
+  // a finished review still opened on model.py - and Build hides the rail
+  // *and* its toggle, so nothing on screen said a review existed. The one
+  // affordance was a mode switch that does not read as stage navigation.
+  //
+  // A stale review still opens on Build: the model has moved since that solve,
+  // so the script is where the work is. loadStudioProject ran before this and
+  // settled both flags; showStudioBundle falls back to build on its own if the
+  // review turns out not to be loadable.
+  studio.mode = studio.hasReview && !studio.reviewStale ? "review" : "build";
   setScriptText(result.code);
-  await showStudioBundle("build");
+  await showStudioBundle(studio.mode);
+  // Left on Model deliberately, which is where clicking Results from Build
+  // lands you too: this changes which mode opens, not what the rail opens on.
   dispatch({ type: "activateTask", tabId: "model" });
   render();
 }
