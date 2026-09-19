@@ -110,7 +110,11 @@ test("Build keeps a volume review's mesh and the review restores what the bundle
   assert.equal(state.layers["analysis_mesh:volume_skin"].visible, true);
 
   const build = reduceViewerState(state, { type: "enterBuild" });
-  assert.equal(build.activeTab, "model");
+  // Build is a stage, not a task, so entering it no longer claims one. It used
+  // to set activeTab "model" purely to get past a preset table keyed by task
+  // id, which meant leaving Build dropped you on Model however you arrived -
+  // and workspaceView reports no active task outside the review stage anyway.
+  assert.equal(build.activeTab, state.activeTab, "entering Build leaves the review's task alone");
   // A volume review carries no procedural design geometry - the mesh skin is
   // the model - so Build keeps it rather than emptying the canvas.
   assert.equal(build.layers["analysis_mesh:volume_skin"].visible, true);
@@ -123,6 +127,27 @@ test("Build keeps a volume review's mesh and the review restores what the bundle
   const review = reduceViewerState(build, { type: "resetLayerVisibility" });
   assert.equal(review.layers["analysis_mesh:volume_skin"].visible, true);
   assert.equal(review.layers["overlay:result_state"].visible, true);
+});
+
+// Verified end to end for a published bundle, where Build is only a view
+// change. A studio additionally swaps its build bundle in, and that bundle
+// cannot offer a review's task, so preserveViewerStateForReload still falls
+// back to Model on the way through - state discards the task the view is now
+// capable of guarding on its own. Fixing that means the remaining raw
+// activeTab readers move to workspaceView first.
+test("entering Build no longer resets the review's task", () => {
+  const onResults = reduceViewerState(
+    createViewerState(bundle()),
+    { type: "activateTask", tabId: "results" }
+  );
+  assert.equal(onResults.activeTab, "results");
+
+  const andBack = reduceViewerState(
+    reduceViewerState(onResults, { type: "enterBuild" }),
+    { type: "resetLayerVisibility" }
+  );
+
+  assert.equal(andBack.activeTab, "results", "Build is a detour, not a reset of where you were");
 });
 
 test("reaction vectors can be hidden by result layer or solver overlay", () => {

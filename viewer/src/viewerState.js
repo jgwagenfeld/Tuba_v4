@@ -61,9 +61,13 @@ export function reduceViewerState(state, action) {
     case "activateTask":
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
     case "enterBuild":
-      // Build is not a review task, so it escapes the tab validation activateTask
-      // applies; it lands on the Model tab and uses the build visibility preset.
-      return applyTaskVisibilityPreset({ ...state, activeTab: "model" }, "build");
+      // Build is a stage, not a task: it takes its own layer preset and leaves
+      // the review's task alone, so a detour through the script returns you
+      // where you were. It used to set activeTab "model" only to get past a
+      // preset table keyed by task id - a tab the reader was not on, claimed
+      // to satisfy a lookup. workspaceView reports no active task outside the
+      // review stage, so there is nothing left to satisfy.
+      return applyTaskVisibilityPreset(state, "build");
     case "resetLayerVisibility": {
       // Back from Build: every layer returns to what the bundle declared, so the
       // review the reader opened is the review they come back to.

@@ -59,8 +59,22 @@ test("build mode lists the live model's issues in the code pane, not the rail", 
 
   // The rail stays a review surface: it remains hidden in the Build workspace,
   // whether a studio edits model.py or a published bundle shows it frozen.
-  assert.match(app, /const scriptPane = isBuildMode\(\);/);
-  assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded \|\| scriptPane;/);
+  // That rule is workflowState's now - workflow-state.test.js exercises it
+  // directly - so what this file checks is that the renderer asks rather than
+  // recomputing it from the mode globals, the rail flag and the embed flag.
+  assert.match(app, /dom\.taskRail\.hidden = !view\.railVisible;/);
+  assert.match(app, /dom\.railToggle\.hidden = !view\.railToggleVisible;/);
+  assert.match(app, /dom\.codePane\.hidden = !view\.scriptVisible;/);
+  assert.doesNotMatch(app, /function buildWorkspaceMode\(\)/, "the ad-hoc mode derivation is gone");
+  // Entering Build is one transition. The studio path used to dispatch
+  // activateTask("model") while the published path dispatched enterBuild, so
+  // the same move took two actions and only the published one was tested.
+  const setMode = app.slice(app.indexOf("async function setMode("), app.indexOf("async function showStudioBundle("));
+  assert.equal(
+    (setMode.match(/type: "enterBuild"/g) ?? []).length, 2,
+    "both the studio and the published path enter Build the same way"
+  );
+  assert.doesNotMatch(setMode, /activateTask", tabId: "model"/, "entering Build does not claim a task");
   // Build issues surface in the code pane instead, one row per issue with the
   // same camera-focusing click as the rail list.
   assert.match(html, /<div class="build-issues" data-build-issues hidden><\/div>/);
@@ -386,11 +400,13 @@ test("a studio opens a solved project on its results, not on the script", async 
   // Build used to be the unconditional front door, so a project with a finished
   // review still opened on model.py - and Build hides the rail *and* its
   // toggle, so nothing on screen said the review was there at all.
-  assert.ok(
-    init.includes('studio.mode = studio.hasReview && !studio.reviewStale ? "review" : "build";'),
-    "the opening mode must follow the review, and a stale one must still open on Build"
-  );
-  assert.doesNotMatch(init, /studio\.mode = "build";/, "the opening mode may not be hardcoded");
+  //
+  // Which stage that is now belongs to workflowState, where it is a pure
+  // function with its own tests instead of a branch reachable only by driving
+  // a browser and forging the project request.
+  assert.ok(init.includes("studio.mode = openingStage(studio);"), "the opening stage is asked for, not decided here");
+  assert.doesNotMatch(init, /studio\.mode = "build";/, "the opening stage may not be hardcoded");
+  assert.doesNotMatch(init, /hasReview && !studio\.reviewStale/, "nor re-derived inline");
   // The bundle has to follow the mode, or Results would draw the live model.
   assert.ok(init.includes("await showStudioBundle(studio.mode);"), "the bundle follows the mode");
   // Unchanged on purpose: this decides which mode opens, not what the rail

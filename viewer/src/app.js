@@ -87,7 +87,9 @@ import {
   WORKFLOW_TABS,
   createWorkflowState,
   getVisibleCockpitTaskIds,
-  workflowTabForKey
+  openingStage,
+  workflowTabForKey,
+  workspaceView
 } from "./workflowState.js";
 
 const dom = {
@@ -452,24 +454,24 @@ function restoreFocus(focus) {
 }
 
 function renderTaskRail() {
-  const scriptPane = isBuildMode();
+  const view = currentWorkspace();
   dom.workflowTabs.replaceChildren();
-  dom.taskRail.hidden = currentState.embed || !railExpanded || scriptPane;
-  dom.railToggle.hidden = currentState.embed || scriptPane;
+  dom.taskRail.hidden = !view.railVisible;
+  dom.railToggle.hidden = !view.railToggleVisible;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
   dom.railToggle.textContent = railExpanded ? "\u2039" : "\u203a";
   dom.railToggle.title = railExpanded ? "Hide controls" : "Show controls";
   dom.railToggle.setAttribute("aria-label", dom.railToggle.title);
   document.body.dataset.railOpen = String(railExpanded);
-  dom.appHeader.hidden = currentState.embed;
-  for (const id of getVisibleCockpitTaskIds(currentState)) {
+  dom.appHeader.hidden = !view.headerVisible;
+  for (const id of view.tabs) {
     const task = WORKFLOW_TABS.find((candidate) => candidate.id === id);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "task-button";
     button.dataset.task = id;
     button.dataset.focusKey = `task:${id}`;
-    button.setAttribute("aria-current", id === currentState.activeTab ? "page" : "false");
+    button.setAttribute("aria-current", id === view.task ? "page" : "false");
     button.textContent = task.label;
     button.addEventListener("click", () => activateTask(id));
     button.addEventListener("keydown", (event) => {
@@ -3003,21 +3005,14 @@ async function initStudio(catalog) {
   const result = await fetchStudioJson("/api/script");
   if (typeof result?.code !== "string") return;
   studio.available = true;
-  // A solved, current project opens on its results; anything else opens on the
-  // script. Build was the unconditional front door, which meant a project with
-  // a finished review still opened on model.py - and Build hides the rail
-  // *and* its toggle, so nothing on screen said a review existed. The one
-  // affordance was a mode switch that does not read as stage navigation.
-  //
-  // A stale review still opens on Build: the model has moved since that solve,
-  // so the script is where the work is. loadStudioProject ran before this and
-  // settled both flags; showStudioBundle falls back to build on its own if the
-  // review turns out not to be loadable.
-  studio.mode = studio.hasReview && !studio.reviewStale ? "review" : "build";
+  // loadStudioProject settled hasReview/reviewStale a few lines earlier, so the
+  // rule itself lives in workflowState with the rest of the stage tree and is
+  // tested there rather than through a browser.
+  studio.mode = openingStage(studio);
   setScriptText(result.code);
   await showStudioBundle(studio.mode);
   // Left on Model deliberately, which is where clicking Results from Build
-  // lands you too: this changes which mode opens, not what the rail opens on.
+  // lands you too: this decides which stage opens, not what the rail opens on.
   dispatch({ type: "activateTask", tabId: "model" });
   render();
 }
@@ -3026,17 +3021,16 @@ function sameHostPreviewSocketUrl() {
   return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/preview/ws`;
 }
 
-// Build is a workspace mode, not a studio privilege: a studio runs model.py, a
-// published bundle shows the same pane frozen. Either way the rail yields to it.
-function buildWorkspaceMode() {
-  if (currentState?.embed) return null;
-  if (studio.available) return studio.mode;
-  if (sourceView.available) return sourceView.mode;
-  return null;
+// What is on screen, derived in one place from the session's facts. Every
+// render site below asks this rather than recombining the mode globals, the
+// rail flag and the embed flag for itself - which is how the opening stage
+// came to be hardcoded in initStudio where nothing could test it.
+function currentWorkspace() {
+  return workspaceView(currentState ?? {}, { studio, sourceView, railExpanded });
 }
 
 function isBuildMode() {
-  return buildWorkspaceMode() === "build";
+  return currentWorkspace().stage === "build";
 }
 
 // -- A published bundle's model.py and .comm, read-only -----------------------
@@ -3085,14 +3079,14 @@ async function fetchBundleText(baseUrl, uri) {
 }
 
 function renderMode() {
-  const build = isBuildMode();
+  const view = currentWorkspace();
   document.body.dataset.studio = String(studio.available);
-  document.body.dataset.mode = build ? "build" : "review";
+  document.body.dataset.mode = view.stage === "build" ? "build" : "review";
   dom.modeSwitch.hidden = !(studio.available || sourceView.available) || currentState.embed;
   for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
     button.setAttribute("aria-pressed", String(button.dataset.mode === document.body.dataset.mode));
   }
-  dom.codePane.hidden = !build;
+  dom.codePane.hidden = !view.scriptVisible;
   dom.codeText.readOnly = !studio.available;
   dom.codeRun.hidden = !studio.available;
   if (!studio.available) dom.codeState.textContent = "Read-only";
@@ -3361,10 +3355,15 @@ async function setMode(mode) {
   if (studio.mode === mode) return;
   studio.mode = mode;
   await showStudioBundle(mode);
-  // Build is about the model's shape; a review's result colouring would only
-  // paint over it.
+  // One stage, one transition, whether a studio runs model.py or a published
+  // bundle shows it frozen. This used to dispatch activateTask("model"), so
+  // the same move through the same stage took two different actions: the
+  // studio got the Model preset and its task forced to Model, the published
+  // bundle got the Build preset and kept its task. The presets differ only on
+  // the analysis mesh, and the mesh stays hidden either way unless the bundle
+  // declares it visible - which is the volume review the Build preset is for.
   if (mode === "build") {
-    dispatch({ type: "activateTask", tabId: "model" });
+    dispatch({ type: "enterBuild" });
   }
   render();
 }

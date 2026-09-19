@@ -56,6 +56,67 @@ export function visibilityPresetForTask(taskId) {
   return Object.hasOwn(TASK_VISIBILITY_PRESETS, taskId) ? TASK_VISIBILITY_PRESETS[taskId] : null;
 }
 
+// The stage tree.
+//
+// Build and the embedded canvas are not tasks. The rail's three tasks live
+// *inside* the review stage; Build is a sibling of that whole stage, and the
+// embedded canvas is a third sibling with no chrome at all. Storing that tree
+// as two flat variables - a mode kept in module globals, and one activeTab -
+// is what forced three separate workarounds: an enterBuild action that set a
+// tab the reader was not on, a "build" entry in a table keyed by task id, and
+// an EMBED_TASK_ID that no rail could ever offer.
+//
+// This is the one derived answer to "what is on screen". It is pure, so every
+// rule below is a case in a function rather than a boolean recomputed from six
+// globals in whichever render function happens to need it.
+export function workspaceView(state = {}, session = {}) {
+  const stage = stageOf(state, session);
+  const inReview = stage === "review";
+  const tabs = inReview ? getVisibleCockpitTaskIds(state) : [];
+  // A task only means anything inside the review stage, and only if the rail is
+  // still offering it: swapping bundles can strip the content a task was for,
+  // and a rail marking a tab it did not draw is the kind of disagreement this
+  // module exists to make impossible.
+  const task = tabs.includes(state.activeTab) ? state.activeTab : tabs[0] ?? null;
+  return {
+    stage,
+    task,
+    tabs,
+    railVisible: inReview && session.railExpanded !== false,
+    // The toggle is the rail's own control: it stays while the rail is merely
+    // collapsed, or there would be no way to bring it back, and goes when the
+    // stage has no rail at all.
+    railToggleVisible: inReview,
+    scriptVisible: stage === "build",
+    headerVisible: stage !== "embed",
+    // Which studio bundle this stage reads. Results with nothing solved still
+    // shows the live model rather than an empty review.
+    bundle: inReview && session.studio?.hasReview ? "review" : "build",
+    // The layer preset, chosen by the stage first and the task second. The
+    // embedded scene takes none: it is shown as the bundle declared it.
+    visibility: stage === "build" ? "build" : task
+  };
+}
+
+function stageOf(state, session) {
+  if (state.embed) return "embed";
+  // A studio runs model.py; a published bundle shows the same pane frozen.
+  // Either way the stage is whichever of the two is driving.
+  const driver = session.studio?.available
+    ? session.studio
+    : session.sourceView?.available
+      ? session.sourceView
+      : null;
+  return driver?.mode === "build" ? "build" : "review";
+}
+
+// Which stage a studio opens on. A review that is present and current is what
+// the reader came back for; anything else - never solved, or stale because the
+// model moved since the solve - opens on the script, where the work is.
+export function openingStage(studio = {}) {
+  return studio.hasReview && !studio.reviewStale ? "review" : "build";
+}
+
 export function createWorkflowState({ review = null, embed = false } = {}) {
   return {
     review,
