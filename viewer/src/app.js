@@ -67,6 +67,7 @@ import {
 import {
   UNIT_SYSTEMS,
   displayUnit,
+  formatElapsed,
   formatQuantity,
   formatValue,
   getUnitSystem,
@@ -225,6 +226,8 @@ const studio = {
   hasReview: false,
   reviewStale: false,
   solving: false,
+  // When the current solve or review import began, for the elapsed clock.
+  solveStartedAt: null,
   // The studio is importing attested evidence at startup: a review is on its way.
   preparing: false,
   // Build's open file: null is model.py, otherwise the load case whose .comm is shown.
@@ -948,6 +951,16 @@ function renderHeader() {
   dom.reportLink.hidden = !currentState.review;
   if (currentState.review) {
     dom.reportLink.href = `${currentBundleUrl}/index.html`;
+    // The report prints stored SI so it stays byte-comparable with the CSVs and
+    // review.json beside it; this viewer converts for display. Said on the way
+    // out as well as on arrival, because a reader who has already crossed has
+    // no reason to re-read the paragraph that explains the difference.
+    dom.reportLink.title =
+      "Engineering review tables. Printed in stored SI units (m, Pa, N), not the display units used here.";
+    dom.reportLink.setAttribute(
+      "aria-label",
+      "Report - engineering review tables, printed in stored SI units rather than the display units used here"
+    );
   } else {
     dom.reportLink.removeAttribute("href");
   }
@@ -3164,7 +3177,37 @@ function renderSolveControls() {
         : "No review yet.";
 }
 
+// A Code_Aster solve runs for minutes and the server emits solve_started and
+// solve_finished with nothing in between, so the header said the same three
+// words for the whole run: a solve in progress and a hung solve were the same
+// picture. Wall-clock elapsed is the one honest signal available without a
+// protocol change - it cannot say how far along a run is, but it does say the
+// run is still a run.
+// ponytail: wall clock only. A real fraction needs the runtime to broadcast
+// per-operation progress, and a Cancel needs solve_project to hold the
+// subprocess handle so it can be killed without orphaning the solve claim.
+let solveClockTimer = null;
+
+function solveElapsedLabel() {
+  if (!studio.solveStartedAt) return null;
+  return formatElapsed(Date.now() - studio.solveStartedAt);
+}
+
+function trackSolveClock(busy) {
+  if (busy && !studio.solveStartedAt) studio.solveStartedAt = Date.now();
+  if (!busy) studio.solveStartedAt = null;
+  if (busy && !solveClockTimer) {
+    // Redraws the chip alone; the full render is far too expensive to tick.
+    solveClockTimer = setInterval(renderStatusChip, 1000);
+  } else if (!busy && solveClockTimer) {
+    clearInterval(solveClockTimer);
+    solveClockTimer = null;
+  }
+}
+
 function renderProjectStatusChip() {
+  const busy = studio.solving || studio.preparing;
+  trackSolveClock(busy);
   if (!studio.project.solves && !studio.reviewStale) {
     dom.statusChip.hidden = true;
     return;
@@ -3190,6 +3233,16 @@ function renderProjectStatusChip() {
     note.textContent = alert;
     dom.statusChip.append(note);
   }
+  const elapsed = busy ? solveElapsedLabel() : null;
+  if (elapsed) {
+    const clock = document.createElement("span");
+    clock.className = "status-chip-clock";
+    clock.textContent = elapsed;
+    dom.statusChip.append(clock);
+  }
+  // The clock is deliberately left out of the label: the chip is a button, not
+  // a live region, but rebuilding it every second would still leave a screen
+  // reader reading a running count if it ever became one.
   dom.statusChip.setAttribute("aria-label", `Review ${status.replaceAll("_", " ")}${alert ? `, ${alert}` : ""} - show the review`);
   dom.statusChip.onclick = () => void setMode("review");
 }

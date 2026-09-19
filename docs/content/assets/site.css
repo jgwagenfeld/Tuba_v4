@@ -1,6 +1,16 @@
+/* Shared brand values. The docs stay light and the review app stays dark, but
+   the accent, focus and warning colours are one decision across all of them.
+   These three hexes are also in viewer/src/styles.css and in the report's
+   inline style in tuba/reporting/export.py; tests/test_brand_tokens.py fails
+   if the three copies drift.
+
+   The accent was #e07a2d, an orange near-complementary to the review app's
+   cyan, so crossing from the docs into the viewer read as leaving the product.
+   It also rendered at 2.66:1 on the active nav item, under AA. This is the
+   viewer's own --focus-on-light: 4.71:1 on the nav, 5.33:1 on white. */
 :root {
   --md-primary-fg-color: #16324f;
-  --md-accent-fg-color: #e07a2d;
+  --md-accent-fg-color: #0b7684;
 }
 
 .md-grid {
@@ -24,7 +34,7 @@
   }
 }
 
-/* The home gallery has nine cards: three columns keep it a full 3x3 grid. */
+/* The home gallery has twelve cards: three columns keep it a full 3x4 grid. */
 @media (min-width: 60em) {
   .md-typeset .grid.cards {
     grid-template-columns: repeat(3, 1fr);

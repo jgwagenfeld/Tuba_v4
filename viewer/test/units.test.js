@@ -5,6 +5,7 @@ import {
   DEFAULT_UNIT_SYSTEM,
   UNIT_SYSTEMS,
   displayUnit,
+  formatElapsed,
   formatNumber,
   formatQuantity,
   formatValue,
@@ -121,4 +122,33 @@ test("body metrics follow the unit chip", () => {
   assert.equal(engineering.metrics[1], "OD 114.3 · WT 6.02 · R 342.9 mm");
   const si = getBodies({ ...state, unitSystem: "si" })[0];
   assert.equal(si.metrics[1], "OD 0.1143 · WT 0.00602 · R 0.3429 m");
+});
+
+// The header clock that runs while Code_Aster does. A solve emits solve_started
+// and solve_finished and nothing between, so this is the only signal that
+// separates a run still running from a run that has hung.
+test("elapsed time reads as minutes and seconds under an hour", () => {
+  assert.equal(formatElapsed(0), "0:00");
+  assert.equal(formatElapsed(6_000), "0:06");
+  assert.equal(formatElapsed(48_000), "0:48");
+  assert.equal(formatElapsed(65_000), "1:05");
+  assert.equal(formatElapsed(599_000), "9:59");
+});
+
+test("elapsed time grows an hours field rather than counting past 59 minutes", () => {
+  assert.equal(formatElapsed(3_599_000), "59:59");
+  assert.equal(formatElapsed(3_600_000), "1:00:00");
+  assert.equal(formatElapsed(3_661_000), "1:01:01");
+});
+
+test("elapsed seconds stay two digits so the header does not jitter", () => {
+  for (const ms of [1_000, 9_000, 10_000, 61_000, 3_601_000]) {
+    assert.match(formatElapsed(ms), /:\d{2}$/);
+  }
+});
+
+test("elapsed time is empty rather than wrong for values that are not a duration", () => {
+  assert.equal(formatElapsed(-1_000), "");
+  assert.equal(formatElapsed(Number.NaN), "");
+  assert.equal(formatElapsed(undefined), "");
 });

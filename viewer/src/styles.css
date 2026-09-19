@@ -2,6 +2,10 @@
   --graphite: #151c22;
   --graphite-raised: #202a31;
   --graphite-line: #3a4851;
+  /* The hover surface five rules were already setting by hand, and the one
+     .model-legend-chip:hover referenced by name before anything defined it -
+     so that hover resolved to nothing and the chip faded instead of lifting. */
+  --graphite-highlight: #2a353d;
   --chrome-text: #f3f5f5;
   /* The two greys the rail was already using as tokens without naming them:
      -2 labels a control or a band, -3 is mono metadata under one. Between them
@@ -24,8 +28,12 @@
   /* --danger is a light-theme value, for use on --danger-surface. This is the
      one to reach for on a dark panel: 6.20:1 on --graphite-raised. */
   --danger-on-dark: #ff857d;
+  /* --warning is the light-theme value, for use on --warning-surface. This is
+     the one for a dark panel: the status alert, the compliance notice and the
+     section peak each reached for the same literal separately. */
   --warning: #6c4c00;
   --warning-surface: #fff1c2;
+  --warning-on-dark: #f0b429;
   --font-ui: "Roboto Condensed", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
   color: var(--text);
@@ -233,8 +241,19 @@ textarea,
 
 .status-chip-alert {
   border-left: 1px solid var(--graphite-line);
-  color: #f0b429;
+  color: var(--warning-on-dark);
   font-size: 0.75rem;
+  padding-left: 0.45rem;
+}
+
+/* Ticks once a second while a solve runs. Tabular figures so the header does
+   not jitter on every redraw, and mono so it reads as a measurement rather
+   than as more prose in the alert beside it. */
+.status-chip-clock {
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
   padding-left: 0.45rem;
 }
 
@@ -337,7 +356,7 @@ textarea,
 }
 
 .cockpit-rail .task-button:hover {
-  background: #2a353d;
+  background: var(--graphite-highlight);
   color: var(--chrome-text);
 }
 
@@ -694,7 +713,7 @@ textarea,
 }
 
 .body-badge-neutral {
-  background: #2a353d;
+  background: var(--graphite-highlight);
   color: #c5ced1;
 }
 
@@ -711,7 +730,7 @@ textarea,
   min-height: 1.5rem;
   border: 1px solid var(--graphite-line);
   border-radius: 0.2rem;
-  background: #2a353d;
+  background: var(--graphite-highlight);
   color: #dfe6e8;
   cursor: pointer;
   font-family: var(--font-mono);
@@ -838,7 +857,7 @@ textarea,
 }
 
 .section-facts .section-peak {
-  color: #f0b429;
+  color: var(--warning-on-dark);
 }
 
 /* The list a reviewer works down, so it is a list: one dense line each, the
@@ -860,7 +879,7 @@ textarea,
 }
 
 .cockpit-rail .hotspot-row:hover {
-  background: #2a353d;
+  background: var(--graphite-highlight);
 }
 
 .hotspot-dot {
@@ -1748,7 +1767,7 @@ input[type="range"] {
 /* Travels with the legend and is never collapsed away: mislabelling FE stress
    as code stress is a compliance problem, not a display preference. */
 .compliance-notice {
-  color: #f0b429;
+  color: var(--warning-on-dark);
   font-weight: 600;
   margin-top: 0.25rem;
 }
@@ -2419,7 +2438,7 @@ body[data-studio="true"] .app-identity {
 }
 
 .mode-switch button:hover {
-  background: #2a353d;
+  background: var(--graphite-highlight);
   color: var(--chrome-text);
 }
 
