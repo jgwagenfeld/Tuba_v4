@@ -7,11 +7,11 @@ import math
 from pathlib import Path
 
 from tuba.model import TubaModel
-from tuba.routing.types import NetworkRouteResult, PipeRouteResult, route_result_to_dict
+from tuba.routing.types import PipeRouteResult, route_result_to_dict
 
 
 def write_route_report(
-    result: PipeRouteResult | NetworkRouteResult,
+    result: PipeRouteResult,
     output_dir: str | Path,
     *,
     model: TubaModel | None = None,
@@ -22,11 +22,7 @@ def write_route_report(
     (out / "route_result.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     report_path = out / "route_report.md"
-    if isinstance(result, PipeRouteResult):
-        report_text = _single_route_markdown(result)
-    else:
-        report_text = _network_route_markdown(result)
-    report_path.write_text(report_text, encoding="utf-8")
+    report_path.write_text(_single_route_markdown(result), encoding="utf-8")
     return report_path
 
 
@@ -132,39 +128,6 @@ def _single_route_markdown(result: PipeRouteResult) -> str:
 
         lines.extend(["", "## Known Limitations", ""])
         lines.append("- Centerline routing; engineer review required before construction or stress signoff.")
-    if result.diagnostics:
-        lines.extend(["", "## Diagnostics", ""])
-        lines.extend(f"- {diag}" for diag in result.diagnostics)
-    return "\n".join(lines) + "\n"
-
-
-def _network_route_markdown(result: NetworkRouteResult) -> str:
-    lines = [
-        f"# Network Route Report: {result.request.id}",
-        "",
-        "## Candidate Comparison",
-        "",
-        "| Pipe | Accepted | Cost | Points |",
-        "|---|:---:|---:|---:|",
-    ]
-    for pipe_id, route in result.pipe_results.items():
-        selected = route.selected
-        lines.append(
-            f"| {pipe_id} | {'yes' if selected else 'no'} | {selected.cost if selected else 0.0:.3f} | {len(selected.points) if selected else 0} |"
-        )
-    if result.unresolved_conflicts:
-        lines.extend(["", "## Unresolved Conflicts", ""])
-        lines.append("| Pipes | Segments | Distance | Required clearance |")
-        lines.append("|---|---|---:|---:|")
-        for conflict in result.unresolved_conflicts:
-            lines.append(
-                "| {pipes} | {segments} | {distance:.6g} | {required:.6g} |".format(
-                    pipes=" / ".join(conflict.get("pipes", ("?", "?"))),
-                    segments=conflict.get("segments", ("?", "?")),
-                    distance=conflict.get("distance", 0.0),
-                    required=conflict.get("required_clearance", 0.0),
-                )
-            )
     if result.diagnostics:
         lines.extend(["", "## Diagnostics", ""])
         lines.extend(f"- {diag}" for diag in result.diagnostics)

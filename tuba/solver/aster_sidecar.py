@@ -10,14 +10,13 @@ from typing import Any, Iterable
 
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.provenance import (
-    CODE_ASTER_COMPILER_ID,
-    MIXED_CODE_ASTER_COMPILER_ID,
-    VOLUME_CODE_ASTER_COMPILER_ID,
     SolverInputIdentity,
     require_matching_solver_input_identities,
     validate_solver_input_identity,
 )
 from tuba.analysis.study import AnalysisStudy
+from tuba.solver.code_aster_runtime import validate_code_aster_execution_attestation, write_artifact_text
+from tuba.solver.compiler_contract import compiler_id_for
 
 
 MAX_ASTER_NAME_LEN = 24
@@ -82,7 +81,7 @@ def dump_solver_sidecar(
         payload["mixed_analysis"] = mixed_analysis
     if solver_input_identity is not None:
         payload["solver_input_identity"] = solver_input_identity.to_dict()
-    Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_artifact_text(path, json.dumps(payload, indent=2, sort_keys=True))
 
 
 def dump_study_manifest(
@@ -100,13 +99,13 @@ def dump_study_manifest(
         analysis_mesh,
         files={role: PureWindowsPath(value).name for role, value in analysis_mesh.files.items()},
     )
-    Path(path).write_text(
+    write_artifact_text(
+        path,
         json.dumps(
             {"study": portable_study.to_dict(), "analysis_mesh": portable_mesh.to_dict()},
             indent=2,
             sort_keys=True,
         ),
-        encoding="utf-8",
     )
 
 
@@ -133,12 +132,7 @@ def load_and_validate_artifact_chain(
         )
 
     sidecar, sidecar_identity = _load_sidecar(root)
-    if loaded_study.metadata.get("mixed_analysis"):
-        compiler_id = MIXED_CODE_ASTER_COMPILER_ID
-    elif loaded_study.metadata.get("volume_analysis"):
-        compiler_id = VOLUME_CODE_ASTER_COMPILER_ID
-    else:
-        compiler_id = CODE_ASTER_COMPILER_ID
+    compiler_id = compiler_id_for(loaded_study.metadata)
     _validate_artifact_identities(
         model=model,
         study=loaded_study,
@@ -150,6 +144,36 @@ def load_and_validate_artifact_chain(
         compiler_inputs=loaded_study.metadata.get("compiler_inputs"),
     )
     return loaded_study, manifest_study, analysis_mesh, sidecar
+
+
+def load_and_attest_artifact_chain(
+    model: Any,
+    work_dir: str | Path,
+    *,
+    study: AnalysisStudy | None = None,
+    requested_load_case: str | None = None,
+) -> tuple[AnalysisStudy, AnalysisMesh | None, dict[str, Any] | None, dict[str, Any] | None]:
+    """Load the validated artifact chain and bind any execution attestation to it.
+
+    Returns ``(study, analysis_mesh, sidecar, attestation)``:
+    :func:`load_and_validate_artifact_chain`, then the execution attestation, which, when the
+    directory carries one, must match every artifact identity. ``attestation`` is None for a
+    directory solved before attestations existed.
+    """
+    loaded_study, _, analysis_mesh, sidecar = load_and_validate_artifact_chain(
+        model, work_dir, study=study, requested_load_case=requested_load_case
+    )
+    sidecar_identity = (
+        None if sidecar is None or sidecar.get("solver_input_identity") is None
+        else SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
+    )
+    attestation = validate_code_aster_execution_attestation(
+        work_dir,
+        study_identity=loaded_study.solver_input_identity,
+        mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
+        sidecar_identity=sidecar_identity,
+    )
+    return loaded_study, analysis_mesh, sidecar, attestation
 
 
 def _load_manifest_records(work_dir: Path) -> tuple[AnalysisStudy | None, AnalysisMesh | None]:

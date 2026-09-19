@@ -89,7 +89,7 @@ def test_matching_evidence_is_reused_and_force_solves_again(tmp_path):
 @pytest.mark.parametrize(
     ("script", "old", "new"),
     [
-        ("model.py", "(-2.0, -1.0, 3.25)", "(-2.5, -1.0, 3.25)"),
+            ("model.py", "[-2.0, 0.0, 3.25]", "[-2.5, 0.0, 3.25]"),
         ("study.py", "SOLVER_OPTIONS: dict = {}", 'SOLVER_OPTIONS: dict = {"line_segments": 4}'),
     ],
 )
@@ -113,8 +113,8 @@ def test_every_operation_of_a_study_lands(tmp_path):
 
     outcome = solve_project(project, solver=ReplaySolver(PROFILE / "evidence"))
 
-    assert outcome.solved == ("global", "local")
-    for case in ("global", "local"):
+    assert outcome.solved == ("global",)
+    for case in ("global",):
         assert load_code_aster_execution_attestation(project.root / "evidence" / case) is not None
         assert outcome.runs[case].result_state.metadata["result_trust"] == "verified"
 

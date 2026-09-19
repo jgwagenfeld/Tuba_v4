@@ -9,6 +9,7 @@ from tuba.visualization import (
     SceneBuildOptions,
     SceneObject,
     VisualizationScene,
+    SceneRequest,
     build_visualization_scene,
     write_scene_bundle,
 )
@@ -22,12 +23,12 @@ class TestVisualizationWebExport(unittest.TestCase):
         n0 = model.add_node([0.0, 0.0, 0.0])
         n1 = model.add_node([1.0, 0.0, 0.0])
         model.add_element(id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel")
-        return build_visualization_scene(
+        return build_visualization_scene(SceneRequest(
             model,
             options=SceneBuildOptions(include_supports=False, include_obstacles=False),
             scene_id="scene_bundle",
             created_at="2026-06-20T12:00:00Z",
-        )
+        ))
 
     def test_write_scene_bundle_creates_browser_loadable_layout(self):
         scene = self._scene()
@@ -128,12 +129,12 @@ class TestSceneBundleSourceScript(unittest.TestCase):
         model.add_element(
             id="pipe_0", type="pipe_straight", n1=n0, n2=n1, section="PipeSec", material="Steel"
         )
-        return build_visualization_scene(
+        return build_visualization_scene(SceneRequest(
             model,
             options=SceneBuildOptions(include_supports=False, include_obstacles=False),
             scene_id="scene_source",
             created_at="2026-06-20T12:00:00Z",
-        )
+        ))
 
     def test_source_script_is_published_and_recorded(self) -> None:
         with TemporaryDirectory() as tmp:

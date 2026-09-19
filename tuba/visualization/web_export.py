@@ -83,8 +83,6 @@ def write_scene_bundle(
     _write_json(metadata_dir / "overlays.json", scene_payload["overlays"])
     _write_json(metadata_dir / "issues.json", scene_payload["issues"])
     _write_json(metadata_dir / "route_reviews.json", scene_payload["route_reviews"])
-    _write_json(metadata_dir / "agent_proposals.json", scene_payload["agent_proposals"])
-    _write_json(metadata_dir / "scene_diffs.json", scene_payload["scene_diffs"])
     _write_json(geometry_dir / "geometry_assets.json", scene_payload["geometry_assets"])
     # Publish scene.json last so live viewers do not reload a half-written bundle.
     _write_json(root / "scene.json", scene_payload)

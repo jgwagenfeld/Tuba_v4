@@ -31,7 +31,7 @@ from tuba.analysis.results import ResultState
 from tuba.analysis.tuyau import CODE_ASTER_TUYAU_NCOU, CODE_ASTER_TUYAU_NSEC, subpoint_station
 from tuba.model import TubaModel as Model
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "test" / "fixtures" / "geometry_mesh_deformed"
 FIXTURE_TAG = "gmd_fixture_not_a_solve"
@@ -139,7 +139,7 @@ def main() -> None:
         result_state = fixture_result_state(
             model=model, study=study, node_ids=node_ids
         )
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             analysis_meshes=[analysis_mesh],
             result_states=[result_state],
@@ -149,7 +149,7 @@ def main() -> None:
             ],
             scene_id="scene:geometry_mesh_deformed",
             created_at="2026-08-22T00:00:00Z",
-        )
+        ))
         staged = write_scene_bundle(scene, Path(tmp) / "bundle")
         staged_root = Path(staged.root if hasattr(staged, "root") else staged)
         if FIXTURE_DIR.exists():

@@ -58,9 +58,12 @@ def test_official_gallery_records_own_refresh_metadata():
         "code-aster-review",
         "elements-supports-review",
         "guyed-mast-review",
+        "hydrogen-plant-layout",
+        "line-load-studio",
         "native-friction-review",
         "pipe-tee-volume-review",
         "profile-orientation-review",
+        "rack_bridge_demo",
         "support-rack-review",
     )
     assert all(gallery.artifact_dir is not None for gallery in engineering)
@@ -93,11 +96,21 @@ def test_contact_gallery_refresh_preserves_beam_history_options(tmp_path, monkey
         refresh_code_aster_gallery.refresh_gallery(tmp_path, gallery="native-friction-review")
 
 
-def test_profile_refresh_solves_both_cases_in_separate_evidence_folders(tmp_path, monkeypatch):
+def test_a_multi_case_gallery_refreshes_each_case_into_its_own_folder(tmp_path, monkeypatch):
     calls = []
     def refresh(model, case, output, record):
         calls.append((id(model), case, output))
         return case
+    galleries = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+    record = next(gallery for gallery in galleries if gallery.id == "profile-orientation-review")
+    monkeypatch.setattr(
+        refresh_code_aster_gallery,
+        "OFFICIAL_GALLERIES",
+        tuple(
+            replace(gallery, refresh_load_cases=("global", "local")) if gallery.id == record.id else gallery
+            for gallery in galleries
+        ),
+    )
     monkeypatch.setattr(refresh_code_aster_gallery, "_refresh_study", refresh)
     result = refresh_code_aster_gallery.refresh_gallery(tmp_path, gallery="profile-orientation-review")
     assert result == {"global": "global", "local": "local"}
@@ -483,7 +496,18 @@ def test_declared_gallery_elements_match_the_models_they_publish():
             if gallery.volume_export
             else gallery.solver_options.get("pipe_modelization", PipeModelization.TUYAU_3M)
         )
-        solved = set(modelisation_assignments(model, pipe_modelization).values())
+        volume_element_ids = (
+            gallery.volume_export.get("element_ids")
+            if isinstance(gallery.volume_export, dict)
+            else None
+        )
+        solved = set(
+            modelisation_assignments(
+                model,
+                pipe_modelization,
+                volume_element_ids=volume_element_ids,
+            ).values()
+        )
         assert set(gallery.elements) == solved, (
             f"{gallery.id}: card declares {sorted(gallery.elements)} but the model solves "
             f"{sorted(solved)}"

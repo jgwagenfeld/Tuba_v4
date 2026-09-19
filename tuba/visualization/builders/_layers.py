@@ -12,7 +12,7 @@ The four categories are rules, not buckets:
 ``results``
     What the solver returned: deformed shapes, fields, vectors.
 ``annotations``
-    What comments on the model: clashes, rule violations, routes, proposals.
+    What comments on the model: clashes, rule violations, routes.
 
 Adding a new object or overlay kind means adding it to the table below. An
 unclassified kind is filed under ``annotations`` *and* reported as a scene
@@ -40,6 +40,7 @@ OBJECT_KIND_CATEGORY: dict[str, str] = {
     "rack_member": "design",
     "element": "design",
     "support": "design",
+    "support_link": "design",
     "applied_load": "design",
     "obstacle": "design",
     "physical_envelope": "design",
@@ -47,8 +48,6 @@ OBJECT_KIND_CATEGORY: dict[str, str] = {
     "imported_port": "design",
     "mixed_coupling": "design",
     "local_coordinate_axis": "design",
-    "external_context": "design",
-    "point_cloud": "design",
     # analysis_mesh — what was solved
     "analysis_mesh_node": "analysis_mesh",
     "analysis_mesh_element": "analysis_mesh",
@@ -74,16 +73,13 @@ OVERLAY_KIND_CATEGORY: dict[str, str] = {
     # design
     "physical_envelope": "design",
     "load_case": "design",
-    "external_source": "design",
     "field_context": "design",
     "rack_assembly": "design",
     # results
     "solver_result": "results",
     "result_state": "results",
     "geometry_state": "results",
-    "runtime_state": "results",
     # annotations
-    "agent_proposal": "annotations",
     "clash": "annotations",
     "rule_violation": "annotations",
     "route_alternatives": "annotations",
@@ -100,6 +96,7 @@ LAYER_ID_PREFIX_CATEGORY: tuple[tuple[str, str], ...] = (
     ("imported_components", "design"),
     ("mixed_", "design"),
     ("local_coordinate_axes", "design"),
+    ("analysis_mesh:helpers", "annotations"),
     ("analysis_mesh:", "analysis_mesh"),
     ("result:", "results"),
     ("solver_result:", "results"),
@@ -154,6 +151,10 @@ def build_layer_registry(
             default_visible=not (
                 (layer_id.startswith("physical_envelope:") and layer_id != "physical_envelope:insulation")
                 or (layer_id.startswith("deformed:") and layer_id.endswith("_envelope"))
+                # The analysis mesh starts hidden, except the volume skin: a
+                # volume study carries no procedural pipe geometry, so the skin
+                # is the model a reviewer opens the scene to see.
+                or (layer_id.startswith("analysis_mesh:") and layer_id != "analysis_mesh:volume_skin")
             ),
         )
 
@@ -203,6 +204,8 @@ def mesh_identity(analysis_mesh: AnalysisMesh) -> dict[str, object]:
         "element_count": len(analysis_mesh.elements),
         "element_families": _element_families(analysis_mesh),
     }
+    if analysis_mesh.geometry_ref is not None:
+        identity["geometry_ref"] = analysis_mesh.geometry_ref
     discretisation = discretisation_summary(analysis_mesh)
     if discretisation is not None:
         identity["discretisation"] = discretisation
@@ -238,7 +241,7 @@ def build_result_fields(overlays: list[Overlay]) -> list[ResultField]:
     """
     fields: list[ResultField] = []
     for overlay in overlays:
-        if overlay.kind not in {"solver_result", "tuyau_subpoint_field"}:
+        if overlay.kind != "solver_result":
             continue
         data = overlay.data or {}
         values = data.get("values") or {}

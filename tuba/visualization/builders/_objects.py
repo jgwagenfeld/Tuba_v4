@@ -1,7 +1,7 @@
 """Model-object builders: elements, supports, obstacles, envelopes."""
 
 from __future__ import annotations
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Any
 from tuba.model import Element
 from tuba.model import TubaModel
@@ -14,7 +14,8 @@ from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
-from tuba.visualization.builders._helpers import SceneBuildOptions, _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields
+from tuba.visualization.builders._contract import SceneBuildOptions, SceneContribution
+from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields
 
 
 _PROFILE_DIMENSION_KEYS = {
@@ -48,7 +49,10 @@ def _build_element_object(
     elem: Element,
     options: SceneBuildOptions,
     ifc_guid_map: dict[str, str] | None = None,
-) -> tuple[SceneObject, GeometryAsset, list[SceneDiagnostic], list[SceneObject], list[GeometryAsset], list[Overlay]]:
+    *,
+    volume_skin: bool = False,
+) -> SceneContribution:
+    """One element's scene contribution; *volume_skin* hides its display geometry behind the mesh."""
     diagnostics: list[SceneDiagnostic] = []
     entity_ref = EntityRef("element", elem.id)
     asset_id = _asset_id(entity_ref)
@@ -169,7 +173,20 @@ def _build_element_object(
             points=points,
             physical=physical,
         )
-    return scene_object, asset, diagnostics, envelope_objects, envelope_assets, envelope_overlays
+    if volume_skin:
+        # The mesh skin replaces this element's surface on screen. The skin is
+        # the discretisation of the same VolumeGeometry the element was meshed
+        # from, so the scene keeps one solid, not a second display sweep.
+        return SceneContribution(
+            objects=(replace(scene_object, geometry_asset_id=None, layer_ids=["analysis_mesh:volume_skin"]),),
+            diagnostics=tuple(diagnostics),
+        )
+    return SceneContribution(
+        objects=tuple([scene_object, *envelope_objects]),
+        assets=tuple([asset, *envelope_assets]),
+        diagnostics=tuple(diagnostics),
+        overlays=tuple(envelope_overlays),
+    )
 def _build_physical_envelopes(
     *,
     elem: Element,
@@ -238,6 +255,14 @@ def _build_physical_envelopes(
             )
         )
     return objects, assets, overlays
+def _groups_for_node(model: TubaModel, node_id: str) -> list[str]:
+    return sorted(
+        group_name
+        for group_name, group in model.groups.items()
+        if node_id in group.get("nodes", [])
+    )
+
+
 def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, GeometryAsset]:
     entity_ref = EntityRef("support", support.id)
     coords = _node_coords(model, support.node)
@@ -248,7 +273,10 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
     ]
     # Source lines are script links, not restraint properties: object metadata only.
     support_data = {
+        "support_id": support.id,
         "support_type": support.type,
+        # The solver's own restraint states, so the viewer renders what Code_Aster compiles.
+        "dof_states": list(support.restraint().states),
         **{
             key: value
             for key, value in asdict(support).items()
@@ -257,6 +285,15 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
             and not (key == "gap" and value == 0)
         },
     }
+    if support.type == "rest":
+        import math
+        raw = [float(v) for v in (support.direction or (0.0, 0.0, 1.0))]
+        norm = math.hypot(*raw)
+        support_data["contact_normal"] = [v / norm for v in raw] if norm > 0 else [0.0, 0.0, 1.0]
+    if support.attached_to is not None:
+        # Which authored group owns the far end, so the panel can name the
+        # structure (e.g. "N3 (rack_A)") without guessing from the scene.
+        support_data["attached_to_groups"] = _groups_for_node(model, support.attached_to)
     asset = GeometryAsset(
         id=_asset_id(entity_ref),
         format="point",
@@ -285,6 +322,60 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         },
     )
     return scene_object, asset
+
+
+def _build_support_link_object(
+    model: TubaModel, support
+) -> tuple[SceneObject, GeometryAsset] | None:
+    """A thin P->A link for an attached support; None when grounded.
+
+    The DOF glyph at P says *what* is restrained. This says *what it is
+    restrained to*. Ground supports need no link: the hatch on the glyph
+    (viewer) says ground.
+    """
+    if support.attached_to is None:
+        return None
+    if support.attached_to not in model.nodes or support.node not in model.nodes:
+        return None
+    start = _node_coords(model, support.node)
+    end = _node_coords(model, support.attached_to)
+    if start == end:
+        return None
+    object_id = f"object:support_link:{support.id}"
+    asset_id = f"geometry:support_link:{support.id}"
+    groups = _groups_for_node(model, support.attached_to)
+    asset = GeometryAsset(
+        id=asset_id,
+        format="polyline",
+        bounds=_bounds_for_points([start, end], 0.0),
+        object_ids=[object_id],
+        generation_config={
+            "source": "tuba.support_link",
+            "entity_ref": f"support:{support.id}",
+            "support_id": support.id,
+            "node": support.node,
+            "attached_to": support.attached_to,
+            "attached_to_groups": groups,
+            "points": [start, end],
+            "color": "#64748b",
+        },
+    )
+    scene_object = SceneObject(
+        id=object_id,
+        entity_ref=None,
+        kind="support_link",
+        name=f"{support.id} link",
+        geometry_asset_id=asset.id,
+        metadata={
+            "support_id": support.id,
+            "node": support.node,
+            "attached_to": support.attached_to,
+            "attached_to_groups": groups,
+        },
+    )
+    return scene_object, asset
+
+
 def _build_obstacle_object(obstacle: dict[str, Any]) -> tuple[SceneObject, GeometryAsset]:
     entity_ref = EntityRef("obstacle", obstacle["id"])
     bounds = _obstacle_bounds(obstacle)

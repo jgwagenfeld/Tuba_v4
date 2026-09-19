@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from tuba.analysis.results import ResultState
+from tuba.assemblies import rack_assemblies
 from tuba.model import TubaModel
 from tuba.refs import EntityRef
 
@@ -29,15 +30,35 @@ class SupportRackAssociation:
 
 
 @dataclass(frozen=True)
+class GroundedSupportLoad:
+    """A grounded support and the load it delivers to foundation."""
+
+    support: EntityRef
+    #: The support's own node, where Code_Aster reports its reaction.
+    node: EntityRef
+    #: The reaction at that node; None until a result state supplies it.
+    force_n: tuple[float, float, float] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "support": self.support.to_dict(),
+            "node": self.node.to_dict(),
+            "force_n": list(self.force_n) if self.force_n is not None else None,
+        }
+
+
+@dataclass(frozen=True)
 class LoadPathReport:
     associations: list[SupportRackAssociation] = field(default_factory=list)
     rack_loads: dict[str, dict[str, float]] = field(default_factory=dict)
+    grounded_loads: list[GroundedSupportLoad] = field(default_factory=list)
     diagnostics: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "associations": [association.to_dict() for association in self.associations],
             "rack_loads": {rack: dict(loads) for rack, loads in self.rack_loads.items()},
+            "grounded_loads": [load.to_dict() for load in self.grounded_loads],
             "diagnostics": list(self.diagnostics),
         }
 
@@ -51,17 +72,37 @@ def analyze_load_paths(
     """Associate attached supports with racks and sum the reactions at their attached nodes.
 
     Code_Aster reports a tie's force on the structure as REAC_NODA on the attached node,
-    so a rack's load is the sum over its distinct attached nodes.
+    so a rack's load is the sum over its distinct attached nodes. A grounded support
+    stands on a point fixed in space: its load goes to foundation as the reaction at
+    its own node, never to a rack, and being grounded is by design, not a diagnostic.
+    Diagnostics are reserved for an attached support whose node belongs to no rack.
     """
     reactions = _node_reactions_from_result_state(model, result_state) if result_state is not None else {}
     reactions.update(node_reactions or {})
     racks = _rack_nodes(model)
     associations: list[SupportRackAssociation] = []
+    grounded_loads: list[GroundedSupportLoad] = []
     diagnostics: list[str] = []
     for support in model.supports:
-        matches = racks.get(support.attached_to, []) if support.attached_to is not None else []
+        if support.attached_to is None:
+            reaction = reactions.get(support.node)
+            grounded_loads.append(
+                GroundedSupportLoad(
+                    support=EntityRef("support", support.id),
+                    node=EntityRef("node", support.node),
+                    force_n=(
+                        None
+                        if reaction is None
+                        else (float(reaction[0]), float(reaction[1]), float(reaction[2]))
+                    ),
+                )
+            )
+            continue
+        matches = racks.get(support.attached_to, [])
         if not matches:
-            diagnostics.append(f"Support {support.id!r} is not associated with a rack.")
+            diagnostics.append(
+                f"Support {support.id!r} is attached to node {support.attached_to!r}, which belongs to no rack."
+            )
             continue
         for rack_name, point_name in matches:
             associations.append(
@@ -72,22 +113,20 @@ def analyze_load_paths(
                     attachment_point=point_name,
                 )
             )
-    return LoadPathReport(associations=associations, rack_loads=_rack_loads(associations, reactions), diagnostics=diagnostics)
+    return LoadPathReport(
+        associations=associations,
+        rack_loads=_rack_loads(associations, reactions),
+        grounded_loads=grounded_loads,
+        diagnostics=diagnostics,
+    )
 
 
 def _rack_nodes(model: TubaModel) -> dict[str, list[tuple[str, str]]]:
     racks: dict[str, list[tuple[str, str]]] = {}
-    for group_name, group in model.groups.items():
-        metadata = group.get("metadata", {})
-        if metadata.get("assembly_type") != "rack_bay":
-            continue
-        names = {
-            node_ref.split(":", 1)[1]: point_name
-            for point_name, node_ref in metadata.get("attachment_points", {}).items()
-            if isinstance(node_ref, str) and node_ref.startswith("node:")
-        }
-        for node_id in group.get("nodes", []):
-            racks.setdefault(node_id, []).append((group_name, names.get(node_id, "")))
+    for rack in rack_assemblies(model):
+        names = {node_id: point_name for point_name, node_id in rack.attachment_points.items()}
+        for node_id in rack.nodes:
+            racks.setdefault(node_id, []).append((rack.group_name, names.get(node_id, "")))
     return racks
 
 

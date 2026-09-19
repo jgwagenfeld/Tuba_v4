@@ -16,7 +16,7 @@ def build_tee_volume_model():
     return _TEE.run_model()["model"]
 from tuba.solver.aster_volume_results import _rows, _volume_node_id
 from tuba.solver.modelisation import PipeModelization
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 pytestmark = pytest.mark.skipif(
@@ -42,11 +42,11 @@ def test_pressurized_tee_volume_has_stable_reactions_and_hotspot(tmp_path):
         assert run.result_state.metadata["result_trust"] == "verified"
         assert run.study.solver_input_identity == run.analysis_mesh.solver_input_identity
         assert run.study.solver_input_identity == run.result_state.solver_input_identity
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             result_states=[run.result_state],
             analysis_meshes=[run.analysis_mesh],
-        )
+        ))
         scene.validate()
         assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
         force, moment = _terminal_resultant(run.result_state, run.analysis_mesh)

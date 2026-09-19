@@ -9,7 +9,7 @@ from tuba import Model
 from tuba.analysis.provenance import build_solver_input_identity
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.aster_loads import resolve_wind_field_groups
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 def insulated_cantilever():
@@ -43,7 +43,7 @@ def test_insulation_reaches_solver_identity_wind_and_surface():
     assert resolve_wind_field_groups(model, case)[0][2] == pytest.approx(200)
     model.operations.pop("Wind")
     model.get_element("pipe").type = "pipe_straight"
-    scene = build_visualization_scene(model)
+    scene = build_visualization_scene(SceneRequest(model))
     envelopes = [a for a in scene.geometry_assets if a.format == "tube_envelope"]
     assert len(envelopes) == 1
     assert envelopes[0].generation_config["radius_m"] == pytest.approx(0.1)
@@ -53,7 +53,7 @@ def test_insulation_reaches_solver_identity_wind_and_surface():
     model.add_insulation_spec("wool", material="mineral wool", thickness_m=0.06, density_kg_m3=100)
     assert build_solver_input_identity(model, "Weight").fingerprint != fingerprint
     model.attributes.clear()
-    assert not any(a.format == "tube_envelope" for a in build_visualization_scene(model).geometry_assets)
+    assert not any(a.format == "tube_envelope" for a in build_visualization_scene(SceneRequest(model)).geometry_assets)
     with pytest.raises(ValueError, match="finite"):
         model.add_insulation_spec("bad", material="wool", thickness_m=float("nan"))
 

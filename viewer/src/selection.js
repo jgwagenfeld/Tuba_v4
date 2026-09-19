@@ -115,23 +115,6 @@ export function fitSelection(state) {
   };
 }
 
-export function pickObjectAt(state, point, viewport) {
-  const candidates = [];
-  for (const asset of state.geometryAssets) {
-    const visibleObjectIds = (asset.object_ids ?? []).filter((id) => state.visibleObjectIds.includes(id));
-    if (visibleObjectIds.length === 0) {
-      continue;
-    }
-    const projected = project(centerOfBounds(asset.bounds), state.bounds, viewport.width, viewport.height);
-    const distance = Math.hypot(projected[0] - point.x, projected[1] - point.y);
-    for (const objectId of visibleObjectIds) {
-      candidates.push({ objectId, distance });
-    }
-  }
-  candidates.sort((left, right) => left.distance - right.distance);
-  return candidates[0]?.objectId ?? null;
-}
-
 function withVisibility(state) {
   return { ...state, visibleObjectIds: getVisibleObjectIds(state) };
 }
@@ -218,24 +201,4 @@ function mergeBounds(boundsList) {
     }
   }
   return [...mins, ...maxs];
-}
-
-function centerOfBounds(bounds) {
-  if (!Array.isArray(bounds) || bounds.length !== 6) {
-    return [0, 0, 0];
-  }
-  return [(bounds[0] + bounds[3]) / 2, (bounds[1] + bounds[4]) / 2, (bounds[2] + bounds[5]) / 2];
-}
-
-function project(point, bounds, width, height) {
-  const pad = 32;
-  const minX = bounds[0];
-  const maxX = bounds[3];
-  const minY = bounds[1];
-  const maxY = bounds[4];
-  const spanX = Math.max(maxX - minX, 1e-9);
-  const spanY = Math.max(maxY - minY, 1e-9);
-  const x = pad + ((point[0] - minX) / spanX) * (width - pad * 2);
-  const y = height - pad - ((point[1] - minY) / spanY) * (height - pad * 2);
-  return [x, y];
 }

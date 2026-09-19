@@ -1,0 +1,2412 @@
+{
+  "analysis_mesh": {
+    "element_sources": {
+      "CONTACT_3": {
+        "element_id": "CONTACT_3",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_3",
+          "kind": "support"
+        }
+      },
+      "beam_0_s0": {
+        "element_id": "beam_0_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_s1": {
+        "element_id": "beam_0_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_s2": {
+        "element_id": "beam_0_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_s3": {
+        "element_id": "beam_0_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_s4": {
+        "element_id": "beam_0_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_s5": {
+        "element_id": "beam_0_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_s6": {
+        "element_id": "beam_0_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_s7": {
+        "element_id": "beam_0_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_1_s0": {
+        "element_id": "beam_1_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_s1": {
+        "element_id": "beam_1_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_s2": {
+        "element_id": "beam_1_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_s3": {
+        "element_id": "beam_1_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_s4": {
+        "element_id": "beam_1_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_s5": {
+        "element_id": "beam_1_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_s6": {
+        "element_id": "beam_1_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_s7": {
+        "element_id": "beam_1_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s0": {
+        "element_id": "pipe_bend_0_s0",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s1": {
+        "element_id": "pipe_bend_0_s1",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s10": {
+        "element_id": "pipe_bend_0_s10",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s11": {
+        "element_id": "pipe_bend_0_s11",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s12": {
+        "element_id": "pipe_bend_0_s12",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s13": {
+        "element_id": "pipe_bend_0_s13",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s14": {
+        "element_id": "pipe_bend_0_s14",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s15": {
+        "element_id": "pipe_bend_0_s15",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s2": {
+        "element_id": "pipe_bend_0_s2",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s3": {
+        "element_id": "pipe_bend_0_s3",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s4": {
+        "element_id": "pipe_bend_0_s4",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s5": {
+        "element_id": "pipe_bend_0_s5",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s6": {
+        "element_id": "pipe_bend_0_s6",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s7": {
+        "element_id": "pipe_bend_0_s7",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s8": {
+        "element_id": "pipe_bend_0_s8",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s9": {
+        "element_id": "pipe_bend_0_s9",
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "role": "bend_segment",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_0": {
+        "element_id": "pipe_str_0",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_str_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_1": {
+        "element_id": "pipe_str_1",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_str_1",
+          "kind": "element"
+        }
+      },
+      "pipe_str_2": {
+        "element_id": "pipe_str_2",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_str_2",
+          "kind": "element"
+        }
+      }
+    },
+    "elements": {
+      "CONTACT_3": [
+        "GROUND_3",
+        "N4"
+      ],
+      "beam_0_s0": [
+        "N0",
+        "beam_0_n1"
+      ],
+      "beam_0_s1": [
+        "beam_0_n1",
+        "beam_0_n2"
+      ],
+      "beam_0_s2": [
+        "beam_0_n2",
+        "beam_0_n3"
+      ],
+      "beam_0_s3": [
+        "beam_0_n3",
+        "beam_0_n4"
+      ],
+      "beam_0_s4": [
+        "beam_0_n4",
+        "beam_0_n5"
+      ],
+      "beam_0_s5": [
+        "beam_0_n5",
+        "beam_0_n6"
+      ],
+      "beam_0_s6": [
+        "beam_0_n6",
+        "beam_0_n7"
+      ],
+      "beam_0_s7": [
+        "beam_0_n7",
+        "N1"
+      ],
+      "beam_1_s0": [
+        "N1",
+        "beam_1_n1"
+      ],
+      "beam_1_s1": [
+        "beam_1_n1",
+        "beam_1_n2"
+      ],
+      "beam_1_s2": [
+        "beam_1_n2",
+        "beam_1_n3"
+      ],
+      "beam_1_s3": [
+        "beam_1_n3",
+        "beam_1_n4"
+      ],
+      "beam_1_s4": [
+        "beam_1_n4",
+        "beam_1_n5"
+      ],
+      "beam_1_s5": [
+        "beam_1_n5",
+        "beam_1_n6"
+      ],
+      "beam_1_s6": [
+        "beam_1_n6",
+        "beam_1_n7"
+      ],
+      "beam_1_s7": [
+        "beam_1_n7",
+        "N2"
+      ],
+      "pipe_bend_0_s0": [
+        "N5",
+        "pipe_bend_0_n1"
+      ],
+      "pipe_bend_0_s1": [
+        "pipe_bend_0_n1",
+        "pipe_bend_0_n2"
+      ],
+      "pipe_bend_0_s10": [
+        "pipe_bend_0_n10",
+        "pipe_bend_0_n11"
+      ],
+      "pipe_bend_0_s11": [
+        "pipe_bend_0_n11",
+        "pipe_bend_0_n12"
+      ],
+      "pipe_bend_0_s12": [
+        "pipe_bend_0_n12",
+        "pipe_bend_0_n13"
+      ],
+      "pipe_bend_0_s13": [
+        "pipe_bend_0_n13",
+        "pipe_bend_0_n14"
+      ],
+      "pipe_bend_0_s14": [
+        "pipe_bend_0_n14",
+        "pipe_bend_0_n15"
+      ],
+      "pipe_bend_0_s15": [
+        "pipe_bend_0_n15",
+        "N6"
+      ],
+      "pipe_bend_0_s2": [
+        "pipe_bend_0_n2",
+        "pipe_bend_0_n3"
+      ],
+      "pipe_bend_0_s3": [
+        "pipe_bend_0_n3",
+        "pipe_bend_0_n4"
+      ],
+      "pipe_bend_0_s4": [
+        "pipe_bend_0_n4",
+        "pipe_bend_0_n5"
+      ],
+      "pipe_bend_0_s5": [
+        "pipe_bend_0_n5",
+        "pipe_bend_0_n6"
+      ],
+      "pipe_bend_0_s6": [
+        "pipe_bend_0_n6",
+        "pipe_bend_0_n7"
+      ],
+      "pipe_bend_0_s7": [
+        "pipe_bend_0_n7",
+        "pipe_bend_0_n8"
+      ],
+      "pipe_bend_0_s8": [
+        "pipe_bend_0_n8",
+        "pipe_bend_0_n9"
+      ],
+      "pipe_bend_0_s9": [
+        "pipe_bend_0_n9",
+        "pipe_bend_0_n10"
+      ],
+      "pipe_str_0": [
+        "N3",
+        "N4"
+      ],
+      "pipe_str_1": [
+        "N4",
+        "N5"
+      ],
+      "pipe_str_2": [
+        "N6",
+        "N7"
+      ]
+    },
+    "files": {
+      "mail": "study.mail"
+    },
+    "groups": {
+      "AllPipes": [
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_bend_0_s0",
+        "pipe_bend_0_s1",
+        "pipe_bend_0_s2",
+        "pipe_bend_0_s3",
+        "pipe_bend_0_s4",
+        "pipe_bend_0_s5",
+        "pipe_bend_0_s6",
+        "pipe_bend_0_s7",
+        "pipe_bend_0_s8",
+        "pipe_bend_0_s9",
+        "pipe_bend_0_s10",
+        "pipe_bend_0_s11",
+        "pipe_bend_0_s12",
+        "pipe_bend_0_s13",
+        "pipe_bend_0_s14",
+        "pipe_bend_0_s15"
+      ],
+      "AllSupports": [
+        "N0",
+        "N2",
+        "N3",
+        "N4",
+        "N7"
+      ],
+      "CONTACT_3": [
+        "CONTACT_3"
+      ],
+      "GN_N0": [
+        "N0"
+      ],
+      "GN_N1": [
+        "N1"
+      ],
+      "GN_N2": [
+        "N2"
+      ],
+      "GN_N3": [
+        "N3"
+      ],
+      "GN_N4": [
+        "N4"
+      ],
+      "GN_N5": [
+        "N5"
+      ],
+      "GN_N7": [
+        "N7"
+      ],
+      "GROUND_3": [
+        "GROUND_3"
+      ],
+      "G_TUBE": [
+        "beam_0_s0",
+        "beam_0_s1",
+        "beam_0_s2",
+        "beam_0_s3",
+        "beam_0_s4",
+        "beam_0_s5",
+        "beam_0_s6",
+        "beam_0_s7",
+        "beam_1_s0",
+        "beam_1_s1",
+        "beam_1_s2",
+        "beam_1_s3",
+        "beam_1_s4",
+        "beam_1_s5",
+        "beam_1_s6",
+        "beam_1_s7"
+      ],
+      "MAT_Steel": [
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "beam_0_s0",
+        "beam_0_s1",
+        "beam_0_s2",
+        "beam_0_s3",
+        "beam_0_s4",
+        "beam_0_s5",
+        "beam_0_s6",
+        "beam_0_s7",
+        "beam_1_s0",
+        "beam_1_s1",
+        "beam_1_s2",
+        "beam_1_s3",
+        "beam_1_s4",
+        "beam_1_s5",
+        "beam_1_s6",
+        "beam_1_s7",
+        "pipe_bend_0_s0",
+        "pipe_bend_0_s1",
+        "pipe_bend_0_s2",
+        "pipe_bend_0_s3",
+        "pipe_bend_0_s4",
+        "pipe_bend_0_s5",
+        "pipe_bend_0_s6",
+        "pipe_bend_0_s7",
+        "pipe_bend_0_s8",
+        "pipe_bend_0_s9",
+        "pipe_bend_0_s10",
+        "pipe_bend_0_s11",
+        "pipe_bend_0_s12",
+        "pipe_bend_0_s13",
+        "pipe_bend_0_s14",
+        "pipe_bend_0_s15"
+      ],
+      "PipeElbows": [
+        "pipe_bend_0_s0",
+        "pipe_bend_0_s1",
+        "pipe_bend_0_s2",
+        "pipe_bend_0_s3",
+        "pipe_bend_0_s4",
+        "pipe_bend_0_s5",
+        "pipe_bend_0_s6",
+        "pipe_bend_0_s7",
+        "pipe_bend_0_s8",
+        "pipe_bend_0_s9",
+        "pipe_bend_0_s10",
+        "pipe_bend_0_s11",
+        "pipe_bend_0_s12",
+        "pipe_bend_0_s13",
+        "pipe_bend_0_s14",
+        "pipe_bend_0_s15"
+      ],
+      "PipeOrientationNodes": [
+        "N3"
+      ],
+      "PipeStraights": [
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2"
+      ],
+      "SEC_DN100": [
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2"
+      ],
+      "SEC_IPE140": [
+        "beam_0_s0",
+        "beam_0_s1",
+        "beam_0_s2",
+        "beam_0_s3",
+        "beam_0_s4",
+        "beam_0_s5",
+        "beam_0_s6",
+        "beam_0_s7",
+        "beam_1_s0",
+        "beam_1_s1",
+        "beam_1_s2",
+        "beam_1_s3",
+        "beam_1_s4",
+        "beam_1_s5",
+        "beam_1_s6",
+        "beam_1_s7"
+      ],
+      "beam_0": [
+        "beam_0_s0",
+        "beam_0_s1",
+        "beam_0_s2",
+        "beam_0_s3",
+        "beam_0_s4",
+        "beam_0_s5",
+        "beam_0_s6",
+        "beam_0_s7"
+      ],
+      "beam_1": [
+        "beam_1_s0",
+        "beam_1_s1",
+        "beam_1_s2",
+        "beam_1_s3",
+        "beam_1_s4",
+        "beam_1_s5",
+        "beam_1_s6",
+        "beam_1_s7"
+      ],
+      "pipe_bend_0": [
+        "pipe_bend_0_s0",
+        "pipe_bend_0_s1",
+        "pipe_bend_0_s2",
+        "pipe_bend_0_s3",
+        "pipe_bend_0_s4",
+        "pipe_bend_0_s5",
+        "pipe_bend_0_s6",
+        "pipe_bend_0_s7",
+        "pipe_bend_0_s8",
+        "pipe_bend_0_s9",
+        "pipe_bend_0_s10",
+        "pipe_bend_0_s11",
+        "pipe_bend_0_s12",
+        "pipe_bend_0_s13",
+        "pipe_bend_0_s14",
+        "pipe_bend_0_s15"
+      ],
+      "pipe_str_0": [
+        "pipe_str_0"
+      ],
+      "pipe_str_1": [
+        "pipe_str_1"
+      ],
+      "pipe_str_2": [
+        "pipe_str_2"
+      ]
+    },
+    "id": "analysis_mesh:Operating",
+    "model_revision": 0,
+    "modelisations": {
+      "AllPipes": "TUYAU_3M",
+      "CONTACT_3": "DIS_T",
+      "G_TUBE": "POU_D_T"
+    },
+    "node_sources": {
+      "GROUND_3": {
+        "node_id": "GROUND_3",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_3",
+          "kind": "support"
+        }
+      },
+      "N0": {
+        "node_id": "N0",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N0",
+          "kind": "node"
+        }
+      },
+      "N1": {
+        "node_id": "N1",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N1",
+          "kind": "node"
+        }
+      },
+      "N2": {
+        "node_id": "N2",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N2",
+          "kind": "node"
+        }
+      },
+      "N3": {
+        "node_id": "N3",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N3",
+          "kind": "node"
+        }
+      },
+      "N4": {
+        "node_id": "N4",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N4",
+          "kind": "node"
+        }
+      },
+      "N5": {
+        "node_id": "N5",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N5",
+          "kind": "node"
+        }
+      },
+      "N6": {
+        "node_id": "N6",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N6",
+          "kind": "node"
+        }
+      },
+      "N7": {
+        "node_id": "N7",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N7",
+          "kind": "node"
+        }
+      },
+      "beam_0_n1": {
+        "node_id": "beam_0_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_n2": {
+        "node_id": "beam_0_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_n3": {
+        "node_id": "beam_0_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_n4": {
+        "node_id": "beam_0_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_n5": {
+        "node_id": "beam_0_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_n6": {
+        "node_id": "beam_0_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_0_n7": {
+        "node_id": "beam_0_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "beam_0",
+          "kind": "element"
+        }
+      },
+      "beam_1_n1": {
+        "node_id": "beam_1_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_n2": {
+        "node_id": "beam_1_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_n3": {
+        "node_id": "beam_1_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_n4": {
+        "node_id": "beam_1_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_n5": {
+        "node_id": "beam_1_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_n6": {
+        "node_id": "beam_1_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "beam_1_n7": {
+        "node_id": "beam_1_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "beam_1",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n1": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n1",
+        "parametric_t": 0.0625,
+        "role": "generated_bend_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n10": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n10",
+        "parametric_t": 0.625,
+        "role": "generated_bend_node",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n11": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n11",
+        "parametric_t": 0.6875,
+        "role": "generated_bend_node",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n12": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n12",
+        "parametric_t": 0.75,
+        "role": "generated_bend_node",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n13": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n13",
+        "parametric_t": 0.8125,
+        "role": "generated_bend_node",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n14": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n14",
+        "parametric_t": 0.875,
+        "role": "generated_bend_node",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n15": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n15",
+        "parametric_t": 0.9375,
+        "role": "generated_bend_node",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n2": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n2",
+        "parametric_t": 0.125,
+        "role": "generated_bend_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n3": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n3",
+        "parametric_t": 0.1875,
+        "role": "generated_bend_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n4": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n4",
+        "parametric_t": 0.25,
+        "role": "generated_bend_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n5": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n5",
+        "parametric_t": 0.3125,
+        "role": "generated_bend_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n6": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n6",
+        "parametric_t": 0.375,
+        "role": "generated_bend_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n7": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n7",
+        "parametric_t": 0.4375,
+        "role": "generated_bend_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n8": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n8",
+        "parametric_t": 0.5,
+        "role": "generated_bend_node",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_n9": {
+        "metadata": {
+          "bend_geometry": {
+            "angle": 90.0,
+            "center": [
+              5.0,
+              0.3,
+              3.0
+            ],
+            "end_tangent": [
+              1.8503717077085953e-16,
+              1.0,
+              -0.0
+            ],
+            "generation_mode": "bend",
+            "normal": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "radius": 0.3,
+            "start_tangent": [
+              1.0,
+              0.0,
+              -0.0
+            ]
+          }
+        },
+        "node_id": "pipe_bend_0_n9",
+        "parametric_t": 0.5625,
+        "role": "generated_bend_node",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s0_mid": {
+        "node_id": "pipe_bend_0_s0_mid",
+        "parametric_t": 0.03125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s10_mid": {
+        "node_id": "pipe_bend_0_s10_mid",
+        "parametric_t": 0.65625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 10,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s11_mid": {
+        "node_id": "pipe_bend_0_s11_mid",
+        "parametric_t": 0.71875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 11,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s12_mid": {
+        "node_id": "pipe_bend_0_s12_mid",
+        "parametric_t": 0.78125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 12,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s13_mid": {
+        "node_id": "pipe_bend_0_s13_mid",
+        "parametric_t": 0.84375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 13,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s14_mid": {
+        "node_id": "pipe_bend_0_s14_mid",
+        "parametric_t": 0.90625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 14,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s15_mid": {
+        "node_id": "pipe_bend_0_s15_mid",
+        "parametric_t": 0.96875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 15,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s1_mid": {
+        "node_id": "pipe_bend_0_s1_mid",
+        "parametric_t": 0.09375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s2_mid": {
+        "node_id": "pipe_bend_0_s2_mid",
+        "parametric_t": 0.15625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s3_mid": {
+        "node_id": "pipe_bend_0_s3_mid",
+        "parametric_t": 0.21875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s4_mid": {
+        "node_id": "pipe_bend_0_s4_mid",
+        "parametric_t": 0.28125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s5_mid": {
+        "node_id": "pipe_bend_0_s5_mid",
+        "parametric_t": 0.34375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s6_mid": {
+        "node_id": "pipe_bend_0_s6_mid",
+        "parametric_t": 0.40625,
+        "role": "generated_bend_mid_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s7_mid": {
+        "node_id": "pipe_bend_0_s7_mid",
+        "parametric_t": 0.46875,
+        "role": "generated_bend_mid_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s8_mid": {
+        "node_id": "pipe_bend_0_s8_mid",
+        "parametric_t": 0.53125,
+        "role": "generated_bend_mid_node",
+        "segment_index": 8,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_bend_0_s9_mid": {
+        "node_id": "pipe_bend_0_s9_mid",
+        "parametric_t": 0.59375,
+        "role": "generated_bend_mid_node",
+        "segment_index": 9,
+        "source_ref": {
+          "id": "pipe_bend_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_0_mid": {
+        "node_id": "pipe_str_0_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_0",
+          "kind": "element"
+        }
+      },
+      "pipe_str_1_mid": {
+        "node_id": "pipe_str_1_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_1",
+          "kind": "element"
+        }
+      },
+      "pipe_str_2_mid": {
+        "node_id": "pipe_str_2_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_2",
+          "kind": "element"
+        }
+      }
+    },
+    "nodes": {
+      "GROUND_3": [
+        2.5,
+        0.0,
+        2.0
+      ],
+      "N0": [
+        2.5,
+        -1.0,
+        2.8
+      ],
+      "N1": [
+        2.5,
+        0.0,
+        2.8
+      ],
+      "N2": [
+        2.5,
+        1.0,
+        2.8
+      ],
+      "N3": [
+        0.0,
+        0.0,
+        3.0
+      ],
+      "N4": [
+        2.5,
+        0.0,
+        3.0
+      ],
+      "N5": [
+        5.0,
+        0.0,
+        3.0
+      ],
+      "N6": [
+        5.3,
+        0.29999999999999993,
+        3.0
+      ],
+      "N7": [
+        5.3,
+        3.3,
+        3.0
+      ],
+      "beam_0_n1": [
+        2.5,
+        -0.875,
+        2.8
+      ],
+      "beam_0_n2": [
+        2.5,
+        -0.75,
+        2.8
+      ],
+      "beam_0_n3": [
+        2.5,
+        -0.625,
+        2.8
+      ],
+      "beam_0_n4": [
+        2.5,
+        -0.5,
+        2.8
+      ],
+      "beam_0_n5": [
+        2.5,
+        -0.375,
+        2.8
+      ],
+      "beam_0_n6": [
+        2.5,
+        -0.25,
+        2.8
+      ],
+      "beam_0_n7": [
+        2.5,
+        -0.125,
+        2.8
+      ],
+      "beam_1_n1": [
+        2.5,
+        0.125,
+        2.8
+      ],
+      "beam_1_n2": [
+        2.5,
+        0.25,
+        2.8
+      ],
+      "beam_1_n3": [
+        2.5,
+        0.375,
+        2.8
+      ],
+      "beam_1_n4": [
+        2.5,
+        0.5,
+        2.8
+      ],
+      "beam_1_n5": [
+        2.5,
+        0.625,
+        2.8
+      ],
+      "beam_1_n6": [
+        2.5,
+        0.75,
+        2.8
+      ],
+      "beam_1_n7": [
+        2.5,
+        0.875,
+        2.8
+      ],
+      "pipe_bend_0_n1": [
+        5.029405142098868,
+        0.0014445819983409103,
+        3.0
+      ],
+      "pipe_bend_0_n10": [
+        5.249440883690763,
+        0.1333289300941193,
+        3.0
+      ],
+      "pipe_bend_0_n11": [
+        5.264576379304507,
+        0.15858097895220066,
+        3.0
+      ],
+      "pipe_bend_0_n12": [
+        5.277163859753386,
+        0.18519497029047305,
+        3.0
+      ],
+      "pipe_bend_0_n13": [
+        5.287082100719663,
+        0.2129145968236613,
+        3.0
+      ],
+      "pipe_bend_0_n14": [
+        5.294235584120969,
+        0.24147290339516148,
+        3.0
+      ],
+      "pipe_bend_0_n15": [
+        5.298555418001659,
+        0.27059485790113175,
+        3.0
+      ],
+      "pipe_bend_0_n2": [
+        5.058527096604839,
+        0.005764415879030871,
+        3.0
+      ],
+      "pipe_bend_0_n3": [
+        5.087085403176339,
+        0.012917899280337375,
+        3.0
+      ],
+      "pipe_bend_0_n4": [
+        5.114805029709527,
+        0.022836140246613956,
+        3.0
+      ],
+      "pipe_bend_0_n5": [
+        5.141419021047799,
+        0.035423620695493485,
+        3.0
+      ],
+      "pipe_bend_0_n6": [
+        5.166671069905881,
+        0.05055911630923643,
+        3.0
+      ],
+      "pipe_bend_0_n7": [
+        5.190317985249093,
+        0.0680968639911789,
+        3.0
+      ],
+      "pipe_bend_0_n8": [
+        5.212132034355964,
+        0.08786796564403573,
+        3.0
+      ],
+      "pipe_bend_0_n9": [
+        5.231903136008821,
+        0.10968201475090636,
+        3.0
+      ],
+      "pipe_bend_0_s0_mid": [
+        5.014702571049434,
+        0.0007222909991704551,
+        3.0
+      ],
+      "pipe_bend_0_s10_mid": [
+        5.257008631497635,
+        0.14595495452315999,
+        3.0
+      ],
+      "pipe_bend_0_s11_mid": [
+        5.270870119528946,
+        0.17188797462133687,
+        3.0
+      ],
+      "pipe_bend_0_s12_mid": [
+        5.282122980236524,
+        0.19905478355706718,
+        3.0
+      ],
+      "pipe_bend_0_s13_mid": [
+        5.290658842420315,
+        0.2271937501094114,
+        3.0
+      ],
+      "pipe_bend_0_s14_mid": [
+        5.296395501061314,
+        0.2560338806481466,
+        3.0
+      ],
+      "pipe_bend_0_s15_mid": [
+        5.29927770900083,
+        0.28529742895056587,
+        3.0
+      ],
+      "pipe_bend_0_s1_mid": [
+        5.043966119351854,
+        0.0036044989386858906,
+        3.0
+      ],
+      "pipe_bend_0_s2_mid": [
+        5.072806249890588,
+        0.009341157579684123,
+        3.0
+      ],
+      "pipe_bend_0_s3_mid": [
+        5.100945216442932,
+        0.017877019763475666,
+        3.0
+      ],
+      "pipe_bend_0_s4_mid": [
+        5.1281120253786625,
+        0.02912988047105372,
+        3.0
+      ],
+      "pipe_bend_0_s5_mid": [
+        5.15404504547684,
+        0.04299136850236496,
+        3.0
+      ],
+      "pipe_bend_0_s6_mid": [
+        5.178494527577487,
+        0.05932799015020766,
+        3.0
+      ],
+      "pipe_bend_0_s7_mid": [
+        5.2012250098025286,
+        0.07798241481760732,
+        3.0
+      ],
+      "pipe_bend_0_s8_mid": [
+        5.2220175851823925,
+        0.09877499019747105,
+        3.0
+      ],
+      "pipe_bend_0_s9_mid": [
+        5.240672009849792,
+        0.12150547242251283,
+        3.0
+      ],
+      "pipe_str_0_mid": [
+        1.25,
+        0.0,
+        3.0
+      ],
+      "pipe_str_1_mid": [
+        3.75,
+        0.0,
+        3.0
+      ],
+      "pipe_str_2_mid": [
+        5.3,
+        1.7999999999999998,
+        3.0
+      ]
+    },
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "857ae742b0236e44131652d5cf2d57d0abd935a96ffb998e6f75597f4edefb68",
+      "load_case": "Operating",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  },
+  "study": {
+    "id": "analysis_study:Operating",
+    "input_files": {
+      "comm": "study.comm",
+      "export": "study.export",
+      "mail": "study.mail",
+      "manifest": "study_manifest.json",
+      "sidecar": "study_tuba_fem.json"
+    },
+    "load_case": "Operating",
+    "mesh_id": "analysis_mesh:Operating",
+    "metadata": {
+      "compiler_inputs": {
+        "contact_law": "DIS_CHOC",
+        "contact_stiffness_defaults": [
+          10000000000.0,
+          100000000.0
+        ],
+        "line_segments": 8,
+        "load_path": [
+          "Operating"
+        ],
+        "load_step": 0.1,
+        "pipe_modelization": "TUYAU_3M"
+      },
+      "pipe_stress_exported": true,
+      "project_name": "LineLoadStudioProject"
+    },
+    "model_revision": 0,
+    "solver_input_identity": {
+      "compiler_id": "tuba.code_aster.v2",
+      "fingerprint": "857ae742b0236e44131652d5cf2d57d0abd935a96ffb998e6f75597f4edefb68",
+      "load_case": "Operating",
+      "schema_id": "tuba.model.v4"
+    },
+    "solver_name": "Code_Aster"
+  }
+}

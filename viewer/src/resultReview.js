@@ -91,6 +91,21 @@ export function getActiveResultState(state) {
   );
 }
 
+// A contact review is one whose study said so. Inferring it from the presence of
+// contact records made every review that merely rests on a shoe a contact
+// review, which cost it its scalar legend, its load and reaction arrows and its
+// deformed state - seven of the twelve galleries, including a plain pressurised
+// line that published with no stress legend at all.
+export function isContactReview(state) {
+  return state.reviewFocus === "contact";
+}
+
+// The one question four surfaces used to ask for themselves: is contact, not a
+// scalar field, what is describing the scene right now?
+export function contactColoringActive(state) {
+  return state.contactNeutral !== false && isContactReview(state);
+}
+
 export function getActiveLoadCase(state) {
   return state.activeLoadCase ?? state.resultStates?.[0]?.data?.load_case ?? solverResultOverlays(state)[0]?.data?.load_case ?? null;
 }
@@ -122,7 +137,7 @@ export function getSolverResultOverlays(state, resultType = null) {
 }
 
 export function getActiveScalarOverlay(state) {
-  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
+  if (contactColoringActive(state)) return null;
   // When the scene carries a field catalogue the choice is explicit. The
   // priority chain below is the legacy path for bundles written before it.
   if ((state.resultFields ?? []).length > 0) {
@@ -137,7 +152,7 @@ export function getActiveScalarOverlay(state) {
 }
 
 export function getScalarLegend(state) {
-  if (state.contactNeutral !== false && Object.keys(getActiveResultState(state)?.overlay.data?.contact_results ?? {}).length) return null;
+  if (contactColoringActive(state)) return null;
   if ((state.resultFields ?? []).length > 0) {
     const legend = getColoringLegend(state);
     return legend
@@ -264,12 +279,6 @@ export function getResultVectorScale(state, vectorType) {
   if (Number.isFinite(Number(fromMap))) {
     return Math.max(Number(fromMap), 0);
   }
-  if (vectorType === "reaction") {
-    return Math.max(Number(state.reactionVectorScale ?? 1) || 0, 0);
-  }
-  if (vectorType === "displacement") {
-    return Math.max(Number(state.displacementVectorScale ?? 1) || 0, 0);
-  }
   return 1;
 }
 
@@ -346,9 +355,7 @@ export function setResultVectorScale(state, vectorType, scale) {
     resultVectorScales: {
       ...(state.resultVectorScales ?? {}),
       [vectorType]: value
-    },
-    ...(vectorType === "displacement" ? { displacementVectorScale: value } : {}),
-    ...(vectorType === "reaction" ? { reactionVectorScale: value } : {})
+    }
   };
 }
 

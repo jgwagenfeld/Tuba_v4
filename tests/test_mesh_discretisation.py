@@ -205,12 +205,12 @@ class TestTuyauSubpointIndexing(unittest.TestCase):
     def test_decode_agrees_with_the_solver_fibre_offset(self):
         # The solver places display glyphs from this same convention. If the two
         # drift, sub-points land in the wrong place on the wall.
-        from tuba.solver.aster import CodeAsterSolver
+        from tuba.solver import parse_tables
 
         r_ext, thickness = 0.05715, 0.00602
         for index in (1, 9, 34, 200):
             station = subpoint_station(index)
-            y_offset, z_offset = CodeAsterSolver._code_aster_tuyau_fibre_offset(
+            y_offset, z_offset = parse_tables.code_aster_tuyau_fibre_offset(
                 index, r_ext=r_ext, thickness=thickness
             )
             radius = (r_ext - thickness) + thickness * station.radius_fraction

@@ -21,15 +21,6 @@ class TestMaterial(unittest.TestCase):
         # Check shear modulus
         self.assertAlmostEqual(mat.G, 2.1e11 / (2.0 * 1.3))
 
-        # Check allowable stress interpolation
-        self.assertEqual(mat.get_allowable(10.0), 147e6)  # clamping to min
-        self.assertEqual(mat.get_allowable(20.0), 147e6)
-        self.assertEqual(mat.get_allowable(100.0), 138e6)
-        self.assertEqual(mat.get_allowable(250.0), 130e6)  # clamping to max
-        
-        # Test middle value
-        self.assertAlmostEqual(mat.get_allowable(60.0), 142.5e6)  # half between 147 and 138
-
 
 class TestPipeSection(unittest.TestCase):
     def test_section_properties(self):
@@ -54,36 +45,29 @@ class TestPipeSection(unittest.TestCase):
         self.assertAlmostEqual(sec.I, expected_I)
         self.assertAlmostEqual(sec.J, 2.0 * expected_I)
         self.assertAlmostEqual(sec.Z, expected_I / r_o)
-        
-        # Corroded modulus
-        t_c = 0.00602 - 0.0015
-        r_ic = (0.1143 - 2 * t_c) / 2.0
-        expected_I_c = (np.pi / 4.0) * (r_o**4 - r_ic**4)
-        expected_Z_c = expected_I_c / r_o
-        self.assertAlmostEqual(sec.corroded_Z, expected_Z_c)
 
-    def test_get_section_radius(self):
-        from tuba.plotting.pipeline import get_section_radius
+    def test_collision_radius_for_section(self):
+        from tuba.geometry.profiles import collision_radius_for_section
         from tuba.model import PipeSection, BarSection, CableSection, RectangularSection, IBeamSection
         
         pipe = PipeSection(name="pipe", OD=0.1, WT=0.01)
-        self.assertAlmostEqual(get_section_radius(pipe), 0.05)
+        self.assertAlmostEqual(collision_radius_for_section(pipe), 0.05)
         
         bar = BarSection(name="bar", OD=0.08, WT=0.0)
-        self.assertAlmostEqual(get_section_radius(bar), 0.04)
+        self.assertAlmostEqual(collision_radius_for_section(bar), 0.04)
         
         cable = CableSection(name="cable", radius=0.03)
-        self.assertAlmostEqual(get_section_radius(cable), 0.03)
+        self.assertAlmostEqual(collision_radius_for_section(cable), 0.03)
         
         rect = RectangularSection(name="rect", height_y=0.1, height_z=0.2)
-        self.assertAlmostEqual(get_section_radius(rect), 0.1)
+        self.assertAlmostEqual(collision_radius_for_section(rect), 0.1)
         
         ibeam = IBeamSection(name="ibeam", profile_name="IPE100", properties={"EY": 0.05, "EZ": 0.04})
-        self.assertAlmostEqual(get_section_radius(ibeam), 0.05)
+        self.assertAlmostEqual(collision_radius_for_section(ibeam), 0.05)
 
         incomplete_ibeam = IBeamSection(name="bad_ibeam", profile_name="CUSTOM", properties={"EY": 0.05})
         with self.assertRaisesRegex(ValueError, "missing dimension"):
-            get_section_radius(incomplete_ibeam)
+            collision_radius_for_section(incomplete_ibeam)
 
 
 class TestModelAndBuilder(unittest.TestCase):

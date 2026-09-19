@@ -12,17 +12,16 @@ from __future__ import annotations
 import copy
 import json
 import math
-import sys
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
 from tuba.attributes import AttributeAssignment, InsulationSpec, coerce_entity_ref
+from tuba.codelink import script_line_field, script_lines
 from tuba.coordinates import CoordinateSystem
 from tuba.placements import PlacementAssignment, PlacementFrame, resolve_placement_frame
 from tuba.mixed import (
@@ -33,48 +32,12 @@ from tuba.mixed import (
     MeshGroup,
     Port,
 )
-from tuba.refs import EntityRef, resolve_entity_ref
+from tuba.refs import EntityRef
 
 if TYPE_CHECKING:
     from tuba.analysis.run import AnalysisRun
     from tuba.builder import BuiltRun
     from tuba.solver.modelisation import PipeModelization
-
-
-_TUBA_DIR = Path(__file__).resolve().parent
-
-
-@cache
-def _inside_tuba(filename: str) -> bool:
-    return Path(filename).resolve().is_relative_to(_TUBA_DIR)
-
-
-def _script_lines() -> Tuple[Optional[int], Optional[int]]:
-    """Where the running script created a model record: ``(line, call_line)``.
-
-    Recorded for the code <-> 3D link and never serialized. ``line`` is the first
-    frame outside tuba, and it counts only when that frame runs as ``__main__`` -
-    the studio runs model.py that way - so the MCP server, a test or a helper module
-    gets no line rather than one from a file the viewer does not show. ``call_line``
-    is the outermost call in that same script when it differs: a helper function in
-    model.py that is called twice gives each copy its own call line.
-    """
-    frame = sys._getframe()
-    while frame is not None and _inside_tuba(frame.f_code.co_filename):
-        frame = frame.f_back
-    if frame is None or frame.f_globals.get("__name__") != "__main__":
-        return None, None
-    script, line, call_line = frame.f_code.co_filename, frame.f_lineno, None
-    while frame is not None:
-        if frame.f_code.co_filename == script and frame.f_globals.get("__name__") == "__main__":
-            call_line = frame.f_lineno
-        frame = frame.f_back
-    return line, (call_line if call_line != line else None)
-
-
-def _script_line_field() -> Any:
-    """A record's line in the running script (see _script_lines): never serialized, never compared."""
-    return field(default=None, compare=False, repr=False)
 
 
 # Stable model-schema identity. This intentionally does not track the package
@@ -98,37 +61,13 @@ class Material:
     alpha: float = 0.0  # Mean thermal expansion coeff [1/K]
     allowable_stress: Dict[float, float] = field(default_factory=dict)
     """Mapping of temperature [°C] → allowable stress [Pa]."""
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def G(self) -> float:
         """Shear modulus derived from E and nu."""
         return self.E / (2.0 * (1.0 + self.nu))
-
-    def get_allowable(self, temperature: float) -> float:
-        """Linearly interpolate allowable stress for *temperature* [°C].
-
-        Returns the nearest boundary value if *temperature* is outside the
-        defined range.
-        """
-        if not self.allowable_stress:
-            raise ValueError(f"No allowable stress data for material '{self.name}'")
-        temps = sorted(self.allowable_stress.keys())
-        if temperature <= temps[0]:
-            return self.allowable_stress[temps[0]]
-        if temperature >= temps[-1]:
-            return self.allowable_stress[temps[-1]]
-        # Linear interpolation
-        for i in range(len(temps) - 1):
-            t0, t1 = temps[i], temps[i + 1]
-            if t0 <= temperature <= t1:
-                s0 = self.allowable_stress[t0]
-                s1 = self.allowable_stress[t1]
-                frac = (temperature - t0) / (t1 - t0)
-                return s0 + frac * (s1 - s0)
-        # Fallback (should not reach here)
-        return self.allowable_stress[temps[-1]]
 
 
 @dataclass
@@ -139,8 +78,8 @@ class PipeSection:
     OD: float  # Outer diameter [m]
     WT: float  # Wall thickness [m]
     corrosion_allowance: float = 0.0  # [m]
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def ID(self) -> float:  # noqa: N802 – intentional capital
@@ -181,17 +120,6 @@ class PipeSection:
         """Elastic section modulus [m³]."""
         return self.I / (self.OD / 2.0)
 
-    @property
-    def corroded_Z(self) -> float:
-        """Section modulus with corroded wall [m³]."""
-        t = self.corroded_WT
-        OD_c = self.OD  # OD unchanged by internal corrosion
-        ID_c = OD_c - 2.0 * t
-        r_o = OD_c / 2.0
-        r_i = ID_c / 2.0
-        I_c = math.pi / 4.0 * (r_o**4 - r_i**4)
-        return I_c / r_o
-
 
 @dataclass
 class BarSection:
@@ -200,8 +128,8 @@ class BarSection:
     name: str
     OD: float  # Outer diameter [m]
     WT: float  # Wall thickness [m] (0.0 if solid)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def area(self) -> float:
@@ -226,8 +154,8 @@ class CableSection:
     #: the usual value) when slackening is the point, as it is for a guy that
     #: sheds its load to the windward side.
     compression_modulus_ratio: float = 1.0
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def area(self) -> float:
@@ -243,8 +171,8 @@ class RectangularSection:
     height_z: float  # [m]
     thickness_y: float = 0.0  # [m], 0.0 if solid
     thickness_z: float = 0.0  # [m], 0.0 if solid
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @property
     def area(self) -> float:
@@ -266,8 +194,8 @@ class IBeamSection:
     name: str
     profile_name: str
     properties: Dict[str, float] = field(default_factory=dict)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     @classmethod
     def load_from_db(cls, name: str, profile_name: str) -> IBeamSection:
@@ -284,8 +212,8 @@ class Node:
 
     id: str
     coords: np.ndarray  # shape (3,)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def __post_init__(self):
         self.coords = np.asarray(self.coords, dtype=float)
@@ -308,10 +236,44 @@ class Element:
     route_id: Optional[str] = None
     station_start: Optional[float] = None
     station_end: Optional[float] = None
-    # Where the user script built it (code <-> 3D link; see _script_lines). Deliberately
+    # Where the user script built it (code <-> 3D link; see tuba.codelink). Deliberately
     # not serialized: it must never change model.json or the solver-input fingerprint.
     source_line: Optional[int] = None
     source_call_line: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """The canonical payload: optional fields stay absent, declared floats are float.
+
+        The fingerprint hashes it, model.json writes it, and generated scripts project
+        it; nothing may read the dataclass attributes into a second shape.
+        """
+        data: Dict[str, Any] = {
+            "id": self.id,
+            "type": self.type,
+            "n1": self.n1,
+            "n2": self.n2,
+            "section": self.section,
+            "material": self.material,
+        }
+        # These are declared float, so serialize them as float even when the caller
+        # passed an int literal: JSON renders 90 and 90.0 differently, which would
+        # change the solver-input fingerprint of an otherwise identical model.
+        if self.bend_radius is not None:
+            data["bend_radius"] = float(self.bend_radius)
+        if self.bend_angle is not None:
+            data["bend_angle"] = float(self.bend_angle)
+        if self.bend_geometry is not None:
+            data["bend_geometry"] = self.bend_geometry.to_dict()
+        twist_angle = float(getattr(self, "twist_angle", 0.0))
+        if twist_angle != 0.0:
+            data["twist_angle"] = twist_angle
+        if self.route_id is not None:
+            data["route_id"] = self.route_id
+        if self.station_start is not None:
+            data["station_start"] = float(self.station_start)
+        if self.station_end is not None:
+            data["station_end"] = float(self.station_end)
+        return data
 
 
 @dataclass
@@ -374,6 +336,38 @@ class Support:
     source_line: Optional[int] = None  # user script lines, not serialized (see Element)
     source_call_line: Optional[int] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """The canonical payload: optional fields stay absent.
+
+        Pinned: ``imposed_displacement`` is carried by the record and consumed by
+        reporting and contact code but is not encoded; making this encoding
+        canonical must not silently change that.
+        """
+        data: Dict[str, Any] = {"node": self.node, "type": self.type}
+        if self.id is not None:
+            data["id"] = self.id
+        if self.direction:
+            data["direction"] = self.direction
+        if self.stiffness is not None:
+            data["stiffness"] = self.stiffness
+        if self.stiffness_matrix is not None:
+            data["stiffness_matrix"] = self.stiffness_matrix
+        if self.blocked_dof is not None:
+            data["blocked_dof"] = self.blocked_dof
+        if self.mass != 0.0:
+            data["mass"] = self.mass
+        if self.friction_coefficient != 0.0:
+            data["friction_coefficient"] = self.friction_coefficient
+        if self.gap != 0.0:
+            data["gap"] = self.gap
+        if self.normal_stiffness is not None:
+            data["normal_stiffness"] = self.normal_stiffness
+        if self.tangential_stiffness is not None:
+            data["tangential_stiffness"] = self.tangential_stiffness
+        if self.attached_to is not None:
+            data["attached_to"] = self.attached_to
+        return data
+
     def __post_init__(self):
         if self.type not in SUPPORT_TYPES:
             raise ValueError(f"Unknown support type {self.type!r}; use one of {', '.join(SUPPORT_TYPES)}.")
@@ -389,6 +383,67 @@ class Support:
             direction = np.asarray(self.direction, dtype=float)
             if direction.shape != (3,) or not np.all(np.isfinite(direction)) or np.linalg.norm(direction) == 0:
                 raise ValueError('Support direction must be a finite nonzero three-vector.')
+
+    def restraint(self) -> "SupportRestraint":
+        """The six restraint states this support compiles to, and its resolved spring stiffness.
+
+        The solver's DDL emission, the contact shoe's one-way axis and the review glyph all read
+        this one record, so they cannot disagree about what a support does.
+        """
+        states = ["free"] * 6
+        stiffness = [0.0] * 6
+        direction = [float(value) for value in self.direction] if self.direction is not None else None
+        if self.stiffness_matrix is not None:
+            matrix = list(self.stiffness_matrix)
+            stiffness = [
+                float(matrix[index])
+                if index < len(matrix) and np.isfinite(float(matrix[index]))
+                else 0.0
+                for index in range(6)
+            ]
+        elif direction is not None:
+            value = self.stiffness if self.stiffness is not None else 1.0e6
+            for index in range(3):
+                if abs(direction[index]) > 1e-12:
+                    stiffness[index] = float(value)
+        elif self.type == "spring":
+            raise ValueError(
+                f"Spring support at node {self.node} uses scalar stiffness without direction. "
+                "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
+            )
+        if self.blocked_dof is not None:
+            for index, value in enumerate(self.blocked_dof[:6]):
+                states[index] = "fixed" if value not in (False, 0, "0", "x", "X", None) else "free"
+        elif self.type in ("anchor", "fixed"):
+            states = ["fixed"] * 6
+        elif self.type == "rest":
+            axis = 2
+            if direction is not None:
+                axis = next((index for index in range(3) if abs(direction[index]) > 1e-12), 2)
+            states[axis] = "one-way"
+        elif self.type == "guide" and direction is not None:
+            for index in range(3):
+                if abs(direction[index]) > 1e-12:
+                    states[index] = "fixed"
+        elif self.type != "spring":
+            # A guide with no direction, and the fallback for an unrecognised type: all translations.
+            states[0] = states[1] = states[2] = "fixed"
+        for index, value in enumerate(stiffness):
+            if states[index] == "free" and value != 0.0:
+                states[index] = "spring"
+        return SupportRestraint(tuple(states), tuple(stiffness))
+
+
+@dataclass(frozen=True)
+class SupportRestraint:
+    """One support's six restraint states (X, Y, Z, RX, RY, RZ) and its spring stiffnesses.
+
+    A state is ``fixed`` (a bilateral restraint), ``one-way`` (a shoe that lifts off),
+    ``spring`` (a discrete stiffness), or ``free``.
+    """
+
+    states: tuple[str, ...]
+    spring_stiffness: tuple[float, ...]
 
 
 TEE_TYPES = ("welding_tee", "reinforced_tee", "unreinforced_tee")
@@ -436,6 +491,35 @@ class OperationField:
     element_ids: List[str] = field(default_factory=list)
     node_ids: List[str] = field(default_factory=list)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """The canonical payload: absent selectors stay absent, direction is float-cast.
+
+        This is the one encoding of a field. The fingerprint hashes it, generated scripts
+        write it, and reports project it; nothing may read the dataclass attributes into a
+        second shape.
+        """
+        data: Dict[str, Any] = {
+            "quantity": self.quantity,
+            "value": self.value,
+            "scope": self.scope,
+            "profile": self.profile,
+        }
+        if self.group is not None:
+            data["group"] = self.group
+        if self.route_id is not None:
+            data["route_id"] = self.route_id
+        if self.station_start is not None:
+            data["station_start"] = self.station_start
+        if self.station_end is not None:
+            data["station_end"] = self.station_end
+        if self.element_ids:
+            data["element_ids"] = list(self.element_ids)
+        if self.node_ids:
+            data["node_ids"] = list(self.node_ids)
+        if self.direction is not None:
+            data["direction"] = [float(value) for value in self.direction]
+        return data
+
 
 @dataclass
 class NodalForce:
@@ -443,8 +527,8 @@ class NodalForce:
 
     node: str
     components: List[float]
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def __post_init__(self) -> None:
         if len(self.components) != 6:
@@ -485,8 +569,8 @@ class LoadCase:
     ref_temperature: float = 20.0  # [°C]
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def add_nodal_force(
         self,
@@ -495,7 +579,7 @@ class LoadCase:
         moment: Optional[List[float]] = None,
     ) -> NodalForce:
         load = NodalForce.from_force(node=node, force=force, moment=moment)
-        load.source_line, load.source_call_line = _script_lines()
+        load.source_line, load.source_call_line = script_lines()
         self.nodal_forces.append(load)
         return load
 
@@ -512,8 +596,8 @@ class Operation:
     metadata: Dict[str, Any] = field(default_factory=dict)
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
-    source_line: Optional[int] = _script_line_field()
-    source_call_line: Optional[int] = _script_line_field()
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def to_load_case(self) -> LoadCase:
         return LoadCase(
@@ -533,7 +617,7 @@ class Operation:
         moment: Optional[List[float]] = None,
     ) -> NodalForce:
         load = NodalForce.from_force(node=node, force=force, moment=moment)
-        load.source_line, load.source_call_line = _script_lines()
+        load.source_line, load.source_call_line = script_lines()
         self.nodal_forces.append(load)
         return load
 
@@ -620,6 +704,14 @@ class TubaModel:
         # write each run back as its steps without changing model.json or the fingerprint.
         self.pipe_runs: List["BuiltRun"] = []
 
+        # Assembly invocations applied through tuba.assemblies.assemble, in creation order.
+        # Runtime only, like pipe_runs: each entry records the unit ref, its replayable
+        # params and the record offsets it spans, so a generated model script can write it
+        # back as one assemble() call without changing model.json or the fingerprint.
+        # Entry shape: {"ref": str, "params": dict, "node0": int, "element0": int,
+        # "support0": int, "node1": int, "element1": int, "support1": int}.
+        self.assembly_calls: List[Dict[str, Any]] = []
+
         self._node_counter: int = 0
         self._element_counters: Dict[str, int] = {}
         self._support_counter: int = 0
@@ -646,7 +738,7 @@ class TubaModel:
             alpha=alpha,
             allowable_stress=allowable_stress or {},
         )
-        mat.source_line, mat.source_call_line = _script_lines()
+        mat.source_line, mat.source_call_line = script_lines()
         self.materials[name] = mat
         return mat
 
@@ -660,13 +752,13 @@ class TubaModel:
         corrosion_allowance: float = 0.0,
     ) -> PipeSection:
         sec = PipeSection(name=name, OD=OD, WT=WT, corrosion_allowance=corrosion_allowance)
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
     def add_bar_section(self, name: str, OD: float, WT: float) -> BarSection:
         sec = BarSection(name=name, OD=OD, WT=WT)
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
@@ -683,7 +775,7 @@ class TubaModel:
             pretension=pretension,
             compression_modulus_ratio=compression_modulus_ratio,
         )
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
@@ -702,13 +794,13 @@ class TubaModel:
             thickness_y=thickness_y,
             thickness_z=thickness_z,
         )
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
     def add_ibeam_section(self, name: str, profile_name: str) -> IBeamSection:
         sec = IBeamSection.load_from_db(name=name, profile_name=profile_name)
-        sec.source_line, sec.source_call_line = _script_lines()
+        sec.source_line, sec.source_call_line = script_lines()
         self.sections[name] = sec
         return sec
 
@@ -754,71 +846,9 @@ class TubaModel:
         id: str | None = None,
     ) -> CouplingSpec:
         """Create a pipe-to-port coupling with basic structural checks."""
-        pipe_ref = coerce_entity_ref(pipe)
-        node_ref = coerce_entity_ref(node)
-        port_ref = coerce_entity_ref(port)
+        from tuba.mixed import connect_pipe_to_port as _connect
 
-        if pipe_ref.kind != "element":
-            raise ValueError(f"pipe reference must target an element, got {pipe_ref.kind!r}.")
-        if node_ref.kind != "node":
-            raise ValueError(f"node reference must target a node, got {node_ref.kind!r}.")
-        if port_ref.kind != "port":
-            raise ValueError(f"port reference must target a port, got {port_ref.kind!r}.")
-
-        if method not in {"3D_TUYAU", "3D_POU", "COQ_TUYAU", "COQ_POU"}:
-            raise ValueError(f"Unsupported coupling method {method!r}.")
-
-        try:
-            element = resolve_entity_ref(self, pipe_ref)
-        except KeyError as exc:
-            raise ValueError(f"Unknown pipe element {pipe_ref!r}.") from exc
-        if element.type not in {"pipe_straight", "pipe_bend"}:
-            raise ValueError(
-                f"Element {element.id!r} type {element.type!r} is not valid for pipe-port coupling."
-            )
-
-        if node_ref.id not in {element.n1, element.n2}:
-            raise ValueError(
-                f"Node {node_ref.id!r} is not an endpoint of element {element.id!r}."
-            )
-
-        try:
-            port_entity = resolve_entity_ref(self, port_ref)
-        except KeyError as exc:
-            raise ValueError(f"Unknown port {port_ref!r}.") from exc
-
-        if not port_entity.face_group:
-            raise ValueError(f"Port {port_ref.id!r} must define a face_group.")
-
-        try:
-            section = self.sections[element.section]
-        except KeyError as exc:
-            raise ValueError(
-                f"Element {element.id!r} references missing section {element.section!r}."
-            ) from exc
-
-        if not hasattr(section, "OD"):
-            raise ValueError(
-                f"Section {element.section!r} does not define an OD for diameter comparison."
-            )
-
-        pipe_radius = float(section.OD) / 2.0
-        tolerance = max(0.001, pipe_radius * 0.02)
-        if abs(pipe_radius - port_entity.radius) > tolerance:
-            raise ValueError(
-                "Port diameter mismatch: pipe section OD and port radius differ beyond tolerance."
-            )
-
-        coupling_id = id or f"coupling_{len(self.couplings)}"
-        return self.add_coupling(
-            id=coupling_id,
-            kind="pipe_to_solid_port",
-            source=pipe_ref,
-            source_node=node_ref,
-            target=port_ref,
-            code_aster_keyword="LIAISON_ELEM",
-            code_aster_option=method,
-        )
+        return _connect(self, pipe=pipe, node=node, port=port, method=method, id=id)
 
     # -- Nodes ---------------------------------------------------------------
 
@@ -827,7 +857,7 @@ class TubaModel:
         node_id = f"N{self._node_counter}"
         self._node_counter += 1
         node = Node(id=node_id, coords=np.asarray(coords, dtype=float))
-        node.source_line, node.source_call_line = _script_lines()
+        node.source_line, node.source_call_line = script_lines()
         self.nodes[node_id] = node
         self._index_node(node_id)
         return node_id
@@ -852,7 +882,7 @@ class TubaModel:
 
     def add_element(self, **kwargs) -> Element:
         elem = Element(**kwargs)
-        elem.source_line, elem.source_call_line = _script_lines()
+        elem.source_line, elem.source_call_line = script_lines()
         self.elements.append(elem)
         self._element_ids.add(elem.id)
         self._element_by_id[elem.id] = elem
@@ -928,7 +958,7 @@ class TubaModel:
             tangential_stiffness=tangential_stiffness,
             attached_to=attached_to,
         )
-        sup.source_line, sup.source_call_line = _script_lines()
+        sup.source_line, sup.source_call_line = script_lines()
         self.supports.append(sup)
         self._sync_support_counter(support_id)
         return sup
@@ -981,7 +1011,7 @@ class TubaModel:
         source: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> AttributeAssignment:
-        line, call_line = _script_lines()
+        line, call_line = script_lines()
         assignment = AttributeAssignment(
             target=coerce_entity_ref(target),
             key=key,
@@ -1079,7 +1109,7 @@ class TubaModel:
             temperature=temperature,
             ref_temperature=ref_temperature,
         )
-        lc.source_line, lc.source_call_line = _script_lines()
+        lc.source_line, lc.source_call_line = script_lines()
         self.load_cases[name] = lc
         return lc
 
@@ -1106,7 +1136,7 @@ class TubaModel:
             ref_temperature=ref_temperature,
             metadata=dict(metadata or {}),
         )
-        op.source_line, op.source_call_line = _script_lines()
+        op.source_line, op.source_call_line = script_lines()
         for field_record in fields or []:
             if isinstance(field_record, OperationField):
                 op.fields.append(field_record)
@@ -1114,10 +1144,6 @@ class TubaModel:
                 op.add_field(**field_record)
         self.operations[name] = op
         return op
-
-    def operation(self, *args, **kwargs) -> Operation:
-        """Convenience alias for :meth:`define_operation`."""
-        return self.define_operation(*args, **kwargs)
 
     def resolve_load_case(self, name: Optional[str] = None) -> Tuple[str, LoadCase]:
         """Return a named load case or uniform operation as a load case."""
@@ -1339,46 +1365,43 @@ class TubaModel:
         -------
         AnalysisRun
         """
-        if load_case is not None and operation is not None:
-            raise ValueError("Pass either load_case or operation, not both.")
+        from tuba.solver.model_solve import solve_model
 
-        from tuba.solver.aster import CodeAsterSolver
-        from tuba.solver.modelisation import PipeModelization
-
-        lc_name = operation or load_case
-        if load_path is not None:
-            if load_case is not None or operation is not None or not load_path:
-                raise ValueError('load_path must be nonempty and cannot be combined with load_case or operation.')
-            lc_name = load_path[-1]
-        selected_modelization = PipeModelization(pipe_modelization or PipeModelization.TUYAU_3M)
-        if pipe_modelization is not None:
-            kwargs['pipe_modelization'] = (PipeModelization.TUYAU_3M if selected_modelization is PipeModelization.SOLID_3D else selected_modelization)
-        if load_path is not None:
-            kwargs['load_path'] = load_path
-        if load_path is not None or load_step != 0.1:
-            kwargs['load_step'] = load_step
-        solver = CodeAsterSolver(**kwargs)
-        if selected_modelization is PipeModelization.SOLID_3D:
-            if load_path is not None or any(s.friction_coefficient for s in self.supports):
-                raise ValueError('Friction, gap, contact stiffness and load-path histories require a 1D study (TUYAU_3M or POU_D_T).')
-            if not volume_element_ids or max_element_size is None:
-                raise ValueError("SOLID_3D requires volume_element_ids and max_element_size.")
-            return solver.solve_volume_study(
-                self,
-                lc_name,
-                element_ids=volume_element_ids,
-                max_element_size=max_element_size,
-                force=force,
-            )
-        if volume_element_ids is not None or max_element_size is not None:
-            raise ValueError("Volume mesh arguments require pipe_modelization=PipeModelization.SOLID_3D.")
-        return solver.solve(self, lc_name, force=force)
+        return solve_model(
+            self,
+            load_case=load_case,
+            operation=operation,
+            pipe_modelization=pipe_modelization,
+            load_path=load_path,
+            load_step=load_step,
+            volume_element_ids=volume_element_ids,
+            max_element_size=max_element_size,
+            force=force,
+            **kwargs,
+        )
 
     def validate(self) -> None:
         """Validate model references and structural invariants."""
         from tuba.validation import validate_model
 
         validate_model(self)
+
+    def verify(self, **options: Any):
+        """Run the one cold-model verification gate; see :func:`tuba.verify.verify_model`."""
+        from tuba.verify import verify_model
+
+        return verify_model(self, **options)
+
+    def replace_with(self, other: "TubaModel") -> None:
+        """Adopt *other*'s state in place, replacing this model's own.
+
+        The single adopt path for a ``__dict__`` swap: a transaction publishes its
+        candidate through this once the candidate validates, and a rollback restores a
+        snapshot through it, so neither ever half-replaces the committed model. *other*
+        is not copied; callers pass a candidate they own.
+        """
+        self.__dict__.clear()
+        self.__dict__.update(other.__dict__)
 
     # -- Serialisation -------------------------------------------------------
 
@@ -1441,46 +1464,8 @@ class TubaModel:
                 for name, s in self.sections.items()
             },
             "nodes": {nid: n.coords.tolist() for nid, n in self.nodes.items()},
-            "elements": [
-                {
-                    "id": e.id,
-                    "type": e.type,
-                    "n1": e.n1,
-                    "n2": e.n2,
-                    "section": e.section,
-                    "material": e.material,
-                    # These are declared float, so serialize them as float even when
-                    # the caller passed an int literal: JSON renders 90 and 90.0
-                    # differently, which would change the solver-input fingerprint
-                    # of an otherwise identical model.
-                    **({"bend_radius": float(e.bend_radius)} if e.bend_radius is not None else {}),
-                    **({"bend_angle": float(e.bend_angle)} if e.bend_angle is not None else {}),
-                    **({"bend_geometry": e.bend_geometry.to_dict()} if e.bend_geometry is not None else {}),
-                    **({"twist_angle": float(e.twist_angle)} if getattr(e, "twist_angle", 0.0) != 0.0 else {}),
-                    **({"route_id": e.route_id} if e.route_id is not None else {}),
-                    **({"station_start": float(e.station_start)} if e.station_start is not None else {}),
-                    **({"station_end": float(e.station_end)} if e.station_end is not None else {}),
-                }
-                for e in self.elements
-            ],
-            "supports": [
-                {
-                    "node": s.node,
-                    "type": s.type,
-                    **({"id": s.id} if s.id is not None else {}),
-                    **({"direction": s.direction} if s.direction else {}),
-                    **({"stiffness": s.stiffness} if s.stiffness is not None else {}),
-                    **({"stiffness_matrix": s.stiffness_matrix} if s.stiffness_matrix is not None else {}),
-                    **({"blocked_dof": s.blocked_dof} if s.blocked_dof is not None else {}),
-                    **({"mass": s.mass} if s.mass != 0.0 else {}),
-                    **({"friction_coefficient": s.friction_coefficient} if s.friction_coefficient != 0.0 else {}),
-                    **({"gap": s.gap} if s.gap != 0.0 else {}),
-                    **({"normal_stiffness": s.normal_stiffness} if s.normal_stiffness is not None else {}),
-                    **({"tangential_stiffness": s.tangential_stiffness} if s.tangential_stiffness is not None else {}),
-                    **({"attached_to": s.attached_to} if s.attached_to is not None else {}),
-                }
-                for s in self.supports
-            ],
+            "elements": [e.to_dict() for e in self.elements],
+            "supports": [s.to_dict() for s in self.supports],
             "load_cases": {
                 name: {
                     "gravity": lc.gravity,
@@ -1498,7 +1483,7 @@ class TubaModel:
                     "temperature": op.temperature,
                     "ref_temperature": op.ref_temperature,
                     "metadata": op.metadata,
-                    "fields": [_operation_field_to_dict(field_record) for field_record in op.fields],
+                    "fields": [field_record.to_dict() for field_record in op.fields],
                     **({"nodal_forces": [force.to_dict() for force in op.nodal_forces]} if op.nodal_forces else {}),
                 }
                 for name, op in self.operations.items()
@@ -1731,30 +1716,6 @@ def _serialize_specs(specs: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, An
             else:
                 serialized[kind][spec_id] = spec
     return serialized
-
-
-def _operation_field_to_dict(field_record: OperationField) -> Dict[str, Any]:
-    data: Dict[str, Any] = {
-        "quantity": field_record.quantity,
-        "value": field_record.value,
-        "scope": field_record.scope,
-        "profile": field_record.profile,
-    }
-    if field_record.group is not None:
-        data["group"] = field_record.group
-    if field_record.route_id is not None:
-        data["route_id"] = field_record.route_id
-    if field_record.station_start is not None:
-        data["station_start"] = field_record.station_start
-    if field_record.station_end is not None:
-        data["station_end"] = field_record.station_end
-    if field_record.element_ids:
-        data["element_ids"] = list(field_record.element_ids)
-    if field_record.node_ids:
-        data["node_ids"] = list(field_record.node_ids)
-    if field_record.direction is not None:
-        data["direction"] = [float(value) for value in field_record.direction]
-    return data
 
 
 def make_bend_geometry(

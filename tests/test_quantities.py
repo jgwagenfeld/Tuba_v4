@@ -2,7 +2,7 @@ import unittest
 
 from tuba import Model
 from tuba.external.bom import bom_to_csv, bom_to_dict
-from tuba.quantities import quantity_takeoff, wind_loads
+from tuba.quantities import quantity_takeoff
 
 
 class TestQuantities(unittest.TestCase):
@@ -32,16 +32,6 @@ class TestQuantities(unittest.TestCase):
         self.assertAlmostEqual(takeoff.groups["line_A"]["length_m"], 5.0)
         self.assertEqual(data["records"][0]["element"]["id"], "pipe_0")
         self.assertEqual(data["groups"]["line_A"]["element_count"], 2)
-
-    def test_wind_loads_use_effective_insulated_diameter(self):
-        model = self._model()
-
-        loads = wind_loads(model, pressure_pa=1000.0)
-
-        self.assertAlmostEqual(loads["pipe_0"]["projected_area_m2"], 0.4)
-        self.assertAlmostEqual(loads["pipe_0"]["force_n"], 400.0)
-        self.assertAlmostEqual(loads["pipe_1"]["projected_area_m2"], 0.6)
-        self.assertAlmostEqual(loads["pipe_1"]["force_n"], 600.0)
 
     def test_bom_export_includes_groups_and_insulation_metadata(self):
         model = self._model()

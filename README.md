@@ -15,7 +15,7 @@ components* show imported Code_Aster results.
 <tr>
 <td width="33%"><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png" width="250" alt="Thermal expansion review in the Tuba viewer"></a><br><b>Thermal expansion</b><br>Where does a hot line move, and what does it reach?</td>
 <td width="33%"><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png" width="250" alt="Load transfer review in the Tuba viewer"></a><br><b>Load transfer</b><br>What do the supports and the steel underneath actually carry?</td>
-<td width="33%"><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png" width="250" alt="Beam orientation review in the Tuba viewer"></a><br><b>Beam orientation</b><br>How do section orientation and local axes change bending?</td>
+<td width="33%"><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png" width="250" alt="Beam orientation review in the Tuba viewer"></a><br><b>Beam orientation</b><br>How does a rolled I-section change the response to the same tip force?</td>
 </tr>
 <tr>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png" width="250" alt="Pipe bends review in the Tuba viewer"></a><br><b>Pipe bends</b><br>What happens to a pressurised line held at both ends?</td>
@@ -23,16 +23,20 @@ components* show imported Code_Aster results.
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png" width="250" alt="Nonlinear friction review in the Tuba viewer"></a><br><b>Nonlinear friction</b><br>How does friction change the same pipe and load path?</td>
 </tr>
 <tr>
-<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png" width="250" alt="3D solid review in the Tuba viewer"></a><br><b>3D solid</b><br>Does stress concentrate where the branch meets the header?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png" width="250" alt="3D solid review in the Tuba viewer"></a><br><b>3D solid</b><br>How does 1D beam pipework transition into a 3D solid tee junction?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png" width="250" alt="Elements and supports review in the Tuba viewer"></a><br><b>Elements and supports</b><br>Do bars, cables and spring supports survive the trip to the solver?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png" width="250" alt="Imported components model review in the Tuba viewer"></a><br><b>Imported components</b><br>How does a supplied component join an authored line?</td>
+</tr>
+<tr>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png" width="250" alt="Plant layout review in the Tuba viewer"></a><br><b>Plant layout</b><br>How do two process lines and their rack fit together on a hydrogen plant site?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png" width="250" alt="Line loads review in the Tuba viewer"></a><br><b>Line loads</b><br>Where does a distributed line load go once the line is restrained?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png" width="250" alt="Road crossing review in the Tuba viewer"></a><br><b>Road crossing</b><br>How does a line cross an 8 m roadway on a shoe-supported rack bridge?</td>
 </tr>
 </table>
 
 ## Example
 
-Define a pipe with two straight runs, a bend, anchored ends, and an operating
-load case, then solve it with Code_Aster:
+Define a pipe with two straight runs, a bend, anchored ends, and an operating load case, then solve it with Code_Aster:
 
 ```python
 from tuba import Model
@@ -74,6 +78,17 @@ Scene bundles contain model geometry, analysis meshes, results, and run metadata
 - Display results in PyVista or the web viewer, export glTF, PLY or Blender files, and
   exchange with IFC.
 
+## Tuba Studio & 3D Review
+
+Tuba separates parametric modeling (`model.py`) from FEA solver configuration (`study.py`):
+
+```bash
+python -m tuba.cli_studio examples/line-load-studio                          # Live Three.js studio, .comm inspector & solve
+python -m tuba.visualization.viewer .build/studio/line-load-studio/review    # Serve the bundle the studio wrote
+python -m tuba.mcp.server                                                    # Model Context Protocol for external AI agents
+python -m tuba.skills --target ~/.config/opencode/skills                     # Agent skill: how to author and verify model.py
+```
+
 ## Getting started
 
 Tuba needs Python 3.11 or 3.12.
@@ -85,9 +100,7 @@ python -m venv .venv
 .venv/bin/python -m pip install .        # Windows: .\.venv\Scripts\python.exe
 ```
 
-Analysis requires [Code_Aster](https://code-aster.org), installed separately.
-Modeling, geometric routing, and viewing existing results do not require a local
-solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
+Analysis requires [Code_Aster](https://code-aster.org), installed separately. Modeling, geometric routing, and viewing existing results do not require a local solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
 
 **[Setup →](https://jgwagenfeld.github.io/Tuba_v4/setup.html)** ·
 **[Tutorial →](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html)** ·
@@ -96,9 +109,7 @@ solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
 
 ## Solver results
 
-Stress, displacement, and reaction results require a completed Code_Aster run
-and imported result files. Exporting `.comm`, `.mail`, and `.export` input files
-does not run an analysis. Imported results retain model and study identifiers
+Stress, displacement, and reaction results require a completed Code_Aster run and imported result files. Exporting `.comm`, `.mail`, and `.export` input files does not run an analysis. Imported results retain model and study identifiers
 for checking which model was analysed.
 
 ## Engineering and standards disclaimer

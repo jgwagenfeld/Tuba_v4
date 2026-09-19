@@ -13,6 +13,7 @@ from typing import Callable, Dict, List, Optional
 import numpy as np
 from tuba.physical import physical_properties_for_element
 from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
+from tuba.solver.code_aster_runtime import write_artifact_text
 
 from tuba.model import (
     BarSection,
@@ -51,32 +52,14 @@ logger = logging.getLogger(__name__)
 
 
 def _held_dofs(support) -> list[str]:
-    """The DOFs a two-way support holds, exactly as the grounded branch blocks them."""
+    """The DOFs a two-way support holds: every axis its restraint fixes (one projection of it)."""
     names = ["DX", "DY", "DZ", "DRX", "DRY", "DRZ"]
-    if support.blocked_dof is not None:
-        return [names[i] for i, value in enumerate(support.blocked_dof) if value not in (False, 0, "0", "x", "X", None)]
-    if support.type == "anchor":
-        return names
-    if support.type == "guide" and support.direction:
-        return [names[i] for i, value in enumerate(support.direction) if abs(value) > 1e-12]
-    return names[:3]
+    return [name for name, state in zip(names, support.restraint().states) if state == "fixed"]
 
 
 def _spring_stiffness(support) -> list[float]:
     """The six global stiffnesses [Kx, Ky, Kz, Krx, Kry, Krz] of a spring support."""
-    if support.stiffness_matrix:
-        return support.stiffness_matrix
-    if not support.direction:
-        raise ValueError(
-            f"Spring support at node {support.node} uses scalar stiffness without direction. "
-            "Use stiffness_matrix=[Kx, Ky, Kz, Krx, Kry, Krz] or provide direction."
-        )
-    value = support.stiffness if support.stiffness is not None else 1.0e6
-    stiffness = [0.0] * 6
-    for index, component in enumerate(support.direction):
-        if abs(component) > 1e-12:
-            stiffness[index] = value
-    return stiffness
+    return list(support.restraint().spring_stiffness)
 
 
 def _pipe_orientation_vector(model: TubaModel, pipe_straights: list, pipe_bends: list) -> tuple[float, float, float]:
@@ -1039,5 +1022,5 @@ class _CommWriterMixin:
             write_contact_tables(w, contacts, map_name, instant=None if native_path else 1.0)
         w("FIN();")
 
-        path.write_text("\n".join(comm), encoding="utf-8")
+        write_artifact_text(path, "\n".join(comm))
         logger.info("Wrote command file: %s", path)

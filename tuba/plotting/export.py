@@ -5,14 +5,13 @@ Supports:
   - Standalone HTML (vtk.js) for browser viewing
   - PLY with vertex colors for Blender import
   - glTF for universal 3-D viewing
-  - High-resolution PNG screenshots
   - Blender Python script generation
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -88,14 +87,13 @@ def export_html(results_or_plotter, path: str, **kwargs):
 def export_ply(
     results: "FEAResults",
     path: str,
-    scalar: str = "von_mises",
     model: Optional["TubaModel"] = None,
     cmap: str = "turbo",
 ):
     """Export inflated tubes with vertex-color stress to PLY for Blender.
 
     The PLY file contains per-vertex RGB colours derived from the
-    specified stress scalar, making it directly importable into Blender
+    Von Mises stress (``VMIS``), making it directly importable into Blender
     with colours visible via the Vertex Color attribute.
     """
     _require_pyvista()
@@ -157,21 +155,6 @@ def export_gltf(
 
 
 # ---------------------------------------------------------------------------
-# Screenshot export
-# ---------------------------------------------------------------------------
-
-
-def export_screenshot(
-    plotter: "pv.Plotter",
-    path: str,
-    resolution: Tuple[int, int] = (1920, 1080),
-):
-    """Save a high-resolution PNG screenshot of the current plotter scene."""
-    _require_pyvista()
-    plotter.screenshot(str(path), window_size=resolution)
-
-
-# ---------------------------------------------------------------------------
 # Blender Python script export
 # ---------------------------------------------------------------------------
 
@@ -222,14 +205,14 @@ def export_blender_script(
 
     # Per-node outer radius, straight from each element's own section — a node
     # shared by two sections takes the larger radius (no artificial pinch).
-    from tuba.plotting.pipeline import get_section_radius
+    from tuba.geometry.profiles import collision_radius_for_section
 
     radii = [None] * len(node_ids)
     for elem in mdl.elements:
         sec = mdl.sections.get(elem.section)
         if sec is None:
             raise ValueError(f"Cannot export Blender pipe radius: section {elem.section!r} is not defined.")
-        r = get_section_radius(sec)
+        r = collision_radius_for_section(sec)
         for nid in (elem.n1, elem.n2):
             i = node_idx[nid]
             radii[i] = r if radii[i] is None else max(radii[i], r)

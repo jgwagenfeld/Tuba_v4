@@ -246,6 +246,20 @@ OFFICIAL_GALLERIES = (
         ),
     ),
     _project_gallery(
+        "hydrogen-plant-layout",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "hydrogen-plant-layout",
+        title="Plant layout",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="How do two process lines and their rack fit together on a hydrogen plant site?",
+        summary=(
+            "A green-hydrogen facility in plan: an electrolyzer hall, a compressor station, storage bullets "
+            "and a four-bay pipe rack, with the LP and HP hydrogen lines routed between them under pressure and thermal load. "
+            "The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster."
+        ),
+    ),
+    _project_gallery(
         "imported_component_mixed_demo",
         frozenset({"dev", "pages"}),
         "model-review",
@@ -256,6 +270,20 @@ OFFICIAL_GALLERIES = (
         summary=(
             "A STEP/STL component placed beside Tuba pipework, showing connection ports, "
             "local frames and coupling. This example contains geometry only, with no solver results."
+        ),
+    ),
+    _project_gallery(
+        "line-load-studio",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "line-load-studio",
+        title="Line loads",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="Where does a distributed line load go once the line is restrained?",
+        summary=(
+            "A DN100 line on an I-beam crossbeam carries a 350 N/m downward line load, a 500 N/m lateral load "
+            "on the beam, and a 3.5 kN force with a moment at its elbow. The review shows the deflection, "
+            "stresses and support reaction from Code_Aster."
         ),
     ),
     _project_gallery(
@@ -277,10 +305,13 @@ OFFICIAL_GALLERIES = (
         "volume-engineering-review",
         "pipe-tee-volume-review",
         title="3D solid",
-        elements=("3D",),
-        question="Does stress concentrate where the branch meets the header?",
+        elements=("3D", "TUYAU_3M"),
+        question="How does 1D beam pipework transition into a 3D solid tee junction?",
         summary=(
-            "A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction."
+            "A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. "
+            "Under internal pressure, gravity and a 4 kN out-of-plane load at the free branch end, "
+            "the review shows kinematic shell-to-solid coupling, the stress hot spot where the branch "
+            "meets the junction, and the branch deflection."
         ),
     ),
     _project_gallery(
@@ -290,11 +321,25 @@ OFFICIAL_GALLERIES = (
         "profile-orientation-review",
         title="Beam orientation",
         elements=("POU_D_T",),
-        question="How do section orientation and local axes change bending?",
+        question="How does a rolled I-section change the response to the same tip force?",
         summary=(
-            "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. "
-            "The review compares global and local loading, deformed profiles, and section rotations "
-            "relative to the original local axes."
+            "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model, each loaded by the "
+            "same 500 N tip force in global -Z. The review compares deformed profiles and section rotations "
+            "relative to the original local axes, so the difference on screen is the section orientation alone."
+        ),
+    ),
+    _project_gallery(
+        "rack_bridge_demo",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "rack_bridge_demo",
+        title="Road crossing",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="How does a line cross an 8 m roadway on a shoe-supported rack bridge?",
+        summary=(
+            "A DN150 process line rises from ground sleepers over an 8 m roadway on a four-bay steel rack bridge, "
+            "then drops back to grade. Friction shoes carry it at every bay midpoint. The review shows thermal "
+            "displacement, wall stress and support reactions from Code_Aster."
         ),
     ),
     _project_gallery(
@@ -306,11 +351,11 @@ OFFICIAL_GALLERIES = (
         elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
         question="What do the supports and the steel underneath actually carry?",
         summary=(
-            "A DN100 line resting on friction shoes on an I-beam rack, analysed together with the rack under gravity, "
-            "1.5 MPa internal pressure and a temperature increase from 20 C to 180 C, with no imposed nodal forces. "
-            "The review shows the shoe forces, the load the shoes put on the rack, and a support-spacing check."
+            "A DN100 line centered in an I-beam rack under distributed line loading, internal pressure "
+            "and thermal expansion. The review shows ground and element rest shoe reactions, steel deflection, and support spacing."
         ),
     ),
+
 )
 
 

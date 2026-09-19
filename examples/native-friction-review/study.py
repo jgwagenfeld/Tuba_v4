@@ -12,7 +12,7 @@ from tuba.analysis import create_visual_deformed_geometry_state
 from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.analysis.staged_run import stage_runs
 from tuba.reporting import build_engineering_review
-from tuba.visualization import add_scene_label, build_visualization_scene, write_engineering_review_with_scene
+from tuba.visualization import add_scene_label, SceneRequest, build_visualization_scene, write_engineering_review_with_scene
 
 LOAD_PATH = ["Cold", "Hot", "Cold", "Lift", "Cold"]
 #: The whole load path is one Code_Aster run; the refresh names it by the case it ends in.
@@ -95,8 +95,12 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     geometry_states = [replace(create_visual_deformed_geometry_state(model=model, result_state=state, visual_scale=20.0),
                                id=f"geometry_state:{state.id}:visual") for state in states]
     solved_at = run.result_state.metadata["solve_attestation"]["solved_at"]
-    scene = build_visualization_scene(model, analysis_runs=[run], geometry_states=geometry_states,
-                                      scene_id="scene:native-friction:comparison", created_at=solved_at)
+    # This review is about what the shoes did, so the pipe is coloured neutrally
+    # and no scalar field tints it. Every other gallery leaves review_focus unset
+    # and keeps its own stress or displacement legend, shoes or no shoes.
+    scene = build_visualization_scene(SceneRequest(model, analysis_runs=[run], geometry_states=geometry_states,
+                                      review_focus="contact",
+                                      scene_id="scene:native-friction:comparison", created_at=solved_at))
     add_scene_label(scene, "Without friction · μ = 0", [2.0, 0.0, 0.5], label_id="frictionless-copy")
     add_scene_label(scene, "With friction · μ = 0.3", [2.0, 5.0, 0.5], label_id="friction-copy")
     review = build_engineering_review(model, analysis_runs=[run], package_id="review:native-friction:comparison", created_at=solved_at)

@@ -21,7 +21,13 @@
         "section": "DN100",
         "wall_thickness_m": 0.00602
       },
-      "section": "DN100"
+      "property_lines": {
+        "material": 46,
+        "section": 47
+      },
+      "section": "DN100",
+      "source_call_line": 169,
+      "source_line": 50
     },
     "name": "pipe_str_0",
     "physical": {
@@ -104,7 +110,13 @@
         "section": "DN100",
         "wall_thickness_m": 0.00602
       },
-      "section": "DN100"
+      "property_lines": {
+        "material": 46,
+        "section": 47
+      },
+      "section": "DN100",
+      "source_call_line": 169,
+      "source_line": 51
     },
     "name": "pipe_bend_0",
     "physical": {
@@ -162,7 +174,13 @@
         "section": "DN100",
         "wall_thickness_m": 0.00602
       },
-      "section": "DN100"
+      "property_lines": {
+        "material": 46,
+        "section": 47
+      },
+      "section": "DN100",
+      "source_call_line": 169,
+      "source_line": 52
     },
     "name": "pipe_str_1",
     "physical": {
@@ -204,7 +222,23 @@
     "id": "object:support:support_0",
     "kind": "support",
     "metadata": {
+      "dof_states": [
+        "fixed",
+        "fixed",
+        "fixed",
+        "fixed",
+        "fixed",
+        "fixed"
+      ],
+      "friction_coefficient": 0.0,
+      "mass": 0.0,
       "node": "N0",
+      "property_lines": {
+        "restraint": 49
+      },
+      "source_call_line": 169,
+      "source_line": 49,
+      "support_id": "support_0",
       "support_type": "anchor"
     },
     "name": "support_0"
@@ -215,7 +249,23 @@
     "id": "object:support:support_1",
     "kind": "support",
     "metadata": {
+      "dof_states": [
+        "fixed",
+        "fixed",
+        "fixed",
+        "fixed",
+        "fixed",
+        "fixed"
+      ],
+      "friction_coefficient": 0.0,
+      "mass": 0.0,
       "node": "N3",
+      "property_lines": {
+        "restraint": 53
+      },
+      "source_call_line": 169,
+      "source_line": 52,
+      "support_id": "support_1",
       "support_type": "anchor"
     },
     "name": "support_1"
@@ -236,6 +286,7 @@
     "name": "Result state Hot",
     "source": {
       "tuba_result_state": {
+        "contact_results": {},
         "element_results": {
           "pipe_bend_0": {
             "forces_n1": [
@@ -675,7 +726,7 @@
       "coordinates": [
         2.433610077419006,
         0.0,
-        0.0016511572241036943
+        0.0016511572241037498
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n1",
@@ -734,9 +785,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.685110930058542,
+        2.6851109300585425,
         0.0,
-        0.1523949670975779
+        0.15239496709757872
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n10",
@@ -795,9 +846,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.7024108015450503,
+        2.7024108015450508,
         0.0,
-        0.18125805894236505
+        0.18125805894236574
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n11",
@@ -858,7 +909,7 @@
       "coordinates": [
         2.7167982916981197,
         0.0,
-        0.21167785104201023
+        0.2116778510420111
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n12",
@@ -917,9 +968,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.7281348411225737,
+        2.728134841122574,
         0.0,
-        0.24336138416944453
+        0.2433613841694453
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n13",
@@ -978,9 +1029,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.736311272650267,
+        2.7363112726502674,
         0.0,
-        0.27600352858066945
+        0.27600352858067
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n14",
@@ -1041,7 +1092,7 @@
       "coordinates": [
         2.741248842775896,
         0.0,
-        0.3092899225809934
+        0.309289922580994
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n15",
@@ -1100,9 +1151,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.46689647141933,
+        2.4668964714193304,
         0.0,
-        0.006588727349732315
+        0.006588727349732371
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n2",
@@ -1163,7 +1214,7 @@
       "coordinates": [
         2.499538615830555,
         0.0,
-        0.014765158877425577
+        0.014765158877425688
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n3",
@@ -1222,9 +1273,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.5312221489579887,
+        2.531222148957989,
         0.0,
-        0.026101708301879745
+        0.026101708301879967
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n4",
@@ -1283,9 +1334,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.561641941057634,
+        2.5616419410576343,
         0.0,
-        0.04048919845494897
+        0.04048919845494925
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n5",
@@ -1344,9 +1395,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.5905050329024206,
+        2.5905050329024215,
         0.0,
-        0.057789069941456994
+        0.05778906994145744
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n6",
@@ -1405,9 +1456,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.617533457139713,
+        2.617533457139714,
         0.0,
-        0.07783471554191712
+        0.07783471554191773
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n7",
@@ -1466,9 +1517,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.6424669152688662,
+        2.642466915268867,
         0.0,
-        0.10043308473113238
+        0.10043308473113313
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n8",
@@ -1527,9 +1578,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.6650652844580813,
+        2.665065284458082,
         0.0,
-        0.12536654286028534
+        0.12536654286028628
       ],
       "groups": [],
       "member_id": "pipe_bend_0_n9",
@@ -1589,7 +1640,7 @@
       "coordinates": [
         2.4168050387095033,
         0.0,
-        0.0008255786120518471
+        0.0008255786120518749
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s0_mid",
@@ -1620,9 +1671,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.693760865801796,
+        2.6937608658017966,
         0.0,
-        0.16682651301997148
+        0.16682651301997223
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s10_mid",
@@ -1655,7 +1706,7 @@
       "coordinates": [
         2.709604546621585,
         0.0,
-        0.19646795499218764
+        0.19646795499218841
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s11_mid",
@@ -1688,7 +1739,7 @@
       "coordinates": [
         2.722466566410347,
         0.0,
-        0.22751961760572736
+        0.2275196176057282
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s12_mid",
@@ -1719,9 +1770,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.7322230568864203,
+        2.7322230568864208,
         0.0,
-        0.259682456375057
+        0.25968245637505766
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s13_mid",
@@ -1754,7 +1805,7 @@
       "coordinates": [
         2.7387800577130816,
         0.0,
-        0.29264672558083143
+        0.29264672558083205
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s14_mid",
@@ -1787,7 +1838,7 @@
       "coordinates": [
         2.7420744213879478,
         0.0,
-        0.32609496129049664
+        0.326094961290497
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s15_mid",
@@ -1820,7 +1871,7 @@
       "coordinates": [
         2.4502532744191683,
         0.0,
-        0.004119942286918005
+        0.00411994228691806
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s1_mid",
@@ -1851,9 +1902,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.483217543624942,
+        2.4832175436249426,
         0.0,
-        0.010676943113578946
+        0.01067694311357903
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s2_mid",
@@ -1884,9 +1935,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.5153803823942718,
+        2.515380382394272,
         0.0,
-        0.02043343358965266
+        0.020433433589652827
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s3_mid",
@@ -1917,9 +1968,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.546432045007811,
+        2.546432045007812,
         0.0,
-        0.03329545337841436
+        0.03329545337841461
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s4_mid",
@@ -1950,9 +2001,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.576073486980027,
+        2.576073486980028,
         0.0,
-        0.04913913419820298
+        0.049139134198203344
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s5_mid",
@@ -1983,9 +2034,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.6040192450210666,
+        2.6040192450210675,
         0.0,
-        0.06781189274168706
+        0.06781189274168758
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s6_mid",
@@ -2016,9 +2067,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.6300001862042897,
+        2.6300001862042905,
         0.0,
-        0.08913390013652475
+        0.08913390013652543
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s7_mid",
@@ -2049,9 +2100,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.653766099863474,
+        2.653766099863475,
         0.0,
-        0.11289981379570886
+        0.11289981379570971
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s8_mid",
@@ -2082,9 +2133,9 @@
     ],
     "metadata": {
       "coordinates": [
-        2.6750881072583117,
+        2.675088107258312,
         0.0,
-        0.13888075497893163
+        0.13888075497893249
       ],
       "groups": [],
       "member_id": "pipe_bend_0_s9_mid",
@@ -3534,92 +3585,6 @@
     "name": "pipe_str_1 geometry_state:Hot:visual_x50 centerline"
   },
   {
-    "entity_ref": "element:pipe_str_0",
-    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation",
-    "id": "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_0:insulation",
-    "kind": "deformed_envelope",
-    "layer_ids": [
-      "deformed:visual_envelope"
-    ],
-    "metadata": {
-      "diagnostics": [],
-      "displacement_scale": 50.0,
-      "entity_ref": "element:pipe_str_0",
-      "envelope_type": "insulation",
-      "geometry_state_id": "geometry_state:Hot:visual_x50",
-      "load_case": "Hot",
-      "purpose": "visualization",
-      "radius_m": 0.05715,
-      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
-      "safety_factor": 1.0,
-      "source_mesh_nodes": [
-        "N0",
-        "N1"
-      ],
-      "state_type": "deformed",
-      "visual_scale": 50.0
-    },
-    "name": "element:pipe_str_0 geometry_state:Hot:visual_x50 insulation"
-  },
-  {
-    "entity_ref": "element:pipe_bend_0",
-    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation",
-    "id": "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_bend_0:insulation",
-    "kind": "deformed_envelope",
-    "layer_ids": [
-      "deformed:visual_envelope"
-    ],
-    "metadata": {
-      "diagnostics": [
-        "bend_displacement_interpolated"
-      ],
-      "displacement_scale": 50.0,
-      "entity_ref": "element:pipe_bend_0",
-      "envelope_type": "insulation",
-      "geometry_state_id": "geometry_state:Hot:visual_x50",
-      "load_case": "Hot",
-      "purpose": "visualization",
-      "radius_m": 0.05715,
-      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
-      "safety_factor": 1.0,
-      "source_mesh_nodes": [
-        "N1",
-        "N2"
-      ],
-      "state_type": "deformed",
-      "visual_scale": 50.0
-    },
-    "name": "element:pipe_bend_0 geometry_state:Hot:visual_x50 insulation"
-  },
-  {
-    "entity_ref": "element:pipe_str_1",
-    "geometry_asset_id": "geometry:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation",
-    "id": "object:deformed_envelope:geometry_state:Hot:visual_x50:element:pipe_str_1:insulation",
-    "kind": "deformed_envelope",
-    "layer_ids": [
-      "deformed:visual_envelope"
-    ],
-    "metadata": {
-      "diagnostics": [],
-      "displacement_scale": 50.0,
-      "entity_ref": "element:pipe_str_1",
-      "envelope_type": "insulation",
-      "geometry_state_id": "geometry_state:Hot:visual_x50",
-      "load_case": "Hot",
-      "purpose": "visualization",
-      "radius_m": 0.05715,
-      "result_state_id": "result_state:Hot:gmd_fixture_not_a_solve",
-      "safety_factor": 1.0,
-      "source_mesh_nodes": [
-        "N2",
-        "N3"
-      ],
-      "state_type": "deformed",
-      "visual_scale": 50.0
-    },
-    "name": "element:pipe_str_1 geometry_state:Hot:visual_x50 insulation"
-  },
-  {
     "entity_ref": "element:pipe_bend_0",
     "geometry_asset_id": "geometry:deformed_mesh:geometry_state:Hot:visual_x50:analysis_mesh:Hot:pipe_bend_0_s0",
     "group_ids": [
@@ -3632,11 +3597,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -3678,11 +3642,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -3724,11 +3687,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -3770,11 +3732,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -3816,11 +3777,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -3862,11 +3822,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -3908,11 +3867,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -3954,11 +3912,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4000,11 +3957,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4046,11 +4002,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4092,11 +4047,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4138,11 +4092,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4184,11 +4137,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4230,11 +4182,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4276,11 +4227,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4322,11 +4272,10 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeElbows",
-      "analysis_mesh:group:pipe_bend_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeElbows",
+      "deformed:group:pipe_bend_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4369,12 +4318,11 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeStraights",
-      "analysis_mesh:group:SEC_DN100",
-      "analysis_mesh:group:pipe_str_0"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeStraights",
+      "deformed:group:SEC_DN100",
+      "deformed:group:pipe_str_0"
     ],
     "metadata": {
       "displacement_scale": 50.0,
@@ -4417,12 +4365,11 @@
     "kind": "deformed_analysis_mesh_element",
     "layer_ids": [
       "deformed:mesh",
-      "analysis_mesh:groups",
-      "analysis_mesh:group:AllPipes",
-      "analysis_mesh:group:MAT_Steel",
-      "analysis_mesh:group:PipeStraights",
-      "analysis_mesh:group:SEC_DN100",
-      "analysis_mesh:group:pipe_str_1"
+      "deformed:group:AllPipes",
+      "deformed:group:MAT_Steel",
+      "deformed:group:PipeStraights",
+      "deformed:group:SEC_DN100",
+      "deformed:group:pipe_str_1"
     ],
     "metadata": {
       "displacement_scale": 50.0,

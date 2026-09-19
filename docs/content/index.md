@@ -36,7 +36,7 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
 -   [![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
 
-    **3D solid** — Does stress concentrate where the branch meets the header?
+    **3D solid** — How does 1D beam pipework transition into a 3D solid tee junction?
 
 -   [![Elements and supports review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review)
 
@@ -45,6 +45,18 @@ Every review opens in your browser, no install needed. All except *Imported comp
 -   [![Imported components model review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo)
 
     **Imported components** — How does a supplied component join an authored line?
+
+-   [![Plant layout review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
+
+    **Plant layout** — How do two process lines and their rack fit together on a hydrogen plant site?
+
+-   [![Line loads review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio)
+
+    **Line loads** — Where does a distributed line load go once the line is restrained?
+
+-   [![Road crossing review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo)
+
+    **Road crossing** — How does a line cross an 8 m roadway on a shoe-supported rack bridge?
 
 </div>
 

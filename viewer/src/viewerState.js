@@ -1,11 +1,9 @@
 import { applyTaskVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
-import { cycleBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
+import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
-import { applySceneDiffToState } from "./sceneDiff.js";
-import { getVisibleWorkflowTabs, setWorkflowTab } from "./workflowState.js";
+import { getVisibleCockpitTaskIds, setWorkflowTab } from "./workflowState.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
 import { fitSelection, hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
-import { showReviewEntityIn3d } from "./reviewSelection.js";
 import {
   setColoringComponent,
   setColoringField,
@@ -46,49 +44,35 @@ export function reduceViewerState(state, action) {
       return restoreViewState(state, action.view);
     case "focusIssue":
       return focusIssue(state, action.issueId);
-    case "showReviewEntityIn3d":
-      return showReviewEntityIn3d(state, action.entityRef);
     case "setLayerVisibility":
       return setLayerVisibility(state, action.layerId, action.visible);
     case "setOverlayVisibility":
       return setOverlayVisibility(state, action.overlayId, action.visible);
     case "setBodyVisibility":
       return setBodyVisibility(state, action.bodyId, action.visible);
+    case "setBodyOpacity":
+      return setBodyOpacity(state, action.bodyId, action.opacity);
     case "cycleBodyOpacity":
       return cycleBodyOpacity(state, action.bodyId);
     case "setUnitSystem":
       return setUnitSystem(state, action.unitSystem);
-    case "applySceneDiff": {
-      const result = applySceneDiffToState(state, action.diff ?? action.sceneDiff);
-      if (result.applied) {
-        return {
-          ...result.state,
-          lastSceneDiffStatus: {
-            applied: true,
-            diffId: (action.diff ?? action.sceneDiff)?.diff_id ?? null
-          }
-        };
-      }
-      return {
-        ...state,
-        diagnostics: [
-          ...(state.diagnostics ?? []),
-          {
-            severity: "warning",
-            code: "visualization.scene_diff.fallback_required",
-            message: result.reason ?? "SceneDiff could not be applied."
-          }
-        ],
-        lastSceneDiffStatus: {
-          applied: false,
-          reason: result.reason
-        }
-      };
-    }
+    case "setModelColorBy":
+      return { ...state, modelColorBy: action.colorBy ?? "default" };
     case "activateTask":
       return applyTaskVisibilityPreset(setWorkflowTab(state, action.tabId), action.tabId);
-    case "setWorkflowTab":
-      return setWorkflowTab(state, action.tabId);
+    case "enterBuild":
+      // Build is not a review task, so it escapes the tab validation activateTask
+      // applies; it lands on the Model tab and uses the build visibility preset.
+      return applyTaskVisibilityPreset({ ...state, activeTab: "model" }, "build");
+    case "resetLayerVisibility": {
+      // Back from Build: every layer returns to what the bundle declared, so the
+      // review the reader opened is the review they come back to.
+      let declared = state;
+      for (const layer of Object.values(state.layers ?? {})) {
+        declared = setLayerVisibility(declared, layer.id, layer.defaultVisible !== false);
+      }
+      return withVisibility(declared);
+    }
     case "setContactNeutral":
       return withVisibility({ ...state, contactNeutral: action.neutral });
     case "setContactArrows":
@@ -139,8 +123,6 @@ export function reduceViewerState(state, action) {
           }
         }
       };
-    case "appendDiagnostic":
-      return { ...state, diagnostics: [...(state.diagnostics ?? []), action.diagnostic] };
     default:
       return state;
   }
@@ -182,8 +164,6 @@ export function preserveViewerStateForReload(previousState, nextState) {
     activeLoadCase: coherentState.activeLoadCase,
     activeResultStateId: resultContext.activeResultStateId ?? coherentState.activeResultStateId,
     activeGeometryStateId: coherentState.activeGeometryStateId,
-    displacementVectorScale: previousState.displacementVectorScale ?? nextState.displacementVectorScale,
-    reactionVectorScale: previousState.reactionVectorScale ?? nextState.reactionVectorScale,
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,
     resultVectorScales: previousState.resultVectorScales ?? nextState.resultVectorScales,
     utilizationThreshold: previousState.utilizationThreshold ?? nextState.utilizationThreshold,
@@ -192,10 +172,8 @@ export function preserveViewerStateForReload(previousState, nextState) {
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
     unitSystem: previousState.unitSystem ?? nextState.unitSystem,
-    // The scene is the authority: a run that restores the solved geometry
-    // clears the flag again.
-    resultsStale: nextState.resultsStale,
-    activeTab: getVisibleWorkflowTabs(nextState).includes(previousState.activeTab)
+    modelColorBy: previousState.modelColorBy ?? nextState.modelColorBy ?? "default",
+    activeTab: getVisibleCockpitTaskIds(nextState).includes(previousState.activeTab)
       ? previousState.activeTab
       : nextState.activeTab,
     // Carried over so a reload keeps the user's field selection, then snapped

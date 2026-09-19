@@ -253,6 +253,19 @@ test("toggling a body fans out to every layer that draws it", () => {
   assert.equal(getBodies(state)[0].visible, false);
 });
 
+test("toggling analysis mesh automatically dims geometry and restores it", () => {
+  let state = { ...sceneState(), bodyOpacity: { geometry: 1.0, analysis_mesh: 1 } };
+  state = setBodyVisibility(state, "analysis_mesh", true);
+  assert.equal(bodyOpacity(state, "geometry"), 0.35);
+
+  state = setBodyVisibility(state, "analysis_mesh", false);
+  assert.equal(bodyOpacity(state, "geometry"), 1.0);
+});
+
+test("analysis_mesh:helpers is excluded from the analysis_mesh body", () => {
+  assert.equal(bodyIdForLayerId("analysis_mesh:helpers"), null);
+});
+
 test("a partly hidden body reads as indeterminate rather than on or off", () => {
   let state = sceneState();
   state = { ...state, layers: { ...state.layers, pipe: { ...state.layers.pipe, visible: false } } };
@@ -450,6 +463,19 @@ test("the ground grid is offered whatever the scene carries, and answers to its 
   assert.equal(off.referenceGridVisible, false);
   assert.equal(getOverlays(off).find((overlay) => overlay.id === "ground_grid").visible, false);
   assert.deepEqual(off.layers, {}, "toggling chrome touches no layer");
+});
+
+test("attachment links appear as their own row only when the scene draws them", () => {
+  assert.equal(getOverlays(overlayState()).some((overlay) => overlay.id === "support_link"), false);
+  const state = overlayState();
+  state.layers.support_link = { id: "support_link", category: "design", count: 2, visible: true, objectIds: [], source: "object" };
+  const link = getOverlays(state).find((overlay) => overlay.id === "support_link");
+  assert.ok(link, "offered when the scene carries attachment links");
+  assert.equal(link.count, 2);
+  assert.equal(link.scale, null);
+  const hidden = setOverlayVisibility(state, "support_link", false);
+  assert.equal(hidden.layers.support_link.visible, false);
+  assert.equal(hidden.layers.support.visible, true, "toggling links leaves glyphs put");
 });
 
 test("cycleVectorScale walks the steps and wraps", () => {

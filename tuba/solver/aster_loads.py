@@ -9,7 +9,7 @@ import numpy as np
 
 from tuba.model import Element, LoadCase, TubaModel
 from tuba.physical import physical_properties_for_element
-from tuba.validation import _node_field_problem, _pipe_node_ids
+from tuba.validation import operation_fields_problem
 
 FieldGroups = List[tuple[List[str], float]]
 WindGroups = List[tuple[List[str], float, float, float]]
@@ -34,6 +34,9 @@ def resolve_operation_field_groups(
     load_case: LoadCase,
     quantity: str,
 ) -> FieldGroups:
+    problems = operation_fields_problem(getattr(load_case, "fields", []), model)
+    if problems:
+        raise ValueError(problems[0])
     rows: FieldGroups = []
     for index, field_record in enumerate(getattr(load_case, "fields", [])):
         if field_record.quantity != quantity:
@@ -42,20 +45,9 @@ def resolve_operation_field_groups(
             continue  # Node temperatures reach the field through node_temperature_entries.
         if field_record.profile == "uniform":
             elements = model.resolve_operation_field_elements(field_record)
-            if not elements:
-                raise ValueError(
-                    f"Operation field {index} for {quantity!r} selects no pipe elements."
-                )
             rows.append(([elem.id for elem in elements], float(field_record.value)))
             continue
-        if quantity in {"temperature", "pressure"} and field_record.profile == "linear":
-            rows.extend(_linear_route_field_groups(model, load_case, field_record, index, quantity))
-            continue
-        if field_record.profile != "uniform":
-            raise ValueError(
-                f"Operation field {index} for {quantity!r} uses profile "
-                f"{field_record.profile!r}; only uniform fields can be exported."
-            )
+        rows.extend(_linear_route_field_groups(model, load_case, field_record, index, quantity))
     if quantity != "pressure" or not rows:
         return rows
 
@@ -80,20 +72,10 @@ def _linear_route_field_groups(
     index: int,
     quantity: str,
 ) -> FieldGroups:
-    start = field_record.station_start
-    end = field_record.station_end
-    if start is None or end is None or float(end) <= float(start):
-        raise ValueError(
-            f"Operation field {index} for {quantity!r} uses linear profile without a valid station range."
-        )
-
     rows: FieldGroups = []
     selected = model.resolve_operation_field_elements(field_record)
-    if not selected:
-        raise ValueError(f"Operation field {index} for {quantity!r} selects no pipe elements.")
-
-    start = float(start)
-    end = float(end)
+    start = float(field_record.station_start)
+    end = float(field_record.station_end)
     base = float(load_case.temperature if quantity == "temperature" else load_case.internal_pressure)
     target = float(field_record.value)
     for elem in selected:
@@ -131,38 +113,19 @@ def has_temperature_load(
 def resolve_node_temperatures(model: TubaModel, load_case: LoadCase) -> dict[str, float]:
     """Node-scoped temperature fields of one load case, as model node id -> temperature.
 
-    Validation walks only operations, so this applies its node rules to load-case fields.
+    The load case's fields pass the same rule table as operations before any value is
+    resolved, so conflicts are refused here exactly as admission refuses them.
     """
-    pipe_nodes = _pipe_node_ids(model)
+    problems = operation_fields_problem(getattr(load_case, "fields", []), model)
+    if problems:
+        raise ValueError(problems[0])
     values: dict[str, float] = {}
-    for index, field_record in enumerate(getattr(load_case, "fields", [])):
+    for field_record in getattr(load_case, "fields", []):
         if field_record.scope != "nodes" and not field_record.node_ids:
             continue
-        problem = _node_field_problem(field_record, model, pipe_nodes)
-        if problem is not None:
-            raise ValueError(f"Operation field {index} {problem}")
         value = float(field_record.value)
         for node_id in field_record.node_ids:
-            previous = values.get(node_id)
-            if previous is not None and previous != value:
-                raise ValueError(
-                    f"Operation field {index} gives node {node_id!r} {value!r}, "
-                    f"but an earlier node field gives it {previous!r}."
-                )
             values[node_id] = value
-    if not values:
-        return values
-    covered: set[str] = set()
-    for field_record in getattr(load_case, "fields", []):
-        if field_record.quantity == "temperature" and field_record.scope != "nodes":
-            for elem in model.resolve_operation_field_elements(field_record):
-                covered.update((elem.n1, elem.n2))
-    shared = sorted(set(values) & covered)
-    if shared:
-        raise ValueError(
-            f"Nodes {shared!r} have a node temperature and belong to elements an element temperature "
-            "field covers; a node takes one or the other."
-        )
     return values
 
 
@@ -207,23 +170,16 @@ def node_temperature_entries(
 
 
 def resolve_wind_field_groups(model: TubaModel, load_case: LoadCase) -> WindGroups:
+    problems = operation_fields_problem(getattr(load_case, "fields", []), model)
+    if problems:
+        raise ValueError(problems[0])
     rows: WindGroups = []
-    for index, field_record in enumerate(getattr(load_case, "fields", [])):
+    for field_record in getattr(load_case, "fields", []):
         if field_record.quantity != "wind":
             continue
-        if field_record.profile != "uniform":
-            raise ValueError(
-                f"Operation field {index} for 'wind' uses profile "
-                f"{field_record.profile!r}; only uniform fields can be exported."
-            )
         direction = np.asarray(field_record.direction, dtype=float)
-        norm = float(np.linalg.norm(direction))
-        if norm <= 1e-12:
-            raise ValueError(f"Operation field {index} for 'wind' requires a non-zero direction.")
-        direction = direction / norm
+        direction = direction / float(np.linalg.norm(direction))
         elements = model.resolve_operation_field_elements(field_record)
-        if not elements:
-            raise ValueError(f"Operation field {index} for 'wind' selects no pipe or beam elements.")
         for elem in elements:
             diameter = physical_properties_for_element(model, elem).wind_diameter_m
             line_load = float(field_record.value) * diameter
@@ -280,33 +236,22 @@ def resolve_line_load_groups(model: TubaModel, load_case: LoadCase) -> LineLoadG
     an element is refused rather than applied once. This also covers load-case
     fields, which validation does not walk.
     """
+    problems = operation_fields_problem(getattr(load_case, "fields", []), model)
+    if problems:
+        raise ValueError(problems[0])
     forces: dict[str, tuple[float, float, float]] = {}
-    for index, field_record in enumerate(getattr(load_case, "fields", [])):
+    for field_record in getattr(load_case, "fields", []):
         if field_record.quantity != "line_load":
             continue
-        if field_record.profile != "uniform":
-            raise ValueError(
-                f"Operation field {index} for 'line_load' uses profile "
-                f"{field_record.profile!r}; only uniform fields can be exported."
-            )
         direction = np.asarray(field_record.direction, dtype=float)
         norm = float(np.linalg.norm(direction))
-        if norm <= 1e-12:
-            raise ValueError(f"Operation field {index} for 'line_load' requires a non-zero direction.")
         elements = model.resolve_operation_field_elements(field_record)
-        if not elements:
-            raise ValueError(f"Operation field {index} for 'line_load' selects no pipe or beam elements.")
         force = (
             float(field_record.value) * float(direction[0]) / norm,
             float(field_record.value) * float(direction[1]) / norm,
             float(field_record.value) * float(direction[2]) / norm,
         )
         for elem in elements:
-            if elem.id in forces:
-                raise ValueError(
-                    f"Operation field {index} for 'line_load' loads element {elem.id!r}, which an earlier "
-                    "line_load field already loads; line loads add, so author one combined line_load field."
-                )
             forces[elem.id] = force
     groups: dict[tuple[float, float, float], List[str]] = {}
     for element_id, force in forces.items():

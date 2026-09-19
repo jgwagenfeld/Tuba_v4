@@ -4,8 +4,8 @@ from unittest.mock import patch
 from tuba import Model
 from tuba.refs import EntityRef
 from tuba.model import sample_bend_geometry
-from tuba.visualization import SceneBuildOptions, build_visualization_scene
-from tuba.visualization.builders import _find_element
+from tuba.visualization import SceneBuildOptions, SceneRequest, build_visualization_scene
+from tuba.visualization.builders._helpers import _find_element
 
 
 class TestVisualizationBuilders(unittest.TestCase):
@@ -38,11 +38,11 @@ class TestVisualizationBuilders(unittest.TestCase):
     def test_build_visualization_scene_projects_model_objects_and_physical_metadata(self):
         model, elem, support, _obstacle = self._model()
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             options=SceneBuildOptions(include_physical=True, include_quantities=True),
             scene_id="scene_builder",
-        )
+        ))
         scene.validate()
         objects_by_ref = {str(obj.entity_ref): obj for obj in scene.objects if obj.entity_ref is not None}
 
@@ -67,11 +67,11 @@ class TestVisualizationBuilders(unittest.TestCase):
     def test_build_visualization_scene_honors_object_inclusion_options(self):
         model, elem, _support, _obstacle = self._model()
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             options=SceneBuildOptions(include_supports=False, include_obstacles=False),
             scene_id="scene_filtered",
-        )
+        ))
         entity_refs = {obj.entity_ref for obj in scene.objects}
 
         self.assertIn(EntityRef("element", elem.id), entity_refs)
@@ -92,11 +92,14 @@ class TestVisualizationBuilders(unittest.TestCase):
             friction_coefficient=0.2,
         )
 
-        scene = build_visualization_scene(model)
+        scene = build_visualization_scene(SceneRequest(model))
         scene_object = next(item for item in scene.objects if item.entity_ref == EntityRef("support", support.id))
         asset = next(item for item in scene.geometry_assets if item.id == scene_object.geometry_asset_id)
 
         expected = {
+            # The restraint links back to its support record (viewer selection
+            # and contact review read this), so the id is part of the contract.
+            "support_id": support.id,
             "support_type": "custom",
             "direction": [0.0, 0.0, 1.0],
             "stiffness": 125000.0,
@@ -105,6 +108,9 @@ class TestVisualizationBuilders(unittest.TestCase):
             "blocked_dof": [1, 1, 0, 0, 0, 1],
             "mass": 12.0,
             "friction_coefficient": 0.2,
+            # The solver's own restraint record: X/Y fixed by the override, RZ fixed
+            # by the override too, and the matrix springs the axes left free.
+            "dof_states": ["fixed", "fixed", "spring", "spring", "spring", "fixed"],
         }
         self.assertEqual(scene_object.metadata, {"node": "N1", **expected})
         self.assertEqual(
@@ -121,7 +127,7 @@ class TestVisualizationBuilders(unittest.TestCase):
     def test_pipe_geometry_carries_inner_radius_for_hollow_rendering(self):
         model, elem, _support, _obstacle = self._model()
 
-        scene = build_visualization_scene(model)
+        scene = build_visualization_scene(SceneRequest(model))
         asset = next(item for item in scene.geometry_assets if item.id == f"geometry:element:{elem.id}")
 
         self.assertAlmostEqual(asset.generation_config["radius_m"], 0.05)
@@ -137,7 +143,7 @@ class TestVisualizationBuilders(unittest.TestCase):
             return original_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=guarded_import):
-            scene = build_visualization_scene(model)
+            scene = build_visualization_scene(SceneRequest(model))
 
         self.assertTrue(scene.objects)
 
@@ -172,7 +178,7 @@ class TestVisualizationBuilders(unittest.TestCase):
             material="Steel",
         )
 
-        scene = build_visualization_scene(model)
+        scene = build_visualization_scene(SceneRequest(model))
         assets = {asset.id: asset for asset in scene.geometry_assets}
         column = assets["geometry:element:column"]
         crossbeam = assets["geometry:element:crossbeam"]
@@ -208,13 +214,33 @@ class TestVisualizationBuilders(unittest.TestCase):
             pipe.bend(radius=1.0, angle=90.0, plane="XY")
 
         bend = model.elements[0]
-        scene = build_visualization_scene(model)
+        scene = build_visualization_scene(SceneRequest(model))
         asset = next(item for item in scene.geometry_assets if item.id == f"geometry:element:{bend.id}")
         expected = sample_bend_geometry(model.nodes[bend.n1].coords, bend.bend_geometry, n_segments=16)
 
         self.assertEqual(asset.generation_config["points"], expected.tolist())
         self.assertGreater(len(asset.generation_config["points"]), 2)
 
+
+    def test_scene_carries_the_review_focus_its_study_declared(self):
+        """Spec: the study says what a review is for; the viewer never infers it.
+
+        Inferring "this is a contact review" from the presence of contact
+        records made every review resting on a friction shoe a contact review,
+        which took its scalar legend and deformed state away.
+        """
+        model = Model(project_name="VisualizationFocus")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        with model.pipe("PipeSec", "Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0])
+            pipe.run(1.0)
+
+        self.assertNotIn("review_focus", build_visualization_scene(SceneRequest(model)).extra)
+        self.assertEqual(
+            build_visualization_scene(SceneRequest(model, review_focus="contact")).extra["review_focus"],
+            "contact",
+        )
 
 if __name__ == "__main__":
     unittest.main()

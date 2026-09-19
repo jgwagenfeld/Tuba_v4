@@ -29,8 +29,6 @@ _SCENE_METADATA_URIS = (
     "metadata/overlays.json",
     "metadata/issues.json",
     "metadata/route_reviews.json",
-    "metadata/agent_proposals.json",
-    "metadata/scene_diffs.json",
     "geometry/geometry_assets.json",
 )
 
@@ -230,7 +228,6 @@ _SECTION_TITLES = (
     "Model",
     "Load Cases",
     "Results",
-    "Compliance",
     "Diagnostics",
 )
 
@@ -271,12 +268,16 @@ def _render_html(
         "h1, h2, h3 { break-after: avoid; line-height: 1.25; }",
         ".meta { color: #44505f; margin: 0 0 .35rem; }",
         ".units { color: #44505f; font-size: .85rem; margin: 0 0 1.75rem; }",
-        ".unavailable { border-left: .25rem solid #a66b00; padding: .5rem .75rem; }",
+        # Shared with the viewer and the docs site: the warning and focus values
+        # below are the review app's --warning and --focus-on-light, so a reader
+        # crossing from the model to this page does not change product. Kept in
+        # step by tests/test_brand_tokens.py.
+        ".unavailable { border-left: .25rem solid #6c4c00; padding: .5rem .75rem; }",
         ".csv-link { font-size: .85rem; margin: 0 0 .4rem; }",
         ".table-wrap { margin: .4rem 0 2rem; overflow-x: auto; }",
         # The region is focusable so its off-screen columns are reachable from
         # the keyboard; a focusable thing must show that it has focus.
-        ".table-wrap:focus-visible { outline: 2px solid #1c5f6b; outline-offset: 2px; }",
+        ".table-wrap:focus-visible { outline: 2px solid #0b7684; outline-offset: 2px; }",
         # width:auto, not 100%: a four-column node table forced to full width
         # spread three coordinates across the page, which put every value an
         # inch from the row it belongs to. Capped instead, so narrow tables stay
@@ -373,8 +374,11 @@ def _units_note(review: EngineeringReviewPackage) -> str:
     named = f" ({', '.join(units)})" if units else ""
     return (
         f"Values are unconverted, in the units named in each column heading{named}. "
-        "Shown to six significant figures; the CSV files in reports/ carry the "
-        "same values at full precision."
+        "The review viewer that links here converts the same quantities for display - "
+        "millimetres, megapascals and kilonewtons unless you switch it - so a number "
+        "read on the model will not match the number printed here. These are the "
+        "stored values. Shown to six significant figures; the CSV files in reports/ "
+        "carry the same values at full precision."
     )
 
 
@@ -383,8 +387,6 @@ def _section_for_table(table: ReportTable) -> str:
         return "Summary"
     if table.id in {"load_cases", "studies"}:
         return "Load Cases"
-    if table.id == "code_compliance" or table.source == "compliance_report":
-        return "Compliance"
     if table.id == "diagnostics" or table.source == "diagnostics":
         return "Diagnostics"
     if table.source == "result_state":
@@ -576,11 +578,6 @@ def _unavailable_message(
         return (
             "Results are unavailable because this review package has not been solved "
             "by Code_Aster."
-        )
-    if section_title == "Compliance" and "code_compliance" not in review.tables_by_id:
-        return (
-            "Compliance is unavailable because no piping-code compliance report was "
-            "supplied."
         )
     return None
 

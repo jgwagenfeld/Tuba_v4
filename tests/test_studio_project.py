@@ -24,7 +24,7 @@ with model.pipe(section="DN100", material="Steel") as builder:
 STUDY = """import threading
 from pathlib import Path
 
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 
 LOAD_CASES = ()
 SOLVER_OPTIONS = {}
@@ -38,9 +38,22 @@ GATE.set()
 def build_review(namespace, output, *, artifact_dir=None, force=False):
     GATE.wait(10)
     root = Path(output) / "review_scene"
-    write_scene_bundle(build_visualization_scene(namespace["model"]), root)
+    write_scene_bundle(build_visualization_scene(SceneRequest(namespace["model"])), root)
     return root
 """
+
+
+class _RecordingClient:
+    """A broker client that keeps broadcasts in a list instead of a socket."""
+
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
+    def send_json(self, event: dict) -> None:
+        self.events.append(event)
+
+    def close(self) -> None:
+        pass
 
 
 class StudioProjectModeTest(unittest.TestCase):
@@ -52,6 +65,8 @@ class StudioProjectModeTest(unittest.TestCase):
         (project / "model.py").write_text(MODEL, encoding="utf-8")
         (project / "study.py").write_text(study, encoding="utf-8")
         server = ProjectStudioServer(project, root / "out", port=0, poll_interval_s=0.05, debounce_s=0.05)
+        server._recorder = _RecordingClient()
+        server.broker.add(server._recorder)
         self.addCleanup(server.stop)
         return server
 
@@ -67,6 +82,8 @@ class StudioProjectModeTest(unittest.TestCase):
         study = project / "study.py"
         study.write_text(study_edit(study.read_text(encoding="utf-8")), encoding="utf-8")
         server = ProjectStudioServer(project, root / "out", port=0, poll_interval_s=0.05, debounce_s=0.05, solver=solver)
+        server._recorder = _RecordingClient()
+        server.broker.add(server._recorder)
         self.addCleanup(server.stop)
         server.start()
         self._wait(lambda: self._idle(server), "the startup import never settled", timeout=120.0)
@@ -98,7 +115,7 @@ class StudioProjectModeTest(unittest.TestCase):
         self.fail(message)
 
     def _events(self, server, kind: str) -> int:
-        return sum(event.get("type") == kind for event in server.broker.events)
+        return sum(event.get("type") == kind for event in server._recorder.events)
 
     def _idle(self, server) -> bool:
         info = self._get(server, "api/project")
@@ -161,6 +178,19 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertEqual((status, payload["ok"]), (422, False))
         self.assertIn("line_segments", payload["error"])
 
+    def test_watcher_survives_an_unreadable_model_file(self):
+        from unittest import mock
+
+        root = Path(self.enterContext(TemporaryDirectory()))
+        server = self._start(root)
+        before = server.revision
+
+        with mock.patch.object(Path, "read_bytes", side_effect=PermissionError("locked mid-save")):
+            time.sleep(0.4)  # several polls under an unreadable file
+            self.assertTrue(server._watch_thread.is_alive())
+        (root / "project" / "model.py").write_text(MODEL.replace("run(2.0)", "run(3.0)"), encoding="utf-8")
+        self._wait(lambda: server.revision > before, "the watcher never recovered to rerun the model")
+
     def test_an_imported_review_goes_stale_only_when_its_solver_input_changes(self):
         root = Path(self.enterContext(TemporaryDirectory()))
         server, project = self._rack_server(root)
@@ -177,7 +207,7 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertEqual(status, 200, payload)
         self.assertFalse(payload["review_stale"])
 
-        moved = model.replace("(-2.0, -1.0, 3.25)", "(-2.5, -1.0, 3.25)")
+        moved = model.replace("[-2.0, 0.0, 3.25]", "[-2.5, 0.0, 3.25]")
         status, payload = self._post(server, "api/script", {"code": moved})
         self.assertEqual(status, 200, payload)
         self.assertTrue(payload["review_stale"])
@@ -209,7 +239,7 @@ class StudioProjectModeTest(unittest.TestCase):
         self.assertEqual(self._post(server, "api/solve")[0], 409)
 
         server.study.GATE.set()
-        self._wait(lambda: any(event.get("type") == "review_ready" for event in server.broker.events), "no review_ready")
+        self._wait(lambda: any(event.get("type") == "review_ready" for event in server._recorder.events), "no review_ready")
         self._wait(lambda: self._idle(server), "the import never released")
         info = self._get(server, "api/project")
         self.assertEqual((info["preparing_review"], info["has_review"], info["solving"]), (False, True, False))

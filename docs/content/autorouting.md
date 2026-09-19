@@ -9,12 +9,11 @@ Autorouting generates and reviews pipe-centerline candidates. It can apply a sel
 | Concept | Public API | Owner |
 | --- | --- | --- |
 | Request data | `RouteEndpoint`, `PipeRouteRequest`, `RoutingConstraints`, `RoutingCostWeights` | `tuba.routing.types` |
-| Grid and spaces | `RoutingGridSpec`, `RoutingSpace`, `RoutingZone` | `tuba.routing.grid`, `tuba.routing.spaces` |
+| Grid | `RoutingGridSpec` | `tuba.routing.grid` |
 | Single-pipe search | `GridRouter.route(...)` | `tuba.routing.astar` |
 | Cost model | `RouteCostModel`, `score_candidate` | `tuba.routing.cost_model`, `tuba.routing.cost` |
 | Model mutation | `build_candidate_patch`, `apply_candidate_to_model` | `tuba.routing.adapter` |
 | Expansion candidates | `ExpansionAwareRouter`, `ExpansionLoopGenerator` | `tuba.routing.hybrid`, `tuba.routing.expansion` |
-| Network routing | `NetworkRouter`, `NetworkRouteRequest` | `tuba.routing.network` |
 | Solver loop | `AutoroutingAgent`, `SolverLoopConfig`, `SolverLoopScorer` | `tuba.routing.agent`, `tuba.routing.solver_loop` |
 | Reports and review | `write_route_report`, `show_route_scene`, `build_visualization_scene` | `tuba.routing.report`, `tuba.routing.visualization`, `tuba.visualization` |
 
@@ -170,34 +169,9 @@ expansion_router = ExpansionAwareRouter(
 )
 ```
 
-The current generator emits U-loop candidates only. `z_loop` and `offset_loop` are typed future families, not current generator output. Reserved loop envelopes can be protected during network routing.
+The current generator emits U-loop candidates only. `z_loop` and `offset_loop` are typed future families, not current generator output.
 
 `SolverAcceptanceCriteria` currently enforces expansion ratio, sustained ratio, and maximum anchor reaction when real solver results exist. Other typed fields are review or future scorer inputs, not active acceptance gates.
-
-## Multiple pipes
-
-`NetworkRouter` processes requests in deterministic order and applies accepted earlier routes to a working copy so later routes see them as obstacles. It checks centerline conflicts and reserved-envelope intrusion with bounded repair attempts.
-
-Supported order strategies are `given`, `large_bore_first`, `critical_first`, and `least_flexible_first`.
-
-```python
-from tuba.routing import NetworkRouter
-from tuba.routing.types import NetworkRouteRequest
-
-network_result = NetworkRouter(
-    grid_spec=RoutingGridSpec(cell_size=0.5, margin=2.0)
-).route_network(
-    model,
-    NetworkRouteRequest(
-        id="rack-lines",
-        pipe_requests=[request, hot_request],
-        order_strategy="large_bore_first",
-        max_reroute_attempts=20,
-    ),
-)
-```
-
-Network routing is sequential with repair attempts, not global multi-line optimization.
 
 ## Review outputs
 
@@ -223,7 +197,6 @@ Use `show_route_scene(...)` for the existing PyVista quick-look path, or `build_
 
 - Routes are centerline candidates and require engineering review.
 - Mesh obstacles need explicit routing bounds; exact mesh voxelization is not implemented.
-- Network routing is sequential rather than globally optimized.
 - Expansion-loop generation emits U-loops only.
 - Support optimization, nonlinear friction, gaps, lift-off, and construction sequencing are not complete routing solvers.
 - A candidate reaches engineering acceptance only after real Code_Aster evaluation and artifact import.

@@ -139,6 +139,16 @@ _F(GROUP_MA='GE72C655',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
             CARA='ANGL_VRIL',
             VALE=0.0000,
         ),
+        _F(
+            GROUP_MA='GBA6CD9B',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G153C40D',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
     ),
 );
 
@@ -178,7 +188,7 @@ BC_3 = AFFE_CHAR_MECA(
 BC_4 = AFFE_CHAR_MECA(
     MODELE=MODELE,
     DDL_IMPO=_F(
-        GROUP_NO='GN_N8',
+        GROUP_NO='GN_N10',
         BLOCAGE=('DEPLACEMENT', 'ROTATION'),
         WO=0.0,
     ),
@@ -188,7 +198,7 @@ BC_5 = AFFE_CHAR_MECA(
     MODELE=MODELE,
     DDL_IMPO=_F(
         GROUP_NO='GN_N11',
-        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        DY=0.0,
         WO=0.0,
     ),
 );
@@ -196,7 +206,7 @@ BC_5 = AFFE_CHAR_MECA(
 BC_6 = AFFE_CHAR_MECA(
     MODELE=MODELE,
     DDL_IMPO=_F(
-        GROUP_NO='GN_N9',
+        GROUP_NO='GN_N12',
         WO=0.0,
     ),
 );
@@ -204,28 +214,41 @@ BC_6 = AFFE_CHAR_MECA(
 BC_7 = AFFE_CHAR_MECA(
     MODELE=MODELE,
     DDL_IMPO=_F(
-        GROUP_NO='GN_N10',
+        GROUP_NO='GN_N13',
         WO=0.0,
     ),
 );
 
-GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('GROUND_6','GN_N4'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_6','GN_N4'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_6','GN_N4'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
-GROUND1 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('GROUND_7','GN_N6'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_7','GN_N6'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_7','GN_N6'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
-# ----- Gravity -----
-GRAVITY = AFFE_CHAR_MECA(
+BC_8 = AFFE_CHAR_MECA(
     MODELE=MODELE,
-    PESANTEUR=_F(
-        GRAVITE=9.81,
-        DIRECTION=(0.0, 0.0, -1.0),
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N14',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
     ),
 );
 
+GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('GROUND_6','GN_N8'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_6','GN_N8'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_6','GN_N8'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
+GROUND1 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('GROUND_7','GN_N9'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_7','GN_N9'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GROUND_7','GN_N9'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
 # ----- Internal pressure -----
 PRESSURE = AFFE_CHAR_MECA(
     MODELE=MODELE,
     FORCE_TUYAU=_F(
         GROUP_MA='AllPipes',
         PRES=1.500000E+06,
+    ),
+);
+
+# ----- Line loads on pipes and beams -----
+LINELOAD = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    FORCE_POUTRE=(
+        _F(
+            GROUP_MA=('G865AF37', 'G8DCD4C6', 'GF75806A', 'G5E41366',),
+            FX=0.000000E+00,
+            FY=0.000000E+00,
+            FZ=-3.500000E+02,
+        ),
     ),
 );
 
@@ -298,10 +321,11 @@ RESU = STAT_NON_LINE(
         _F(CHARGE=BC_5),
         _F(CHARGE=BC_6),
         _F(CHARGE=BC_7),
+        _F(CHARGE=BC_8),
         _F(CHARGE=GROUND0),
         _F(CHARGE=GROUND1),
-        _F(CHARGE=GRAVITY),
         _F(CHARGE=PRESSURE),
+        _F(CHARGE=LINELOAD),
     ),
     COMPORTEMENT=(
         _F(

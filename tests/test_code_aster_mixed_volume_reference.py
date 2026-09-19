@@ -9,7 +9,7 @@ from examples.code_aster_tee_mixed_review import (
 )
 from tuba import Model
 from tuba.solver.modelisation import PipeModelization
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 pytestmark = pytest.mark.skipif(
@@ -57,11 +57,11 @@ def test_tuyau_to_solid_pipe_solves_and_builds_one_result_scene(tmp_path):
     assert (tmp_path / "study_effo.csv").is_file()
     assert (tmp_path / "study_sieq.csv").is_file()
 
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         result_states=[run.result_state],
         analysis_meshes=[run.analysis_mesh],
-    )
+    ))
     scene.validate()
     assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
     assert any(obj.kind == "tuyau_subpoint_field" for obj in scene.objects)
@@ -84,11 +84,11 @@ def test_tuyau_extensions_solve_with_the_native_tee_and_build_one_result_scene(t
     assert run.result_state.metadata["result_trust"] == "verified"
     assert run.results.volume_von_mises
     assert run.results.tuyau_subpoints
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         result_states=[run.result_state],
         analysis_meshes=[run.analysis_mesh],
-    )
+    ))
     scene.validate()
     assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
     assert any(obj.kind == "tuyau_subpoint_field" for obj in scene.objects)

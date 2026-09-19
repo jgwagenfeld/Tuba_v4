@@ -14,6 +14,7 @@ from tuba.project import load_project
 def build_guyed_mast_model():
     return load_project(Path(__file__).resolve().parents[1] / "examples" / "guyed-mast-review").run_model()["model"]
 from tuba.analysis import AnalysisMesh
+from tuba.solver import parse_tables
 from tuba.solver.aster import CodeAsterSolver
 
 
@@ -30,7 +31,7 @@ def test_straight_member_discretisation(tmp_path, segments, beam_pipes):
     manifest = json.loads((tmp_path / "study_manifest.json").read_text())
     mesh = AnalysisMesh.from_dict(manifest["analysis_mesh"])
     mail = (tmp_path / "study.mail").read_text()
-    lookup = solver._result_element_lookup(model)
+    lookup = parse_tables.result_element_lookup(model, tmp_path)
     for element in model.elements:
         members = mesh.groups[element.id]
         assert len(members) == segments

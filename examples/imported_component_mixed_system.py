@@ -16,7 +16,7 @@ import numpy as np
 import tuba
 from tuba.geometry.step_analysis_importer import StepAnalysisImporter
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 from tuba.visualization.scene import SceneDiagnostic
 
 
@@ -147,7 +147,7 @@ def run_demo(
         model = build_model(source, source_format=fmt, asset_origin=asset_origin, asset_rotation=asset_rotation)
     model_path = output / "mixed_imported_component_model.json"
     model.to_json(str(model_path))
-    scene = build_visualization_scene(model, scene_id="scene:imported_component_mixed_system")
+    scene = build_visualization_scene(SceneRequest(model, scene_id="scene:imported_component_mixed_system"))
     scene.diagnostics.append(
         SceneDiagnostic(
             code="publication.model_review.no_solver_results",

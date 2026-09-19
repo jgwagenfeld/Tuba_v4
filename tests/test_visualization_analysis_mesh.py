@@ -12,7 +12,8 @@ from tuba.routing.adapter import apply_candidate_to_model
 from tuba.routing.postprocess import build_segments
 from tuba.routing.types import PipeRouteCandidate, PipeRouteRequest, RouteEndpoint, RoutingConstraints
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
+from tuba.visualization.builders._layers import mesh_identity
 
 
 class TestVisualizationAnalysisMesh(unittest.TestCase):
@@ -52,7 +53,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
 
         model_objects = {
             str(obj.entity_ref): obj
@@ -65,13 +66,18 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             if obj.kind == "analysis_mesh_element" and obj.metadata["role"] == "native_element"
         ]
         layers = {layer.id: layer for layer in scene.layers}
+        # The volume span is displayed by the mesh skin - the discretisation of
+        # the geometry it was meshed from - and keeps no second display sweep;
+        # the line span that was not volume-meshed keeps drawing its pipe.
         assert model_objects["element:solid"].geometry_asset_id is None
+        assert model_objects["element:solid"].layer_ids == ["analysis_mesh:volume_skin"]
         assert model_objects["element:line"].geometry_asset_id is not None
+        assert "design:volume_solid" not in layers
         assert layers["pipe"].default_visible is True
         assert len(mesh_lines) == 1
         assert mesh_lines[0].metadata["source_ref"] == "element:line"
 
-    def test_volume_skin_replaces_procedural_pipe_geometry(self):
+    def test_volume_skin_is_the_only_solid_in_the_scene(self):
         model = Model("VolumeSkinWithPipe")
         model.add_material("Steel", E=2.1e11, nu=0.3)
         model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
@@ -92,13 +98,18 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
                 "vertices": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
                 "faces": [[0, 1, 2]],
             },
+            geometry_ref="volume_geometry:0123456789abcdef",
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
         layers = {layer.id: layer for layer in scene.layers}
         pipe_objects = [obj for obj in scene.objects if obj.kind == "pipe"]
+        skin = next(obj for obj in scene.objects if obj.kind == "analysis_mesh_surface")
 
         self.assertNotIn("pipe", layers)
+        self.assertNotIn("design:volume_solid", layers)
+        # The mesh skin is the one solid on screen, and it carries the geometry
+        # it discretises, so the scene never shows a second, drifting solid.
         self.assertTrue(layers["analysis_mesh:volume_skin"].default_visible)
         self.assertEqual(len(pipe_objects), 1)
         self.assertIsNone(pipe_objects[0].geometry_asset_id)
@@ -106,6 +117,8 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
         self.assertFalse(
             any(asset.generation_config.get("source") == "tuba.element" for asset in scene.geometry_assets)
         )
+        self.assertEqual(skin.metadata["geometry_ref"], mesh.geometry_ref)
+        self.assertEqual(mesh_identity(mesh)["geometry_ref"], mesh.geometry_ref)
 
     def test_build_scene_adds_native_volume_skin_as_analysis_input(self):
         mesh = AnalysisMesh(
@@ -139,7 +152,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             },
         )
 
-        scene = build_visualization_scene(Model("VolumeSkin"), analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(Model("VolumeSkin"), analysis_meshes=[mesh]))
 
         asset = next(
             asset
@@ -175,7 +188,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             solver_input_identity=None,
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh")
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh"))
         scene.validate()
 
         node_objects = [obj for obj in scene.objects if obj.kind == "analysis_mesh_node"]
@@ -238,7 +251,7 @@ class TestVisualizationAnalysisMesh(unittest.TestCase):
             element_sources={},
         )
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh_diagnostics")
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh], scene_id="scene:analysis_mesh_diagnostics"))
         scene.validate()
 
         diagnostic_codes = {diagnostic.code for diagnostic in scene.diagnostics}

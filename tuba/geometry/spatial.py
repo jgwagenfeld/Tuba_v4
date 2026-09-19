@@ -64,16 +64,6 @@ class SpatialIndex:
         return pairs
 
 
-def bounds_overlap(left: Sequence[float], right: Sequence[float], *, tolerance: float = 0.0) -> bool:
-    left_bounds = coerce_bounds(left)
-    right_bounds = coerce_bounds(right)
-    return all(
-        left_bounds[axis + 3] + tolerance >= right_bounds[axis]
-        and right_bounds[axis + 3] + tolerance >= left_bounds[axis]
-        for axis in range(3)
-    )
-
-
 def coerce_bounds(bounds: Sequence[float]) -> Bounds:
     values = tuple(float(value) for value in bounds)
     if len(values) != 6:

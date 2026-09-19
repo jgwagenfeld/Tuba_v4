@@ -1,4 +1,4 @@
-"""Quantity, weight, cost, and wind-load takeoff helpers."""
+"""Quantity, weight, cost, and wind-area takeoff helpers."""
 
 from __future__ import annotations
 
@@ -72,22 +72,6 @@ def quantity_takeoff(model: TubaModel) -> QuantityTakeoff:
         totals=_sum_records(records),
         groups=_group_totals(model, records),
     )
-
-
-def wind_loads(model: TubaModel, *, pressure_pa: float) -> dict[str, dict[str, float]]:
-    """Report each element's head-on wind force (projected area × pressure), while the solver's
-    wind load on an oblique pipe is the smaller cross-flow load (see CONTEXT.md "Wind load").
-    """
-    loads: dict[str, dict[str, float]] = {}
-    for elem in model.elements:
-        quantities = element_quantities(model, elem)
-        force = quantities.wind_projected_area_m2 * pressure_pa
-        loads[elem.id] = {
-            "projected_area_m2": quantities.wind_projected_area_m2,
-            "pressure_pa": pressure_pa,
-            "force_n": force,
-        }
-    return loads
 
 
 def _sum_records(records: list[QuantityRecord]) -> dict[str, float]:

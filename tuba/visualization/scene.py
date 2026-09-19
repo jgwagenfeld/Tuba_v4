@@ -44,64 +44,6 @@ class SceneDiagnostic:
 
 
 @dataclass
-class SceneMaterial:
-    id: str
-    name: str = ""
-    color: str | None = None
-    opacity: float | None = None
-    extra: dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SceneMaterial":
-        known = {"id", "name", "color", "opacity"}
-        return cls(
-            id=data["id"],
-            name=data.get("name", ""),
-            color=data.get("color"),
-            opacity=data.get("opacity"),
-            extra=_extra(data, known),
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = {"id": self.id}
-        _add_optional(data, "name", self.name, skip_empty=True)
-        _add_optional(data, "color", self.color)
-        _add_optional(data, "opacity", self.opacity)
-        data.update(self.extra)
-        return data
-
-
-@dataclass
-class SceneStyle:
-    id: str
-    material_id: str | None = None
-    color: str | None = None
-    opacity: float | None = None
-    visible: bool = True
-    extra: dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SceneStyle":
-        known = {"id", "material_id", "color", "opacity", "visible"}
-        return cls(
-            id=data["id"],
-            material_id=data.get("material_id"),
-            color=data.get("color"),
-            opacity=data.get("opacity"),
-            visible=data.get("visible", True),
-            extra=_extra(data, known),
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = {"id": self.id, "visible": self.visible}
-        _add_optional(data, "material_id", self.material_id)
-        _add_optional(data, "color", self.color)
-        _add_optional(data, "opacity", self.opacity)
-        data.update(self.extra)
-        return data
-
-
-@dataclass
 class GeometryAsset:
     id: str
     format: str
@@ -156,7 +98,6 @@ class SceneObject:
     metadata: dict[str, Any] = field(default_factory=dict)
     quantities: dict[str, Any] = field(default_factory=dict)
     physical: dict[str, Any] = field(default_factory=dict)
-    style_id: str | None = None
     source: dict[str, Any] = field(default_factory=dict)
     diagnostics: list[SceneDiagnostic] = field(default_factory=list)
     extra: dict[str, Any] = field(default_factory=dict)
@@ -175,7 +116,6 @@ class SceneObject:
             "metadata",
             "quantities",
             "physical",
-            "style_id",
             "source",
             "diagnostics",
         }
@@ -191,7 +131,6 @@ class SceneObject:
             metadata=dict(data.get("metadata", {})),
             quantities=dict(data.get("quantities", {})),
             physical=dict(data.get("physical", {})),
-            style_id=data.get("style_id"),
             source=dict(data.get("source", {})),
             diagnostics=_diagnostics_from_dicts(data.get("diagnostics", [])),
             extra=_extra(data, known),
@@ -207,7 +146,6 @@ class SceneObject:
         _add_optional(data, "metadata", dict(self.metadata), skip_empty=True)
         _add_optional(data, "quantities", dict(self.quantities), skip_empty=True)
         _add_optional(data, "physical", dict(self.physical), skip_empty=True)
-        _add_optional(data, "style_id", self.style_id)
         _add_optional(data, "source", dict(self.source), skip_empty=True)
         _add_optional(data, "diagnostics", [diagnostic.to_dict() for diagnostic in self.diagnostics], skip_empty=True)
         data.update(self.extra)
@@ -220,7 +158,6 @@ class Overlay:
     kind: str
     object_ids: list[str] = field(default_factory=list)
     entity_refs: list[EntityRef] = field(default_factory=list)
-    style_id: str | None = None
     data: dict[str, Any] = field(default_factory=dict)
     visible: bool = True
     name: str = ""
@@ -228,13 +165,12 @@ class Overlay:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Overlay":
-        known = {"id", "kind", "object_ids", "entity_refs", "style_id", "data", "visible", "name"}
+        known = {"id", "kind", "object_ids", "entity_refs", "data", "visible", "name"}
         return cls(
             id=data["id"],
             kind=data["kind"],
             object_ids=list(data.get("object_ids", [])),
             entity_refs=_entity_refs_from_values(data.get("entity_refs", [])),
-            style_id=data.get("style_id"),
             data=dict(data.get("data", {})),
             visible=data.get("visible", True),
             name=data.get("name", ""),
@@ -245,7 +181,6 @@ class Overlay:
         data: dict[str, Any] = {"id": self.id, "kind": self.kind, "visible": self.visible}
         _add_optional(data, "object_ids", list(self.object_ids), skip_empty=True)
         _add_optional(data, "entity_refs", [_entity_ref_to_value(ref) for ref in self.entity_refs], skip_empty=True)
-        _add_optional(data, "style_id", self.style_id)
         _add_optional(data, "data", dict(self.data), skip_empty=True)
         _add_optional(data, "name", self.name, skip_empty=True)
         data.update(self.extra)
@@ -440,11 +375,6 @@ class RouteReview:
     selected_candidate_id: str | None = None
     candidates: list[dict[str, Any]] = field(default_factory=list)
     cost_terms: list[dict[str, Any]] = field(default_factory=list)
-    rule_results: list[dict[str, Any]] = field(default_factory=list)
-    clash_results: list[dict[str, Any]] = field(default_factory=list)
-    support_plan: dict[str, Any] = field(default_factory=dict)
-    structure_plan: dict[str, Any] = field(default_factory=dict)
-    patch_preview: dict[str, Any] = field(default_factory=dict)
     diagnostics: list[SceneDiagnostic] = field(default_factory=list)
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -455,11 +385,6 @@ class RouteReview:
             "selected_candidate_id",
             "candidates",
             "cost_terms",
-            "rule_results",
-            "clash_results",
-            "support_plan",
-            "structure_plan",
-            "patch_preview",
             "diagnostics",
         }
         return cls(
@@ -467,11 +392,6 @@ class RouteReview:
             selected_candidate_id=data.get("selected_candidate_id"),
             candidates=list(data.get("candidates", [])),
             cost_terms=list(data.get("cost_terms", [])),
-            rule_results=list(data.get("rule_results", [])),
-            clash_results=list(data.get("clash_results", [])),
-            support_plan=dict(data.get("support_plan", {})),
-            structure_plan=dict(data.get("structure_plan", {})),
-            patch_preview=dict(data.get("patch_preview", {})),
             diagnostics=_diagnostics_from_dicts(data.get("diagnostics", [])),
             extra=_extra(data, known),
         )
@@ -481,83 +401,7 @@ class RouteReview:
         _add_optional(data, "selected_candidate_id", self.selected_candidate_id)
         _add_optional(data, "candidates", list(self.candidates), skip_empty=True)
         _add_optional(data, "cost_terms", list(self.cost_terms), skip_empty=True)
-        _add_optional(data, "rule_results", list(self.rule_results), skip_empty=True)
-        _add_optional(data, "clash_results", list(self.clash_results), skip_empty=True)
-        _add_optional(data, "support_plan", dict(self.support_plan), skip_empty=True)
-        _add_optional(data, "structure_plan", dict(self.structure_plan), skip_empty=True)
-        _add_optional(data, "patch_preview", dict(self.patch_preview), skip_empty=True)
         _add_optional(data, "diagnostics", [diagnostic.to_dict() for diagnostic in self.diagnostics], skip_empty=True)
-        data.update(self.extra)
-        return data
-
-
-@dataclass
-class AgentProposal:
-    proposal_id: str
-    agent_id: str
-    goal: str
-    rationale: str
-    model_patch: dict[str, Any]
-    before_metrics: dict[str, Any] = field(default_factory=dict)
-    after_metrics: dict[str, Any] = field(default_factory=dict)
-    changed_entity_refs: list[EntityRef] = field(default_factory=list)
-    created_entity_refs: list[EntityRef] = field(default_factory=list)
-    removed_entity_refs: list[EntityRef] = field(default_factory=list)
-    risks: list[str] = field(default_factory=list)
-    approval_state: str = "pending"
-    review_comments: list[dict[str, Any]] = field(default_factory=list)
-    extra: dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AgentProposal":
-        known = {
-            "proposal_id",
-            "agent_id",
-            "goal",
-            "rationale",
-            "model_patch",
-            "before_metrics",
-            "after_metrics",
-            "changed_entity_refs",
-            "created_entity_refs",
-            "removed_entity_refs",
-            "risks",
-            "approval_state",
-            "review_comments",
-        }
-        return cls(
-            proposal_id=data["proposal_id"],
-            agent_id=data["agent_id"],
-            goal=data["goal"],
-            rationale=data["rationale"],
-            model_patch=dict(data.get("model_patch", {})),
-            before_metrics=dict(data.get("before_metrics", {})),
-            after_metrics=dict(data.get("after_metrics", {})),
-            changed_entity_refs=_entity_refs_from_values(data.get("changed_entity_refs", [])),
-            created_entity_refs=_entity_refs_from_values(data.get("created_entity_refs", [])),
-            removed_entity_refs=_entity_refs_from_values(data.get("removed_entity_refs", [])),
-            risks=list(data.get("risks", [])),
-            approval_state=data.get("approval_state", "pending"),
-            review_comments=list(data.get("review_comments", [])),
-            extra=_extra(data, known),
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = {
-            "proposal_id": self.proposal_id,
-            "agent_id": self.agent_id,
-            "goal": self.goal,
-            "rationale": self.rationale,
-            "model_patch": dict(self.model_patch),
-            "approval_state": self.approval_state,
-        }
-        _add_optional(data, "before_metrics", dict(self.before_metrics), skip_empty=True)
-        _add_optional(data, "after_metrics", dict(self.after_metrics), skip_empty=True)
-        _add_optional(data, "changed_entity_refs", [_entity_ref_to_value(ref) for ref in self.changed_entity_refs], skip_empty=True)
-        _add_optional(data, "created_entity_refs", [_entity_ref_to_value(ref) for ref in self.created_entity_refs], skip_empty=True)
-        _add_optional(data, "removed_entity_refs", [_entity_ref_to_value(ref) for ref in self.removed_entity_refs], skip_empty=True)
-        _add_optional(data, "risks", list(self.risks), skip_empty=True)
-        _add_optional(data, "review_comments", list(self.review_comments), skip_empty=True)
         data.update(self.extra)
         return data
 
@@ -620,75 +464,6 @@ class ViewState:
 
 
 @dataclass
-class SceneDiff:
-    diff_id: str
-    base_scene_id: str
-    created_at: str | None = None
-    added_objects: list[SceneObject] = field(default_factory=list)
-    updated_objects: list[SceneObject] = field(default_factory=list)
-    removed_object_ids: list[str] = field(default_factory=list)
-    added_geometry_assets: list[GeometryAsset] = field(default_factory=list)
-    updated_overlays: list[Overlay] = field(default_factory=list)
-    updated_issues: list[Issue] = field(default_factory=list)
-    updated_route_reviews: list[RouteReview] = field(default_factory=list)
-    updated_agent_proposals: list[AgentProposal] = field(default_factory=list)
-    diagnostics: list[SceneDiagnostic] = field(default_factory=list)
-    extra: dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SceneDiff":
-        known = {
-            "diff_id",
-            "base_scene_id",
-            "created_at",
-            "added_objects",
-            "updated_objects",
-            "removed_object_ids",
-            "added_geometry_assets",
-            "updated_overlays",
-            "updated_issues",
-            "updated_route_reviews",
-            "updated_agent_proposals",
-            "diagnostics",
-        }
-        return cls(
-            diff_id=data["diff_id"],
-            base_scene_id=data["base_scene_id"],
-            created_at=data.get("created_at"),
-            added_objects=_objects_from_dicts(data.get("added_objects", [])),
-            updated_objects=_objects_from_dicts(data.get("updated_objects", [])),
-            removed_object_ids=list(data.get("removed_object_ids", [])),
-            added_geometry_assets=_assets_from_dicts(data.get("added_geometry_assets", [])),
-            updated_overlays=_overlays_from_dicts(data.get("updated_overlays", [])),
-            updated_issues=_issues_from_dicts(data.get("updated_issues", [])),
-            updated_route_reviews=_route_reviews_from_dicts(data.get("updated_route_reviews", [])),
-            updated_agent_proposals=_agent_proposals_from_dicts(data.get("updated_agent_proposals", [])),
-            diagnostics=_diagnostics_from_dicts(data.get("diagnostics", [])),
-            extra=_extra(data, known),
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = {"diff_id": self.diff_id, "base_scene_id": self.base_scene_id}
-        _add_optional(data, "created_at", self.created_at)
-        _add_optional(data, "added_objects", [obj.to_dict() for obj in self.added_objects], skip_empty=True)
-        _add_optional(data, "updated_objects", [obj.to_dict() for obj in self.updated_objects], skip_empty=True)
-        _add_optional(data, "removed_object_ids", list(self.removed_object_ids), skip_empty=True)
-        _add_optional(data, "added_geometry_assets", [asset.to_dict() for asset in self.added_geometry_assets], skip_empty=True)
-        _add_optional(data, "updated_overlays", [overlay.to_dict() for overlay in self.updated_overlays], skip_empty=True)
-        _add_optional(data, "updated_issues", [issue.to_dict() for issue in self.updated_issues], skip_empty=True)
-        _add_optional(data, "updated_route_reviews", [review.to_dict() for review in self.updated_route_reviews], skip_empty=True)
-        _add_optional(
-            data,
-            "updated_agent_proposals",
-            [proposal.to_dict() for proposal in self.updated_agent_proposals],
-            skip_empty=True,
-        )
-        _add_optional(data, "diagnostics", [diagnostic.to_dict() for diagnostic in self.diagnostics], skip_empty=True)
-        data.update(self.extra)
-        return data
-
-
-@dataclass
 class VisualizationScene:
     scene_id: str
     model_id: str
@@ -698,16 +473,12 @@ class VisualizationScene:
     coordinate_system: dict[str, Any] = field(default_factory=dict)
     objects: list[SceneObject] = field(default_factory=list)
     geometry_assets: list[GeometryAsset] = field(default_factory=list)
-    materials: list[SceneMaterial] = field(default_factory=list)
-    styles: list[SceneStyle] = field(default_factory=list)
     overlays: list[Overlay] = field(default_factory=list)
     layers: list[SceneLayer] = field(default_factory=list)
     result_fields: list[ResultField] = field(default_factory=list)
     issues: list[Issue] = field(default_factory=list)
     route_reviews: list[RouteReview] = field(default_factory=list)
-    agent_proposals: list[AgentProposal] = field(default_factory=list)
     views: list[ViewState] = field(default_factory=list)
-    scene_diffs: list[SceneDiff] = field(default_factory=list)
     diagnostics: list[SceneDiagnostic] = field(default_factory=list)
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -722,16 +493,12 @@ class VisualizationScene:
             "coordinate_system",
             "objects",
             "geometry_assets",
-            "materials",
-            "styles",
             "overlays",
             "layers",
             "result_fields",
             "issues",
             "route_reviews",
-            "agent_proposals",
             "views",
-            "scene_diffs",
             "diagnostics",
         }
         return cls(
@@ -743,16 +510,12 @@ class VisualizationScene:
             coordinate_system=dict(data.get("coordinate_system", {})),
             objects=_objects_from_dicts(data.get("objects", [])),
             geometry_assets=_assets_from_dicts(data.get("geometry_assets", [])),
-            materials=_materials_from_dicts(data.get("materials", [])),
-            styles=_styles_from_dicts(data.get("styles", [])),
             overlays=_overlays_from_dicts(data.get("overlays", [])),
             layers=[SceneLayer.from_dict(value) for value in data.get("layers", [])],
             result_fields=[ResultField.from_dict(value) for value in data.get("result_fields", [])],
             issues=_issues_from_dicts(data.get("issues", [])),
             route_reviews=_route_reviews_from_dicts(data.get("route_reviews", [])),
-            agent_proposals=_agent_proposals_from_dicts(data.get("agent_proposals", [])),
             views=_views_from_dicts(data.get("views", [])),
-            scene_diffs=_scene_diffs_from_dicts(data.get("scene_diffs", [])),
             diagnostics=_diagnostics_from_dicts(data.get("diagnostics", [])),
             extra=_extra(data, known),
         )
@@ -766,16 +529,12 @@ class VisualizationScene:
             "coordinate_system": dict(self.coordinate_system),
             "objects": [obj.to_dict() for obj in self.objects],
             "geometry_assets": [asset.to_dict() for asset in self.geometry_assets],
-            "materials": [material.to_dict() for material in self.materials],
-            "styles": [style.to_dict() for style in self.styles],
             "overlays": [overlay.to_dict() for overlay in self.overlays],
             "layers": [layer.to_dict() for layer in self.layers],
             "result_fields": [result_field.to_dict() for result_field in self.result_fields],
             "issues": [issue.to_dict() for issue in self.issues],
             "route_reviews": [review.to_dict() for review in self.route_reviews],
-            "agent_proposals": [proposal.to_dict() for proposal in self.agent_proposals],
             "views": [view.to_dict() for view in self.views],
-            "scene_diffs": [diff.to_dict() for diff in self.scene_diffs],
             "diagnostics": [diagnostic.to_dict() for diagnostic in self.diagnostics],
         }
         _add_optional(data, "created_at", self.created_at)
@@ -785,16 +544,12 @@ class VisualizationScene:
     def validate(self) -> None:
         _require_unique("object", [obj.id for obj in self.objects])
         _require_unique("geometry asset", [asset.id for asset in self.geometry_assets])
-        _require_unique("material", [material.id for material in self.materials])
-        _require_unique("style", [style.id for style in self.styles])
         _require_unique("overlay", [overlay.id for overlay in self.overlays])
         _require_unique("issue", [issue.id for issue in self.issues])
         _require_unique("view", [view.id for view in self.views])
 
         object_ids = {obj.id for obj in self.objects}
         asset_ids = {asset.id for asset in self.geometry_assets}
-        style_ids = {style.id for style in self.styles}
-        material_ids = {material.id for material in self.materials}
         view_ids = {view.id for view in self.views}
 
         for obj in self.objects:
@@ -802,8 +557,6 @@ class VisualizationScene:
                 raise SceneValidationError(f"Object {obj.id!r} references missing geometry asset {obj.geometry_asset_id!r}.")
             if obj.parent_id and obj.parent_id not in object_ids:
                 raise SceneValidationError(f"Object {obj.id!r} references missing parent object {obj.parent_id!r}.")
-            if obj.style_id and obj.style_id not in style_ids:
-                raise SceneValidationError(f"Object {obj.id!r} references missing style {obj.style_id!r}.")
 
         for asset in self.geometry_assets:
             for object_id in asset.object_ids:
@@ -820,13 +573,7 @@ class VisualizationScene:
                 if isinstance(height, bool) or not isinstance(height, (int, float)) or not isfinite(height) or height <= 0:
                     raise SceneValidationError(f"Label asset {asset.id!r} requires a positive finite height.")
 
-        for style in self.styles:
-            if style.material_id and style.material_id not in material_ids:
-                raise SceneValidationError(f"Style {style.id!r} references missing material {style.material_id!r}.")
-
         for overlay in self.overlays:
-            if overlay.style_id and overlay.style_id not in style_ids:
-                raise SceneValidationError(f"Overlay {overlay.id!r} references missing style {overlay.style_id!r}.")
             for object_id in overlay.object_ids:
                 if object_id not in object_ids:
                     raise SceneValidationError(f"Overlay {overlay.id!r} references unknown object {object_id!r}.")
@@ -904,14 +651,6 @@ def _assets_from_dicts(values: list[Any]) -> list[GeometryAsset]:
     return [value if isinstance(value, GeometryAsset) else GeometryAsset.from_dict(value) for value in values]
 
 
-def _materials_from_dicts(values: list[Any]) -> list[SceneMaterial]:
-    return [value if isinstance(value, SceneMaterial) else SceneMaterial.from_dict(value) for value in values]
-
-
-def _styles_from_dicts(values: list[Any]) -> list[SceneStyle]:
-    return [value if isinstance(value, SceneStyle) else SceneStyle.from_dict(value) for value in values]
-
-
 def _overlays_from_dicts(values: list[Any]) -> list[Overlay]:
     return [value if isinstance(value, Overlay) else Overlay.from_dict(value) for value in values]
 
@@ -924,16 +663,8 @@ def _route_reviews_from_dicts(values: list[Any]) -> list[RouteReview]:
     return [value if isinstance(value, RouteReview) else RouteReview.from_dict(value) for value in values]
 
 
-def _agent_proposals_from_dicts(values: list[Any]) -> list[AgentProposal]:
-    return [value if isinstance(value, AgentProposal) else AgentProposal.from_dict(value) for value in values]
-
-
 def _views_from_dicts(values: list[Any]) -> list[ViewState]:
     return [value if isinstance(value, ViewState) else ViewState.from_dict(value) for value in values]
-
-
-def _scene_diffs_from_dicts(values: list[Any]) -> list[SceneDiff]:
-    return [value if isinstance(value, SceneDiff) else SceneDiff.from_dict(value) for value in values]
 
 
 def _require_unique(label: str, ids: list[str]) -> None:

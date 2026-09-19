@@ -9,14 +9,15 @@ from typing import Any, Iterable, NamedTuple
 
 from tuba.analysis import AnalysisStudy
 from tuba.analysis.provenance import (
-    MIXED_CODE_ASTER_COMPILER_ID,
-    VOLUME_CODE_ASTER_COMPILER_ID,
     SolverInputIdentity,
     build_solver_input_identity,
 )
+from tuba.geometry.volume import VolumeGeometry, build_volume_geometry
+from tuba.solver.compiler_contract import volume_contract
 from tuba.meshing import build_pipe_volume_mesh
 from tuba.model import PipeSection, TubaModel
 from tuba.solver.aster_comm import _pipe_orientation_vector
+from tuba.solver.code_aster_runtime import write_artifact_text
 from tuba.solver.aster_loads import resolve_operation_field_groups
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
 from tuba.solver.modelisation import PipeModelization
@@ -31,6 +32,7 @@ class VolumeStudyInputs(NamedTuple):
     line_elements: list
     compiler_inputs: dict[str, Any]
     solver_input_identity: SolverInputIdentity
+    geometry: VolumeGeometry
 
 
 def volume_study_inputs(
@@ -55,21 +57,31 @@ def volume_study_inputs(
         raise ValueError("Insulated pipe-volume studies are not supported; use the pipe beam/TUYAU solver so insulation weight is included.")
     ids = tuple(element_ids)
     line_elements = [element for element in model.elements if element.id not in ids]
-    mixed_analysis = bool(line_elements)
-    compiler_inputs = {
-        "element_ids": sorted(ids),
-        **({"line_element_ids": sorted(element.id for element in line_elements)} if mixed_analysis else {}),
-        "element_order": element_order,
-        "max_element_size": float(max_element_size),
-        "export_tensor_stress": bool(export_tensor_stress),
-    }
+    geometry = build_volume_geometry(model, ids)
+    contract = volume_contract(
+        model,
+        element_ids=ids,
+        line_element_ids=[element.id for element in line_elements],
+        element_order=element_order,
+        max_element_size=max_element_size,
+        export_tensor_stress=export_tensor_stress,
+    )
+    compiler_inputs = {**contract.compiler_inputs, "volume_geometry": geometry.to_dict()}
     identity = build_solver_input_identity(
         model,
         load_case_name,
-        compiler_id=(MIXED_CODE_ASTER_COMPILER_ID if mixed_analysis else VOLUME_CODE_ASTER_COMPILER_ID),
+        compiler_id=contract.compiler_id,
         compiler_inputs=compiler_inputs,
     )
-    return VolumeStudyInputs(load_case_name, load_case, ids, line_elements, compiler_inputs, identity)
+    return VolumeStudyInputs(
+        load_case_name,
+        load_case,
+        ids,
+        line_elements,
+        compiler_inputs,
+        identity,
+        geometry,
+    )
 
 
 class PipeVolumeStudyExporter:
@@ -86,7 +98,7 @@ class PipeVolumeStudyExporter:
         element_order: int = 2,
         export_tensor_stress: bool = False,
     ) -> AnalysisStudy:
-        load_case_name, load_case, ids, line_elements, compiler_inputs, identity = volume_study_inputs(
+        load_case_name, load_case, ids, line_elements, compiler_inputs, identity, geometry = volume_study_inputs(
             model,
             load_case_name,
             element_ids=element_ids,
@@ -102,7 +114,7 @@ class PipeVolumeStudyExporter:
         export_path = root / "study.export"
         manifest_path = root / "study_manifest.json"
         sidecar_path = root / "study_tuba_fem.json"
-        _reject_unimplemented_loads(load_case)
+        _reject_unimplemented_loads(load_case, line_elements)
         pressure = _selected_pressure(model, load_case, ids)
 
         generated = build_pipe_volume_mesh(
@@ -111,6 +123,7 @@ class PipeVolumeStudyExporter:
             element_ids=ids,
             max_element_size=max_element_size,
             element_order=element_order,
+            geometry=geometry,
         )
         analysis_mesh = replace(generated.analysis_mesh, solver_input_identity=identity)
         name_map = build_solver_name_map(generated.groups)
@@ -124,6 +137,7 @@ class PipeVolumeStudyExporter:
             support_groups=support_groups,
             couplings=couplings,
             line_elements=line_elements,
+            nodal_forces=load_case.nodal_forces,
             node_groups={
                 name: members[0]
                 for name, members in generated.groups.items()
@@ -254,13 +268,22 @@ def _coupling_groups(
     return tuple(couplings)
 
 
-def _reject_unimplemented_loads(load_case) -> None:
+def _reject_unimplemented_loads(load_case, line_elements: list) -> None:
     if any(field.quantity == "wind" for field in load_case.fields):
         raise ValueError("Pipe-volume wind loading is not implemented.")
     if any(field.quantity == "line_load" for field in load_case.fields):
         raise ValueError("Pipe-volume line loads are not implemented.")
     if load_case.nodal_forces:
-        raise ValueError("Pipe-volume nodal-force coupling is not implemented.")
+        if not line_elements:
+            raise ValueError(
+                "Pipe-volume nodal forces act on the 1D TUYAU_3M remainder; this study is solid-only."
+            )
+        beam_nodes = {node for element in line_elements for node in (element.n1, element.n2)}
+        off_pipe = sorted(force.node for force in load_case.nodal_forces if force.node not in beam_nodes)
+        if off_pipe:
+            raise ValueError(
+                f"Pipe-volume nodal forces must act on nodes of the 1D pipe remainder; got {off_pipe!r}."
+            )
     if abs(load_case.temperature - load_case.ref_temperature) > 1.0e-10:
         raise ValueError("Pipe-volume thermal loading is not implemented.")
     if any(field.quantity == "temperature" for field in load_case.fields):
@@ -276,6 +299,7 @@ def _write_comm(
     support_groups: tuple[tuple[str, str], ...],
     couplings: tuple[tuple[str, str, tuple[float, float, float]], ...],
     line_elements: list,
+    nodal_forces: list,
     node_groups: dict[str, str],
     gravity: bool,
     material_name: str,
@@ -403,6 +427,22 @@ def _write_comm(
         lines.append("    ),")
     lines.append(");")
 
+    if nodal_forces:
+        lines.extend(
+            [
+                "POINT_FORCE = AFFE_CHAR_MECA(",
+                "    MODELE=MODELE,",
+                "    FORCE_NODALE=(",
+            ]
+        )
+        for force in nodal_forces:
+            lines.append("        _F(")
+            lines.append(f"            GROUP_NO='{name_map[f'G_NODE_{force.node}']}',")
+            for name, value in zip(("FX", "FY", "FZ", "MX", "MY", "MZ"), force.components):
+                lines.append(f"            {name}={float(value):.8E},")
+            lines.append("        ),")
+        lines.extend(["    ),", ");"])
+
     excitations = ["_F(CHARGE=BC)"]
     if pressure != 0.0:
         lines.extend(
@@ -436,6 +476,8 @@ def _write_comm(
             ]
         )
         excitations.append("_F(CHARGE=GRAVITY)")
+    if nodal_forces:
+        excitations.append("_F(CHARGE=POINT_FORCE)")
     lines.extend(["RESU = MECA_STATIQUE(", "    MODELE=MODELE,", "    CHAM_MATER=CHMAT,"])
     if mixed:
         lines.append("    CARA_ELEM=CARA,")
@@ -515,7 +557,7 @@ def _write_comm(
             "FIN();",
         ]
     )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_artifact_text(path, "\n".join(lines) + "\n")
 
 
 def _write_export(path: Path, *, export_tensor_stress: bool, mixed_analysis: bool) -> None:
@@ -539,10 +581,7 @@ def _write_export(path: Path, *, export_tensor_stress: bool, mixed_analysis: boo
         files.append("F effo study_effo.csv R 38")
     if export_tensor_stress:
         files.append("F sigm study_sigm.csv R 42")
-    path.write_text(
-        "\n".join(files) + "\n",
-        encoding="utf-8",
-    )
+    write_artifact_text(path, "\n".join(files) + "\n")
 
 
 def _group_lineage(group_name: str) -> str:

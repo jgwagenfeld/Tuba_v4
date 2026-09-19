@@ -3,9 +3,15 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+from tuba.analysis import create_visual_deformed_geometry_state
 from tuba.analysis.staged_run import stage_runs
 from tuba.reporting import build_engineering_review
-from tuba.visualization import build_visualization_scene, write_engineering_review_with_scene
+from tuba.visualization import (
+    add_scene_label,
+    SceneRequest,
+    build_visualization_scene,
+    write_engineering_review_with_scene,
+)
 
 LOAD_CASES = ("Operating",)
 SOLVER_OPTIONS: dict = {}
@@ -40,9 +46,15 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     solved_at = artifact.result_state.metadata["solve_attestation"]["solved_at"]
     operation = artifact.result_state.load_case
     artifact = stage_runs({operation: artifact}, output / "review_scene")[operation]
-    scene = build_visualization_scene(
+    visual_state = create_visual_deformed_geometry_state(
+        model=model,
+        result_state=artifact.result_state,
+        visual_scale=100.0,
+    )
+    scene = build_visualization_scene(SceneRequest(
         model,
         analysis_runs=[artifact],
+        geometry_states=[visual_state],
         field_notes=[
             {
                 "id": "tee_volume_scope",
@@ -53,7 +65,10 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
         ],
         scene_id="scene:pipe_tee_volume_review",
         created_at=solved_at,
-    )
+    ))
+    add_scene_label(scene, "3D Solid Tee (HEXA20)", [0.0, 0.0, 0.21], label_id="label-solid-tee", height=0.035)
+    add_scene_label(scene, "1D Pipe Run (TUYAU_3M)", [0.2, 0.0, -0.05], label_id="label-1d-pipe", height=0.035)
+    add_scene_label(scene, "Kinematic Coupling (3D_TUYAU)", [0.0, 0.17, 0.07], label_id="label-coupling", height=0.035)
     review = build_engineering_review(
         model,
         analysis_runs=[artifact],

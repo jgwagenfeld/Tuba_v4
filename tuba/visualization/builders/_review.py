@@ -1,30 +1,29 @@
-"""Review scene builders: routes, clashes, rules, costs, proposals."""
+"""Review scene builders: routes, clashes, rules, costs."""
 
 from __future__ import annotations
 from typing import Any
 from typing import Iterable
 import numpy as np
 
+from tuba.assemblies import rack_assemblies
 from tuba.model import TubaModel
 from tuba.quantities import quantity_takeoff
 from tuba.refs import EntityRef
 from tuba.clash.types import ClashResult
+from tuba.load_path import GroundedSupportLoad
 from tuba.load_path import LoadPathReport
 from tuba.load_path import SupportRackAssociation
-from tuba.patches import ModelTransaction
 from tuba.routing.types import PipeRouteResult
 from tuba.rules import RuleResult
-from tuba.visualization.scene import AgentProposal
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Issue
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import RouteReview
 from tuba.visualization.scene import SceneDiagnostic
-from tuba.visualization.scene import SceneDiff
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.scene import ViewState
-from tuba.visualization.builders._helpers import SceneBuildOptions, _asset_id, _bounds_for_points, _candidate_length, _clash_envelope_source, _clash_issue_id, _clash_location, _dedupe, _find_element, _issue_severity_for_clash, _object_id, _point_for_refs, _proposal_patch, _reaction_for_association, _route_candidate_entity_id, _route_candidate_ref, _route_candidate_summary, _route_cost_terms, _route_points, _route_segment_to_dict, _rule_issue_id, _safe_bounds_for_points, _safe_id, _support_point, _transform_bounds, _vector_endpoint, model_span
-from tuba.visualization.builders._objects import _build_element_object
+from tuba.visualization.builders._contract import SceneContribution
+from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _candidate_length, _clash_envelope_source, _clash_issue_id, _clash_location, _dedupe, _issue_severity_for_clash, _object_id, _point_for_refs, _reaction_for_association, _route_candidate_entity_id, _route_candidate_ref, _route_candidate_summary, _route_cost_terms, _route_points, _route_segment_to_dict, _rule_issue_id, _safe_bounds_for_points, _safe_id, _support_point, _vector_endpoint, model_span
 
 
 def _build_route_result_scene(
@@ -113,7 +112,9 @@ def _build_route_result_scene(
             for message in result.diagnostics
         ],
     )
-    return objects, assets, overlay, review
+    return SceneContribution(
+        objects=tuple(objects), assets=tuple(assets), overlays=(overlay,), route_reviews=(review,)
+    )
 def _build_clash_issue_scene(
     model: TubaModel,
     clash: ClashResult,
@@ -187,12 +188,6 @@ def _build_clash_issue_scene(
         view_id=view_id,
         source_report_id="clash",
         external_refs={
-            "bcf": {
-                "topic_type": "Clash",
-                "topic_status": "Open",
-                "related_entity_refs": [str(clash.left), str(clash.right)],
-                "labels": ["tuba", "clash", clash.severity],
-            },
             "clash": clash.to_dict(),
             "clash_review": {
                 "focus_object_ids": [*involved_object_ids, marker_id],
@@ -209,7 +204,9 @@ def _build_clash_issue_scene(
         active_overlay_ids=[overlay_id],
         issue_id=issue_id,
     )
-    return marker_object, marker_asset, overlay, issue, view
+    return SceneContribution(
+        objects=(marker_object,), assets=(marker_asset,), overlays=(overlay,), issues=(issue,), views=(view,)
+    )
 def _clash_review_payload(clash: ClashResult, involved_object_ids: list[str]) -> dict[str, Any]:
     metadata = dict(clash.metadata)
     object_pair = [str(clash.left), str(clash.right)]
@@ -310,7 +307,9 @@ def _build_rule_issue_scene(
         active_overlay_ids=[overlay_id],
         issue_id=issue_id,
     )
-    return marker_object, marker_asset, overlay, issue, view
+    return SceneContribution(
+        objects=(marker_object,), assets=(marker_asset,), overlays=(overlay,), issues=(issue,), views=(view,)
+    )
 def _build_cost_quantity_overlays(model: TubaModel, metric: str) -> list[Overlay]:
     takeoff = quantity_takeoff(model)
     values: dict[str, float] = {}
@@ -372,18 +371,31 @@ def _build_load_path_scene(
         load_object_ids.extend([_object_id(association.support), vector_object.id])
         association_payloads.append(association.to_dict())
 
+    for grounded in report.grounded_loads:
+        load_object_ids.append(_object_id(grounded.support))
+        if grounded.force_n is None:
+            continue
+        vector_object, vector_asset = _build_grounded_load_vector(model, report, grounded)
+        objects.append(vector_object)
+        assets.append(vector_asset)
+        load_object_ids.append(vector_object.id)
+
     load_overlays: list[Overlay] = []
-    if report.associations or report.rack_loads:
+    if report.associations or report.rack_loads or report.grounded_loads:
         load_overlays.append(
             Overlay(
                 id="overlay:load_path",
                 kind="load_path",
                 object_ids=_dedupe(load_object_ids),
-                entity_refs=[association.support for association in report.associations],
+                entity_refs=[
+                    *[association.support for association in report.associations],
+                    *[grounded.support for grounded in report.grounded_loads],
+                ],
                 name="Load paths",
                 data={
                     "associations": association_payloads,
                     "rack_loads": {rack: dict(loads) for rack, loads in report.rack_loads.items()},
+                    "grounded_loads": [grounded.to_dict() for grounded in report.grounded_loads],
                     "diagnostics": list(report.diagnostics),
                 },
             )
@@ -402,170 +414,14 @@ def _build_load_path_scene(
         )
         for index, diagnostic in enumerate(report.diagnostics)
     ]
-    return rack_overlays, objects, assets, load_overlays, issues
-def _build_agent_proposal_preview(
-    model: TubaModel,
-    payload: AgentProposal | dict[str, Any],
-    options: SceneBuildOptions,
-    base_scene_id: str,
-) -> tuple[AgentProposal, SceneDiff, list[SceneObject], list[GeometryAsset], Overlay]:
-    proposal_data = payload.to_dict() if isinstance(payload, AgentProposal) else dict(payload)
-    patch_obj, patch_dict = _proposal_patch(proposal_data["model_patch"])
-    preview_model = TubaModel.from_dict(model.to_dict())
-    result = ModelTransaction(preview_model).apply(patch_obj)
-    created_refs = [EntityRef("element", element_id) for element_id in result.element_ids.values()]
-
-    added_objects: list[SceneObject] = []
-    added_assets: list[GeometryAsset] = []
-    for element_id in result.element_ids.values():
-        elem = _find_element(preview_model, element_id)
-        scene_object, asset, _diagnostics, _envelope_objects, _envelope_assets, _envelope_overlays = _build_element_object(
-            preview_model,
-            elem,
-            options,
-            {},
-        )
-        scene_object.metadata = {"proposal_state": "added", "base_kind": scene_object.kind, **scene_object.metadata}
-        scene_object.kind = "proposal_added"
-        added_objects.append(scene_object)
-        added_assets.append(asset)
-
-    proposal = AgentProposal(
-        proposal_id=proposal_data["proposal_id"],
-        agent_id=proposal_data["agent_id"],
-        goal=proposal_data["goal"],
-        rationale=proposal_data["rationale"],
-        model_patch=patch_dict,
-        before_metrics=dict(proposal_data.get("before_metrics", {})),
-        after_metrics={
-            "created_element_count": len(result.element_ids),
-            "created_node_count": len(result.node_ids),
-            **dict(proposal_data.get("after_metrics", {})),
-        },
-        changed_entity_refs=list(proposal_data.get("changed_entity_refs", [])),
-        created_entity_refs=created_refs,
-        removed_entity_refs=list(proposal_data.get("removed_entity_refs", [])),
-        risks=list(proposal_data.get("risks", [])),
-        approval_state=proposal_data.get("approval_state", "pending"),
-        review_comments=list(proposal_data.get("review_comments", [])),
+    return SceneContribution(
+        overlays=tuple([*rack_overlays, *load_overlays]), objects=tuple(objects), assets=tuple(assets), issues=tuple(issues)
     )
-    diff = SceneDiff(
-        diff_id=f"diff:proposal:{proposal.proposal_id}",
-        base_scene_id=base_scene_id,
-        added_objects=added_objects,
-        added_geometry_assets=added_assets,
-    )
-    overlay = Overlay(
-        id=f"overlay:agent_proposal:{proposal.proposal_id}",
-        kind="agent_proposal",
-        object_ids=[obj.id for obj in added_objects],
-        entity_refs=created_refs,
-        name=f"Proposal {proposal.proposal_id}",
-        data={
-            "proposal_id": proposal.proposal_id,
-            "agent_id": proposal.agent_id,
-            "approval_state": proposal.approval_state,
-            "created_entity_refs": [str(ref) for ref in created_refs],
-        },
-    )
-    return proposal, diff, added_objects, added_assets, overlay
-def _build_external_source_scene(source: dict[str, Any]) -> tuple[list[SceneObject], list[GeometryAsset], Overlay]:
-    source_id = str(source["source_id"])
-    transform = dict(source.get("transform", {}))
-    objects: list[SceneObject] = []
-    assets: list[GeometryAsset] = []
-    for item in source.get("objects", []):
-        item_id = str(item["id"])
-        object_id = f"object:external:{_safe_id(source_id)}:{_safe_id(item_id)}"
-        asset_id = f"geometry:external:{_safe_id(source_id)}:{_safe_id(item_id)}"
-        bounds = _transform_bounds(item.get("bounds", []), transform)
-        assets.append(
-            GeometryAsset(
-                id=asset_id,
-                format=item.get("format", "external_bounds"),
-                bounds=bounds,
-                object_ids=[object_id],
-                generation_config={
-                    "source": "external",
-                    "source_id": source_id,
-                    "source_type": source.get("source_type", "external"),
-                    "external_object_id": item_id,
-                    "transform": transform,
-                },
-            )
-        )
-        objects.append(
-            SceneObject(
-                id=object_id,
-                kind="external_context",
-                name=item.get("name", item_id),
-                geometry_asset_id=asset_id,
-                metadata={
-                    "external_object_id": item_id,
-                    "external_kind": item.get("kind", "object"),
-                    **dict(item.get("metadata", {})),
-                },
-                source={
-                    "external": {
-                        "source_id": source_id,
-                        "source_type": source.get("source_type", "external"),
-                        "object_id": item_id,
-                        "transform": transform,
-                    }
-                },
-            )
-        )
-    overlay = Overlay(
-        id=f"overlay:external_source:{_safe_id(source_id)}",
-        kind="external_source",
-        object_ids=[obj.id for obj in objects],
-        name=source.get("name", source_id),
-        data={
-            "source_id": source_id,
-            "source_type": source.get("source_type", "external"),
-            "transform": transform,
-            "object_count": len(objects),
-        },
-    )
-    return objects, assets, overlay
 def _build_field_context_scene(
-    point_clouds: Iterable[dict[str, Any]],
     field_notes: Iterable[dict[str, Any]],
 ) -> tuple[list[SceneObject], list[GeometryAsset], Overlay]:
     objects: list[SceneObject] = []
     assets: list[GeometryAsset] = []
-    for cloud in point_clouds:
-        cloud_id = str(cloud["id"])
-        object_id = f"object:point_cloud:{_safe_id(cloud_id)}"
-        asset_id = f"geometry:point_cloud:{_safe_id(cloud_id)}"
-        assets.append(
-            GeometryAsset(
-                id=asset_id,
-                format="point_cloud",
-                uri=cloud.get("uri", ""),
-                bounds=[float(value) for value in cloud.get("bounds", [])],
-                object_ids=[object_id],
-                generation_config={
-                    "source": "tuba.field_context",
-                    "point_cloud_id": cloud_id,
-                    "point_count": int(cloud.get("point_count", 0)),
-                    "metadata": dict(cloud.get("source", {})),
-                },
-            )
-        )
-        objects.append(
-            SceneObject(
-                id=object_id,
-                kind="point_cloud",
-                name=cloud.get("name", cloud_id),
-                geometry_asset_id=asset_id,
-                metadata={
-                    "point_cloud_id": cloud_id,
-                    "point_count": int(cloud.get("point_count", 0)),
-                    "source": dict(cloud.get("source", {})),
-                },
-            )
-        )
     for note in field_notes:
         note_id = str(note["id"])
         point = [float(value) for value in note.get("position", [0.0, 0.0, 0.0])]
@@ -599,57 +455,29 @@ def _build_field_context_scene(
         kind="field_context",
         object_ids=[obj.id for obj in objects],
         name="Field context",
-        data={"point_cloud_count": len([obj for obj in objects if obj.kind == "point_cloud"]), "field_note_count": len([obj for obj in objects if obj.kind == "field_note"])},
+        data={"field_note_count": len(objects)},
     )
-    return objects, assets, overlay
-def _build_runtime_state_overlay(runtime_states: Iterable[dict[str, Any]]) -> Overlay:
-    timestamps: list[str] = []
-    states_by_time: dict[str, dict[str, Any]] = {}
-    object_ids: list[str] = []
-    for state in runtime_states:
-        timestamp = str(state["timestamp"])
-        timestamps.append(timestamp)
-        object_states: dict[str, Any] = {}
-        for ref_text, values in state.get("states", {}).items():
-            try:
-                object_id = _object_id(EntityRef.parse(ref_text))
-            except ValueError:
-                object_id = f"object:{ref_text}"
-            object_states[object_id] = dict(values)
-            object_ids.append(object_id)
-        states_by_time[timestamp] = object_states
-    return Overlay(
-        id="overlay:runtime_state",
-        kind="runtime_state",
-        object_ids=_dedupe(object_ids),
-        name="Runtime state",
-        data={
-            "timestamps": timestamps,
-            "states": states_by_time,
-        },
-    )
+    return SceneContribution(objects=tuple(objects), assets=tuple(assets), overlays=(overlay,))
 def _build_rack_assembly_overlays(model: TubaModel) -> list[Overlay]:
     overlays: list[Overlay] = []
-    for group_name, group in model.groups.items():
-        metadata = group.get("metadata", {})
-        if metadata.get("assembly_type") != "rack_bay":
-            continue
+    for rack in rack_assemblies(model):
+        group = model.groups.get(rack.group_name, {})
         object_ids = [_object_id(EntityRef("element", element_id)) for element_id in group.get("elements", [])]
         data = {
-            "rack_id": group_name,
-            "assembly_type": metadata.get("assembly_type"),
-            "levels": list(metadata.get("levels", [])),
-            "attachment_points": dict(metadata.get("attachment_points", {})),
+            "rack_id": rack.group_name,
+            "assembly_type": rack.assembly_type,
+            "levels": list(rack.levels),
+            "attachment_points": {name: f"node:{node}" for name, node in rack.attachment_points.items()},
         }
-        if metadata.get("zone") is not None:
-            data["zone"] = metadata["zone"]
+        if rack.zone is not None:
+            data["zone"] = rack.zone
         overlays.append(
             Overlay(
-                id=f"overlay:rack_assembly:{group_name}",
+                id=f"overlay:rack_assembly:{rack.group_name}",
                 kind="rack_assembly",
                 object_ids=object_ids,
-                entity_refs=[EntityRef("group", group_name)],
-                name=f"Rack {group_name}",
+                entity_refs=[EntityRef("group", rack.group_name)],
+                name=f"Rack {rack.group_name}",
                 data=data,
             )
         )
@@ -660,7 +488,55 @@ def _load_path_reference(report: LoadPathReport) -> float:
         float(np.linalg.norm(np.asarray(_reaction_for_association(report, association), dtype=float)))
         for association in report.associations
     ]
+    magnitudes.extend(
+        float(np.linalg.norm(np.asarray(grounded.force_n, dtype=float)))
+        for grounded in report.grounded_loads
+        if grounded.force_n is not None
+    )
     return max([value for value in magnitudes if value > 0.0], default=0.0)
+
+
+def _build_grounded_load_vector(
+    model: TubaModel,
+    report: LoadPathReport,
+    grounded: GroundedSupportLoad,
+) -> tuple[SceneObject, GeometryAsset]:
+    reaction = [float(value) for value in grounded.force_n]
+    start = _support_point(model, grounded.support.id)
+    end = _vector_endpoint(
+        start,
+        reaction,
+        reference=_load_path_reference(report),
+        span=model_span(model),
+    )
+    object_id = f"object:load_path:{grounded.support.id}:ground"
+    asset_id = f"geometry:load_path:{grounded.support.id}:ground"
+    asset = GeometryAsset(
+        id=asset_id,
+        format="vector",
+        bounds=_bounds_for_points([start, end], 0.0),
+        object_ids=[object_id],
+        generation_config={
+            "source": "tuba.load_path",
+            "start": start,
+            "end": end,
+            "reaction_vector_n": reaction,
+            "grounded": grounded.to_dict(),
+        },
+    )
+    obj = SceneObject(
+        id=object_id,
+        kind="load_path_vector",
+        name=f"{grounded.support.id} to ground",
+        geometry_asset_id=asset_id,
+        metadata={
+            "support_id": grounded.support.id,
+            "node_id": grounded.node.id,
+            "target": "ground",
+            "reaction_n": reaction,
+        },
+    )
+    return obj, asset
 
 
 def _build_load_path_vector(

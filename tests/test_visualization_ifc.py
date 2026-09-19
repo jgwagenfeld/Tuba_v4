@@ -1,7 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationIfc(unittest.TestCase):
@@ -18,12 +18,12 @@ class TestVisualizationIfc(unittest.TestCase):
         return model
 
     def test_scene_object_carries_ifc_guid_and_property_set_mapping(self):
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             self._model(),
             ifc_guid_map={"element:pipe_0": "2Y$TubaGuid0000000001"},
             ifc_context={"file": "plant.ifc", "schema": "IFC4"},
             scene_id="scene_ifc",
-        )
+        ))
 
         pipe = next(obj for obj in scene.objects if obj.entity_ref and str(obj.entity_ref) == "element:pipe_0")
         self.assertEqual(pipe.source["ifc"]["guid"], "2Y$TubaGuid0000000001")
@@ -33,7 +33,7 @@ class TestVisualizationIfc(unittest.TestCase):
         self.assertEqual(scene.extra["ifc_context"], {"file": "plant.ifc", "schema": "IFC4"})
 
     def test_scene_build_does_not_require_ifc_mapping(self):
-        scene = build_visualization_scene(self._model(), scene_id="scene_ifc_native")
+        scene = build_visualization_scene(SceneRequest(self._model(), scene_id="scene_ifc_native"))
 
         pipe = next(obj for obj in scene.objects if obj.entity_ref and str(obj.entity_ref) == "element:pipe_0")
         self.assertEqual(pipe.entity_ref.id, "pipe_0")

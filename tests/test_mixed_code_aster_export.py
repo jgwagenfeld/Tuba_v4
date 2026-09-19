@@ -70,10 +70,7 @@ def build_mixed_fixture() -> Model:
     return model
 
 
-def write_box_step(path: Path) -> bool:
-    if importlib.util.find_spec("gmsh") is None:
-        return False
-
+def write_box_step(path: Path) -> None:
     import gmsh
 
     gmsh.initialize()
@@ -84,7 +81,6 @@ def write_box_step(path: Path) -> bool:
         gmsh.write(str(path))
     finally:
         gmsh.finalize()
-    return True
 
 
 class TestMixedCodeAsterExport(unittest.TestCase):
@@ -223,8 +219,7 @@ class TestMixedCodeAsterExport(unittest.TestCase):
         model = build_mixed_fixture()
         with tempfile.TemporaryDirectory() as tmpdir:
             step_path = Path(tmpdir) / "box.step"
-            if not write_box_step(step_path):
-                self.skipTest("gmsh is required for STEP volume MED export.")
+            write_box_step(step_path)
             model.cad_assets["cad_asset_0"] = model.cad_assets["cad_asset_0"].__class__(
                 **{
                     **model.cad_assets["cad_asset_0"].to_dict(),

@@ -11,7 +11,7 @@ from tuba.analysis.staged_run import stage_runs
 from tuba.project import load_project
 from tuba.reporting import build_engineering_review
 from tuba.solver.modelisation import PipeModelization
-from tuba.visualization import build_visualization_scene, write_engineering_review_with_scene
+from tuba.visualization import SceneRequest, build_visualization_scene, write_engineering_review_with_scene
 
 #: The solved tee's own project: this review extends that model rather than copying it.
 TEE_PROJECT = load_project(Path(__file__).resolve().parent / "pipe-tee-volume-review")
@@ -23,25 +23,7 @@ TEE_LINE_ELEMENT_IDS = ("line_left", "line_right", "line_branch")
 
 def build_tee_mixed_model():
     """The tee with TUYAU_3M extensions on all three arms, anchored at the far left end."""
-    model = TEE_PROJECT.run_model()["model"]
-    model.supports.clear()
-    inner_nodes = [model.get_element(element_id).n2 for element_id in TEE_VOLUME_ELEMENT_IDS]
-    outer_nodes = [
-        model.add_node(coords)
-        for coords in ([-0.2, 0.0, 0.0], [0.2, 0.0, 0.0], [0.0, 0.2, 0.0])
-    ]
-    for element_id, inner, outer in zip(TEE_LINE_ELEMENT_IDS, inner_nodes, outer_nodes):
-        model.add_element(
-            id=element_id,
-            type="pipe_straight",
-            n1=inner,
-            n2=outer,
-            section="Header",
-            material="Steel",
-        )
-    model.add_support(outer_nodes[0], type="anchor")
-    model.validate()
-    return model
+    return TEE_PROJECT.run_model()["model"]
 
 
 def run_example(
@@ -61,7 +43,7 @@ def run_example(
     solved_at = run.result_state.metadata["solve_attestation"]["solved_at"]
     operation = run.result_state.load_case
     run = stage_runs({operation: run}, output / "review_scene")[operation]
-    scene = build_visualization_scene(
+    scene = build_visualization_scene(SceneRequest(
         model,
         analysis_runs=[run],
         field_notes=[
@@ -74,7 +56,7 @@ def run_example(
         ],
         scene_id="scene:pipe_tee_mixed_review",
         created_at=solved_at,
-    )
+    ))
     review = build_engineering_review(
         model,
         analysis_runs=[run],

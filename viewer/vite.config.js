@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { defineConfig } from "vite";
@@ -55,22 +55,38 @@ function officialCatalog() {
 }
 
 let shootInFlight = null;
+// An id that fails to shoot is not retried on every request. The dev-only mesh
+// review renders no objects, so its shot never succeeds, and a missing card
+// image is a lesser problem than a server that never answers.
+const thumbnailFailures = new Set();
 function shootMissingThumbnails() {
   if (shootInFlight) return shootInFlight;
   const catalog = officialCatalog();
   const wanted = [...(catalog?.keys() ?? [])].filter(
-    (id) => !existsSync(join(THUMBNAIL_DIR, `${id}.png`))
+    (id) => !existsSync(join(THUMBNAIL_DIR, `${id}.png`)) && !thumbnailFailures.has(id)
   );
   if (wanted.length === 0) return Promise.resolve();
   mkdirSync(THUMBNAIL_DIR, { recursive: true });
   shootInFlight = new Promise((resolve) => {
-    const run = spawnSync(process.execPath, [SHOOTER, THUMBNAIL_DIR, ...wanted], {
+    // Spawn, never spawnSync: a browser launch must not hold the dev server's
+    // event loop, or every other request stalls behind it.
+    const child = spawn(process.execPath, [SHOOTER, THUMBNAIL_DIR, ...wanted], {
       cwd: join(REPO_ROOT, "viewer"),
-      encoding: "utf8",
-      timeout: 180_000
+      stdio: ["ignore", "ignore", "pipe"]
     });
-    if (run.status !== 0) console.warn("[tuba] gallery thumbnails unavailable:", run.stderr?.trim());
-    resolve();
+    const timer = setTimeout(() => child.kill(), 180_000);
+    let stderr = "";
+    child.stderr?.on("data", (chunk) => { stderr += chunk; });
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        for (const id of wanted) {
+          if (!existsSync(join(THUMBNAIL_DIR, `${id}.png`))) thumbnailFailures.add(id);
+        }
+        console.warn("[tuba] gallery thumbnails unavailable:", stderr.trim());
+      }
+      resolve();
+    });
   }).finally(() => {
     shootInFlight = null;
   });
@@ -99,21 +115,18 @@ function bundleManifest() {
       // card drops its image rather than showing a broken one. To see the real
       // pictures locally, run the shooter:
       //   node viewer/scripts/gallery-thumbnails.mjs .build/gallery-thumbnails <id>
-      server.middlewares.use("/gallery", async (request, response, next) => {
+      server.middlewares.use("/gallery", (request, response, next) => {
         const name = (request.url ?? "").split("?")[0].replace(/^\//, "");
         if (!/^[\w.-]+\.png$/.test(name)) return next();
         const file = join(THUMBNAIL_DIR, name);
         if (!existsSync(file)) {
-          // One batch for the whole gallery rather than a browser launch per
-          // card: every request in flight waits on the same shoot.
-          try {
-            await shootMissingThumbnails();
-          } catch {
-            // A dev server that cannot reach a browser still serves the
-            // gallery; the cards simply drop their images.
-          }
+          // Shoot in the background - one batch for the whole gallery rather
+          // than a browser launch per card - and let this request fall through
+          // so the card drops its image instead of every request waiting on a
+          // browser launch.
+          void shootMissingThumbnails();
+          return next();
         }
-        if (!existsSync(file)) return next();
         response.setHeader("content-type", "image/png");
         createReadStream(file).pipe(response);
       });

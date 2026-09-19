@@ -257,8 +257,9 @@ result-import, and display tests.
   endpoint groups, compatible cut-face orientation, and consistent centroid/axis
   geometry. These must be derived and validated, not user-entered free text.
 - The native volume exporter currently allows only anchor supports on selected
-  terminals and rejects nodal and thermal loads
-  ([aster_volume.py](../../tuba/solver/aster_volume.py#L131)). A mixed compiler
+  terminals and rejects thermal loads. Nodal forces are accepted in mixed studies
+  but act on the 1D `TUYAU_3M` remainder, not on solid faces
+  ([aster_volume.py](../../tuba/solver/aster_volume.py)). A mixed compiler
   must reconcile the mature 1D load/support path with 3D face loads.
 - Pressure end effects are the highest load-transfer risk: 1D TUYAU pressure and
   3D surface pressure can under- or over-count axial thrust without explicit

@@ -2,21 +2,17 @@ import unittest
 
 from tuba.refs import EntityRef
 from tuba.visualization import (
-    AgentProposal,
     GeometryAsset,
     Issue,
     Overlay,
     RouteReview,
     SceneDiagnostic,
-    SceneDiff,
-    SceneMaterial,
     SceneObject,
-    SceneStyle,
     ViewState,
     VisualizationScene,
     add_scene_label,
 )
-from tuba.visualization.schema import SceneValidationError, validate_scene_dict
+from tuba.visualization.schema import SceneValidationError
 
 
 class TestVisualizationScene(unittest.TestCase):
@@ -48,8 +44,6 @@ class TestVisualizationScene(unittest.TestCase):
                     generation_config={"segments": 16},
                 )
             ],
-            materials=[SceneMaterial(id="mat_pipe", name="Pipe", color="#4c78a8")],
-            styles=[SceneStyle(id="style_pipe", material_id="mat_pipe")],
             overlays=[Overlay(id="overlay_clearance", kind="clearance", object_ids=["object_pipe_0"])],
             issues=[
                 Issue(
@@ -68,18 +62,6 @@ class TestVisualizationScene(unittest.TestCase):
                     selected_candidate_id="candidate_0",
                     candidates=[{"id": "candidate_0", "length_m": 1.0}],
                     cost_terms=[{"name": "length", "total": 1.0}],
-                )
-            ],
-            agent_proposals=[
-                AgentProposal(
-                    proposal_id="proposal_001",
-                    agent_id="agent_a",
-                    goal="route pipe",
-                    rationale="shortest valid route",
-                    model_patch={"operations": []},
-                    before_metrics={"cost": 2.0},
-                    after_metrics={"cost": 1.0},
-                    changed_entity_refs=[EntityRef("route", "P-100")],
                 )
             ],
             views=[ViewState(id="view_issue_001", name="Issue 001", camera={"position": [1.0, 2.0, 3.0]})],
@@ -110,7 +92,7 @@ class TestVisualizationScene(unittest.TestCase):
         scene.geometry_assets[0].object_ids = ["object_pipe_0", "ghost_object"]
 
         with self.assertRaisesRegex(SceneValidationError, "unknown object"):
-            validate_scene_dict(scene.to_dict())
+            VisualizationScene.from_dict(scene.to_dict()).validate()
 
     def test_scene_preserves_unknown_future_top_level_fields(self):
         payload = self._minimal_scene().to_dict()
@@ -121,23 +103,28 @@ class TestVisualizationScene(unittest.TestCase):
         self.assertEqual(restored.extra["x_future_viewer_state"], {"enabled": True})
         self.assertEqual(restored.to_dict()["x_future_viewer_state"], {"enabled": True})
 
-    def test_scene_diff_roundtrips_changed_objects_and_diagnostics(self):
-        pipe = self._minimal_scene().objects[0]
-        diff = SceneDiff(
-            diff_id="diff_001",
-            base_scene_id="scene_001",
-            created_at="2026-06-20T12:01:00Z",
-            updated_objects=[pipe],
-            removed_object_ids=["object_old"],
-            diagnostics=[SceneDiagnostic(severity="warning", message="partial rebuild")],
-        )
-
-        restored = SceneDiff.from_dict(diff.to_dict())
-
-        self.assertEqual(restored.diff_id, "diff_001")
-        self.assertEqual(restored.updated_objects[0].entity_ref, EntityRef("element", "pipe_0"))
-        self.assertEqual(restored.removed_object_ids, ["object_old"])
-        self.assertEqual(restored.to_dict(), diff.to_dict())
+    def test_scene_with_retired_keys_still_loads_and_round_trips(self):
+        data = {
+            "scene_id": "legacy",
+            "model_id": "model",
+            "objects": [{"id": "pipe", "kind": "pipe", "style_id": "pipe"}],
+            "overlays": [{"id": "clearance", "kind": "clearance", "object_ids": ["pipe"], "style_id": "pipe"}],
+            "route_reviews": [{"request_id": "P-100", "patch_preview": {"operations": []}}],
+            "materials": [{"id": "steel"}],
+            "styles": [{"id": "pipe", "material_id": "steel"}],
+            "agent_proposals": [{"proposal_id": "p1"}],
+            "scene_diffs": [{"diff_id": "d1", "base_scene_id": "legacy"}],
+        }
+        scene = VisualizationScene.from_dict(data)
+        scene.validate()
+        restored = scene.to_dict()
+        for key in ("materials", "styles", "agent_proposals", "scene_diffs"):
+            self.assertEqual(scene.extra[key], data[key])
+            self.assertEqual(restored[key], data[key])
+        self.assertEqual(scene.objects[0].extra, {"style_id": "pipe"})
+        self.assertEqual(restored["objects"][0]["style_id"], "pipe")
+        self.assertEqual(restored["overlays"][0]["style_id"], "pipe")
+        self.assertEqual(restored["route_reviews"][0]["patch_preview"], {"operations": []})
 
     def test_scene_label_adds_accessible_object_asset_and_shared_layer(self):
         scene = self._minimal_scene()
@@ -158,7 +145,7 @@ class TestVisualizationScene(unittest.TestCase):
         payload["objects"].append({"id": "label:bad", "kind": "scene_label", "name": "Bad", "geometry_asset_id": "geometry:label:bad"})
         payload["geometry_assets"].append({"id": "geometry:label:bad", "format": "label", "object_ids": ["label:bad"], "generation_config": {"text": "Bad", "position": [0, float("inf"), 0], "height": 1}})
         with self.assertRaisesRegex(SceneValidationError, "finite three-number position"):
-            validate_scene_dict(payload)
+            VisualizationScene.from_dict(payload).validate()
 
 
 if __name__ == "__main__":

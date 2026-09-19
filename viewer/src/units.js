@@ -106,6 +106,21 @@ export function formatValue(value, unit, systemId = DEFAULT_UNIT_SYSTEM) {
   return formatNumber(toDisplay(value, unit, systemId));
 }
 
+// Elapsed wall time, for the header clock that runs while Code_Aster does.
+// m:ss below an hour and h:mm:ss above it, because a solve that has passed an
+// hour is a different fact from one that has passed nine minutes and the
+// reader should not have to divide to learn which they are looking at.
+// Seconds stay two-digit so the width does not change as the count climbs.
+export function formatElapsed(milliseconds) {
+  const total = Math.floor(numeric(milliseconds) / 1000);
+  if (!Number.isFinite(total) || total < 0) return "";
+  const seconds = String(total % 60).padStart(2, "0");
+  const minutes = Math.floor(total / 60) % 60;
+  const hours = Math.floor(total / 3600);
+  if (!hours) return `${minutes}:${seconds}`;
+  return `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`;
+}
+
 // Four significant figures. Enough to keep 114.3 mm and 0.006020 m from
 // collapsing to the same precision, few enough that a legend tick stays short.
 // Exponential only where a plain decimal would be unreadable.

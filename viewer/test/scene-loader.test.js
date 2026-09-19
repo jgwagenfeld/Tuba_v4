@@ -7,7 +7,6 @@ import * as sceneLoaderModule from "../src/sceneLoader.js";
 
 import {
   createViewerState,
-  loadSceneBundle,
   loadSceneBundleFromUrl,
   setLayerVisibility,
   categoryForLayerId,
@@ -71,10 +70,7 @@ async function createFixtureBundle() {
     styles: [],
     overlays: [],
     issues: [],
-    route_reviews: [],
-    agent_proposals: [],
     views: [],
-    scene_diffs: [],
     diagnostics: []
   };
   await writeFile(join(root, "scene.json"), JSON.stringify(scene), "utf8");
@@ -90,8 +86,19 @@ async function createFixtureBundle() {
   return root;
 }
 
+// Reads the folder the way a static host serves it: the file, or a 404.
+function loadFixtureBundle(root) {
+  return loadSceneBundleFromUrl(root, async (path) => {
+    try {
+      return new Response(await readFile(path, "utf8"));
+    } catch {
+      return new Response("", { status: 404 });
+    }
+  });
+}
+
 test("loads scene bundle files and geometry payloads", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
+  const bundle = await loadFixtureBundle(await createFixtureBundle());
 
   assert.equal(bundle.scene.scene_id, "scene_001");
   assert.equal(bundle.objects.length, 1);
@@ -100,7 +107,7 @@ test("loads scene bundle files and geometry payloads", async () => {
 });
 
 test("creates viewer state with visible layers and scene bounds", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
+  const bundle = await loadFixtureBundle(await createFixtureBundle());
 
   const state = createViewerState(bundle);
 
@@ -319,7 +326,7 @@ test("uses complete manifest geometry and fetches only stripped payload formats"
 });
 
 test("updates layer visibility without mutating prior state", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
+  const bundle = await loadFixtureBundle(await createFixtureBundle());
   const state = createViewerState(bundle);
 
   const next = setLayerVisibility(state, "pipe", false);
@@ -481,15 +488,27 @@ test("categorizeLayers orders categories and collapses mesh groups", () => {
   assert.deepEqual(design.leaves, [{ layerId: "pipe", label: "Pipe", count: 105 }]);
   assert.deepEqual(design.groups, []);
 
+  // A layer's own label (the scene writes it) is what the tree shows.
   const mesh = categories.find((category) => category.id === "analysis_mesh");
   assert.deepEqual(mesh.layerIds, ["analysis_mesh:nodes", "analysis_mesh:group:GN_N0", "analysis_mesh:group:MAT_Steel"]);
-  assert.deepEqual(mesh.leaves, [{ layerId: "analysis_mesh:nodes", label: "Nodes", count: 71 }]);
+  assert.deepEqual(mesh.leaves, [
+    { layerId: "analysis_mesh:nodes", label: "Analysis Mesh Nodes", count: 71 }
+  ]);
   assert.equal(mesh.groups.length, 1);
   assert.equal(mesh.groups[0].label, "Groups");
   assert.deepEqual(mesh.groups[0].leaves, [
-    { layerId: "analysis_mesh:group:GN_N0", label: "Nodes: N0", count: 1 },
-    { layerId: "analysis_mesh:group:MAT_Steel", label: "Material: Steel", count: 105 }
+    { layerId: "analysis_mesh:group:GN_N0", label: "Analysis Mesh Group GN N0", count: 1 },
+    { layerId: "analysis_mesh:group:MAT_Steel", label: "Analysis Mesh Group MAT Steel", count: 105 }
   ]);
+});
+
+test("a layer without its own label falls back to the leaf rule", () => {
+  const categories = categorizeLayers({
+    "analysis_mesh:group:GN_N0": { id: "analysis_mesh:group:GN_N0", count: 1, source: "object" }
+  });
+
+  const mesh = categories.find((category) => category.id === "analysis_mesh");
+  assert.deepEqual(mesh.groups[0].leaves, [{ layerId: "analysis_mesh:group:GN_N0", label: "Nodes: N0", count: 1 }]);
 });
 
 // The tree used to read as a list of solver identifiers with their capitals
@@ -535,7 +554,7 @@ test("categorizeLayers gives the support layer its engineering label", () => {
     support: {
       id: "support",
       category: "design",
-      label: "Support",
+      label: "Supports / constraints",
       visible: true,
       count: 4,
       source: "object",
@@ -587,19 +606,6 @@ test("task presets keep scene-declared analytical layers hidden", () => {
 
   assert.equal(resultsState.layers.pipe.visible, true);
   assert.equal(resultsState.layers["physical_envelope:clearance"].visible, false);
-});
-
-test("scene loader carries the authoring script uri into viewer state", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
-  bundle.scene.source_uri = "source.py";
-
-  assert.equal(createViewerState(bundle).sourceUri, "source.py");
-});
-
-test("scene loader reports no authoring script when the bundle omits one", async () => {
-  const bundle = await loadSceneBundle(await createFixtureBundle());
-
-  assert.equal(createViewerState(bundle).sourceUri, null);
 });
 
 test("large URL bundles bound active geometry reads, preserve every payload, and propagate failures", async () => {

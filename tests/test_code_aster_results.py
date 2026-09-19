@@ -7,7 +7,7 @@ from unittest.mock import patch
 import numpy as np
 
 from tuba import Model
-from tuba.solver.aster import CodeAsterSolver
+from tuba.solver import parse_tables
 
 
 class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
@@ -30,7 +30,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             root.joinpath("study_sieq.csv").write_text(
                 "MAILLE,NOEUD,VMIS\n", encoding="utf-8"
             )
-            return CodeAsterSolver()._parse_results(model, root)
+            return parse_tables.parse_results(model, root)
 
     def _parse_single_pipe_forces(self, force_table: str):
         model = Model(project_name="InvalidInternalForces")
@@ -61,7 +61,32 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             root.joinpath("study_sieq.csv").write_text(
                 "MAILLE,NOEUD,VMIS\n", encoding="utf-8"
             )
-            return CodeAsterSolver()._parse_results(model, root)
+            return parse_tables.parse_results(model, root)
+
+    def test_table_parsers_need_no_solver_instance(self):
+        # The parse seam lives in tuba.solver.parse_tables; the solver only delegates.
+        from tuba.solver import parse_tables
+
+        model = Model(project_name="SeamProbe")
+        node_id = model.add_node([0.0, 0.0, 0.0])
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            root.joinpath("study_depl.csv").write_text(
+                "NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n"
+                f"{node_id},1.0,0.0,0.0,0.0,0.0,0.0\n",
+                encoding="utf-8",
+            )
+            rows = parse_tables.parse_result_table(root / "study_depl.csv")
+            self.assertEqual(rows[0]["DX"], "1.0")
+            from tuba.solver.base import FEAResults, NodeResult
+
+            import numpy as np
+
+            results = FEAResults(solver_name="Code_Aster")
+            results.node_results[node_id] = NodeResult(node_id=node_id, displacement=np.zeros(6))
+            covered = parse_tables.parse_depl_table(model, root, results, {}, set())
+            self.assertEqual(covered, {node_id})
+            self.assertAlmostEqual(float(results.node_results[node_id].displacement[0]), 1.0)
 
     def test_depl_parser_rejects_unavailable_translation(self):
         with self.assertRaisesRegex(
@@ -104,7 +129,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             root.joinpath("study_reac.csv").write_text("NOEUD,DX,DY,DZ,DRX,DRY,DRZ\n", encoding="utf-8")
             root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
 
-            results = CodeAsterSolver()._parse_results(model, root)
+            results = parse_tables.parse_results(model, root)
 
         self.assertTrue(np.allclose(results.get_displacement(n1)[:3], [0.001, 0.002, 0.003]))
         self.assertTrue(np.isnan(results.get_displacement(n1)[3:]).all())
@@ -142,7 +167,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             )
             root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
 
-            results = CodeAsterSolver()._parse_results(model, root)
+            results = parse_tables.parse_results(model, root)
 
         self.assertEqual(results.get_forces("bar_0")["n1"][0], 100.0)
         self.assertTrue(np.isnan(results.get_forces("bar_0")["n1"][1:]).all())
@@ -189,7 +214,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                 RuntimeError,
                 r"invalid internal-force component VY='-'.*beam_0:N0.*finite",
             ):
-                CodeAsterSolver()._parse_results(model, root)
+                parse_tables.parse_results(model, root)
 
     def test_effo_parser_rejects_missing_moment_component(self):
         with self.assertRaisesRegex(
@@ -272,8 +297,21 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                 "pipe_bend_0_sbogus,N0,999.0\n",
                 encoding="utf-8",
             )
+            root.joinpath("study_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "analysis_mesh": {
+                            "element_sources": {
+                                "pipe_bend_0_s0": {"source_ref": {"kind": "element", "id": "pipe_bend_0"}},
+                                "pipe_bend_0_s15": {"source_ref": {"kind": "element", "id": "pipe_bend_0"}},
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
 
-            results = CodeAsterSolver()._parse_results(model, root)
+            results = parse_tables.parse_results(model, root)
 
         self.assertEqual(results.get_forces("pipe_bend_0")["n1"][0], 100.0)
         self.assertEqual(results.get_forces("pipe_bend_0")["n2"][0], 101.0)
@@ -327,7 +365,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            results = CodeAsterSolver()._parse_results(model, Path(tmpdir))
+            results = parse_tables.parse_results(model, Path(tmpdir))
 
         self.assertTrue(np.allclose(results.get_displacement("N0")[:3], [0.001, 0.0, 0.0]))
         self.assertNotIn("pipe_bend_0_n1", results.node_results)
@@ -365,7 +403,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            results = CodeAsterSolver()._parse_results(model, root)
+            results = parse_tables.parse_results(model, root)
 
         self.assertIn("unmapped_analysis_node", results.analysis_node_results)
         self.assertIn("without mesh source mapping", " ".join(results.parser_diagnostics))
@@ -387,7 +425,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             Path(tmpdir, "study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
 
             with self.assertRaises(RuntimeError):
-                CodeAsterSolver()._parse_results(model, Path(tmpdir))
+                parse_tables.parse_results(model, Path(tmpdir))
 
     def test_parse_raises_on_empty_force_results(self):
         """Displacement present but no internal forces must fail loudly, not pass compliance on zeros."""
@@ -412,7 +450,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             Path(tmpdir, "study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
 
             with self.assertRaises(RuntimeError):
-                CodeAsterSolver()._parse_results(model, Path(tmpdir))
+                parse_tables.parse_results(model, Path(tmpdir))
 
     def test_parse_raises_on_partial_displacement_results(self):
         model = Model(project_name="PartialDisplacements")
@@ -438,7 +476,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
 
             with self.assertRaisesRegex(RuntimeError, "missing displacement results.*N1"):
-                CodeAsterSolver()._parse_results(model, root)
+                parse_tables.parse_results(model, root)
 
     def test_parse_raises_when_pipe_force_endpoint_is_missing(self):
         model = Model(project_name="PartialForces")
@@ -465,7 +503,7 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             root.joinpath("study_sieq.csv").write_text("MAILLE,NOEUD,VMIS\n", encoding="utf-8")
 
             with self.assertRaisesRegex(RuntimeError, "missing internal-force results.*pipe_0:N1"):
-                CodeAsterSolver()._parse_results(model, root)
+                parse_tables.parse_results(model, root)
 
     def test_parse_result_tables_does_not_auto_open_rmed(self):
         model = Model(project_name="RmedBoundary")
@@ -502,10 +540,9 @@ class TestCodeAsterGeneratedMeshResults(unittest.TestCase):
             (root / "study.rmed").write_bytes(b"fake-rmed")
 
             with patch.dict("sys.modules", {"meshio": FakeMeshio}):
-                results = CodeAsterSolver()._parse_results(model, root)
+                results = parse_tables.parse_results(model, root)
 
             self.assertEqual(root / "study.rmed", results.result_file)
-            self.assertIsNone(results.raw_mesh)
 
         self.assertEqual([], calls)
 

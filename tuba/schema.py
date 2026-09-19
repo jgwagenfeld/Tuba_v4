@@ -10,6 +10,46 @@ class SchemaValidationError(ValueError):
     """Raised when a JSON-like payload does not match a Tuba schema."""
 
 
+# One property table per record, shared by the model schema and the patch schema:
+# a field added to Element or Support is described once here. The patches drop the
+# model-assigned id and add their own local_id/id_prefix around the same fields;
+# tests/test_record_fanout.py pins these tables against the dataclasses.
+_ELEMENT_PROPERTIES = {
+    "id": {"type": "string"},
+    "type": {"enum": ["pipe_straight", "pipe_bend", "beam", "bar", "cable"]},
+    "n1": {"type": "string"},
+    "n2": {"type": "string"},
+    "section": {"type": "string"},
+    "material": {"type": "string"},
+    "bend_radius": {"type": "number"},
+    "bend_angle": {"type": "number"},
+    "bend_geometry": {"$ref": "#/$defs/bendGeometry"},
+    "twist_angle": {"type": "number"},
+    "route_id": {"type": "string"},
+    "station_start": {"type": "number"},
+    "station_end": {"type": "number"},
+}
+_PATCH_ELEMENT_PROPERTIES = {key: value for key, value in _ELEMENT_PROPERTIES.items() if key != "id"}
+
+_SUPPORT_PROPERTIES = {
+    "node": {"type": "string"},
+    "type": {"type": "string"},
+    "id": {"type": "string"},
+    "direction": {"$ref": "#/$defs/vector3"},
+    "stiffness": {"type": "number"},
+    "imposed_displacement": {"$ref": "#/$defs/vector3"},
+    "stiffness_matrix": {"type": "array", "items": {"type": "number"}},
+    "blocked_dof": {"type": "array"},
+    "mass": {"type": "number"},
+    "friction_coefficient": {"type": "number"},
+    "gap": {"type": "number", "minimum": 0},
+    "normal_stiffness": {"type": "number", "exclusiveMinimum": 0},
+    "tangential_stiffness": {"type": "number", "exclusiveMinimum": 0},
+    "attached_to": {"type": "string"},
+}
+_PATCH_SUPPORT_PROPERTIES = {key: value for key, value in _SUPPORT_PROPERTIES.items() if key != "id"}
+
+
 MODEL_SCHEMA_V4 = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "TubaModelV4",
@@ -115,21 +155,7 @@ MODEL_SCHEMA_V4 = {
             "items": {
                 "type": "object",
                 "required": ["id", "type", "n1", "n2", "section", "material"],
-                "properties": {
-                    "id": {"type": "string"},
-                    "type": {"enum": ["pipe_straight", "pipe_bend", "beam", "bar", "cable"]},
-                    "n1": {"type": "string"},
-                    "n2": {"type": "string"},
-                    "section": {"type": "string"},
-                    "material": {"type": "string"},
-                    "bend_radius": {"type": "number"},
-                    "bend_angle": {"type": "number"},
-                    "bend_geometry": {"$ref": "#/$defs/bendGeometry"},
-                    "twist_angle": {"type": "number"},
-                    "route_id": {"type": "string"},
-                    "station_start": {"type": "number"},
-                    "station_end": {"type": "number"},
-                },
+                "properties": _ELEMENT_PROPERTIES,
                 "additionalProperties": True,
             },
         },
@@ -138,22 +164,7 @@ MODEL_SCHEMA_V4 = {
             "items": {
                 "type": "object",
                 "required": ["node", "type"],
-                "properties": {
-                    "node": {"type": "string"},
-                    "type": {"type": "string"},
-                    "id": {"type": "string"},
-                    "direction": {"$ref": "#/$defs/vector3"},
-                    "stiffness": {"type": "number"},
-                    "imposed_displacement": {"$ref": "#/$defs/vector3"},
-                    "stiffness_matrix": {"type": "array", "items": {"type": "number"}},
-                    "blocked_dof": {"type": "array"},
-                    "mass": {"type": "number"},
-                    "friction_coefficient": {"type": "number"},
-                    "gap": {"type": "number", "minimum": 0},
-                    "normal_stiffness": {"type": "number", "exclusiveMinimum": 0},
-                    "tangential_stiffness": {"type": "number", "exclusiveMinimum": 0},
-                    "attached_to": {"type": "string"},
-                },
+                "properties": _SUPPORT_PROPERTIES,
                 "additionalProperties": True,
             },
         },
@@ -511,28 +522,6 @@ MODEL_SCHEMA_V4 = {
             },
             "additionalProperties": False,
         },
-        "bendGeometry": {
-            "type": "object",
-            "required": [
-                "center",
-                "normal",
-                "radius",
-                "angle",
-                "start_tangent",
-                "end_tangent",
-                "generation_mode",
-            ],
-            "properties": {
-                "center": {"$ref": "#/$defs/vector3"},
-                "normal": {"$ref": "#/$defs/vector3"},
-                "radius": {"type": "number", "exclusiveMinimum": 0.0},
-                "angle": {"type": "number"},
-                "start_tangent": {"$ref": "#/$defs/vector3"},
-                "end_tangent": {"$ref": "#/$defs/vector3"},
-                "generation_mode": {"type": "string"},
-            },
-            "additionalProperties": False,
-        },
         "vector3": {
             "type": "array",
             "minItems": 3,
@@ -577,18 +566,7 @@ PATCH_SCHEMA_V1 = {
                         "properties": {
                             "op": {"const": "add_element"},
                             "local_id": {"type": "string"},
-                            "type": {"enum": ["pipe_straight", "pipe_bend", "beam", "bar", "cable"]},
-                            "n1": {"type": "string"},
-                            "n2": {"type": "string"},
-                            "section": {"type": "string"},
-                            "material": {"type": "string"},
-                            "bend_radius": {"type": "number"},
-                            "bend_angle": {"type": "number"},
-                            "bend_geometry": {"$ref": "#/$defs/bendGeometry"},
-                            "twist_angle": {"type": "number"},
-                            "route_id": {"type": "string"},
-                            "station_start": {"type": "number"},
-                            "station_end": {"type": "number"},
+                            **_PATCH_ELEMENT_PROPERTIES,
                             "id_prefix": {"type": "string"},
                         },
                         "additionalProperties": False,
@@ -598,22 +576,7 @@ PATCH_SCHEMA_V1 = {
                         "required": ["op", "node", "type"],
                         "properties": {
                             "op": {"const": "add_support"},
-                            "node": {"type": "string"},
-                            "type": {"type": "string"},
-                            "direction": {"$ref": "#/$defs/vector3"},
-                            "stiffness": {"type": "number"},
-                            "imposed_displacement": {"$ref": "#/$defs/vector3"},
-                            "stiffness_matrix": {
-                                "type": "array",
-                                "items": {"type": "number"},
-                            },
-                            "blocked_dof": {"type": "array"},
-                            "mass": {"type": "number"},
-                            "friction_coefficient": {"type": "number"},
-                            "gap": {"type": "number", "minimum": 0},
-                            "normal_stiffness": {"type": "number", "exclusiveMinimum": 0},
-                            "tangential_stiffness": {"type": "number", "exclusiveMinimum": 0},
-                            "attached_to": {"type": "string"},
+                            **_PATCH_SUPPORT_PROPERTIES,
                         },
                         "additionalProperties": False,
                     },

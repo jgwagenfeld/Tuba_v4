@@ -17,7 +17,7 @@ Tuba v4 has one production workflow:
 | Model authoring | `tuba.model`, `tuba.builder` | Validated piping and operation records |
 | Study generation and execution | `tuba.solver` | Native Tuba export plus external Code_Aster execution |
 | Artifact import | `tuba.analysis` | Provenance-checked parsed solver evidence |
-| Engineering review | `tuba.reporting` | Tables, diagnostics, compliance status, and report outputs |
+| Engineering review | `tuba.reporting` | Tables, diagnostics, and report outputs |
 | PyVista quick-look | `tuba/plotting/` | Interactive/notebook result views and PLY, glTF, or Blender export |
 | Reviewable web scene | `tuba/visualization/` and `viewer/` | Portable semantic scene and browser review bundle |
 

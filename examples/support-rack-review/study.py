@@ -4,11 +4,18 @@ from pathlib import Path
 
 from examples.code_aster_artifact_review import run_example, solve_or_import
 from tuba.rules import SupportSpacingRule
+from tuba.visualization import add_scene_label
 
 LOAD_CASES = ("Operating",)
 SOLVER_OPTIONS: dict = {}
 ARTIFACT_DIR = Path(__file__).resolve().parent / "evidence" / LOAD_CASES[0]
 VOLUME_EXPORT = None
+
+
+def _add_rack_labels(scene):
+    add_scene_label(scene, "Rest shoe on rack beam (μ = 0.3)", [0.0, 0.0, 3.55], label_id="label-shoe-left", height=0.18)
+    add_scene_label(scene, "Rack Crossbeam (IPE100)", [0.0, -0.6, 3.20], label_id="label-crossbeam", height=0.18)
+    add_scene_label(scene, "Distributed line load: 350 N/m (Z-)", [2.0, 0.0, 3.55], label_id="label-line-load", height=0.18)
 
 
 def build_review(namespace, output, *, artifact_dir=None, force=False):
@@ -26,6 +33,7 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
         # span exceeds it, so the review carries a design-rule annotation beside
         # its solver evidence.
         model_rules=[SupportSpacingRule(max_span_m=3.5)],
+        scene_modifier=_add_rack_labels,
         source=namespace["__file__"],
     )
     return Path(summary["bundle_root"])

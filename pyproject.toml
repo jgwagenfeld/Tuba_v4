@@ -33,6 +33,7 @@ dependencies = [
 
 [project.scripts]
 tuba-viewer = "tuba.visualization.viewer:main"
+tuba-skill = "tuba.skills:main"
 
 [project.optional-dependencies]
 # PyVista (pulls VTK, ~100 MB) backs the tuba.plotting quick-look/export path
@@ -103,4 +104,5 @@ include = ["tuba*"]
 
 [tool.setuptools.package-data]
 "tuba.sections" = ["data/*.input", "data/*.output"]
+"tuba.skills" = ["**/*.md"]
 "tuba.visualization" = ["_viewer/*", "_viewer/assets/*", "_viewer/licenses/*"]

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass
 from typing import Any
+
+from tuba.canonical import canonical_digest
 
 
 MODEL_SCHEMA_ID = "tuba.model.v4"
@@ -53,6 +53,20 @@ class SolverInputIdentity:
         )
 
 
+# The solver reads group names (they are reserved in the compiler) and group
+# members (operation fields scope to member elements). Group metadata is rack
+# and inspection annotation the solver never reads, so it must not move the
+# fingerprint - W1 watched rack attachment points stale solved bridge evidence.
+_GROUP_MEMBER_KEYS = ("nodes", "elements", "supports")
+
+
+def _solver_groups_projection(groups: dict[str, Any]) -> dict[str, Any]:
+    return {
+        name: {key: list(group[key]) for key in _GROUP_MEMBER_KEYS if group.get(key)}
+        for name, group in groups.items()
+    }
+
+
 def build_solver_input_identity(
     model: Any,
     load_case: str | None,
@@ -68,25 +82,28 @@ def build_solver_input_identity(
         if compiler_id in {VOLUME_CODE_ASTER_COMPILER_ID, MIXED_CODE_ASTER_COMPILER_ID}
         else ()
     )
+    model_payload = {key: model_data.get(key) for key in model_keys}
+    model_payload["groups"] = _solver_groups_projection(model_data.get("groups") or {})
     payload = {
         "schema_id": MODEL_SCHEMA_ID,
         "compiler_id": compiler_id,
-        "model": {key: model_data.get(key) for key in model_keys},
+        "model": model_payload,
         "resolved_case": {
             "name": resolved_name,
             "gravity": bool(resolved_case.gravity),
             "internal_pressure": float(resolved_case.internal_pressure),
             "temperature": float(resolved_case.temperature),
             "ref_temperature": float(resolved_case.ref_temperature),
-            "fields": [_operation_field_payload(field) for field in resolved_case.fields],
+            "fields": [field.to_dict() for field in resolved_case.fields],
             "nodal_forces": [force.to_dict() for force in resolved_case.nodal_forces],
         },
     }
     if compiler_inputs is not None:
         payload["compiler_inputs"] = dict(compiler_inputs)
         if compiler_inputs.get('load_path'):
+            all_cases = {**model_data.get('load_cases', {}), **model_data.get('operations', {})}
             payload['load_path_cases'] = {
-                name: model_data['load_cases'][name] for name in compiler_inputs['load_path']
+                name: all_cases[name] for name in compiler_inputs['load_path']
             }
     insulation = {
         element.id: {"thickness_m": float(spec.thickness_m), "density_kg_m3": float(spec.density_kg_m3)}
@@ -95,9 +112,9 @@ def build_solver_input_identity(
     }
     if insulation:
         payload["insulation"] = insulation
-    canonical = json.dumps(_platform_stable(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    canonical = canonical_digest(payload)
     return SolverInputIdentity(
-        fingerprint=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        fingerprint=canonical,
         load_case=resolved_name,
         schema_id=MODEL_SCHEMA_ID,
         compiler_id=compiler_id,
@@ -149,39 +166,3 @@ def require_matching_solver_input_identities(
         raise ValueError(f"{context} solver input fingerprints do not match.")
 
 
-# Floats are hashed at 9 significant digits, not by their exact repr. The same
-# model built by the same code can differ in the last bit between Windows and
-# Linux - the guyed mast's anchors come from math.cos and math.sin, and one of
-# them lands one ULP apart - and an exact hash made that a fingerprint mismatch:
-# the mast solved on Windows was refused by the Linux Pages build. 9 digits is
-# still far finer than any real edit to a model input, and a float that already
-# fits keeps its exact repr.
-# ponytail: a value that cancels to exactly 0.0 on one platform and ~1e-16 on
-# the other still mismatches; add an absolute floor if that ever turns up.
-def _platform_stable(value: Any) -> Any:
-    if isinstance(value, float):
-        return float(f"{value:.9g}")
-    if isinstance(value, dict):
-        return {key: _platform_stable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_platform_stable(item) for item in value]
-    return value
-
-
-def _operation_field_payload(field: Any) -> dict[str, Any]:
-    payload = {
-        "quantity": field.quantity,
-        "value": float(field.value),
-        "direction": list(field.direction) if field.direction is not None else None,
-        "scope": field.scope,
-        "profile": field.profile,
-        "group": field.group,
-        "route_id": field.route_id,
-        "station_start": field.station_start,
-        "station_end": field.station_end,
-        "element_ids": list(field.element_ids),
-    }
-    # Only node-scoped fields carry node_ids, so every other fingerprint stays as it was.
-    if field.node_ids:
-        payload["node_ids"] = list(field.node_ids)
-    return payload

@@ -1,17 +1,18 @@
 // What a support actually constrains, in one place.
 //
-// Two things ask this question and they used to answer it separately: the 3D
-// glyph in renderer.js, which needs to know which cones to draw, and the
-// Selected Evidence panel, which needs to say so in words. They disagreed - the
-// glyph had a directionless rest holding the pipe sideways along Y while the
-// solver wrote NOM_CMP='DZ' - so the answer lives here now and both read it.
+// The solver owns the answer: tuba.model.Support.restraint() compiles the four
+// states and the scene carries them as `dof_states`, which supportDofStates reads.
+// Deriving them here from the raw keys is only the fallback for bundles written
+// before the field existed (ADR-0002).
 //
-// The states are the four the solver can produce, per aster_comm.py:
+// The states are the four the solver can produce:
 //   fixed    a bilateral DDL_IMPO - the DOF cannot move at all
-//   one-way  a LIAISON_UNIL zone: carries compression, lifts off in tension
+//   one-way  a shoe that carries compression and lifts off in tension
 //   spring   a discrete element with stiffness, no DDL_IMPO of its own
 //   free     nothing written for this DOF
 export const DOF_AXES = Object.freeze(["X", "Y", "Z", "RX", "RY", "RZ"]);
+
+const DOF_STATES = Object.freeze(["fixed", "one-way", "spring", "free"]);
 
 const FREE = "free";
 const FIXED = "fixed";
@@ -57,6 +58,14 @@ function isBlockedDof(value) {
  * carry the same keys (support_type, direction, stiffness, blocked_dof, ...).
  */
 export function supportDofStates(config = {}) {
+  const carried = config?.dof_states;
+  if (
+    Array.isArray(carried) &&
+    carried.length === DOF_AXES.length &&
+    carried.every((state) => DOF_STATES.includes(state))
+  ) {
+    return carried.slice();
+  }
   const type = String(config.support_type ?? config.type ?? "custom").toLowerCase();
   const supportType = type === "fixed" ? "anchor" : type;
   const springs = stiffnessAxes(config);

@@ -3,20 +3,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { WORKFLOW_TABS, createWorkflowState, workflowTabForKey } from "../src/workflowState.js";
+import { createWorkflowState, workflowTabForKey } from "../src/workflowState.js";
 
 const viewerRoot = new URL("..", import.meta.url);
 
 async function readViewerFile(...parts) {
   return readFile(new URL(path.posix.join(...parts), viewerRoot), "utf8");
 }
-
-test("workflow rendering exposes the seven engineer review tabs", () => {
-  assert.deepEqual(
-    WORKFLOW_TABS.map((tab) => tab.label),
-    ["Review", "Model", "Load Cases", "Results", "Issues", "Display", "Compliance"]
-  );
-});
 
 test("workflow rendering keyboard navigation wraps and supports Home and End", () => {
   const state = createWorkflowState({ review: { tables: {} } });
@@ -57,6 +50,25 @@ test("workflow rendering uses a scene-first responsive shell and preserves embed
   assert.doesNotMatch(css, /grid-template-areas:[^;]*"rail viewport"/s);
   assert.match(css, /\[data-embed="true"\][\s\S]*grid-template-areas:\s*"viewport"/);
   assert.match(css, /body\[data-embed="true"\]\s+\.viewer-workspace,\s*body\[data-embed="true"\]\s+\.viewer-workspace:has\(\.inspector\[hidden\]\)\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*grid-template-rows:\s*minmax\(0, 1fr\)[^}]*grid-template-areas:\s*"viewport"/s);
+});
+
+test("build mode lists the live model's issues in the code pane, not the rail", async () => {
+  const app = await readViewerFile("src/app.js");
+  const html = await readViewerFile("index.html");
+  const css = await readViewerFile("src/styles.css");
+
+  // The rail stays a review surface: it remains hidden in the Build workspace,
+  // whether a studio edits model.py or a published bundle shows it frozen.
+  assert.match(app, /const scriptPane = isBuildMode\(\);/);
+  assert.match(app, /dom\.taskRail\.hidden = currentState\.embed \|\| !railExpanded \|\| scriptPane;/);
+  // Build issues surface in the code pane instead, one row per issue with the
+  // same camera-focusing click as the rail list.
+  assert.match(html, /<div class="build-issues" data-build-issues hidden><\/div>/);
+  assert.match(app, /function renderBuildIssues\(\)/);
+  assert.match(app, /dom\.buildIssues\.hidden = issues\.length === 0/);
+  assert.match(app, /dispatch\(\{ type: "focusIssue", issueId: issue\.id \}\);/);
+  assert.match(css, /\.build-issues\[hidden\]\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /\.build-issues button\.selected/);
 });
 
 test("workflow rendering uses explicit labeled status, verdict, and severity badges", async () => {
@@ -220,9 +232,7 @@ test("the bodies panel is the rail's primary content, not a window onto it", asy
 test("the status chip carries exceptions only, and routes into the rail", async () => {
   const app = await readViewerFile("src/app.js");
   const chip = app.slice(app.indexOf("function renderStatusChip()"), app.indexOf("function renderResultControls("));
-  // A passing or unavailable compliance verdict is not news; a failing one
-  // must never be something you have to open a tab to discover.
-  assert.match(chip, /status\.complianceStatus === "Fail"/);
+  // A clean review is not news; a warning is.
   assert.match(chip, /status\.warningCount > 0/);
   assert.doesNotMatch(chip, /governingLoadCase|governingRatio/);
 

@@ -40,10 +40,13 @@ OFFICIAL_BUNDLES = [
     "elements-supports-review",
     "gmsh-tee-mesh-review",
     "guyed-mast-review",
+    "hydrogen-plant-layout",
     "imported_component_mixed_demo",
+    "line-load-studio",
     "native-friction-review",
     "pipe-tee-volume-review",
     "profile-orientation-review",
+    "rack_bridge_demo",
     "support-rack-review",
 ]
 # OFFICIAL_BUNDLES above stays written out by hand on purpose: it is the one

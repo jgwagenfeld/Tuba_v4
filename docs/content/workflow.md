@@ -13,7 +13,7 @@ Tuba model -> Code_Aster solve -> imported artifacts -> processed result review
 ## Execution sequence
 
 1. Author through `model.pipe(...)` and other model APIs.
-2. Run `model.validate()` and fix the complete error batch.
+2. Run `model.verify()` and fix the blocking errors; it composes structural validation, the join-aware cold-model clash check, and the rule engine. `model.validate()` alone is the structural subset.
 3. Use `export_analysis_study(...)` to write the `.mail`, `.comm`, `.export`, manifest, and sidecar handoff files.
 4. Execute Code_Aster through the configured runtime.
 5. Import the produced CSV/RMED artifacts into a provenance-bearing `AnalysisRun`, whose persistent authority is `ResultState` and whose transient numerical carrier is `FEAResults`.
@@ -73,7 +73,7 @@ review = build_engineering_review(
 write_engineering_review(review, "runs/demo_hot/review")
 ```
 
-FE stress remains labelled `FE Von Mises (not piping-code stress)`. Piping-code compliance is available only when an explicit compliance report is supplied.
+FE stress remains labelled `FE Von Mises (not piping-code stress)`.
 
 ## Exactly two visualization paths
 
@@ -109,6 +109,59 @@ write_scene_bundle(scene, "runs/demo_hot/review_scene")
 `write_engineering_review_with_scene(...)` can place review tables beside the same scene bundle. That adapter combines reporting with the existing web-scene path; it does not create a third visualization path.
 
 Legacy scene-only bundles remain displayable without implying that missing review evidence exists. Neither visualization path makes Code_Aster optional.
+
+## Tuba Studio and Project Structure
+
+For interactive design, Tuba v4 provides a live engineering environment with real-time Three.js visualization, Code_Aster `.comm` compilation, and solver execution.
+
+### Project Layout
+
+A project directory separates structural authoring from FEA evaluation:
+
+- **`model.py`:** Authored parametric geometry, routes, sections, materials, supports, and operations.
+- **`study.py`:** FEA configuration declaring `LOAD_CASES = ("Operating", ...)`, solver options (`POU_D_T`, `TUYAU_3M`), and review builders.
+
+### Running Tuba Studio
+
+Launch the live studio on any project directory:
+
+```bash
+python -m tuba.cli_studio examples/line-load-studio
+```
+
+- **Live Scene Preview:** Changes saved in `model.py` are hot-reloaded automatically via WebSocket.
+- **Code_Aster `.comm` Inspector:** The tab strip generates and previews the exact Code_Aster commands that will be executed for each load case.
+- **Solve Integration:** Clicking **Solve** executes Code_Aster and automatically transitions the viewer to the solved engineering review bundle.
+
+### Static Scene Inspection
+
+To review a pre-compiled `.json` scene bundle without running a studio server:
+
+```bash
+python -m tuba.visualization.viewer .build/line-load-demo-scene
+```
+
+### AI & Headless Integration (MCP)
+
+For external agents (Claude Desktop, Cursor) operating without terminal access:
+
+```bash
+python -m tuba.mcp.server
+```
+
+Provides standardized MCP tools for join-aware clash detection, model queries, construction unit verification, and solver dispatch.
+
+### Teach your agent the authoring contract
+
+Tuba ships an agent skill so a coding agent knows how to write `model.py` and
+verify it before solving - procedural authoring, the one `model.verify()` gate,
+the bend-sign semantics of the fluent builder, and route-endpoint proof.
+Install it into your agent harness's skills folder:
+
+```bash
+python -m tuba.skills --target ~/.config/opencode/skills   # or ~/.claude/skills, ~/.codex/skills
+python -m tuba.skills --list                               # show what this Tuba version ships
+```
 
 ## Geometry and model reports
 

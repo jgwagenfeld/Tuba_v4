@@ -7,7 +7,6 @@ import {
   getPropertySections,
   hideSelected,
   isolateSelection,
-  pickObjectAt,
   selectObject
 } from "../src/selection.js";
 import { getSelectionSummary } from "../src/selectionSummary.js";
@@ -67,10 +66,7 @@ function fixtureState() {
       ],
       overlays: [],
       issues: [],
-      route_reviews: [],
-      agent_proposals: [],
       views: [],
-      scene_diffs: [],
       diagnostics: []
     },
     objects: [],
@@ -254,14 +250,6 @@ test("hideSelected and isolateSelection update visible object ids", () => {
   assert.deepEqual(isolated.visibleObjectIds, ["object:element:pipe_0"]);
 });
 
-test("pickObjectAt selects nearest visible object from projected bounds", () => {
-  const state = fixtureState();
-
-  const picked = pickObjectAt(state, { x: 64, y: 200 }, { width: 400, height: 400 });
-
-  assert.equal(picked, "object:element:pipe_0");
-});
-
 test("fitSelection uses the selected object's geometry asset when object_ids are absent", () => {
   const state = fixtureState();
   state.geometryAssets = state.geometryAssets.map((asset) => {
@@ -282,3 +270,33 @@ test("fitSelection uses the selected object's geometry asset when object_ids are
   const refitted = fitSelection(fitted);
   assert.equal(refitted.camera.fitRequest.id, 2);
 });
+
+test("selection summary includes line load details when selecting an applied line load", () => {
+  const state = fixtureState();
+  state.objects.push({
+    id: "object:applied_load:test",
+    kind: "applied_load",
+    metadata: {
+      load_case: "Operating",
+      vector_kind: "line_load",
+      value_npm: 450,
+      direction: [0, 0, -1],
+      element_id: "pipe_0",
+      route_id: "P-101",
+      property_lines: { load_case: 42 }
+    }
+  });
+
+  const summary = getSelectionSummary(state, "object:applied_load:test");
+  assert.ok(summary);
+  const loadSection = summary.sections.find((s) => s.title === "Load");
+  assert.ok(loadSection);
+  const labels = Object.fromEntries(loadSection.lines.map((l) => [l.label, l.value]));
+  assert.equal(labels["Load case"], "Operating");
+  assert.equal(labels["Kind"], "Distributed line load");
+  assert.equal(labels["Intensity"], "450 N/m");
+  assert.equal(labels["Direction"], "[0, 0, -1]");
+  assert.equal(labels["Element"], "pipe_0");
+  assert.equal(labels["Route"], "P-101");
+});
+

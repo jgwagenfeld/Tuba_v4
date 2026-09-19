@@ -4,8 +4,11 @@
       "field_count": 0,
       "gravity": true,
       "internal_pressure_pa": 1000000.0,
+      "line_load_count": 0,
       "load_case": "Hot",
       "nodal_force_count": 0,
+      "pressure_fields": [],
+      "pressure_source": "authored_input",
       "ref_temperature_c": 20.0,
       "temperature_c": 180.0
     },
@@ -16,6 +19,7 @@
   },
   {
     "data": {
+      "contact_results": {},
       "element_results": {
         "pipe_bend_0": {
           "forces_n1": [
@@ -473,9 +477,9 @@
       "vectors": [
         {
           "end": [
-            0.3529411764705882,
+            0.13693384514035628,
             0.0,
-            0.9999999999999999
+            0.387979227897676
           ],
           "magnitude_n": 3605.5512754639894,
           "node_id": "N0",
@@ -532,8 +536,8 @@
         {
           "end": [
             0.0,
-            0.9999999999999999,
-            -0.4705882352941176
+            0.37227408274006596,
+            -0.17518780364238398
           ],
           "magnitude_nm": 939.4147114027968,
           "node_id": "N0",

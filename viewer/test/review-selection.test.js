@@ -2,32 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { resolveEntityObjectId, showReviewEntityIn3d } from "../src/reviewSelection.js";
+import { resolveEntityObjectId } from "../src/reviewSelection.js";
 
 function reviewState() {
-  const review = { schema_version: "engineering_review.v1", analysis_status: "solved" };
-  const overlays = [{ id: "overlay:stress", visible: true }];
   return {
-    activeTab: "results",
-    activeLoadCase: "Hot",
-    activeResultStateId: "result_state:Hot",
-    activeGeometryStateId: "geometry_state:Hot:physical",
-    activeOverlayIds: ["overlay:stress"],
-    visibleOverlayIds: ["overlay:stress"],
-    displacementVectorScale: 2,
-    reactionVectorScale: 3,
-    resultThreshold: 10,
-    utilizationThreshold: 0.9,
-    visualDeformationScale: 50,
-    hiddenObjectIds: ["object:hidden"],
-    isolatedObjectIds: [],
-    visibleObjectIds: ["object:pipe", "object:deformed", "object:displacement", "object:mapped", "object:support-marker"],
-    issueReviewState: { "issue:review": { status: "reviewing", comment: "Keep" } },
-    embed: false,
-    review,
-    overlays,
-    camera: { mode: "orbit", target: [99, 99, 99], distance: 99 },
-    selectedObjectIds: [],
     objects: [
       {
         id: "object:pipe",
@@ -179,42 +157,3 @@ test("returns null for unresolved report entity refs", () => {
   assert.equal(resolveEntityObjectId(reviewState(), ""), null);
   assert.equal(resolveEntityObjectId(reviewState(), null), null);
 });
-
-test("show in 3d selects, fits, and preserves the active cockpit task and review context", () => {
-  const state = reviewState();
-
-  const next = showReviewEntityIn3d(state, "element:pipe_0");
-
-  assert.equal(next.activeTab, state.activeTab);
-  assert.deepEqual(next.selectedObjectIds, ["object:pipe"]);
-  assert.notDeepEqual(next.camera, state.camera);
-  assert.deepEqual(next.camera.target, [1, 0, 0]);
-  for (const key of [
-    "activeLoadCase",
-    "activeResultStateId",
-    "activeGeometryStateId",
-    "activeOverlayIds",
-    "visibleOverlayIds",
-    "displacementVectorScale",
-    "reactionVectorScale",
-    "resultThreshold",
-    "utilizationThreshold",
-    "visualDeformationScale",
-    "hiddenObjectIds",
-    "isolatedObjectIds",
-    "visibleObjectIds",
-    "issueReviewState",
-    "embed",
-    "review",
-    "overlays"
-  ]) {
-    assert.equal(next[key], state[key], `${key} must be preserved`);
-  }
-});
-
-test("show in 3d returns the identical state for unresolved refs", () => {
-  const state = reviewState();
-
-  assert.equal(showReviewEntityIn3d(state, "element:missing"), state);
-});
-

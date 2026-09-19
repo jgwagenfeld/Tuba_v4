@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
 import {
   colorForScalarValue,
+  getActiveResultState,
   getObjectScalarColor,
   getResultVectorScale,
   getScalarLegend,
@@ -11,12 +12,15 @@ import {
 } from "./resultReview.js";
 import { bodyOpacityForObjectIds } from "./bodies.js";
 import { isSupportConfig, supportBlockedDofs } from "./supports.js";
+import { getModelObjectColor } from "./modelColoring.js";
 
 export const SUPPORTED_RENDER_FORMATS = new Set([
   "aabb",
   "cuboid",
+  "cylinder",
   "label",
   "line",
+  "line_load_comb",
   "marker",
   "mesh",
   "point",
@@ -122,17 +126,6 @@ function renderedBounds(root) {
   return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
 }
 
-export function buildRenderableScene(state, options = {}) {
-  const graph = createThreeSceneGraph(state, options);
-  const camera = createEngineeringCamera((options.width ?? 1280) / Math.max(options.height ?? 800, 1));
-  const fit = fitCameraToBounds(camera, state.camera?.fitRequest?.bounds ?? graph.bounds);
-  return {
-    ...graph,
-    camera,
-    controlsTarget: new THREE.Vector3(...fit.target)
-  };
-}
-
 const SCENE_GRAPH_STATE_KEYS = [
   "bounds",
   "geometryAssets",
@@ -143,8 +136,6 @@ const SCENE_GRAPH_STATE_KEYS = [
   "activeGeometryStateId",
   "coloring",
   "resultVectorScales",
-  "displacementVectorScale",
-  "reactionVectorScale",
   "bodyOpacity",
   "contactArrows",
   "contactNeutral"
@@ -366,18 +357,6 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       if (!orbitCameraBy(camera, controls.target, deltaAzimuth, deltaPolar)) return;
       controls.update();
       if (currentGraph) drawFrame(currentGraph);
-    },
-    dispose() {
-      graphCache.clear();
-      if (redrawFrameId !== null) cancelAnimationFrame(redrawFrameId);
-      resizeObserver?.disconnect();
-      controls.removeEventListener("change", redrawScene);
-      controls.removeEventListener("start", startInteraction);
-      controls.removeEventListener("end", endInteraction);
-      controls.dispose();
-      viewHelper.dispose();
-      renderer.dispose();
-      deformationOverlay.canvas?.remove();
     }
   };
 }
@@ -459,46 +438,6 @@ export function createCameraFitController(camera, controls = null) {
       }
       appliedRequestId = request.id;
       return fitCameraToBounds(camera, request.bounds, controls);
-    }
-  };
-}
-
-export function createThreeViewport(canvas, options = {}) {
-  const canvasRenderer = createThreeCanvasRenderer(canvas, options);
-  return {
-    setState(state) {
-      const graph = canvasRenderer.render(state);
-      return {
-        ...graph,
-        renderableObjects: [...new Set(graph.objectsByObjectId.values())].filter((object) => object.visible !== false)
-      };
-    },
-    render() {
-      canvasRenderer.redraw();
-    },
-    setDeformationInteraction(active) {
-      return canvasRenderer.setDeformationInteraction(active);
-    },
-    renderDeformation(state) {
-      return canvasRenderer.renderDeformation(state);
-    },
-    handleGizmoClick(event) {
-      return canvasRenderer.handleGizmoClick(event);
-    },
-    resetView() {
-      canvasRenderer.resetView();
-    },
-    setStandardView(viewId) {
-      canvasRenderer.setStandardView(viewId);
-    },
-    zoomBy(factor) {
-      canvasRenderer.zoomBy(factor);
-    },
-    orbitBy(deltaAzimuth, deltaPolar) {
-      canvasRenderer.orbitBy(deltaAzimuth, deltaPolar);
-    },
-    dispose() {
-      canvasRenderer.dispose();
     }
   };
 }
@@ -919,8 +858,14 @@ function createPreparedRenderable(asset, payload, state, format, config) {
   if (format === "vector") {
     return createVector(asset, config, format, state);
   }
+  if (format === "line_load_comb") {
+    return createLineLoadComb(asset, config, format, state);
+  }
   if (format === "cuboid" || format === "aabb") {
     return createBox(asset, config, format);
+  }
+  if (format === "cylinder") {
+    return createCylinder(asset, config, format);
   }
   if (format === "mesh") {
     return createMesh(asset, config, payload, format, state);
@@ -1113,16 +1058,41 @@ function createPolyline(asset, config, format) {
   }
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const opacity = opacityForConfig(config, 1);
+  const isSupportLink = String(config.source ?? "").toLowerCase() === "tuba.support_link";
+  if (isSupportLink) {
+    // P->A attachment link: dashed so it never reads as structure, even
+    // though it spans the same space. Dash in world units, scaled to the
+    // link itself so a 0.25 m shoe link and a 4 m hanger link dash alike.
+    const length = points[0].distanceTo(points[1]);
+    const material = new THREE.LineDashedMaterial({
+      color: colorForAsset(asset, config),
+      dashSize: Math.max(length * 0.08, 1e-3),
+      gapSize: Math.max(length * 0.05, 1e-3),
+      depthWrite: false,
+      opacity,
+      transparent: true
+    });
+    const line = new THREE.Line(geometry, material);
+    line.computeLineDistances();
+    line.name = asset.id;
+    line.userData.supportLink = "attachment";
+    return { format, object: line };
+  }
+  const isAnalysisMesh = String(config.source ?? "").includes("analysis_mesh") || String(asset.id ?? "").includes("analysis_mesh");
   const line = new THREE.Line(
     geometry,
     new THREE.LineBasicMaterial({
       color: colorForAsset(asset, config),
-      depthWrite: opacity >= 1 && !config.transparent,
-      linewidth: 2,
+      depthTest: !isAnalysisMesh,
+      depthWrite: !isAnalysisMesh && opacity >= 1 && !config.transparent,
+      linewidth: isAnalysisMesh ? 3 : 2,
       opacity,
-      transparent: Boolean(config.transparent || opacity < 1)
+      transparent: Boolean(config.transparent || opacity < 1 || isAnalysisMesh)
     })
   );
+  if (isAnalysisMesh) {
+    line.renderOrder = 500;
+  }
   line.name = asset.id;
   return { format, object: line };
 }
@@ -1136,11 +1106,18 @@ function createPoint(asset, config, format, state) {
   if (isSupport) {
     return createSupportGlyph(asset, config, format, point, state);
   }
-  const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, format === "marker" ? 0.06 : 0.035);
+  const isAnalysisMesh = String(config.source ?? "").includes("analysis_mesh") || String(asset.id ?? "").includes("analysis_mesh");
+  const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, format === "marker" ? 0.06 : isAnalysisMesh ? 0.025 : 0.035);
   const geometry = new THREE.SphereGeometry(radius, 16, 12);
   geometry.computeBoundingSphere();
   const material = materialForAsset(asset, config);
+  if (isAnalysisMesh) {
+    material.depthTest = false;
+  }
   const mesh = new THREE.Mesh(geometry, material);
+  if (isAnalysisMesh) {
+    mesh.renderOrder = 501;
+  }
   mesh.position.copy(point);
   mesh.name = asset.id;
   return { format, object: mesh };
@@ -1176,6 +1153,191 @@ function createLabel(asset, config, format, state) {
   return { format, object: sprite };
 }
 
+function createFrictionBadgeSprite(text, position, state, status = null, size = 0.1, overLimit = false) {
+  const canvasFactory = state?.canvasFactory ?? (() => globalThis.document?.createElement?.("canvas"));
+  const canvas = canvasFactory();
+  if (!canvas) return null;
+  const context = canvas.getContext?.("2d");
+  if (!context) return null;
+
+  const fontSize = 44;
+  const padX = 22;
+  const padY = 12;
+  context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
+  const textWidth = context.measureText ? context.measureText(text).width : 110;
+  canvas.width = Math.ceil(textWidth + padX * 2);
+  canvas.height = fontSize + padY * 2;
+
+  context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
+
+  let borderColor = "rgba(245, 158, 11, 0.8)";
+  let textColor = "#fef3c7";
+  let bgColor = "rgba(15, 23, 42, 0.88)";
+
+  if (overLimit) {
+    borderColor = "rgba(220, 38, 38, 0.9)";
+    textColor = "#fecaca";
+  } else if (status === "sticking") {
+    borderColor = "rgba(59, 130, 246, 0.85)";
+    textColor = "#dbeafe";
+  } else if (status === "sliding") {
+    borderColor = "rgba(20, 184, 166, 0.85)";
+    textColor = "#ccfbf1";
+  } else if (status === "open") {
+    borderColor = "rgba(148, 163, 184, 0.7)";
+    textColor = "#cbd5e1";
+  }
+
+  context.fillStyle = bgColor;
+  const radius = 10;
+  if (typeof context.roundRect === "function") {
+    context.beginPath();
+    context.roundRect(0, 0, canvas.width, canvas.height, radius);
+    context.fill();
+    context.strokeStyle = borderColor;
+    context.lineWidth = 3;
+    context.stroke();
+  } else {
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  context.fillStyle = textColor;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    depthTest: false,
+    depthWrite: false,
+    transparent: true
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.copy(position);
+  const badgeHeight = Math.max(size * 0.45, 0.04);
+  sprite.scale.set(badgeHeight * canvas.width / canvas.height, badgeHeight, 1);
+  sprite.renderOrder = 1100;
+  sprite.userData.supportPart = "friction-badge";
+  return sprite;
+}
+
+function createLoadBadgeSprite(text, position, state, kind = "force", size = 0.1) {
+  const canvasFactory = state?.canvasFactory ?? (() => globalThis.document?.createElement?.("canvas"));
+  const canvas = canvasFactory();
+  if (!canvas) return null;
+  const context = canvas.getContext?.("2d");
+  if (!context) return null;
+
+  const fontSize = 44;
+  const padX = 22;
+  const padY = 12;
+  context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
+  const textWidth = context.measureText ? context.measureText(text).width : 110;
+  canvas.width = Math.ceil(textWidth + padX * 2);
+  canvas.height = fontSize + padY * 2;
+
+  context.font = `600 ${fontSize}px "IBM Plex Mono", monospace, sans-serif`;
+
+  let borderColor = "rgba(59, 130, 246, 0.85)";
+  let textColor = "#dbeafe";
+  const bgColor = "rgba(15, 23, 42, 0.90)";
+
+  if (kind === "moment") {
+    borderColor = "rgba(20, 184, 166, 0.85)";
+    textColor = "#ccfbf1";
+  } else if (kind === "line_load") {
+    borderColor = "rgba(2, 132, 199, 0.85)";
+    textColor = "#e0f2fe";
+  }
+
+  context.fillStyle = bgColor;
+  const radius = 10;
+  if (typeof context.roundRect === "function") {
+    context.beginPath();
+    context.roundRect(0, 0, canvas.width, canvas.height, radius);
+    context.fill();
+    context.strokeStyle = borderColor;
+    context.lineWidth = 3;
+    context.stroke();
+  } else {
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  context.fillStyle = textColor;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    depthTest: false,
+    depthWrite: false,
+    transparent: true
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.copy(position);
+  const badgeHeight = Math.max(size * 0.45, 0.04);
+  sprite.scale.set(badgeHeight * canvas.width / canvas.height, badgeHeight, 1);
+  sprite.renderOrder = 1100;
+  sprite.name = `${kind}-badge`;
+  sprite.userData.loadPart = "load-badge";
+  sprite.userData.pickable = false;
+  return sprite;
+}
+
+function formatMagnitudeWithPrefix(prefix, val, baseUnit) {
+  let displayVal = val;
+  let unit = baseUnit;
+  if (val >= 1000) {
+    displayVal = val / 1000;
+    unit = baseUnit === "N" ? "kN" : baseUnit === "N·m" ? "kN·m" : "kN/m";
+  }
+  let str;
+  if (Math.abs(displayVal - Math.round(displayVal)) < 1e-4) {
+    str = String(Math.round(displayVal));
+  } else {
+    str = displayVal.toFixed(displayVal < 10 ? 1 : 1);
+    if (str.endsWith(".0")) str = str.slice(0, -2);
+  }
+  return `${prefix} = ${str} ${unit}`;
+}
+
+function formatLoadBadgeText(kind, config) {
+  if (config.badge_text) return String(config.badge_text);
+  if (kind === "force") {
+    if (config.vector_kind !== "force" && config.quantity !== "force" && !config.source?.includes("applied_loads")) {
+      return null;
+    }
+    const components = Array.isArray(config.components) ? config.components.map(Number) : null;
+    let mag = Number(config.magnitude);
+    if (!Number.isFinite(mag) && components) {
+      mag = Math.hypot(...components);
+    }
+    if (!Number.isFinite(mag) || mag <= 0) return null;
+    return formatMagnitudeWithPrefix("F", mag, "N");
+  }
+  if (kind === "moment") {
+    if (config.vector_kind !== "moment" && config.quantity !== "moment" && !String(config.result_type ?? "").endsWith("_moment")) {
+      return null;
+    }
+    const components = Array.isArray(config.components) ? config.components.map(Number) : null;
+    let mag = Number(config.magnitude);
+    if (!Number.isFinite(mag) && components) {
+      mag = Math.hypot(...components);
+    }
+    if (!Number.isFinite(mag) || mag <= 0) return null;
+    return formatMagnitudeWithPrefix("M", mag, "N·m");
+  }
+  if (kind === "line_load") {
+    const val = Number(config.value_npm ?? config.value);
+    if (!Number.isFinite(val) || Math.abs(val) <= 0) return null;
+    return formatMagnitudeWithPrefix("q", Math.abs(val), "N/m");
+  }
+  return null;
+}
+
 function createSupportGlyph(asset, config, format, point, state) {
   const requestedType = String(config.support_type ?? "custom").toLowerCase();
   const supportType = requestedType === "fixed" ? "anchor" : requestedType;
@@ -1199,6 +1361,9 @@ function createSupportGlyph(asset, config, format, point, state) {
   glyph.renderOrder = 20;
   glyph.userData.supportGlyph = "dof";
   glyph.userData.supportType = supportType;
+  // Second channel: what the restraint acts against. Geometry, not color -
+  // color already says what is restrained (gold/blue/orange).
+  glyph.userData.supportAttachment = config.attached_to ? "attached" : "ground";
 
   const mesh = (geometry, role, material, position = null) => {
     const child = new THREE.Mesh(geometry, material);
@@ -1275,6 +1440,120 @@ function createSupportGlyph(asset, config, format, point, state) {
       direction.clone().multiplyScalar(size * 1.5)
     );
     displacement.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+  }
+
+  const mu = Number(config.friction_coefficient);
+  const hasFriction = Number.isFinite(mu) && mu > 0;
+  const isRest = supportType === "rest";
+
+  if (isRest && (hasFriction || config.attached_to || config.normal_stiffness != null)) {
+    const rawNormal = readPoint(config.contact_normal ?? config.direction) ?? new THREE.Vector3(0, 0, 1);
+    const normal = rawNormal.lengthSq() > 1e-12 ? rawNormal.clone().normalize() : new THREE.Vector3(0, 0, 1);
+    const normalAxis = Math.abs(normal.z) >= 0.8 ? 2 : (Math.abs(normal.y) >= 0.8 ? 1 : 0);
+
+    let contactStatus = null;
+    let contactOverLimit = false;
+    if (state) {
+      const records = contactRecords(state);
+      const key = config.support_id ?? config.id ?? asset.id?.split(":").pop();
+      const contactRecord = records[key];
+      if (contactRecord) {
+        contactStatus = contactRecord.status;
+        contactOverLimit = Number(contactRecord.utilization) > 1.001;
+      }
+    }
+
+    const padWidth = size * 2.2;
+    const padLength = size * 2.6;
+    const padThickness = size * 0.16;
+
+    const pipeRadius = positiveNumber(config.radius_m) ?? (size * 0.7);
+    const padPos = normal.clone().multiplyScalar(-pipeRadius - padThickness / 2);
+    const padRot = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+    // Utilization past the friction limit outranks the status colour: the shoe
+    // is over its Coulomb envelope whatever the state word says.
+    let padColor = hasFriction ? 0xd97706 : 0xdaa520;
+    if (contactOverLimit) padColor = 0xdc2626;
+    else if (contactStatus === "sticking") padColor = 0x2563eb;
+    else if (contactStatus === "sliding") padColor = 0x0f766e;
+    else if (contactStatus === "open") padColor = 0x64748b;
+
+    const padMaterial = new THREE.MeshStandardMaterial({
+      color: padColor,
+      roughness: 0.35,
+      metalness: 0.25,
+      depthTest: true,
+      transparent: contactStatus === "open",
+      opacity: contactStatus === "open" ? 0.45 : 0.95
+    });
+
+    const padMesh = mesh(
+      new THREE.BoxGeometry(padWidth, padLength, padThickness),
+      "contact-shoe-pad",
+      padMaterial,
+      padPos
+    );
+    padMesh.quaternion.copy(padRot);
+    padMesh.userData.supportAxis = normalAxis;
+
+    const edgeColor = contactOverLimit ? 0xfca5a5 :
+                      contactStatus === "sticking" ? 0x93c5fd :
+                      contactStatus === "sliding" ? 0x5eead4 :
+                      contactStatus === "open" ? 0x94a3b8 :
+                      (hasFriction ? 0xfef3c7 : 0xffffff);
+    const padEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(padWidth, padLength, padThickness)),
+      new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 0.85 })
+    );
+    padMesh.add(padEdges);
+
+    const halfW = padWidth * 0.36;
+    const halfL = padLength * 0.36;
+    const guideTop = padThickness / 2 + 0.001;
+    const guideGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-halfW, 0, guideTop), new THREE.Vector3(halfW, 0, guideTop),
+      new THREE.Vector3(0, -halfL, guideTop), new THREE.Vector3(0, halfL, guideTop)
+    ]);
+    const guideLines = new THREE.LineSegments(
+      guideGeo,
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })
+    );
+    guideLines.name = "sliding-plane-guides";
+    padMesh.add(guideLines);
+
+    if (hasFriction) {
+      let badgeText = `μ = ${mu.toFixed(2)}`;
+      if (contactStatus) {
+        const icon = contactStatus === "sticking" ? "■" : (contactStatus === "sliding" ? "➜" : "○");
+        badgeText = `${icon} ${badgeText}`;
+      }
+      const refTangent = Math.abs(normal.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+      const tangent = new THREE.Vector3().crossVectors(normal, refTangent).normalize();
+      const badgePos = padPos.clone().add(tangent.multiplyScalar(padWidth * 0.85));
+      const badgeSprite = createFrictionBadgeSprite(badgeText, badgePos, state, contactStatus, size, contactOverLimit);
+      if (badgeSprite) {
+        glyph.add(badgeSprite);
+      }
+    }
+  }
+
+  if (!config.attached_to) {
+    // Grounded: a hatch plate hugging the glyph's underside in -Z (Tuba is
+    // Z-up). Measured off the parts, not a fixed offset, so an anchor cube
+    // and a rest's cones both get a plate that reads as attached to them.
+    // Attached supports skip it - their dashed P->A link says where they go.
+    glyph.updateMatrixWorld(true);
+    const drawn = new THREE.Box3().setFromObject(glyph);
+    const under = Number.isFinite(drawn.min.z) ? drawn.min.z - glyph.position.z : -size;
+    const thickness = size * 0.18;
+    const plate = mesh(
+      new THREE.BoxGeometry(size * 2.4, size * 2.4, thickness),
+      "ground-hatch",
+      restraintMaterial,
+      new THREE.Vector3(0, 0, under - size * 0.12 - thickness / 2)
+    );
+    plate.userData.supportAxis = 2;
   }
   return { format, object: glyph };
 }
@@ -1402,6 +1681,16 @@ function createVector(asset, config, format, state) {
     arcHead.name = "moment-rotation-head";
 
     moment.add(axis, arc, arcHead);
+
+    const badgeText = formatLoadBadgeText("moment", config);
+    if (badgeText) {
+      const badgeLocalPos = new THREE.Vector3(arcRadius + 0.08, length * 0.5, 0);
+      const badgeSprite = createLoadBadgeSprite(badgeText, badgeLocalPos, state, "moment", Math.max(length * 0.25, 0.1));
+      if (badgeSprite) {
+        moment.add(badgeSprite);
+      }
+    }
+
     moment.name = asset.id;
     return { format, object: moment };
   }
@@ -1413,8 +1702,83 @@ function createVector(asset, config, format, state) {
     headLength,
     headWidth
   );
+
+  const badgeText = formatLoadBadgeText("force", config);
+  if (badgeText) {
+    const up = Math.abs(unitDirection.z) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+    const side = new THREE.Vector3().crossVectors(unitDirection, up).normalize();
+    const offsetDist = Math.max(headWidth * 1.6, 0.08);
+    const badgeWorldPos = start.clone()
+      .addScaledVector(unitDirection, length * 0.5)
+      .addScaledVector(side, offsetDist);
+    const badgeLocalPos = badgeWorldPos.clone().sub(start);
+    const badgeSprite = createLoadBadgeSprite(badgeText, badgeLocalPos, state, "force", Math.max(length * 0.25, 0.1));
+    if (badgeSprite) {
+      arrow.add(badgeSprite);
+    }
+  }
+
   arrow.name = asset.id;
   return { format, object: arrow };
+}
+
+function createLineLoadComb(asset, config, format, state) {
+  const starts = readPoints(config.arrow_starts);
+  const ends = readPoints(config.arrow_ends);
+  if (!starts.length || starts.length !== ends.length) {
+    return invalidAsset(asset, "Line load comb assets require matching arrow_starts and arrow_ends points.");
+  }
+  const color = colorForAsset(asset, config);
+  const combGroup = new THREE.Group();
+
+  for (let index = 0; index < starts.length; index += 1) {
+    const start = starts[index];
+    const end = ends[index];
+    const direction = end.clone().sub(start);
+    const length = direction.length();
+    if (length <= 1e-12) continue;
+
+    const unitDirection = direction.normalize();
+    const headLength = Math.min(length * 0.28, 0.18);
+    const headWidth = Math.min(length * 0.14, 0.09);
+    const arrow = new THREE.ArrowHelper(
+      unitDirection,
+      start,
+      length,
+      color,
+      headLength,
+      headWidth
+    );
+    arrow.name = "line-load-arrow";
+    combGroup.add(arrow);
+  }
+
+  const crestPoints = readPoints(config.crest_points ?? config.arrow_starts);
+  if (crestPoints.length >= 2) {
+    const crestGeometry = new THREE.BufferGeometry().setFromPoints(crestPoints);
+    const crestMaterial = new THREE.LineBasicMaterial({ color });
+    const crestLine = new THREE.Line(crestGeometry, crestMaterial);
+    crestLine.name = "line-load-crest";
+    combGroup.add(crestLine);
+  }
+
+  const showBadge = config.show_badge !== false;
+  const badgeText = formatLoadBadgeText("line_load", config);
+  if (showBadge && badgeText && crestPoints.length >= 1 && starts.length >= 1) {
+    const midIdx = Math.floor(crestPoints.length / 2);
+    const crestMid = crestPoints[midIdx].clone();
+    const arrowDiff = ends[0].clone().sub(starts[0]);
+    const arrowLen = arrowDiff.length();
+    const arrowDir = arrowLen > 1e-6 ? arrowDiff.normalize() : new THREE.Vector3(0, 0, -1);
+    const badgePos = crestMid.addScaledVector(arrowDir, -Math.max(arrowLen * 0.3, 0.09));
+    const badgeSprite = createLoadBadgeSprite(badgeText, badgePos, state, "line_load", Math.max(arrowLen * 0.4, 0.12));
+    if (badgeSprite) {
+      combGroup.add(badgeSprite);
+    }
+  }
+
+  combGroup.name = asset.id;
+  return { format, object: combGroup };
 }
 
 function createBox(asset, config, format) {
@@ -1430,6 +1794,36 @@ function createBox(asset, config, format) {
 
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(geometry),
+    new THREE.LineBasicMaterial({ color: darkenColor(colorForAsset(asset, config)) })
+  );
+  mesh.add(edges);
+  return { format, object: mesh };
+}
+
+function createCylinder(asset, config, format) {
+  const bounds = normalizeBounds(config.bounds ?? config.obstacle?.bounds ?? asset.bounds);
+  if (!bounds) {
+    return invalidAsset(asset, "Cylinder assets require valid bounds.");
+  }
+  const size = sizeOfBounds(bounds);
+  const extents = [size.x, size.y, size.z];
+  const axis = extents.indexOf(Math.max(...extents));
+  const radius = Math.min(...extents.filter((_, index) => index !== axis)) / 2;
+  if (!(radius > 1e-6)) {
+    return invalidAsset(asset, "Cylinder assets require a positive radius.");
+  }
+  const geometry = new THREE.CylinderGeometry(radius, radius, Math.max(extents[axis], 1e-6), 32, 1, false);
+  const mesh = new THREE.Mesh(geometry, materialForAsset(asset, config, { transparent: true }));
+  mesh.position.copy(centerOfBounds(bounds));
+  if (axis === 0) {
+    mesh.rotation.z = Math.PI / 2;
+  } else if (axis === 2) {
+    mesh.rotation.x = Math.PI / 2;
+  }
+  mesh.name = asset.id;
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geometry, 30),
     new THREE.LineBasicMaterial({ color: darkenColor(colorForAsset(asset, config)) })
   );
   mesh.add(edges);
@@ -1603,6 +1997,11 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
     const scalarColor = getObjectScalarColor(state, asset.object_ids ?? [], scalarValueIds);
     if (scalarColor !== null) {
       config.color = scalarColor;
+    } else {
+      const modelColor = getModelObjectColor(state, asset.object_ids ?? []);
+      if (modelColor !== null) {
+        config.color = parseColor(modelColor) ?? modelColor;
+      }
     }
   }
   if (isUndeformedReferenceConfig(asset, config, state)) {
@@ -1668,6 +2067,9 @@ function colorForAsset(asset, config) {
   }
   if (asset.format === "aabb" || asset.format === "cuboid") {
     return 0x94a3b8;
+  }
+  if (asset.format === "line_load_comb") {
+    return 0x0284c7;
   }
   return 0x2563eb;
 }
@@ -1935,6 +2337,14 @@ function invalidAsset(asset, message) {
 }
 
 function addContactMarkers(root, state) {
+  // Contact marks are solver output, so they answer to the result layers the
+  // task presets switch. Their supporting object is design (a visible shoe), so
+  // without this gate a Build or Model view kept drawing solved contact arrows
+  // over a scene whose result layers were all off.
+  const resultOverlayId = getActiveResultState(state)?.overlay?.id;
+  if (resultOverlayId && Array.isArray(state.visibleOverlayIds) && !state.visibleOverlayIds.includes(resultOverlayId)) {
+    return;
+  }
   const maxima = contactForceMaxima(state);
   const span = sizeOfBounds(state.bounds);
   const size = Math.max(span.x, span.y, span.z, 1) * 0.025;
@@ -1952,16 +2362,19 @@ function addContactMarkers(root, state) {
     group.userData = { objectIds: [objectId], format: "vector", contactStatus: contact.status };
     const color = contact.utilization > 1.001 ? 0xdc2626 : CONTACT_COLORS[contact.status] ?? CONTACT_COLORS.indeterminate;
     const material = new THREE.MeshBasicMaterial({ color, depthTest: false });
-    let marker;
+    // Sticking is the resting state, and the shoe already says so twice: its pad
+    // is painted blue and the mu badge carries the filled-square symbol. A cube
+    // for the norm was the largest mark on the model. Only the states that need
+    // saying - lift-off, slide, an indeterminate solve - get a glyph.
+    let marker = null;
     if (contact.status === "open") marker = new THREE.Mesh(new THREE.TorusGeometry(size * 0.45, size * 0.08, 8, 24), material);
-    else if (contact.status === "sticking") marker = new THREE.Mesh(new THREE.BoxGeometry(size * 0.7, size * 0.7, size * 0.7), material);
     else if (contact.status === "sliding") marker = new THREE.ArrowHelper(new THREE.Vector3(...contact.tangential_force).normalize(), new THREE.Vector3(), size, color, size * 0.5, size * 0.35);
-    else {
+    else if (contact.status !== "sticking") {
       marker = new THREE.Group();
       marker.add(new THREE.Mesh(new THREE.TorusGeometry(size * 0.3, size * 0.07, 8, 16, Math.PI * 1.5), material));
       const point = new THREE.Mesh(new THREE.SphereGeometry(size * 0.08, 8, 8), material); point.position.y = -size * 0.45; marker.add(point);
     }
-    group.add(marker);
+    if (marker) group.add(marker);
     for (const [quantity, vector, color] of [["normal", contact.normal.map((v) => v * contact.normal_force), 0x2563eb], ["tangential", contact.tangential_force, 0x0f766e]]) {
       const direction = new THREE.Vector3(...vector); const force = direction.length();
       if (state.contactArrows?.[quantity] === false || !(force > 0) || !(maxima[quantity] > 0)) continue;

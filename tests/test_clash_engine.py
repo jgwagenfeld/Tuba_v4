@@ -1,7 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.clash import ClashEngine, clash_report_to_dict, clash_report_to_markdown
+from tuba.clash import ClashEngine
 
 
 class TestClashEngine(unittest.TestCase):
@@ -59,20 +59,6 @@ class TestClashEngine(unittest.TestCase):
         self.assertEqual(len(insulated_clashes), 1)
         self.assertEqual(str(insulated_clashes[0].right), "obstacle:tray_0")
         self.assertGreater(insulated_clashes[0].penetration_m, 0.01)
-
-    def test_report_serializers_are_json_and_markdown_friendly(self):
-        model, elem = self._model()
-        model.add_insulation_spec("mw_80", material="mineral_wool", thickness_m=0.08)
-        model.assign_insulation(f"element:{elem.id}", "mw_80")
-        clashes = ClashEngine().check_model(model)
-
-        data = clash_report_to_dict(clashes)
-        markdown = clash_report_to_markdown(clashes)
-
-        self.assertEqual(data["clash_count"], 1)
-        self.assertEqual(data["clashes"][0]["right"]["id"], "tray_0")
-        self.assertIn("element:pipe_0", markdown)
-        self.assertIn("obstacle:tray_0", markdown)
 
 
 if __name__ == "__main__":

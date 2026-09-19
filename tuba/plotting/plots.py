@@ -44,11 +44,11 @@ def _require_pyvista():
 
 def _get_pipe_radius(results: "FEAResults", model: Optional["TubaModel"] = None) -> float:
     """Determine the pipe outer radius from the model."""
-    from tuba.plotting.pipeline import get_section_radius
+    from tuba.geometry.profiles import collision_radius_for_section
     mdl = model or getattr(results, "_model", None)
     if mdl and mdl.sections:
         sec = next(iter(mdl.sections.values()))
-        return get_section_radius(sec)
+        return collision_radius_for_section(sec)
     raise ValueError("Pipe visualization requires a model with at least one defined section.")
 
 

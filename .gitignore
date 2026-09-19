@@ -38,7 +38,6 @@ routing_reports/
 code_aster_study/
 generated/
 *.html
-!docs/site/**/*.html
 !viewer/index.html
 !tuba/visualization/_viewer/index.html
 viewer/dist/
@@ -59,10 +58,13 @@ viewer/node_modules/
 # Agent workflow scratch
 .superpowers/
 .worktrees/
-
-# Generated benchmark + smoke-test outputs
+.impeccable/
+# Per-machine agent settings. Also covered by a global ignore on one machine,
+# which does nothing for anyone else who clones this repo.
+.claude/settings.local.json
+# pytest-benchmark output. It carried solved .rmed and .csv artifacts once and
+# left about 98 MB of them in history before it stopped being tracked.
 .benchmarks/
-code_aster_smoke_debug/
 
 # Runtime logs
 *.log
@@ -74,20 +76,16 @@ notebooks/viz_gallery_bundle/
 notebooks/viz_gallery_stress.ply
 notebooks/viz_gallery_model.gltf
 notebooks/viz_gallery_blender.py
-notebooks/code_aster_export_demo/
 notebooks/interactive_postprocessor_bundle/
-notebooks/visual_check_jpegs/
-notebooks/tuyau_subpoints_shell_detail_bundle/
-notebooks/tuyau_subpoints_shell_detail_viewer.png
 notebooks/bim_demo.ifc
 notebooks/bim_demo_model.json
 notebooks/advanced_piping_rack.ifc
-/imported_component_mixed_demo/run/
-/imported_component_mixed_demo/browser_checks/
+# The whole directory is notebook 09's WORK_DIR: it mkdirs it and writes
+# local_equipment.stl/.step into it with trimesh, then run/ under that. Two of
+# those artifacts had been committed at its root before this covered them.
+/imported_component_mixed_demo/
 
-# Root demo outputs (written by examples/demo.py and the BIM notebook)
-/piping_model.json
-/blender_import_tuba.py
+# Root demo outputs (written by the BIM notebooks)
 /advanced_piping_rack.ifc
 /bim_demo.ifc
 /bim_demo_model.json
@@ -97,7 +95,9 @@ notebooks/advanced_piping_rack.ifc
 
 /viewer/public/native-friction-review/
 /viewer/public/profile-orientation-review/
+/viewer/public/hydrogen-plant-layout/
+/viewer/public/line-load-studio/
+/viewer/public/rack_bridge_demo/
 
-# Vite build scratch output and a stray from a mangled pip install
+# Vite build scratch output
 /.tmp/
-/=2.2

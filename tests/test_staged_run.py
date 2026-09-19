@@ -10,7 +10,7 @@ from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 from tuba.analysis.staged_run import operation_folder_name, read_staged_runs, stage_runs
 from tuba.project import load_project
 from tuba.reporting import build_engineering_review
-from tuba.visualization import build_visualization_scene, write_engineering_review_with_scene
+from tuba.visualization import SceneRequest, build_visualization_scene, write_engineering_review_with_scene
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
@@ -30,7 +30,7 @@ def _bundle(tmp_path, example="support-rack-review", operation="Operating"):
     model = load_project(EXAMPLES / example).run_model()["model"]
     root = tmp_path / "bundle"
     staged = stage_runs({operation: run}, root)[operation]
-    scene = build_visualization_scene(model, analysis_runs=[staged], scene_id="scene:test")
+    scene = build_visualization_scene(SceneRequest(model, analysis_runs=[staged], scene_id="scene:test"))
     review = build_engineering_review(model, analysis_runs=[staged], package_id="review:test")
     write_engineering_review_with_scene(review, root, scene=scene, title="Staged run test")
     return root
@@ -71,13 +71,18 @@ def test_a_run_lands_in_the_folder_its_operation_names(tmp_path):
 
 
 def test_every_operation_gets_its_own_folder(tmp_path):
-    runs = {case: _run(tmp_path, "profile-orientation-review", case) for case in ("global", "local")}
+    # A folder is named by the run's own attested load case, so two operations mean two
+    # attestations; every example model declares one load case, so they come from two examples.
+    runs = {
+        "Operating": _run(tmp_path, "support-rack-review", "Operating"),
+        "Cold": _run(tmp_path, "native-friction-review", "Cold"),
+    }
     bundle = tmp_path / "bundle"
 
     staged = stage_runs(runs, bundle)
 
-    assert sorted(path.name for path in (bundle / "artifacts").iterdir()) == ["global", "local"]
-    for case in ("global", "local"):
+    assert sorted(path.name for path in (bundle / "artifacts").iterdir()) == ["Cold", "Operating"]
+    for case in ("Operating", "Cold"):
         assert staged[case].result_state.files["mess"] == f"artifacts/{case}/study.mess"
 
 
@@ -210,12 +215,25 @@ def test_a_hash_in_the_review_is_not_read(tmp_path):
 
 
 def test_two_operations_read_back_as_two_runs(tmp_path):
-    runs = {case: _run(tmp_path, "profile-orientation-review", case) for case in ("global", "local")}
-    model = load_project(EXAMPLES / "profile-orientation-review").run_model()["model"]
+    # Two attested load cases, so two examples; a review names one model, so each run's
+    # review is written in turn and their provenance records are combined into the bundle's.
+    sources = (("support-rack-review", "Operating"), ("native-friction-review", "Cold"))
+    runs = {operation: _run(tmp_path, example, operation) for example, operation in sources}
     root = tmp_path / "bundle"
     staged = stage_runs(runs, root)
-    scene = build_visualization_scene(model, analysis_runs=list(staged.values()), scene_id="scene:two")
-    review = build_engineering_review(model, analysis_runs=list(staged.values()), package_id="review:two")
-    write_engineering_review_with_scene(review, root, scene=scene, title="Two operations")
 
-    assert [run.operation for run in read_staged_runs(root)] == ["global", "local"]
+    combined = None
+    for example, operation in sources:
+        model = load_project(EXAMPLES / example).run_model()["model"]
+        run = staged[operation]
+        scene = build_visualization_scene(SceneRequest(model, analysis_runs=[run], scene_id=f"scene:{operation}"))
+        review = build_engineering_review(model, analysis_runs=[run], package_id=f"review:{operation}")
+        write_engineering_review_with_scene(review, root, scene=scene, title="Two operations")
+        document = json.loads((root / "review.json").read_text(encoding="utf-8"))
+        if combined is None:
+            combined = document
+        else:
+            combined["provenance"] = list(combined["provenance"]) + list(document["provenance"])
+    (root / "review.json").write_text(json.dumps(combined, indent=2), encoding="utf-8")
+
+    assert [run.operation for run in read_staged_runs(root)] == ["Cold", "Operating"]

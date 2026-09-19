@@ -9,6 +9,7 @@ from tuba.refs import EntityRef
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
+from tuba.visualization.builders._contract import SceneContribution
 from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _node_coords, _normalised_vector, _numeric_triplet, _object_id
 
 
@@ -142,7 +143,7 @@ def _build_imported_component_scene(
             )
         )
 
-    return objects, assets, diagnostics
+    return SceneContribution(objects=tuple(objects), assets=tuple(assets), diagnostics=tuple(diagnostics))
 def _build_imported_component_object(component_ref: EntityRef, component: Any, asset_record: Any) -> tuple[SceneObject, GeometryAsset]:
     vertices, faces = _imported_component_mesh(asset_record)
     object_id = _object_id(component_ref)

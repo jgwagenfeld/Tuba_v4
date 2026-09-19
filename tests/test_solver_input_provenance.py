@@ -21,7 +21,7 @@ from tuba.solver.code_aster_runtime import (
     CodeAsterRuntimeCandidate,
     write_code_aster_execution_attestation,
 )
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 def _operation_model():
@@ -69,7 +69,7 @@ def test_operation_results_use_resolved_case_for_web_and_pyvista(tmp_path: Path)
     study = CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
     state = result_state_from_fea_results(model=model, study=study, results=results)
 
-    scene = build_visualization_scene(model, result_states=[state])
+    scene = build_visualization_scene(SceneRequest(model, result_states=[state]))
 
     stress = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "stress")
     load = next(overlay for overlay in scene.overlays if overlay.kind == "load_case" and overlay.data["load_case"] == "Hot")
@@ -328,8 +328,7 @@ def test_direct_parse_rejects_identity_free_sidecar_before_reading_tables(
     sidecar["name_map"] = {"N0": "STALE_NODE"}
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
     monkeypatch.setattr(
-        CodeAsterSolver,
-        "_parse_results",
+        "tuba.solver.parse_tables.parse_results",
         lambda *_args, **_kwargs: pytest.fail("identity-free sidecar reached table parsing"),
     )
 
@@ -340,7 +339,7 @@ def test_direct_parse_rejects_identity_free_sidecar_before_reading_tables(
 def test_direct_parse_rejects_requested_load_case_mismatch(tmp_path: Path, monkeypatch):
     model, _, results = _operation_model()
     CodeAsterSolver(work_dir=tmp_path).export_analysis_study(model, "Hot", tmp_path)
-    monkeypatch.setattr(CodeAsterSolver, "_parse_results", lambda *_args, **_kwargs: results)
+    monkeypatch.setattr("tuba.solver.parse_tables.parse_results", lambda *_args, **_kwargs: results)
 
     with pytest.raises(ValueError, match="load case.*Cold.*Hot"):
         CodeAsterSolver().parse_result_artifacts(model, tmp_path, "Cold")
@@ -361,7 +360,7 @@ def test_artifact_import_preserves_fully_legacy_identity_chain(
     sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
     sidecar.pop("solver_input_identity")
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
-    monkeypatch.setattr(CodeAsterSolver, "_parse_result_artifacts_after_validation", lambda *_args, **_kwargs: results)
+    monkeypatch.setattr("tuba.solver.parse_tables.parse_result_artifacts_after_validation", lambda *_args, **_kwargs: results)
 
     imported = import_code_aster_artifacts(model=model, work_dir=tmp_path, allow_unverified=True)
 
@@ -382,7 +381,7 @@ def test_direct_parse_preserves_fully_legacy_identity_chain(tmp_path: Path, monk
     sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
     sidecar.pop("solver_input_identity")
     sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
-    monkeypatch.setattr(CodeAsterSolver, "_parse_results", lambda *_args, **_kwargs: results)
+    monkeypatch.setattr("tuba.solver.parse_tables.parse_results", lambda *_args, **_kwargs: results)
 
     parsed = CodeAsterSolver().parse_result_artifacts(model, tmp_path, "Hot")
 
@@ -396,7 +395,7 @@ def test_scene_rejects_ownerless_analysis_mesh_with_known_identity(tmp_path: Pat
     mesh = analysis.AnalysisMesh.from_dict(manifest["analysis_mesh"])
 
     with pytest.raises(ValueError, match="analysis mesh.*owning result state"):
-        build_visualization_scene(model, analysis_meshes=[mesh])
+        build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
 
 
 def test_report_rejects_ownerless_analysis_mesh_with_known_identity(tmp_path: Path):
@@ -416,7 +415,7 @@ def test_model_mutation_after_result_creation_is_rejected_by_scene_and_report(tm
     model.nodes["N1"].coords[0] = 2.0
 
     with pytest.raises(ValueError, match="solver input fingerprint"):
-        build_visualization_scene(model, result_states=[state])
+        build_visualization_scene(SceneRequest(model, result_states=[state]))
     with pytest.raises(EngineeringReviewError, match="solver input fingerprint"):
         build_engineering_review(model, studies=[study], result_states=[state])
 
@@ -442,7 +441,7 @@ def test_unknown_result_case_keeps_fe_stress_without_code_utilization(tmp_path: 
     state = result_state_from_fea_results(model=model, study=study, results=results)
     legacy_unknown = replace(state, load_case="Missing", solver_input_identity=None)
 
-    scene = build_visualization_scene(model, result_states=[legacy_unknown])
+    scene = build_visualization_scene(SceneRequest(model, result_states=[legacy_unknown]))
     stress = next(overlay for overlay in scene.overlays if overlay.data.get("result_type") == "stress")
 
     assert "utilization_values" not in stress.data
@@ -480,6 +479,47 @@ def test_solver_input_identity_ignores_int_versus_float_literals():
     floats = build_solver_input_identity(bend_model(1.0, 90.0), "Operating")
 
     assert integers == floats
+
+
+def _grouped_model():
+    model = Model(project_name="Grouped")
+    model.add_material("Steel", E=2.0e11, nu=0.3)
+    model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+    node_a = model.add_node([0.0, 0.0, 0.0])
+    node_b = model.add_node([1.0, 0.0, 0.0])
+    model.add_element(id="run", type="pipe_straight", n1=node_a, n2=node_b, section="Pipe", material="Steel")
+    model.define_load_case("Operating", gravity=True)
+    model.groups["rack_A"] = {"elements": ["run"], "metadata": {"zone": "yard"}}
+    return model
+
+
+def test_group_metadata_does_not_move_the_solver_input_identity():
+    """Rack attachment points are inspection metadata; adding them must not re-solve.
+
+    W1 found this the hard way: extending a rack's attachment points staled the
+    bridge evidence, although the solver never reads group metadata. The identity
+    hashes the solver-relevant projection of groups - their names and members.
+    """
+    plain = build_solver_input_identity(_grouped_model(), "Operating")
+    annotated_model = _grouped_model()
+    annotated_model.groups["rack_A"]["metadata"]["attachment_points"] = {"level_1_left": "node:N0"}
+    annotated = build_solver_input_identity(annotated_model, "Operating")
+
+    assert plain == annotated
+
+
+def test_group_membership_moves_the_solver_input_identity():
+    """Members define what a group is; an operation field scoping to it must re-solve."""
+    plain = build_solver_input_identity(_grouped_model(), "Operating")
+    moved_model = _grouped_model()
+    moved_model.groups["rack_A"]["elements"] = []
+    moved = build_solver_input_identity(moved_model, "Operating")
+    renamed_model = _grouped_model()
+    renamed_model.groups["rack_B"] = renamed_model.groups.pop("rack_A")
+    renamed = build_solver_input_identity(renamed_model, "Operating")
+
+    assert moved != plain
+    assert renamed != plain
 
 
 def test_solver_input_identity_survives_last_bit_float_noise():

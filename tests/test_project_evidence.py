@@ -13,7 +13,6 @@ from tuba.solver.code_aster_runtime import load_code_aster_execution_attestation
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 RACK = EXAMPLES / "support-rack-review" / "evidence" / "Operating"
-PROFILE = EXAMPLES / "profile-orientation-review" / "evidence"
 
 
 def _files(folder: Path) -> dict[str, bytes]:
@@ -68,12 +67,12 @@ def test_promotion_keeps_only_attested_files_and_lands_the_attestation_last(tmp_
 
 def test_one_damaged_operation_promotes_none(tmp_path):
     moves = {}
-    for case in ("global", "local"):
+    for case in ("first", "second"):
         staged, target = tmp_path / "staged" / case, tmp_path / "evidence" / case
-        shutil.copytree(PROFILE / case, staged)
-        shutil.copytree(PROFILE / case, target)
+        shutil.copytree(RACK, staged)
+        shutil.copytree(RACK, target)
         moves[staged] = target
-    (tmp_path / "staged" / "local" / "study.mess").write_text("damaged", encoding="utf-8")
+    (tmp_path / "staged" / "second" / "study.mess").write_text("damaged", encoding="utf-8")
     before = {target: _files(target) for target in moves.values()}
 
     with pytest.raises(ValueError, match="does not match"):

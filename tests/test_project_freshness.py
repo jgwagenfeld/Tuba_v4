@@ -1,6 +1,7 @@
 """Freshness: a solve's expected identity comes from the exporters' own code (spec decision 15)."""
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -90,8 +91,21 @@ def test_expected_identity_never_meshes(monkeypatch):
     assert identity.compiler_id == "tuba.code_aster.volume.v2"
 
 
+def _copy_rack_evidence(tmp_path: Path) -> Path:
+    target = tmp_path / "evidence" / "Operating"
+    shutil.copytree(SUPPORT_RACK / "evidence" / "Operating", target)
+    return target
+
+
+def _as_docker(folder: Path) -> None:
+    path = folder / "study_execution.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["execution_method"] = "docker"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_committed_support_rack_evidence_is_fresh(tmp_path):
-    assert stale_operations(_rack(tmp_path), _rack_attestation()) == []
+    assert stale_operations(_rack(tmp_path), _rack_attestation(), project_root=SUPPORT_RACK) == []
 
 
 def test_a_rename_or_an_unsolved_load_case_leaves_the_evidence_fresh(tmp_path):
@@ -101,28 +115,53 @@ def test_a_rename_or_an_unsolved_load_case_leaves_the_evidence_fresh(tmp_path):
         + 'model.define_load_case("Hydrotest", gravity=True, pressure=2.0e6)\n',
     )
 
-    assert stale_operations(model, _rack_attestation()) == []
+    assert stale_operations(model, _rack_attestation(), project_root=SUPPORT_RACK) == []
 
 
 def test_a_moved_node_makes_the_operation_stale(tmp_path):
-    model = _rack(tmp_path, lambda text: text.replace("(-2.0, -1.0, 3.25)", "(-2.5, -1.0, 3.25)"))
+    model = _rack(tmp_path, lambda text: text.replace("[-2.0, 0.0, 3.25]", "[-2.5, 0.0, 3.25]"))
 
-    assert stale_operations(model, _rack_attestation()) == ["Operating"]
+    assert stale_operations(model, _rack_attestation(), project_root=SUPPORT_RACK) == ["Operating"]
 
 
 def test_a_changed_study_solver_option_makes_the_operation_stale(tmp_path):
-    assert stale_operations(_rack(tmp_path), _rack_attestation(), solver_options={"line_segments": 4}) == ["Operating"]
+    assert stale_operations(
+        _rack(tmp_path), _rack_attestation(), project_root=SUPPORT_RACK, solver_options={"line_segments": 4}
+    ) == ["Operating"]
 
 
 def test_invalid_study_solver_options_raise_instead_of_reading_as_stale(tmp_path):
     with pytest.raises(ValueError, match="line_segments"):
-        stale_operations(_rack(tmp_path), _rack_attestation(), solver_options={"line_segments": 0})
+        stale_operations(
+            _rack(tmp_path), _rack_attestation(), project_root=SUPPORT_RACK, solver_options={"line_segments": 0}
+        )
 
 
 def test_an_operation_the_model_no_longer_defines_is_stale(tmp_path):
     model = _rack(tmp_path, lambda text: text.replace('"Operating",', '"Cold",'))
 
-    assert stale_operations(model, _rack_attestation()) == ["Operating"]
+    assert stale_operations(model, _rack_attestation(), project_root=SUPPORT_RACK) == ["Operating"]
+
+
+def test_missing_evidence_reads_stale(tmp_path):
+    model = _rack(tmp_path)
+
+    assert stale_operations(model, _rack_attestation(), project_root=tmp_path) == ["Operating"]
+
+
+def test_damaged_evidence_reads_stale(tmp_path):
+    model = _rack(tmp_path)
+    folder = _copy_rack_evidence(tmp_path)
+    (folder / "study_reac.csv").write_text("not a reaction table\n", encoding="utf-8")
+
+    assert stale_operations(model, _rack_attestation(), project_root=tmp_path) == ["Operating"]
+
+
+def test_docker_evidence_reads_stale(tmp_path):
+    model = _rack(tmp_path)
+    _as_docker(_copy_rack_evidence(tmp_path))
+
+    assert stale_operations(model, _rack_attestation(), project_root=tmp_path) == ["Operating"]
 
 
 def test_attested_identities_come_from_the_review_scene(tmp_path):

@@ -93,33 +93,63 @@ class SupportSpacingRule:
 @dataclass(frozen=True)
 class ClashFreeRule:
     clearance_m: float = 0.0
+    include_self: bool = True
+    include_duplicate_nodes: bool = True
+    duplicate_tol_m: float = 0.001
     rule_id: str = "clash_free"
 
     def evaluate(self, model: TubaModel) -> list[RuleResult]:
         results: list[RuleResult] = []
-        for clash in ClashEngine().check_model(model, clearance_m=self.clearance_m):
-            results.append(
-                RuleResult(
-                    rule_id=self.rule_id,
-                    passed=False,
-                    severity="error" if clash.severity == "hard" else "warning",
-                    message=(
-                        f"{clash.left} clashes with {clash.right}: "
-                        f"penetration {clash.penetration_m:.6g} m."
-                    ),
-                    refs=[clash.left, clash.right],
-                    data=clash.to_dict(),
+        engine = ClashEngine()
+        for clash in engine.check_all(
+            model, clearance_m=self.clearance_m, duplicate_tol_m=self.duplicate_tol_m
+        ):
+            if clash.right.kind == "obstacle":
+                results.append(
+                    RuleResult(
+                        rule_id=self.rule_id,
+                        passed=False,
+                        severity="error" if clash.severity == "hard" else "warning",
+                        message=(
+                            f"{clash.left} clashes with {clash.right}: "
+                            f"penetration {clash.penetration_m:.6g} m."
+                        ),
+                        refs=[clash.left, clash.right],
+                        data=clash.to_dict(),
+                    )
                 )
-            )
+            elif clash.metadata.get("check") == "duplicate_node":
+                if not self.include_duplicate_nodes:
+                    continue
+                results.append(
+                    RuleResult(
+                        rule_id=self.rule_id,
+                        passed=False,
+                        severity="error",
+                        message=(
+                            f"{clash.left} duplicates {clash.right}: "
+                            f"merge to one node ({clash.diagnostics[0] if clash.diagnostics else ''})"
+                        ),
+                        refs=[clash.left, clash.right],
+                        data=clash.to_dict(),
+                    )
+                )
+            else:
+                if not self.include_self:
+                    continue
+                overlap = clash.metadata.get("overlap_type", "crossing")
+                results.append(
+                    RuleResult(
+                        rule_id=self.rule_id,
+                        passed=False,
+                        severity="error",
+                        message=(
+                            f"{clash.left} clashes with {clash.right} "
+                            f"({overlap}, no shared node/support/coupling): "
+                            f"penetration {clash.penetration_m:.6g} m."
+                        ),
+                        refs=[clash.left, clash.right],
+                        data=clash.to_dict(),
+                    )
+                )
         return results
-
-
-def rule_report_to_markdown(report: RuleReport) -> str:
-    lines = ["# Rule Report", "", f"Passed: {'yes' if report.passed else 'no'}", ""]
-    if not report.results:
-        lines.append("No rule diagnostics.")
-        return "\n".join(lines) + "\n"
-    for result in report.results:
-        refs = ", ".join(str(ref) for ref in result.refs)
-        lines.append(f"- `{result.rule_id}` [{result.severity}]: {result.message} ({refs})")
-    return "\n".join(lines) + "\n"

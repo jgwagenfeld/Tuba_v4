@@ -8,11 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from tuba.analysis import AnalysisMesh, AnalysisStudy, MeshElementSource, MeshNodeSource
-from tuba.analysis.provenance import MIXED_CODE_ASTER_COMPILER_ID, build_solver_input_identity
+from tuba.analysis.provenance import build_solver_input_identity
 from tuba.meshing._gmsh import gmsh_model
 from tuba.model import TubaModel
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
+from tuba.solver.code_aster_runtime import write_artifact_text
+from tuba.solver.compiler_contract import mixed_contract
 
 
 class MixedCodeAsterStudyExporter:
@@ -51,10 +53,12 @@ class MixedCodeAsterStudyExporter:
         name_map = self._group_name_map(model)
         self._write_med(model, med_path)
         analysis_mesh = self._build_analysis_mesh(model, med_path)
+        contract = mixed_contract(model)
         solver_input_identity = build_solver_input_identity(
             model,
             load_case_name,
-            compiler_id=MIXED_CODE_ASTER_COMPILER_ID,
+            compiler_id=contract.compiler_id,
+            compiler_inputs=contract.compiler_inputs,
         )
         analysis_mesh = replace(analysis_mesh, solver_input_identity=solver_input_identity)
         self._write_comm(model, load_case_name, comm_path, name_map=name_map)
@@ -88,6 +92,7 @@ class MixedCodeAsterStudyExporter:
             metadata={
                 "project_name": model.project_name,
                 "mixed_analysis": True,
+                "compiler_inputs": contract.compiler_inputs,
                 "result_status": self.RESULT_STATUS,
                 "code_aster_solve_ready": False,
                 "runtime_blocker": self.RUNTIME_BLOCKER,
@@ -322,10 +327,11 @@ class MixedCodeAsterStudyExporter:
                 ]
             )
         lines.extend(["    ),", ")", "FIN()"])
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        write_artifact_text(path, "\n".join(lines) + "\n")
 
     def _write_export(self, root: Path, path: Path) -> None:
-        path.write_text(
+        write_artifact_text(
+            path,
             "\n".join(
                 [
                     "P actions make_etude",
@@ -336,7 +342,6 @@ class MixedCodeAsterStudyExporter:
                 ]
             )
             + "\n",
-            encoding="utf-8",
         )
 
     def _build_lineage(self, model: TubaModel, name_map: dict[str, str]) -> dict[str, str]:

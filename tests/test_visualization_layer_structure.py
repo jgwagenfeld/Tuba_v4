@@ -13,7 +13,7 @@ from tuba.solver.modelisation import (
     modelisation_assignments,
     needs_discrete_element,
 )
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 from tuba.visualization.builders._layers import (
     OBJECT_KIND_CATEGORY,
     OVERLAY_KIND_CATEGORY,
@@ -136,7 +136,7 @@ class TestMeshIdentity(unittest.TestCase):
 
 class TestAppliedLoads(unittest.TestCase):
     def setUp(self):
-        self.scene = build_visualization_scene(build_review_model())
+        self.scene = build_visualization_scene(SceneRequest(build_review_model()))
         self.loads = [obj for obj in self.scene.objects if obj.kind == "applied_load"]
 
     def test_forces_and_moments_are_separate_glyphs(self):
@@ -176,7 +176,7 @@ class TestAppliedLoads(unittest.TestCase):
             profile="linear",
         )
 
-        scene = build_visualization_scene(model)
+        scene = build_visualization_scene(SceneRequest(model))
         overlay = next(item for item in scene.overlays if item.id == "overlay:load_case:LinearPressure")
 
         self.assertEqual(
@@ -188,10 +188,62 @@ class TestAppliedLoads(unittest.TestCase):
         )
         self.assertEqual(overlay.data["pressure_source"], "authored_input")
 
+    def test_line_load_comb_glyphs_and_overlay(self):
+        import math
+        from tuba import Model
+        from tuba.model import BendGeometry
+
+        model = Model(project_name="LineLoadViz")
+        model.add_material("Steel", E=2.0e11, nu=0.3, rho=7850.0)
+        model.add_pipe_section("Pipe", OD=0.1, WT=0.01)
+        n0 = model.add_node([0.0, 0.0, 0.0])
+        n1 = model.add_node([4.0, 0.0, 0.0])
+        n2 = model.add_node([4.5, 0.5, 0.0])
+        model.add_element(id="run", type="pipe_straight", n1=n0, n2=n1, section="Pipe", material="Steel")
+        model.add_element(
+            id="bend", type="pipe_bend", n1=n1, n2=n2, section="Pipe", material="Steel",
+            bend_radius=0.5, bend_angle=90,
+            bend_geometry=BendGeometry(
+                center=[4.0, 0.5, 0.0], normal=[0.0, 0.0, 1.0], radius=0.5, angle=90,
+                start_tangent=[1.0, 0.0, 0.0], end_tangent=[0.0, 1.0, 0.0],
+            ),
+        )
+        op = model.define_operation("Operating", gravity=False)
+        op.add_field("line_load", 350.0, direction=[0.0, 0.0, -1.0])
+
+        scene = build_visualization_scene(SceneRequest(model))
+        scene.validate()
+
+        line_loads = [o for o in scene.objects if o.kind == "applied_load" and o.metadata.get("vector_kind") == "line_load"]
+        self.assertEqual(len(line_loads), 2)
+        by_elem = {o.metadata["element_id"]: o for o in line_loads}
+        self.assertIn("run", by_elem)
+        self.assertIn("bend", by_elem)
+
+        assets = {a.id: a for a in scene.geometry_assets}
+        for obj in line_loads:
+            asset = assets[obj.geometry_asset_id]
+            self.assertEqual(asset.format, "line_load_comb")
+            self.assertEqual(asset.generation_config["color"], "#0284c7")
+            self.assertEqual(asset.generation_config["value_npm"], 350.0)
+            self.assertEqual(asset.generation_config["direction"], [0.0, 0.0, -1.0])
+            starts = asset.generation_config["arrow_starts"]
+            ends = asset.generation_config["arrow_ends"]
+            crest = asset.generation_config["crest_points"]
+            self.assertGreaterEqual(len(starts), 2)
+            self.assertEqual(len(starts), len(ends))
+            self.assertEqual(len(crest), len(starts))
+            # Arrow tip should point along -Z: start Z > end Z
+            for s, e in zip(starts, ends):
+                self.assertGreater(s[2], e[2])
+
+        overlay = next(o for o in scene.overlays if o.id == "overlay:load_case:Operating")
+        self.assertEqual(overlay.data["line_load_count"], 1)
+
     def test_loads_can_be_excluded(self):
         from tuba.visualization import SceneBuildOptions
 
-        scene = build_visualization_scene(build_review_model(), options=SceneBuildOptions(include_loads=False))
+        scene = build_visualization_scene(SceneRequest(build_review_model(), options=SceneBuildOptions(include_loads=False)))
         self.assertEqual([obj for obj in scene.objects if obj.kind == "applied_load"], [])
 
     def scene_load_cases(self):
@@ -202,13 +254,13 @@ class TestLayerRegistry(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         fixture = operating_state_review_fixture(Path(self._tmp.name))
-        self.scene = build_visualization_scene(
+        self.scene = build_visualization_scene(SceneRequest(
             fixture.model,
             result_states=[fixture.result_state],
             geometry_states=[fixture.operating_state, fixture.visual_state, fixture.cold_state],
             analysis_meshes=[fixture.analysis_mesh],
             operating_clash_results=fixture.operating_clashes,
-        )
+        ))
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -268,11 +320,11 @@ class TestResultFieldCatalogue(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         fixture = operating_state_review_fixture(Path(self._tmp.name))
-        self.scene = build_visualization_scene(
+        self.scene = build_visualization_scene(SceneRequest(
             fixture.model,
             result_states=[fixture.result_state],
             analysis_meshes=[fixture.analysis_mesh],
-        )
+        ))
 
     def tearDown(self):
         self._tmp.cleanup()

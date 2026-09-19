@@ -1,7 +1,7 @@
 """Shared leaf helpers and options for scene builders."""
 
 from __future__ import annotations
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import Any
 from typing import Iterable
 import numpy as np
@@ -12,26 +12,9 @@ from tuba.refs import EntityRef
 from tuba.clash.types import ClashResult
 from tuba.load_path import LoadPathReport
 from tuba.load_path import SupportRackAssociation
-from tuba.patches import ModelPatch
 from tuba.routing.types import PipeRouteCandidate
 from tuba.routing.types import RouteSegment
 from tuba.rules import RuleResult
-
-
-@dataclass(frozen=True)
-class SceneBuildOptions:
-    include_elements: bool = True
-    include_supports: bool = True
-    include_obstacles: bool = True
-    include_loads: bool = True
-    include_imported_components: bool = True
-    include_physical: bool = True
-    include_quantities: bool = True
-    include_attributes: bool = True
-    include_physical_envelopes: bool = False
-    clearance_m: float = 0.0
-    include_cost_overlays: bool = False
-    cost_metric: str = "insulation_cost"
 def _normalised_vector(values: Any) -> list[float] | None:
     vector = _numeric_triplet(values)
     if vector is None:
@@ -97,11 +80,6 @@ def _clash_issue_id(clash: ClashResult) -> str:
 def _rule_issue_id(result: RuleResult) -> str:
     refs = ":".join(f"{ref.kind}:{ref.id}" for ref in result.refs) or "model"
     return f"issue:rule:{result.rule_id}:{refs}"
-def _proposal_patch(value: ModelPatch | dict[str, Any]) -> tuple[ModelPatch, dict[str, Any]]:
-    if isinstance(value, ModelPatch):
-        return value, value.to_dict()
-    patch = ModelPatch.from_dict(dict(value))
-    return patch, patch.to_dict()
 def _normalize_ifc_guid_map(values: dict[str | EntityRef, str] | None) -> dict[str, str]:
     if not values:
         return {}
@@ -355,20 +333,6 @@ def _dedupe(values: Iterable[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
-def _transform_bounds(bounds: list[float], transform: dict[str, Any]) -> list[float]:
-    if len(bounds) != 6:
-        return []
-    translation = transform.get("translation", [0.0, 0.0, 0.0])
-    if len(translation) != 3:
-        translation = [0.0, 0.0, 0.0]
-    return [
-        float(bounds[0] + translation[0]),
-        float(bounds[1] + translation[1]),
-        float(bounds[2] + translation[2]),
-        float(bounds[3] + translation[0]),
-        float(bounds[4] + translation[1]),
-        float(bounds[5] + translation[2]),
-    ]
 def _safe_id(value: str) -> str:
     return "".join(char if char.isalnum() or char in "_.-" else "_" for char in value)
 def _obstacle_bounds(obstacle: dict[str, Any]) -> list[float]:

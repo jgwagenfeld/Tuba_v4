@@ -49,7 +49,7 @@ Import validates the study/artifact lineage and returns the study, analysis mesh
 
 ## Reporting
 
-The reporting builder consumes authoritative model, study, mesh, result, and compliance records. It does not invoke Code_Aster.
+The reporting builder consumes authoritative model, study, mesh, and result records. It does not invoke Code_Aster.
 
 ::: tuba.reporting.build_engineering_review
     options:
@@ -117,6 +117,11 @@ Build one semantic scene, write a portable bundle, and optionally place that sce
       show_source: false
       members_order: source
 
+::: tuba.visualization.add_scene_label
+    options:
+      show_source: false
+      members_order: source
+
 ## User-owned standards checks
 
 Tuba does not implement piping-standard calculations or choose an applicable code.
@@ -128,10 +133,6 @@ accepts an object with `evaluate(model, results)`. No evaluator runs by default.
 If routing acceptance criteria require stress ratios and no evaluator supplies
 them, the candidate is rejected with `compliance_unavailable`.
 
-`ComplianceReport` and `ElementComplianceResult` now live in
-`tuba.reporting.compliance`. These are data containers for caller-supplied
-checks, not calculation engines. Pass reports to `build_engineering_review`
-through `compliance_reports`; the builder retains its Code_Aster lineage checks.
 The former `tuba.compliance` evaluators, SIF helpers, detailed formula reports,
 and the example option `include_compliance` have been removed.
 

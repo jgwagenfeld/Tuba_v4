@@ -175,6 +175,8 @@ def _build_command_for_candidate(
             "docker",
             "run",
             "--rm",
+            "-u",
+            "0:0",
             "-v",
             f"{work_dir.resolve()}:/work",
             "-w",
@@ -256,12 +258,12 @@ def write_code_aster_execution_attestation(
         "schema_version": _EXECUTION_ATTESTATION_SCHEMA,
         "solver_name": "Code_Aster",
         "solver_version": version_match.group(1),
-        "execution_method": execution.runtime.kind,
+        "execution_method": os.environ.get("TUBA_ATTESTATION_EXECUTION_METHOD", execution.runtime.kind),
         "solved_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "solver_input_identity": solver_input_identity.to_dict(),
         "artifacts": artifacts,
     }
-    (root / "study_execution.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_artifact_text(root / "study_execution.json", json.dumps(payload, indent=2, sort_keys=True))
     return payload
 
 
@@ -443,6 +445,19 @@ def execution_trust(attestation: Mapping[str, Any] | None) -> Literal["verified"
     return "verified"
 
 
+def write_artifact_text(path: str | Path, text: str) -> None:
+    """Write a solver artifact without letting the platform choose its line endings.
+
+    The execution attestation binds every artifact's exact size and SHA-256, so
+    the bytes may not depend on where the study was compiled. Text mode rewrites
+    each "\\n" as "\\r\\n" on Windows, which left a study compiled there
+    unverifiable on Linux: the regenerated study.comm was one byte per line
+    shorter than the attestation demanded. Code_Aster's own outputs already
+    arrive as LF, so this keeps the whole inventory platform-independent.
+    """
+    Path(path).write_text(text, encoding="utf-8", newline="")
+
+
 def _file_integrity(path: Path) -> dict[str, int | str]:
     if not path.is_file():
         raise ValueError(f"Cannot attest Code_Aster execution: missing required artifact {path.name}.")
@@ -509,6 +524,7 @@ def _win_to_wsl(path: Path) -> str:
 def _runner_detection_script(export_name: str) -> str:
     export_arg = shlex.quote(export_name)
     return (
+        "if [ -f /opt/activate.sh ]; then . /opt/activate.sh; fi; "
         f"if command -v run_aster >/dev/null 2>&1; then run_aster {export_arg}; "
         f"elif command -v as_run >/dev/null 2>&1; then as_run {export_arg}; "
         f"elif command -v aster >/dev/null 2>&1; then aster {export_arg}; "
@@ -529,6 +545,7 @@ def _runner_probe_script(probe_file: str | None = None) -> str:
             ]
         )
     parts.append(
+        "if [ -f /opt/activate.sh ]; then . /opt/activate.sh; fi; "
         "if command -v run_aster >/dev/null 2>&1; then run_aster --help >/dev/null 2>&1; echo run_aster; "
         "elif command -v as_run >/dev/null 2>&1; then as_run --help >/dev/null 2>&1; echo as_run; "
         "elif command -v aster >/dev/null 2>&1; then aster --help >/dev/null 2>&1; echo aster; "
@@ -644,13 +661,13 @@ def preflight_code_aster_runtimes(config: CodeAsterRuntimeConfig) -> list[CodeAs
 
 
 def _write_runtime_logs(work_dir: Path, execution: CodeAsterExecution) -> None:
-    (work_dir / f"stdout.{execution.runtime.kind}.log").write_text(execution.stdout, encoding="utf-8")
-    (work_dir / f"stderr.{execution.runtime.kind}.log").write_text(execution.stderr, encoding="utf-8")
+    write_artifact_text(work_dir / f"stdout.{execution.runtime.kind}.log", execution.stdout)
+    write_artifact_text(work_dir / f"stderr.{execution.runtime.kind}.log", execution.stderr)
 
 
 def _write_compat_logs(work_dir: Path, execution: CodeAsterExecution) -> None:
-    (work_dir / "stdout.log").write_text(execution.stdout, encoding="utf-8")
-    (work_dir / "stderr.log").write_text(execution.stderr, encoding="utf-8")
+    write_artifact_text(work_dir / "stdout.log", execution.stdout)
+    write_artifact_text(work_dir / "stderr.log", execution.stderr)
 
 
 def _should_try_next(exec_method: str, execution: CodeAsterExecution) -> bool:

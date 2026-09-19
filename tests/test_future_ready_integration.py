@@ -38,16 +38,16 @@ class TestFutureReadyIntegration(unittest.TestCase):
 
         request = PipeRouteRequest(
             id="P-100",
-            start=RouteEndpoint(id="A", point=(0.0, 0.5, 1.75)),
-            goal=RouteEndpoint(id="B", point=(4.0, 0.5, 1.75)),
+            start=RouteEndpoint(id="A", point=(0.0, 0.0, 1.75)),
+            goal=RouteEndpoint(id="B", point=(4.0, 0.0, 1.75)),
             section="PipeSec",
             material="Steel",
             costs=RoutingCostWeights(length=1.0, bend=0.0, support_span=0.0),
         )
         candidate = PipeRouteCandidate(
             request_id="P-100",
-            points=[(0.0, 0.5, 1.75), (4.0, 0.5, 1.75)],
-            segments=[RouteSegment((0.0, 0.5, 1.75), (4.0, 0.5, 1.75), "straight")],
+            points=[(0.0, 0.0, 1.75), (4.0, 0.0, 1.75)],
+            segments=[RouteSegment((0.0, 0.0, 1.75), (4.0, 0.0, 1.75), "straight")],
             cost=0.0,
             cost_breakdown={},
         )
@@ -59,7 +59,7 @@ class TestFutureReadyIntegration(unittest.TestCase):
         model.assign_insulation("route:P-100", "mw_50")
 
         rack_node = model.groups["rack_A"]["metadata"]["attachment_points"]["level_1_left"].split(":", 1)[1]
-        support = model.add_support(node=model.find_node_by_point((0.0, 0.5, 1.75)), type="rest", attached_to=rack_node)
+        support = model.add_support(node=model.find_node_by_point((0.0, 0.0, 1.75)), type="rest", attached_to=rack_node)
 
         takeoff = quantity_takeoff(model)
         bom = bom_to_dict(model)

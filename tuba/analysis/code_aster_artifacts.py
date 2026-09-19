@@ -10,11 +10,9 @@ from typing import Any
 from tuba.analysis.results import ResultState, result_state_from_fea_results
 from tuba.analysis.run import AnalysisRun
 from tuba.analysis.study import AnalysisStudy
-from tuba.solver.aster import CodeAsterSolver
-from tuba.solver.aster_sidecar import load_and_validate_artifact_chain
+from tuba.solver.aster_sidecar import load_and_attest_artifact_chain
 from tuba.solver.code_aster_runtime import (
     execution_trust,
-    validate_code_aster_execution_attestation,
 )
 from tuba.analysis.provenance import SolverInputIdentity
 
@@ -29,21 +27,7 @@ def import_code_aster_artifacts(
     """Import Code_Aster results; historical unattested data requires explicit opt-in."""
     root = Path(work_dir)
     diagnostics: list[dict[str, Any]] = []
-    loaded_study, _, analysis_mesh, sidecar = load_and_validate_artifact_chain(
-        model,
-        root,
-        study=study,
-    )
-    sidecar_identity = (
-        None if sidecar is None or sidecar.get("solver_input_identity") is None
-        else SolverInputIdentity.from_dict(sidecar["solver_input_identity"])
-    )
-    attestation = validate_code_aster_execution_attestation(
-        root,
-        study_identity=loaded_study.solver_input_identity,
-        mesh_identity=None if analysis_mesh is None else analysis_mesh.solver_input_identity,
-        sidecar_identity=sidecar_identity,
-    )
+    loaded_study, analysis_mesh, _, attestation = load_and_attest_artifact_chain(model, root, study=study)
     if attestation is None and not allow_unverified:
         raise ValueError(
             "Code_Aster artifact import requires a validated solve attestation; "
@@ -56,11 +40,12 @@ def import_code_aster_artifacts(
 
         results = parse_volume_result_artifacts(model, root, analysis_mesh, loaded_study)
     else:
-        results = CodeAsterSolver()._parse_result_artifacts_after_validation(model, root, loaded_study.load_case)
+        from tuba.solver import parse_tables
+        results = parse_tables.parse_result_artifacts_after_validation(model, root, loaded_study.load_case)
     history_results = []
     if loaded_study.metadata.get('compiler_inputs', {}).get('contact_law'):
         from tuba.solver.contact_results import read_contact_history
-        history_results = read_contact_history(model, root, loaded_study, CodeAsterSolver())
+        history_results = read_contact_history(model, root, loaded_study)
         results = history_results[-1]
     result_state = result_state_from_fea_results(
         model=model,
@@ -118,9 +103,13 @@ def import_code_aster_artifacts(
             metadata={**result_state.metadata, "parser_diagnostics": combined},
         )
     history_states = []
-    for index, frame in enumerate(history_results):
+    history_frames = list(history_results)
+    for index, frame in enumerate(history_frames):
         frame_state = result_state_from_fea_results(model=model, study=loaded_study, results=frame, analysis_mesh=analysis_mesh)
-        frame_state = replace(frame_state, id=f'{result_state.id}:step:{index}', files=result_state.files,
+        # One frame means a single-operation study, so keep the plain state id:
+        # ':step:0' names a load path's unloaded reference frame to the reports and the viewer.
+        frame_id = result_state.id if len(history_frames) == 1 else f'{result_state.id}:step:{index}'
+        frame_state = replace(frame_state, id=frame_id, files=result_state.files,
                               metadata={**result_state.metadata, **frame_state.metadata,
                                         'runtime_version': attestation.get('solver_version') if attestation else None})
         history_states.append(frame_state)

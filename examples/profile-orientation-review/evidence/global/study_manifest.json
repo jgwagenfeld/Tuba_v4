@@ -9326,7 +9326,7 @@
         "line_segments": 8
       },
       "pipe_stress_exported": false,
-      "project_name": "I-section orientation: global and local loading"
+      "project_name": "I-section orientation: the same tip force at 0, 45 and 90 degrees"
     },
     "model_revision": 0,
     "solver_input_identity": {

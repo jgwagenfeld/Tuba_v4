@@ -20,7 +20,15 @@ The four layer categories answer what is drawn:
 - **Design:** authored pipes, fittings, supports, loads, envelopes, imported components, and context.
 - **Analysis mesh:** the nodes, elements, groups, and Code_Aster modelisations handed to the solver.
 - **Results:** deformed geometry and solver-returned field or vector geometry.
-- **Annotations:** issues, clashes, rules, route candidates, proposals, and review markers.
+- **Annotations:** issues, clashes, rules, route candidates, proposals, review markers, and world-anchored text labels.
+
+A volume-meshed element is drawn once. Its mesh skin is the discretisation of
+the `VolumeGeometry` the element was meshed from, so the scene carries the skin
+alone and no second display sweep that could drift from it. Build therefore
+keeps the analysis mesh visible, because a volume review has no procedural
+design geometry to fall back on, and drops only the result and annotation
+overlays. Every preset, Build included, follows `default_visible`, so a layer a
+bundle declared hidden is never revived by a task.
 
 ### Bodies: the composited result view
 
@@ -58,6 +66,15 @@ convention - `NSEC` circumferential divisions give `2·NSEC+1` angular stations,
 Both the solver reader, which places the display glyphs, and the scene builder,
 which decodes where a peak sits in the wall, read it from there.
 
+### 3D scene labels
+
+`add_scene_label(scene, text, position, *, label_id, height=0.18)` adds world-anchored, camera-facing text badges to the scene:
+
+- **Metric height:** The `height` argument defines the badge height in world metres (e.g. `0.18` = 180 mm).
+- **Automatic aspect ratio:** Width scales dynamically with text length to preserve character proportions without distortion.
+- **Camera billboarding:** Labels render as `THREE.Sprite` instances that face the camera during orbit, pan, and tilt.
+- **Layering & occlusion:** Labels render without depth clipping over geometry and belong to the `annotations:labels` layer, toggleable in the viewer's Overlays panel.
+
 The sub-point overlay therefore carries a `section_profile` (the grid on one
 element node) and a `peak` decoded into a wall position. Only the two radial
 extremes are named - bore and outer surface - because calling a sector
@@ -65,23 +82,15 @@ extremes are named - bore and outer surface - because calling a sector
 
 ## Review tasks and evidence
 
-Task mode and evidence destination are independent state. Choosing a task changes the review emphasis and display preset; it does not silently move the evidence dock.
+Choosing a task changes the review emphasis and display preset.
 
 | Task mode | Purpose |
 | --- | --- |
-| Review | Governing status and overall context |
 | Model | Authored geometry and model records |
 | Results | Solver-backed fields and result geometry |
 | Issues | Diagnostics and issue-focused geometry |
 
-| Evidence destination | Purpose |
-| --- | --- |
-| Summary | Review status and governing values |
-| Diagnostics | Parser, provenance, scene, and issue diagnostics |
-| Compliance | Supplied code checks or an explicit unavailable state |
-| Reports | Downloadable review artifacts |
-
-These are four independent evidence destinations, not aliases for the four task modes.
+The review's tables live in the generated report that the header links to.
 
 ## Result and deformation selection
 

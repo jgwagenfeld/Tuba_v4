@@ -80,6 +80,12 @@ const OVERLAY_SPECS = Object.freeze([
     layerIds: ["support"]
   },
   {
+    id: "support_link",
+    label: "Support attachments",
+    description: "Which structure each attached support acts against. Ground supports carry a hatch instead.",
+    layerIds: ["support_link"]
+  },
+  {
     id: "applied_load",
     label: "Applied loads",
     description: "The load case as applied to the model.",
@@ -198,6 +204,7 @@ export function bodyIdForLayerId(layerId, declaredCategory = null) {
   if (id.startsWith("physical_envelope:") || id === "overlay:physical_envelope") return null;
   if (id.includes("tuyau_subpoint")) return "subpoints";
   if (id.startsWith("deformed:")) return "deformed";
+  if (id === "analysis_mesh:helpers") return null;
   const category = categoryForLayerId(id, declaredCategory);
   if (category === "design") return "geometry";
   if (category === "analysis_mesh") return "analysis_mesh";
@@ -237,7 +244,16 @@ export function getBodies(state) {
 export function setBodyVisibility(state, bodyId, visible) {
   const body = getBodies(state).find((candidate) => candidate.id === bodyId);
   if (!body) return state;
-  return setLayersVisible(state, body.layerIds, visible);
+  let nextState = setLayersVisible(state, body.layerIds, visible);
+  if (bodyId === "analysis_mesh") {
+    const currentGeoOpacity = bodyOpacity(nextState, "geometry");
+    if (visible && Math.abs(currentGeoOpacity - 1.0) < 1e-4) {
+      nextState = setBodyOpacity(nextState, "geometry", 0.35);
+    } else if (!visible && Math.abs(currentGeoOpacity - 0.35) < 1e-4) {
+      nextState = setBodyOpacity(nextState, "geometry", 1.0);
+    }
+  }
+  return nextState;
 }
 
 export function setBodyOpacity(state, bodyId, opacity) {
@@ -269,13 +285,13 @@ export function withDefaultBodyOpacity(state) {
 }
 
 export function createBodyOpacityState(state) {
-  const present = new Set();
-  for (const layer of Object.values(state.layers ?? {})) {
-    if (!(layer.count > 0)) continue;
-    const bodyId = bodyIdForLayerId(layer.id, layer.category);
-    if (bodyId) present.add(bodyId);
-  }
-  const seesThrough = present.has("analysis_mesh") || present.has("subpoints");
+  const meshVisible = Object.values(state.layers ?? {}).some(
+    (layer) => layer.category === "analysis_mesh" && layer.count > 0 && layer.visible !== false
+  );
+  const subpointsVisible = Object.values(state.layers ?? {}).some(
+    (layer) => layer.id?.includes("tuyau_subpoint") && layer.count > 0 && layer.visible !== false
+  );
+  const seesThrough = meshVisible || subpointsVisible;
   return {
     geometry: seesThrough ? GEOMETRY_CONTEXT_OPACITY : 1,
     analysis_mesh: 1,

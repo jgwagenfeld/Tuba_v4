@@ -67,6 +67,18 @@ class TestRoutingGrid(unittest.TestCase):
         )
         self.assertTrue(grid.is_blocked(grid.world_to_index((2.0, 0.0, 0.0))))
 
+    def test_existing_pipe_does_not_block_cells_when_not_avoided(self):
+        model = _model()
+        with model.pipe(section="PipeSec", material="Steel") as b:
+            b.start([1.0, 0.0, 0.0]).run(2.0)
+
+        grid = RoutingGrid.from_model(
+            model,
+            _request(avoid_existing_pipes=False),
+            RoutingGridSpec(cell_size=1.0, margin=1.0),
+        )
+        self.assertFalse(grid.is_blocked(grid.world_to_index((2.0, 0.0, 0.0))))
+
     def test_grid_size_guardrail(self):
         with self.assertRaises(ValueError):
             RoutingGrid.from_model(

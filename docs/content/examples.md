@@ -60,7 +60,7 @@ A STEP/STL component placed beside Tuba pipework, showing connection ports, loca
 
 [![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
 
-A tee meshed with 3D solid elements. The review shows the stress distribution around the branch junction.
+A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. Under internal pressure, gravity and a 4 kN out-of-plane load at the free branch end, the review shows kinematic shell-to-solid coupling, the stress hot spot where the branch meets the junction, and the branch deflection.
 
 FE von Mises is not piping-code stress. The design tubes, analysis skin,
 displacement, terminal resultants and stress field stay separately inspectable.
@@ -71,7 +71,7 @@ displacement, terminal resultants and stress field stay separately inspectable.
 
 [![Load transfer review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
 
-A DN100 line resting on friction shoes on an I-beam rack, analysed together with the rack under gravity, 1.5 MPa internal pressure and a temperature increase from 20 C to 180 C, with no imposed nodal forces. The review shows the shoe forces, the load the shoes put on the rack, and a support-spacing check.
+A DN100 line centered in an I-beam rack under distributed line loading, internal pressure and thermal expansion. The review shows ground and element rest shoe reactions, steel deflection, and support spacing.
 
 An engineer-authored 3.5 m support-spacing rule flags the 4 m rack span.
 This project rule annotates the solver evidence; it does not establish
@@ -93,11 +93,35 @@ See the [native friction example](examples/native-friction.md) for the contact l
 
 [![Beam orientation review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
 
-Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. The review compares global and local loading, deformed profiles, and section rotations relative to the original local axes.
+Three identical I-section cantilevers at 0, 45 and 90 degrees in one model, each loaded by the same 500 N tip force in global -Z. The review compares deformed profiles and section rotations relative to the original local axes, so the difference on screen is the section orientation alone.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) &middot; Evidence: **Results**
 
-See the [profile-orientation example](examples/profile-orientation.md) for the two load cases, local-axis convention and numerical reference checks.
+See the [profile-orientation example](examples/profile-orientation.md) for the section-roll convention and numerical reference checks.
+
+## Plant layout
+
+[![Plant layout review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
+
+A green-hydrogen facility in plan: an electrolyzer hall, a compressor station, storage bullets and a four-bay pipe rack, with the LP and HP hydrogen lines routed between them under pressure and thermal load. The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout) &middot; Evidence: **Results**
+
+## Line loads
+
+[![Line loads review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio)
+
+A DN100 line on an I-beam crossbeam carries a 350 N/m downward line load, a 500 N/m lateral load on the beam, and a 3.5 kN force with a moment at its elbow. The review shows the deflection, stresses and support reaction from Code_Aster.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio) &middot; Evidence: **Results**
+
+## Road crossing
+
+[![Road crossing review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo)
+
+A DN150 process line rises from ground sleepers over an 8 m roadway on a four-bay steel rack bridge, then drops back to grade. Friction shoes carry it at every bay midpoint. The review shows thermal displacement, wall stress and support reactions from Code_Aster.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo) &middot; Evidence: **Results**
 
 ## Local examples
 
@@ -123,7 +147,6 @@ notebooks keep theirs under `notebooks/code_aster_results/`.
 | `demo.py` | **MODEL JSON + STUDY HANDOFF** | Writes `piping_model.json` and Code_Aster input files, then stops before results |
 | `autorouting_basic.py` | **ROUTE REPORT** | Applies a selected single-pipe candidate in memory and writes route report files; no study export |
 | `autoroute_single_pipe.py` | **ROUTE REPORT + STUDY HANDOFF** | Writes a route report and exports candidate Code_Aster studies without running them |
-| `autoroute_network.py` | **NETWORK ROUTE REPORT** | Writes prioritized multi-pipe routing and conflict reports; no study export |
 | `autoroute_expansion_loop.py` | **ROUTE REPORT + STUDY HANDOFF** | Writes a hot-line U-loop report and exports candidate studies without running them |
 | `operating_state_clash.py` | **STUDY HANDOFF; INTENTIONAL STOP** | Exports one study, then raises until real result artifacts are available |
 | `future_ready_semantic_workflow.py` | **BOM + BENCHMARK; COMPUTED MODEL CHECKS** | Writes a BOM CSV and benchmark summary, then prints quantity, route-cost, load-path, and rule results; no solver study or results |
@@ -135,7 +158,7 @@ No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** wri
 
 ## Gallery projects
 
-Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review` and `support-rack-review`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
+Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review`, `support-rack-review`, `hydrogen-plant-layout`, `line-load-studio` and `rack_bridge_demo`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
 
 ```powershell
 python -m tuba.cli_studio examples/code-aster-review
@@ -148,7 +171,6 @@ python -m tuba.project examples/code-aster-review --output .build/code-aster-rev
 
 ```powershell
 .\.venv\Scripts\python.exe examples\autoroute_single_pipe.py
-.\.venv\Scripts\python.exe examples\autoroute_network.py
 .\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py
 ```
 

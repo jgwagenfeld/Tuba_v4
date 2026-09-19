@@ -119,9 +119,6 @@ class FEAResults:
     # Path to the raw result file (e.g. .rmed)
     result_file: Optional[Path] = None
 
-    # Raw meshio mesh (if available) for visualisation
-    raw_mesh: Any = None
-
     # Reference to original model for visualization, SIFs, etc.
     _model: Optional[Any] = None
 
@@ -195,10 +192,10 @@ class FEAResults:
             **kwargs,
         )
 
-    def export_ply(self, path: str, scalar: str = "von_mises"):
+    def export_ply(self, path: str):
         """Export tubes with vertex-color stress to PLY for Blender."""
         from tuba.plotting.export import export_ply
-        export_ply(self, path, scalar=scalar)
+        export_ply(self, path)
 
     def export_gltf(self, path: str):
         """Export to glTF for universal 3-D viewing."""

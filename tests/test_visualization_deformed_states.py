@@ -11,7 +11,7 @@ from tuba.analysis import (
     create_visual_deformed_geometry_state,
 )
 from tuba.refs import EntityRef
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationDeformedStates(unittest.TestCase):
@@ -21,13 +21,13 @@ class TestVisualizationDeformedStates(unittest.TestCase):
         operating_state = create_operating_geometry_state(model=model, result_state=result_state)
         visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=10.0)
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             result_states=[result_state],
             geometry_states=[operating_state, visual_state],
             analysis_meshes=[analysis_mesh],
             scene_id="scene:deformed_states",
-        )
+        ))
         scene.validate()
 
         physical = _deformed_object(scene, "deformed_centerline", operating_state.id)
@@ -57,13 +57,13 @@ class TestVisualizationDeformedStates(unittest.TestCase):
         model, result_state, analysis_mesh = _model_state_and_mesh()
         visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=10.0)
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             result_states=[result_state],
             geometry_states=[visual_state],
             analysis_meshes=[analysis_mesh],
             scene_id="scene:warped_analysis_mesh",
-        )
+        ))
 
         warped = _deformed_object(scene, "deformed_analysis_mesh_element", visual_state.id)
         warped_asset = _asset(scene, warped.geometry_asset_id)
@@ -86,13 +86,13 @@ class TestVisualizationDeformedStates(unittest.TestCase):
         model, result_state, analysis_mesh = _ibeam_model_state_and_mesh()
         visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=1.0)
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             result_states=[result_state],
             geometry_states=[visual_state],
             analysis_meshes=[analysis_mesh],
             scene_id="scene:deformed_ibeam",
-        )
+        ))
         warped = _deformed_object(scene, "deformed_analysis_mesh_element", visual_state.id)
         asset = _asset(scene, warped.geometry_asset_id)
 
@@ -111,13 +111,13 @@ class TestVisualizationDeformedStates(unittest.TestCase):
         model, result_state, analysis_mesh = _volume_model_state_and_mesh()
         visual_state = create_visual_deformed_geometry_state(model=model, result_state=result_state, visual_scale=10.0)
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             model,
             result_states=[result_state],
             geometry_states=[visual_state],
             analysis_meshes=[analysis_mesh],
             scene_id="scene:deformed_volume",
-        )
+        ))
         surface = next(obj for obj in scene.objects if obj.kind == "deformed_analysis_mesh_surface")
         asset = _asset(scene, surface.geometry_asset_id)
 

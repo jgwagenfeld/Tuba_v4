@@ -60,6 +60,18 @@ def test_the_project_command_runs_as_a_module():
     assert "--artifact-dir" in completed.stdout
 
 
+def test_the_project_command_refuses_a_model_script_that_dumps_raw_records(tmp_path, capsys):
+    from tuba.project import main
+
+    dump = "from tuba import Model\n\nmodel = Model('Dump')\n" + "".join(
+        f"model.add_node([{index}.0, 0.0, 0.0])\n" for index in range(12)
+    )
+    project = _project(tmp_path, dump, 'LOAD_CASES = ()\n')
+
+    assert main([str(project), "--output", str(tmp_path / "review")]) == 1
+    assert "construction unit" in capsys.readouterr().err
+
+
 def test_the_project_command_solves_into_the_project_evidence_and_reuses_it(tmp_path):
     from tests.project_replay import ReplaySolver
     from tuba.project import main

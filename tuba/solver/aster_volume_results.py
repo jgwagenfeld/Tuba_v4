@@ -159,8 +159,6 @@ def _parse_line_results(
     study: AnalysisStudy,
     results: FEAResults,
 ) -> None:
-    from tuba.solver.aster import CodeAsterSolver
-
     line_ids = set(study.metadata.get("compiler_inputs", {}).get("line_element_ids", ()))
     for element_id in line_ids:
         results.element_results[element_id] = ElementResult(
@@ -180,9 +178,9 @@ def _parse_line_results(
         for mesh_element_id, source in analysis_mesh.element_sources.items()
         if source.role == "native_element" and mesh_element_id.startswith("LM")
     }
-    solver = CodeAsterSolver()
-    solver._parse_effo_table(model, root, results, node_label_map, element_label_map)
-    solver._parse_sieq_table(model, root, results, node_label_map, element_label_map)
+    from tuba.solver import parse_tables
+    parse_tables.parse_effo_table(model, root, results, node_label_map, element_label_map)
+    parse_tables.parse_sieq_table(model, root, results, node_label_map, element_label_map)
 
 
 def _rows(path: Path) -> Iterator[dict[str, str]]:

@@ -9,7 +9,7 @@ from tuba import Model
 from tuba.model import BendGeometry
 from tuba.analysis import AnalysisMesh
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 def _model() -> Model:
@@ -76,7 +76,7 @@ class TestBendGeometry(unittest.TestCase):
 
         self.assertEqual(generated.metadata["bend_geometry"]["generation_mode"], "bend_to")
 
-        scene = build_visualization_scene(model, analysis_meshes=[mesh])
+        scene = build_visualization_scene(SceneRequest(model, analysis_meshes=[mesh]))
         bend_object = next(obj for obj in scene.objects if obj.entity_ref and str(obj.entity_ref) == f"element:{bend.id}")
         generated_node = next(obj for obj in scene.objects if obj.kind == "analysis_mesh_node" and obj.metadata["role"] == "generated_bend_node")
 

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import pytest
 from tuba import Model
 from tuba.analysis import (
     AnalysisMesh,
@@ -13,7 +14,7 @@ from tuba.refs import EntityRef
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.modelisation import PipeModelization
 from tuba.solver.aster_volume_results import parse_volume_result_artifacts
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 def _pressurized_pipe_model():
@@ -84,6 +85,10 @@ def test_exports_grouped_pipe_volume_study_without_claiming_results(tmp_path):
     assert "study_sigm.csv" not in Path(study.input_files["export"]).read_text(encoding="utf-8")
     assert Path(study.input_files["med"]).is_file()
     assert manifest["analysis_mesh"]["surface_mesh"]["faces"]
+    # Geometry -> mesh -> identity: the mesh names the exact solid it discretises.
+    geometry = study.metadata["compiler_inputs"]["volume_geometry"]
+    assert geometry["kind"] == "straight"
+    assert AnalysisMesh.from_dict(manifest["analysis_mesh"]).geometry_ref == geometry["id"]
 
 
 def test_volume_export_writes_the_tensor_stress_table_only_on_request(tmp_path):
@@ -132,6 +137,58 @@ def test_exports_solve_ready_tuyau_to_solid_couplings_from_one_mesh(tmp_path):
     assert study.metadata["code_aster_solve_ready"] is True
     assert mesh.groups[f"G_NODE_{nodes[1]}"]
     assert mesh.groups[f"G_NODE_{nodes[2]}"]
+    assert mesh.geometry_ref == study.metadata["compiler_inputs"]["volume_geometry"]["id"]
+
+
+def test_mixed_volume_export_writes_a_nodal_force_on_the_1d_remainder(tmp_path):
+    model, nodes = _mixed_pressurized_pipe_model()
+    model.load_cases["Pressure"].add_nodal_force(nodes[3], [0.0, 0.0, -5000.0])
+
+    study = CodeAsterSolver(work_dir=tmp_path).export_volume_study(
+        model,
+        "Pressure",
+        tmp_path,
+        element_ids=["solid"],
+        max_element_size=0.005,
+    )
+
+    comm = Path(study.input_files["comm"]).read_text(encoding="utf-8")
+    sidecar = json.loads(Path(study.input_files["sidecar"]).read_text(encoding="utf-8"))
+    node_group = sidecar["name_map"][f"G_NODE_{nodes[3]}"]
+    assert "POINT_FORCE = AFFE_CHAR_MECA(" in comm
+    assert "FORCE_NODALE=(" in comm
+    assert f"GROUP_NO='{node_group}'," in comm
+    assert "FZ=-5.00000000E+03," in comm
+    assert "_F(CHARGE=POINT_FORCE)," in comm
+
+
+def test_volume_export_rejects_a_nodal_force_without_a_1d_remainder(tmp_path):
+    model = _pressurized_pipe_model()
+    model.load_cases["Pressure"].add_nodal_force(next(iter(model.nodes)), [0.0, 0.0, -5000.0])
+
+    with pytest.raises(ValueError, match="solid-only"):
+        CodeAsterSolver(work_dir=tmp_path).export_volume_study(
+            model,
+            "Pressure",
+            tmp_path,
+            element_ids=["pipe_0"],
+            max_element_size=0.005,
+        )
+
+
+def test_volume_export_rejects_a_nodal_force_off_the_1d_remainder(tmp_path):
+    model, _nodes = _mixed_pressurized_pipe_model()
+    stray = model.add_node([0.0, 0.3, 0.0])
+    model.load_cases["Pressure"].add_nodal_force(stray, [0.0, 0.0, -5000.0])
+
+    with pytest.raises(ValueError, match="1D pipe remainder"):
+        CodeAsterSolver(work_dir=tmp_path).export_volume_study(
+            model,
+            "Pressure",
+            tmp_path,
+            element_ids=["solid"],
+            max_element_size=0.005,
+        )
 
 
 def test_parses_real_volume_fields_on_analysis_nodes(tmp_path):
@@ -314,7 +371,7 @@ def test_mixed_result_parser_keeps_solid_and_tuyau_fields_distinct(tmp_path):
     reconstructed = fea_results_from_result_state(model=model, result_state=state)
     assert reconstructed.volume_von_mises == results.volume_von_mises
     assert len(reconstructed.tuyau_subpoints) == 1
-    scene = build_visualization_scene(model, result_states=[state], analysis_meshes=[mesh])
+    scene = build_visualization_scene(SceneRequest(model, result_states=[state], analysis_meshes=[mesh]))
     assert any(obj.kind == "volume_stress_field" for obj in scene.objects)
     assert any(obj.kind == "tuyau_subpoint_field" for obj in scene.objects)
 

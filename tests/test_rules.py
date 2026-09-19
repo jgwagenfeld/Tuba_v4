@@ -1,7 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.rules import ClashFreeRule, RuleEngine, SupportSpacingRule, rule_report_to_markdown
+from tuba.rules import ClashFreeRule, RuleEngine, SupportSpacingRule
 
 
 class TestRules(unittest.TestCase):
@@ -35,16 +35,14 @@ class TestRules(unittest.TestCase):
         self.assertEqual(str(report.results[0].refs[0]), "element:pipe_0")
         self.assertEqual(str(report.results[0].refs[1]), "obstacle:box")
 
-    def test_rule_report_serializes_to_dict_and_markdown(self):
+    def test_rule_report_serializes_to_dict(self):
         model = self._model()
         report = RuleEngine([SupportSpacingRule(max_span_m=2.5)]).evaluate(model)
 
         data = report.to_dict()
-        markdown = rule_report_to_markdown(report)
 
         self.assertEqual(data["passed"], False)
         self.assertEqual(data["results"][0]["rule_id"], "support_spacing")
-        self.assertIn("support_spacing", markdown)
 
 
 if __name__ == "__main__":

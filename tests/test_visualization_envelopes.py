@@ -1,7 +1,7 @@
 import unittest
 
 from tuba import Model
-from tuba.visualization import SceneBuildOptions, build_visualization_scene
+from tuba.visualization import SceneBuildOptions, SceneRequest, build_visualization_scene
 
 
 class TestVisualizationEnvelopes(unittest.TestCase):
@@ -24,11 +24,11 @@ class TestVisualizationEnvelopes(unittest.TestCase):
         return model
 
     def test_build_scene_adds_selectable_physical_envelope_objects(self):
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             self._insulated_model(),
             options=SceneBuildOptions(include_physical_envelopes=True, clearance_m=0.05),
             scene_id="scene_envelopes",
-        )
+        ))
         scene.validate()
 
         envelope_objects = [obj for obj in scene.objects if obj.kind == "physical_envelope"]
@@ -45,11 +45,11 @@ class TestVisualizationEnvelopes(unittest.TestCase):
         self.assertAlmostEqual(asset.generation_config["radius_m"], 0.10)
 
     def test_physical_envelope_overlays_are_independently_toggleable(self):
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             self._insulated_model(),
             options=SceneBuildOptions(include_physical_envelopes=True, clearance_m=0.05),
             scene_id="scene_envelopes",
-        )
+        ))
 
         overlays = [overlay for overlay in scene.overlays if overlay.kind == "physical_envelope"]
         self.assertEqual({overlay.data["envelope_type"] for overlay in overlays}, {"insulation"})

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -141,133 +142,134 @@ def _pipe_node_ids(model: TubaModel) -> set[str]:
     }
 
 
-def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
-    valid_quantities = {"pressure", "temperature", "wind", "line_load"}
-    valid_scopes = {"all", "group", "route", "elements", "nodes"}
-    valid_profiles = {"uniform", "linear", "piecewise"}
-    pipe_nodes = _pipe_node_ids(model)
+def operation_field_problem(
+    field_record,
+    model: TubaModel,
+    pipe_nodes: set[str] | None = None,
+) -> str | None:
+    """The first reason one operation field cannot compile, or None.
 
-    for operation_name, operation in getattr(model, "operations", {}).items():
-        seen: dict[str, dict[str, float]] = {}
-        node_temperatures: dict[str, float] = {}
-        element_temperature_nodes: dict[str, set[int]] = {}
-        for index, field_record in enumerate(getattr(operation, "fields", [])):
-            label = f"Operation {operation_name!r} field {index}"
-            if field_record.quantity not in valid_quantities:
-                errors.append(
-                    f"{label} has unsupported quantity {field_record.quantity!r}; "
-                    "supported quantities are pressure, temperature, wind, and line_load."
-                )
-                continue
-            if field_record.scope not in valid_scopes:
-                errors.append(f"{label} has unsupported scope {field_record.scope!r}.")
-                continue
-            if field_record.profile not in valid_profiles:
-                errors.append(f"{label} has unsupported profile {field_record.profile!r}.")
-                continue
-            if not np.isfinite(float(field_record.value)):
-                errors.append(f"{label} has a non-finite value.")
-                continue
-            if field_record.scope == "nodes" or field_record.node_ids:
-                problem = _node_field_problem(field_record, model, pipe_nodes)
-                if problem is not None:
-                    errors.append(f"{label} {problem}")
-                    continue
-                value = float(field_record.value)
-                for node_id in field_record.node_ids:
-                    previous = node_temperatures.get(node_id)
-                    if previous is not None and previous != value:
-                        errors.append(
-                            f"Operation {operation_name!r} has overlapping incompatible temperature fields "
-                            f"on node {node_id!r}: {previous!r} vs {value!r}."
-                        )
-                    node_temperatures[node_id] = value
-                continue
-            if field_record.profile != "uniform":
-                if not (
-                    field_record.quantity in {"temperature", "pressure"}
-                    and field_record.profile == "linear"
-                ):
-                    errors.append(
-                        f"{label} uses profile {field_record.profile!r}; "
-                        "the Code_Aster writer currently supports only uniform operation fields, "
-                        "plus linear pressure and temperature fields by route/station."
-                    )
-                    continue
-                if field_record.scope != "route" or not field_record.route_id:
-                    errors.append(f"{label} linear {field_record.quantity} field requires route scope.")
-                    continue
-                if field_record.station_start is None or field_record.station_end is None:
-                    errors.append(
-                        f"{label} linear {field_record.quantity} field requires station_start and station_end."
-                    )
-                    continue
-            if field_record.direction is not None and field_record.quantity not in {"wind", "line_load"}:
-                errors.append(f"{label} uses direction but only wind and line_load fields accept direction.")
-                continue
-            if field_record.quantity in {"wind", "line_load"}:
-                if field_record.direction is None:
-                    errors.append(f"{label} {field_record.quantity} field requires a finite non-zero direction vector.")
-                    continue
-                direction = np.asarray(field_record.direction, dtype=float)
-                if direction.shape != (3,) or not np.all(np.isfinite(direction)) or np.linalg.norm(direction) <= 1e-12:
-                    errors.append(f"{label} {field_record.quantity} field requires a finite non-zero direction vector.")
-                    continue
-            start = field_record.station_start
-            end = field_record.station_end
-            if start is not None and not np.isfinite(float(start)):
-                errors.append(f"{label} has non-finite station_start.")
-                continue
-            if end is not None and not np.isfinite(float(end)):
-                errors.append(f"{label} has non-finite station_end.")
-                continue
-            if start is not None and end is not None and float(end) <= float(start):
-                errors.append(f"{label} station_end must be greater than station_start.")
-                continue
-
-            try:
-                selected = model.resolve_operation_field_elements(field_record)
-            except ValueError as exc:
-                errors.append(f"{label} is invalid: {exc}")
-                continue
-
-            if not selected:
-                if field_record.quantity in {"wind", "line_load"}:
-                    errors.append(f"{label} selects no pipe or beam elements.")
-                else:
-                    errors.append(f"{label} selects no pipe elements.")
-                continue
-
-            if field_record.quantity == "temperature":
-                for elem in selected:
-                    for node_id in (elem.n1, elem.n2):
-                        element_temperature_nodes.setdefault(node_id, set()).add(index)
-
-            quantity_values = seen.setdefault(field_record.quantity, {})
-            for elem in selected:
-                value_key = _operation_field_value_key(field_record)
-                previous = quantity_values.get(elem.id)
-                if previous is not None and field_record.quantity == "line_load":
-                    # Pressure, temperature and wind are states, so equal values agree; line loads add.
-                    errors.append(
-                        f"Operation {operation_name!r} has overlapping line_load fields on element {elem.id!r}; "
-                        "line loads add, so author one combined line_load field."
-                    )
-                elif previous is not None and previous != value_key:
-                    errors.append(
-                        f"Operation {operation_name!r} has overlapping incompatible "
-                        f"{field_record.quantity} fields on element {elem.id!r}: "
-                        f"{previous!r} vs {value_key!r}."
-                    )
-                quantity_values[elem.id] = value_key
-
-        shared = sorted(set(node_temperatures) & set(element_temperature_nodes))
-        if shared:
-            indices = sorted({index for node_id in shared for index in element_temperature_nodes[node_id]})
-            errors.append(
-                f"Operation {operation_name!r} gives nodes {shared!r} a node temperature, but they belong to "
-                f"elements that element temperature fields {indices!r} cover; a node takes one or the other."
+    This is the only place a single field's rules live: admission (``validate_model``) and the
+    Code_Aster exporters both cross it. Messages read as the tail of
+    ``Operation 'Name' field 2 <message>``.
+    """
+    if field_record.quantity not in {"pressure", "temperature", "wind", "line_load"}:
+        return (
+            f"has unsupported quantity {field_record.quantity!r}; "
+            "supported quantities are pressure, temperature, wind, and line_load."
+        )
+    if field_record.scope not in {"all", "group", "route", "elements", "nodes"}:
+        return f"has unsupported scope {field_record.scope!r}."
+    if field_record.profile not in {"uniform", "linear", "piecewise"}:
+        return f"has unsupported profile {field_record.profile!r}."
+    if not np.isfinite(float(field_record.value)):
+        return "has a non-finite value."
+    if field_record.scope == "nodes" or field_record.node_ids:
+        if pipe_nodes is None:
+            pipe_nodes = _pipe_node_ids(model)
+        return _node_field_problem(field_record, model, pipe_nodes)
+    if field_record.profile != "uniform":
+        if not (field_record.quantity in {"temperature", "pressure"} and field_record.profile == "linear"):
+            return (
+                f"uses profile {field_record.profile!r}; "
+                "the Code_Aster writer currently supports only uniform operation fields, "
+                "plus linear pressure and temperature fields by route/station."
             )
+        if field_record.scope != "route" or not field_record.route_id:
+            return f"linear {field_record.quantity} field requires route scope."
+        if field_record.station_start is None or field_record.station_end is None:
+            return f"linear {field_record.quantity} field requires station_start and station_end."
+    if field_record.direction is not None and field_record.quantity not in {"wind", "line_load"}:
+        return "uses direction but only wind and line_load fields accept direction."
+    if field_record.quantity in {"wind", "line_load"}:
+        if field_record.direction is None:
+            return f"{field_record.quantity} field requires a finite non-zero direction vector."
+        direction = np.asarray(field_record.direction, dtype=float)
+        if direction.shape != (3,) or not np.all(np.isfinite(direction)) or np.linalg.norm(direction) <= 1e-12:
+            return f"{field_record.quantity} field requires a finite non-zero direction vector."
+    start = field_record.station_start
+    end = field_record.station_end
+    if start is not None and not np.isfinite(float(start)):
+        return "has non-finite station_start."
+    if end is not None and not np.isfinite(float(end)):
+        return "has non-finite station_end."
+    if start is not None and end is not None and float(end) <= float(start):
+        return "station_end must be greater than station_start."
+    try:
+        selected = model.resolve_operation_field_elements(field_record)
+    except ValueError as exc:
+        return f"is invalid: {exc}"
+    if not selected:
+        if field_record.quantity in {"wind", "line_load"}:
+            return "selects no pipe or beam elements."
+        return "selects no pipe elements."
+    return None
+
+
+def operation_fields_problem(fields: Sequence[Any], model: TubaModel) -> list[str]:
+    """Every reason these fields cannot compile together, as messages that follow ``Operation 'Name' ``.
+
+    Cross-field rules (overlaps, node versus element temperatures) live here beside the per-field
+    rules, so admission and export see the same set.
+    """
+    problems: list[str] = []
+    pipe_nodes = _pipe_node_ids(model)
+    seen: dict[str, dict[str, tuple[Any, ...]]] = {}
+    node_temperatures: dict[str, float] = {}
+    element_temperature_nodes: dict[str, set[int]] = {}
+    for index, field_record in enumerate(fields):
+        problem = operation_field_problem(field_record, model, pipe_nodes)
+        if problem is not None:
+            problems.append(f"field {index} {problem}")
+            continue
+        if field_record.scope == "nodes" or field_record.node_ids:
+            value = float(field_record.value)
+            for node_id in field_record.node_ids:
+                previous = node_temperatures.get(node_id)
+                if previous is not None and previous != value:
+                    problems.append(
+                        f"has overlapping incompatible temperature fields "
+                        f"on node {node_id!r}: {previous!r} vs {value!r}."
+                    )
+                node_temperatures[node_id] = value
+            continue
+        selected = model.resolve_operation_field_elements(field_record)
+        if field_record.quantity == "temperature":
+            for elem in selected:
+                for node_id in (elem.n1, elem.n2):
+                    element_temperature_nodes.setdefault(node_id, set()).add(index)
+        quantity_values = seen.setdefault(field_record.quantity, {})
+        value_key = _operation_field_value_key(field_record)
+        for elem in selected:
+            previous = quantity_values.get(elem.id)
+            if previous is not None and field_record.quantity == "line_load":
+                # Pressure, temperature and wind are states, so equal values agree; line loads add.
+                problems.append(
+                    f"has overlapping line_load fields on element {elem.id!r}; "
+                    "line loads add, so author one combined line_load field."
+                )
+            elif previous is not None and previous != value_key:
+                problems.append(
+                    f"has overlapping incompatible {field_record.quantity} fields on element {elem.id!r}: "
+                    f"{previous!r} vs {value_key!r}."
+                )
+            quantity_values[elem.id] = value_key
+    shared = sorted(set(node_temperatures) & set(element_temperature_nodes))
+    if shared:
+        indices = sorted({index for node_id in shared for index in element_temperature_nodes[node_id]})
+        problems.append(
+            f"gives nodes {shared!r} a node temperature, but they belong to elements that "
+            f"element temperature fields {indices!r} cover; a node takes one or the other."
+        )
+    return problems
+
+
+def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
+    for operation_name, operation in getattr(model, "operations", {}).items():
+        errors.extend(
+            f"Operation {operation_name!r} {problem}"
+            for problem in operation_fields_problem(getattr(operation, "fields", []), model)
+        )
 
 
 def _node_field_problem(field_record, model: TubaModel, pipe_nodes: set[str]) -> str | None:

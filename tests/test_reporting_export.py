@@ -199,7 +199,6 @@ def test_printable_html_has_fixed_section_order_csv_links_and_escaped_content(
         "Model",
         "Load Cases",
         "Results",
-        "Compliance",
         "Diagnostics",
     )]
     assert positions == sorted(positions)
@@ -212,7 +211,7 @@ def test_printable_html_has_fixed_section_order_csv_links_and_escaped_content(
     assert "<script>" not in html
 
 
-def test_model_only_html_explicitly_marks_results_and_compliance_unavailable(tmp_path):
+def test_model_only_html_explicitly_marks_results_unavailable(tmp_path):
     review = build_engineering_review(
         build_review_model(),
         package_id="review:model-only",
@@ -223,7 +222,6 @@ def test_model_only_html_explicitly_marks_results_and_compliance_unavailable(tmp
     html = output.index_path.read_text(encoding="utf-8")
 
     assert "Results are unavailable because this review package has not been solved" in html
-    assert "Compliance is unavailable because no piping-code compliance report was supplied" in html
     assert not any(word in html.lower() for word in ("approved", "certified", "signed"))
 
 

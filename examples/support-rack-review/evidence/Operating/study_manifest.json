@@ -17,27 +17,35 @@
           "kind": "support"
         }
       },
-      "pipe_inlet": {
-        "element_id": "pipe_inlet",
+      "pipe_str_0": {
+        "element_id": "pipe_str_0",
         "role": "native_element",
         "source_ref": {
-          "id": "pipe_inlet",
+          "id": "pipe_str_0",
           "kind": "element"
         }
       },
-      "pipe_outlet": {
-        "element_id": "pipe_outlet",
+      "pipe_str_1": {
+        "element_id": "pipe_str_1",
         "role": "native_element",
         "source_ref": {
-          "id": "pipe_outlet",
+          "id": "pipe_str_1",
           "kind": "element"
         }
       },
-      "pipe_rack_span": {
-        "element_id": "pipe_rack_span",
+      "pipe_str_2": {
+        "element_id": "pipe_str_2",
         "role": "native_element",
         "source_ref": {
-          "id": "pipe_rack_span",
+          "id": "pipe_str_2",
+          "kind": "element"
+        }
+      },
+      "pipe_str_3": {
+        "element_id": "pipe_str_3",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_str_3",
           "kind": "element"
         }
       },
@@ -616,28 +624,176 @@
           "id": "rack_A_beam_7",
           "kind": "element"
         }
+      },
+      "rack_A_beam_8_s0": {
+        "element_id": "rack_A_beam_8_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_s1": {
+        "element_id": "rack_A_beam_8_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_s2": {
+        "element_id": "rack_A_beam_8_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_s3": {
+        "element_id": "rack_A_beam_8_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_s4": {
+        "element_id": "rack_A_beam_8_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_s5": {
+        "element_id": "rack_A_beam_8_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_s6": {
+        "element_id": "rack_A_beam_8_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_s7": {
+        "element_id": "rack_A_beam_8_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s0": {
+        "element_id": "rack_A_beam_9_s0",
+        "role": "straight_segment",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s1": {
+        "element_id": "rack_A_beam_9_s1",
+        "role": "straight_segment",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s2": {
+        "element_id": "rack_A_beam_9_s2",
+        "role": "straight_segment",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s3": {
+        "element_id": "rack_A_beam_9_s3",
+        "role": "straight_segment",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s4": {
+        "element_id": "rack_A_beam_9_s4",
+        "role": "straight_segment",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s5": {
+        "element_id": "rack_A_beam_9_s5",
+        "role": "straight_segment",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s6": {
+        "element_id": "rack_A_beam_9_s6",
+        "role": "straight_segment",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_s7": {
+        "element_id": "rack_A_beam_9_s7",
+        "role": "straight_segment",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
       }
     },
     "elements": {
       "CONTACT_6": [
         "GROUND_6",
-        "N9"
+        "N12"
       ],
       "CONTACT_7": [
         "GROUND_7",
-        "N10"
+        "N13"
       ],
-      "pipe_inlet": [
-        "N8",
-        "N9"
-      ],
-      "pipe_outlet": [
+      "pipe_str_0": [
         "N10",
         "N11"
       ],
-      "pipe_rack_span": [
-        "N9",
-        "N10"
+      "pipe_str_1": [
+        "N11",
+        "N12"
+      ],
+      "pipe_str_2": [
+        "N12",
+        "N13"
+      ],
+      "pipe_str_3": [
+        "N13",
+        "N14"
       ],
       "rack_A_beam_0_s0": [
         "N0",
@@ -861,10 +1017,10 @@
       ],
       "rack_A_beam_6_s7": [
         "rack_A_beam_6_n7",
-        "N5"
+        "N8"
       ],
       "rack_A_beam_7_s0": [
-        "N6",
+        "N8",
         "rack_A_beam_7_n1"
       ],
       "rack_A_beam_7_s1": [
@@ -893,6 +1049,70 @@
       ],
       "rack_A_beam_7_s7": [
         "rack_A_beam_7_n7",
+        "N5"
+      ],
+      "rack_A_beam_8_s0": [
+        "N6",
+        "rack_A_beam_8_n1"
+      ],
+      "rack_A_beam_8_s1": [
+        "rack_A_beam_8_n1",
+        "rack_A_beam_8_n2"
+      ],
+      "rack_A_beam_8_s2": [
+        "rack_A_beam_8_n2",
+        "rack_A_beam_8_n3"
+      ],
+      "rack_A_beam_8_s3": [
+        "rack_A_beam_8_n3",
+        "rack_A_beam_8_n4"
+      ],
+      "rack_A_beam_8_s4": [
+        "rack_A_beam_8_n4",
+        "rack_A_beam_8_n5"
+      ],
+      "rack_A_beam_8_s5": [
+        "rack_A_beam_8_n5",
+        "rack_A_beam_8_n6"
+      ],
+      "rack_A_beam_8_s6": [
+        "rack_A_beam_8_n6",
+        "rack_A_beam_8_n7"
+      ],
+      "rack_A_beam_8_s7": [
+        "rack_A_beam_8_n7",
+        "N9"
+      ],
+      "rack_A_beam_9_s0": [
+        "N9",
+        "rack_A_beam_9_n1"
+      ],
+      "rack_A_beam_9_s1": [
+        "rack_A_beam_9_n1",
+        "rack_A_beam_9_n2"
+      ],
+      "rack_A_beam_9_s2": [
+        "rack_A_beam_9_n2",
+        "rack_A_beam_9_n3"
+      ],
+      "rack_A_beam_9_s3": [
+        "rack_A_beam_9_n3",
+        "rack_A_beam_9_n4"
+      ],
+      "rack_A_beam_9_s4": [
+        "rack_A_beam_9_n4",
+        "rack_A_beam_9_n5"
+      ],
+      "rack_A_beam_9_s5": [
+        "rack_A_beam_9_n5",
+        "rack_A_beam_9_n6"
+      ],
+      "rack_A_beam_9_s6": [
+        "rack_A_beam_9_n6",
+        "rack_A_beam_9_n7"
+      ],
+      "rack_A_beam_9_s7": [
+        "rack_A_beam_9_n7",
         "N7"
       ]
     },
@@ -901,19 +1121,21 @@
     },
     "groups": {
       "AllPipes": [
-        "pipe_inlet",
-        "pipe_rack_span",
-        "pipe_outlet"
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3"
       ],
       "AllSupports": [
         "N0",
         "N1",
         "N2",
         "N3",
-        "N8",
+        "N10",
         "N11",
-        "N9",
-        "N10"
+        "N12",
+        "N13",
+        "N14"
       ],
       "CONTACT_6": [
         "CONTACT_6"
@@ -933,17 +1155,20 @@
       "GN_N11": [
         "N11"
       ],
+      "GN_N12": [
+        "N12"
+      ],
+      "GN_N13": [
+        "N13"
+      ],
+      "GN_N14": [
+        "N14"
+      ],
       "GN_N2": [
         "N2"
       ],
       "GN_N3": [
         "N3"
-      ],
-      "GN_N4": [
-        "N4"
-      ],
-      "GN_N6": [
-        "N6"
       ],
       "GN_N8": [
         "N8"
@@ -1021,12 +1246,29 @@
         "rack_A_beam_7_s4",
         "rack_A_beam_7_s5",
         "rack_A_beam_7_s6",
-        "rack_A_beam_7_s7"
+        "rack_A_beam_7_s7",
+        "rack_A_beam_8_s0",
+        "rack_A_beam_8_s1",
+        "rack_A_beam_8_s2",
+        "rack_A_beam_8_s3",
+        "rack_A_beam_8_s4",
+        "rack_A_beam_8_s5",
+        "rack_A_beam_8_s6",
+        "rack_A_beam_8_s7",
+        "rack_A_beam_9_s0",
+        "rack_A_beam_9_s1",
+        "rack_A_beam_9_s2",
+        "rack_A_beam_9_s3",
+        "rack_A_beam_9_s4",
+        "rack_A_beam_9_s5",
+        "rack_A_beam_9_s6",
+        "rack_A_beam_9_s7"
       ],
       "MAT_Steel": [
-        "pipe_inlet",
-        "pipe_rack_span",
-        "pipe_outlet",
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3",
         "rack_A_beam_0_s0",
         "rack_A_beam_0_s1",
         "rack_A_beam_0_s2",
@@ -1090,20 +1332,38 @@
         "rack_A_beam_7_s4",
         "rack_A_beam_7_s5",
         "rack_A_beam_7_s6",
-        "rack_A_beam_7_s7"
+        "rack_A_beam_7_s7",
+        "rack_A_beam_8_s0",
+        "rack_A_beam_8_s1",
+        "rack_A_beam_8_s2",
+        "rack_A_beam_8_s3",
+        "rack_A_beam_8_s4",
+        "rack_A_beam_8_s5",
+        "rack_A_beam_8_s6",
+        "rack_A_beam_8_s7",
+        "rack_A_beam_9_s0",
+        "rack_A_beam_9_s1",
+        "rack_A_beam_9_s2",
+        "rack_A_beam_9_s3",
+        "rack_A_beam_9_s4",
+        "rack_A_beam_9_s5",
+        "rack_A_beam_9_s6",
+        "rack_A_beam_9_s7"
       ],
       "PipeOrientationNodes": [
-        "N8"
+        "N10"
       ],
       "PipeStraights": [
-        "pipe_inlet",
-        "pipe_rack_span",
-        "pipe_outlet"
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3"
       ],
       "SEC_DN100": [
-        "pipe_inlet",
-        "pipe_rack_span",
-        "pipe_outlet"
+        "pipe_str_0",
+        "pipe_str_1",
+        "pipe_str_2",
+        "pipe_str_3"
       ],
       "SEC_RackColumnIPE": [
         "rack_A_beam_0_s0",
@@ -1155,7 +1415,23 @@
         "rack_A_beam_7_s4",
         "rack_A_beam_7_s5",
         "rack_A_beam_7_s6",
-        "rack_A_beam_7_s7"
+        "rack_A_beam_7_s7",
+        "rack_A_beam_8_s0",
+        "rack_A_beam_8_s1",
+        "rack_A_beam_8_s2",
+        "rack_A_beam_8_s3",
+        "rack_A_beam_8_s4",
+        "rack_A_beam_8_s5",
+        "rack_A_beam_8_s6",
+        "rack_A_beam_8_s7",
+        "rack_A_beam_9_s0",
+        "rack_A_beam_9_s1",
+        "rack_A_beam_9_s2",
+        "rack_A_beam_9_s3",
+        "rack_A_beam_9_s4",
+        "rack_A_beam_9_s5",
+        "rack_A_beam_9_s6",
+        "rack_A_beam_9_s7"
       ],
       "SEC_RackLongIPE": [
         "rack_A_beam_4_s0",
@@ -1175,14 +1451,17 @@
         "rack_A_beam_5_s6",
         "rack_A_beam_5_s7"
       ],
-      "pipe_inlet": [
-        "pipe_inlet"
+      "pipe_str_0": [
+        "pipe_str_0"
       ],
-      "pipe_outlet": [
-        "pipe_outlet"
+      "pipe_str_1": [
+        "pipe_str_1"
       ],
-      "pipe_rack_span": [
-        "pipe_rack_span"
+      "pipe_str_2": [
+        "pipe_str_2"
+      ],
+      "pipe_str_3": [
+        "pipe_str_3"
       ],
       "rack_A_beam_0": [
         "rack_A_beam_0_s0",
@@ -1263,6 +1542,26 @@
         "rack_A_beam_7_s5",
         "rack_A_beam_7_s6",
         "rack_A_beam_7_s7"
+      ],
+      "rack_A_beam_8": [
+        "rack_A_beam_8_s0",
+        "rack_A_beam_8_s1",
+        "rack_A_beam_8_s2",
+        "rack_A_beam_8_s3",
+        "rack_A_beam_8_s4",
+        "rack_A_beam_8_s5",
+        "rack_A_beam_8_s6",
+        "rack_A_beam_8_s7"
+      ],
+      "rack_A_beam_9": [
+        "rack_A_beam_9_s0",
+        "rack_A_beam_9_s1",
+        "rack_A_beam_9_s2",
+        "rack_A_beam_9_s3",
+        "rack_A_beam_9_s4",
+        "rack_A_beam_9_s5",
+        "rack_A_beam_9_s6",
+        "rack_A_beam_9_s7"
       ]
     },
     "id": "analysis_mesh:Operating",
@@ -1319,6 +1618,30 @@
         "role": "native_node",
         "source_ref": {
           "id": "N11",
+          "kind": "node"
+        }
+      },
+      "N12": {
+        "node_id": "N12",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N12",
+          "kind": "node"
+        }
+      },
+      "N13": {
+        "node_id": "N13",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N13",
+          "kind": "node"
+        }
+      },
+      "N14": {
+        "node_id": "N14",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N14",
           "kind": "node"
         }
       },
@@ -1386,33 +1709,43 @@
           "kind": "node"
         }
       },
-      "pipe_inlet_mid": {
-        "node_id": "pipe_inlet_mid",
+      "pipe_str_0_mid": {
+        "node_id": "pipe_str_0_mid",
         "parametric_t": 0.5,
         "role": "generated_pipe_mid_node",
         "segment_index": 0,
         "source_ref": {
-          "id": "pipe_inlet",
+          "id": "pipe_str_0",
           "kind": "element"
         }
       },
-      "pipe_outlet_mid": {
-        "node_id": "pipe_outlet_mid",
+      "pipe_str_1_mid": {
+        "node_id": "pipe_str_1_mid",
         "parametric_t": 0.5,
         "role": "generated_pipe_mid_node",
         "segment_index": 0,
         "source_ref": {
-          "id": "pipe_outlet",
+          "id": "pipe_str_1",
           "kind": "element"
         }
       },
-      "pipe_rack_span_mid": {
-        "node_id": "pipe_rack_span_mid",
+      "pipe_str_2_mid": {
+        "node_id": "pipe_str_2_mid",
         "parametric_t": 0.5,
         "role": "generated_pipe_mid_node",
         "segment_index": 0,
         "source_ref": {
-          "id": "pipe_rack_span",
+          "id": "pipe_str_2",
+          "kind": "element"
+        }
+      },
+      "pipe_str_3_mid": {
+        "node_id": "pipe_str_3_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_3",
           "kind": "element"
         }
       },
@@ -1975,17 +2308,157 @@
           "id": "rack_A_beam_7",
           "kind": "element"
         }
+      },
+      "rack_A_beam_8_n1": {
+        "node_id": "rack_A_beam_8_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_n2": {
+        "node_id": "rack_A_beam_8_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_n3": {
+        "node_id": "rack_A_beam_8_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_n4": {
+        "node_id": "rack_A_beam_8_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_n5": {
+        "node_id": "rack_A_beam_8_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_n6": {
+        "node_id": "rack_A_beam_8_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_8_n7": {
+        "node_id": "rack_A_beam_8_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_8",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_n1": {
+        "node_id": "rack_A_beam_9_n1",
+        "parametric_t": 0.125,
+        "role": "generated_straight_node",
+        "segment_index": 1,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_n2": {
+        "node_id": "rack_A_beam_9_n2",
+        "parametric_t": 0.25,
+        "role": "generated_straight_node",
+        "segment_index": 2,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_n3": {
+        "node_id": "rack_A_beam_9_n3",
+        "parametric_t": 0.375,
+        "role": "generated_straight_node",
+        "segment_index": 3,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_n4": {
+        "node_id": "rack_A_beam_9_n4",
+        "parametric_t": 0.5,
+        "role": "generated_straight_node",
+        "segment_index": 4,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_n5": {
+        "node_id": "rack_A_beam_9_n5",
+        "parametric_t": 0.625,
+        "role": "generated_straight_node",
+        "segment_index": 5,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_n6": {
+        "node_id": "rack_A_beam_9_n6",
+        "parametric_t": 0.75,
+        "role": "generated_straight_node",
+        "segment_index": 6,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
+      },
+      "rack_A_beam_9_n7": {
+        "node_id": "rack_A_beam_9_n7",
+        "parametric_t": 0.875,
+        "role": "generated_straight_node",
+        "segment_index": 7,
+        "source_ref": {
+          "id": "rack_A_beam_9",
+          "kind": "element"
+        }
       }
     },
     "nodes": {
       "GROUND_6": [
         0.0,
-        -1.0,
+        0.0,
         2.25
       ],
       "GROUND_7": [
         4.0,
-        -1.0,
+        0.0,
         2.25
       ],
       "N0": [
@@ -1999,13 +2472,28 @@
         0.0
       ],
       "N10": [
-        4.0,
-        -1.0,
+        -2.0,
+        0.0,
         3.25
       ],
       "N11": [
-        6.0,
         -1.0,
+        0.0,
+        3.25
+      ],
+      "N12": [
+        0.0,
+        0.0,
+        3.25
+      ],
+      "N13": [
+        4.0,
+        0.0,
+        3.25
+      ],
+      "N14": [
+        6.0,
+        0.0,
         3.25
       ],
       "N2": [
@@ -2039,28 +2527,33 @@
         3.0
       ],
       "N8": [
-        -2.0,
-        -1.0,
-        3.25
+        0.0,
+        0.0,
+        3.0
       ],
       "N9": [
+        4.0,
         0.0,
-        -1.0,
+        3.0
+      ],
+      "pipe_str_0_mid": [
+        -1.5,
+        0.0,
         3.25
       ],
-      "pipe_inlet_mid": [
-        -1.0,
-        -1.0,
+      "pipe_str_1_mid": [
+        -0.5,
+        0.0,
         3.25
       ],
-      "pipe_outlet_mid": [
-        5.0,
-        -1.0,
-        3.25
-      ],
-      "pipe_rack_span_mid": [
+      "pipe_str_2_mid": [
         2.0,
-        -1.0,
+        0.0,
+        3.25
+      ],
+      "pipe_str_3_mid": [
+        5.0,
+        0.0,
         3.25
       ],
       "rack_A_beam_0_n1": [
@@ -2275,78 +2768,148 @@
       ],
       "rack_A_beam_6_n1": [
         0.0,
-        -0.75,
+        -0.875,
         3.0
       ],
       "rack_A_beam_6_n2": [
         0.0,
-        -0.5,
+        -0.75,
         3.0
       ],
       "rack_A_beam_6_n3": [
         0.0,
-        -0.25,
+        -0.625,
         3.0
       ],
       "rack_A_beam_6_n4": [
         0.0,
-        0.0,
+        -0.5,
         3.0
       ],
       "rack_A_beam_6_n5": [
         0.0,
-        0.25,
+        -0.375,
         3.0
       ],
       "rack_A_beam_6_n6": [
         0.0,
-        0.5,
+        -0.25,
         3.0
       ],
       "rack_A_beam_6_n7": [
         0.0,
-        0.75,
+        -0.125,
         3.0
       ],
       "rack_A_beam_7_n1": [
+        0.0,
+        0.125,
+        3.0
+      ],
+      "rack_A_beam_7_n2": [
+        0.0,
+        0.25,
+        3.0
+      ],
+      "rack_A_beam_7_n3": [
+        0.0,
+        0.375,
+        3.0
+      ],
+      "rack_A_beam_7_n4": [
+        0.0,
+        0.5,
+        3.0
+      ],
+      "rack_A_beam_7_n5": [
+        0.0,
+        0.625,
+        3.0
+      ],
+      "rack_A_beam_7_n6": [
+        0.0,
+        0.75,
+        3.0
+      ],
+      "rack_A_beam_7_n7": [
+        0.0,
+        0.875,
+        3.0
+      ],
+      "rack_A_beam_8_n1": [
+        4.0,
+        -0.875,
+        3.0
+      ],
+      "rack_A_beam_8_n2": [
         4.0,
         -0.75,
         3.0
       ],
-      "rack_A_beam_7_n2": [
+      "rack_A_beam_8_n3": [
+        4.0,
+        -0.625,
+        3.0
+      ],
+      "rack_A_beam_8_n4": [
         4.0,
         -0.5,
         3.0
       ],
-      "rack_A_beam_7_n3": [
+      "rack_A_beam_8_n5": [
+        4.0,
+        -0.375,
+        3.0
+      ],
+      "rack_A_beam_8_n6": [
         4.0,
         -0.25,
         3.0
       ],
-      "rack_A_beam_7_n4": [
+      "rack_A_beam_8_n7": [
         4.0,
-        0.0,
+        -0.125,
         3.0
       ],
-      "rack_A_beam_7_n5": [
+      "rack_A_beam_9_n1": [
+        4.0,
+        0.125,
+        3.0
+      ],
+      "rack_A_beam_9_n2": [
         4.0,
         0.25,
         3.0
       ],
-      "rack_A_beam_7_n6": [
+      "rack_A_beam_9_n3": [
+        4.0,
+        0.375,
+        3.0
+      ],
+      "rack_A_beam_9_n4": [
         4.0,
         0.5,
         3.0
       ],
-      "rack_A_beam_7_n7": [
+      "rack_A_beam_9_n5": [
+        4.0,
+        0.625,
+        3.0
+      ],
+      "rack_A_beam_9_n6": [
         4.0,
         0.75,
+        3.0
+      ],
+      "rack_A_beam_9_n7": [
+        4.0,
+        0.875,
         3.0
       ]
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "31c6c19e6a4fe5fd8bdc6ed90b78bd9a591ce0ab413b70f21384ed3dfab338a3",
+      "fingerprint": "6665459c28210923ce9f05d6a06ab6977f3b3ce85c05bea5db38a4a3f12513b4",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -2383,7 +2946,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "31c6c19e6a4fe5fd8bdc6ed90b78bd9a591ce0ab413b70f21384ed3dfab338a3",
+      "fingerprint": "6665459c28210923ce9f05d6a06ab6977f3b3ce85c05bea5db38a4a3f12513b4",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

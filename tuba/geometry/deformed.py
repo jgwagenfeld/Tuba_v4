@@ -11,7 +11,6 @@ from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.projection import project_deformed_centerline
 from tuba.analysis.results import ResultState
 from tuba.analysis.states import GeometryState
-from tuba.geometry.spatial import SpatialIndex
 from tuba.model import TubaModel
 from tuba.physical import physical_properties_for_element
 from tuba.refs import EntityRef
@@ -69,10 +68,6 @@ def build_deformed_envelopes(
     )
     _ENVELOPE_CACHE[cache_key] = envelopes
     return envelopes
-
-
-def build_deformed_envelope_index(envelopes: tuple[DeformedEnvelope, ...]) -> SpatialIndex[str]:
-    return SpatialIndex.from_bounds((str(envelope.entity), envelope.bounds) for envelope in envelopes)
 
 
 def _build_element_envelope(

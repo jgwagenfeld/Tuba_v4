@@ -7,10 +7,10 @@ import {
   scriptLine,
   withRunLength
 } from "./codeLink.js";
+import { deriveBundleSource } from "./bundleSource.js";
 import { contactObjectId, contactRecords, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
-  filterIssues,
   getIssueSummary,
   groupIssues,
   saveViewState,
@@ -21,7 +21,7 @@ import { bundleIdsOf, bundleKey, normalizeCatalog, renderGallery, shouldShowGall
 import {
   WEBGL2_UNAVAILABLE,
   applyHoverHighlight,
-  createThreeViewport,
+  createThreeCanvasRenderer,
   pickRenderedObject
 } from "./renderer.js";
 import {
@@ -53,6 +53,7 @@ import {
   getFieldOptions,
   shouldShowComplianceNotice
 } from "./coloring.js";
+import { MODEL_COLOR_MODES, getModelColoring } from "./modelColoring.js";
 import {
   colorForScalarValue,
   getActiveLoadCaseDefinition,
@@ -61,11 +62,13 @@ import {
   getLoadCaseOptions,
   getResultStateOptions,
   getScalarLegend,
+  isContactReview,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
 import {
   UNIT_SYSTEMS,
   displayUnit,
+  formatElapsed,
   formatQuantity,
   formatValue,
   getUnitSystem,
@@ -76,7 +79,7 @@ import {
 } from "./units.js";
 import { cockpitStatusViewModel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
-import { getPropertySections, pickObjectAt } from "./selection.js";
+import { getPropertySections } from "./selection.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
@@ -97,7 +100,6 @@ const dom = {
   taskRail: document.querySelector("[data-task-rail]"),
   taskPanel: document.querySelector("[data-task-panel]"),
   workflowTabs: document.querySelector("[data-workflow-tabs]"),
-  viewerWorkspace: document.querySelector("[data-viewer-workspace]"),
   inspector: document.querySelector("[data-inspector]"),
   issueToolsHome: document.querySelector("[data-issue-tools-home]"),
   bodiesPane: document.querySelector("[data-bodies-pane]"),
@@ -117,12 +119,13 @@ const dom = {
   bodyLegendToggle: document.querySelector("[data-body-legend-toggle]"),
   layerList: document.querySelector("[data-layer-list]"),
   layerTally: document.querySelector("[data-layer-tally]"),
-  resultTools: document.querySelector("[data-result-tools]"),
+  modelToolsHome: document.querySelector("[data-model-tools-home]"),
+  modelControls: document.querySelector("[data-model-controls]"),
+  modelLegend: document.querySelector("[data-model-legend]"),
   resultToolsHome: document.querySelector("[data-result-tools-home]"),
   resultControls: document.querySelector("[data-result-controls]"),
   resultLegend: document.querySelector("[data-result-legend]"),
   resultShape: document.querySelector("[data-result-shape]"),
-  layersBlock: document.querySelector("[data-layers-block]"),
   overlaysBlock: document.querySelector("[data-overlays-block]"),
   overlayList: document.querySelector("[data-overlay-list]"),
   hotspotList: document.querySelector("[data-hotspot-list]"),
@@ -130,6 +133,7 @@ const dom = {
   searchInput: document.querySelector("[data-search]"),
 
   issueList: document.querySelector("[data-issue-list]"),
+  buildIssues: document.querySelector("[data-build-issues]"),
   objectList: document.querySelector("[data-object-list]"),
   savedViews: document.querySelector("[data-saved-views]"),
   properties: document.querySelector("[data-properties]"),
@@ -147,6 +151,7 @@ const dom = {
   codeTabs: document.querySelector("[data-code-tabs]"),
   commText: document.querySelector("[data-comm-text]"),
   codeState: document.querySelector("[data-code-state]"),
+  codeMeshToggle: document.querySelector("[data-code-mesh-toggle]"),
   codeRun: document.querySelector("[data-code-run]"),
   codeGutter: document.querySelector("[data-code-gutter]"),
   codeText: document.querySelector("[data-code-text]"),
@@ -154,6 +159,7 @@ const dom = {
   codeErrorMark: document.querySelector('[data-code-mark="error"]'),
   codeProblem: document.querySelector("[data-code-problem]"),
   codeFoot: document.querySelector("[data-code-foot]"),
+  codeResize: document.querySelector("[data-code-resize]"),
   codeCallMark: document.querySelector('[data-code-mark="call"]'),
   codeRevealMark: document.querySelector('[data-code-mark="reveal"]'),
   solveButton: document.querySelector("[data-solve]"),
@@ -197,7 +203,6 @@ let pointerDownPoint = null;
 let suppressNextCanvasClick = false;
 const bootId = globalThis.__tubaViewerBootId ?? `boot:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 globalThis.__tubaViewerBootId = bootId;
-globalThis.__tubaViewerPreviewEvents ??= [];
 
 // Build mode exists only when a studio server can run model.py. A static
 // bundle - Pages, a report folder - is review-only and never shows it.
@@ -216,17 +221,34 @@ const studio = {
   // Whether the inspector was last drawn with the script's lines moved since the run.
   linesMoved: false,
   tabLeavesEditor: false,
-  // A project studio (model.py + study.py) also serves a review bundle beside the
-  // live model, and can solve. Null for a plain model.json studio.
+  // The project studio (model.py + study.py) serves a review bundle beside the
+  // live model, and can solve. Its /api/project answer; null outside a studio.
   project: null,
   hasReview: false,
   reviewStale: false,
   solving: false,
+  // When the current solve or review import began, for the elapsed clock.
+  solveStartedAt: null,
   // The studio is importing attested evidence at startup: a review is on its way.
   preparing: false,
   // Build's open file: null is model.py, otherwise the load case whose .comm is shown.
   codeTab: null,
   commRequest: 0
+};
+
+// A published bundle ships the model script that built it and the .comm each
+// load case produced. The viewer shows them in the same Build workspace a
+// studio edits; with no server here the pane is frozen read-only and the
+// Results side is the review.
+const sourceView = {
+  available: false,
+  mode: "review",
+  baseUrl: ".",
+  scriptUri: null,
+  // [{ name: load case, uri: comm path }], in the study's order.
+  loadCases: [],
+  // Fetched files, keyed by bundle-relative URI, so switching tabs is free.
+  text: new Map()
 };
 
 async function main() {
@@ -336,6 +358,13 @@ async function switchBundle(bundleId) {
 
 async function loadBundle(bundleUrl, options = {}) {
   currentBundle = await loadSceneBundleFromUrl(bundleUrl);
+  // A static bundle can show its origin script; a studio owns the live one, so
+  // it must not be overwritten by whatever the bundle happens to carry.
+  if (studio.project) {
+    clearBundleSource();
+  } else {
+    await loadBundleSource(bundleUrl);
+  }
   const viewerState = withDefaultBodyOpacity(createViewerState(currentBundle));
   const workflowState = createWorkflowState({
     review: viewerState.review,
@@ -366,9 +395,11 @@ function render() {
   renderTaskRail();
   renderDisplayStrip();
   renderViewportLegend();
+  renderModelControls();
   renderResultControls();
   renderDiagnostics();
   renderIssues();
+  renderBuildIssues();
   renderTaskPanel();
   renderProperties();
   renderScriptSelection();
@@ -416,9 +447,10 @@ function restoreFocus(focus) {
 }
 
 function renderTaskRail() {
+  const scriptPane = isBuildMode();
   dom.workflowTabs.replaceChildren();
-  dom.taskRail.hidden = currentState.embed || !railExpanded || isBuildMode();
-  dom.railToggle.hidden = currentState.embed || isBuildMode();
+  dom.taskRail.hidden = currentState.embed || !railExpanded || scriptPane;
+  dom.railToggle.hidden = currentState.embed || scriptPane;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
   dom.railToggle.textContent = railExpanded ? "\u2039" : "\u203a";
   dom.railToggle.title = railExpanded ? "Hide controls" : "Show controls";
@@ -456,13 +488,15 @@ function activateTask(id) {
 
 function renderTaskPanel() {
   dom.taskPanel.replaceChildren();
-  // No model home any more: Tree, Search and Objects used to live there, and the
-  // bodies panel below is what the Model task actually shows.
   const home = {
+    model: dom.modelToolsHome,
     results: dom.resultToolsHome,
     diagnostics: dom.issueToolsHome
   }[currentState.activeTab];
-  if (home) dom.taskPanel.append(home);
+  if (home) {
+    home.hidden = false;
+    dom.taskPanel.append(home);
+  }
 }
 
 function renderSavedViews() {
@@ -496,25 +530,18 @@ function renderStatusChip() {
     renderProjectStatusChip();
     return;
   }
-  // A run in Build mode rebuilds the scene without the solved review, so a
-  // stale model is status in its own right, review or not.
-  dom.statusChip.hidden = currentState.embed || (!currentState.review && !currentState.resultsStale);
+  dom.statusChip.hidden = currentState.embed || !currentState.review;
   if (dom.statusChip.hidden) return;
-  const status = currentState.review
-    ? cockpitStatusViewModel(currentState.review)
-    : { analysisStatus: "stale", complianceStatus: null, warningCount: 0 };
+  const status = cockpitStatusViewModel(currentState.review);
 
   const verdict = document.createElement("span");
   verdict.className = "status-badge";
-  verdict.dataset.status = currentState.resultsStale ? "stale" : String(status.analysisStatus);
-  verdict.textContent = currentState.resultsStale ? "stale" : String(status.analysisStatus).replaceAll("_", " ");
+  verdict.dataset.status = String(status.analysisStatus);
+  verdict.textContent = String(status.analysisStatus).replaceAll("_", " ");
   dom.statusChip.append(verdict);
 
-  // Exceptions only. A passing or unavailable compliance verdict is not news;
-  // a failing one must never be something you have to open a tab to discover.
+  // Exceptions only: a clean review is not news, a warning is.
   const alerts = [
-    currentState.resultsStale ? ["stale", "Model changed since the last solve"] : null,
-    status.complianceStatus === "Fail" ? ["compliance", "Compliance fail"] : null,
     status.warningCount > 0
       ? ["diagnostics", `${status.warningCount} warning${status.warningCount === 1 ? "" : "s"}`]
       : null
@@ -526,11 +553,11 @@ function renderStatusChip() {
     dom.statusChip.append(alert);
   }
 
-  const target = alerts.length > 0 ? "diagnostics" : "summary";
+  const target = alerts.length > 0 ? "diagnostics" : "model";
   dom.statusChip.dataset.statusTarget = target;
   dom.statusChip.setAttribute(
     "aria-label",
-    `Analysis ${currentState.resultsStale ? "stale" : status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review tasks`
+    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review tasks`
   );
   dom.statusChip.onclick = () => {
     studio.mode = "review";
@@ -545,6 +572,66 @@ function renderStatusChip() {
 
 
 
+
+function renderModelControls() {
+  if (!dom.modelControls || !dom.modelLegend) return;
+  dom.modelControls.replaceChildren();
+  dom.modelLegend.replaceChildren();
+  if (currentState.activeTab !== "model") return;
+
+  const mode = currentState.modelColorBy ?? "default";
+  dom.modelControls.append(railGroup("Colouring", mode === "default" ? "ROLE" : mode.toUpperCase()));
+  dom.modelControls.append(
+    propertyRow(
+      "Colour by",
+      plainSelect(mode, MODEL_COLOR_MODES, (value) => {
+        dispatch({ type: "setModelColorBy", colorBy: value });
+        render();
+      })
+    )
+  );
+
+  if (mode !== "default") {
+    const coloring = getModelColoring(currentState, mode);
+    if (coloring.items.length === 0) {
+      dom.modelLegend.append(metaLine("No model elements found."));
+      return;
+    }
+    const container = document.createElement("div");
+    container.className = "model-legend-list";
+    container.setAttribute("role", "list");
+    container.setAttribute("aria-label", `Colouring legend by ${mode}`);
+
+    for (const item of coloring.items) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "model-legend-chip";
+      chip.setAttribute("role", "listitem");
+      chip.title = `Click to select ${item.count} elements with ${mode} "${item.label}"`;
+
+      const swatch = document.createElement("span");
+      swatch.className = "model-legend-swatch";
+      swatch.style.backgroundColor = item.color;
+
+      const label = document.createElement("span");
+      label.className = "model-legend-label";
+      label.textContent = item.label;
+
+      const tally = document.createElement("span");
+      tally.className = "model-legend-tally";
+      tally.textContent = String(item.count);
+
+      chip.append(swatch, label, tally);
+      chip.addEventListener("click", () => {
+        dispatch({ type: "selectObjects", objectIds: item.objectIds });
+        selectedObjectId = currentState.selectedObjectIds[0] ?? null;
+        render();
+      });
+      container.append(chip);
+    }
+    dom.modelLegend.append(container);
+  }
+}
 
 function renderResultControls() {
   dom.resultControls.replaceChildren();
@@ -609,7 +696,7 @@ function renderResultControls() {
   // Only offered when the scene carries no field catalogue; with one, the field
   // selector already picks the result state through its load case. A contact
   // review names its own result state either way.
-  if ((contactPanel || fieldOptions.length === 0) && resultStates.length > 0) {
+  if ((isContactReview(currentState) || fieldOptions.length === 0) && resultStates.length > 0) {
     dom.resultControls.append(
       propertyRow(
         "Result state",
@@ -637,8 +724,9 @@ function renderResultControls() {
   dom.resultShape.append(
     railGroup("Deformation", `\u00d7${formatScale(getVisualDeformationDisplayScale(currentState))}`)
   );
-  // A contact review draws its own shape and offers no deformed state.
-  if (!contactPanel && geometryStates.length > 0) {
+  // A contact review draws its own shape and offers no deformed state. A review
+  // that merely lists its shoes keeps the control: the table is not the subject.
+  if (!isContactReview(currentState) && geometryStates.length > 0) {
     dom.resultShape.append(
       propertyRow(
         "Deformed state",
@@ -770,8 +858,8 @@ function filtersDrawer() {
       render();
     }),
     rangeControl(
-      `Displacement vector scale ${formatScale(currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1)}x`,
-      currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1,
+      `Displacement vector scale ${formatScale(currentState.resultVectorScales?.displacement ?? 1)}x`,
+      currentState.resultVectorScales?.displacement ?? 1,
       0,
       20,
       0.5,
@@ -796,8 +884,8 @@ function filtersDrawer() {
       "Moment vector scale"
     ),
     rangeControl(
-      `Reaction vector scale ${formatScale(currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1)}x`,
-      currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1,
+      `Reaction vector scale ${formatScale(currentState.resultVectorScales?.reaction ?? 1)}x`,
+      currentState.resultVectorScales?.reaction ?? 1,
       0,
       5,
       0.25,
@@ -813,9 +901,9 @@ function filtersDrawer() {
 
 function vectorScaleSummary() {
   const scales = [
-    currentState.resultVectorScales?.displacement ?? currentState.displacementVectorScale ?? 1,
+    currentState.resultVectorScales?.displacement ?? 1,
     currentState.resultVectorScales?.moment ?? 1,
-    currentState.resultVectorScales?.reaction ?? currentState.reactionVectorScale ?? 1
+    currentState.resultVectorScales?.reaction ?? 1
   ];
   return scales.map((scale) => formatScale(scale)).join(" / ");
 }
@@ -865,6 +953,16 @@ function renderHeader() {
   dom.reportLink.hidden = !currentState.review;
   if (currentState.review) {
     dom.reportLink.href = `${currentBundleUrl}/index.html`;
+    // The report prints stored SI so it stays byte-comparable with the CSVs and
+    // review.json beside it; this viewer converts for display. Said on the way
+    // out as well as on arrival, because a reader who has already crossed has
+    // no reason to re-read the paragraph that explains the difference.
+    dom.reportLink.title =
+      "Engineering review tables. Printed in stored SI units (m, Pa, N), not the display units used here.";
+    dom.reportLink.setAttribute(
+      "aria-label",
+      "Report - engineering review tables, printed in stored SI units rather than the display units used here"
+    );
   } else {
     dom.reportLink.removeAttribute("href");
   }
@@ -1416,6 +1514,7 @@ function renderViewportLegend() {
     const label = {
       applied_force: "Applied force — authored input",
       applied_moment: "Applied moment — authored input, right-hand rule",
+      applied_line_load: "Applied line load — authored input",
       reaction_force: "Reaction force — Code_Aster result",
       reaction_moment: "Reaction moment — Code_Aster result, right-hand rule"
     }[key];
@@ -2021,6 +2120,37 @@ function renderIssues() {
 }
 
 
+function renderBuildIssues() {
+  // Build mode hides the rail, so the live model's own issues would have no
+  // list UI at all. They surface here, in the code pane: one row per issue,
+  // each focusing the 3D camera exactly like its review-rail twin. Review
+  // bundles keep their rail list; each mode shows its own bundle's issues.
+  dom.buildIssues.replaceChildren();
+  const issues = isBuildMode() ? (currentState.issues ?? []) : [];
+  dom.buildIssues.hidden = issues.length === 0;
+  if (issues.length === 0) return;
+  const heading = document.createElement("h2");
+  heading.textContent = `Model issues (${issues.length})`;
+  dom.buildIssues.append(heading);
+  for (const issue of issues) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = issue.id === currentState.activeIssueId ? "selected" : "";
+    button.dataset.focusKey = `build-issue:${issue.id}`;
+    button.textContent = `${String(issue.severity ?? "warning").toUpperCase()} - ${issue.title ?? issue.id}`;
+    button.addEventListener("click", () => {
+      dispatch({ type: "focusIssue", issueId: issue.id });
+      const marker = currentState.selectedObjectIds
+        .map((objectId) => currentState.objects.find((obj) => obj.id === objectId))
+        .find((obj) => obj?.kind === "clash_marker");
+      selectedObjectId = marker?.id ?? currentState.selectedObjectIds[0] ?? null;
+      render();
+    });
+    dom.buildIssues.append(button);
+  }
+}
+
+
 function renderProperties() {
   // The script links below are drawn against this; model.py's input listener redraws when it flips.
   studio.linesMoved = scriptLinesMoved();
@@ -2301,13 +2431,6 @@ function appendIssueReviewActions(issueSummary) {
     dispatch({ type: "setIssueReviewComment", issueId: issueSummary.id, comment: comment.value });
   });
 
-  const bcfButton = document.createElement("button");
-  bcfButton.type = "button";
-  bcfButton.textContent = "Export BCF";
-  bcfButton.addEventListener("click", () => {
-    setStatus(issueSummary.bcf ? `BCF ready ${issueSummary.id}` : `BCF export path unavailable for ${issueSummary.id}`);
-  });
-
   const restoreButton = document.createElement("button");
   restoreButton.type = "button";
   restoreButton.textContent = "Restore view";
@@ -2316,7 +2439,7 @@ function appendIssueReviewActions(issueSummary) {
     render();
   });
 
-  dom.propertyActions.append(status, comment, bcfButton, restoreButton);
+  dom.propertyActions.append(status, comment, restoreButton);
 }
 
 function renderCanvas() {
@@ -2325,7 +2448,7 @@ function renderCanvas() {
     return;
   }
   try {
-    viewportRenderer ??= createThreeViewport(dom.canvas);
+    viewportRenderer ??= createThreeCanvasRenderer(dom.canvas);
   } catch (error) {
     if (error?.code !== WEBGL2_UNAVAILABLE) throw error;
     viewportUnavailable = true;
@@ -2334,7 +2457,11 @@ function renderCanvas() {
     return;
   }
   renderCameraControls();
-  const result = viewportRenderer.setState(currentState);
+  const graph = viewportRenderer.render(currentState);
+  const result = {
+    ...graph,
+    renderableObjects: [...new Set(graph.objectsByObjectId.values())].filter((object) => object.visible !== false)
+  };
   lastRenderGraph = result;
   const objectIds = [...new Set(result.renderableObjects.flatMap((object) => object.userData.objectIds ?? []))];
   globalThis.__tubaViewer = {
@@ -2348,8 +2475,7 @@ function renderCanvas() {
     resultReview: {
       hotspots: getHotspots(currentState),
       legend: getScalarLegend(currentState)
-    },
-    previewEvents: [...globalThis.__tubaViewerPreviewEvents]
+    }
   };
   if (result.diagnostics.length > 0) {
     setStatus(`Ready with ${result.diagnostics.length} render warning(s)`, true);
@@ -2423,11 +2549,7 @@ dom.canvas.addEventListener("click", (event) => {
   }
   const rect = dom.canvas.getBoundingClientRect();
   const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  // pickObjectAt is the flat top-down projection for when no 3D view exists. On
-  // a 3D miss it chose from a projection that has nothing to do with the camera.
-  const objectId = lastRenderGraph
-    ? pickRenderedObject(lastRenderGraph, point, { width: rect.width, height: rect.height })
-    : pickObjectAt(currentState, point, { width: rect.width, height: rect.height });
+  const objectId = pickRenderedObject(lastRenderGraph, point, { width: rect.width, height: rect.height });
   if (objectId) {
     selectedObjectId = objectId;
     dispatch({ type: "selectObject", objectId, additive: event.shiftKey });
@@ -2491,7 +2613,7 @@ dom.canvas.addEventListener("mousemove", (event) => {
     hoveredObjectId = objectId;
     dom.canvas.dataset.hoverObjectId = objectId ?? "";
     applyHoverHighlight(lastRenderGraph, objectId);
-    viewportRenderer.render();
+    viewportRenderer.redraw();
   });
 });
 
@@ -2531,25 +2653,6 @@ async function handleLivePreviewEvent(raw) {
     setStatus("Live preview sent invalid JSON", true);
     return;
   }
-  globalThis.__tubaViewerPreviewEvents.push(message);
-  if (globalThis.__tubaViewer) {
-    globalThis.__tubaViewer.previewEvents = [...globalThis.__tubaViewerPreviewEvents];
-  }
-  if (message.type === "run_started") {
-    setStatus(message.revision === undefined ? "Preview run started" : `Preview run ${message.revision} started`);
-    return;
-  }
-  if (message.type === "diagnostic") {
-    const diagnostic = message.payload ?? message.diagnostic ?? {
-      severity: message.severity ?? "error",
-      code: "visualization.preview.diagnostic",
-      message: message.message ?? "Preview diagnostic"
-    };
-    dispatch({ type: "appendDiagnostic", diagnostic });
-    renderDiagnostics();
-    setStatus(diagnostic.message, true);
-    return;
-  }
   // model.py was saved from another editor and failed to run.
   if (message.type === "script_error") {
     if (studio.available) showScriptError(message);
@@ -2578,7 +2681,6 @@ async function handleLivePreviewEvent(raw) {
       await loadBundle(bundleUrl, { preserve: true });
       await refreshScriptFromDisk();
       render();
-      globalThis.__tubaViewerPreviewEvents = [...globalThis.__tubaViewerPreviewEvents];
       // In the studio the script pane already says what ran; a revision number
       // parked in the header only reads as jargon.
       setStatus(studio.available ? "Ready" : `Preview reloaded ${message.bundle_revision ?? ""}`.trim());
@@ -2586,31 +2688,6 @@ async function handleLivePreviewEvent(raw) {
       setStatus(error.message, true);
     }
     return;
-  }
-  if (message.type === "scene_diff") {
-    dispatch({ type: "applySceneDiff", diff: message.payload ?? message.diff ?? message.scene_diff ?? message });
-    if (currentState.lastSceneDiffStatus.applied) {
-      render();
-      setStatus(`Preview diff applied ${message.revision ?? ""}`.trim());
-      return;
-    }
-    if (message.bundle_url) {
-      currentBundleUrl = message.bundle_url;
-      try {
-        await loadBundle(message.bundle_url, { preserve: true });
-        render();
-        setStatus(`Preview diff fallback reloaded ${message.revision ?? ""}`.trim());
-      } catch (error) {
-        setStatus(error.message, true);
-      }
-      return;
-    }
-    renderDiagnostics();
-    setStatus("Preview diff requires full reload", true);
-    return;
-  }
-  if (message.type === "run_finished") {
-    setStatus(message.ok === false ? "Preview run failed" : "Preview run finished", message.ok === false);
   }
 }
 
@@ -2900,30 +2977,109 @@ function sameHostPreviewSocketUrl() {
   return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/preview/ws`;
 }
 
+// Build is a workspace mode, not a studio privilege: a studio runs model.py, a
+// published bundle shows the same pane frozen. Either way the rail yields to it.
+function buildWorkspaceMode() {
+  if (currentState?.embed) return null;
+  if (studio.available) return studio.mode;
+  if (sourceView.available) return sourceView.mode;
+  return null;
+}
+
 function isBuildMode() {
-  return studio.available && studio.mode === "build" && !currentState?.embed;
+  return buildWorkspaceMode() === "build";
+}
+
+// -- A published bundle's model.py and .comm, read-only -----------------------
+
+async function loadBundleSource(baseUrl) {
+  clearBundleSource();
+  const derived = deriveBundleSource(currentBundle?.scene, currentBundle?.review);
+  if (!derived) return;
+  const root = String(baseUrl).replace(/\/+$/, "");
+  let script;
+  try {
+    script = await fetchBundleText(root, derived.scriptUri);
+  } catch {
+    // A bundle that names a script it does not ship has nothing to show; the
+    // review stands on its own.
+    return;
+  }
+  sourceView.available = true;
+  sourceView.baseUrl = root;
+  sourceView.scriptUri = derived.scriptUri;
+  sourceView.loadCases = derived.loadCases;
+  sourceView.text.set(derived.scriptUri, script);
+  setScriptText(script);
+}
+
+function clearBundleSource() {
+  sourceView.available = false;
+  sourceView.mode = "review";
+  sourceView.baseUrl = ".";
+  sourceView.scriptUri = null;
+  sourceView.loadCases = [];
+  sourceView.text.clear();
+  if (!studio.available) studio.codeTab = null;
+}
+
+async function fetchBundleText(baseUrl, uri) {
+  const response = await fetch(`${baseUrl}/${uri}`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to load ${uri}: ${response.status} ${response.statusText}`);
+  }
+  const contentType = response.headers?.get?.("content-type") ?? "";
+  if (contentType.toLowerCase().includes("text/html")) {
+    throw new Error(`Expected text from ${uri}, but received HTML.`);
+  }
+  return response.text();
 }
 
 function renderMode() {
   const build = isBuildMode();
   document.body.dataset.studio = String(studio.available);
   document.body.dataset.mode = build ? "build" : "review";
-  dom.modeSwitch.hidden = !studio.available || currentState.embed;
+  dom.modeSwitch.hidden = !(studio.available || sourceView.available) || currentState.embed;
   for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
     button.setAttribute("aria-pressed", String(button.dataset.mode === document.body.dataset.mode));
   }
   dom.codePane.hidden = !build;
+  dom.codeText.readOnly = !studio.available;
+  dom.codeRun.hidden = !studio.available;
+  if (!studio.available) dom.codeState.textContent = "Read-only";
   renderCodeTabs();
+  renderCodeMeshToggle();
   renderSolveControls();
+}
+
+function renderCodeMeshToggle() {
+  if (!dom.codeMeshToggle) return;
+  const meshBody = getBodies(currentState).find((candidate) => candidate.id === "analysis_mesh");
+  if (!meshBody) {
+    dom.codeMeshToggle.hidden = true;
+    return;
+  }
+  dom.codeMeshToggle.hidden = false;
+  const isVisible = meshBody.visible;
+  dom.codeMeshToggle.setAttribute("aria-pressed", String(isVisible));
+  dom.codeMeshToggle.title = isVisible
+    ? "Hide 1D analysis mesh (Alt+M)"
+    : "Show 1D analysis mesh elements and nodes (Alt+M)";
 }
 
 // -- Build mode's file tabs: model.py is the source, every .comm is generated --
 
+// A studio owns the load cases in its study.py; a published bundle carries them
+// in its scene and review. Both feed the same tab strip.
+function codePaneCases() {
+  return studio.available ? (studio.project?.load_cases ?? []) : sourceView.loadCases.map((entry) => entry.name);
+}
+
 function renderCodeTabs() {
-  const cases = studio.project?.load_cases ?? [];
+  const cases = codePaneCases();
   if (!cases.includes(studio.codeTab)) studio.codeTab = null;
   const { codeTab } = studio;
-  const key = cases.join("\n");
+  const key = `${studio.available ? "studio" : "bundle"}\n${cases.join("\n")}`;
   if (dom.codeTabs.dataset.cases !== key || !dom.codeTabs.children.length) {
     dom.codeTabs.dataset.cases = key;
     dom.codeTabs.replaceChildren(
@@ -2963,7 +3119,7 @@ function showCodeTab(tab) {
   if (tab === null) {
     renderCodeMarks();
   } else {
-    dom.commText.textContent = "Generating…";
+    dom.commText.textContent = studio.available ? "Generating…" : "Loading…";
     void loadComm();
   }
 }
@@ -2973,17 +3129,34 @@ async function loadComm() {
   if (tab === null) return;
   const request = ++studio.commRequest;
   let result;
-  try {
-    const response = await fetch(`/api/comm?case=${encodeURIComponent(tab)}`, { cache: "no-store" });
-    result = await response.json().catch(() => ({ error: `Studio answered ${response.status}` }));
-  } catch (error) {
-    result = { error: error.message };
+  if (studio.available) {
+    try {
+      const response = await fetch(`/api/comm?case=${encodeURIComponent(tab)}`, { cache: "no-store" });
+      result = await response.json().catch(() => ({ error: `Studio answered ${response.status}` }));
+    } catch (error) {
+      result = { error: error.message };
+    }
+  } else {
+    const entry = sourceView.loadCases.find((candidate) => candidate.name === tab);
+    try {
+      if (!entry) throw new Error("This review ships no .comm for that load case.");
+      const cached = sourceView.text.get(entry.uri);
+      const code = cached ?? (await fetchBundleText(sourceView.baseUrl, entry.uri));
+      if (!cached) sourceView.text.set(entry.uri, code);
+      result = { ok: true, code };
+    } catch (error) {
+      result = { error: error.message };
+    }
   }
   // A later request, or another tab, owns the pane now.
   if (request !== studio.commRequest || tab !== studio.codeTab) return;
   const { scrollTop } = dom.commText;
   dom.commText.dataset.state = result.ok ? "ready" : "error";
-  dom.commText.textContent = result.ok ? result.code : `${tab}.comm could not be generated.\n\n${result.error ?? ""}`;
+  dom.commText.textContent = result.ok
+    ? result.code
+    : studio.available
+      ? `${tab}.comm could not be generated.\n\n${result.error ?? ""}`
+      : `${tab}.comm is not part of this review.\n\n${result.error ?? ""}`;
   dom.commText.scrollTop = scrollTop;
 }
 
@@ -3006,7 +3179,37 @@ function renderSolveControls() {
         : "No review yet.";
 }
 
+// A Code_Aster solve runs for minutes and the server emits solve_started and
+// solve_finished with nothing in between, so the header said the same three
+// words for the whole run: a solve in progress and a hung solve were the same
+// picture. Wall-clock elapsed is the one honest signal available without a
+// protocol change - it cannot say how far along a run is, but it does say the
+// run is still a run.
+// ponytail: wall clock only. A real fraction needs the runtime to broadcast
+// per-operation progress, and a Cancel needs solve_project to hold the
+// subprocess handle so it can be killed without orphaning the solve claim.
+let solveClockTimer = null;
+
+function solveElapsedLabel() {
+  if (!studio.solveStartedAt) return null;
+  return formatElapsed(Date.now() - studio.solveStartedAt);
+}
+
+function trackSolveClock(busy) {
+  if (busy && !studio.solveStartedAt) studio.solveStartedAt = Date.now();
+  if (!busy) studio.solveStartedAt = null;
+  if (busy && !solveClockTimer) {
+    // Redraws the chip alone; the full render is far too expensive to tick.
+    solveClockTimer = setInterval(renderStatusChip, 1000);
+  } else if (!busy && solveClockTimer) {
+    clearInterval(solveClockTimer);
+    solveClockTimer = null;
+  }
+}
+
 function renderProjectStatusChip() {
+  const busy = studio.solving || studio.preparing;
+  trackSolveClock(busy);
   if (!studio.project.solves && !studio.reviewStale) {
     dom.statusChip.hidden = true;
     return;
@@ -3032,6 +3235,16 @@ function renderProjectStatusChip() {
     note.textContent = alert;
     dom.statusChip.append(note);
   }
+  const elapsed = busy ? solveElapsedLabel() : null;
+  if (elapsed) {
+    const clock = document.createElement("span");
+    clock.className = "status-chip-clock";
+    clock.textContent = elapsed;
+    dom.statusChip.append(clock);
+  }
+  // The clock is deliberately left out of the label: the chip is a button, not
+  // a live region, but rebuilding it every second would still leave a screen
+  // reader reading a running count if it ever became one.
   dom.statusChip.setAttribute("aria-label", `Review ${status.replaceAll("_", " ")}${alert ? `, ${alert}` : ""} - show the review`);
   dom.statusChip.onclick = () => void setMode("review");
 }
@@ -3080,6 +3293,22 @@ async function handleSolveEvent(message) {
 }
 
 async function setMode(mode) {
+  // A published bundle has no live model to swap in: the one scene it shipped
+  // is both the built model and the review, so the mode is only a view change.
+  if (!studio.available) {
+    if (!sourceView.available || sourceView.mode === mode) return;
+    sourceView.mode = mode;
+    if (mode === "build") {
+      studio.codeTab = null;
+      dispatch({ type: "enterBuild" });
+    } else {
+      // The review opens on what the bundle declared; leaving Build restores it
+      // so the authored solid and its mesh are not both drawing at once.
+      dispatch({ type: "resetLayerVisibility" });
+    }
+    render();
+    return;
+  }
   if (studio.mode === mode) return;
   studio.mode = mode;
   await showStudioBundle(mode);
@@ -3195,6 +3424,14 @@ function renderGutter() {
 }
 
 function renderCodeFoot() {
+  if (!studio.available) {
+    const note = document.createElement("span");
+    note.textContent = studio.codeTab === null
+      ? "Shipped with this review · read-only"
+      : "Generated from model.py + study.py · read-only · solver input, not results";
+    dom.codeFoot.replaceChildren(note);
+    return;
+  }
   if (studio.codeTab !== null) {
     const note = document.createElement("span");
     note.textContent = "Generated from model.py + study.py · read-only · solver input, not results";
@@ -3206,7 +3443,16 @@ function renderCodeFoot() {
   saved.textContent = text.value === studio.ranCode ? "Saved to model.py" : "Edited · Ctrl+Enter runs and saves";
   const position = document.createElement("span");
   position.textContent = `Ln ${lineAtOffset(text.value, text.selectionStart ?? 0)}`;
-  dom.codeFoot.replaceChildren(saved, position);
+  const foot = [saved, position];
+  if (studio.available && (studio.project?.load_cases ?? []).length === 0) {
+    // Model-only project: a single model.py tab with no .comm beside it. Say why,
+    // instead of leaving the missing tabs unexplained.
+    const hint = document.createElement("span");
+    hint.dataset.noStudyHint = "";
+    hint.textContent = "No study.py load cases — add LOAD_CASES to study.py for .comm tabs and Solve";
+    foot.push(hint);
+  }
+  dom.codeFoot.replaceChildren(...foot);
 }
 
 function renderScriptSelection() {
@@ -3267,7 +3513,9 @@ function renderScriptLink(object) {
   section.append(heading);
   const line = Number(object.metadata?.source_line);
   if (!Number.isInteger(line) || line < 1) {
-    section.append(metaLine("Run model.py to link this to the line that builds it."));
+    section.append(metaLine(studio.available
+      ? "Run model.py to link this to the line that builds it."
+      : "This review records no source line for the selection."));
     return section;
   }
   if (scriptLinesMoved()) {
@@ -3281,6 +3529,10 @@ function renderScriptLink(object) {
   if (Number.isInteger(callLine) && callLine > 0) {
     section.append(scriptLineButton(callLine, `called from model.py:${callLine}`));
   }
+
+  // A published bundle's pane is frozen: the link reveals the line, but there
+  // is nothing here that could rewrite it and run.
+  if (!studio.available) return section;
 
   const length = runLengthLiteral(source);
   if (length === null) return section;
@@ -3371,7 +3623,78 @@ for (const button of [dom.solveButton, dom.reviewEmptySolve]) {
   button.addEventListener("click", () => void solveProject());
 }
 
+dom.codeMeshToggle?.addEventListener("click", () => {
+  if (!currentState) return;
+  const meshBody = getBodies(currentState).find((candidate) => candidate.id === "analysis_mesh");
+  const nextVisible = !(meshBody?.visible ?? false);
+  dispatch({
+    type: "setBodyVisibility",
+    bodyId: "analysis_mesh",
+    visible: nextVisible
+  });
+  dispatch({
+    type: "setBodyOpacity",
+    bodyId: "geometry",
+    opacity: nextVisible ? 0.35 : 1.0
+  });
+  render();
+});
+
 dom.codeRun.addEventListener("click", () => void runScript());
+
+// -- Script pane resize: drag the right edge; double-click resets to the default --
+const CODE_PANE_MIN_PX = 300;
+const CODE_PANE_WIDTH_KEY = "tuba.codePaneWidthPx";
+
+function clampCodePaneWidth(px) {
+  return Math.min(Math.max(Math.round(px), CODE_PANE_MIN_PX), Math.floor(window.innerWidth * 0.75));
+}
+
+function applyCodePaneWidth(px) {
+  dom.codePane.style.setProperty("--controls-width", `${clampCodePaneWidth(px)}px`);
+  try {
+    window.localStorage.setItem(CODE_PANE_WIDTH_KEY, String(clampCodePaneWidth(px)));
+  } catch {
+    // Private browsing and the like: the drag still works for this visit.
+  }
+}
+
+function resetCodePaneWidth() {
+  dom.codePane.style.removeProperty("--controls-width");
+  try {
+    window.localStorage.removeItem(CODE_PANE_WIDTH_KEY);
+  } catch {
+    // Nothing persisted, nothing to clear.
+  }
+}
+
+try {
+  const stored = Number.parseInt(window.localStorage.getItem(CODE_PANE_WIDTH_KEY) ?? "", 10);
+  if (Number.isFinite(stored)) dom.codePane.style.setProperty("--controls-width", `${clampCodePaneWidth(stored)}px`);
+} catch {
+  // No stored width: the stylesheet default applies.
+}
+
+dom.codeResize.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  dom.codeResize.setPointerCapture(event.pointerId);
+  dom.codeResize.dataset.dragging = "";
+  const move = (moveEvent) => {
+    applyCodePaneWidth(moveEvent.clientX - dom.codePane.getBoundingClientRect().left);
+  };
+  const stop = () => {
+    delete dom.codeResize.dataset.dragging;
+    dom.codeResize.removeEventListener("pointermove", move);
+    dom.codeResize.removeEventListener("pointerup", stop);
+    dom.codeResize.removeEventListener("pointercancel", stop);
+  };
+  dom.codeResize.addEventListener("pointermove", move);
+  dom.codeResize.addEventListener("pointerup", stop);
+  dom.codeResize.addEventListener("pointercancel", stop);
+});
+
+dom.codeResize.addEventListener("dblclick", resetCodePaneWidth);
 
 dom.codeText.addEventListener("input", () => {
   studio.revealLine = null;
@@ -3407,12 +3730,24 @@ dom.codeText.addEventListener("keydown", (event) => {
     studio.tabLeavesEditor = true;
     return;
   }
+  if (event.altKey && event.key.toLowerCase() === "m") {
+    event.preventDefault();
+    dom.codeMeshToggle?.click();
+    return;
+  }
   if (event.key !== "Tab" || event.shiftKey || modifier || event.altKey || studio.tabLeavesEditor) return;
   event.preventDefault();
   // insertText keeps the browser's undo history; setRangeText is the fallback.
   if (!document.execCommand("insertText", false, "    ")) {
     dom.codeText.setRangeText("    ", dom.codeText.selectionStart, dom.codeText.selectionEnd, "end");
     renderGutter();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.altKey && event.key.toLowerCase() === "m" && isBuildMode()) {
+    event.preventDefault();
+    dom.codeMeshToggle?.click();
   }
 });
 

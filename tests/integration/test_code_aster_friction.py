@@ -7,6 +7,7 @@ import unittest
 
 import numpy as np
 
+from tuba.solver import parse_tables
 from tuba.solver.aster import CodeAsterSolver
 from tuba.solver.code_aster_runtime import CodeAsterRuntimeConfig, run_code_aster_export
 
@@ -50,12 +51,12 @@ FIN
     CodeAsterSolver()._write_export(root)
     execution = run_code_aster_export(root / 'study.export', root,
         CodeAsterRuntimeConfig(exec_method='wsl', wsl_distro='Ubuntu', timeout_seconds=240))
-    return CodeAsterSolver._parse_csv_table(root / 'study_effo.csv')
+    return parse_tables.parse_csv_table(root / 'study_effo.csv')
 
 
 
 def table(root, name, *, point=None):
-    rows = CodeAsterSolver._parse_csv_table(Path(root) / name)
+    rows = parse_tables.parse_csv_table(Path(root) / name)
     if point is not None:
         rows = [r for r in rows if int(r['POINT']) == point]
     return {round(float(r['INST']), 8): r for r in rows}
@@ -103,7 +104,7 @@ def assess_cycle(case, root, *, kn, kt, driver, law):
         for time,status in ((2.,0),(3.,1),(5.,1),(6.,2),(7.,0),(8.,1)):
             case.assertEqual(int(float(internal[time]['V4'])),status)
     peak_equilibrium = 0.
-    reactions = CodeAsterSolver._parse_csv_table(Path(root)/'study_reac.csv')
+    reactions = parse_tables.parse_csv_table(Path(root)/'study_reac.csv')
     for time in forces:
         residual = np.sum([[float(r[k]) for k in ('DX','DY','DZ')] for r in reactions if round(float(r['INST']),8)==time],axis=0)
         peak_equilibrium=max(peak_equilibrium,float(np.linalg.norm(residual)))

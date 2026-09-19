@@ -46,6 +46,54 @@ class TestPipeRunRecipe(unittest.TestCase):
         # Anchor supports replayed too (start + end nodes).
         self.assertEqual(len(list(regen.supports)), 2)
 
+    def test_bend_records_its_resolved_axis_not_the_plane(self):
+        recipe = _authored_run(_model("original")).recipe
+        bend = next(step for step in recipe.steps if step.op == "bend")
+
+        self.assertNotIn("plane", bend.params)
+        self.assertEqual(bend.params["axis"], [0.0, 0.0, 1.0])  # "XY" from +X resolves to up
+
+    def test_bend_resolves_its_plane_to_an_absolute_axis(self):
+        by_plane = _model("bend")
+        with by_plane.pipe("DN100", "steel") as builder:
+            builder.start([0.0, 0.0, 0.0])
+            builder.run(2.0)
+            builder.bend(radius=0.15, angle=90, plane="XZ")  # +X heading -> axis (0, -1, 0)
+            builder.run(2.0)
+        by_axis = _model("bend")
+        with by_axis.pipe("DN100", "steel") as builder:
+            builder.start([0.0, 0.0, 0.0])
+            builder.run(2.0)
+            builder.bend(radius=0.15, angle=90, axis=[0.0, -1.0, 0.0])
+            builder.run(2.0)
+
+        self.assertEqual(by_axis.to_dict(), by_plane.to_dict())
+        bend = next(step for step in builder.recipe.steps if step.op == "bend")
+        self.assertEqual(bend.params["axis"], [0.0, -1.0, 0.0])
+
+    def test_a_later_bend_keeps_its_absolute_axis_when_an_earlier_bend_changes(self):
+        model = _model("original")
+        with model.pipe("DN100", "steel") as builder:
+            builder.start([0.0, 0.0, 0.0])
+            builder.run(2.0)
+            builder.bend(radius=0.15, angle=90, plane="XY")  # +X -> +Y, axis +Z
+            builder.run(2.0)
+            builder.bend(radius=0.15, angle=90, plane="XZ")  # heading +Y -> axis +X
+            builder.run(2.0)
+        recipe = builder.recipe
+        self.assertTrue(np.allclose(recipe.steps[2].params["axis"], [0.0, 0.0, 1.0]))
+        self.assertTrue(np.allclose(recipe.steps[4].params["axis"], [1.0, 0.0, 0.0]))
+
+        # Flipping the first bend sends the heading -Y into the second. It still turns
+        # about its authored axis +X; a re-resolved "XZ" plane would give -X instead.
+        edited = recipe.with_step_params(2, angle=-90.0)
+        regen = _model("regen")
+        built = edited.build(regen)
+        bends = [regen.get_element(eid) for eid in built.element_ids if regen.get_element(eid).type == "pipe_bend"]
+
+        self.assertEqual(len(bends), 2)
+        self.assertTrue(np.allclose(bends[1].bend_geometry.normal, [1.0, 0.0, 0.0]))
+
     def test_recipe_regenerates_with_changed_length(self):
         recipe = _authored_run(_model("original")).recipe
 

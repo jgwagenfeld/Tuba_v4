@@ -5,7 +5,7 @@ from tuba.analysis import AnalysisStudy
 from tuba.analysis.results import result_state_from_fea_results
 from tuba.analysis.states import create_cold_geometry_state, create_operating_geometry_state
 from tuba.clash import ClashEngine
-from tuba.visualization import build_visualization_scene
+from tuba.visualization import SceneRequest, build_visualization_scene
 
 
 class TestVisualizationClashReview(unittest.TestCase):
@@ -30,13 +30,13 @@ class TestVisualizationClashReview(unittest.TestCase):
             envelope_type="bare",
         )
 
-        scene = build_visualization_scene(
+        scene = build_visualization_scene(SceneRequest(
             fixture.model,
             result_states=[result_state],
             geometry_states=[operating_state],
             operating_clash_results=clashes,
             scene_id="scene:operating_clash_review",
-        )
+        ))
         scene.validate()
 
         clash = clashes[0]
