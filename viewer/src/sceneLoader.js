@@ -112,6 +112,8 @@ export function createViewerState(bundle) {
 
   const state = {
     sceneId: scene.scene_id,
+    // The study says what its review is for; the viewer no longer infers it.
+    reviewFocus: scene.review_focus ?? null,
     objects,
     objectMap: bundle.objectMap ?? {},
     geometryAssets,

@@ -93,7 +93,11 @@ def build_review(namespace, output, *, artifact_dir=None, force=False):
     geometry_states = [replace(create_visual_deformed_geometry_state(model=model, result_state=state, visual_scale=20.0),
                                id=f"geometry_state:{state.id}:visual") for state in states]
     solved_at = run.result_state.metadata["solve_attestation"]["solved_at"]
+    # This review is about what the shoes did, so the pipe is coloured neutrally
+    # and no scalar field tints it. Every other gallery leaves review_focus unset
+    # and keeps its own stress or displacement legend, shoes or no shoes.
     scene = build_visualization_scene(SceneRequest(model, analysis_runs=[run], geometry_states=geometry_states,
+                                      review_focus="contact",
                                       scene_id="scene:native-friction:comparison", created_at=solved_at))
     add_scene_label(scene, "Without friction · μ = 0", [2.0, 0.0, 0.5], label_id="frictionless-copy")
     add_scene_label(scene, "With friction · μ = 0.3", [2.0, 5.0, 0.5], label_id="friction-copy")

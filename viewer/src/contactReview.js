@@ -1,4 +1,4 @@
-import { getActiveResultState, getResultStateOptions, formatPseudoTime, isContactReview } from "./resultReview.js";
+import { getActiveResultState, getResultStateOptions, formatPseudoTime } from "./resultReview.js";
 import { resolveEntityObjectId } from "./reviewSelection.js";
 import { displayUnit, formatQuantity, getUnitSystem, toDisplay } from "./units.js";
 
@@ -71,7 +71,7 @@ export function contactForceMaxima(state) {
 }
 
 export function renderContactReview(state, dispatch, rerender) {
-  if (!isContactReview(state)) return null;
+  if (!(state.resultStates ?? []).some((s) => Object.keys(s.data?.contact_results ?? {}).length)) return null;
   const panel = document.createElement("section");
   panel.className = "contact-review";
   panel.setAttribute("aria-label", "Contact review");

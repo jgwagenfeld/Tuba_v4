@@ -47,6 +47,7 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
     ifc_guid_map = request.ifc_guid_map
     ifc_context = request.ifc_context
     field_notes = request.field_notes
+    review_focus = request.review_focus
     scene_id = request.scene_id
     model_id = request.model_id
     created_at = request.created_at
@@ -256,7 +257,10 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
         route_reviews=route_reviews,
         views=views,
         diagnostics=diagnostics,
-        extra=_scene_provenance_extra(result_state_records, analysis_mesh_records, ifc_context),
+        extra={
+            **_scene_provenance_extra(result_state_records, analysis_mesh_records, ifc_context),
+            **({"review_focus": review_focus} if review_focus else {}),
+        },
     )
     scene.validate()
     return scene

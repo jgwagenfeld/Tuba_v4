@@ -62,6 +62,7 @@ import {
   getLoadCaseOptions,
   getResultStateOptions,
   getScalarLegend,
+  isContactReview,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
 import {
@@ -695,7 +696,7 @@ function renderResultControls() {
   // Only offered when the scene carries no field catalogue; with one, the field
   // selector already picks the result state through its load case. A contact
   // review names its own result state either way.
-  if ((contactPanel || fieldOptions.length === 0) && resultStates.length > 0) {
+  if ((isContactReview(currentState) || fieldOptions.length === 0) && resultStates.length > 0) {
     dom.resultControls.append(
       propertyRow(
         "Result state",
@@ -723,8 +724,9 @@ function renderResultControls() {
   dom.resultShape.append(
     railGroup("Deformation", `\u00d7${formatScale(getVisualDeformationDisplayScale(currentState))}`)
   );
-  // A contact review draws its own shape and offers no deformed state.
-  if (!contactPanel && geometryStates.length > 0) {
+  // A contact review draws its own shape and offers no deformed state. A review
+  // that merely lists its shoes keeps the control: the table is not the subject.
+  if (!isContactReview(currentState) && geometryStates.length > 0) {
     dom.resultShape.append(
       propertyRow(
         "Deformed state",

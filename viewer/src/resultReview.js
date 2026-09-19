@@ -91,15 +91,13 @@ export function getActiveResultState(state) {
   );
 }
 
-// A contact review is one the solver actually decided contact for, and it is a
-// property of the whole run rather than of one increment: an increment where
-// every shoe has lifted off is still part of it. An ordinary rest shoe also
-// reports a record - derived, indeterminate - and counting those turned every
-// stress review that happens to sit on a shoe into a contact review, which cost
-// it its scalar legend, its load and reaction arrows, and its deformed state.
+// A contact review is one whose study said so. Inferring it from the presence of
+// contact records made every review that merely rests on a shoe a contact
+// review, which cost it its scalar legend, its load and reaction arrows and its
+// deformed state - seven of the twelve galleries, including a plain pressurised
+// line that published with no stress legend at all.
 export function isContactReview(state) {
-  return (state.resultStates ?? []).some((entry) =>
-    Object.values(entry.data?.contact_results ?? {}).some((contact) => contact?.status_source === "solver"));
+  return state.reviewFocus === "contact";
 }
 
 // The one question four surfaces used to ask for themselves: is contact, not a

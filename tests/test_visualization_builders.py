@@ -222,5 +222,25 @@ class TestVisualizationBuilders(unittest.TestCase):
         self.assertGreater(len(asset.generation_config["points"]), 2)
 
 
+    def test_scene_carries_the_review_focus_its_study_declared(self):
+        """Spec: the study says what a review is for; the viewer never infers it.
+
+        Inferring "this is a contact review" from the presence of contact
+        records made every review resting on a friction shoe a contact review,
+        which took its scalar legend and deformed state away.
+        """
+        model = Model(project_name="VisualizationFocus")
+        model.add_material("Steel", E=2.0e11, nu=0.3)
+        model.add_pipe_section("PipeSec", OD=0.1, WT=0.01)
+        with model.pipe("PipeSec", "Steel") as pipe:
+            pipe.start([0.0, 0.0, 0.0])
+            pipe.run(1.0)
+
+        self.assertNotIn("review_focus", build_visualization_scene(SceneRequest(model)).extra)
+        self.assertEqual(
+            build_visualization_scene(SceneRequest(model, review_focus="contact")).extra["review_focus"],
+            "contact",
+        )
+
 if __name__ == "__main__":
     unittest.main()

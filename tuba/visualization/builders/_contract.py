@@ -68,6 +68,13 @@ class SceneRequest:
     ifc_guid_map: dict[str | EntityRef, str] | None = None
     ifc_context: dict[str, Any] | None = None
     field_notes: Iterable[dict[str, Any]] | None = None
+    #: What the review is for, when that is not the usual "read the fields".
+    #: ``"contact"`` marks a staged contact study: the reader's question is what
+    #: the shoes did, so the pipe is coloured neutrally and no scalar field
+    #: tints it. A review that merely rests on a shoe leaves this unset - the
+    #: viewer used to infer it from the presence of contact records, which took
+    #: the stress legend off every review with a friction shoe in it.
+    review_focus: str | None = None
     scene_id: str | None = None
     model_id: str | None = None
     created_at: str | None = None

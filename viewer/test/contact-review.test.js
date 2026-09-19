@@ -9,7 +9,7 @@ function fixture() {
   const contact = { support_id: "S1", node_id: "N1", normal: [0,1,0], status: "sticking", status_source: "solver",
     normal_force: 10000, tangential_force: [-2000,0,0], gap: -1e-6, relative_displacement: [0.002,0,0], slip: [0,0,0], friction_limit: 3000, utilization: 2/3 };
   const resultStates = [0,1,2].map((i) => ({ kind: "result_state", id: `state-${i}`, data: { id: `state-${i}`, load_case: "thermal", metadata: { run_id: "run-1", stage_label: ["Heat","Cool","Uplift"][i], pseudo_time: i }, contact_results: i === 1 ? {} : { S1: { ...contact, ...(i === 2 ? { status: "open", normal_force: 0, tangential_force: [0,0,0], friction_limit: 0, utilization: null } : {}) } } } }));
-  return { bounds: [0,0,0,4,1,1], resultStates, overlays: resultStates, activeResultStateId: "state-0", activeLoadCase: "thermal", visualDeformationScale: 50,
+  return { reviewFocus: "contact", bounds: [0,0,0,4,1,1], resultStates, overlays: resultStates, activeResultStateId: "state-0", activeLoadCase: "thermal", visualDeformationScale: 50,
     objects: [{ id: "shoe", entity_ref: "support:S1", geometry_asset_id: "shoe-asset" }], visibleObjectIds: ["shoe"], selectedObjectIds: ["shoe"], camera: { target: [1,2,3] },
     geometryAssets: [{ id: "shoe-asset", format: "point", object_ids: ["shoe"], bounds: [1,0,0,1,0,0], generation_config: { source: "tuba.support", point: [1,0,0], support_type: "rest" } }], geometryStates: [], geometryPayloads: [] };
 }
@@ -118,27 +118,20 @@ test("pseudo-time labels remove binary representation noise without changing sto
   assert.equal(state.resultStates[0].data.metadata.pseudo_time, value);
 });
 
-test("a rest shoe's derived contact leaves an ordinary stress review its legend", () => {
-  // Every rest is a DIS_CHOC shoe now, so a plain pressurised line reports one
-  // derived, indeterminate contact. Counting that as a contact review
-  // neutralised the pipe and took the scalar legend off seven galleries.
-  const state = fixture();
-  state.resultFields = [{ id: "field:stress", overlay_id: "state-0", label: "FE VMIS", support: "cell",
-    unit: "Pa", components: ["magnitude"], range: [1e6, 4e8], load_case: "thermal" }];
-  state.coloring = { fieldId: "field:stress", component: "magnitude", loadCase: "thermal" };
+test("only a review that declares contact focus gives up its scalar legend", () => {
+  // Every rest is a DIS_CHOC shoe now, so an ordinary pressurised line reports a
+  // contact record too. Reading that as a contact review neutralised the pipe and
+  // took the scalar legend off seven galleries, one of which is a plain stress
+  // review. The study says which it is; the records no longer decide.
+  const contactReview = { ...fixture(),
+    resultFields: [{ id: "field:stress", overlay_id: "state-0", label: "FE VMIS", support: "cell",
+      unit: "Pa", components: ["magnitude"], range: [1e6, 4e8], load_case: "thermal" }],
+    coloring: { fieldId: "field:stress", component: "magnitude", loadCase: "thermal" } };
 
-  assert.equal(getScalarLegend(state), null, "a solver-decided contact review still neutralises the pipe");
+  assert.equal(getScalarLegend(contactReview), null, "a declared contact review colours the pipe neutrally");
 
-  const derived = { ...state, resultStates: state.resultStates.map((entry) => ({
-    ...entry,
-    data: {
-      ...entry.data,
-      contact_results: Object.fromEntries(Object.entries(entry.data.contact_results)
-        .map(([key, contact]) => [key, { ...contact, status_source: "derived", status: "indeterminate" }]))
-    }
-  })) };
-  derived.overlays = derived.resultStates;
-  assert.equal(getScalarLegend(derived).field, "FE VMIS (cell)");
+  const { reviewFocus, ...restsOnShoes } = contactReview;
+  assert.equal(getScalarLegend(restsOnShoes).field, "FE VMIS (cell)");
 });
 
 test("history visibility isolates the active increment and contact-neutral review suppresses unrelated arrows", async () => {
