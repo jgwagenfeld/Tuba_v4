@@ -22,12 +22,20 @@ async function setLayerLeaves(page, label, visible) {
 
 async function openIssuesTask(page) {
   await openReviewControls(page);
-  await page.getByRole("button", { name: "Issues", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Engineering review tasks" })
+    .getByRole("button", { name: "Issues", exact: true })
+    .click();
 }
 
 async function openResultsTask(page) {
   await openReviewControls(page);
-  await page.getByRole("button", { name: "Results", exact: true }).click();
+  // Scoped to the rail: the header's Build/Results workspace switch carries the
+  // same "Results" label in Build-reviews, so an unscoped role query is ambiguous.
+  await page
+    .getByRole("navigation", { name: "Engineering review tasks" })
+    .getByRole("button", { name: "Results", exact: true })
+    .click();
   // Activating a task applies its layer-visibility preset, and that reaches the
   // framebuffer a frame later. Settle before anything samples the canvas, or a
   // baseline snapshot is taken against a scene that is still changing.
@@ -877,7 +885,7 @@ const scenarios = {
         await page
           .locator('[data-gallery-card="elements-supports-review"] [data-gallery-elements] li')
           .allTextContents(),
-        ["TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR"]
+        ["TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR", "DIS_T"]
       );
 
       await page.locator('[data-gallery-card="imported_component_mixed_demo"]').click();
@@ -907,7 +915,10 @@ const scenarios = {
       }
 
       await openReviewControls(page);
-      await page.getByRole("button", { name: "Results", exact: true }).click();
+      await page
+        .getByRole("navigation", { name: "Engineering review tasks" })
+        .getByRole("button", { name: "Results", exact: true })
+        .click();
       // The rail's primary control is the composited bodies, not the four layer
       // categories: "what is drawn" is the question this screen answers.
       assert.deepEqual(
@@ -1176,8 +1187,11 @@ const scenarios = {
       assert.ok(realOrbitElapsedMs < 8000, `a real orbit gesture took ${realOrbitElapsedMs}ms`);
       assert.deepEqual(selectionAfterRealOrbit, selectionBeforeRealOrbit, "an orbit gesture must not change selection");
 
-      await page.getByRole("button", { name: "Results", exact: true }).click();
-      assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
+      const railResults = page
+        .getByRole("navigation", { name: "Engineering review tasks" })
+        .getByRole("button", { name: "Results", exact: true });
+      await railResults.click();
+      assert.equal(await railResults.getAttribute("aria-current"), "page");
       await assertSameCanvas(page);
       // The coloring channel lives in the Results task; its selector is "Case".
       assert.equal(await page.getByRole("combobox", { name: /^Case/ }).inputValue(), "Operating");

@@ -179,7 +179,7 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     )
 
 
-def test_beam_comparison_validates_each_load_case_evidence(tmp_path: Path) -> None:
+def test_beam_review_validates_its_load_case_evidence(tmp_path: Path) -> None:
     from tuba.project import load_project
 
     project = load_project(Path(__file__).resolve().parents[1] / "examples" / "profile-orientation-review")
@@ -189,8 +189,8 @@ def test_beam_comparison_validates_each_load_case_evidence(tmp_path: Path) -> No
     scene = json.loads((root / "scene.json").read_text(encoding="utf-8"))
     review = json.loads((root / "review.json").read_text(encoding="utf-8"))
     states = [o["data"] for o in scene["overlays"] if o["kind"] == "result_state"]
-    assert {s["load_case"] for s in states} == {"global", "local"}
-    states[1]["study_id"] = states[0]["study_id"]
+    assert {s["load_case"] for s in states} == {"global"}
+    states[0]["study_id"] = "foreign"
     with pytest.raises(ValueError, match="own study and mesh"):
         build_pages._validate_beam_review(root, scene, review)
     scene = _scene(root)
@@ -214,7 +214,7 @@ def test_beam_comparison_validates_each_load_case_evidence(tmp_path: Path) -> No
         with pytest.raises(ValueError, match="geometry state must reference its own result load case"):
             build_pages._validate_beam_review(root, scene, review)
     scene = _scene(root)
-    (root / "artifacts/local/study_depl.csv").write_text("corrupt", encoding="utf-8")
+    (root / "artifacts/global/study_depl.csv").write_text("corrupt", encoding="utf-8")
     with pytest.raises(ValueError, match="attestation"):
         build_pages._validate_beam_review(root, scene, review)
 

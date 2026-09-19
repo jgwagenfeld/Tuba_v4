@@ -266,6 +266,13 @@ class TestStaticSiteDocs(unittest.TestCase):
         # Full equality, not a prefix: a stale extra entry is drift too.
         self.assertEqual(listed, expected)
 
+        # The same scenario mirrors one card's element chips. That list drifted
+        # behind the registry while only the ids above were guarded here, so
+        # pin it to the registry too.
+        chips = catalog.split("data-gallery-elements", 1)[1].split("[", 1)[1].split("]", 1)[0]
+        card = next(g for g in OFFICIAL_GALLERIES if g.id == "elements-supports-review")
+        self.assertEqual(re.findall(r'"([^"]+)"', chips), list(card.elements))
+
     def test_gitignore_covers_every_generated_viewer_bundle(self):
         """A gallery built into viewer/public/ must not become a committable diff."""
         from scripts.official_gallery import OFFICIAL_GALLERIES

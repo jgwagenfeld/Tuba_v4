@@ -32,7 +32,10 @@ test("published expansion loop contains pipe geometry without legacy envelope sk
     // Exclude the view gizmo in the lower-right corner.
     for (let y = 150; y < h; y++) for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
-      if (pixels[i] > 180 && pixels[i + 1] < 160 && pixels[i + 2] < 90) count++;
+      // Support glyph amber, as drawn: ~rgb(224,176,80). Warm and clearly
+      // warmer than it is blue, which excludes the pale background, the grid,
+      // and the blue pipe and reaction arrows.
+      if (pixels[i] > 180 && pixels[i + 2] < 140 && pixels[i] - pixels[i + 2] > 80) count++;
     }
     return count;
   });
@@ -112,7 +115,10 @@ test("assembled Pages keeps results accessible when WebGL2 is unavailable", asyn
   await expect(page.getByRole("status")).toHaveText("Results ready · 3D unavailable");
   await expect(page.locator("[data-canvas]")).toBeHidden();
 
-  await page.getByRole("button", { name: "Results", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Engineering review tasks" })
+    .getByRole("button", { name: "Results", exact: true })
+    .click();
   await expect(page.locator("[data-task-panel]")).toContainText("FE VMIS (not code stress)");
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
@@ -234,7 +240,9 @@ test("assembled Pages renders the native 3D tee result fields", async ({ page, r
   }
   const overlays = new Map(scene.overlays.map((overlay) => [overlay.id, overlay]));
   expect(new Set(scene.result_fields.map((field) => overlays.get(field.overlay_id)?.data?.result_type))).toEqual(
-    new Set(["stress", "displacement", "reaction_force", "reaction_moment"])
+    // tuyau_subpoints is the 1D remainder's wall stress: this is a mixed study,
+    // so the TUYAU_3M extensions report subpoints beside the solid's cell field.
+    new Set(["stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"])
   );
   expect(JSON.stringify(scene)).toContain("visualization_only_not_asme_code_stress");
 });
