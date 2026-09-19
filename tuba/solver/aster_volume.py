@@ -113,7 +113,7 @@ class PipeVolumeStudyExporter:
         export_path = root / "study.export"
         manifest_path = root / "study_manifest.json"
         sidecar_path = root / "study_tuba_fem.json"
-        _reject_unimplemented_loads(load_case)
+        _reject_unimplemented_loads(load_case, line_elements)
         pressure = _selected_pressure(model, load_case, ids)
 
         generated = build_pipe_volume_mesh(
@@ -136,6 +136,7 @@ class PipeVolumeStudyExporter:
             support_groups=support_groups,
             couplings=couplings,
             line_elements=line_elements,
+            nodal_forces=load_case.nodal_forces,
             node_groups={
                 name: members[0]
                 for name, members in generated.groups.items()
@@ -266,13 +267,22 @@ def _coupling_groups(
     return tuple(couplings)
 
 
-def _reject_unimplemented_loads(load_case) -> None:
+def _reject_unimplemented_loads(load_case, line_elements: list) -> None:
     if any(field.quantity == "wind" for field in load_case.fields):
         raise ValueError("Pipe-volume wind loading is not implemented.")
     if any(field.quantity == "line_load" for field in load_case.fields):
         raise ValueError("Pipe-volume line loads are not implemented.")
     if load_case.nodal_forces:
-        raise ValueError("Pipe-volume nodal-force coupling is not implemented.")
+        if not line_elements:
+            raise ValueError(
+                "Pipe-volume nodal forces act on the 1D TUYAU_3M remainder; this study is solid-only."
+            )
+        beam_nodes = {node for element in line_elements for node in (element.n1, element.n2)}
+        off_pipe = sorted(force.node for force in load_case.nodal_forces if force.node not in beam_nodes)
+        if off_pipe:
+            raise ValueError(
+                f"Pipe-volume nodal forces must act on nodes of the 1D pipe remainder; got {off_pipe!r}."
+            )
     if abs(load_case.temperature - load_case.ref_temperature) > 1.0e-10:
         raise ValueError("Pipe-volume thermal loading is not implemented.")
     if any(field.quantity == "temperature" for field in load_case.fields):
@@ -288,6 +298,7 @@ def _write_comm(
     support_groups: tuple[tuple[str, str], ...],
     couplings: tuple[tuple[str, str, tuple[float, float, float]], ...],
     line_elements: list,
+    nodal_forces: list,
     node_groups: dict[str, str],
     gravity: bool,
     material_name: str,
@@ -415,6 +426,22 @@ def _write_comm(
         lines.append("    ),")
     lines.append(");")
 
+    if nodal_forces:
+        lines.extend(
+            [
+                "POINT_FORCE = AFFE_CHAR_MECA(",
+                "    MODELE=MODELE,",
+                "    FORCE_NODALE=(",
+            ]
+        )
+        for force in nodal_forces:
+            lines.append("        _F(")
+            lines.append(f"            GROUP_NO='{name_map[f'G_NODE_{force.node}']}',")
+            for name, value in zip(("FX", "FY", "FZ", "MX", "MY", "MZ"), force.components):
+                lines.append(f"            {name}={float(value):.8E},")
+            lines.append("        ),")
+        lines.extend(["    ),", ");"])
+
     excitations = ["_F(CHARGE=BC)"]
     if pressure != 0.0:
         lines.extend(
@@ -448,6 +475,8 @@ def _write_comm(
             ]
         )
         excitations.append("_F(CHARGE=GRAVITY)")
+    if nodal_forces:
+        excitations.append("_F(CHARGE=POINT_FORCE)")
     lines.extend(["RESU = MECA_STATIQUE(", "    MODELE=MODELE,", "    CHAM_MATER=CHMAT,"])
     if mixed:
         lines.append("    CARA_ELEM=CARA,")
