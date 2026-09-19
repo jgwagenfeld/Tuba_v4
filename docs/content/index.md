@@ -20,7 +20,7 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
 -   [![Beam orientation review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
 
-    **Beam orientation** — How do section orientation and local axes change bending?
+    **Beam orientation** — How does a rolled I-section change the response to the same tip force?
 
 -   [![Pipe bends review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
