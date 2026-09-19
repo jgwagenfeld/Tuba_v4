@@ -47,7 +47,11 @@ _PAGES_REQUIRED_FILES = frozenset(
         "viewer/bundles.json",
         "viewer/licenses/font-notices.txt",
         "viewer/licenses/OFL-1.1.txt",
-        "notebooks/10_interactive_postprocessor.ipynb",
+        # notebooks/10_interactive_postprocessor.ipynb used to be required here
+        # and copied into the site below. Nothing ever linked to the published
+        # copy - setup.md, examples.md and tutorial.md only showed a local
+        # jupyter command - so the build enforced an output no reader could
+        # reach. The notebook itself was a strict subset of 04.
         ".nojekyll",
     }
 ) | frozenset(f"viewer/{gallery.id}/scene.json" for gallery in PAGES_GALLERIES) | frozenset(
@@ -94,12 +98,6 @@ def assemble_pages(output: Path) -> Path:
         write_bundle_catalog(viewer_root, bundle_ids)
         shoot_gallery_thumbnails(staged, viewer_root)
 
-        notebooks = staged / "notebooks"
-        notebooks.mkdir()
-        shutil.copy2(
-            ROOT / "notebooks" / "10_interactive_postprocessor.ipynb",
-            notebooks / "10_interactive_postprocessor.ipynb",
-        )
         (staged / ".nojekyll").touch()
         _write_redirect(staged / "commands.html", "reference/index.html")
         _write_redirect(staged / "overview.html", "architecture/index.html")

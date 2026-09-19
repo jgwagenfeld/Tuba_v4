@@ -5,21 +5,6 @@ from pathlib import Path
 
 
 class TestNotebookResultProvenance(unittest.TestCase):
-    def test_advanced_notebook_uses_current_model_and_results(self):
-        notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "advanced_piping_design_and_bim.ipynb"
-        notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
-        code = "\n".join(
-            "".join(cell.get("source", []))
-            for cell in notebook.get("cells", [])
-            if cell.get("cell_type") == "code"
-        )
-
-        self.assertNotIn("opt_model", code)
-        self.assertNotIn("opt_results", code)
-        self.assertIn("export_html(init_results, html_file, model=model)", code)
-        self.assertIn("exporter.export_model(model, ifc_path, results=init_results)", code)
-        self.assertNotIn("Visualization export warning", code)
-
     def test_notebooks_do_not_display_hand_built_or_mock_solver_results(self):
         notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
         forbidden_snippets = (
@@ -76,30 +61,10 @@ class TestNotebookResultProvenance(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
-    def test_autorouting_notebooks_fail_loudly_for_solver_runs(self):
-        notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
-        autorouting_notebooks = (
-            "05_autorouting.ipynb",
-            "08_expansion_aware_autorouting.ipynb",
-            "autorouting_quick_iteration.ipynb",
-        )
-        offenders: list[str] = []
-
-        for notebook_name in autorouting_notebooks:
-            notebook = json.loads((notebooks_dir / notebook_name).read_text(encoding="utf-8"))
-            full_code = "\n".join(
-                "".join(cell.get("source", []))
-                for cell in notebook.get("cells", [])
-                if cell.get("cell_type") == "code"
-            )
-            if "SolverLoopConfig(" not in full_code or "run_solver=RUN_CODE_ASTER" not in full_code:
-                continue
-            if "strict=RUN_CODE_ASTER" not in full_code:
-                offenders.append(f"{notebook_name}: solver loop is not strict when RUN_CODE_ASTER is enabled")
-            if "route_pipe(" in full_code and "add_supports=True" not in full_code:
-                offenders.append(f"{notebook_name}: solver-backed route_pipe call does not add supports")
-
-        self.assertEqual([], offenders)
+    # The three autorouting notebooks this file used to guard (05, 08 and
+    # autorouting_quick_iteration) are gone: autorouting.md holds their code
+    # verbatim and the autorouted-expansion-loop gallery publishes the solved
+    # outcome, so the lesson survives where a reader can actually find it.
 
     def test_notebooks_do_not_refer_to_legacy_as_run_setup(self):
         notebooks_dir = Path(__file__).resolve().parents[1] / "notebooks"
@@ -132,30 +97,15 @@ class TestNotebookResultProvenance(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
-    def test_building_notebook_shows_profile_twist_with_local_axes(self):
-        notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "01_building_piping_systems.ipynb"
-        text = notebook_path.read_text(encoding="utf-8")
-
-        self.assertIn("twist_angle=45.0", text)
-        self.assertIn("twist_angle=90.0", text)
-        self.assertIn("add_local_axes_to_plotter", text)
-        self.assertIn("PROFILE_FORCE_SEGMENTS = 12", text)
-        self.assertIn("for _ in range(PROFILE_FORCE_SEGMENTS):", text)
-        self.assertIn("PROFILE_FORCE_DEFORM_SCALE = 8.0", text)
-        self.assertIn("show_edges=True", text)
-
     def test_artifact_backed_notebooks_default_to_load_existing_results(self):
         repo_root = Path(__file__).resolve().parents[1]
+        # Seven more notebooks were listed here, five of them pointing at
+        # private runs under notebooks/code_aster_results/. Those runs went
+        # with their readers; only bim_operating is still needed, because
+        # nothing but 07 round-trips IFC. 04 reads the gallery's own evidence.
         artifact_backed = {
-            "00_welcome_and_setup.ipynb": "notebooks/code_aster_results/stress_analysis_operating",
-            "01_building_piping_systems.ipynb": "notebooks/code_aster_results/building_profile_end_force",
-            "03_stress_analysis_and_compliance.ipynb": "notebooks/code_aster_results/stress_analysis_operating",
             "04_visualization_gallery.ipynb": "examples/code-aster-review/evidence/Operating",
-            "06_structural_frames_and_optimization.ipynb": "notebooks/code_aster_results/structural_operating_hot",
             "07_bim_data_exchange.ipynb": "notebooks/code_aster_results/bim_operating",
-            "10_interactive_postprocessor.ipynb": "examples/code-aster-review/evidence/Operating",
-            "advanced_piping_design_and_bim.ipynb": "notebooks/code_aster_results/advanced_operating_hot",
-            "visualize_elements_and_supports.ipynb": "examples/elements-supports-review/evidence/LoadCase1",
         }
         offenders: list[str] = []
 

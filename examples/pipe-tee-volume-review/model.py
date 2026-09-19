@@ -4,12 +4,27 @@ from tuba import Model
 from tuba.assemblies import assemble
 
 
-def tee_junction(model, section="Header", material="Steel", arm=0.08):
+def tee_junction(model, section="Header", material="Steel", arm=0.06):
     """Build the 3D solid welding tee and return its ``(hub, left, right, branch)`` nodes.
 
     One hub at the origin with a header arm each way and a branch, all *arm* metres
     long, registered as a welding tee. This is the solid junction Gmsh meshes; the
     caller runs the 1D extensions out of the returned nodes.
+
+    *arm* is how much solid gets meshed, and it is the only size lever this model
+    has: ``max_element_size`` is already at its ceiling of ``wall_thickness / 2``
+    (``build_pipe_volume_mesh`` refuses anything coarser, to keep two elements
+    through the wall), so the mesh cannot be thinned, only shortened. It was
+    0.08 m, which meshed 81,384 nodes and left an 89.7 MB ``study.rmed`` in
+    committed evidence - 10 MB from the 100 MB file GitHub refuses outright.
+    At 0.06 m it is 55,970 nodes and 61.6 MB, with the anchor reactions
+    unchanged to seven figures and the peak Von Mises 2.8% lower, which this
+    review can carry because it publishes FE stress explicitly as
+    visualization-only and not piping-code stress.
+
+    Do not shorten it further: at 0.05 m Gmsh emits an invalid quadratic
+    hexahedron, and at 0.04 m the tee's terminal faces can no longer be
+    classified exactly once.
     """
     hub = model.add_node([0.0, 0.0, 0.0])
     left = model.add_node([-arm, 0.0, 0.0])

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index--mRaeB_l.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CcGyaU76.css">
+    <script type="module" crossorigin src="./assets/index-DE6SVTIA.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DfVnZTwH.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -29,16 +29,13 @@
           <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script">Build</button>
           <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Results</button>
         </div>
+        <!-- Actions only. The verdict and the runtime line moved to the status
+             strip along the bottom, so the header is identity plus the three
+             things you can do from it. -->
         <div class="header-actions">
-          <!-- The status band used to be a full row of its own restating what
-               the review tables already hold. One chip carries the two facts
-               that are actually status - solved, and anything demanding
-               attention - and routes to the task that explains them. -->
-          <button type="button" class="status-chip" data-status-chip hidden></button>
           <button type="button" class="solve-button" data-solve hidden>Solve</button>
           <a class="gallery-back" href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
-          <div class="runtime-status" data-runtime-status role="status" aria-live="polite">Starting</div>
         </div>
       </header>
       <section class="viewer-workspace" data-viewer-workspace>
@@ -182,7 +179,6 @@
               <div data-section-box-controls></div>
               <div class="saved-views-block" data-saved-views></div>
             </div>
-            <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
             <div class="rail-utility" data-rail-utility></div>
           </div>
         </aside>
@@ -227,6 +223,27 @@
           <div class="property-actions" data-property-actions></div>
         </aside>
       </section>
+      <!-- One line for the facts that describe the whole session rather than any
+           one panel: what the solver made of this model, what produced it, what
+           the mesh is worth, what is selected, and which units every readout on
+           screen is in. They were spread over the header, the rail foot and a
+           popover - three places to learn before "is what I am looking at
+           current, and from what" could be answered - and two of them vanished
+           in Build mode while the readouts they governed stayed on screen. -->
+      <footer class="status-strip" data-status-strip>
+        <!-- The status band used to be a full row of its own restating what the
+             review tables already hold. One chip carries the two facts that are
+             actually status - solved, and anything demanding attention - and
+             routes to the task that explains them. -->
+        <button type="button" class="status-chip" data-status-chip hidden></button>
+        <span class="strip-fact" data-solver-fact hidden></span>
+        <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
+        <span class="strip-fact strip-selection" data-selection-fact hidden></span>
+        <div class="strip-tail">
+          <span class="strip-units" data-strip-units></span>
+          <div class="runtime-status" data-runtime-status role="status" aria-live="polite">Starting</div>
+        </div>
+      </footer>
     </main>
   </body>
 </html>

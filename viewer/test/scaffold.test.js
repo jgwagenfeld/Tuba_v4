@@ -55,6 +55,10 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "scene-meta",
     "report-link",
     "status-chip",
+    "status-strip",
+    "solver-fact",
+    "selection-fact",
+    "strip-units",
     "task-rail",
     "rail-toggle",
     "task-panel",
@@ -91,6 +95,14 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
 
   assert.match(html, /<main[^>]*class="app-shell"[^>]*data-embed="false"/);
   assert.match(html, /<button[^>]*type="button"[^>]*class="status-chip"[^>]*data-status-chip[^>]*hidden/);
+  // The session line is the shell's third row, after the workspace - not a
+  // floating panel inside the viewport and not another header band.
+  assert.match(html, /<\/section>\s*(?:<!--[\s\S]*?-->\s*)*<footer[^>]*class="status-strip"[^>]*data-status-strip/);
+  // The verdict, the unit chip and the runtime line live there, not in the
+  // header and not in the rail foot, so every mode keeps all three.
+  assert.match(html, /data-status-strip[\s\S]*?data-status-chip[\s\S]*?data-discretisation-check[\s\S]*?data-strip-units[\s\S]*?data-runtime-status[\s\S]*?<\/footer>/);
+  const headerActions = html.slice(html.indexOf('class="header-actions"'), html.indexOf("</header>"));
+  assert.doesNotMatch(headerActions, /data-(?:status-chip|runtime-status)/);
   assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace/);
   assert.match(html, /<aside[^>]*class="cockpit-rail"[^>]*data-task-rail/);
   assert.match(html, /<button[^>]*aria-expanded="true"[^>]*aria-controls="review-controls"[^>]*data-rail-toggle/);

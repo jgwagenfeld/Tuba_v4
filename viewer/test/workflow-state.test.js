@@ -5,6 +5,7 @@ import * as workflowState from "../src/workflowState.js";
 import {
   WORKFLOW_TABS,
   createWorkflowState,
+  EMBED_TASK_ID,
   defaultWorkflowTab,
   getVisibleCockpitTaskIds,
   visibilityPresetForTask,
@@ -24,9 +25,20 @@ test("workflow tabs follow the engineering review order", () => {
     [
       ["model", "Model"],
       ["results", "Results"],
-      ["diagnostics", "Issues"],
-      ["3d", "Display"]
+      ["diagnostics", "Issues"]
     ]
+  );
+});
+
+test("the embed destination is not a tab the rail could ever offer", () => {
+  // It was a fourth WORKFLOW_TABS entry labelled "Display": the only one
+  // getVisibleCockpitTaskIds could never return, so the rail could not show it
+  // and setWorkflowTab would have thrown on it. It is a real state, not a tab.
+  assert.equal(EMBED_TASK_ID, "3d");
+  assert.equal(WORKFLOW_TABS.find((tab) => tab.id === EMBED_TASK_ID), undefined);
+  assert.throws(
+    () => setWorkflowTab(createWorkflowState({ review: reviewFixture, embed: false }), EMBED_TASK_ID),
+    RangeError
   );
 });
 
@@ -70,8 +82,8 @@ test("legacy mode keeps model and issues tasks and defaults to model", () => {
 });
 
 test("embed still defaults to the 3d canvas destination", () => {
-  assert.equal(defaultWorkflowTab({ review: reviewFixture, embed: true }), "3d");
-  assert.equal(createWorkflowState({ review: reviewFixture, embed: true }).activeTab, "3d");
+  assert.equal(defaultWorkflowTab({ review: reviewFixture, embed: true }), EMBED_TASK_ID);
+  assert.equal(createWorkflowState({ review: reviewFixture, embed: true }).activeTab, EMBED_TASK_ID);
 });
 
 test("visibility presets hide analysis mesh in the review tasks and scope results/annotations", () => {

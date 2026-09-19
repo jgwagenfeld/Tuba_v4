@@ -163,11 +163,11 @@ A Code_Aster run executed through Docker is always unverified: an engineering re
 ## Open the notebooks
 
 ```powershell
-.\.venv\Scripts\jupyter.exe lab notebooks\00_welcome_and_setup.ipynb
-.\.venv\Scripts\jupyter.exe lab notebooks\10_interactive_postprocessor.ipynb
+.\.venv\Scripts\jupyter.exe lab notebooks\04_visualization_gallery.ipynb
+.\.venv\Scripts\jupyter.exe lab notebooks\07_bim_data_exchange.ipynb
 ```
 
-Open the postprocessor only after the runtime check passes or when loading preserved Code_Aster artifacts.
+Both load preserved Code_Aster artifacts by default. Set a notebook to solve only after the runtime check passes. For the ordinary review path, open the [gallery](examples.md) instead; the [Tutorial](tutorial.md) says which two notebooks survive and why.
 
 ## Troubleshooting
 

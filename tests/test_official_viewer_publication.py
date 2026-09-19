@@ -379,14 +379,12 @@ def test_gallery_evidence_lives_in_its_project_one_folder_per_operation() -> Non
     evidence_folders = {Path(name).parent for name in listed.decode("utf-8").split("\0") if name}
     assert evidence_folders == set(_committed_evidence_sets()), "an evidence folder no gallery imports"
 
+    # Four private runs went with the notebooks that were their only readers.
+    # bim_operating stays because 07 round-trips IFC against it and nothing
+    # else in the repository does; every other notebook lesson now reads a
+    # gallery's own evidence, or is taught by the docs instead.
     tracked = subprocess.check_output(["git", "ls-files", "notebooks/code_aster_results"], cwd=REPO_ROOT, text=True)
-    assert {Path(line).parts[2] for line in tracked.splitlines()} == {
-        "advanced_operating_hot",
-        "bim_operating",
-        "building_profile_end_force",
-        "stress_analysis_operating",
-        "structural_operating_hot",
-    }
+    assert {Path(line).parts[2] for line in tracked.splitlines()} == {"bim_operating"}
 
 
 def test_git_never_converts_the_line_endings_of_committed_evidence() -> None:

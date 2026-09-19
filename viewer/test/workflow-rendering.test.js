@@ -114,7 +114,9 @@ test("workflow rendering parses embed once and pins reloads to the display workf
 
   assert.equal((app.match(/new URLSearchParams/g) ?? []).length, 1);
   assert.match(app, /const startupConfig\s*=/);
-  assert.match(app, /activeTab:\s*"3d"/);
+  // Was a literal "3d". The embed destination is a named constant now, so a
+  // rename cannot leave this assertion quietly passing against a stale string.
+  assert.match(app, /activeTab:\s*EMBED_TASK_ID/);
   assert.match(css, /\[data-embed="true"\]\s+\.app-header[\s\S]*display:\s*none/);
   assert.match(css, /\[data-embed="true"\]\s+\.cockpit-rail[\s\S]*display:\s*none/);
 });
@@ -304,7 +306,21 @@ test("the status live region is only written when it changes", async () => {
   const app = await readViewerFile("src/app.js");
   // role="status" announces on every write, and renderCanvas calls setStatus
   // ("Ready") on every render, so the write has to be conditional.
-  assert.match(app, /function setStatus\(message, error = false\)[\s\S]{0,600}?if \(dom\.status\.textContent === message/);
+  assert.match(app, /function setStatus\(message, severity = false\)[\s\S]{0,900}?if \(dom\.status\.textContent === message/);
+});
+
+test("a render warning is not dressed as an error", async () => {
+  const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
+
+  // Severity was a boolean, so render diagnostics - which stop nothing - had to
+  // pass `true` and came out in the error treatment: a red chip that was the
+  // loudest element in the header, and permanent, because the auto-hide keys on
+  // the literal text "Ready".
+  assert.match(app, /render warning\(s\)`, "warn"\)/);
+  assert.match(css, /\.runtime-status\[data-level="warn"\][\s\S]{0,120}?--warning-on-dark/);
+  // `true` must keep meaning error: fifteen call sites still pass it.
+  assert.match(app, /severity === true \? "error"/);
 });
 
 test("the viewport canvas has a keyboard path to the camera", async () => {
@@ -326,6 +342,39 @@ test("gallery panel never overrides the hidden attribute", async () => {
   // `.gallery { display: ... }` is an author rule and beats the UA
   // `[hidden] { display: none }`, which left an empty full-viewport panel on
   // top of every review. A <main> is block already; it needs no display rule.
-  const block = css.slice(css.indexOf("\n.gallery {"), css.indexOf("\n.gallery-heading"));
+  // Bounded by this rule's own closing brace. It used to slice to the next
+  // selector it expected to find, so adding any .gallery-* rule with a display
+  // between them failed this for the wrong reason; only the .gallery rule
+  // itself can override [hidden].
+  const start = css.indexOf("\n.gallery {");
+  assert.notEqual(start, -1, "no .gallery rule found");
+  const block = css.slice(start, css.indexOf("}", start) + 1);
   assert.doesNotMatch(block, /display\s*:/, "the .gallery rule must not set display");
+});
+
+test("the status strip owns the session facts the header and the rail used to split", async () => {
+  const app = await readViewerFile("src/app.js");
+  const css = await readViewerFile("src/styles.css");
+
+  // One render entry point for the whole line, so a segment cannot be drawn by
+  // one path and left stale by another.
+  assert.match(app, /function renderStatusStrip\(\)/);
+  assert.match(app, /dom\.statusStrip\.hidden = currentState\.embed;/);
+  const stripBody = app.slice(app.indexOf("function renderStatusStrip()"), app.indexOf("function renderSolverFact()"));
+  for (const call of ["renderStatusChip()", "renderSolverFact()", "renderDiscretisationCheck()", "renderSelectionFact()"]) {
+    assert.ok(stripBody.includes(call), `${call} must be drawn by the status strip`);
+  }
+  assert.match(app, /solverProvenanceLabel\(currentState\.review\)/);
+
+  // The unit chip governs every readout in every mode, so it may not go back
+  // into the rail foot, which Build mode hides.
+  assert.match(app, /dom\.stripUnits\.replaceChildren\(/);
+  assert.doesNotMatch(app, /dom\.railUtility\.append\(unitSystemChip\(\)\)/);
+
+  assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto/s);
+  assert.match(css, /\.status-strip\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /\[data-embed="true"\][^{]*\.status-strip[^{]*\{[^}]*display:\s*none/s);
+  // The verdict and the mesh check are the last segments to give way, because
+  // nothing else on screen carries them.
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\[data-solver-fact\],\s*\.status-strip \.strip-selection\s*\{[^}]*display:\s*none/s);
 });

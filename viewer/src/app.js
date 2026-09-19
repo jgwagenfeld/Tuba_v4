@@ -77,12 +77,13 @@ import {
   toDisplay,
   toStored
 } from "./units.js";
-import { cockpitStatusViewModel } from "./reviewTables.js";
+import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { getPropertySections } from "./selection.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
+  EMBED_TASK_ID,
   WORKFLOW_TABS,
   createWorkflowState,
   getVisibleCockpitTaskIds,
@@ -97,6 +98,10 @@ const dom = {
   sceneMeta: document.querySelector("[data-scene-meta]"),
   reportLink: document.querySelector("[data-report-link]"),
   statusChip: document.querySelector("[data-status-chip]"),
+  statusStrip: document.querySelector("[data-status-strip]"),
+  solverFact: document.querySelector("[data-solver-fact]"),
+  selectionFact: document.querySelector("[data-selection-fact]"),
+  stripUnits: document.querySelector("[data-strip-units]"),
   taskRail: document.querySelector("[data-task-rail]"),
   taskPanel: document.querySelector("[data-task-panel]"),
   workflowTabs: document.querySelector("[data-workflow-tabs]"),
@@ -373,7 +378,7 @@ async function loadBundle(bundleUrl, options = {}) {
   const nextState = { ...viewerState, ...workflowState };
   const loadedState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
   currentState = startupConfig.embed
-    ? { ...loadedState, embed: true, activeTab: "3d" }
+    ? { ...loadedState, embed: true, activeTab: EMBED_TASK_ID }
     : loadedState;
   // Deliberately NOT applying the task preset on arrival. A preset scopes the
   // view when the reviewer switches task - an explicit act. Applying it at load
@@ -391,7 +396,7 @@ function render() {
   const focus = captureFocus();
   renderMode();
   renderHeader();
-  renderStatusChip();
+  renderStatusStrip();
   renderTaskRail();
   renderDisplayStrip();
   renderViewportLegend();
@@ -523,6 +528,41 @@ function renderSavedViews() {
   }
 }
 
+
+// The one permanent line. Everything on it describes the session rather than a
+// panel, which is why none of it belongs to the rail: the rail is hidden in
+// Build mode and gone entirely in a narrow window, and the unit chip governing
+// every readout on screen went with it.
+function renderStatusStrip() {
+  dom.statusStrip.hidden = currentState.embed;
+  renderStatusChip();
+  renderSolverFact();
+  renderDiscretisationCheck();
+  renderSelectionFact();
+  dom.stripUnits.replaceChildren(...(currentState.embed ? [] : [unitSystemChip()]));
+}
+
+function renderSolverFact() {
+  const label = solverProvenanceLabel(currentState.review);
+  dom.solverFact.hidden = !label;
+  dom.solverFact.textContent = label;
+  dom.solverFact.title = label ? "Solver, runtime version and load cases behind this review" : "";
+}
+
+// What is selected, said once for the whole selection. The inspector describes
+// the primary object only, and says nothing at all about the other five when a
+// legend chip or a group header selects a set - so a multi-select was invisible
+// outside the 3D view that drew it.
+function renderSelectionFact() {
+  const ids = currentState.selectedObjectIds ?? [];
+  dom.selectionFact.hidden = ids.length === 0;
+  if (ids.length === 0) return;
+  const primaryId = selectedObjectId ?? ids[0];
+  const primary = currentState.objects.find((obj) => obj.id === primaryId);
+  const name = primary?.name || primaryId;
+  dom.selectionFact.textContent = ids.length > 1 ? `${name} · ${ids.length} selected` : name;
+  dom.selectionFact.title = `${ids.length} object${ids.length === 1 ? "" : "s"} selected`;
+}
 
 function renderStatusChip() {
   dom.statusChip.replaceChildren();
@@ -979,7 +1019,6 @@ function renderDisplayStrip() {
   renderOverlayList();
   renderProjectionNote();
   renderSectionProfile();
-  renderDiscretisationCheck();
   renderFindPane();
   renderLayerTree(categorizeLayers(currentState.layers));
   renderSectionBoxControls();
@@ -1315,47 +1354,40 @@ function sectionRosette(profile) {
 
 // A geometric fidelity check on the mesh, not a code check: how far the straight
 // chord falls inside the true bend arc, against a stated fraction of the radius.
+//
+// It reads as one line in the status strip now rather than a headed block in
+// the rail foot. It kept its pinning either way - the verdict is sign-off
+// evidence and must not be scrollable past - but the rail foot only pinned it
+// inside a panel that Build mode hides and a narrow window closes, and the
+// heading spent two rail rows saying what "Mesh" says here.
 function renderDiscretisationCheck() {
   dom.discretisationCheck.replaceChildren();
   const check = getDiscretisationCheck(currentState);
   dom.discretisationCheck.hidden = !check;
   if (!check) return;
 
-  dom.discretisationCheck.append(stripHeading("Discretisation check"));
-  dom.discretisationCheck.append(
-    checkRow("Elements per bend", `${check.min_elements_per_bend}`),
-    // The scene states the check in metres (check.unit); the chip decides how
-    // it reads, and the tolerance is a ratio, so it never converts.
-    checkRow("Chord deviation", formatQuantity(check.max_chord_deviation, check.unit, getUnitSystem(currentState)), {
-      ok: check.within_tolerance,
-      criterion: `≤ ${formatPercent(check.tolerance_ratio)} R`
-    })
-  );
-  const worst = check.worst_bend;
-  if (worst && check.bend_count > 1) {
-    dom.discretisationCheck.append(metaLine(`worst of ${check.bend_count} bends: ${worst.source_element_id}`));
-  }
-}
-
-function checkRow(labelText, valueText, verdict = null) {
-  const row = document.createElement("div");
-  row.className = "check-row";
   const label = document.createElement("span");
   label.className = "check-label";
-  label.textContent = labelText;
+  label.textContent = "Mesh";
   const value = document.createElement("span");
   value.className = "check-value";
-  value.textContent = valueText;
-  row.append(label, value);
-  if (verdict) {
-    const badge = document.createElement("span");
-    badge.className = `check-badge ${verdict.ok ? "check-ok" : "check-warn"}`;
-    // The criterion travels with the verdict: a bare "OK" invites the reader to
-    // assume a code check happened.
-    badge.textContent = `${verdict.ok ? "OK" : "COARSE"} ${verdict.criterion}`;
-    row.append(badge);
+  // The scene states the check in metres (check.unit); the chip decides how it
+  // reads, and the tolerance is a ratio, so it never converts.
+  value.textContent = `${check.min_elements_per_bend}/bend · chord ${formatQuantity(check.max_chord_deviation, check.unit, getUnitSystem(currentState))}`;
+  const badge = document.createElement("span");
+  badge.className = `check-badge ${check.within_tolerance ? "check-ok" : "check-warn"}`;
+  // The criterion travels with the verdict: a bare "OK" invites the reader to
+  // assume a code check happened.
+  badge.textContent = `${check.within_tolerance ? "OK" : "COARSE"} ≤ ${formatPercent(check.tolerance_ratio)} R`;
+  dom.discretisationCheck.append(label, value, badge);
+
+  const worst = check.worst_bend;
+  if (worst && check.bend_count > 1) {
+    const note = document.createElement("span");
+    note.className = "check-worst";
+    note.textContent = `worst of ${check.bend_count}: ${worst.source_element_id}`;
+    dom.discretisationCheck.append(note);
   }
-  return row;
 }
 
 // The coloring channel: one field, one component, one scale, plus the display
@@ -1740,6 +1772,9 @@ function renderLayerTree(categories) {
 function layerToggle(leaf) {
   const layer = currentState.layers[leaf.layerId];
   const label = document.createElement("label");
+  // Classed so the row can carry a pointer-target floor: the checkbox itself is
+  // 13px, and the label is what a click actually lands on.
+  label.className = "layer-toggle";
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = layer?.visible !== false;
@@ -2054,9 +2089,9 @@ function renderRailUtility(shown = 0, hidden = 0) {
     tally.textContent = hidden > 0 ? `${shown} drawn · ${hidden} hidden` : `${shown} of ${currentState.objects.length}`;
     dom.railUtility.append(tally);
   }
-  // Pinned in the rail foot rather than a band: it restates every quantity on
-  // screen at once, so it belongs to the whole rail, not to the results task.
-  if (!currentState.embed) dom.railUtility.append(unitSystemChip());
+  // The unit chip used to end this row. It governs every quantity on screen,
+  // including the inspector's in Build mode where this rail does not exist, so
+  // it belongs to the session line at the bottom rather than to the rail.
 }
 
 let openPopoverId = null;
@@ -2478,7 +2513,7 @@ function renderCanvas() {
     }
   };
   if (result.diagnostics.length > 0) {
-    setStatus(`Ready with ${result.diagnostics.length} render warning(s)`, true);
+    setStatus(`Ready with ${result.diagnostics.length} render warning(s)`, "warn");
   } else {
     setStatus("Ready");
   }
@@ -2617,18 +2652,27 @@ dom.canvas.addEventListener("mousemove", (event) => {
   });
 });
 
-function setStatus(message, error = false) {
-  const flag = error ? "true" : "false";
+// Severity is three-valued, not two. It was a boolean, so a render warning had
+// to pass `true` and came out in the error treatment: a red-bordered chip that
+// was the loudest thing in the header, for diagnostics that do not stop
+// anything. And because the auto-hide keys on the literal text "Ready", a
+// message like "Ready with 2 render warning(s)" never hid either, so the
+// loudest element on screen was also permanent.
+//
+// `true` still means error, so the fifteen call sites that pass it keep working.
+function setStatus(message, severity = false) {
+  const level = severity === true ? "error" : severity || "ok";
   // [data-runtime-status] is role="status" aria-live="polite": rewriting announces.
   // renderCanvas ends with setStatus("Ready") on every render, so without this
   // guard a screen reader said "Ready" after every checkbox, tab, slider nudge
   // and opacity click.
-  if (dom.status.textContent === message && dom.status.dataset.error === flag) {
+  if (dom.status.textContent === message && dom.status.dataset.level === level) {
     return;
   }
   dom.status.textContent = message;
-  dom.status.dataset.error = flag;
-  dom.status.dataset.ready = String(!error && message === "Ready");
+  dom.status.dataset.level = level;
+  dom.status.dataset.error = String(level === "error");
+  dom.status.dataset.ready = String(level === "ok" && message === "Ready");
 }
 
 function connectLivePreview(wsUrl) {
@@ -2696,13 +2740,6 @@ function metaLine(text) {
   line.className = "meta";
   line.textContent = text;
   return line;
-}
-
-function stripHeading(text) {
-  const heading = document.createElement("h3");
-  heading.className = "strip-subheading";
-  heading.textContent = text;
-  return heading;
 }
 
 // A band heading that carries the state it is set to. Uppercase name, mono
