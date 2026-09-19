@@ -60,7 +60,7 @@ A STEP/STL component placed beside Tuba pipework, showing connection ports, loca
 
 [![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
 
-A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. The review shows kinematic shell-to-solid coupling and stress transition across the junction.
+A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. Under internal pressure, gravity and a 4 kN out-of-plane load at the free branch end, the review shows kinematic shell-to-solid coupling, the stress hot spot where the branch meets the junction, and the branch deflection.
 
 FE von Mises is not piping-code stress. The design tubes, analysis skin,
 displacement, terminal resultants and stress field stay separately inspectable.
@@ -93,11 +93,11 @@ See the [native friction example](examples/native-friction.md) for the contact l
 
 [![Beam orientation review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
 
-Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. The review compares global and local loading, deformed profiles, and section rotations relative to the original local axes.
+Three identical I-section cantilevers at 0, 45 and 90 degrees in one model, each loaded by the same 500 N tip force in global -Z. The review compares deformed profiles and section rotations relative to the original local axes, so the difference on screen is the section orientation alone.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) &middot; Evidence: **Results**
 
-See the [profile-orientation example](examples/profile-orientation.md) for the two load cases, local-axis convention and numerical reference checks.
+See the [profile-orientation example](examples/profile-orientation.md) for the section-roll convention and numerical reference checks.
 
 ## Plant layout
 

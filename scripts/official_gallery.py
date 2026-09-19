@@ -309,7 +309,9 @@ OFFICIAL_GALLERIES = (
         question="How does 1D beam pipework transition into a 3D solid tee junction?",
         summary=(
             "A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. "
-            "The review shows kinematic shell-to-solid coupling and stress transition across the junction."
+            "Under internal pressure, gravity and a 4 kN out-of-plane load at the free branch end, "
+            "the review shows kinematic shell-to-solid coupling, the stress hot spot where the branch "
+            "meets the junction, and the branch deflection."
         ),
     ),
     _project_gallery(
@@ -319,11 +321,11 @@ OFFICIAL_GALLERIES = (
         "profile-orientation-review",
         title="Beam orientation",
         elements=("POU_D_T",),
-        question="How do section orientation and local axes change bending?",
+        question="How does a rolled I-section change the response to the same tip force?",
         summary=(
-            "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model. "
-            "The review compares global and local loading, deformed profiles, and section rotations "
-            "relative to the original local axes."
+            "Three identical I-section cantilevers at 0, 45 and 90 degrees in one model, each loaded by the "
+            "same 500 N tip force in global -Z. The review compares deformed profiles and section rotations "
+            "relative to the original local axes, so the difference on screen is the section orientation alone."
         ),
     ),
     _project_gallery(

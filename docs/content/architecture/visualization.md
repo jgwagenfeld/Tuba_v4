@@ -22,6 +22,14 @@ The four layer categories answer what is drawn:
 - **Results:** deformed geometry and solver-returned field or vector geometry.
 - **Annotations:** issues, clashes, rules, route candidates, proposals, review markers, and world-anchored text labels.
 
+A volume-meshed element is drawn once. Its mesh skin is the discretisation of
+the `VolumeGeometry` the element was meshed from, so the scene carries the skin
+alone and no second display sweep that could drift from it. Build therefore
+keeps the analysis mesh visible, because a volume review has no procedural
+design geometry to fall back on, and drops only the result and annotation
+overlays. Every preset, Build included, follows `default_visible`, so a layer a
+bundle declared hidden is never revived by a task.
+
 ### Bodies: the composited result view
 
 The display strip groups the scene into four **bodies**: geometry, analysis
