@@ -374,7 +374,9 @@ function overlayState(overrides = {}) {
   return {
     layers: {
       support: { id: "support", category: "design", count: 6, visible: true, objectIds: [], source: "object" },
-      "design:loads": { id: "design:loads", category: "design", count: 4, visible: true, objectIds: [], source: "object" },
+      "design:loads:forces": { id: "design:loads:forces", category: "design", count: 4, visible: true, objectIds: [], source: "object" },
+      "design:loads:moments": { id: "design:loads:moments", category: "design", count: 2, visible: true, objectIds: [], source: "object" },
+      "design:loads:line_loads": { id: "design:loads:line_loads", category: "design", count: 3, visible: true, objectIds: [], source: "object" },
       "result:reaction_force": {
         id: "result:reaction_force",
         category: "results",
@@ -413,7 +415,7 @@ test("getOverlays lists the marks the scene actually draws, in spec order", () =
   const overlays = getOverlays(overlayState());
   assert.deepEqual(
     overlays.map((overlay) => overlay.id),
-    ["support", "applied_load", "reaction_force", "reaction_moment", "ground_grid"]
+    ["support", "applied_force", "applied_moment", "applied_line_load", "reaction_force", "reaction_moment", "ground_grid"]
   );
   // Displacement is declared but gates nothing, so it is omitted rather than
   // rendered as a row that toggles an empty layer.

@@ -24,8 +24,9 @@ from tuba.visualization.builders._helpers import (
 )
 from tuba.visualization.scene import GeometryAsset, Overlay, SceneObject
 
-FORCE_LAYER = "design:loads"
+FORCE_LAYER = "design:loads:forces"
 MOMENT_LAYER = "design:loads:moments"
+LINE_LOAD_LAYER = "design:loads:line_loads"
 
 
 def _format_force_badge(vector_kind: str, magnitude: float) -> str:
@@ -276,7 +277,7 @@ def _line_load_glyphs(
                     kind="applied_load",
                     name=f"{elem.id} applied line load ({field_record.value:.1f} N/m, {case_name})",
                     geometry_asset_id=asset_id,
-                    layer_ids=[FORCE_LAYER],
+                    layer_ids=[LINE_LOAD_LAYER],
                     entity_ref=EntityRef("element", elem.id),
                     metadata={**metadata, **links},
                 ),

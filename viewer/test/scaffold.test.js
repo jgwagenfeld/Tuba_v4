@@ -61,13 +61,12 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
     "strip-units",
     "task-rail",
     "rail-toggle",
-    "task-panel",
-    "workflow-tabs",
     "viewer-workspace",
     "inspector",
     "layer-list",
     "display-strip",
     "body-list",
+    "color-by",
     "projection-note",
     "section-profile",
     "discretisation-check",
@@ -106,8 +105,11 @@ test("scaffold exposes one semantic engineering workflow shell", async () => {
   assert.match(html, /<section[^>]*class="viewer-workspace"[^>]*data-viewer-workspace/);
   assert.match(html, /<aside[^>]*class="cockpit-rail"[^>]*data-task-rail/);
   assert.match(html, /<button[^>]*aria-expanded="true"[^>]*aria-controls="review-controls"[^>]*data-rail-toggle/);
-  assert.match(html, /<nav[^>]*aria-label="Engineering review tasks"[^>]*data-workflow-tabs/);
-  assert.match(html, /<div[^>]*class="task-panel"[^>]*data-task-panel/);
+  // The rail is one column: no tab strip and no swapped task panel. The pinned
+  // "Colour by" control and the issue list are its sections.
+  assert.doesNotMatch(html, /data-workflow-tabs|data-task-panel/);
+  assert.match(html, /<div[^>]*data-color-block[\s\S]*?data-color-by/);
+  assert.match(html, /data-layers-block[\s\S]*?data-issue-list/);
   assert.match(html, /<aside[^>]*class="inspector"[^>]*data-inspector[^>]*hidden/);
   assert.doesNotMatch(html, /class="[^"]*\bworkflow-tabs\b/);
   // All layers stays a disclosure; it is a secondary tool inside the rail popover.

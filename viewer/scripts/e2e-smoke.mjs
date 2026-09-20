@@ -20,25 +20,18 @@ async function setLayerLeaves(page, label, visible) {
   }
 }
 
+// The rail is one column now: issues are always present, so "open the issues
+// task" is just "open the rail". Kept as a named helper so the scenarios read
+// the same as they did when Issues was a destination.
 async function openIssuesTask(page) {
   await openReviewControls(page);
-  await page
-    .getByRole("navigation", { name: "Engineering review tasks" })
-    .getByRole("button", { name: "Issues", exact: true })
-    .click();
 }
 
+// Likewise for results: the result refinements are always in the column.
+// Settle a frame after opening, because a layer change reaches the framebuffer a
+// frame later and a baseline snapshot must not race it.
 async function openResultsTask(page) {
   await openReviewControls(page);
-  // Scoped to the rail: the header's Build/Results workspace switch carries the
-  // same "Results" label in Build-reviews, so an unscoped role query is ambiguous.
-  await page
-    .getByRole("navigation", { name: "Engineering review tasks" })
-    .getByRole("button", { name: "Results", exact: true })
-    .click();
-  // Activating a task applies its layer-visibility preset, and that reaches the
-  // framebuffer a frame later. Settle before anything samples the canvas, or a
-  // baseline snapshot is taken against a scene that is still changing.
   await page.evaluate(
     () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
   );
@@ -273,7 +266,7 @@ const scenarios = {
     minimumObjects: 3,
     async run(page) {
       await openResultsTask(page);
-      const field = page.getByRole("combobox", { name: /^Field/ });
+      const field = page.getByRole("combobox", { name: "Colour the scene by" });
       const subpoint = (await field.evaluate((select) => [...select.options].map((option) => option.value))).find(
         (value) => value.includes("tuyau")
       );
@@ -489,7 +482,7 @@ const scenarios = {
         return ids.length === 3 && ids.includes("object:cold") && ids.includes("object:deformed") && ids.includes("object:clash");
       });
 
-      await page.getByLabel(/Visual centerline/).uncheck();
+      await page.locator("[data-layer-list]").getByLabel(/Visual Centerline/i).uncheck();
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
         return ids.length === 2 && ids.includes("object:cold") && ids.includes("object:clash") && !ids.includes("object:deformed");
@@ -549,14 +542,11 @@ const scenarios = {
     minimumObjects: 6,
     async run(page) {
       await openReviewControls(page);
-      const reviewTask = page.getByRole("button", { name: "Model", exact: true });
-      await reviewTask.waitFor();
-      assert.equal(await reviewTask.getAttribute("aria-current"), "page");
-      await reviewTask.focus();
-      assert.deepEqual(await reviewTask.evaluate((button) => {
-        const style = getComputedStyle(button);
-        return { outlineColor: style.outlineColor, outlineWidth: style.outlineWidth };
-      }), { outlineColor: "rgb(94, 216, 229)", outlineWidth: "3px" });
+      // No tab strip: the pinned "Colour by" control is the rail's first section,
+      // and it is where the channel is chosen whatever the reader is doing.
+      const colorBy = page.getByRole("combobox", { name: "Colour the scene by" });
+      await colorBy.waitFor();
+      assert.equal(await page.locator("[data-workflow-tabs]").count(), 0);
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-status-chip]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
@@ -583,15 +573,10 @@ const scenarios = {
       await rememberCanvas(page);
 
       await openReviewControls(page);
-      await page.getByRole("button", { name: "Model", exact: true }).click();
-      await assertSameCanvas(page);
-      await page.getByRole("button", { name: "Results", exact: true }).click();
       await assertSameCanvas(page);
 
-      // The coloring channel lives in the bar now, not duplicated in this panel:
-      // the case selector is "Case" up there, and the field selector replaces
-      // the panel's result-state picker whenever the scene carries a field
-      // catalogue.
+      // The coloring channel lives in the pinned "Colour by" control; the result
+      // refinements (case, component, deformation, hotspots) hang off it.
       assert.equal(await page.getByRole("combobox", { name: /^Case/ }).inputValue(), "Hot");
       // This bundle declares no result_fields, so the panel still offers the
       // result-state picker; the bar's field selector takes over when a scene
@@ -620,8 +605,9 @@ const scenarios = {
       // The tree is the last row of the Display strip, so the summary is the
       // only thing to open.
       await page.locator("details.layer-tree summary").click();
-      const visualCenterline = page.getByLabel(/^\s*Visual centerline/);
-      const physicalCenterline = page.getByLabel(/^\s*Physical centerline/);
+      const layerTree = page.locator("[data-layer-list]");
+      const visualCenterline = layerTree.getByLabel(/Visual Centerline/i);
+      const physicalCenterline = layerTree.getByLabel(/Physical Centerline/i);
       // Only one geometry state is drawn at a time - assetMatchesActiveGeometryState
       // filters every asset that names a different one - so the physical and the
       // x50 visual deformed shapes can never be on screen together. A solved
@@ -703,35 +689,20 @@ const scenarios = {
       // The chip states exceptions, never placeholders for facts it lacks.
       assert.doesNotMatch(compactStatus, /Not available/i);
       await openIssuesTask(page);
-      assert.equal(await page.getByRole("button", { name: "Issues", exact: true }).getAttribute("aria-current"), "page");
-      await assertSameCanvas(page);
-      await page.getByRole("button", { name: "Results", exact: true }).click();
-      assert.equal(await page.getByRole("button", { name: "Results", exact: true }).getAttribute("aria-current"), "page");
       await assertSameCanvas(page);
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await page.evaluate(() => window.innerWidth), 1440);
       await assertSameCanvas(page);
       await page.setViewportSize({ width: 1024, height: 768 });
-      const railLayout = await page.locator("[data-workflow-tabs]").evaluate((nav) => {
-        const buttons = [...nav.querySelectorAll("button")].map((button) => {
-          const rect = button.getBoundingClientRect();
-          return { text: button.textContent, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
-        });
-        const overlaps = [];
-        for (let left = 0; left < buttons.length; left += 1) {
-          for (let right = left + 1; right < buttons.length; right += 1) {
-            const a = buttons[left];
-            const b = buttons[right];
-            if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) {
-              overlaps.push([a.text, b.text]);
-            }
-          }
-        }
-        return { clientWidth: nav.clientWidth, scrollWidth: nav.scrollWidth, overlaps };
+      // One column, so the only layout rule left is that the pinned control
+      // stays inside the rail's width.
+      const railLayout = await page.locator("[data-color-by]").evaluate((control) => {
+        const rect = control.getBoundingClientRect();
+        const rail = control.closest(".cockpit-rail").getBoundingClientRect();
+        return { controlRight: rect.right, railRight: rail.right };
       });
-      assert.deepEqual(railLayout.overlaps, [], JSON.stringify(railLayout));
-      assert.ok(railLayout.scrollWidth <= railLayout.clientWidth + 1, JSON.stringify(railLayout));
+      assert.ok(railLayout.controlRight <= railLayout.railRight + 1, JSON.stringify(railLayout));
       // The evidence dock's geometry, its row-level "Show in 3D" actions and
       // the canvas-vs-overlay checks around it all went with the dock. The
       // inspector drawer keeps its own overlay assertions below.
@@ -758,13 +729,13 @@ const scenarios = {
       assert.match(hotspotProperties, /Pa/);
 
       const reviewContext = await page.evaluate(() => ({
-        activeTab: window.__tubaViewer?.state?.activeTab,
+        colorChannel: window.__tubaViewer?.state?.colorChannel,
         activeLoadCase: window.__tubaViewer?.state?.activeLoadCase,
         activeResultStateId: window.__tubaViewer?.state?.activeResultStateId,
         selectedObjectIds: window.__tubaViewer?.state?.selectedObjectIds
       }));
       assert.deepEqual(reviewContext, {
-        activeTab: "results",
+        colorChannel: "results",
         activeLoadCase: "Hot",
         activeResultStateId: "result_state:Hot",
         selectedObjectIds: ["object:pipe:hot"]
@@ -915,12 +886,8 @@ const scenarios = {
       }
 
       await openReviewControls(page);
-      await page
-        .getByRole("navigation", { name: "Engineering review tasks" })
-        .getByRole("button", { name: "Results", exact: true })
-        .click();
-      // The rail's primary control is the composited bodies, not the four layer
-      // categories: "what is drawn" is the question this screen answers.
+      // The rail is one column: the composited bodies answer "what is drawn",
+      // and the pinned colour control sits above them.
       assert.deepEqual(
         await page.locator("[data-body-list] input").evaluateAll((inputs) =>
           inputs.map((input) => input.getAttribute("aria-label"))
@@ -937,12 +904,17 @@ const scenarios = {
         ["Design", "Analysis mesh", "Results", "Annotations"]
       );
 
-      const field = page.getByRole("combobox", { name: "Field", exact: true });
+      const field = page.getByRole("combobox", { name: "Colour the scene by" });
       assert.deepEqual(
         await field.locator("option").evaluateAll((options) =>
           options.map((option) => ({ label: option.textContent, value: option.value }))
         ),
         [
+          { label: "Default (Role)", value: "model:default" },
+          { label: "Section", value: "model:section" },
+          { label: "Material", value: "model:material" },
+          { label: "Group", value: "model:group" },
+          { label: "Insulation", value: "model:insulation" },
           { label: "FE VMIS (not code stress) (cell)", value: "field:solver_result:stress:result_state:Operating" },
           { label: "displacement_magnitude", value: "field:solver_result:displacement:result_state:Operating" },
           { label: "reaction_force_magnitude", value: "field:solver_result:reaction_force:result_state:Operating" },
@@ -1038,9 +1010,7 @@ const scenarios = {
         () => window.__tubaViewer?.state?.review?.schema_version === "engineering_review.v1"
       );
       await openReviewControls(page);
-      const reviewTask = page.getByRole("button", { name: "Model", exact: true });
-      await reviewTask.waitFor();
-      assert.equal(await reviewTask.getAttribute("aria-current"), "page");
+      await page.getByRole("combobox", { name: "Colour the scene by" }).waitFor();
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-status-chip]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
@@ -1088,8 +1058,9 @@ const scenarios = {
       assert.equal(loaded.parserDiagnosticOverlays[0].data.result_state_id, "result_state:Operating");
       assert.deepEqual(loaded.renderDiagnostics, []);
 
-      // The summary preset hides analysis mesh on load, dropping the scene to 37 renderable
-      // objects — below MAX_HOVER_PICK_OBJECTS. Re-enable it so the hover-skip path is exercised.
+      // The hover-skip path only engages above MAX_HOVER_PICK_OBJECTS, so make
+      // sure the analysis mesh is on before exercising it. No task preset hides
+      // it now; this simply guarantees the dense scene the check needs.
       await page.getByLabel("Analysis mesh", { exact: true }).check();
       await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.renderableCount ?? 0) > 50);
 
@@ -1187,16 +1158,13 @@ const scenarios = {
       assert.ok(realOrbitElapsedMs < 8000, `a real orbit gesture took ${realOrbitElapsedMs}ms`);
       assert.deepEqual(selectionAfterRealOrbit, selectionBeforeRealOrbit, "an orbit gesture must not change selection");
 
-      const railResults = page
-        .getByRole("navigation", { name: "Engineering review tasks" })
-        .getByRole("button", { name: "Results", exact: true });
-      await railResults.click();
-      assert.equal(await railResults.getAttribute("aria-current"), "page");
+      await openReviewControls(page);
       await assertSameCanvas(page);
-      // The coloring channel lives in the Results task; its selector is "Case".
+      // The coloring channel lives in the pinned "Colour by" control; its result
+      // refinements start with the case selector.
       assert.equal(await page.getByRole("combobox", { name: /^Case/ }).inputValue(), "Operating");
       assert.equal(
-        await page.getByRole("combobox", { name: "Field", exact: true }).inputValue(),
+        await page.getByRole("combobox", { name: "Colour the scene by" }).inputValue(),
         "field:solver_result:stress:result_state:Operating"
       );
       assert.equal(await page.getByRole("combobox", { name: /^Result state/ }).count(), 0);
@@ -1205,7 +1173,7 @@ const scenarios = {
       const scalarComponent = page.getByRole("combobox", { name: "Component", exact: true });
       assert.equal(await scalarComponent.count(), 0);
 
-      await page.getByRole("combobox", { name: "Field", exact: true }).selectOption(
+      await page.getByRole("combobox", { name: "Colour the scene by" }).selectOption(
         "field:solver_result:displacement:result_state:Operating"
       );
       await page.getByRole("combobox", { name: "Component", exact: true }).selectOption("DZ");
@@ -1215,7 +1183,7 @@ const scenarios = {
       });
       assert.match(await page.locator("[data-result-legend]").textContent(), /displacement_magnitude DZ:/);
 
-      await page.getByRole("combobox", { name: "Field", exact: true }).selectOption(
+      await page.getByRole("combobox", { name: "Colour the scene by" }).selectOption(
         "field:solver_result:tuyau_subpoints:result_state:Operating"
       );
       await page.waitForFunction(() => window.__tubaViewer?.resultReview?.legend?.field === "FE VMIS (not code stress) (subpoint)");
@@ -1279,13 +1247,13 @@ const scenarios = {
     },
     async run(page) {
       await openReviewControls(page);
-      const modelTask = page.getByRole("button", { name: "Model", exact: true });
-      await modelTask.waitFor();
-      assert.equal(await modelTask.getAttribute("aria-current"), "page");
-      assert.equal(await page.getByRole("button", { name: "Issues", exact: true }).count(), 1);
+      // No tab strip: the rail is one column, and its pinned colour control is
+      // present whether or not the scene carries results.
+      assert.equal(await page.locator("[data-workflow-tabs]").count(), 0);
+      assert.equal(await page.getByRole("combobox", { name: "Colour the scene by" }).count(), 1);
       assert.equal(await page.getByRole("button", { name: "Review", exact: true }).count(), 0);
       assert.equal(await page.getByRole("button", { name: "Display", exact: true }).count(), 0);
-      // There is no evidence dock any more: warnings live in the Issues task
+      // There is no evidence dock any more: warnings live in the issue list
       // and the review's tables live in the generated report.
       assert.equal(await page.locator("[data-evidence-dock]").count(), 0);
       assert.equal(await page.getByRole("tab", { name: "Warnings", exact: true }).count(), 0);
@@ -1295,13 +1263,11 @@ const scenarios = {
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
       assert.equal(await page.getByRole("status").getAttribute("data-error"), "false");
       const legacyState = await page.evaluate(() => ({
-        activeTab: window.__tubaViewer?.state?.activeTab,
         legacyReview: window.__tubaViewer?.state?.legacyReview,
         review: window.__tubaViewer?.state?.review,
         reviewDiagnostics: window.__tubaViewer?.state?.reviewDiagnostics
       }));
       assert.deepEqual(legacyState, {
-        activeTab: "model",
         legacyReview: true,
         review: null,
         reviewDiagnostics: []
@@ -1315,7 +1281,7 @@ const scenarios = {
       return { embed: "1" };
     },
     async run(page) {
-      await page.waitForFunction(() => window.__tubaViewer?.state?.activeTab === "3d");
+      await page.waitForFunction(() => window.__tubaViewer?.state?.stage === "embed");
       assert.equal(await page.getByRole("banner").isVisible(), false);
       assert.equal(await page.locator("[data-task-rail]").isVisible(), false);
       assert.equal(await page.locator("[data-status-chip]").isVisible(), false);
@@ -1330,7 +1296,6 @@ const scenarios = {
     minimumObjects: 6,
     async run(page) {
       await openReviewControls(page);
-      await page.getByRole("button", { name: "Issues", exact: true }).click();
       await page.getByLabel(/Operating-only/).check();
       await page.waitForFunction(() => /ERROR - Hot - open/.test(document.querySelector("[data-issue-list]")?.textContent ?? ""));
       await page.getByRole("button", { name: /^ERROR - Operating pipe\/rack clash$/ }).click();
@@ -1354,9 +1319,12 @@ const scenarios = {
       });
 
       await page.getByRole("button", { name: /Restore view/ }).click();
+      // Restore returns the scene to what the bundle declared. It no longer
+      // implies the reaction vectors stay hidden - no task preset drops them
+      // now that the rail is one column.
       await page.waitForFunction(() => {
         const ids = window.__tubaViewer?.lastRender?.objectIds ?? [];
-        return ids.includes("object:pipe:hot") && ids.includes("object:clash") && !ids.includes("object:reaction_vector");
+        return ids.includes("object:pipe:hot") && ids.includes("object:clash");
       });
 
       const state = await page.evaluate(() => window.__tubaViewer?.state);

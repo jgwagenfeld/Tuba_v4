@@ -2338,9 +2338,9 @@ function invalidAsset(asset, message) {
 
 function addContactMarkers(root, state) {
   // Contact marks are solver output, so they answer to the result layers the
-  // task presets switch. Their supporting object is design (a visible shoe), so
-  // without this gate a Build or Model view kept drawing solved contact arrows
-  // over a scene whose result layers were all off.
+  // Build preset drops. Their supporting object is design (a visible shoe), so
+  // without this gate a Build view kept drawing solved contact arrows over a
+  // scene whose result layers were all off.
   const resultOverlayId = getActiveResultState(state)?.overlay?.id;
   if (resultOverlayId && Array.isArray(state.visibleOverlayIds) && !state.visibleOverlayIds.includes(resultOverlayId)) {
     return;

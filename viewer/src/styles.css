@@ -114,7 +114,6 @@ textarea,
 }
 
 .app-header,
-[data-workflow-tabs],
 .viewer-workspace {
   min-width: 0;
   width: 100%;
@@ -410,47 +409,6 @@ textarea,
   flex: 0 0 auto;
   border-bottom: 1px solid var(--graphite-line);
   background: var(--graphite);
-}
-
-/* A segmented row, not a stack of page headings. Four tasks used 225px of the
-   rail as 44px-tall left-aligned text; this is 34px whatever the count, and a
-   1fr grid cannot overflow. */
-.cockpit-rail [data-workflow-tabs] {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 0;
-  padding: 0;
-  border-bottom: 0;
-}
-
-.cockpit-rail .task-button {
-  width: 100%;
-  min-height: 2.125rem;
-  padding: 0.35rem 0.4rem;
-  border-bottom: 2px solid transparent;
-  font-size: 0.69rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-align: center;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cockpit-rail .task-button:hover {
-  background: var(--graphite-highlight);
-  color: var(--chrome-text);
-}
-
-/* The accent budget is spent on the scene, not on the least important control
-   in the rail. Active reads as a raised pill instead. */
-.cockpit-rail .task-button[aria-current="page"] {
-  border-bottom-color: #6b7a83;
-  background: var(--graphite-raised);
-  color: var(--chrome-text);
-  font-weight: 700;
 }
 
 .rail-find {
@@ -1612,16 +1570,6 @@ body[data-rail-open="true"]:not([data-embed="true"]):has(.contact-review) .viewe
   display: none;
 }
 
-/* The task's own controls. It takes its natural height and never shrinks; the
-   strip scrolls around it. It used to be capped at 30% with a scrollbar of its
-   own, which put thirteen result controls behind a 200px window nested inside
-   the pane's own scrollbar - the reason the Results task was unusable. Nothing
-   is capped now because nothing shares the pane with it: the layer list belongs
-   to Model. */
-.cockpit-rail .task-panel {
-  flex: 0 0 auto;
-}
-
 .inspector {
   grid-area: inspector;
   overflow: auto;
@@ -2208,14 +2156,6 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     padding: 0.3rem 0.4rem;
   }
 
-  [data-workflow-tabs] {
-    padding-inline: 0.25rem;
-  }
-
-  .cockpit-rail .task-button {
-    padding-inline: 0.65rem;
-  }
-
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2579,8 +2519,6 @@ body[data-view="gallery"] {
   border-radius: 0.2rem;
   background: var(--paper-raised);
 }
-
-.cockpit-rail .task-panel:has(.contact-review) { max-height: none; overflow: visible; }
 
 /* Build / Review. Build is model.py beside the scene; Review is the rail. The
    switch is the header's one navigation control, so it stands apart from the

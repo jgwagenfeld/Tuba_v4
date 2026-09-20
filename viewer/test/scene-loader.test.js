@@ -12,7 +12,7 @@ import {
   categoryForLayerId,
   legacyCategoryForLayerId,
   categorizeLayers,
-  applyTaskVisibilityPreset
+  applyStageVisibilityPreset
 } from "../src/sceneLoader.js";
 
 test("startup falls back to the first available bundle when the preferred review is absent", () => {
@@ -567,7 +567,7 @@ test("categorizeLayers gives the support layer its engineering label", () => {
   ]);
 });
 
-test("applyTaskVisibilityPreset toggles categories to match the task preset", () => {
+test("applyStageVisibilityPreset rewrites layers for Build and leaves every other stage alone", () => {
   const layers = {
     pipe: { id: "pipe", label: "Pipe", visible: true, count: 3, source: "object", objectIds: [] },
     "analysis_mesh:nodes": { id: "analysis_mesh:nodes", label: "Nodes", visible: true, count: 5, source: "object", objectIds: [] },
@@ -575,19 +575,20 @@ test("applyTaskVisibilityPreset toggles categories to match the task preset", ()
   };
   const state = { objects: [], overlays: [], hiddenObjectIds: [], isolatedObjectIds: [], geometryAssets: [], layers };
 
-  const modelState = applyTaskVisibilityPreset(state, "model");
-  assert.equal(modelState.layers.pipe.visible, true);
-  assert.equal(modelState.layers["analysis_mesh:nodes"].visible, false);
-  assert.equal(modelState.layers["overlay:clash"].visible, false);
+  const buildState = applyStageVisibilityPreset(state, "build");
+  // Build keeps design and the analysis mesh - in a volume review the mesh is
+  // the model - and drops the result and annotation overlays.
+  assert.equal(buildState.layers.pipe.visible, true);
+  assert.equal(buildState.layers["analysis_mesh:nodes"].visible, true);
+  assert.equal(buildState.layers["overlay:clash"].visible, false);
 
-  const resultsState = applyTaskVisibilityPreset(modelState, "results");
-  assert.equal(resultsState.layers["overlay:clash"].visible, true);
-  assert.equal(resultsState.layers["analysis_mesh:nodes"].visible, false);
-
-  assert.equal(applyTaskVisibilityPreset(state, "3d"), state);
+  // Review and the embedded canvas carry no preset, so every layer keeps what
+  // the bundle declared: navigation must not rewrite the scene.
+  assert.equal(applyStageVisibilityPreset(state, "review"), state);
+  assert.equal(applyStageVisibilityPreset(state, "3d"), state);
 });
 
-test("task presets keep scene-declared analytical layers hidden", () => {
+test("stage presets keep scene-declared hidden layers hidden", () => {
   const layers = {
     pipe: { id: "pipe", category: "design", visible: true, defaultVisible: true, count: 1, source: "object", objectIds: [] },
     "physical_envelope:clearance": {
@@ -602,10 +603,10 @@ test("task presets keep scene-declared analytical layers hidden", () => {
   };
   const state = { objects: [], overlays: [], hiddenObjectIds: [], isolatedObjectIds: [], geometryAssets: [], layers };
 
-  const resultsState = applyTaskVisibilityPreset(state, "results");
+  const buildState = applyStageVisibilityPreset(state, "build");
 
-  assert.equal(resultsState.layers.pipe.visible, true);
-  assert.equal(resultsState.layers["physical_envelope:clearance"].visible, false);
+  assert.equal(buildState.layers.pipe.visible, true);
+  assert.equal(buildState.layers["physical_envelope:clearance"].visible, false);
 });
 
 test("large URL bundles bound active geometry reads, preserve every payload, and propagate failures", async () => {
@@ -656,12 +657,15 @@ test("result profiles and their group filters remain independent of the analysis
     ]
   };
   const initial = createViewerState({scene,objectMap:{},geometryPayloads:[]});
-  const results = applyTaskVisibilityPreset(initial,"results");
-  assert.deepEqual(results.visibleObjectIds,["profile"]);
-  const groups = categorizeLayers(results.layers).find(category=>category.id==="results").groups;
+  // The display strip's own controls hide the analysis mesh, the way a review
+  // does now that no task preset rewrites layers behind the reader's back.
+  const hidden = ["analysis_mesh:elements","analysis_mesh:groups","analysis_mesh:group:G_TUBE"]
+    .reduce((state,id)=>setLayerVisibility(state,id,false), initial);
+  assert.deepEqual(hidden.visibleObjectIds,["profile"]);
+  const groups = categorizeLayers(hidden.layers).find(category=>category.id==="results").groups;
   assert.equal(groups[0].leaves[0].layerId,"deformed:group:G_TUBE");
-  assert.deepEqual(setLayerVisibility(results,"deformed:group:G_TUBE",false).visibleObjectIds,[]);
-  assert.deepEqual(setLayerVisibility(results,"deformed:mesh",false).visibleObjectIds,[]);
-  const hiddenGroup = setLayerVisibility(results,"deformed:group:G_TUBE",false);
+  assert.deepEqual(setLayerVisibility(hidden,"deformed:group:G_TUBE",false).visibleObjectIds,[]);
+  assert.deepEqual(setLayerVisibility(hidden,"deformed:mesh",false).visibleObjectIds,[]);
+  const hiddenGroup = setLayerVisibility(hidden,"deformed:group:G_TUBE",false);
   assert.deepEqual(setLayerVisibility(hiddenGroup,"deformed:group:G_TUBE",true).visibleObjectIds,["profile"]);
 });

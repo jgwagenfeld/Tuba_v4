@@ -106,6 +106,20 @@ test("result review derives load cases scalar legend and filtered hotspots", () 
   assert.deepEqual(getHotspots(state).map((hotspot) => hotspot.objectId), ["object:pipe:hot"]);
 });
 
+test("the results channel owns the legend, the scalar tint and the hotspots", () => {
+  const state = setResultThreshold(resultState(), 50000000);
+  assert.equal(getScalarLegend(state).field, "max_von_mises");
+  assert.notEqual(getObjectScalarColor(state, ["object:pipe:hot"], []), null);
+  assert.ok(getHotspots(state).length > 0);
+
+  // The model channel yields all three, so exactly one legend is on screen and
+  // the tint is the model's, not the field's.
+  const model = { ...state, colorChannel: "model" };
+  assert.equal(getScalarLegend(model), null);
+  assert.equal(getObjectScalarColor(model, ["object:pipe:hot"], []), null);
+  assert.deepEqual(getHotspots(model), []);
+});
+
 test("TUYAU hotspots preserve repeated-row identity", () => {
   const state = resultState();
   state.overlays.push({

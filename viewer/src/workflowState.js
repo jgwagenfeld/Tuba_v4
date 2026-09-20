@@ -1,83 +1,69 @@
-export const WORKFLOW_TABS = Object.freeze([
-  { id: "model", label: "Model" },
-  { id: "results", label: "Results" },
-  { id: "diagnostics", label: "Issues" }
-]);
-
-//: The task an embedded scene sits in: no rail, no preset, the scene as loaded.
+// Which channel tints the scene: a solver field, or the model's own properties.
 //
-// This was a fourth entry in WORKFLOW_TABS, labelled "Display", and it was the
-// only one getVisibleCockpitTaskIds could never return - so the rail could not
-// offer it and setWorkflowTab would have thrown on it, while embed mode set it
-// directly. A tab nobody can reach is not a tab. It is still a real state, so
-// it keeps its id and loses the label that implied a control existed.
+// Explicit state, never inferred from the rail's task - there is no task any
+// more. The review's lenses are sections of one scrollable rail, so nothing a
+// reader switches can change what the colours mean. A scene that carries
+// results opens on them; a model with none colours by the model.
+export const COLOR_CHANNELS = Object.freeze(["model", "results"]);
+
+export function colorChannelOf(state = {}) {
+  if (COLOR_CHANNELS.includes(state.colorChannel)) return state.colorChannel;
+  return hasResultColouring(state) ? "results" : "model";
+}
+
+// A legacy bundle carries solver overlays without the newer result_state
+// records, and it still has results to colour by.
+function hasResultColouring(state = {}) {
+  if ((state.resultFields ?? []).length > 0 || (state.resultStates ?? []).length > 0) return true;
+  return (state.overlays ?? []).some(
+    (overlay) => overlay.kind === "solver_result" || overlay.kind === "result_state"
+  );
+}
+
+// A visibility preset is a *stage* default, not a per-lens one. Review takes the
+// scene as the bundle declared it: its rail sections change what is shown
+// alongside the viewport, never what is drawn on it. Applying a preset on a lens
+// change fought the pinned display strip - which exists precisely so "what is
+// drawn" is user-owned - and could switch off the very bodies a composited
+// review opened to show.
 //
-// tutorial.md used to send readers to find "the Display controls" for load-case
-// selection, deformation, camera presets and the section box. Those four live
-// in three different places, none of them a task.
-export const EMBED_TASK_ID = "3d";
-
-// The Results task owns the coloring channel now that the permanent bar above
-// the viewport is gone, so a scene carrying fields or result states must offer
-// it even without a review - otherwise there is no way left to pick what
-// colours the model. setWorkflowTab checks the rail's own list, so the rail
-// never offers a task it rejects.
-function hasResultContent({ resultFields, resultStates } = {}) {
-  return (resultFields ?? []).length > 0 || (resultStates ?? []).length > 0;
-}
-
-export function getVisibleCockpitTaskIds(state = {}) {
-  // No Review task any more: it fronted the evidence dock, and the review's
-  // tables live in the generated report the header links to. What is left in
-  // the rail is what you do to the scene - model, results, issues. Load cases
-  // are written in model.py, so Build mode is where they are edited.
-  if (state.review) return ["model", "results", "diagnostics"];
-  return hasResultContent(state) ? ["model", "results", "diagnostics"] : ["model", "diagnostics"];
-}
-
-export function defaultWorkflowTab({ review, embed } = {}) {
-  if (embed) return EMBED_TASK_ID;
-  return "model";
-}
-
-const TASK_VISIBILITY_PRESETS = Object.freeze({
-  model: { design: true, analysis_mesh: false, results: false, annotations: false },
-  results: { design: true, analysis_mesh: false, results: true, annotations: true },
-  diagnostics: { design: true, analysis_mesh: false, results: false, annotations: true },
-  // Build inspects what was built. A volume or mesh review carries no procedural
-  // design geometry - its analysis mesh is the model - so the mesh stays in view
-  // and only the result and annotation overlays drop. A layer declared hidden by
-  // the bundle still stays hidden, so a review with real design geometry keeps
-  // the mesh out of its Build view.
+// Build inspects what was built. A volume or mesh review carries no procedural
+// design geometry - its analysis mesh is the model - so the mesh stays in view
+// and only the result and annotation overlays drop. A layer declared hidden by
+// the bundle still stays hidden, so a review with real design geometry keeps
+// the mesh out of its Build view.
+const STAGE_VISIBILITY_PRESETS = Object.freeze({
   build: { design: true, analysis_mesh: true, results: false, annotations: false }
 });
 
-export function visibilityPresetForTask(taskId) {
-  return Object.hasOwn(TASK_VISIBILITY_PRESETS, taskId) ? TASK_VISIBILITY_PRESETS[taskId] : null;
+export function visibilityPresetForStage(stageId) {
+  return Object.hasOwn(STAGE_VISIBILITY_PRESETS, stageId) ? STAGE_VISIBILITY_PRESETS[stageId] : null;
 }
 
-// The stage tree.
+export const STAGES = Object.freeze(["embed", "build", "review"]);
+
+// The stage is carried by the scene state rather than by a mode global, because
+// the scene itself depends on it: which layers are drawn is a stage question,
+// asked by pure functions handed nothing but the state. Keeping it in a session
+// global is what forced those functions to read `activeTab !== "model"` as a
+// stand-in, which held only while Build was forcing a tab to "model".
+export function sceneStage(state = {}) {
+  if (state.embed) return "embed";
+  return STAGES.includes(state.stage) ? state.stage : "review";
+}
+
+// The one derived answer to "what is on screen". It is pure, so every rule below
+// is a case in a function rather than a boolean recomputed from six globals in
+// whichever render function happens to need it.
 //
-// Build and the embedded canvas are not tasks. The rail's three tasks live
-// *inside* the review stage; Build is a sibling of that whole stage, and the
-// embedded canvas is a third sibling with no chrome at all. Storing that tree
-// as two flat variables - a mode kept in module globals, and one activeTab -
-// is what forced three separate workarounds: an enterBuild action that set a
-// tab the reader was not on, a "build" entry in a table keyed by task id, and
-// an EMBED_TASK_ID that no rail could ever offer.
-//
-// This is the one derived answer to "what is on screen". It is pure, so every
-// rule below is a case in a function rather than a boolean recomputed from six
-// globals in whichever render function happens to need it.
+// Build and the embedded canvas are not review sections: Build is a sibling of
+// the whole review stage with the script in the rail's place, and the embedded
+// canvas is a third sibling with no chrome at all.
 export function workspaceView(state = {}, session = {}) {
-  const stage = stageOf(state);
+  const stage = sceneStage(state);
   const inReview = stage === "review";
-  const tabs = inReview ? getVisibleCockpitTaskIds(state) : [];
-  const task = inReview ? activeTask(state) : null;
   return {
     stage,
-    task,
-    tabs,
     railVisible: inReview && session.railExpanded !== false,
     // The toggle is the rail's own control: it stays while the rail is merely
     // collapsed, or there would be no way to bring it back, and goes when the
@@ -85,45 +71,14 @@ export function workspaceView(state = {}, session = {}) {
     railToggleVisible: inReview,
     scriptVisible: stage === "build",
     headerVisible: stage !== "embed",
-    // Which studio bundle this stage reads. Results with nothing solved still
+    // Which studio bundle this stage reads. Review with nothing solved still
     // shows the live model rather than an empty review.
     bundle: inReview && session.studio?.hasReview ? "review" : "build",
-    // The layer preset, chosen by the stage first and the task second. The
-    // embedded scene takes none: it is shown as the bundle declared it.
-    visibility: stage === "build" ? "build" : task
+    // The layer preset, chosen by the stage alone. Review has none - it shows
+    // the scene as the bundle declared it, and its sections do not rewrite it -
+    // and the embedded scene likewise takes none.
+    visibility: visibilityPresetForStage(stage) ? stage : null
   };
-}
-
-export const STAGES = Object.freeze(["embed", "build", "review"]);
-
-// The stage is carried by the scene state rather than by a mode global, because
-// the scene itself depends on it: which layers are drawn and which colouring
-// channel governs are stage questions, and they are asked by pure functions
-// that are handed nothing but the state. Keeping it in a session global is what
-// forced those functions to read `activeTab !== "model"` as a stand-in, which
-// held only while Build was forcing the tab to "model".
-function stageOf(state) {
-  if (state.embed) return "embed";
-  return STAGES.includes(state.stage) ? state.stage : "review";
-}
-
-// The task the rail is really on: the one it is showing as current, which is
-// the requested tab when the rail still offers it and the first one it does
-// offer otherwise. Swapping bundles can strip the content a task was for.
-export function activeTask(state = {}) {
-  const tabs = getVisibleCockpitTaskIds(state);
-  return tabs.includes(state.activeTab) ? state.activeTab : tabs[0] ?? null;
-}
-
-// Which task governs the *scene* - what tints it, and which overlays belong.
-// Build inspects what was built, so the model channel governs it however the
-// rail was left; the embedded canvas is on no task at all and takes the scene
-// as the bundle declared it.
-export function sceneTask(state = {}) {
-  const stage = stageOf(state);
-  if (stage === "build") return "model";
-  if (stage === "embed") return EMBED_TASK_ID;
-  return activeTask(state);
 }
 
 // Which stage a studio opens on. A review that is present and current is what
@@ -136,42 +91,6 @@ export function openingStage(studio = {}) {
 export function createWorkflowState({ review = null, embed = false } = {}) {
   return {
     review,
-    embed: Boolean(embed),
-    activeTab: defaultWorkflowTab({ review, embed })
+    embed: Boolean(embed)
   };
-}
-
-export function setWorkflowTab(state, tabId) {
-  const tab = WORKFLOW_TABS.find((candidate) => candidate.id === tabId);
-  if (!tab) {
-    throw new RangeError(`Unknown workflow tab: ${tabId}`);
-  }
-  if (!getVisibleCockpitTaskIds(state).includes(tabId)) {
-    throw new RangeError(`Workflow tab is not visible: ${tabId}`);
-  }
-  return { ...state, activeTab: tabId };
-}
-
-export function workflowTabForKey(state, currentTabId, key) {
-  return tabForKey(getVisibleCockpitTaskIds(state), currentTabId, key);
-}
-
-function tabForKey(tabIds, currentTabId, key) {
-  const currentIndex = tabIds.indexOf(currentTabId);
-  if (currentIndex < 0 || tabIds.length === 0) {
-    return null;
-  }
-  if (key === "Home") {
-    return tabIds[0];
-  }
-  if (key === "End") {
-    return tabIds.at(-1);
-  }
-  if (key === "ArrowRight") {
-    return tabIds[(currentIndex + 1) % tabIds.length];
-  }
-  if (key === "ArrowLeft") {
-    return tabIds[(currentIndex - 1 + tabIds.length) % tabIds.length];
-  }
-  return null;
 }

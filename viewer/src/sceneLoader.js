@@ -1,5 +1,5 @@
 import { loadOptionalReview } from "./reviewLoader.js";
-import { sceneTask, visibilityPresetForTask } from "./workflowState.js";
+import { colorChannelOf, sceneStage, visibilityPresetForStage } from "./workflowState.js";
 import { createColoringState } from "./coloring.js";
 import { contactColoringActive } from "./resultReview.js";
 
@@ -152,10 +152,13 @@ export function createViewerState(bundle) {
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id),
     visibleObjectIds: []
   };
+  // The colouring channel is explicit state: a solved scene opens on its
+  // results, a model with none on its own properties.
+  const withChannel = { ...state, colorChannel: colorChannelOf(state) };
   return {
-    ...state,
-    coloring: createColoringState(state),
-    visibleObjectIds: getVisibleObjectIds(state)
+    ...withChannel,
+    coloring: createColoringState(withChannel),
+    visibleObjectIds: getVisibleObjectIds(withChannel)
   };
 }
 
@@ -184,9 +187,9 @@ export function getVisibleObjectIds(state) {
   const hidden = new Set(state.hiddenObjectIds ?? []);
   const isolated = new Set(state.isolatedObjectIds ?? []);
   const hiddenOverlayObjectIds = overlayHiddenObjectIds(state);
-  // Same question the colouring asks: is a results task governing the scene?
-  // Build inspects the built model, so its authored vectors stay drawn.
-  const contactReview = sceneTask(state) !== "model" && contactColoringActive(state);
+  // Same question the colouring asks: is a review governing the scene? Build
+  // inspects the built model, so its authored vectors stay drawn.
+  const contactReview = sceneStage(state) !== "build" && contactColoringActive(state);
   return state.objects
     .filter((obj) => !state.activeResultStateId || !obj.metadata?.result_state_id || obj.metadata.result_state_id === state.activeResultStateId)
     .filter((obj) => !state.activeGeometryStateId || !obj.metadata?.geometry_state_id || obj.metadata.geometry_state_id === state.activeGeometryStateId)
@@ -452,8 +455,8 @@ function isMetadataLayer(layer) {
   return layer.source === "scene" && !layer.count;
 }
 
-export function applyTaskVisibilityPreset(state, taskId) {
-  const preset = visibilityPresetForTask(taskId);
+export function applyStageVisibilityPreset(state, stageId) {
+  const preset = visibilityPresetForStage(stageId);
   if (!preset) return state;
   let next = state;
   for (const category of categorizeLayers(state.layers)) {

@@ -1,4 +1,5 @@
 import { getColoringLegend, getColoringValues } from "./coloring.js";
+import { colorChannelOf } from "./workflowState.js";
 
 export function formatPseudoTime(value) {
   return Number.isFinite(value) ? String(Number(value.toPrecision(8))) : "unavailable";
@@ -152,6 +153,9 @@ export function getActiveScalarOverlay(state) {
 }
 
 export function getScalarLegend(state) {
+  // One legend at a time: the scalar legend belongs to the results channel. On
+  // the model channel the model's own legend (or the base role colour) governs.
+  if (colorChannelOf(state) !== "results") return null;
   if (contactColoringActive(state)) return null;
   if ((state.resultFields ?? []).length > 0) {
     const legend = getColoringLegend(state);
@@ -203,6 +207,9 @@ export function getScalarValues(state, overlay = getActiveScalarOverlay(state)) 
 }
 
 export function getHotspots(state) {
+  // A hotspot is a peak in the scalar field colouring the scene, so there are
+  // none while the model channel owns the colours.
+  if (colorChannelOf(state) !== "results") return [];
   const overlay = getActiveScalarOverlay(state);
   if (!overlay) {
     return [];
@@ -242,6 +249,11 @@ export function getHotspots(state) {
 }
 
 export function getObjectScalarColor(state, objectIds, valueIds = []) {
+  // Only the results channel tints by a scalar. On the model channel the model
+  // colour - or the base role colour - governs, so this yields.
+  if (colorChannelOf(state) !== "results") {
+    return null;
+  }
   const overlay = getActiveScalarOverlay(state);
   if (!overlay) {
     return null;

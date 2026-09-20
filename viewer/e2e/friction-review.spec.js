@@ -8,7 +8,6 @@ test("real contact history preserves forces through selection and display scalin
   await page.goto("/viewer/?bundle=native-friction-review");
   await expect(page.getByRole("status")).toContainText("Ready");
   await expect(page.locator("[data-task-rail]")).toBeVisible();
-  await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   const panel = page.getByRole("region", { name: "Contact review", exact: true });
   await expect(panel).toBeVisible();
   const states = await page.evaluate(() => window.__tubaViewer.state.resultStates.map(s => s.data));
@@ -65,7 +64,6 @@ test("a missing contact increment displays unavailable, never an invented state"
   await page.goto("/viewer/?bundle=native-friction-review");
   await expect(page.getByRole("status")).toContainText("Ready");
   await expect(page.locator("[data-task-rail]")).toBeVisible();
-  await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   const panel = page.getByRole("region", { name: "Contact review", exact: true });
   await expect(panel).toContainText("Contact results unavailable for this state.");
   await expect(panel.locator("tbody tr")).toHaveCount(0);
@@ -75,7 +73,6 @@ test("frictionless copy displays zero force and no utilization in the shared sol
   await page.goto("/viewer/?bundle=native-friction-review");
   await expect(page.getByRole("status")).toContainText("Ready");
   await expect(page.locator("[data-task-rail]")).toBeVisible();
-  await page.getByRole("navigation", { name: "Engineering review tasks" }).getByRole("button", { name: "Results", exact: true }).click();
   const panel = page.getByRole("region", { name: "Contact review", exact: true });
   await expect(panel.locator("tbody tr").first()).toContainText("n/a");
   const contacts = await page.evaluate(() => window.__tubaViewer.state.resultStates.flatMap(s => Object.entries(s.data.contact_results).filter(([id]) => id.startsWith("NF_")).map(([, contact]) => contact)));

@@ -28,7 +28,7 @@ alone and no second display sweep that could drift from it. Build therefore
 keeps the analysis mesh visible, because a volume review has no procedural
 design geometry to fall back on, and drops only the result and annotation
 overlays. Every preset, Build included, follows `default_visible`, so a layer a
-bundle declared hidden is never revived by a task.
+bundle declared hidden is never revived by a preset.
 
 ### Bodies: the composited result view
 
@@ -80,23 +80,24 @@ element node) and a `peak` decoded into a wall position. Only the two radial
 extremes are named - bore and outer surface - because calling a sector
 "intrados" would need an orientation the scene does not carry.
 
-## Review tasks and evidence
+## Review rail and evidence
 
-Choosing a task changes the review emphasis and display preset.
+The rail is one scrollable column of sections, not a set of tabs. Nothing swaps, so nothing is hidden to make room: layer visibility is owned by the pinned display strip, the colouring channel by the pinned **Colour by** control, and the issue list sits with the scene so a clash row and a result field are read together.
 
-| Task mode | Purpose |
+| Section | Holds |
 | --- | --- |
-| Model | Authored geometry and model records |
-| Results | Solver-backed fields and result geometry |
+| Colour by | The colouring channel: a model property or a solver field |
+| Result refinements | Case, component, deformation, thresholds, vectors and hotspots |
+| Bodies / Overlays / All layers | What is drawn |
 | Issues | Diagnostics and issue-focused geometry |
 
 The review's tables live in the generated report that the header links to.
 
 ## Result and deformation selection
 
-The coloring channel is load case × result field × component. A scalar field exposes only `magnitude`; vector fields expose their available components plus `magnitude`. Selecting a load case keeps the result field and geometry state coherent with that case. Field selection changes coloring and its legend, not layer ownership.
+The coloring channel is load case × result field × component. The pinned **Colour by** control chooses which channel tints the scene: a model property (role, section, material, group, insulation) or a solver field. Because it is pinned above the layer list, the choice does not depend on where you are reading. A scalar field exposes only `magnitude`; vector fields expose their available components plus `magnitude`. Selecting a load case keeps the result field and geometry state coherent with that case. Field selection changes coloring and its legend, not layer ownership.
 
-The bar above the viewport controls load case, field, and component. The results panel controls thresholds, vector scales, and hotspots. The legend and compliance caveat remain visible in the viewport when the results panel is closed. The legend and scene use the same color function.
+The result refinements control the chosen field: load case, component, thresholds, vector scales and hotspots. The legend and compliance caveat remain visible in the viewport whenever the results channel owns the colours. The legend and scene use the same color function.
 
 There are two deformation settings:
 

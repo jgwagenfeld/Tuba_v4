@@ -86,10 +86,22 @@ const OVERLAY_SPECS = Object.freeze([
     layerIds: ["support_link"]
   },
   {
-    id: "applied_load",
-    label: "Applied loads",
-    description: "The load case as applied to the model.",
-    layerIds: ["design:loads"]
+    id: "applied_force",
+    label: "Applied forces",
+    description: "Nodal forces applied to the model.",
+    layerIds: ["design:loads:forces"]
+  },
+  {
+    id: "applied_moment",
+    label: "Applied moments",
+    description: "Nodal moments applied to the model.",
+    layerIds: ["design:loads:moments"]
+  },
+  {
+    id: "applied_line_load",
+    label: "Applied line loads",
+    description: "Distributed line loads applied along elements.",
+    layerIds: ["design:loads:line_loads"]
   },
   {
     id: "reaction_force",

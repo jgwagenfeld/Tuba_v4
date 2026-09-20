@@ -83,11 +83,9 @@ import { getPropertySections } from "./selection.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
-  EMBED_TASK_ID,
-  WORKFLOW_TABS,
+  colorChannelOf,
   createWorkflowState,
   openingStage,
-  workflowTabForKey,
   workspaceView
 } from "./workflowState.js";
 
@@ -104,10 +102,7 @@ const dom = {
   selectionFact: document.querySelector("[data-selection-fact]"),
   stripUnits: document.querySelector("[data-strip-units]"),
   taskRail: document.querySelector("[data-task-rail]"),
-  taskPanel: document.querySelector("[data-task-panel]"),
-  workflowTabs: document.querySelector("[data-workflow-tabs]"),
   inspector: document.querySelector("[data-inspector]"),
-  issueToolsHome: document.querySelector("[data-issue-tools-home]"),
   bodiesPane: document.querySelector("[data-bodies-pane]"),
   findPane: document.querySelector("[data-find-pane]"),
   findScope: document.querySelector("[data-find-scope]"),
@@ -125,10 +120,8 @@ const dom = {
   bodyLegendToggle: document.querySelector("[data-body-legend-toggle]"),
   layerList: document.querySelector("[data-layer-list]"),
   layerTally: document.querySelector("[data-layer-tally]"),
-  modelToolsHome: document.querySelector("[data-model-tools-home]"),
-  modelControls: document.querySelector("[data-model-controls]"),
-  modelLegend: document.querySelector("[data-model-legend]"),
-  resultToolsHome: document.querySelector("[data-result-tools-home]"),
+  colorBy: document.querySelector("[data-color-by]"),
+  colorLegend: document.querySelector("[data-color-legend]"),
   resultControls: document.querySelector("[data-result-controls]"),
   resultLegend: document.querySelector("[data-result-legend]"),
   resultShape: document.querySelector("[data-result-shape]"),
@@ -377,14 +370,15 @@ async function loadBundle(bundleUrl, options = {}) {
   const nextState = { ...viewerState, ...workflowState };
   const loadedState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
   currentState = startupConfig.embed
-    ? { ...loadedState, embed: true, stage: "embed", activeTab: EMBED_TASK_ID }
+    ? { ...loadedState, embed: true, stage: "embed" }
     : loadedState;
-  // Deliberately NOT applying the task preset on arrival. A preset scopes the
-  // view when the reviewer switches task - an explicit act. Applying it at load
-  // overrode whatever the bundle declared, and because a review-less bundle
-  // lands on "model" (which hides analysis_mesh and results), the composited
+  // Load takes the scene as the bundle declared it. Arrival used to have to
+  // resist a task preset deliberately; there is no task any more, so this is the
+  // rule everywhere: changing stage or section changes the lens, never the
+  // layers. The hazard is why - a review-less bundle used to land on a tab whose
+  // preset hid analysis_mesh and results, so a composited
   // geometry/mesh/sub-point/deformed view opened with three of its four bodies
-  // switched off on the very screen built to show them overlaid.
+  // switched off.
 }
 
 function render() {
@@ -396,15 +390,13 @@ function render() {
   renderMode();
   renderHeader();
   renderStatusStrip();
-  renderTaskRail();
+  renderRailChrome();
   renderDisplayStrip();
   renderViewportLegend();
-  renderModelControls();
   renderResultControls();
   renderDiagnostics();
   renderIssues();
   renderBuildIssues();
-  renderTaskPanel();
   renderProperties();
   renderScriptSelection();
   renderCanvas();
@@ -450,9 +442,11 @@ function restoreFocus(focus) {
   }
 }
 
-function renderTaskRail() {
+// The rail's own chrome: whether it and its toggle are shown, and the header
+// with them. There is no tab strip any more - the rail is one scrollable column
+// whose sections do not swap, so nothing here claims a "current" lens.
+function renderRailChrome() {
   const view = currentWorkspace();
-  dom.workflowTabs.replaceChildren();
   dom.taskRail.hidden = !view.railVisible;
   dom.railToggle.hidden = !view.railToggleVisible;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
@@ -461,46 +455,6 @@ function renderTaskRail() {
   dom.railToggle.setAttribute("aria-label", dom.railToggle.title);
   document.body.dataset.railOpen = String(railExpanded);
   dom.appHeader.hidden = !view.headerVisible;
-  for (const id of view.tabs) {
-    const task = WORKFLOW_TABS.find((candidate) => candidate.id === id);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "task-button";
-    button.dataset.task = id;
-    button.dataset.focusKey = `task:${id}`;
-    button.setAttribute("aria-current", id === view.task ? "page" : "false");
-    button.textContent = task.label;
-    button.addEventListener("click", () => activateTask(id));
-    button.addEventListener("keydown", (event) => {
-      const nextId = workflowTabForKey(currentState, id, event.key);
-      if (!nextId) return;
-      event.preventDefault();
-      activateTask(nextId);
-      dom.workflowTabs.querySelector(`[data-task="${nextId}"]`)?.focus();
-    });
-    dom.workflowTabs.append(button);
-  }
-}
-
-function activateTask(id) {
-  dispatch({ type: "activateTask", tabId: id });
-  selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
-  render();
-}
-
-
-
-function renderTaskPanel() {
-  dom.taskPanel.replaceChildren();
-  const home = {
-    model: dom.modelToolsHome,
-    results: dom.resultToolsHome,
-    diagnostics: dom.issueToolsHome
-  }[currentWorkspace().task];
-  if (home) {
-    home.hidden = false;
-    dom.taskPanel.append(home);
-  }
 }
 
 function renderSavedViews() {
@@ -592,11 +546,11 @@ function renderStatusChip() {
     dom.statusChip.append(alert);
   }
 
-  const target = alerts.length > 0 ? "diagnostics" : "model";
+  const target = alerts.length > 0 ? "issues" : "colour";
   dom.statusChip.dataset.statusTarget = target;
   dom.statusChip.setAttribute(
     "aria-label",
-    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review tasks`
+    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review rail`
   );
   dom.statusChip.onclick = () => {
     railExpanded = true;
@@ -605,8 +559,11 @@ function renderStatusChip() {
     // wrong driver and did nothing at all, while renderProjectStatusChip had
     // always gone through setMode.
     void setMode("review").then(() => {
-      const { tabs } = currentWorkspace();
-      activateTask(tabs.includes(target) ? target : tabs[0]);
+      render();
+      // The rail is one column now: bring the section the chip is talking about
+      // into view rather than claiming a lens.
+      const section = alerts.length > 0 ? dom.issueList : dom.colorBy;
+      section?.scrollIntoView?.({ block: "start" });
     });
   };
 }
@@ -617,64 +574,141 @@ function renderStatusChip() {
 
 
 
-function renderModelControls() {
-  if (!dom.modelControls || !dom.modelLegend) return;
-  dom.modelControls.replaceChildren();
-  dom.modelLegend.replaceChildren();
-  if (currentWorkspace().task !== "model") return;
+// The colouring selector encodes the two channels as option values: a model
+// mode carries MODEL_OPTION_PREFIX, a solver field is the field id verbatim
+// (which already names its own namespace), and a legacy scene's results - a
+// solver overlay with no catalogue entry to name - get the one stand-in value.
+const MODEL_OPTION_PREFIX = "model:";
+const LEGACY_RESULTS_OPTION = "results:legacy";
 
-  const mode = currentState.modelColorBy ?? "default";
-  dom.modelControls.append(railGroup("Colouring", mode === "default" ? "ROLE" : mode.toUpperCase()));
-  dom.modelControls.append(
-    propertyRow(
-      "Colour by",
-      plainSelect(mode, MODEL_COLOR_MODES, (value) => {
-        dispatch({ type: "setModelColorBy", colorBy: value });
-        render();
-      })
-    )
-  );
+// One control for what colours the scene, and the legend for whichever channel
+// owns it. The selector is pinned to the display strip rather than living in a
+// task panel, so the channel is chosen independently of the lens you are in -
+// the point of separating colouring from layer visibility.
+function renderColorBy() {
+  if (!dom.colorBy || !dom.colorLegend) return;
+  dom.colorBy.replaceChildren();
+  dom.colorLegend.replaceChildren();
+  const channel = colorChannelOf(currentState);
 
-  if (mode !== "default") {
-    const coloring = getModelColoring(currentState, mode);
-    if (coloring.items.length === 0) {
-      dom.modelLegend.append(metaLine("No model elements found."));
-      return;
-    }
-    const container = document.createElement("div");
-    container.className = "model-legend-list";
-    container.setAttribute("role", "list");
-    container.setAttribute("aria-label", `Colouring legend by ${mode}`);
-
-    for (const item of coloring.items) {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "model-legend-chip";
-      chip.setAttribute("role", "listitem");
-      chip.title = `Click to select ${item.count} elements with ${mode} "${item.label}"`;
-
-      const swatch = document.createElement("span");
-      swatch.className = "model-legend-swatch";
-      swatch.style.backgroundColor = item.color;
-
-      const label = document.createElement("span");
-      label.className = "model-legend-label";
-      label.textContent = item.label;
-
-      const tally = document.createElement("span");
-      tally.className = "model-legend-tally";
-      tally.textContent = String(item.count);
-
-      chip.append(swatch, label, tally);
-      chip.addEventListener("click", () => {
-        dispatch({ type: "selectObjects", objectIds: item.objectIds });
-        selectedObjectId = currentState.selectedObjectIds[0] ?? null;
-        render();
-      });
-      container.append(chip);
-    }
-    dom.modelLegend.append(container);
+  const modelOptions = MODEL_COLOR_MODES.map((mode) => ({
+    id: `${MODEL_OPTION_PREFIX}${mode.id}`,
+    label: mode.label,
+    group: "Model"
+  }));
+  const fieldOptions = getFieldOptions(currentState).map((field) => ({
+    id: field.id,
+    label: field.label,
+    group: "Results"
+  }));
+  // A legacy scene colours by a solver overlay with no field catalogue to name,
+  // so the Results group would otherwise be empty while the channel is results.
+  // One option stands in for it, labelled by the field actually tinting.
+  if (fieldOptions.length === 0 && channel === "results") {
+    fieldOptions.push({
+      id: LEGACY_RESULTS_OPTION,
+      label: getScalarLegend(currentState)?.field ?? "Results",
+      group: "Results"
+    });
   }
+  const activeFieldId = getActiveField(currentState)?.id;
+  const selected = channel === "results"
+    ? (fieldOptions.some((option) => option.id === activeFieldId) ? activeFieldId : fieldOptions[0]?.id)
+    : `model:${currentState.modelColorBy ?? "default"}`;
+  dom.colorBy.append(colorBySelect([...modelOptions, ...fieldOptions], selected));
+
+  if (channel === "results") {
+    // The full legend is the ramp over the viewport; this is the name of what
+    // is tinting the scene, stated where the choice is made.
+    const legend = getScalarLegend(currentState);
+    dom.colorLegend.append(metaLine(
+      legend ? `${legend.field} - see the ramp in the viewport` : "No result field to colour by."
+    ));
+    return;
+  }
+  const mode = currentState.modelColorBy ?? "default";
+  if (mode !== "default") {
+    dom.colorLegend.append(modelLegendChips(mode));
+  }
+}
+
+// A grouped selector: the two channels are optgroups, so a model property and a
+// solver field sit in one list with one current value.
+function colorBySelect(options, selected) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "field-select";
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", "Colour the scene by");
+  focusKeyFor(select, "Colour by");
+  for (const group of ["Model", "Results"]) {
+    const members = options.filter((option) => option.group === group);
+    if (members.length === 0) continue;
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group;
+    for (const option of members) {
+      const element = document.createElement("option");
+      element.value = option.id;
+      element.textContent = option.label;
+      element.selected = option.id === selected;
+      optgroup.append(element);
+    }
+    select.append(optgroup);
+  }
+  select.addEventListener("change", () => {
+    const value = select.value;
+    if (value.startsWith(MODEL_OPTION_PREFIX)) {
+      dispatch({ type: "setModelColorBy", colorBy: value.slice(MODEL_OPTION_PREFIX.length) });
+    } else if (value === LEGACY_RESULTS_OPTION) {
+      // The legacy Results stand-in: no field to choose, just the channel.
+      dispatch({ type: "setColorChannel", colorChannel: "results" });
+    } else {
+      dispatch({ type: "setColoringField", fieldId: value });
+    }
+    render();
+  });
+  wrapper.append(select);
+  return wrapper;
+}
+
+// What the model colours mean, and a way to select every element carrying one.
+function modelLegendChips(mode) {
+  const coloring = getModelColoring(currentState, mode);
+  if (coloring.items.length === 0) {
+    return metaLine("No model elements found.");
+  }
+  const container = document.createElement("div");
+  container.className = "model-legend-list";
+  container.setAttribute("role", "list");
+  container.setAttribute("aria-label", `Colouring legend by ${mode}`);
+
+  for (const item of coloring.items) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "model-legend-chip";
+    chip.setAttribute("role", "listitem");
+    chip.title = `Click to select ${item.count} elements with ${mode} "${item.label}"`;
+
+    const swatch = document.createElement("span");
+    swatch.className = "model-legend-swatch";
+    swatch.style.backgroundColor = item.color;
+
+    const label = document.createElement("span");
+    label.className = "model-legend-label";
+    label.textContent = item.label;
+
+    const tally = document.createElement("span");
+    tally.className = "model-legend-tally";
+    tally.textContent = String(item.count);
+
+    chip.append(swatch, label, tally);
+    chip.addEventListener("click", () => {
+      dispatch({ type: "selectObjects", objectIds: item.objectIds });
+      selectedObjectId = currentState.selectedObjectIds[0] ?? null;
+      render();
+    });
+    container.append(chip);
+  }
+  return container;
 }
 
 function renderResultControls() {
@@ -702,17 +736,11 @@ function renderResultControls() {
     return;
   }
 
-  dom.resultControls.append(railGroup("Colouring"));
-  if (fieldOptions.length > 0) {
-    const field = getActiveField(currentState);
-    // The one control here that keeps a full-width row: it is the longest string
-    // in the rail, and every other control on the task hangs off it.
-    dom.resultControls.append(
-      fieldSelect(field?.id ?? fieldOptions[0].id, fieldOptions, (value) => {
-        dispatch({ type: "setColoringField", fieldId: value });
-        render();
-      })
-    );
+  // The field itself is chosen in the pinned "Colour by" control; what is left
+  // here are the refinements that hang off it - the case and the component.
+  const showComponent = fieldOptions.length > 0 && componentIsSelectable(currentState);
+  if (loadCases.length > 0 || showComponent) {
+    dom.resultControls.append(railGroup("Colouring"));
   }
   if (loadCases.length > 0) {
     dom.resultControls.append(
@@ -725,7 +753,7 @@ function renderResultControls() {
       )
     );
   }
-  if (fieldOptions.length > 0 && componentIsSelectable(currentState)) {
+  if (showComponent) {
     const components = (getActiveField(currentState)?.components ?? ["magnitude"]).map((id) => ({ id, label: id }));
     dom.resultControls.append(
       propertyRow(
@@ -737,9 +765,9 @@ function renderResultControls() {
       )
     );
   }
-  // Only offered when the scene carries no field catalogue; with one, the field
-  // selector already picks the result state through its load case. A contact
-  // review names its own result state either way.
+  // Only offered when the scene carries no field catalogue; with one, the
+  // "Colour by" control already picks the result state through its load case. A
+  // contact review names its own result state either way.
   if ((isContactReview(currentState) || fieldOptions.length === 0) && resultStates.length > 0) {
     dom.resultControls.append(
       propertyRow(
@@ -1014,11 +1042,10 @@ function renderHeader() {
 
 function renderDisplayStrip() {
   dom.displayStrip.hidden = currentState.embed;
-  // What is drawn stays on screen whatever the task is. Hiding it on Results
-  // was a workaround for the result controls being capped at 30% of the rail;
-  // the cap is gone (.task-panel is flex: 0 0 auto and the strip scrolls), and
-  // the cost was that the Deformed toggle vanished exactly while its own scale
-  // control was on screen.
+  // What is drawn stays on screen: the rail is one column of sections now, so
+  // nothing is swapped out to make room and the Deformed toggle cannot vanish
+  // while its own scale control is on screen.
+  renderColorBy();
   renderBodyList();
   renderOverlayList();
   renderProjectionNote();
@@ -2199,7 +2226,7 @@ function renderProperties() {
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
   // The contact panel already owns shoe details; keep the viewport available
   // when selecting its row, especially on narrow screens.
-  const contactSelection = currentWorkspace().task === "results" && Object.keys(contactRecords(currentState))
+  const contactSelection = colorChannelOf(currentState) === "results" && Object.keys(contactRecords(currentState))
     .some(id => contactObjectId(currentState, id) === selectedObjectId);
   dom.inspector.hidden = contactSelection || (!summary && !issueSummary);
   if (contactSelection) return;
@@ -2802,17 +2829,6 @@ function plainSelect(value, options, onChange) {
   return select;
 }
 
-function fieldSelect(value, options, onChange) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "field-select";
-  const select = plainSelect(value, options, onChange);
-  // The band above names the group; the control still needs a name of its own.
-  select.setAttribute("aria-label", "Field");
-  focusKeyFor(select, "Field");
-  wrapper.append(select);
-  return wrapper;
-}
-
 function glyphIcon(name) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("width", "8");
@@ -2966,7 +2982,7 @@ dom.searchInput.addEventListener("keydown", (event) => {
 
 dom.railToggle.addEventListener("click", () => {
   railExpanded = !railExpanded;
-  renderTaskRail();
+  renderRailChrome();
 });
 
 // -- Build mode: model.py beside the scene ----------------------------------
@@ -3014,9 +3030,9 @@ async function initStudio(catalog) {
   setScriptText(result.code);
   await showStudioBundle(stage);
   dispatch({ type: "setStage", stage });
-  // Left on Model deliberately, which is where clicking Results from Build
-  // lands you too: this decides which stage opens, not what the rail opens on.
-  dispatch({ type: "activateTask", tabId: "model" });
+  // The rail opens on workflowState's default tab - Results for a solved review,
+  // Issues otherwise - so nothing here claims a task. This decides which stage
+  // opens, not what the rail opens on.
   render();
 }
 
@@ -3347,8 +3363,8 @@ async function handleSolveEvent(message) {
 // One stage transition, whether a studio runs model.py or a published bundle
 // shows the same pane frozen. The two used to be separate branches holding
 // separate copies of which stage we were in, and they had drifted: the studio
-// dispatched activateTask("model") - forcing a tab and taking the Model preset
-// - while the published path dispatched enterBuild and took the Build preset.
+// forced a workflow tab while the published path dispatched enterBuild, so the
+// same move took two actions and only one was tested.
 async function setMode(stage) {
   if (!studio.available && !sourceView.available) return;
   if (currentStage() === stage) return;

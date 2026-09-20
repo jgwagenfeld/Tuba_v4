@@ -224,10 +224,10 @@ Display strip          [x] Design         >   pipes · supports · loads · enve
                        [x] Annotations    >   clashes · rules · proposals
 ```
 
-The pinned display strip answers "what is drawn". The Results panel answers "what
-does it mean". Task visibility presets (`viewer/src/workflowState.js:30-35`)
-remap from their current five keys (`geometry`, `analysis_mesh`, `results`,
-`overlays`, `envelopes`) to the four categories.
+The pinned display strip answers "what is drawn". The pinned "Colour by" control
+answers "what does it mean". Visibility and colour are separated, so neither
+rewrites the other: task-level visibility presets were retired in favour of one
+stage default (Build), and the review's rail is a single column of sections.
 
 ## Backwards compatibility
 

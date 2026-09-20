@@ -115,11 +115,8 @@ test("assembled Pages keeps results accessible when WebGL2 is unavailable", asyn
   await expect(page.getByRole("status")).toHaveText("Results ready · 3D unavailable");
   await expect(page.locator("[data-canvas]")).toBeHidden();
 
-  await page
-    .getByRole("navigation", { name: "Engineering review tasks" })
-    .getByRole("button", { name: "Results", exact: true })
-    .click();
-  await expect(page.locator("[data-task-panel]")).toContainText("FE VMIS (not code stress)");
+  // The rail is one column; the colouring channel's legend names the field.
+  await expect(page.locator("[data-color-legend]")).toContainText("FE VMIS (not code stress)");
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
   expect(browserErrors).toEqual([]);

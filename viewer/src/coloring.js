@@ -80,26 +80,34 @@ export function setColoringLoadCase(state, loadCase) {
   const next = { ...(state.coloring ?? {}), loadCase: loadCase ?? null };
   const candidate = getResultFields(state).find((field) => field.load_case === loadCase);
   next.fieldId = candidate?.id ?? null;
-  return withCoherentColoring({ ...state, coloring: next });
+  // Choosing a case is choosing to colour by results, whatever lens is open.
+  return { ...withCoherentColoring({ ...state, coloring: next }), colorChannel: "results" };
 }
 
 export function setColoringField(state, fieldId) {
   const field = getResultFields(state).find((candidate) => candidate.id === fieldId);
-  return withCoherentColoring({
-    ...state,
-    coloring: {
-      ...(state.coloring ?? {}),
-      fieldId: fieldId ?? null,
-      loadCase: field?.load_case ?? state.coloring?.loadCase ?? null
-    }
-  });
+  return {
+    ...withCoherentColoring({
+      ...state,
+      coloring: {
+        ...(state.coloring ?? {}),
+        fieldId: fieldId ?? null,
+        loadCase: field?.load_case ?? state.coloring?.loadCase ?? null
+      }
+    }),
+    // Picking a field is choosing to colour by results, whatever lens is open.
+    colorChannel: "results"
+  };
 }
 
 export function setColoringComponent(state, component) {
-  return withCoherentColoring({
-    ...state,
-    coloring: { ...(state.coloring ?? {}), component: component ?? null }
-  });
+  return {
+    ...withCoherentColoring({
+      ...state,
+      coloring: { ...(state.coloring ?? {}), component: component ?? null }
+    }),
+    colorChannel: "results"
+  };
 }
 
 // Snap the triple back onto something that exists. Called on every change and

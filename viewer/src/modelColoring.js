@@ -1,4 +1,4 @@
-import { sceneTask } from "./workflowState.js";
+import { colorChannelOf } from "./workflowState.js";
 
 // Categorical color palette for model properties (Section, Material, Group, Insulation).
 // Accessible, high-contrast, visually distinct shades.
@@ -103,10 +103,9 @@ export function getModelColoring(state, mode = state?.modelColorBy || "default")
 export function getModelObjectColor(state, objectIds = []) {
   const mode = state?.modelColorBy;
   if (!mode || mode === "default") return null;
-  // The scene yields to the results channel when a results task governs it.
-  // Asked of the stage, not of the raw tab: Build inspects the built model, so
-  // model colouring holds there however the rail was left.
-  if (sceneTask(state) !== "model") return null;
+  // The model channel owns the tint only while it is the chosen channel. A
+  // result field governs otherwise, whichever lens the rail happens to show.
+  if (colorChannelOf(state) !== "model") return null;
 
   const ids = Array.isArray(objectIds) ? objectIds : [objectIds];
   const coloring = getModelColoring(state, mode);

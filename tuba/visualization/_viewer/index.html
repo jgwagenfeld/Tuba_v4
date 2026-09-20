@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-rP_9-zaH.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DfVnZTwH.css">
+    <script type="module" crossorigin src="./assets/index-CLuQAGAH.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Bh0f9kxH.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -110,7 +110,6 @@
         </section>
         <aside id="review-controls" class="cockpit-rail" data-task-rail hidden>
           <div class="rail-head">
-            <nav aria-label="Engineering review tasks" data-workflow-tabs></nav>
             <div class="rail-find">
               <input type="search" data-search aria-label="Search objects" placeholder="Find object, material, route" />
               <button type="button" class="find-dismiss" data-find-dismiss hidden aria-label="Close finder">✕</button>
@@ -118,35 +117,29 @@
           </div>
           <div class="display-strip" data-display-strip>
             <div class="rail-pane" data-bodies-pane>
-              <div class="task-panel" data-task-panel>
-                <div data-model-tools-home hidden>
-                  <section data-model-tools>
-                    <div class="result-controls" data-model-controls></div>
-                    <div class="model-legend" data-model-legend></div>
-                  </section>
+              <!-- One control for what colours the scene, whichever section you
+                   are reading. It owns the colouring channel that the Model task
+                   used to, so the channel is chosen independently of the rail. -->
+              <div data-color-block>
+                <div class="strip-heading">
+                  <h2>Colour by</h2>
                 </div>
-                <div data-result-tools-home>
-                  <!-- Four bands in reading order: what colours the scene, what
-                       that colour means, what shape it is drawn in, and where it
-                       peaks. Each renders its own heading with the state it is
-                       set to, so a band scrolled half off still says what it is
-                       doing. -->
-                  <section data-result-tools>
-                    <div class="result-controls" data-result-controls></div>
-                    <div class="result-legend" data-result-legend></div>
-                    <div class="result-controls" data-result-shape></div>
-                    <div data-hotspot-list></div>
-                  </section>
-                </div>
-                <section data-issue-tools-home>
-                  <h2>Issues</h2>
-                  <div data-issue-list></div>
-                  <section hidden data-diagnostic-list></section>
-                </section>
+                <div data-color-by></div>
+                <div data-color-legend></div>
               </div>
+              <!-- Four bands in reading order: what colours the scene, what that
+                   colour means, what shape it is drawn in, and where it peaks.
+                   Each renders its own heading with the state it is set to, so a
+                   band scrolled half off still says what it is doing. -->
+              <section data-result-tools>
+                <div class="result-controls" data-result-controls></div>
+                <div class="result-legend" data-result-legend></div>
+                <div class="result-controls" data-result-shape></div>
+                <div data-hotspot-list></div>
+              </section>
               <!-- What is drawn, in two bands. Bodies have extent, so they
                    carry an opacity; overlays are marks on the model, so they
-                   carry a scale. Both stay on screen whatever the task is. -->
+                   carry a scale. Both stay on screen whatever section is open. -->
               <div data-layers-block>
                 <div class="strip-heading">
                   <h2>Bodies</h2>
@@ -173,6 +166,14 @@
                   <div data-layer-list></div>
                 </details>
               </div>
+              <!-- Issues are a companion, not a destination: the list sits with
+                   the scene so a clash row and a result field are read together.
+                   Diagnostics fold away beneath it. -->
+              <section data-issue-tools-home>
+                <h2>Issues</h2>
+                <div data-issue-list></div>
+                <section hidden data-diagnostic-list></section>
+              </section>
               <p class="projection-note" data-projection-note></p>
               <section class="section-profile" aria-label="TUYAU section sub-point grid" data-section-profile></section>
               <div class="rail-spacer"></div>

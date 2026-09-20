@@ -3,30 +3,18 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { createWorkflowState, workflowTabForKey } from "../src/workflowState.js";
-
 const viewerRoot = new URL("..", import.meta.url);
 
 async function readViewerFile(...parts) {
   return readFile(new URL(path.posix.join(...parts), viewerRoot), "utf8");
 }
 
-test("workflow rendering keyboard navigation wraps and supports Home and End", () => {
-  const state = createWorkflowState({ review: { tables: {} } });
-
-  assert.equal(workflowTabForKey(state, "model", "ArrowLeft"), "diagnostics");
-  assert.equal(workflowTabForKey(state, "diagnostics", "ArrowRight"), "model");
-  assert.equal(workflowTabForKey(state, "results", "Home"), "model");
-  assert.equal(workflowTabForKey(state, "results", "End"), "diagnostics");
-  assert.equal(workflowTabForKey(state, "results", "Enter"), null);
-});
-
-test("workflow rendering styles real task buttons, horizontal tables, and visible focus", async () => {
+test("workflow rendering styles horizontal tables and visible focus", async () => {
   const css = await readViewerFile("src/styles.css");
 
-  assert.match(css, /\[data-workflow-tabs\]\s*\{/s);
-  assert.match(css, /\.task-button\[aria-current="page"\]/);
-  assert.doesNotMatch(css, /\.workflow-tab\b/);
+  // No tab strip any more: the rail is one scrollable column of sections.
+  assert.doesNotMatch(css, /\[data-workflow-tabs\]/);
+  assert.doesNotMatch(css, /\.task-button\b/);
   assert.match(css, /:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus-on-dark\)/s);
   assert.match(css, /\.viewport\s+:focus-visible\s*\{[^}]*outline-color:\s*var\(--focus-on-light\)/s);
   assert.match(css, /\.visually-hidden\s*\{[^}]*position:\s*absolute[^}]*clip:/s);
@@ -90,7 +78,6 @@ test("workflow rendering uses explicit labeled status, verdict, and severity bad
   const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");
 
-  assert.match(app, /className\s*=\s*"task-button"/);
   assert.match(app, /className\s*=\s*"status-badge"/);
   assert.match(app, /className\s*=\s*"severity-badge"/);
   assert.match(css, /\.status-badge\[data-status="solved"\]/);
@@ -129,14 +116,15 @@ test("workflow rendering parses embed once and pins reloads to the display workf
 
   assert.equal((app.match(/new URLSearchParams/g) ?? []).length, 1);
   assert.match(app, /const startupConfig\s*=/);
-  // Was a literal "3d". The embed destination is a named constant now, so a
-  // rename cannot leave this assertion quietly passing against a stale string.
-  assert.match(app, /activeTab:\s*EMBED_TASK_ID/);
+  // The embed destination is a stage, not a tab: carrying it no longer needs a
+  // task id no rail could ever offer.
+  assert.match(app, /stage:\s*"embed"/);
+  assert.doesNotMatch(app, /EMBED_TASK_ID/);
   assert.match(css, /\[data-embed="true"\]\s+\.app-header[\s\S]*display:\s*none/);
   assert.match(css, /\[data-embed="true"\]\s+\.cockpit-rail[\s\S]*display:\s*none/);
 });
 
-test("app renders a pinned display strip of bodies and applies presets", async () => {
+test("app renders a pinned display strip of bodies the reader owns", async () => {
   const app = await readViewerFile("src/app.js");
   assert.match(app, /data-display-strip|data-body-list/);
   assert.match(app, /renderDisplayStrip/);
@@ -145,20 +133,33 @@ test("app renders a pinned display strip of bodies and applies presets", async (
   assert.doesNotMatch(app, /\["Explore", \[/);
 });
 
-test("the coloring channel lives in the results panel, and nowhere else", async () => {
+test("the colouring channel is one pinned control, not a per-task panel", async () => {
   const app = await readViewerFile("src/app.js");
+  // One control writes both channels, and it lives in the pinned strip, so the
+  // channel is chosen independently of the lens that is open.
+  const colorBy = app.slice(
+    app.indexOf("function renderColorBy()"),
+    app.indexOf("function modelLegendChips(")
+  );
+  assert.ok(colorBy.length > 0);
+  assert.match(colorBy, /setModelColorBy/);
+  assert.match(colorBy, /setColoringField/);
+  assert.match(colorBy, /getFieldOptions\(currentState\)/);
+  // A legacy scene has no field catalogue, so a stand-in option keeps the
+  // Results channel reachable instead of leaving the selector stuck on Model.
+  assert.match(colorBy, /LEGACY_RESULTS_OPTION/);
+  assert.match(colorBy, /setColorChannel/);
+  // The result panel keeps only what hangs off the field, never the field.
   const resultControls = app.slice(
     app.indexOf("function renderResultControls()"),
     app.indexOf("function thresholdControl()")
   );
   assert.ok(resultControls.length > 0);
-  // The permanent bar above the viewport is gone: case, field, component and
-  // the deformation scale are result controls and belong to the Results task.
-  assert.match(resultControls, /setColoringField/);
+  assert.doesNotMatch(resultControls, /setColoringField/);
   assert.match(resultControls, /setColoringComponent/);
   assert.match(resultControls, /setActiveLoadCase/);
   assert.match(resultControls, /deformationControl\(\)/);
-  // Two controls for one selection is how they drift out of sync.
+  assert.doesNotMatch(app, /function renderModelControls\(\)/);
   assert.doesNotMatch(app, /function renderColoringBar\(\)/);
   assert.doesNotMatch(app, /data-coloring-bar/);
 });
@@ -212,20 +213,16 @@ test("the legend ramp is sampled from the function that tints the scene", async 
   assert.match(app, /function scalarRampGradient\(legend\)[\s\S]*colorForScalarValue\(/);
 });
 
-test("the bodies panel is the rail's primary content, not a window onto it", async () => {
+test("the rail is one scrollable column of sections, not swapped panels", async () => {
   const css = await readViewerFile("src/styles.css");
-  // Rail is a flex column: lookup tools on top, what-is-drawn below.
+  // Rail is a flex column: lookup tools on top, the sections below.
   assert.match(css, /\.cockpit-rail\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
-  // The task panel keeps its natural height and does not shrink. It must not
-  // scroll either: capping it at 30% with an overflow of its own put thirteen
-  // result controls behind a 200px window nested inside the pane's scrollbar.
-  assert.match(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*flex:\s*0 0 auto[^}]*\}/s);
-  assert.doesNotMatch(css, /\.cockpit-rail\s+\.task-panel\s*\{[^}]*(max-height|overflow)/s);
-  // With no cap on the task panel, nothing needs to be hidden to make room:
-  // what is drawn stays on screen whatever the task is. Hiding it on Results
-  // took the Deformed toggle away exactly while its own scale control was on
-  // screen.
+  // No task panel and no tab strip: nothing swaps, so nothing needs hiding to
+  // make room, and the Deformed toggle never vanishes while its scale control
+  // is on screen.
+  assert.doesNotMatch(css, /\.task-panel/);
   const app = await readViewerFile("src/app.js");
+  assert.doesNotMatch(app, /function renderTaskRail|function renderTaskPanel|function activateTask/);
   assert.doesNotMatch(app, /dom\.layersBlock\.hidden/);
   // Two bands, not one list: bodies have extent and carry an opacity, overlays
   // are marks on the model and carry a scale.
@@ -238,6 +235,10 @@ test("the bodies panel is the rail's primary content, not a window onto it", asy
   assert.match(markup, /data-overlay-list[\s\S]*class="strip-drawer layer-tree"[\s\S]*data-layer-list/);
   assert.doesNotMatch(markup, /rail-popover[\s\S]*data-layer-list/);
   assert.doesNotMatch(app, /\["layers", "All layers"\]/);
+  // Issues are a companion, not a destination: the list follows the layers in
+  // the same column, so a clash row and a result field are read together.
+  assert.match(markup, /data-layers-block[\s\S]*data-issue-list/);
+  assert.doesNotMatch(markup, /data-task-panel|data-workflow-tabs|data-result-tools-home/);
   // The strip takes the remaining height. A fixed cap here showed a third of
   // the bodies list through a 395px window.
   assert.match(css, /^\.display-strip\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0/ms);
@@ -253,13 +254,12 @@ test("the status chip carries exceptions only, and routes into the rail", async 
   assert.match(chip, /status\.warningCount > 0/);
   assert.doesNotMatch(chip, /governingLoadCase|governingRatio/);
 
-  // With the evidence dock gone the chip routes into the rail task that owns
-  // warnings, never into a tab list that no longer exists. It moves stage
-  // through setMode rather than assigning a driver's mode by hand, which for a
-  // published bundle sitting in Build used to set the wrong one and do nothing.
+  // The chip moves stage through setMode rather than assigning a driver's mode
+  // by hand, and brings the rail section it is talking about into view - there
+  // is no tab list to claim a lens in any more.
   assert.match(chip, /void setMode\("review"\)/);
-  assert.match(chip, /currentWorkspace\(\)/);
-  assert.match(chip, /activateTask\(/);
+  assert.match(chip, /scrollIntoView/);
+  assert.doesNotMatch(chip, /activateTask/);
   assert.doesNotMatch(app, /activateEvidence|evidenceExpanded/);
 });
 
@@ -315,7 +315,7 @@ test("controls rebuilt on every render carry a stable focus key", async () => {
   // element; these keys are how it is put back.
   assert.match(app, /function captureFocus\(\)/);
   assert.match(app, /function restoreFocus\(focus\)/);
-  for (const key of ["body:", "opacity:", "scope:", "object:", "task:", "bar:", "camera:"]) {
+  for (const key of ["body:", "opacity:", "scope:", "object:", "bar:", "camera:"]) {
     assert.ok(app.includes(`focusKey = \`${key}`), `no focus key for ${key}`);
   }
 });
@@ -414,7 +414,7 @@ test("a studio opens a solved project on its results, not on the script", async 
   assert.doesNotMatch(init, /hasReview && !studio\.reviewStale/, "nor re-derived inline");
   // The bundle has to follow the mode, or Results would draw the live model.
   assert.ok(init.includes("await showStudioBundle(stage);"), "the bundle follows the stage");
-  // Unchanged on purpose: this decides which mode opens, not what the rail
-  // opens on. Clicking Results from Build also leaves the task on Model.
-  assert.ok(init.includes('dispatch({ type: "activateTask", tabId: "model" });'));
+  // The rail's opening task comes from workflowState's default now, so the
+  // studio no longer claims one here.
+  assert.doesNotMatch(init, /activateTask/, "the studio does not claim a rail task");
 });

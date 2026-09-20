@@ -110,11 +110,6 @@ test("Build keeps a volume review's mesh and the review restores what the bundle
   assert.equal(state.layers["analysis_mesh:volume_skin"].visible, true);
 
   const build = reduceViewerState(state, { type: "setStage", stage: "build" });
-  // Build is a stage, not a task, so entering it no longer claims one. It used
-  // to set activeTab "model" purely to get past a preset table keyed by task
-  // id, which meant leaving Build dropped you on Model however you arrived -
-  // and workspaceView reports no active task outside the review stage anyway.
-  assert.equal(build.activeTab, state.activeTab, "entering Build leaves the review's task alone");
   // A volume review carries no procedural design geometry - the mesh skin is
   // the model - so Build keeps it rather than emptying the canvas.
   assert.equal(build.layers["analysis_mesh:volume_skin"].visible, true);
@@ -129,25 +124,20 @@ test("Build keeps a volume review's mesh and the review restores what the bundle
   assert.equal(review.layers["overlay:result_state"].visible, true);
 });
 
-// Verified end to end for a published bundle, where Build is only a view
-// change. A studio additionally swaps its build bundle in, and that bundle
-// cannot offer a review's task, so preserveViewerStateForReload still falls
-// back to Model on the way through - state discards the task the view is now
-// capable of guarding on its own. Fixing that means the remaining raw
-// activeTab readers move to workspaceView first.
-test("entering Build no longer resets the review's task", () => {
-  const onResults = reduceViewerState(
+// Build is a stage of the same scene, so it is a detour that leaves the rest of
+// the reader's state where it was - there is no task to fall back to.
+test("entering Build applies only the Build preset, leaving the colouring choice", () => {
+  const onModel = reduceViewerState(
     createViewerState(bundle()),
-    { type: "activateTask", tabId: "results" }
+    { type: "setModelColorBy", colorBy: "section" }
   );
-  assert.equal(onResults.activeTab, "results");
+  assert.equal(onModel.colorChannel, "model");
 
-  const andBack = reduceViewerState(
-    reduceViewerState(onResults, { type: "setStage", stage: "build" }),
-    { type: "resetLayerVisibility" }
-  );
+  const build = reduceViewerState(onModel, { type: "setStage", stage: "build" });
 
-  assert.equal(andBack.activeTab, "results", "Build is a detour, not a reset of where you were");
+  assert.equal(build.stage, "build");
+  assert.equal(build.colorChannel, "model", "the channel is the reader's, and survives the detour");
+  assert.equal(build.modelColorBy, "section");
 });
 
 test("reaction vectors can be hidden by result layer or solver overlay", () => {
@@ -249,19 +239,12 @@ test("viewer reducer fits the current selection through a camera request", () =>
   assert.deepEqual(fitted.camera.fitRequest.bounds, [0, 0, 0, 1, 0.1, 0.1]);
 });
 
-test("viewer reducer owns task and issue transitions", () => {
-  const review = { schema_version: "engineering_review.v1", analysis_status: "solved", tables: {} };
-  const initial = {
-    ...createViewerState(bundle({
-      issues: [{ id: "issue:clash", type: "clash", object_ids: ["object:clash"] }],
-    })),
-    ...createWorkflowState({ review }),
-  };
-  const task = reduceViewerState(initial, { type: "activateTask", tabId: "model" });
-  const issue = reduceViewerState(task, { type: "focusIssue", issueId: "issue:clash" });
+test("viewer reducer owns issue transitions", () => {
+  const state = createViewerState(bundle({
+    issues: [{ id: "issue:clash", type: "clash", object_ids: ["object:clash"] }],
+  }));
+  const issue = reduceViewerState(state, { type: "focusIssue", issueId: "issue:clash" });
 
-  assert.equal(task.activeTab, "model");
-  assert.equal(task.layers["result:hot"].visible, false);
   assert.equal(issue.activeIssueId, "issue:clash");
   assert.deepEqual(issue.selectedObjectIds, ["object:clash"]);
 });
@@ -364,7 +347,7 @@ test("live reload inherits a new overlay's visibility from the preserved kind la
   assert.ok(preserved.visibleOverlayIds.includes("overlay:result:hot"));
 });
 
-test("viewer state reload preserves a still-valid workflow tab and review controls", () => {
+test("viewer state reload preserves the colouring channel and review controls", () => {
   const review = {
     schema_version: "engineering_review.v1",
     analysis_status: "solved",
@@ -375,7 +358,7 @@ test("viewer state reload preserves a still-valid workflow tab and review contro
     ...createWorkflowState({ review, embed: false })
   };
   const selected = reduceViewerState(initial, { type: "selectObjects", objectIds: ["object:cold"] });
-  const previous = reduceViewerState(selected, { type: "activateTask", tabId: "results" });
+  const previous = reduceViewerState(selected, { type: "setModelColorBy", colorBy: "section" });
   const nextState = {
     ...createViewerState({ ...bundle(), review, legacyReview: false }),
     ...createWorkflowState({ review, embed: false })
@@ -383,11 +366,13 @@ test("viewer state reload preserves a still-valid workflow tab and review contro
 
   const preserved = preserveViewerStateForReload(previous, nextState);
 
-  assert.equal(previous.activeTab, "results");
+  assert.equal(previous.colorChannel, "model");
+  assert.equal(previous.modelColorBy, "section");
   assert.deepEqual(previous.selectedObjectIds, ["object:cold"]);
   assert.equal(previous.activeLoadCase, "Hot");
   assert.equal(previous.activeResultStateId, "result_state:Hot");
-  assert.equal(preserved.activeTab, "results");
+  assert.equal(preserved.colorChannel, "model");
+  assert.equal(preserved.modelColorBy, "section");
   assert.deepEqual(preserved.selectedObjectIds, ["object:cold"]);
   assert.equal(preserved.activeLoadCase, "Hot");
   assert.equal(preserved.activeResultStateId, "result_state:Hot");
@@ -488,4 +473,13 @@ test("reduceViewerState handles setBodyOpacity action", () => {
     opacity: 0.35
   });
   assert.equal(updated.bodyOpacity.geometry, 0.35);
+});
+
+test("reduceViewerState handles setColorChannel action", () => {
+  const state = createViewerState(bundle());
+  const results = reduceViewerState(state, { type: "setColorChannel", colorChannel: "results" });
+  assert.equal(results.colorChannel, "results");
+  // Choosing a model property colour takes the channel back.
+  const model = reduceViewerState(results, { type: "setModelColorBy", colorBy: "section" });
+  assert.equal(model.colorChannel, "model");
 });
