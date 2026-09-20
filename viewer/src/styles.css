@@ -390,6 +390,13 @@ textarea,
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* render() rebuilds the whole rail with replaceChildren(), so the browser's
+     scroll anchoring keeps losing its anchor node and re-choosing one further
+     down the column. Committing the deform scale scrolled the rail ~870px to
+     the issues section for exactly this reason. The app owns what persists
+     across a rebuild (see captureFocus/restoreFocus), so anchoring must not
+     second-guess it. */
+  overflow-anchor: none;
   border-top: 1px solid var(--graphite-line);
   padding: 0.5rem 0.75rem;
   display: grid;
@@ -2915,8 +2922,9 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   padding: 0 0.85rem;
 }
 
-/* Drag handle on the script pane's right edge: the pane keeps the 3D view's
-   width via --controls-width, set on the pane itself so it wins over the default. */
+/* Drag handle on the script pane's right edge. A drag writes --controls-width
+   on the workspace, which is what reserves the pane's width for the viewport
+   (padding-left), so the scene grows exactly as the pane shrinks. */
 .code-resize {
   position: absolute;
   top: 0;

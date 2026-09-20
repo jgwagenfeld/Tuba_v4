@@ -279,7 +279,12 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
     typeof ResizeObserver === "undefined"
       ? null
       : new ResizeObserver(() => {
-          if (syncCanvasSize()) redrawScene();
+          if (!syncCanvasSize()) return;
+          // setSize clears the drawing buffer. redrawScene defers to the next
+          // animation frame, so the paint in between shows the cleared buffer -
+          // a black flash on every step of a panel-edge drag. Draw in the same
+          // callback, before that paint.
+          if (currentGraph) drawFrame(currentGraph);
         });
   resizeObserver?.observe(canvas);
   const graphCache = createSceneGraphCache(
@@ -445,6 +450,13 @@ export function createCameraFitController(camera, controls = null) {
 // How far from a line, in screen pixels, a click still lands on it.
 const PICK_LINE_TOLERANCE_PX = 6;
 
+// Support glyphs and load arrows are small annotations that sit on or inside the
+// structure they mark, so a pipe or beam surface is nearer the camera and raycast
+// reports it first - clicking a support selected the pipe under it, and a click
+// that was meant to move the selection looked like it did nothing. A glyph that
+// the ray touches therefore wins over the structural geometry behind it.
+const PICK_PRIORITY_ANNOTATION = 1;
+
 export function pickRenderedObject(graph, point, viewport) {
   if (!graph?.camera || !graph.renderableObjects?.length) {
     return null;
@@ -464,6 +476,7 @@ export function pickRenderedObject(graph, point, viewport) {
     (object) => object.visible !== false && object.userData?.pickable !== false && object.userData?.format !== "tuyau_subpoint_glyphs"
   );
   const intersections = raycaster.intersectObjects(raycastTargets, true);
+  let fallbackObjectId = null;
   for (const intersection of intersections) {
     // Raycasting ignores clipping planes: without this a click picked geometry
     // the section box had already cut away.
@@ -472,14 +485,20 @@ export function pickRenderedObject(graph, point, viewport) {
       continue;
     }
     const objectId = intersection.object.userData?.primaryObjectId || intersection.object.userData?.objectId;
-    if (objectId) {
+    if (!objectId) {
+      continue;
+    }
+    if (intersection.object.userData?.pickPriority === PICK_PRIORITY_ANNOTATION) {
       return objectId;
+    }
+    if (fallbackObjectId === null) {
+      fallbackObjectId = objectId;
     }
   }
   // A miss selects nothing. It used to fall back to the object whose bounds
   // centre projected nearest the click, which for a long pipe run is nowhere
   // near where it is drawn - a near-miss selected something across the model.
-  return null;
+  return fallbackObjectId;
 }
 
 // World size of one screen pixel. Exact for the app's orthographic camera; a
@@ -580,6 +599,13 @@ function hasAllVisibleAssets(graph, state) {
     .every((asset) => cachedAssetIds.has(asset.id));
 }
 
+// What a hovered and a selected object are painted. Lit materials carry the
+// state in their emissive channel; a support glyph or a load arrow is drawn
+// with a basic material that has none, so it takes the state on its base
+// colour instead and would otherwise never react to the cursor at all.
+const HOVER_HIGHLIGHT = 0x1d4ed8;
+const SELECT_HIGHLIGHT = 0xf59e0b;
+
 export function applyHoverHighlight(graph, objectId) {
   if (graph.highlightedObjectId === (objectId ?? null)) {
     return graph;
@@ -592,15 +618,8 @@ export function applyHoverHighlight(graph, objectId) {
 
 function setObjectHover(object, hovered) {
   if (!object) return;
-  object.userData.hovered = hovered;
   object.traverse((child) => {
-    child.userData.hovered = hovered;
-    const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
-    for (const material of materials) {
-      if (material.emissive) {
-        material.emissive.setHex(hovered ? 0x1d4ed8 : child.userData.selected ? 0xf59e0b : 0x000000);
-      }
-    }
+    setChildHighlight(child, hovered, child.userData.selected === true);
   });
 }
 
@@ -611,16 +630,39 @@ export function applySelectionHighlight(graph, objectIds = []) {
     const selected = (object.userData.objectIds ?? []).some((objectId) => selectedIds.has(objectId));
     object.userData.selected = selected;
     object.traverse((child) => {
-      child.userData.selected = selected;
-      const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
-      for (const material of materials) {
-        if (material.emissive) {
-          material.emissive.setHex(selected ? 0xf59e0b : 0x000000);
-        }
-      }
+      setChildHighlight(child, child.userData.hovered === true, selected);
     });
   }
   return graph;
+}
+
+// Hover outranks selection, in both channels, so a render triggered while the
+// cursor rests on a selected object cannot clear the blue back to amber.
+function setChildHighlight(child, hovered, selected) {
+  child.userData.hovered = hovered;
+  child.userData.selected = selected;
+  const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+  for (const material of materials) {
+    setMaterialHighlight(material, hovered, selected, child);
+  }
+}
+
+function setMaterialHighlight(material, hovered, selected, object) {
+  const highlighted = hovered ? HOVER_HIGHLIGHT : selected ? SELECT_HIGHLIGHT : null;
+  if (material.emissive) {
+    material.emissive.setHex(highlighted ?? 0x000000);
+    return;
+  }
+  // Sprites paint their own texture, and an instanced glyph's per-instance
+  // colour would multiply against a tint until a value ramp stopped reading as
+  // values. Both keep their colour and carry the state in userData alone.
+  if (!material.color || material.isSpriteMaterial || object?.isInstancedMesh || material.vertexColors) {
+    return;
+  }
+  if (!Object.hasOwn(material.userData, "baseColorHex")) {
+    material.userData.baseColorHex = material.color.getHex();
+  }
+  material.color.setHex(highlighted ?? material.userData.baseColorHex);
 }
 
 // Half-extents of the bounds as they actually project onto the screen for one
@@ -1360,6 +1402,7 @@ function createSupportGlyph(asset, config, format, point, state) {
   glyph.position.copy(point);
   glyph.renderOrder = 20;
   glyph.userData.supportGlyph = "dof";
+  glyph.userData.pickPriority = PICK_PRIORITY_ANNOTATION;
   glyph.userData.supportType = supportType;
   // Second channel: what the restraint acts against. Geometry, not color -
   // color already says what is restrained (gold/blue/orange).
@@ -1652,6 +1695,7 @@ function createVector(asset, config, format, state) {
     const moment = new THREE.Group();
     moment.position.copy(start);
     moment.quaternion.setFromUnitVectors(localAxis, unitDirection);
+    moment.userData.pickPriority = PICK_PRIORITY_ANNOTATION;
 
     const axis = new THREE.ArrowHelper(localAxis, new THREE.Vector3(), length, color, headLength, headWidth);
     axis.name = "moment-axis";
@@ -1702,6 +1746,7 @@ function createVector(asset, config, format, state) {
     headLength,
     headWidth
   );
+  arrow.userData.pickPriority = PICK_PRIORITY_ANNOTATION;
 
   const badgeText = formatLoadBadgeText("force", config);
   if (badgeText) {
@@ -1730,6 +1775,7 @@ function createLineLoadComb(asset, config, format, state) {
   }
   const color = colorForAsset(asset, config);
   const combGroup = new THREE.Group();
+  combGroup.userData.pickPriority = PICK_PRIORITY_ANNOTATION;
 
   for (let index = 0; index < starts.length; index += 1) {
     const start = starts[index];
@@ -1940,6 +1986,9 @@ function setRenderMetadata(object, asset, format) {
     assetId: asset.id,
     bounds: asset.bounds ?? null,
     format,
+    // Every level carries the glyph's pick priority, not just its root: the ray
+    // hits the cone or arrow child, never the group.
+    pickPriority: object.userData?.pickPriority ?? 0,
     objectId: asset.object_ids?.[0] ?? null,
     objectIds: [...(asset.object_ids ?? [])],
     primaryObjectId: asset.object_ids?.[0] ?? null
@@ -2359,7 +2408,7 @@ function addContactMarkers(root, state) {
     const location = readPoint(config.point ?? config.location) ?? centerOfBounds(asset.bounds);
     if (!location) continue;
     const group = new THREE.Group(); group.position.copy(location);
-    group.userData = { objectIds: [objectId], format: "vector", contactStatus: contact.status };
+    group.userData = { objectIds: [objectId], format: "vector", contactStatus: contact.status, pickPriority: PICK_PRIORITY_ANNOTATION };
     const color = contact.utilization > 1.001 ? 0xdc2626 : CONTACT_COLORS[contact.status] ?? CONTACT_COLORS.indeterminate;
     const material = new THREE.MeshBasicMaterial({ color, depthTest: false });
     // Sticking is the resting state, and the shoe already says so twice: its pad
@@ -2381,7 +2430,7 @@ function addContactMarkers(root, state) {
       const arrow = new THREE.ArrowHelper(direction.normalize(), new THREE.Vector3(), size * 8 * force / maxima[quantity], color);
       arrow.userData.contactForce = quantity; group.add(arrow);
     }
-    group.traverse((child) => { child.userData.objectIds = [objectId]; child.userData.primaryObjectId = objectId; child.renderOrder = 30; });
+    group.traverse((child) => { child.userData.objectIds = [objectId]; child.userData.primaryObjectId = objectId; child.userData.pickPriority = PICK_PRIORITY_ANNOTATION; child.renderOrder = 30; });
     root.add(group);
   }
 }

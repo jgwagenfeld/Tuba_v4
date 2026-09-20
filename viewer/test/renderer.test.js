@@ -1427,6 +1427,52 @@ test("pickRenderedObject resolves parts nested below an asset's direct children"
   assert.equal(pickRenderedObject(graph, { x: 250, y: 225 }, PICK_VIEWPORT), "object:moment");
 });
 
+// A support sits on the pipe it marks and its block is drawn inside the pipe
+// wall, so the nearer pipe surface took the click. A click meant to move the
+// selection landed on the pipe that was already selected and looked like it did
+// nothing.
+test("pickRenderedObject prefers a support glyph over the pipe it sits inside", () => {
+  const graph = pickGraph([
+    {
+      id: "geometry:pipe",
+      format: "tube",
+      bounds: [-5, -0.1, -0.1, 5, 0.1, 0.1],
+      object_ids: ["object:pipe"],
+      generation_config: { points: [[-5, 0, 0], [5, 0, 0]], radius_m: 0.1, source: "tuba.element" }
+    },
+    {
+      id: "geometry:support",
+      format: "point",
+      bounds: [0, 0, 0, 0, 0, 0],
+      object_ids: ["object:support"],
+      generation_config: { point: [0, 0, 0], source: "tuba.support", support_type: "anchor" }
+    }
+  ]);
+
+  assert.equal(pickRenderedObject(graph, AT_MARKER, PICK_VIEWPORT), "object:support");
+});
+
+test("pickRenderedObject prefers a load arrow over the pipe beneath it", () => {
+  const graph = pickGraph([
+    {
+      id: "geometry:pipe",
+      format: "tube",
+      bounds: [-5, -0.1, -0.1, 5, 0.1, 0.1],
+      object_ids: ["object:pipe"],
+      generation_config: { points: [[-5, 0, 0], [5, 0, 0]], radius_m: 0.1, source: "tuba.element" }
+    },
+    {
+      id: "geometry:load",
+      format: "vector",
+      bounds: [0, 0, 0, 0, 0, 2],
+      object_ids: ["object:load"],
+      generation_config: { start: [0, 0, 0], end: [0, 0, 2], source: "tuba.solver_results", vector_kind: "force" }
+    }
+  ]);
+
+  assert.equal(pickRenderedObject(graph, AT_MARKER, PICK_VIEWPORT), "object:load");
+});
+
 test("applyHoverHighlight records hover target and marks matching materials", () => {
   const graph = createThreeSceneGraph(fixtureState());
 
@@ -1456,6 +1502,65 @@ test("clearing hover preserves an existing selection highlight", () => {
   applyHoverHighlight(graph, "object:issue");
 
   assert.equal(graph.objectsByObjectId.get("object:pipe").material.emissive.getHex(), 0xf59e0b);
+});
+
+test("hover tints a support glyph the emissive channel cannot reach", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 2, 1, 1],
+    geometryAssets: [
+      {
+        id: "geometry:support:anchor",
+        format: "point",
+        bounds: [0, 0, 0, 0, 0, 0],
+        object_ids: ["object:support:anchor"],
+        generation_config: { point: [0, 0, 0], source: "tuba.support", support_type: "anchor" }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:support:anchor"]
+  });
+  const block = graph.objectsByObjectId
+    .get("object:support:anchor")
+    .children.find((part) => part.userData.supportPart === "fixed-block");
+  assert.equal(block.material.color.getHex(), 0xdaa520);
+
+  applyHoverHighlight(graph, "object:support:anchor");
+  assert.equal(block.userData.hovered, true);
+  assert.equal(block.material.color.getHex(), 0x1d4ed8);
+
+  // Hover outranks selection, so a render while the cursor rests here keeps it
+  // blue rather than dropping it back to the selection amber.
+  applySelectionHighlight(graph, ["object:support:anchor"]);
+  assert.equal(block.material.color.getHex(), 0x1d4ed8);
+
+  applyHoverHighlight(graph, null);
+  assert.equal(block.material.color.getHex(), 0xf59e0b);
+});
+
+test("selection tints and then restores a load arrow drawn with basic materials", () => {
+  const graph = createThreeSceneGraph({
+    bounds: [0, -1, -1, 0, 1, 1],
+    geometryAssets: [
+      {
+        id: "geometry:load",
+        format: "vector",
+        bounds: [0, 0, 0, 0, 0, 1],
+        object_ids: ["object:load"],
+        generation_config: { start: [0, 0, 0], end: [0, 0, 1], source: "applied_loads", vector_kind: "force", magnitude: 100 }
+      }
+    ],
+    geometryPayloads: [],
+    visibleObjectIds: ["object:load"]
+  });
+  const arrow = graph.objectsByObjectId.get("object:load");
+
+  applySelectionHighlight(graph, ["object:load"]);
+  assert.equal(arrow.cone.material.color.getHex(), 0xf59e0b);
+  assert.equal(arrow.line.material.color.getHex(), 0xf59e0b);
+
+  applySelectionHighlight(graph, []);
+  assert.equal(arrow.cone.material.color.getHex(), 0xc026d3, "the authored colour returns");
+  assert.equal(arrow.line.material.color.getHex(), 0xc026d3);
 });
 
 test("applySelectionHighlight marks focused clash review objects", () => {

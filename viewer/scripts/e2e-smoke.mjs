@@ -375,6 +375,34 @@ const scenarios = {
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
       assert.equal(await page.evaluate(() => window.__tubaViewer?.state?.visualDeformationScale), draggedValue);
 
+      // Committing the scale rebuilds the whole rail with replaceChildren(). The
+      // browser's scroll anchoring used to re-anchor ~810px further down the
+      // column and dump the reader on the issues list. Centre the slider (the
+      // position that used to jump), then confirm the rebuild leaves the rail
+      // where it was instead of jumping a whole section.
+      await page.evaluate(() => {
+        const strip = document.querySelector("[data-display-strip]");
+        const input = strip.querySelector('[data-focus-key="deform-scale"]');
+        const offset = input.getBoundingClientRect().top - strip.getBoundingClientRect().top + strip.scrollTop;
+        strip.scrollTop = Math.max(0, offset - strip.clientHeight / 2);
+      });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      await slider.focus();
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      const rail = page.locator("[data-display-strip]");
+      const railScrollTop = await rail.evaluate((element) => element.scrollTop);
+      await slider.evaluate((input) => {
+        input.value = input.value === "45" ? "46" : "45";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      const railDrift = Math.abs((await rail.evaluate((element) => element.scrollTop)) - railScrollTop);
+      assert.ok(
+        railDrift < 120,
+        `committing the deform scale jumped the rail ${railDrift}px (it must not move the reader off the control)`
+      );
+
       const settled = await framebufferSnapshot(page.locator("[data-canvas]"));
       await page.getByRole("button", { name: /Animate/ }).click();
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));

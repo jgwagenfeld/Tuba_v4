@@ -141,6 +141,7 @@ const dom = {
   resetView: document.querySelector("[data-reset-view]"),
   cameraControls: document.querySelector("[data-camera-controls]"),
   canvas: document.querySelector("[data-canvas]"),
+  workspace: document.querySelector("[data-viewer-workspace]"),
   viewport: document.querySelector(".viewport"),
   gallery: document.querySelector("[data-gallery]"),
   galleryLink: document.querySelector("[data-gallery-link]"),
@@ -2683,6 +2684,19 @@ dom.canvas.addEventListener("mousemove", (event) => {
   });
 });
 
+// Without this a highlight outlives the pointer. A stale hover used to be wiped
+// by the next render; now that hover outranks selection - so a render while the
+// cursor rests on an object cannot drop it - the leave has to clear it itself,
+// or the last object hovered stayed tinted after the cursor left the canvas.
+dom.canvas.addEventListener("mouseleave", () => {
+  pendingHoverPoint = null;
+  if (hoveredObjectId === null) return;
+  hoveredObjectId = null;
+  dom.canvas.dataset.hoverObjectId = "";
+  if (lastRenderGraph) applyHoverHighlight(lastRenderGraph, null);
+  viewportRenderer?.redraw();
+});
+
 // Severity is three-valued, not two. It was a boolean, so a render warning had
 // to pass `true` and came out in the error treatment: a red-bordered chip that
 // was the loudest thing in the header, for diagnostics that do not stop
@@ -3107,6 +3121,9 @@ function renderMode() {
   const view = currentWorkspace();
   document.body.dataset.studio = String(studio.available);
   document.body.dataset.mode = view.stage === "build" ? "build" : "review";
+  // The stage decides whether a dragged script width applies, so it is applied
+  // where the stage is decided rather than once at startup.
+  syncCodePaneWidth();
   dom.modeSwitch.hidden = !(studio.available || sourceView.available) || currentState.embed;
   for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
     button.setAttribute("aria-pressed", String(button.dataset.mode === document.body.dataset.mode));
@@ -3710,33 +3727,54 @@ dom.codeRun.addEventListener("click", () => void runScript());
 const CODE_PANE_MIN_PX = 300;
 const CODE_PANE_WIDTH_KEY = "tuba.codePaneWidthPx";
 
+// The width has to be set on the workspace, not the pane. The workspace's
+// padding-left reserves the same --controls-width the pane is drawn at, so a
+// width set on the pane alone moved the pane and left the reservation behind:
+// the strip between the two showed as a band beside the viewport that never
+// gave the scene any room.
 function clampCodePaneWidth(px) {
   return Math.min(Math.max(Math.round(px), CODE_PANE_MIN_PX), Math.floor(window.innerWidth * 0.75));
 }
 
-function applyCodePaneWidth(px) {
-  dom.codePane.style.setProperty("--controls-width", `${clampCodePaneWidth(px)}px`);
+function storedCodePaneWidth() {
   try {
-    window.localStorage.setItem(CODE_PANE_WIDTH_KEY, String(clampCodePaneWidth(px)));
+    const stored = Number.parseInt(window.localStorage.getItem(CODE_PANE_WIDTH_KEY) ?? "", 10);
+    return Number.isFinite(stored) ? clampCodePaneWidth(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+let codePaneWidthPx = storedCodePaneWidth();
+
+// Build only: the width is the script pane's, and Review's rail keeps its own
+// default rather than taking a width dragged for a different panel.
+function syncCodePaneWidth() {
+  if (codePaneWidthPx != null && document.body.dataset.mode === "build") {
+    dom.workspace.style.setProperty("--controls-width", `${codePaneWidthPx}px`);
+  } else {
+    dom.workspace.style.removeProperty("--controls-width");
+  }
+}
+
+function applyCodePaneWidth(px) {
+  codePaneWidthPx = clampCodePaneWidth(px);
+  syncCodePaneWidth();
+  try {
+    window.localStorage.setItem(CODE_PANE_WIDTH_KEY, String(codePaneWidthPx));
   } catch {
     // Private browsing and the like: the drag still works for this visit.
   }
 }
 
 function resetCodePaneWidth() {
-  dom.codePane.style.removeProperty("--controls-width");
+  codePaneWidthPx = null;
+  syncCodePaneWidth();
   try {
     window.localStorage.removeItem(CODE_PANE_WIDTH_KEY);
   } catch {
     // Nothing persisted, nothing to clear.
   }
-}
-
-try {
-  const stored = Number.parseInt(window.localStorage.getItem(CODE_PANE_WIDTH_KEY) ?? "", 10);
-  if (Number.isFinite(stored)) dom.codePane.style.setProperty("--controls-width", `${clampCodePaneWidth(stored)}px`);
-} catch {
-  // No stored width: the stylesheet default applies.
 }
 
 dom.codeResize.addEventListener("pointerdown", (event) => {
