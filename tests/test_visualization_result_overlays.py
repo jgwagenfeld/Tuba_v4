@@ -324,6 +324,13 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(overlay.data["compliance_role"], "visualization_only_not_asme_code_stress")
         self.assertNotIn("render_limit", overlay.data)
         self.assertEqual(overlay.data["range"], {"min": 42.0e6, "max": 84.0e6})
+        # A sub-point field is an element field: each pipe segment carries its
+        # governing (peak) value under its own object id, so the pipe tints, not
+        # only the sub-point glyphs.
+        self.assertEqual(
+            overlay.data["values"],
+            {subpoint.id: 84.0e6, "object:element:pipe_0": 84.0e6},
+        )
         self.assertEqual(overlay.data["source_file"], "study_sieq.csv")
         self.assertEqual(overlay.data["position_source"], "code_aster_tuyau_subpoint_formula")
         # The sub-point grid and the peak's place in the wall, decoded from the

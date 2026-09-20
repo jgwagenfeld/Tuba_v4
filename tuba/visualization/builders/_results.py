@@ -809,6 +809,7 @@ def _result_state_tuyau_subpoint_scene(
         return [], [], None, diagnostics
 
     value_range = {"min": min(values), "max": max(values)}
+    element_values = _tuyau_subpoint_element_values(element_ids, values)
     position_source = position_sources.pop() if len(position_sources) == 1 else "mixed"
     # Describe the sub-point grid only when every row agrees on it. A run that
     # mixed two TUYAU discretisations has no single rosette to draw, so the
@@ -895,7 +896,7 @@ def _result_state_tuyau_subpoint_scene(
             "compliance_role": tuyau_role,
             "total_count": len(rows),
             "rendered_count": len(starts),
-            "values": {object_id: max(values)},
+            "values": {object_id: max(values), **element_values},
             "range": value_range,
             "hotspots": _tuyau_subpoint_hotspots(
                 object_id, row_indices, values, element_ids, subpoint_indices, sector_indices, layer_indices
@@ -915,6 +916,26 @@ def _result_state_tuyau_subpoint_scene(
     if peak is not None:
         overlay.data["peak"] = peak
     return objects, assets, overlay, diagnostics
+def _tuyau_subpoint_element_values(
+    element_ids: list[str],
+    values: list[float],
+) -> dict[str, float]:
+    """Each element's governing (peak) sub-point value, keyed by its scene object.
+
+    A sub-point field is an element field, so it follows the piping-software
+    convention of one flat colour per element: the pipe segment tints by its
+    worst sub-point. Binding the value to the element object is what lets the
+    pipe carry the field at all - the glyph asset alone is a separate mesh, and
+    a scalar keyed only to it leaves the pipe on its base role colour.
+    """
+    governing: dict[str, float] = {}
+    for element_id, value in zip(element_ids, values):
+        if not element_id:
+            continue
+        key = _object_id(EntityRef("element", element_id))
+        current = governing.get(key)
+        governing[key] = value if current is None else max(current, value)
+    return governing
 def _tuyau_subpoint_hotspots(
     object_id: str,
     row_indices: list[int],
