@@ -17,6 +17,14 @@
           "kind": "support"
         }
       },
+      "CONTACT_8": {
+        "element_id": "CONTACT_8",
+        "role": "contact_connector",
+        "source_ref": {
+          "id": "support_8",
+          "kind": "support"
+        }
+      },
       "pipe_str_0": {
         "element_id": "pipe_str_0",
         "role": "native_element",
@@ -779,6 +787,10 @@
         "GROUND_7",
         "N13"
       ],
+      "CONTACT_8": [
+        "GROUND_8",
+        "N14"
+      ],
       "pipe_str_0": [
         "N10",
         "N11"
@@ -1143,6 +1155,9 @@
       "CONTACT_7": [
         "CONTACT_7"
       ],
+      "CONTACT_8": [
+        "CONTACT_8"
+      ],
       "GN_N0": [
         "N0"
       ],
@@ -1181,6 +1196,9 @@
       ],
       "GROUND_7": [
         "GROUND_7"
+      ],
+      "GROUND_8": [
+        "GROUND_8"
       ],
       "G_TUBE": [
         "rack_A_beam_0_s0",
@@ -1570,6 +1588,7 @@
       "AllPipes": "TUYAU_3M",
       "CONTACT_6": "DIS_T",
       "CONTACT_7": "DIS_T",
+      "CONTACT_8": "DIS_T",
       "G_TUBE": "POU_D_T"
     },
     "node_sources": {
@@ -1586,6 +1605,14 @@
         "role": "contact_ground",
         "source_ref": {
           "id": "support_7",
+          "kind": "support"
+        }
+      },
+      "GROUND_8": {
+        "node_id": "GROUND_8",
+        "role": "contact_ground",
+        "source_ref": {
+          "id": "support_8",
           "kind": "support"
         }
       },
@@ -2461,6 +2488,11 @@
         0.0,
         2.25
       ],
+      "GROUND_8": [
+        6.0,
+        0.0,
+        2.25
+      ],
       "N0": [
         0.0,
         -1.0,
@@ -2909,7 +2941,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "6665459c28210923ce9f05d6a06ab6977f3b3ce85c05bea5db38a4a3f12513b4",
+      "fingerprint": "f93c01a14e985ca4845b10eff9d3778d86574d8ec79561533b2e18b5bf81b210",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -2946,7 +2978,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "6665459c28210923ce9f05d6a06ab6977f3b3ce85c05bea5db38a4a3f12513b4",
+      "fingerprint": "f93c01a14e985ca4845b10eff9d3778d86574d8ec79561533b2e18b5bf81b210",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

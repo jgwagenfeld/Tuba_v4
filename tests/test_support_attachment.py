@@ -152,17 +152,25 @@ class AttachedExport(unittest.TestCase):
 
 
 class RackExampleEvidence(unittest.TestCase):
-    def test_the_rack_example_pipe_slides_on_two_shoes_that_load_the_rack(self):
+    def test_the_rack_example_pipe_rests_on_two_shoes_that_load_the_rack(self):
         project = Path(__file__).resolve().parents[1] / "examples" / "support-rack-review"
         model = load_project(project).run_model()["model"]
         run = import_code_aster_artifacts(model=model, work_dir=project / "evidence" / "Operating")
-        shoes = [run.results.contact_results[support.id] for support in model.supports if support.type == "rest"]
+        # Only the two shoes tied to the rack carry the pipe onto it; the outlet
+        # is a grounded rest of its own and never reaches the rack.
+        shoes = [
+            run.results.contact_results[support.id]
+            for support in model.supports
+            if support.type == "rest" and support.attached_to
+        ]
         self.assertEqual(len(shoes), 2)
         for shoe in shoes:
-            self.assertEqual(shoe.status, "sliding")
             self.assertLess(shoe.gap, 1e-9)
-            # Read from the committed evidence: each shoe carries 2412.36 N.
-            self.assertAlmostEqual(shoe.normal_force, 2412.36, delta=0.05)
+        # Read from the committed evidence: the left shoe sticks under 2439.16 N,
+        # the right one slides under 1340.15 N. The grounded outlet rest is open.
+        self.assertEqual({shoe.status for shoe in shoes}, {"sticking", "sliding"})
+        self.assertAlmostEqual(shoes[0].normal_force, 2439.16, delta=0.05)
+        self.assertAlmostEqual(shoes[1].normal_force, 1340.15, delta=0.05)
         rack = analyze_load_paths(model, result_state=run.result_state).rack_loads["rack_A"]
         self.assertEqual(rack["support_count"], 2)
         carried = sum(shoe.normal_force for shoe in shoes)

@@ -47,6 +47,7 @@
     "G7000F55": "element:rack_A_beam_5",
     "G7362167": "element:rack_A_beam_1",
     "G75E697C": "element:rack_A_beam_7",
+    "G79C6D65": "support:support_8",
     "G7CD2125": "element:rack_A_beam_2",
     "G7DA6DEC": "element:rack_A_beam_7",
     "G7F8500F": "element:rack_A_beam_6",
@@ -94,6 +95,7 @@
     "AllSupports": "G2F28381",
     "CONTACT_6": "G257349E",
     "CONTACT_7": "GE72C655",
+    "CONTACT_8": "G79C6D65",
     "GN_N0": "GN_N0",
     "GN_N1": "GN_N1",
     "GN_N10": "GN_N10",
@@ -107,6 +109,7 @@
     "GN_N9": "GN_N9",
     "GROUND_6": "GROUND_6",
     "GROUND_7": "GROUND_7",
+    "GROUND_8": "GROUND_8",
     "G_TUBE": "G_TUBE",
     "MAT_Steel": "G5AF7883",
     "N0": "N0",
@@ -302,7 +305,7 @@
   "schema_version": 1,
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "6665459c28210923ce9f05d6a06ab6977f3b3ce85c05bea5db38a4a3f12513b4",
+    "fingerprint": "f93c01a14e985ca4845b10eff9d3778d86574d8ec79561533b2e18b5bf81b210",
     "load_case": "Operating",
     "schema_id": "tuba.model.v4"
   },

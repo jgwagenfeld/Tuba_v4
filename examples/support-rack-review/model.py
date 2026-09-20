@@ -54,7 +54,7 @@ with model.pipe(section="DN100", material="Steel", route="P-100") as pipe:
     pipe.run(4.0)                     # on the rack's right beam (4.0, 0.0, 3.25)
     pipe.add_support("rest", attached_to=mid_right, friction_coefficient=0.3)
     pipe.run(2.0)                     # outlet node (6.0, 0.0, 3.25)
-    pipe.end(support="anchor")
+    pipe.end(support="rest")
 
 # Operating condition with thermal expansion, pressure, and distributed line load:
 op = model.define_operation(
