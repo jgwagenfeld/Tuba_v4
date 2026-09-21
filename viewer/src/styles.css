@@ -579,8 +579,13 @@ textarea,
   border-radius: 0.1rem;
 }
 
+/* --chrome-text-3 clears AA on --graphite-raised, but every rail button is
+   painted --sidebar-control, which is lighter: the same grey is 4.28:1 there
+   and the object list failed the Pages contrast check the moment the find pane
+   stopped being hidden. One step brighter restores the hierarchy without
+   darkening either token. */
 .object-meta {
-  color: var(--chrome-text-3);
+  color: var(--chrome-text-2);
   font-family: var(--font-mono);
   font-size: 0.63rem;
   overflow: hidden;
@@ -2227,11 +2232,6 @@ body[data-view="gallery"] {
   margin: 0 auto 2.25rem;
   color: #b9c4c9;
   line-height: 1.5;
-  /* Padding, not max-inline-size. A narrower box with `margin: 0 auto` centred
-     itself inside the column, so the prose started a couple of centimetres
-     right of the heading it belongs to. This shortens the line and leaves the
-     left edge where the heading put it. */
-  padding-right: max(0px, calc(68rem - 60ch));
 }
 
 .gallery-footer {
@@ -2246,7 +2246,23 @@ body[data-view="gallery"] {
   color: var(--chrome-text-3);
   font-size: 0.8rem;
   line-height: 1.5;
-  padding-right: max(0px, calc(68rem - 60ch));
+}
+
+/* Padding, not max-inline-size. A narrower box with `margin: 0 auto` centred
+   itself inside the column, so the prose started a couple of centimetres right
+   of the heading it belongs to. This shortens the line and leaves the left edge
+   where the heading put it.
+
+   Only above 71rem, where the column is 68rem wide to begin with. Applied at
+   every width it subtracted 60ch from whatever room there was, so at 800px the
+   intro and the footer note were squeezed into a few characters per line and
+   the gallery grew thousands of pixels taller than its cards - which is what
+   pushed the last card off screen and failed the Pages scroll check. */
+@media (min-width: 71rem) {
+  .gallery-intro,
+  .gallery-footer-note {
+    padding-right: max(0px, calc(68rem - 60ch));
+  }
 }
 
 .gallery-footer-links {

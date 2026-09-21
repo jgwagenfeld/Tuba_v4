@@ -2548,7 +2548,14 @@ function renderCanvas() {
   applyHoverHighlight(graph, hoveredObjectId);
   if (hoveredObjectId) viewportRenderer.redraw();
   lastRenderGraph = result;
-  const objectIds = [...new Set(result.renderableObjects.flatMap((object) => object.userData.objectIds ?? []))];
+  // What is actually drawn, not what the graph could draw. The scene-graph
+  // cache stopped rebuilding when only visibility changes, so a hidden object
+  // stays in renderableObjects with visible=false - and this diagnostic is read
+  // as "what is on screen" by the layer-state and profile checks, which is the
+  // question it has to answer.
+  const objectIds = [...new Set(result.renderableObjects
+    .filter((object) => object.visible !== false)
+    .flatMap((object) => object.userData.objectIds ?? []))];
   globalThis.__tubaViewer = {
     bootId,
     state: currentState,

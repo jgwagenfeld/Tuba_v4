@@ -36,8 +36,12 @@ test("profile comparison keeps labels and solved local frames through deformatio
   expect(await canvas.locator("xpath=following-sibling::canvas[@data-deformation-preview]").isVisible()).toBe(false);
   expect(await rendered()).toEqual(expect.arrayContaining(labels));
   await page.getByRole("button", { name: /Pause/ }).click();
-  // One click, not two: the tree is the last row of the Display strip now
-  // rather than a popover the rail foot had to open first.
+  // The tree is the last row of the Display section now, and the sections are
+  // disclosures, so it is two clicks from the rail rather than one.
+  const display = page.locator('details.review-section:has(> summary:text-is("Display"))');
+  if (!(await display.evaluate((details) => details.open))) {
+    await display.locator("> summary").click();
+  }
   await page.locator("summary").filter({ hasText: /All layers/ }).click();
   const labelToggle = page.getByRole("checkbox", { name: /^Labels/i });
   await labelToggle.uncheck();

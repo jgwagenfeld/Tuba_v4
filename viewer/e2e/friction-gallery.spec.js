@@ -33,14 +33,17 @@ test("gallery opens the combined attested pipe-shoe comparison", async ({ page }
   expect(await page.evaluate(() => window.__tubaViewer.state.sceneId)).toBe("scene:native-friction:comparison");
   expect(await page.evaluate(() => window.__tubaViewer.state.resultStates.length)).toBe(51);
   await expect(page.locator("[data-task-rail]")).toBeVisible();
-  await page.getByRole("combobox", { name: "Result state", exact: true }).selectOption({ label: "Hot / 2" });
-  const panel = page.getByRole("region", { name: "Contact review", exact: true });
+  const step = page.getByRole("combobox", { name: "Step", exact: true });
+  await step.selectOption({ label: "Hot / 2" });
+  // The contact tables are in the "Tables & issues" drawer below the viewport.
+  await page.locator("[data-review-drawer] > summary").click();
+  const panel = page.locator("[data-contact-table]").getByRole("region", { name: "Contact review", exact: true });
   await expect(panel).toContainText("sliding");
   await expect(panel).toContainText("closed (frictionless)");
   expect(await page.evaluate(() => window.__tubaViewer.state.objects.filter(o => o.kind === "scene_label").map(o => o.metadata.text))).toEqual([
     "Without friction · μ = 0", "With friction · μ = 0.3",
   ]);
-  await page.getByRole("combobox", { name: "Result state", exact: true }).selectOption({ label: "Lift / 4" });
+  await step.selectOption({ label: "Lift / 4" });
   await expect(panel).toContainText("open");
   await page.screenshot({ path: "../.build/gallery-friction-comparison.png" });
   expect(errors).toEqual([]);
