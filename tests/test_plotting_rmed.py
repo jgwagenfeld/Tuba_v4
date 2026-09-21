@@ -44,18 +44,22 @@ def test_load_rmed_preserves_quadratic_lines_and_normalizes_latest_results(monke
     # Re-solved once more when the riser to the far anchor grew from 2 m to 3 m.
     #
     # Re-solved again when the rest became a contact shoe.
+    #
+    # Re-solved when the riser to the far anchor was raised to 3 m and the rest
+    # was solved as a contact shoe in the same run. Peak displacement went
+    # 0.00909 -> 0.01027 and peak von Mises 349.97 -> 345.90 MPa.
     np.testing.assert_allclose(
         grid.point_data["DEPL"][-1],
-        [0.003312064928, 0.007295506559, -0.004043201424],
+        [0.002855204063459401, 0.00882641342353076, -0.004094456551396568],
         rtol=0,
         atol=5e-8,
     )
     # The longer riser raised peak displacement about 21% and lowered peak von Mises 0.3%.
     # The shoe raised peak displacement about 44% and peak von Mises about 5%.
-    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.00909002553351697)
+    assert np.isclose(grid.point_data["DEPL_magnitude"].max(), 0.01026583065574065)
     # The shoe's helper node carries no stress, so its VMIS is NaN.
     assert np.flatnonzero(np.isnan(grid.point_data["VMIS"])).tolist() == [0]
-    assert np.isclose(np.nanmax(grid.point_data["VMIS"]), 349965981.94583714)
+    assert np.isclose(np.nanmax(grid.point_data["VMIS"]), 345896469.9870596)
 
 
 def test_load_rmed_keeps_mixed_element_n5_displacement_and_elno_stress():

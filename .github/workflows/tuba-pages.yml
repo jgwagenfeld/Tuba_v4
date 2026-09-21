@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: Re-record the Pages screenshot baselines on this runner and upload them
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -46,10 +51,21 @@ jobs:
         working-directory: viewer
         env:
           TUBA_PAGES_SITE_ROOT: ../_site
-      - run: npm run e2e:pages
+      - run: npm run e2e:pages ${{ inputs.update_snapshots && '-- --update-snapshots' || '' }}
         working-directory: viewer
         env:
           TUBA_PAGES_SITE_ROOT: ../_site
+      # The visual baselines are only correct when they were rendered here: a
+      # container's software GL differs from this runner's by a few percent,
+      # which is far more than the tolerance the check allows. Re-recording is
+      # a maintenance run, so the images are published rather than committed by
+      # the workflow - download them and commit them.
+      - if: ${{ inputs.update_snapshots }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-snapshots-linux
+          path: viewer/e2e/snapshots/pages-artifact.spec.js/linux
+          if-no-files-found: error
       # Create the Pages site on the first run so no manual repository setting
       # is required; the workflow already holds the pages: write permission.
       - uses: actions/configure-pages@v5
