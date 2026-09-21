@@ -279,7 +279,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
         steps, lambda step: "pages-catalog" in step.get("run", "")
     )
     visual = _only_step_index(
-        steps, lambda step: step.get("run") == "npm run e2e:pages"
+        steps, lambda step: step.get("run", "").startswith("npm run e2e:pages")
     )
     configure = _only_step_index(
         steps, lambda step: step.get("uses") == "actions/configure-pages@v5"
@@ -287,13 +287,36 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
     upload = _only_step_index(
         steps, lambda step: step.get("uses") == "actions/upload-pages-artifact@v3"
     )
+    # Re-recording the visual baselines is a maintenance dispatch: it runs the
+    # same check with --update-snapshots and publishes the images for committing,
+    # because only this runner renders them.
+    snapshots = _only_step_index(
+        steps,
+        lambda step: step.get("uses") == "actions/upload-artifact@v4"
+        and step.get("with", {}).get("name") == "pages-snapshots-linux",
+    )
 
+    assert "-- --update-snapshots" in steps[visual]["run"]
+    assert steps[snapshots].get("if") == "${{ inputs.update_snapshots }}"
+    assert (
+        steps[snapshots]["with"]["path"]
+        == "viewer/e2e/snapshots/pages-artifact.spec.js/linux"
+    )
     assert steps[semantic]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
     assert steps[visual]["env"]["TUBA_PAGES_SITE_ROOT"] == "../_site"
     assert setup_uv < sync
     assert setup_node < npm
     # The browser precedes the build: build_pages.py photographs every gallery card.
-    assert max(sync, npm, graphics) < chromium < build_step < semantic < visual < configure < upload
+    assert (
+        max(sync, npm, graphics)
+        < chromium
+        < build_step
+        < semantic
+        < visual
+        < snapshots
+        < configure
+        < upload
+    )
     assert steps[upload]["with"]["path"] == "_site"
     assert not any(
         command in source
