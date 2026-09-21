@@ -1,5 +1,6 @@
 import { contactRecords, contactObjectId, contactForceMaxima, CONTACT_COLORS } from "./contactReview.js";
 import * as THREE from "three";
+import { selectionKey } from "./reviewSelection.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
 import {
@@ -88,6 +89,27 @@ export function createThreeSceneGraph(state, options = {}) {
   }
 
   addContactMarkers(root, state);
+  const keysById = new Map((state.objects ?? []).map(o => [o.id, selectionKey(o)]));
+  const supportIds = new Set((state.objects ?? []).filter(o => o.kind === "support").map(o => o.id));
+  const objectsBySelectionKey = new Map();
+  for (const object of root.children) {
+    for (const id of object.userData.objectIds ?? []) {
+      const key = keysById.get(id) ?? id;
+      if (!objectsBySelectionKey.has(key)) objectsBySelectionKey.set(key, new Set());
+      objectsBySelectionKey.get(key).add(object);
+    }
+    const isSupport = (object.userData.objectIds ?? []).some(id => supportIds.has(id));
+    if ((isSupport && !object.userData.contactStatus) || object.userData.pickVolume) {
+      const outline = new THREE.BoxHelper(object.userData.pickVolume ?? object, SELECT_HIGHLIGHT);
+      outline.material.depthTest = false;
+      outline.renderOrder = 40;
+      outline.visible = false;
+      outline.raycast = () => {};
+      object.userData.highlightOutline = outline;
+      scene.add(outline);
+    }
+    if (isSupport) object.traverse(part => { part.userData.preserveHighlightColor = true; });
+  }
 
   // Fit to what was actually drawn, not to what the assets declare. Deformed
   // geometry is baked at its authored visual scale (x50) and rescaled here at
@@ -104,6 +126,8 @@ export function createThreeSceneGraph(state, options = {}) {
     deformationPreview,
     diagnostics,
     objectsByObjectId,
+    keysById,
+    objectsBySelectionKey,
     renderableObjects,
     renderedObjectCount,
     root,
@@ -477,6 +501,7 @@ export function pickRenderedObject(graph, point, viewport) {
   );
   const intersections = raycaster.intersectObjects(raycastTargets, true);
   let fallbackObjectId = null;
+  let volumeObjectId = null;
   for (const intersection of intersections) {
     // Raycasting ignores clipping planes: without this a click picked geometry
     // the section box had already cut away.
@@ -486,6 +511,12 @@ export function pickRenderedObject(graph, point, viewport) {
     }
     const objectId = intersection.object.userData?.primaryObjectId || intersection.object.userData?.objectId;
     if (!objectId) {
+      continue;
+    }
+    // The space between load arrows is selectable, but must not steal a hit
+    // from a real support or arrow inside that volume.
+    if (intersection.object.userData.pickVolumeHit) {
+      volumeObjectId ??= objectId;
       continue;
     }
     if (intersection.object.userData?.pickPriority === PICK_PRIORITY_ANNOTATION) {
@@ -498,7 +529,7 @@ export function pickRenderedObject(graph, point, viewport) {
   // A miss selects nothing. It used to fall back to the object whose bounds
   // centre projected nearest the click, which for a long pipe run is nowhere
   // near where it is drawn - a near-miss selected something across the model.
-  return fallbackObjectId;
+  return volumeObjectId ?? fallbackObjectId;
 }
 
 // World size of one screen pixel. Exact for the app's orthographic camera; a
@@ -610,10 +641,15 @@ export function applyHoverHighlight(graph, objectId) {
   if (graph.highlightedObjectId === (objectId ?? null)) {
     return graph;
   }
-  setObjectHover(graph.objectsByObjectId?.get(graph.highlightedObjectId), false);
+  for (const object of highlightObjects(graph, graph.highlightedObjectId)) setObjectHover(object, false);
   graph.highlightedObjectId = objectId ?? null;
-  setObjectHover(graph.objectsByObjectId?.get(objectId), true);
+  for (const object of highlightObjects(graph, objectId)) setObjectHover(object, true);
   return graph;
+}
+
+function highlightObjects(graph, id) {
+  return graph.objectsBySelectionKey?.get(graph.keysById?.get(id) ?? id) ??
+    [graph.objectsByObjectId?.get(id)].filter(Boolean);
 }
 
 function setObjectHover(object, hovered) {
@@ -621,17 +657,27 @@ function setObjectHover(object, hovered) {
   object.traverse((child) => {
     setChildHighlight(child, hovered, child.userData.selected === true);
   });
+  updateHighlightOutline(object);
+}
+
+function updateHighlightOutline(object) {
+  const outline = object.userData.highlightOutline;
+  if (!outline) return;
+  outline.visible = object.visible && (object.userData.hovered || object.userData.selected);
+  outline.material.color.setHex(object.userData.hovered ? HOVER_HIGHLIGHT : SELECT_HIGHLIGHT);
 }
 
 export function applySelectionHighlight(graph, objectIds = []) {
   const selectedIds = new Set(objectIds);
   graph.selectedObjectIds = [...selectedIds];
+  const selectedObjects = new Set([...selectedIds].flatMap(id => [...highlightObjects(graph, id)]));
   for (const object of graph.renderableObjects ?? []) {
-    const selected = (object.userData.objectIds ?? []).some((objectId) => selectedIds.has(objectId));
+    const selected = selectedObjects.has(object) || (object.userData.objectIds ?? []).some(id => selectedIds.has(id));
     object.userData.selected = selected;
     object.traverse((child) => {
       setChildHighlight(child, child.userData.hovered === true, selected);
     });
+    updateHighlightOutline(object);
   }
   return graph;
 }
@@ -648,6 +694,7 @@ function setChildHighlight(child, hovered, selected) {
 }
 
 function setMaterialHighlight(material, hovered, selected, object) {
+  if (object?.userData.preserveHighlightColor) return;
   const highlighted = hovered ? HOVER_HIGHLIGHT : selected ? SELECT_HIGHLIGHT : null;
   if (material.emissive) {
     material.emissive.setHex(highlighted ?? 0x000000);
@@ -1806,6 +1853,23 @@ function createLineLoadComb(asset, config, format, state) {
     const crestLine = new THREE.Line(crestGeometry, crestMaterial);
     crestLine.name = "line-load-crest";
     combGroup.add(crestLine);
+  }
+
+  // Give the planar comb a real pick volume. Its depth follows the glyph size,
+  // so the same target works for small pipework and large racks.
+  const pickBounds = new THREE.Box3().setFromObject(combGroup);
+  if (!pickBounds.isEmpty()) {
+    const depth = Math.max(...starts.map((start, i) => start.distanceTo(ends[i]))) * 0.25;
+    const size = pickBounds.getSize(new THREE.Vector3()).max(new THREE.Vector3(depth, depth, depth));
+    const volume = new THREE.Mesh(
+      new THREE.BoxGeometry(size.x, size.y, size.z),
+      new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })
+    );
+    volume.name = "line-load-pick-volume";
+    volume.position.copy(pickBounds.getCenter(new THREE.Vector3()));
+    volume.userData.pickVolumeHit = true;
+    combGroup.add(volume);
+    combGroup.userData.pickVolume = volume;
   }
 
   const showBadge = config.show_badge !== false;

@@ -70,42 +70,51 @@ export function contactForceMaxima(state) {
     tangential: Math.max(0, ...records.map((c) => magnitude(c.tangential_force)).filter(Number.isFinite)) };
 }
 
-export function renderContactReview(state, dispatch, rerender) {
+export function renderContactReview(state, dispatch, rerender, part = "table", objectId = null) {
   if (!(state.resultStates ?? []).some((s) => Object.keys(s.data?.contact_results ?? {}).length)) return null;
   const panel = document.createElement("section");
   panel.className = "contact-review";
   panel.setAttribute("aria-label", "Contact review");
   const add = (tag, text, parent = panel) => { const el = document.createElement(tag); el.textContent = text; parent.append(el); return el; };
   const update = (action) => { dispatch(action); rerender(); };
-  add("h2", "Contact review — forces on the pipe");
-  const states = contactStates(state);
-  const activeIndex = states.findIndex((s) => s.id === state.activeResultStateId);
-  const navigation = add("div", ""); navigation.className = "contact-step-nav";
-  for (const [label, offset] of [["Previous converged step", -1], ["Next converged step", 1]]) {
-    const button = add("button", offset < 0 ? "← Previous" : "Next →", navigation);
-    button.type = "button"; button.dataset.focusKey = `contact-step:${offset}`; button.setAttribute("aria-label", label);
-    button.disabled = !states[activeIndex + offset];
-    button.onclick = () => update({ type: "setActiveResultState", resultStateId: states[activeIndex + offset].id });
-  }
   const active = getActiveResultState(state)?.overlay.data;
-  add("p", `${active?.metadata?.stage_label ?? "Stage unavailable"} · Step ${activeIndex + 1}/${states.length} · Pseudo-time ${formatPseudoTime(active?.metadata?.pseudo_time)}`);
-  add("p", `Deformation shown ×${state.visualDeformationScale ?? 1}. Gap, slip and travel below are true values. Support markers remain at their real locations.`);
-  for (const [key, label] of [["normal", "Normal-force arrows"], ["tangential", "Tangential-force arrows"]]) {
-    const wrapper = add("label", label);
-    const input = document.createElement("input"); input.type = "checkbox";
-    input.dataset.focusKey = `contact-arrow:${key}`; input.checked = state.contactArrows?.[key] !== false;
-    input.onchange = () => update({ type: "setContactArrows", quantity: key, visible: input.checked });
-    wrapper.prepend(input);
+  if (part === "display") {
+    for (const [key, label] of [["normal", "Normal-force arrows"], ["tangential", "Tangential-force arrows"]]) {
+      const wrapper = add("label", label);
+      const input = document.createElement("input"); input.type = "checkbox";
+      input.dataset.focusKey = `contact-arrow:${key}`; input.checked = state.contactArrows?.[key] !== false;
+      input.onchange = () => update({ type: "setContactArrows", quantity: key, visible: input.checked });
+      wrapper.prepend(input);
+    }
+    const neutralLabel = add("label", "Neutral pipe coloring (contact review)");
+    const neutral = document.createElement("input"); neutral.type = "checkbox"; neutral.checked = state.contactNeutral !== false;
+    neutral.dataset.focusKey = "contact-neutral";
+    neutral.onchange = () => update({ type: "setContactNeutral", neutral: neutral.checked }); neutralLabel.prepend(neutral);
+    return panel;
   }
-  const neutralLabel = add("label", "Neutral pipe coloring (contact review)");
-  const neutral = document.createElement("input"); neutral.type = "checkbox"; neutral.checked = state.contactNeutral !== false;
-  neutral.dataset.focusKey = "contact-neutral";
-  neutral.onchange = () => update({ type: "setContactNeutral", neutral: neutral.checked }); neutralLabel.prepend(neutral);
   const contacts = Object.values(contactRecords(state));
-  if (!contacts.length) { add("p", "Contact results unavailable for this state."); return panel; }
-  const selected = contacts.find((c) => (state.selectedObjectIds ?? []).includes(contactObjectId(state, c.support_id))) ?? contacts[0];
+  const selected = contacts.find(c => contactObjectId(state, c.support_id) === objectId);
   const system = getUnitSystem(state);
   const quantity = (value, unit) => formatQuantity(value, unit, system) || "unavailable";
+  if (part === "selection") {
+    if (!selected) return null;
+    add("h3", `Selected shoe ${selected.support_id}`);
+    add("p", `Relative displacement: ${selected.relative_displacement.map((v) => quantity(v, "m")).join(", ")} (global X, Y, Z).`);
+    const axisLabel = add("label", "History axis ");
+    const axis = add("select", "", axisLabel);
+    for (const [value, label] of [["t1", "Tangential t1"], ["t2", "Tangential t2"], ["normal", "Normal load vs step"]]) {
+      const option = add("option", label, axis); option.value = value;
+    }
+    axis.dataset.focusKey = "contact-history-axis";
+    axis.value = state.contactHistoryAxis ?? "t1";
+    axis.onchange = () => update({ type: "setContactHistoryAxis", axis: axis.value });
+    panel.append(contactChart(state, selected.support_id));
+    add("p", "t1 = projected global X (Y if near parallel to the normal); t2 = normal × t1. Signed travel is relative displacement, not accumulated slip. The projected force plot is not the full vector friction cone. Dashed lines: ±μN.");
+    return panel;
+  }
+  add("h2", "Contact forces on the pipe");
+  add("p", `Gap, slip and travel are true values. Deformation shown \u00d7${state.visualDeformationScale ?? 1}.`);
+  if (!contacts.length) { add("p", "Contact results unavailable for this state."); return panel; }
   const scroller = add("div", ""); scroller.className = "contact-table-scroll";
   scroller.tabIndex = 0; scroller.setAttribute("role", "region");
   scroller.setAttribute("aria-label", "Contact results, scrolls sideways");
@@ -114,11 +123,11 @@ export function renderContactReview(state, dispatch, rerender) {
   for (const label of ["Support", "State", "N", "|Ft|", "μN", "Usage", "Gap", "|Slip|"]) add("th", label, header).scope = "col";
   const body = add("tbody", "", table);
   for (const c of contacts) {
-    const row = add("tr", "", body); row.dataset.selected = String(c === selected);
+    const row = add("tr", "", body); row.dataset.selected = String((state.selectedObjectIds ?? []).includes(contactObjectId(state, c.support_id)));
     const cell = add("td", "", row); const button = add("button", c.support_id, cell); button.type = "button";
     button.dataset.focusKey = `contact-support:${c.support_id}`;
     const objectId = contactObjectId(state, c.support_id); button.disabled = !objectId;
-    button.onclick = () => update({ type: "selectObject", objectId });
+    button.onclick = event => update({ type: "selectObject", objectId, additive: event.shiftKey });
     for (const value of [`${CONTACT_SYMBOLS[c.status] ?? "?"} ${contactStatusLabel(c)} (${c.status_source})`, quantity(c.normal_force, "N"),
       quantity(magnitude(c.tangential_force), "N"), quantity(c.friction_limit, "N"),
       c.utilization == null ? "n/a" : `${(100*c.utilization).toFixed(1)}%`, quantity(c.gap, "m"), quantity(magnitude(c.slip), "m")]) add("td", value, row);
@@ -130,18 +139,6 @@ export function renderContactReview(state, dispatch, rerender) {
     const value = active?.metadata?.[key];
     if (value != null) add("p", `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`, provenance);
   }
-  add("h3", `Selected shoe ${selected.support_id}`);
-  add("p", `Relative displacement: ${selected.relative_displacement.map((v) => quantity(v, "m")).join(", ")} (global X, Y, Z).`);
-  const axisLabel = add("label", "History axis ");
-  const axis = add("select", "", axisLabel);
-  for (const [value, label] of [["t1", "Tangential t1"], ["t2", "Tangential t2"], ["normal", "Normal load vs step"]]) {
-    const option = add("option", label, axis); option.value = value;
-  }
-  axis.dataset.focusKey = "contact-history-axis";
-  axis.value = state.contactHistoryAxis ?? "t1";
-  axis.onchange = () => update({ type: "setContactHistoryAxis", axis: axis.value });
-  panel.append(contactChart(state, selected.support_id));
-  add("p", "t1 = projected global X (Y if near parallel to the normal); t2 = normal × t1. Signed travel is relative displacement, not accumulated slip. The projected force plot is not the full vector friction cone. Dashed lines: ±μN.");
   return panel;
 }
 

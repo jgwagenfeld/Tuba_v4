@@ -1,3 +1,24 @@
+// Nodes and result arrows remain individually selectable. Structural bodies
+// share an engineering identity across their reference and solved shapes.
+export function selectionKey(object) {
+  const ref = object?.entity_ref ?? object?.metadata?.source_ref;
+  if (typeof ref === "string" && ref.startsWith("element:") && !String(object.kind).includes("node") &&
+      !String(object.kind).endsWith("_vector") && object.kind !== "applied_load") return ref;
+  return object?.id;
+}
+
+export function relatedSelectionIds(state, objectIds) {
+  const ids = new Set(objectIds);
+  const keys = new Set((state.objects ?? []).filter(o => ids.has(o.id)).map(selectionKey));
+  return (state.objects ?? []).filter(o => ids.has(o.id) || keys.has(selectionKey(o))).map(o => o.id);
+}
+
+export function selectionRepresentative(state, objectId) {
+  const object = state.objects.find(o => o.id === objectId);
+  return String(object?.kind).startsWith("deformed_")
+    ? resolveEntityObjectId(state, object.entity_ref) ?? objectId : objectId;
+}
+
 export function resolveEntityObjectId(state, entityRef) {
   if (typeof entityRef !== "string" || entityRef.length === 0) {
     return null;

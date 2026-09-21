@@ -15,7 +15,6 @@ VOLUME_EXPORT = None
 def _add_rack_labels(scene):
     add_scene_label(scene, "Rest shoe on rack beam (μ = 0.3)", [0.0, 0.0, 3.55], label_id="label-shoe-left", height=0.18)
     add_scene_label(scene, "Rack Crossbeam (IPE100)", [0.0, -0.6, 3.20], label_id="label-crossbeam", height=0.18)
-    add_scene_label(scene, "Distributed line load: 350 N/m (Z-)", [2.0, 0.0, 3.55], label_id="label-line-load", height=0.18)
 
 
 def build_review(namespace, output, *, artifact_dir=None, force=False):

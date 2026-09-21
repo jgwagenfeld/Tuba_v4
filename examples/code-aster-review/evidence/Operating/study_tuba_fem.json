@@ -165,7 +165,7 @@
   "schema_version": 1,
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "0c2565b08e0bba5746b1bf7b550bf7f884a9294e5a4865eafd42bad37f7a26c6",
+    "fingerprint": "7d56fb4ecf4b7073c7fbd91fbf2930e2f6547c4578323a5e84750e850a5296fb",
     "load_case": "Operating",
     "schema_id": "tuba.model.v4"
   },

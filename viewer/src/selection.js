@@ -1,6 +1,8 @@
 import { getVisibleObjectIds } from "./sceneLoader.js";
+import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.js";
 
 export function selectObject(state, objectId, options = {}) {
+  objectId = selectionRepresentative(state, objectId);
   if (!state.objects.some((obj) => obj.id === objectId)) {
     return state;
   }
@@ -12,12 +14,12 @@ export function selectObject(state, objectId, options = {}) {
 }
 
 export function hideSelected(state) {
-  const hidden = new Set([...(state.hiddenObjectIds ?? []), ...(state.selectedObjectIds ?? [])]);
+  const hidden = new Set([...(state.hiddenObjectIds ?? []), ...relatedSelectionIds(state, state.selectedObjectIds ?? [])]);
   return withVisibility({ ...state, hiddenObjectIds: [...hidden] });
 }
 
 export function isolateSelection(state) {
-  return withVisibility({ ...state, isolatedObjectIds: [...(state.selectedObjectIds ?? [])] });
+  return withVisibility({ ...state, isolatedObjectIds: relatedSelectionIds(state, state.selectedObjectIds ?? []) });
 }
 
 export function restoreVisibility(state) {
@@ -82,7 +84,10 @@ export function getPropertySections(state, objectId) {
 }
 
 export function fitSelection(state) {
-  const selected = new Set(state.selectedObjectIds ?? []);
+  const visible = new Set(state.visibleObjectIds ?? state.objects.map(o => o.id));
+  const related = relatedSelectionIds(state, state.selectedObjectIds ?? []);
+  const drawn = related.filter(id => visible.has(id));
+  const selected = new Set(drawn.length ? drawn : state.selectedObjectIds ?? []);
   const selectedAssetIds = new Set(
     state.objects
       .filter((obj) => selected.has(obj.id))

@@ -24,7 +24,7 @@ with model.pipe(section="DN100", material="Steel") as builder:
     builder.run(3.0)
     builder.add_support(type="guide")
     builder.bend(radius=0.3, angle=90.0, plane="XY")
-    builder.run(2.0)
+    builder.run(3.0)
     builder.add_support(type="rest")
     builder.bend(radius=0.3, angle=90.0, plane="XZ")
     builder.run(3.0)

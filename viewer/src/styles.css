@@ -1490,7 +1490,8 @@ textarea,
   grid-template-columns: minmax(24rem, 1fr) minmax(16rem, 20rem);
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
-    "viewport inspector";
+    "viewport inspector"
+    "review review";
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -1499,7 +1500,7 @@ textarea,
 
 .viewer-workspace:has(.inspector[hidden]) {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "viewport";
+  grid-template-areas: "viewport" "review";
 }
 
 .viewer-workspace[hidden] {
@@ -1530,17 +1531,6 @@ section {
 
 body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
   --controls-width: min(18.5rem, max(45vw, 15rem));
-}
-
-/* The contact review is the densest panel in the app - eight measured columns
-   per shoe - and at the standard rail width three of them were visible at a
-   time. It gets the room its own content needs rather than the table being cut
-   down to fit: utilization is derived from |Ft| and the friction limit, but it
-   is derived under rules about open contacts and near-zero limits, and it is
-   the column a reviewer actually scans. Keeping the two inputs and dropping the
-   answer would be backwards. */
-body[data-rail-open="true"]:not([data-embed="true"]):has(.contact-review) .viewer-workspace {
-  --controls-width: min(26rem, max(45vw, 15rem));
 }
 
 .rail-toggle {
@@ -2095,15 +2085,15 @@ body[data-embed="true"] .viewer-workspace,
 body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  grid-template-areas: "viewport";
+  grid-template-areas: "viewport" "review";
 }
 
 @media (max-width: 1200px) {
   .viewer-workspace,
   .viewer-workspace:has(.inspector[hidden]) {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: "viewport";
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "viewport" "review";
   }
 
   .inspector {
@@ -2142,8 +2132,8 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
 @media (max-width: 800px) {
   body[data-embed="true"] .viewer-workspace {
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: "viewport";
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "viewport" "review";
   }
 }
 
@@ -3158,3 +3148,38 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   border-radius: 0.2rem;
 }
 
+
+/* Review controls keep their place; the wide tables have their own drawer. */
+.display-strip { display: block; }
+.review-section { border-bottom: 1px solid var(--graphite-line); padding-bottom: 0.65rem; }
+.cockpit-rail .review-section > summary {
+  margin: 0; padding: 0.6rem 0; cursor: pointer;
+  font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.review-section .rail-find { padding-inline: 0; }
+.review-section .find-scope { flex-wrap: wrap; }
+.review-section .object-list { max-height: 24rem; overflow: auto; }
+.group-header[aria-pressed="true"] { color: var(--accent); border-left: 2px solid var(--accent); }
+.review-drawer {
+  grid-area: review; min-width: 0; min-height: 0;
+  background: var(--graphite-raised); color: var(--chrome-text);
+  border-top: 1px solid var(--graphite-line);
+}
+.review-drawer[hidden] { display: none; }
+.review-drawer > summary { padding: 0.55rem 0.85rem; cursor: pointer; font-size: 0.8rem; }
+.review-drawer > summary span { margin-left: 0.75rem; color: var(--chrome-text-2); }
+.review-drawer-content { max-height: min(38vh, 26rem); overflow: auto; padding: 0 1rem 1rem; }
+.review-drawer summary { cursor: pointer; }
+.review-drawer h2 { font-size: 0.8rem; }
+.review-drawer .meta { color: var(--chrome-text-2); }
+.review-findings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.review-diagnostics { border-top: 1px solid var(--graphite-line); margin-top: 1rem; padding-top: 0.75rem; }
+.review-drawer table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.review-drawer th, .review-drawer td { padding: 0.4rem 0.6rem; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--graphite-line); }
+.review-drawer button { background: var(--graphite); color: var(--chrome-text); border: 1px solid var(--graphite-line); border-radius: 0.2rem; padding: 0.35rem; cursor: pointer; }
+.review-drawer button[aria-pressed="true"] { border-color: var(--accent); }
+.review-drawer .contact-review { border-top: 0; }
+.inspector .contact-review svg { width: 100%; }
+@media (max-width: 700px) {
+  .review-findings { grid-template-columns: minmax(0, 1fr); }
+}

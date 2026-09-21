@@ -7,8 +7,9 @@ import {
   scriptLine,
   withRunLength
 } from "./codeLink.js";
+import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.js";
 import { deriveBundleSource } from "./bundleSource.js";
-import { contactObjectId, contactRecords, renderContactReview } from "./contactReview.js";
+import { contactObjectId, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
   getIssueSummary,
@@ -103,8 +104,13 @@ const dom = {
   stripUnits: document.querySelector("[data-strip-units]"),
   taskRail: document.querySelector("[data-task-rail]"),
   inspector: document.querySelector("[data-inspector]"),
-  bodiesPane: document.querySelector("[data-bodies-pane]"),
-  findPane: document.querySelector("[data-find-pane]"),
+  reviewDrawer: document.querySelector("[data-review-drawer]"),
+  reviewTally: document.querySelector("[data-review-tally]"),
+  contactTable: document.querySelector("[data-contact-table]"),
+  contactDisplay: document.querySelector("[data-contact-display]"),
+  reactionTable: document.querySelector("[data-reaction-table]"),
+  objectsSection: document.querySelector("[data-objects-section]"),
+  findTally: document.querySelector("[data-find-tally]"),
   findScope: document.querySelector("[data-find-scope]"),
   findDismiss: document.querySelector("[data-find-dismiss]"),
   railUtility: document.querySelector("[data-rail-utility]"),
@@ -181,6 +187,8 @@ let currentState = null;
 
 function dispatch(action) {
   currentState = reduceViewerState(currentState, action);
+  if (action.type === "selectObject") selectedObjectId = selectionRepresentative(currentState, action.objectId);
+  if (action.type === "selectObjects") selectedObjectId = currentState.selectedObjectIds[0] ?? null;
   return currentState;
 }
 
@@ -189,8 +197,8 @@ let currentSearch = "";
 let issueFilters = { operatingOnly: false };
 let railExpanded = true;
 const savedViews = [];
-// ponytail: dense-scene hover stays off until picking has a spatial index/BVH.
-const MAX_HOVER_PICK_OBJECTS = 50;
+// ponytail: linear ray picking at most 30 times/s; add a BVH if profiling warrants it.
+let lastHoverPickTime = 0;
 const ORBIT_CLICK_DRAG_THRESHOLD_PX = 4;
 let viewportRenderer = null;
 let viewportUnavailable = false;
@@ -449,6 +457,7 @@ function restoreFocus(focus) {
 function renderRailChrome() {
   const view = currentWorkspace();
   dom.taskRail.hidden = !view.railVisible;
+  dom.reviewDrawer.hidden = isBuildMode() || currentState.embed;
   dom.railToggle.hidden = !view.railToggleVisible;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
   dom.railToggle.textContent = railExpanded ? "\u2039" : "\u203a";
@@ -564,6 +573,8 @@ function renderStatusChip() {
       // The rail is one column now: bring the section the chip is talking about
       // into view rather than claiming a lens.
       const section = alerts.length > 0 ? dom.issueList : dom.colorBy;
+      if (alerts.length > 0) dom.reviewDrawer.open = true;
+      else dom.colorBy.closest("details").open = true;
       section?.scrollIntoView?.({ block: "start" });
     });
   };
@@ -712,17 +723,60 @@ function modelLegendChips(mode) {
   return container;
 }
 
+function renderReactionTable() {
+  dom.reactionTable.replaceChildren();
+  const stateId = currentState.activeResultStateId;
+  const rows = (currentState.review?.tables?.reactions?.rows ?? []).filter(row =>
+    row.result_state_id === stateId && (!currentState.activeLoadCase || row.load_case === currentState.activeLoadCase));
+  dom.reactionTable.parentElement.hidden = rows.length === 0;
+  if (!rows.length) return;
+  const table = document.createElement("table");
+  const header = table.createTHead().insertRow();
+  const columns = [["node_id", "Node"], ["support_ids", "Supports"],
+    ["fx", "Fx", "N"], ["fy", "Fy", "N"], ["fz", "Fz", "N"],
+    ["mx", "Mx", "N*m"], ["my", "My", "N*m"], ["mz", "Mz", "N*m"]];
+  for (const [, label] of columns) {
+    const cell = document.createElement("th"); cell.scope = "col"; cell.textContent = label; header.append(cell);
+  }
+  const body = table.createTBody();
+  for (const row of rows) {
+    const tr = body.insertRow();
+    for (const [key, , unit] of columns) {
+      const cell = tr.insertCell();
+      if (key === "support_ids") {
+        for (const id of row.support_ids ?? []) {
+          const button = document.createElement("button");
+          button.type = "button"; button.textContent = id;
+          const objectId = contactObjectId(currentState, id);
+          button.disabled = !objectId;
+          button.dataset.focusKey = `reaction:${row.node_id}:${id}`;
+          button.setAttribute("aria-pressed", String(currentState.selectedObjectIds.includes(objectId)));
+          button.addEventListener("click", event => {
+            dispatch({ type: "selectObject", objectId, additive: event.shiftKey }); render();
+          });
+          cell.append(button);
+        }
+      } else cell.textContent = unit ? formatQuantity(row[key], unit, getUnitSystem(currentState)) || "unavailable" : row[key];
+    }
+  }
+  dom.reactionTable.append(table);
+}
+
 function renderResultControls() {
   dom.resultControls.replaceChildren();
   dom.resultLegend.replaceChildren();
   dom.resultShape.replaceChildren();
   dom.hotspotList.replaceChildren();
 
-  const contactPanel = renderContactReview(currentState, (action) => {
-    dispatch(action);
-    selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
-  }, render);
-  if (contactPanel) dom.resultControls.append(contactPanel);
+  for (const [part, host] of [["table", dom.contactTable], ["display", dom.contactDisplay]]) {
+    host.replaceChildren();
+    const panel = renderContactReview(currentState, dispatch, render, part);
+    host.hidden = !panel;
+    if (panel) host.append(panel);
+  }
+  renderReactionTable();
+  const issueCount = (currentState.issues ?? []).length;
+  dom.reviewTally.textContent = `${issueCount} issue${issueCount === 1 ? "" : "s"}`;
   const loadCases = getLoadCaseOptions(currentState);
   const resultStates = getResultStateOptions(currentState);
   const geometryStates = getGeometryStateOptions(currentState);
@@ -740,9 +794,6 @@ function renderResultControls() {
   // The field itself is chosen in the pinned "Colour by" control; what is left
   // here are the refinements that hang off it - the case and the component.
   const showComponent = fieldOptions.length > 0 && componentIsSelectable(currentState);
-  if (loadCases.length > 0 || showComponent) {
-    dom.resultControls.append(railGroup("Colouring"));
-  }
   if (loadCases.length > 0) {
     dom.resultControls.append(
       propertyRow(
@@ -766,13 +817,11 @@ function renderResultControls() {
       )
     );
   }
-  // Only offered when the scene carries no field catalogue; with one, the
-  // "Colour by" control already picks the result state through its load case. A
-  // contact review names its own result state either way.
-  if ((isContactReview(currentState) || fieldOptions.length === 0) && resultStates.length > 0) {
+  // Case and converged step stay together, including contact histories.
+  if (resultStates.length > 1 || (fieldOptions.length === 0 && resultStates.length > 0)) {
     dom.resultControls.append(
       propertyRow(
-        "Result state",
+        "Step",
         plainSelect(currentState.activeResultStateId ?? resultStates[0].id, resultStates, (value) => {
           dispatch({ type: "setActiveResultState", resultStateId: value });
           render();
@@ -812,10 +861,6 @@ function renderResultControls() {
     );
   }
   dom.resultShape.append(propertyRow("Deform", deformationControl()));
-  const chips = resultBodyChips();
-  if (chips) {
-    dom.resultShape.append(propertyRow("Draw", chips));
-  }
   dom.resultShape.append(filtersDrawer());
 
   const hotspots = getHotspots(currentState);
@@ -872,34 +917,6 @@ function hotspotTally(hotspots) {
   }
   const unit = getScalarLegend(currentState)?.unit ?? "";
   return `${hotspots.length} above ${formatQuantity(stored, unit, getUnitSystem(currentState))}`;
-}
-
-// The two bodies a reviewer dims while reading a field travel with the field.
-// The rest of the layer list is what the Model task is for.
-const RESULT_BODY_IDS = Object.freeze(["deformed", "subpoints"]);
-
-function resultBodyChips() {
-  const bodies = getBodies(currentState).filter((body) => RESULT_BODY_IDS.includes(body.id));
-  if (bodies.length === 0) {
-    return null;
-  }
-  const row = document.createElement("div");
-  row.className = "body-chips";
-  for (const body of bodies) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "scope-chip body-chip";
-    button.dataset.bodyChip = body.id;
-    button.dataset.focusKey = `chip:${body.id}`;
-    button.setAttribute("aria-pressed", String(body.visible));
-    button.textContent = body.label;
-    button.addEventListener("click", () => {
-      dispatch({ type: "setBodyVisibility", bodyId: body.id, visible: !body.visible });
-      render();
-    });
-    row.append(button);
-  }
-  return row;
 }
 
 // Thresholds and vector scales are set once and then in the way. Folded by
@@ -1899,13 +1916,7 @@ function appendTraceField(parent, labelText, valueText) {
   parent.append(term, value);
 }
 
-// The finder. One pane, swapped into the rail beside the bodies rather than
-// overlaid on it, so nothing focusable is ever hidden behind an opaque surface.
-//
-// It replaces three things that used to be separate: a read-only Tree grouped
-// only by kind, a flat Objects list, and a search field rendered outside the
-// list it filtered. The grouping the Tree could not offer is here as scope
-// chips, and the search field now actually drives what is on screen.
+// Object navigation remains beside the result and display controls.
 const FIND_SCOPES = [
   { id: "body", label: "Body" },
   { id: "kind", label: "Kind" },
@@ -1923,28 +1934,19 @@ const BODY_GROUP_LABELS = {
   other: "Other (not a body)"
 };
 
-let findOpen = false;
-let findGroupBy = "body";
+let findGroupBy = "group";
 
-// Always renders. An early return when already open froze the result list at
-// whatever the focus event had drawn, so every keystroke after the first
-// changed nothing on screen.
 function openFind() {
-  findOpen = true;
+  dom.objectsSection.open = true;
   render();
 }
 
 function closeFind() {
-  if (!findOpen) return;
-  findOpen = false;
-  render();
+  dom.searchInput.blur();
 }
 
 function renderFindPane() {
-  const open = findOpen || currentSearch.trim() !== "";
-  dom.findPane.hidden = !open;
-  dom.bodiesPane.hidden = open;
-  dom.findDismiss.hidden = !open;
+  dom.findDismiss.hidden = currentSearch.trim() === "";
 
   dom.findScope.replaceChildren();
   for (const scope of FIND_SCOPES) {
@@ -1969,6 +1971,7 @@ function renderObjects() {
   const matches = rankObjectMatches(currentState, currentSearch);
   const byId = new Map(matches.map((match) => [match.object.id, match]));
   const visible = new Set(currentState.visibleObjectIds ?? []);
+  const selectedIds = new Set(relatedSelectionIds(currentState, currentState.selectedObjectIds ?? []));
   const tree = buildObjectTree(currentState, { groupBy: findGroupBy });
 
   let shown = 0;
@@ -1981,9 +1984,9 @@ function renderObjects() {
     shown += drawn.length;
     hidden += notDrawn.length;
 
-    dom.objectList.append(groupHeader(group, members.length));
+    dom.objectList.append(groupHeader({ ...group, objectIds: members }, members.length, selectedIds));
     for (const id of drawn) {
-      dom.objectList.append(objectRow(byId.get(id), true));
+      dom.objectList.append(objectRow(byId.get(id), true, selectedIds));
     }
     // Never silently dropped. The old list skipped anything not currently drawn,
     // so searching for something in a body you had switched off returned an
@@ -1999,7 +2002,7 @@ function renderObjects() {
   renderRailUtility(shown, hidden);
 }
 
-function groupHeader(group, count) {
+function groupHeader(group, count, selected) {
   const header = document.createElement("button");
   header.type = "button";
   header.className = "group-header";
@@ -2011,7 +2014,8 @@ function groupHeader(group, count) {
   tally.className = "group-count";
   tally.textContent = String(count);
   header.append(label, tally);
-  header.title = "Select every object in this group";
+  header.title = "Select every matching object in this group";
+  header.setAttribute("aria-pressed", String(group.objectIds.every(id => selected.has(id))));
   header.addEventListener("click", () => {
     dispatch({ type: "selectObjects", objectIds: group.objectIds });
     selectedObjectId = currentState.selectedObjectIds[0] ?? selectedObjectId;
@@ -2020,7 +2024,7 @@ function groupHeader(group, count) {
   return header;
 }
 
-function objectRow(match, drawn) {
+function objectRow(match, drawn, selectedIds) {
   const object = match.object;
   const button = document.createElement("button");
   button.type = "button";
@@ -2030,7 +2034,9 @@ function objectRow(match, drawn) {
   // Two spans concatenate into "Smoke pipepipe - element:..." with no separator
   // in the accessible name, so state it explicitly.
   button.setAttribute("aria-label", `${object.name || object.id} - ${object.kind}`);
-  if (object.id === selectedObjectId) button.classList.add("selected");
+  const selected = selectedIds.has(object.id);
+  button.classList.toggle("selected", selected);
+  button.setAttribute("aria-pressed", String(selected));
   if (!drawn) button.classList.add("not-drawn");
 
   const name = document.createElement("span");
@@ -2093,11 +2099,10 @@ function refLabel(ref) {
   return ref?.kind && ref?.id ? `${ref.kind}:${ref.id}` : "";
 }
 
-// The 28px slot under the mesh check. Its contents follow the pane, so the two
-// states never differ in height.
+// View utilities stay available while searching for objects.
 function renderRailUtility(shown = 0, hidden = 0) {
   dom.railUtility.replaceChildren();
-  if (dom.findPane.hidden) {
+  {
     // "All layers" is not here any more - the tree moved into the Display
     // strip, as the last row of the list whose curated rows it backs up.
     for (const [id, label] of [["section", "Section box"], ["views", "Saved views"]]) {
@@ -2114,13 +2119,8 @@ function renderRailUtility(shown = 0, hidden = 0) {
       });
       dom.railUtility.append(button);
     }
-  } else {
-    const tally = document.createElement("span");
-    tally.className = "find-tally";
-    tally.dataset.findTally = "";
-    tally.textContent = hidden > 0 ? `${shown} drawn · ${hidden} hidden` : `${shown} of ${currentState.objects.length}`;
-    dom.railUtility.append(tally);
   }
+  dom.findTally.textContent = hidden > 0 ? `${shown} drawn / ${hidden} hidden` : `${shown} objects`;
   // The unit chip used to end this row. It governs every quantity on screen,
   // including the inspector's in Build mode where this rail does not exist, so
   // it belongs to the session line at the bottom rather than to the rail.
@@ -2132,7 +2132,7 @@ let wallSectionOpen = false;
 let bodyLegendOpen = false;
 
 function renderRailPopover() {
-  dom.railPopover.hidden = openPopoverId === null || !dom.findPane.hidden;
+  dom.railPopover.hidden = openPopoverId === null;
   if (dom.railPopover.hidden) return;
   for (const [id, node] of [
     ["section", dom.sectionBoxControls],
@@ -2225,12 +2225,7 @@ function renderProperties() {
   dom.propertyActions.replaceChildren();
   dom.properties.replaceChildren();
   const issueSummary = currentState.activeIssueId ? getIssueSummary(currentState, currentState.activeIssueId) : null;
-  // The contact panel already owns shoe details; keep the viewport available
-  // when selecting its row, especially on narrow screens.
-  const contactSelection = colorChannelOf(currentState) === "results" && Object.keys(contactRecords(currentState))
-    .some(id => contactObjectId(currentState, id) === selectedObjectId);
-  dom.inspector.hidden = contactSelection || (!summary && !issueSummary);
-  if (contactSelection) return;
+  dom.inspector.hidden = !summary && !issueSummary;
   if (!summary) {
     if (issueSummary) {
       dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
@@ -2244,7 +2239,7 @@ function renderProperties() {
   }
   const sections = summary.sections;
   const selectedObject = currentState.objects.find((obj) => obj.id === selectedObjectId);
-  if (selectedObject?.entity_ref) {
+  if (selectedObject?.entity_ref && currentState.selectedObjectIds.length === 1) {
     const copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.textContent = "Copy Entity Ref";
@@ -2286,6 +2281,28 @@ function renderProperties() {
     render();
   });
   dom.propertyActions.append(fitButton, hideButton, isolateButton);
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.textContent = "Clear selection";
+  clearButton.addEventListener("click", () => { dispatch({ type: "selectObjects", objectIds: [] }); render(); });
+  dom.propertyActions.append(clearButton);
+  if ((currentState.selectedObjectIds ?? []).length > 1) {
+    const objects = currentState.selectedObjectIds.map(id => currentState.objects.find(o => o.id === id)).filter(Boolean);
+    const groups = [...new Set(objects.flatMap(o => o.group_ids ?? o.metadata?.groups ?? []))];
+    dom.properties.append(renderEvidenceHead({
+      title: `${objects.length} objects selected`,
+      lede: groups.length ? `Groups: ${groups.join(", ")}` : "Multiple objects",
+      meta: "Fit, hide and isolate apply to the whole selection."
+    }));
+    for (const object of objects) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = object.name || object.id;
+      button.addEventListener("click", () => { dispatch({ type: "selectObject", objectId: object.id }); render(); });
+      dom.properties.append(button);
+    }
+    return;
+  }
   dom.properties.append(renderEvidenceHead(summary));
   // A load arrow's entity ref names its node, so it is recognised by kind.
   if (isBuildMode() && (/^(element|support):/.test(selectedObject?.entity_ref ?? "") || selectedObject?.kind === "applied_load")) {
@@ -2301,6 +2318,8 @@ function renderProperties() {
     dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
     appendIssueReviewActions(issueSummary);
   }
+  const contact = renderContactReview(currentState, dispatch, render, "selection", selectedObjectId);
+  if (contact) dom.properties.append(contact);
   if (Object.keys(summary.reference).length > 0) {
     dom.properties.append(renderReference(summary.reference));
   }
@@ -2525,10 +2544,9 @@ function renderCanvas() {
   }
   renderCameraControls();
   const graph = viewportRenderer.render(currentState);
-  const result = {
-    ...graph,
-    renderableObjects: [...new Set(graph.objectsByObjectId.values())].filter((object) => object.visible !== false)
-  };
+  const result = graph;
+  applyHoverHighlight(graph, hoveredObjectId);
+  if (hoveredObjectId) viewportRenderer.redraw();
   lastRenderGraph = result;
   const objectIds = [...new Set(result.renderableObjects.flatMap((object) => object.userData.objectIds ?? []))];
   globalThis.__tubaViewer = {
@@ -2661,14 +2679,18 @@ dom.canvas.addEventListener("mousemove", (event) => {
   if (
     orbiting ||
     !currentState ||
-    !lastRenderGraph ||
-    lastRenderGraph.renderableObjects.length > MAX_HOVER_PICK_OBJECTS
+    !lastRenderGraph
   ) return;
   pendingHoverPoint = { x: event.clientX, y: event.clientY };
   if (hoverFrameId !== null) return;
-  hoverFrameId = requestAnimationFrame(() => {
+  hoverFrameId = requestAnimationFrame(function pickHover() {
     hoverFrameId = null;
     if (orbiting || !pendingHoverPoint || !lastRenderGraph) return;
+    if (performance.now() - lastHoverPickTime < 32) {
+      hoverFrameId = requestAnimationFrame(pickHover);
+      return;
+    }
+    lastHoverPickTime = performance.now();
     const rect = dom.canvas.getBoundingClientRect();
     const objectId = pickRenderedObject(
       lastRenderGraph,
@@ -2979,6 +3001,7 @@ dom.findDismiss.addEventListener("click", () => {
   currentSearch = "";
   dom.searchInput.value = "";
   closeFind();
+  render();
 });
 
 dom.searchInput.addEventListener("keydown", (event) => {

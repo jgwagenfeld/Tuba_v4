@@ -1736,6 +1736,41 @@ test("line_load_comb assets create an arrow group and crest rail tagged with obj
   assert.ok(crest);
   assert.equal(crest.isLine, true);
   assert.equal(rendered.userData.primaryObjectId, "object:line-load");
+  const volume = rendered.userData.pickVolume;
+  assert.equal(volume.material.visible, false, "the pick volume does not obscure the model");
+  assert.ok(volume.geometry.parameters.height >= 0.125, "the planar comb has depth along Y");
+  graph.camera = new OrthographicCamera(-2, 2, 2, -2, 0.1, 100);
+  graph.camera.up.set(0, 0, 1);
+  graph.camera.position.set(0, -10, 0);
+  graph.camera.lookAt(0, 0, 0);
+  graph.camera.updateMatrixWorld();
+  const pickAt = point => {
+    const projected = point.clone().project(graph.camera);
+    return pickRenderedObject(graph, { x: (projected.x + 1) * 250, y: (1 - projected.y) * 250 }, PICK_VIEWPORT);
+  };
+  assert.equal(pickAt(new Vector3(0.5, 0, 0.25)), "object:line-load", "space between arrows selects the load");
+  applyHoverHighlight(graph, "object:line-load");
+  assert.equal(rendered.userData.highlightOutline.visible, true);
+  applyHoverHighlight(graph, null);
+  assert.equal(rendered.userData.highlightOutline.visible, false);
+  applySelectionHighlight(graph, ["object:line-load"]);
+  assert.equal(rendered.userData.highlightOutline.visible, true);
+  graph.camera.position.set(10, 0, 0);
+  graph.camera.lookAt(0, 0, 0);
+  graph.camera.updateMatrixWorld();
+  assert.equal(pickAt(new Vector3(0.5, 0.055, 0.25)), "object:line-load", "depth remains selectable edge-on");
+  assert.equal(pickAt(new Vector3(0.5, 0.3, 0.25)), null, "outside the volume still misses");
+  graph.camera.position.set(0, -10, 0);
+  graph.camera.lookAt(0, 0, 0);
+  graph.camera.updateMatrixWorld();
+  const support = new Mesh(new BoxGeometry(0.05, 0.05, 0.05), new MeshBasicMaterial());
+  support.position.set(0.5, 0, 0.25);
+  support.userData = { primaryObjectId: "support", pickPriority: 1 };
+  graph.root.add(support);
+  graph.renderableObjects.push(support);
+  assert.equal(pickAt(new Vector3(0.5, 0, 0.25)), "support", "a real support wins over the load volume");
+  applySectionBoxClipping(graph, { min: [1.5, -1, -1], max: [3, 1, 1] });
+  assert.equal(pickAt(new Vector3(0.5, 0, 0.25)), null, "clipped load volumes cannot be selected");
 });
 
 test("applied loads render badges for force, moment, and line loads", () => {
