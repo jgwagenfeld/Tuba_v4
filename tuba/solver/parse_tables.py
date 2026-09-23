@@ -597,6 +597,12 @@ def parse_sieq_table(
                 tangent=tangent,
                 subpoint_index=subpoint_index,
             )
+            inner_radius_m: float | None = None
+            outer_radius_m: float | None = None
+            wall_section = model.sections.get(elem.section)
+            if isinstance(wall_section, PipeSection):
+                outer_radius_m = float(wall_section.OD) / 2.0
+                inner_radius_m = outer_radius_m - float(wall_section.WT)
             results.tuyau_subpoints.append(
                 {
                     "field": "SIEQ_ELNO",
@@ -611,6 +617,8 @@ def parse_sieq_table(
                     "subpoint_index": subpoint_index,
                     "centerline_position": centerline_position,
                     "display_position": display_position,
+                    "inner_radius_m": inner_radius_m,
+                    "outer_radius_m": outer_radius_m,
                     "position_source": (
                         "code_aster_tuyau_subpoint_formula"
                         if display_position is not None

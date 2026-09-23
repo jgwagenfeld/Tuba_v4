@@ -121,6 +121,8 @@ def tuyau_subpoint_rows(model: Model, element_id: str, *, node_id: str) -> list[
                     centre[1] + radius * math.cos(station.angle_rad),
                     centre[2] - radius * math.sin(station.angle_rad),
                 ],
+                "inner_radius_m": r_ext - WT,
+                "outer_radius_m": r_ext,
                 "position_source": "code_aster_tuyau_subpoint_formula",
                 "tuyau_ncou": CODE_ASTER_TUYAU_NCOU,
                 "tuyau_nsec": CODE_ASTER_TUYAU_NSEC,

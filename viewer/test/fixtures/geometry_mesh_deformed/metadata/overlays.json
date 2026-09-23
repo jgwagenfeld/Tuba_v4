@@ -691,6 +691,7 @@
       "total_count": 7,
       "unit": "Pa",
       "values": {
+        "object:element:pipe_str_1": 160750000.0,
         "object:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve": 160750000.0
       }
     },

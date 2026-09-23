@@ -51,11 +51,19 @@ def write_engineering_review(
     *,
     title: str | None = None,
     scene_writer: Callable[[Path], str | None] | None = None,
+    back_uri: str = "../",
 ) -> EngineeringReviewOutput:
     """Write JSON, CSV, and printable HTML from one review package.
 
     The optional callback is the only scene integration seam. This module does
     not depend on a renderer or on :mod:`tuba.visualization`.
+
+    ``back_uri`` is where the printed page's return link points. It is relative
+    and defaults to ``"../"``, which is the viewer in every layout this is
+    written into - the bundle folder sits under the viewer, so its parent is
+    the app. Relative, and not absolute, because this document has to open
+    from a zip in ten years with no network; a relative link degrades to
+    nothing there, an absolute one rots.
     """
     _validate_export_inputs(review)
 
@@ -125,7 +133,7 @@ def write_engineering_review(
 
     index_path = _validated_exporter_destination(root, resolved_root, "index.html")
     index_path.write_text(
-        _render_html(review, manifest, title=title),
+        _render_html(review, manifest, title=title, back_uri=back_uri),
         encoding="utf-8",
         newline="\n",
     )
@@ -237,6 +245,7 @@ def _render_html(
     manifest: Mapping[str, Any],
     *,
     title: str | None,
+    back_uri: str = "../",
 ) -> str:
     page_title = title or f"{review.project_name} engineering review"
     sections: dict[str, list[ReportTable]] = {name: [] for name in _SECTION_TITLES}
@@ -268,6 +277,8 @@ def _render_html(
         "h1, h2, h3 { break-after: avoid; line-height: 1.25; }",
         ".meta { color: #44505f; margin: 0 0 .35rem; }",
         ".units { color: #44505f; font-size: .85rem; margin: 0 0 1.75rem; }",
+        ".back { margin: 2.5rem 0 0; font-size: .9rem; }",
+        ".back a { text-decoration: underline; text-underline-offset: .15em; }",
         # Shared with the viewer and the docs site: the warning and focus values
         # below are the review app's --warning and --focus-on-light, so a reader
         # crossing from the model to this page does not change product. Kept in
@@ -321,6 +332,9 @@ def _render_html(
         "  @page { size: A4 landscape; margin: 10mm; }",
         "  body { margin: 0; max-width: none; padding: 0; }",
         "  a { color: inherit; text-decoration: none; }",
+        # The return link is a screen affordance. On paper "back to the viewer"
+        # is a sentence about software the reader is not using.
+        "  .back { display: none; }",
         # The scroll container cannot scroll on paper. Visible is right only
         # because the table now fits the page; it is what hid the loss before.
         "  .table-wrap { overflow: visible; }",
@@ -357,7 +371,20 @@ def _render_html(
             content.extend(_render_table(table, csv_uri=reports.get(table.id)))
         content.append("</section>")
 
-    content.extend(("</main>", "</body>", "</html>", ""))
+    content.extend(
+        (
+            # The way out. This page used to end at </main> with no anchor to
+            # the viewer anywhere on it - a different stylesheet, a different
+            # type scale, and only browser Back - which made the report the
+            # sharpest dead end in the product.
+            f'<p class="back"><a href="{escape(back_uri, quote=True)}">'
+            "&#8592; Back to the review viewer</a></p>",
+            "</main>",
+            "</body>",
+            "</html>",
+            "",
+        )
+    )
     return "\n".join(content)
 
 

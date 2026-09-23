@@ -262,8 +262,11 @@ async function main() {
   document.body.dataset.embed = String(startupConfig.embed);
   dom.appShell.dataset.embed = String(startupConfig.embed);
 
-  // The gallery is a navigation surface, not a view of a scene. Returning here
-  // means the Three.js viewport is never constructed on the landing path.
+  // The gallery is a navigation surface: cards are links, and the geometry
+  // arrives as photographs the Pages build shot from the very bundles shipping
+  // beside them. Returning here means the Three.js viewport is never
+  // constructed on the landing path - the scene is shown, not rendered, which
+  // is the whole reason a card is one PNG rather than a WebGL context.
   if (dom.gallery && shouldShowGallery({ ...startupConfig, catalog })) {
     document.body.dataset.view = "gallery";
     dom.gallery.hidden = false;
@@ -472,16 +475,18 @@ function renderSavedViews() {
   const saveButton = document.createElement("button");
   saveButton.type = "button";
   saveButton.textContent = "Save Current View";
+  saveButton.dataset.focusKey = "saved-view:save";
   saveButton.addEventListener("click", () => {
     const name = `View ${savedViews.length + 1}`;
     savedViews.push(saveViewState(currentState, name));
     render();
   });
   dom.savedViews.append(saveButton);
-  for (const view of savedViews) {
+  for (const [index, view] of savedViews.entries()) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = view.name;
+    button.dataset.focusKey = `saved-view:${index}`;
     button.addEventListener("click", () => {
       dispatch({ type: "restoreViewState", view });
       selectedObjectId = currentState.selectedObjectIds[0] ?? null;
@@ -527,57 +532,109 @@ function renderSelectionFact() {
   dom.selectionFact.title = `${ids.length} object${ids.length === 1 ? "" : "s"} selected`;
 }
 
+// One status chip, drawn from one view model. The studio and the published
+// review used to build this DOM in two separate functions with two vocabularies
+// and a copy-pasted badge/alert/clock recipe, so the chip could be styled by one
+// path and not the other. The vocabularies stay different on purpose - a solve
+// lifecycle is not an analysis status - but they are data now, and there is one
+// place that turns them into a chip.
 function renderStatusChip() {
   dom.statusChip.replaceChildren();
-  if (studio.project && !currentState.embed) {
-    renderProjectStatusChip();
+  const isProject = studio.project && !currentState.embed;
+  trackSolveClock(Boolean(isProject && (studio.solving || studio.preparing)));
+  const model = isProject ? projectStatusChipModel() : reviewStatusChipModel();
+  if (!model) {
+    dom.statusChip.hidden = true;
     return;
   }
-  dom.statusChip.hidden = currentState.embed || !currentState.review;
-  if (dom.statusChip.hidden) return;
+  drawStatusChip(model);
+}
+
+// A published review: what the solver made of the model, and only its
+// exceptions. A clean review is not news; a warning is.
+function reviewStatusChipModel() {
+  if (currentState.embed || !currentState.review) return null;
   const status = cockpitStatusViewModel(currentState.review);
-
-  const verdict = document.createElement("span");
-  verdict.className = "status-badge";
-  verdict.dataset.status = String(status.analysisStatus);
-  verdict.textContent = String(status.analysisStatus).replaceAll("_", " ");
-  dom.statusChip.append(verdict);
-
-  // Exceptions only: a clean review is not news, a warning is.
   const alerts = [
     status.warningCount > 0
-      ? ["diagnostics", `${status.warningCount} warning${status.warningCount === 1 ? "" : "s"}`]
+      ? `${status.warningCount} warning${status.warningCount === 1 ? "" : "s"}`
       : null
   ].filter(Boolean);
-  for (const [, label] of alerts) {
+  return {
+    status: String(status.analysisStatus),
+    alerts,
+    clock: null,
+    statusTarget: alerts.length > 0 ? "issues" : "colour",
+    ariaLabel: `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.join(", ")}` : ""} - show the review rail`,
+    onClick: () => {
+      railExpanded = true;
+      // setMode owns the stage move. This used to assign the studio's own mode
+      // field directly, which for a published bundle sitting in Build set the
+      // wrong driver and did nothing at all, while the project chip had always
+      // gone through setMode.
+      void setMode("review").then(() => {
+        render();
+        // The rail is one column now: bring the section the chip is talking about
+        // into view rather than claiming a lens.
+        const section = alerts.length > 0 ? dom.issueList : dom.colorBy;
+        if (alerts.length > 0) dom.reviewDrawer.open = true;
+        else dom.colorBy.closest("details").open = true;
+        section?.scrollIntoView?.({ block: "start" });
+      });
+    }
+  };
+}
+
+// A studio project: where it is in the solve lifecycle. Never shown for a
+// project that cannot solve and is not stale - there is no news in that.
+function projectStatusChipModel() {
+  if (!studio.project.solves && !studio.reviewStale) return null;
+  const [status, alert] = studio.preparing
+    ? ["preparing", "Importing the review"]
+    : studio.solving
+    ? ["solving", "Code_Aster is running"]
+    : !studio.hasReview
+      ? ["not_solved", null]
+      : studio.reviewStale
+        ? ["stale", "Model changed since the last solve"]
+        : ["solved", null];
+  const busy = studio.solving || studio.preparing;
+  return {
+    status,
+    alerts: alert ? [alert] : [],
+    clock: busy ? solveElapsedLabel() : null,
+    statusTarget: null,
+    // The clock is deliberately left out of the label: the chip is a button, not
+    // a live region, but rebuilding it every second would still leave a screen
+    // reader reading a running count if it ever became one.
+    ariaLabel: `Review ${status.replaceAll("_", " ")}${alert ? `, ${alert}` : ""} - show the review`,
+    onClick: () => void setMode("review")
+  };
+}
+
+function drawStatusChip(model) {
+  dom.statusChip.hidden = false;
+  const verdict = document.createElement("span");
+  verdict.className = "status-badge";
+  verdict.dataset.status = model.status;
+  verdict.textContent = model.status.replaceAll("_", " ");
+  dom.statusChip.append(verdict);
+  for (const label of model.alerts) {
     const alert = document.createElement("span");
     alert.className = "status-chip-alert";
     alert.textContent = label;
     dom.statusChip.append(alert);
   }
-
-  const target = alerts.length > 0 ? "issues" : "colour";
-  dom.statusChip.dataset.statusTarget = target;
-  dom.statusChip.setAttribute(
-    "aria-label",
-    `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.map(([, label]) => label).join(", ")}` : ""} - show the review rail`
-  );
-  dom.statusChip.onclick = () => {
-    railExpanded = true;
-    // setMode owns the stage move. This used to assign the studio's own mode
-    // field directly, which for a published bundle sitting in Build set the
-    // wrong driver and did nothing at all, while renderProjectStatusChip had
-    // always gone through setMode.
-    void setMode("review").then(() => {
-      render();
-      // The rail is one column now: bring the section the chip is talking about
-      // into view rather than claiming a lens.
-      const section = alerts.length > 0 ? dom.issueList : dom.colorBy;
-      if (alerts.length > 0) dom.reviewDrawer.open = true;
-      else dom.colorBy.closest("details").open = true;
-      section?.scrollIntoView?.({ block: "start" });
-    });
-  };
+  if (model.clock) {
+    const clock = document.createElement("span");
+    clock.className = "status-chip-clock";
+    clock.textContent = model.clock;
+    dom.statusChip.append(clock);
+  }
+  if (model.statusTarget) dom.statusChip.dataset.statusTarget = model.statusTarget;
+  else delete dom.statusChip.dataset.statusTarget;
+  dom.statusChip.setAttribute("aria-label", model.ariaLabel);
+  dom.statusChip.onclick = model.onClick;
 }
 
 
@@ -697,6 +754,7 @@ function modelLegendChips(mode) {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "model-legend-chip";
+    chip.dataset.focusKey = `legend:${item.label}`;
     chip.setAttribute("role", "listitem");
     chip.title = `Click to select ${item.count} elements with ${mode} "${item.label}"`;
 
@@ -775,8 +833,7 @@ function renderResultControls() {
     if (panel) host.append(panel);
   }
   renderReactionTable();
-  const issueCount = (currentState.issues ?? []).length;
-  dom.reviewTally.textContent = `${issueCount} issue${issueCount === 1 ? "" : "s"}`;
+  dom.reviewTally.textContent = reviewTallyLabel();
   const loadCases = getLoadCaseOptions(currentState);
   const resultStates = getResultStateOptions(currentState);
   const geometryStates = getGeometryStateOptions(currentState);
@@ -876,6 +933,7 @@ function renderResultControls() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "hotspot-row";
+    button.dataset.focusKey = `hotspot:${hotspot.elementId ?? ""}:${hotspot.rowIndex ?? ""}:${hotspot.subpointIndex ?? ""}`;
     const identity = hotspot.elementId
       ? ` ${hotspot.elementId} row ${hotspot.rowIndex ?? "?"} subpoint ${hotspot.subpointIndex ?? "?"}`
       : "";
@@ -1505,6 +1563,7 @@ function animateButton() {
   button.type = "button";
   button.className = "bar-button";
   button.dataset.animateDeformation = "";
+  button.dataset.focusKey = "deform-animate";
   const animating = deformationAnimation !== null;
   // Icon only: the word cost 60px of a 172px row and the slider needs it.
   button.replaceChildren(animating ? glyphIcon("pause") : glyphIcon("play"));
@@ -1827,12 +1886,31 @@ function layerToggle(leaf) {
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = layer?.visible !== false;
+  input.dataset.focusKey = `layer:${leaf.layerId}`;
   input.addEventListener("change", () => {
     dispatch({ type: "setLayerVisibility", layerId: leaf.layerId, visible: input.checked });
     render();
   });
   label.append(input, ` ${leaf.label} (${leaf.count})`);
   return label;
+}
+
+// The drawer's summary names both counters this surface carries, because they
+// count different things and either one alone read as a contradiction. The
+// status chip in the same window counts review diagnostics ("2 warnings");
+// the scene brings its own issues ("3 clashes"). Showing only the latter made
+// a warning-free review of a clashing model announce "0 issues" next to a chip
+// that said otherwise. Both are named; whichever is empty stays out of the way.
+function reviewTallyLabel() {
+  const warnings = currentState.review
+    ? cockpitStatusViewModel(currentState.review).warningCount
+    : 0;
+  const issues = (currentState.issues ?? []).length;
+  const parts = [
+    warnings > 0 ? `${warnings} warning${warnings === 1 ? "" : "s"}` : null,
+    issues > 0 ? `${issues} issue${issues === 1 ? "" : "s"}` : null
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join("  ·  ") : "0 issues";
 }
 
 function renderDiagnostics() {
@@ -1865,7 +1943,12 @@ function renderDiagnostics() {
   renderDiagnosticGroup("Load and preview diagnostics", loadDiagnostics);
   // The evidence dock used to decide this; the list now lives in the Issues
   // task and shows itself whenever it has something to say.
-  dom.diagnosticList.hidden = dom.diagnosticList.childElementCount === 0;
+  const nothingToShow = dom.diagnosticList.childElementCount === 0;
+  dom.diagnosticList.hidden = nothingToShow;
+  // And the disclosure around it. An empty <details> is not a quiet absence -
+  // it is an invitation to click and find nothing there.
+  const disclosure = dom.diagnosticList.closest("details");
+  if (disclosure) disclosure.hidden = nothingToShow;
 }
 
 function isLoadOrPreviewDiagnostic(diagnostic) {
@@ -1874,20 +1957,18 @@ function isLoadOrPreviewDiagnostic(diagnostic) {
 }
 
 function renderDiagnosticGroup(title, diagnostics) {
+  // Empty groups are not drawn at all. They used to render a heading and a
+  // "None reported." line, and because a <section> was appended even when the
+  // group was empty the auto-hide in renderDiagnostics could never fire - so
+  // the disclosure always opened on five headings and five "None reported."
+  // lines, which reads as five problems rather than as none.
+  if (diagnostics.length === 0) return;
+
   const section = document.createElement("section");
   section.className = "diagnostic-group";
   const heading = document.createElement("h2");
   heading.textContent = `${title} (${diagnostics.length})`;
   section.append(heading);
-
-  if (diagnostics.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "meta";
-    empty.textContent = "None reported.";
-    section.append(empty);
-    dom.diagnosticList.append(section);
-    return;
-  }
 
   for (const diagnostic of diagnostics) {
     const item = document.createElement("article");
@@ -2142,12 +2223,36 @@ function renderRailPopover() {
   }
 }
 
+// One issue row with one focus behaviour. The review rail and the build pane
+// each used to build their own button and had both copy-pasted the click
+// handler, so anything about "what selecting an issue does" had to be changed
+// twice and drifted. Severity wording and the title fallback live here too,
+// which is why the two lists can no longer spell them differently.
+function issueRow(issue, { focusKey = null } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = issue.id === currentState.activeIssueId ? "selected" : "";
+  if (focusKey) button.dataset.focusKey = focusKey;
+  button.textContent = `${String(issue.severity ?? "warning").toUpperCase()} - ${issue.title ?? issue.id}`;
+  button.addEventListener("click", () => {
+    dispatch({ type: "focusIssue", issueId: issue.id });
+    const marker = currentState.selectedObjectIds
+      .map((objectId) => currentState.objects.find((obj) => obj.id === objectId))
+      .find((obj) => obj?.kind === "clash_marker");
+    selectedObjectId = marker?.id ?? currentState.selectedObjectIds[0] ?? null;
+    render();
+  });
+  return button;
+}
+
+
 function renderIssues() {
   dom.issueList.replaceChildren();
   const filterLabel = document.createElement("label");
   const filterInput = document.createElement("input");
   filterInput.type = "checkbox";
   filterInput.checked = issueFilters.operatingOnly;
+  filterInput.dataset.focusKey = "issue-filter";
   filterInput.addEventListener("change", () => {
     issueFilters = { ...issueFilters, operatingOnly: filterInput.checked };
     renderIssues();
@@ -2169,19 +2274,7 @@ function renderIssues() {
     header.textContent = `${group.severity.toUpperCase()} - ${group.loadCase} - ${group.status} (${group.issues.length})`;
     dom.issueList.append(header);
     for (const issue of group.issues) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = issue.id === currentState.activeIssueId ? "selected" : "";
-      button.textContent = `${issue.severity.toUpperCase()} - ${issue.title}`;
-      button.addEventListener("click", () => {
-        dispatch({ type: "focusIssue", issueId: issue.id });
-        const marker = currentState.selectedObjectIds
-          .map((objectId) => currentState.objects.find((obj) => obj.id === objectId))
-          .find((obj) => obj?.kind === "clash_marker");
-        selectedObjectId = marker?.id ?? currentState.selectedObjectIds[0] ?? null;
-        render();
-      });
-      dom.issueList.append(button);
+      dom.issueList.append(issueRow(issue, { focusKey: `issue:${issue.id}` }));
     }
   }
 }
@@ -2200,20 +2293,7 @@ function renderBuildIssues() {
   heading.textContent = `Model issues (${issues.length})`;
   dom.buildIssues.append(heading);
   for (const issue of issues) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = issue.id === currentState.activeIssueId ? "selected" : "";
-    button.dataset.focusKey = `build-issue:${issue.id}`;
-    button.textContent = `${String(issue.severity ?? "warning").toUpperCase()} - ${issue.title ?? issue.id}`;
-    button.addEventListener("click", () => {
-      dispatch({ type: "focusIssue", issueId: issue.id });
-      const marker = currentState.selectedObjectIds
-        .map((objectId) => currentState.objects.find((obj) => obj.id === objectId))
-        .find((obj) => obj?.kind === "clash_marker");
-      selectedObjectId = marker?.id ?? currentState.selectedObjectIds[0] ?? null;
-      render();
-    });
-    dom.buildIssues.append(button);
+    dom.buildIssues.append(issueRow(issue, { focusKey: `build-issue:${issue.id}` }));
   }
 }
 
@@ -2243,6 +2323,7 @@ function renderProperties() {
     const copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.textContent = "Copy Entity Ref";
+    copyButton.dataset.focusKey = "action:copy";
     copyButton.addEventListener("click", () => {
       // Announced only once the write resolved. This used to swallow the
       // rejection and report "Copied" regardless, so on a non-secure origin the
@@ -2262,6 +2343,7 @@ function renderProperties() {
   const fitButton = document.createElement("button");
   fitButton.type = "button";
   fitButton.textContent = "Fit selected";
+  fitButton.dataset.focusKey = "action:fit";
   fitButton.addEventListener("click", () => {
     dispatch({ type: "fitSelection" });
     render();
@@ -2269,6 +2351,7 @@ function renderProperties() {
   const hideButton = document.createElement("button");
   hideButton.type = "button";
   hideButton.textContent = "Hide selected";
+  hideButton.dataset.focusKey = "action:hide";
   hideButton.addEventListener("click", () => {
     dispatch({ type: "hideSelected" });
     render();
@@ -2276,6 +2359,7 @@ function renderProperties() {
   const isolateButton = document.createElement("button");
   isolateButton.type = "button";
   isolateButton.textContent = "Isolate selected";
+  isolateButton.dataset.focusKey = "action:isolate";
   isolateButton.addEventListener("click", () => {
     dispatch({ type: "isolateSelection" });
     render();
@@ -2284,6 +2368,7 @@ function renderProperties() {
   const clearButton = document.createElement("button");
   clearButton.type = "button";
   clearButton.textContent = "Clear selection";
+  clearButton.dataset.focusKey = "action:clear";
   clearButton.addEventListener("click", () => { dispatch({ type: "selectObjects", objectIds: [] }); render(); });
   dom.propertyActions.append(clearButton);
   if ((currentState.selectedObjectIds ?? []).length > 1) {
@@ -2498,6 +2583,7 @@ function formatPropertyValue(value) {
 function appendIssueReviewActions(issueSummary) {
   const status = document.createElement("select");
   status.setAttribute("aria-label", "Issue Status");
+  status.dataset.focusKey = "issue-status";
   for (const option of ["open", "reviewing", "resolved"]) {
     const element = document.createElement("option");
     element.value = option;
@@ -2512,6 +2598,7 @@ function appendIssueReviewActions(issueSummary) {
 
   const comment = document.createElement("textarea");
   comment.setAttribute("aria-label", "Issue Comment");
+  comment.dataset.focusKey = "issue-comment";
   comment.value = issueSummary.comment ?? "";
   comment.addEventListener("change", () => {
     dispatch({ type: "setIssueReviewComment", issueId: issueSummary.id, comment: comment.value });
@@ -2520,6 +2607,7 @@ function appendIssueReviewActions(issueSummary) {
   const restoreButton = document.createElement("button");
   restoreButton.type = "button";
   restoreButton.textContent = "Restore view";
+  restoreButton.dataset.focusKey = "issue-restore";
   restoreButton.addEventListener("click", () => {
     dispatch({ type: "restoreVisibility" });
     render();
@@ -3320,48 +3408,6 @@ function trackSolveClock(busy) {
     clearInterval(solveClockTimer);
     solveClockTimer = null;
   }
-}
-
-function renderProjectStatusChip() {
-  const busy = studio.solving || studio.preparing;
-  trackSolveClock(busy);
-  if (!studio.project.solves && !studio.reviewStale) {
-    dom.statusChip.hidden = true;
-    return;
-  }
-  const [status, alert] = studio.preparing
-    ? ["preparing", "Importing the review"]
-    : studio.solving
-    ? ["solving", "Code_Aster is running"]
-    : !studio.hasReview
-      ? ["not_solved", null]
-      : studio.reviewStale
-        ? ["stale", "Model changed since the last solve"]
-        : ["solved", null];
-  dom.statusChip.hidden = false;
-  const verdict = document.createElement("span");
-  verdict.className = "status-badge";
-  verdict.dataset.status = status;
-  verdict.textContent = status.replaceAll("_", " ");
-  dom.statusChip.append(verdict);
-  if (alert) {
-    const note = document.createElement("span");
-    note.className = "status-chip-alert";
-    note.textContent = alert;
-    dom.statusChip.append(note);
-  }
-  const elapsed = busy ? solveElapsedLabel() : null;
-  if (elapsed) {
-    const clock = document.createElement("span");
-    clock.className = "status-chip-clock";
-    clock.textContent = elapsed;
-    dom.statusChip.append(clock);
-  }
-  // The clock is deliberately left out of the label: the chip is a button, not
-  // a live region, but rebuilding it every second would still leave a screen
-  // reader reading a running count if it ever became one.
-  dom.statusChip.setAttribute("aria-label", `Review ${status.replaceAll("_", " ")}${alert ? `, ${alert}` : ""} - show the review`);
-  dom.statusChip.onclick = () => void setMode("review");
 }
 
 async function solveProject() {

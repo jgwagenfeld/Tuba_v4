@@ -76,6 +76,11 @@ class TestCodeAsterTuyauSubpoints(unittest.TestCase):
         self.assertEqual(results.tuyau_subpoints[2]["node_id"], "N1")
         self.assertAlmostEqual(results.tuyau_subpoints[2]["display_position"][0], 1.0)
         self.assertAlmostEqual(results.tuyau_subpoints[2]["display_position"][2], 0.04)
+        # Each row carries the section's real wall so display glyphs can be
+        # clamped to the bore and the OD instead of overshooting both.
+        for row in results.tuyau_subpoints:
+            self.assertAlmostEqual(row["inner_radius_m"], 0.04)
+            self.assertAlmostEqual(row["outer_radius_m"], 0.05)
         self.assertEqual(results.get_max_von_mises("pipe_0"), 30.0)
 
 

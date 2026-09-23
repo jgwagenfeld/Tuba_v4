@@ -1,3 +1,4 @@
+import math
 import unittest
 from dataclasses import replace
 
@@ -272,6 +273,10 @@ class TestVisualizationResultOverlays(unittest.TestCase):
                         "subpoint_index": 3,
                         "centerline_position": [0.0, 0.0, 0.0],
                         "display_position": [0.0, 0.0, 0.04],
+                        "inner_radius_m": 0.04,
+                        "outer_radius_m": 0.05,
+                        "tuyau_ncou": 3,
+                        "tuyau_nsec": 16,
                         "position_source": "code_aster_tuyau_subpoint_formula",
                     },
                     {
@@ -287,6 +292,10 @@ class TestVisualizationResultOverlays(unittest.TestCase):
                         "subpoint_index": 4,
                         "centerline_position": [0.0, 0.0, 0.0],
                         "display_position": [0.0, 0.02, 0.034641],
+                        "inner_radius_m": 0.04,
+                        "outer_radius_m": 0.05,
+                        "tuyau_ncou": 3,
+                        "tuyau_nsec": 16,
                         "position_source": "code_aster_tuyau_subpoint_formula",
                     }
                 ],
@@ -309,9 +318,20 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(len(asset.generation_config["starts"]), 2)
         self.assertEqual(len(asset.generation_config["ends"]), 2)
         self.assertEqual(asset.generation_config["values"], [42.0e6, 84.0e6])
-        self.assertLess(asset.generation_config["starts"][0][2], 0.04)
-        self.assertGreater(asset.generation_config["ends"][0][2], 0.04)
-        self.assertEqual(asset.generation_config["radius_m"], 0.006)
+        # Ticks sit inside the real wall (bore 0.04, OD 0.05): a bore sub-point
+        # is clamped to the bore and never overshoots the OD. Both rows sample
+        # the bore, one on the generatrice and one 30 deg around.
+        def radial(point):
+            return math.sqrt(point[0] ** 2 + point[1] ** 2 + point[2] ** 2)
+
+        self.assertAlmostEqual(radial(asset.generation_config["starts"][0]), 0.04)
+        self.assertGreater(radial(asset.generation_config["ends"][0]), 0.04)
+        self.assertLessEqual(radial(asset.generation_config["ends"][0]), 0.05)
+        self.assertAlmostEqual(radial(asset.generation_config["starts"][1]), 0.04)
+        self.assertGreater(radial(asset.generation_config["ends"][1]), 0.04)
+        self.assertLessEqual(radial(asset.generation_config["ends"][1]), 0.05)
+        # Tick thickness comes from the wall, not a constant.
+        self.assertAlmostEqual(asset.generation_config["radius_m"], 0.01 / 3.0)
         self.assertIn("solver_result:tuyau_subpoints", subpoint.layer_ids)
         self.assertEqual(subpoint.name, "TUYAU FE VMIS (not code stress) Hot")
         self.assertEqual(subpoint.metadata["compliance_role"], "visualization_only_not_asme_code_stress")

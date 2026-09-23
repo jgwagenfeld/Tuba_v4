@@ -474,12 +474,12 @@
   },
   {
     "bounds": [
-      2.7369,
-      -0.0699125,
-      1.4654625,
-      2.7488999999999995,
-      0.073675,
-      1.5489
+      2.740893333333333,
+      -0.05363833333333333,
+      1.4837433333333332,
+      2.744906666666666,
+      0.05664833333333333,
+      1.5449066666666667
     ],
     "format": "tuyau_subpoint_glyphs",
     "generation_config": {
@@ -492,7 +492,7 @@
       },
       "source": "tuba.tuyau_subpoint_field"
     },
-    "hash": "sha256:c8d297f33d1aeb03904c009022709ceac6751a31847db04411e88da060608a35",
+    "hash": "sha256:5be6c775c39d554f0f960416e348c80aaae8e26d144dd6ffd81c51c267375220",
     "id": "geometry:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve",
     "object_ids": [
       "object:tuyau_subpoints:result_state_Hot_gmd_fixture_not_a_solve"

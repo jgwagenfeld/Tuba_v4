@@ -110,6 +110,50 @@ test("workflow rendering consolidates diagnostics, provenance, issues, and load 
   }
 });
 
+test("the drawer tally names both counters, and one source for the warnings", async () => {
+  const app = await readViewerFile("src/app.js");
+  const tally = app.slice(
+    app.indexOf("function reviewTallyLabel()"),
+    app.indexOf("function renderDiagnostics()")
+  );
+
+  // Review diagnostics and scene issues are different things. Naming only the
+  // latter made a warning-free review of a clashing model announce "0 issues"
+  // beside a status chip that said "2 warnings".
+  assert.match(tally, /cockpitStatusViewModel\(currentState\.review\)\.warningCount/);
+  assert.match(tally, /currentState\.issues/);
+  assert.match(tally, /warning/);
+  assert.match(tally, /issue/);
+  // Whatever is empty stays out of the way rather than reading as a finding.
+  assert.match(tally, /parts\.join/);
+  assert.match(tally, /"0 issues"/);
+});
+
+test("empty diagnostic groups are not drawn, so the disclosure can hide", async () => {
+  const app = await readViewerFile("src/app.js");
+  const group = app.slice(
+    app.indexOf("function renderDiagnosticGroup("),
+    app.indexOf("function appendTraceField(")
+  );
+  const render = app.slice(
+    app.indexOf("function renderDiagnostics()"),
+    app.indexOf("function isLoadOrPreviewDiagnostic(")
+  );
+
+  // The old shape appended a <section> per group even when it was empty, so
+  // `childElementCount === 0` could never fire and the disclosure always
+  // opened on five headings and five "None reported." lines - which reads as
+  // five problems rather than as none. Asserted on the literal, not the
+  // comment above this paragraph, which describes the same thing.
+  assert.match(group, /if \(diagnostics\.length === 0\) return;/);
+  assert.doesNotMatch(group, /textContent = "None reported\."/);
+
+  // And the <details> around the list hides with it: an empty disclosure is
+  // not a quiet absence, it is an invitation to click and find nothing.
+  assert.match(render, /const nothingToShow = dom\.diagnosticList\.childElementCount === 0/);
+  assert.match(render, /disclosure\.hidden = nothingToShow/);
+});
+
 test("workflow rendering parses embed once and pins reloads to the display workflow", async () => {
   const app = await readViewerFile("src/app.js");
   const css = await readViewerFile("src/styles.css");
@@ -284,6 +328,10 @@ test("workflow rendering core palette meets WCAG AA text contrast", async () => 
     ["success", "success-surface", 4.5],
     // The rail's own text roles, and the danger that reads on it. --danger is a
     // light-theme value and measured 2.26:1 where the contact table used it.
+    // -1 is the body-prose grey the landing gallery and the header meta share;
+    // it was an untokenised literal in both and a digit apart between them.
+    ["chrome-text-1", "graphite-raised", 4.5],
+    ["chrome-text-1", "graphite", 4.5],
     ["chrome-text-2", "graphite-raised", 4.5],
     ["chrome-text-3", "graphite-raised", 4.5],
     ["danger-on-dark", "graphite-raised", 4.5]
@@ -315,8 +363,22 @@ test("controls rebuilt on every render carry a stable focus key", async () => {
   // element; these keys are how it is put back.
   assert.match(app, /function captureFocus\(\)/);
   assert.match(app, /function restoreFocus\(focus\)/);
-  for (const key of ["body:", "opacity:", "scope:", "object:", "bar:", "camera:"]) {
-    assert.ok(app.includes(`focusKey = \`${key}`), `no focus key for ${key}`);
+  for (const key of [
+    "body:", "opacity:", "scope:", "object:", "bar:", "camera:",
+    // Every control that re-renders on click. Without a key, keyboard-toggling
+    // one drops focus to <body> and the next Tab restarts from the top of the
+    // document - which is what made the layer tree and the property actions
+    // unusable without a mouse.
+    "layer:", "hotspot:", "issue:", "legend:", "action:", "saved-view:",
+    "issue-filter", "issue-status", "issue-comment", "issue-restore", "deform-animate"
+  ]) {
+    // Either form is fine: a row that builds its own key assigns it, a row
+    // that shares a builder (issueRow) passes it as an argument. Matched on the
+    // opening delimiter only - these keys are prefixes of longer keys
+    // ("action:" of "action:copy"), so a closing quote would miss them all.
+    const assigned = app.includes(`focusKey = \`${key}`) || app.includes(`focusKey = "${key}`);
+    const passed = app.includes(`focusKey: \`${key}`) || app.includes(`focusKey: "${key}`);
+    assert.ok(assigned || passed, `no focus key for ${key}`);
   }
 });
 
@@ -368,6 +430,55 @@ test("gallery panel never overrides the hidden attribute", async () => {
   assert.notEqual(start, -1, "no .gallery rule found");
   const block = css.slice(start, css.indexOf("}", start) + 1);
   assert.doesNotMatch(block, /display\s*:/, "the .gallery rule must not set display");
+});
+
+test("no rule hides a surface through a class when the hidden attribute does it", async () => {
+  const css = await readViewerFile("src/styles.css");
+
+  // An author `display` beats the UA `[hidden]` rule. This file has fallen
+  // into that trap three times - .gallery left a dead panel over every review,
+  // .bundle-picker left an empty select, and .gallery-card-image once stacked
+  // both pieces of card art - each time because an element that toggles
+  // `hidden` also sat under a class setting display. The three explicit
+  // [hidden] overrides below are the fix; what is asserted here is that a
+  // fourth such element does not arrive without one.
+  assert.match(css, /\.gallery\s*\{[^}]*\}/);
+  assert.match(css, /\.bundle-picker\[hidden\]\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /\.code-pane \.code-run\[hidden\]\s*\{[^}]*display:\s*none/s);
+});
+
+test("the file tabs show their own overflow", async () => {
+  const css = await readViewerFile("src/styles.css");
+  const start = css.indexOf("\n.code-tabs {");
+  assert.notEqual(start, -1, "no .code-tabs rule found");
+  const block = css.slice(start, css.indexOf("}", start) + 1);
+  const stateStart = css.indexOf("\n.code-state {");
+  const state = css.slice(stateStart, css.indexOf("}", stateStart) + 1);
+
+  // model.py plus one tab per load case. A hidden scrollbar left the tabs past
+  // the right edge with no indication they existed - a trackpad-only
+  // affordance, and an invisible one for keyboard and screen-reader users.
+  // Matched with the trailing semicolon so the comment above it, which names
+  // the rule this replaced, is not read as the rule itself.
+  assert.match(block, /overflow-x:\s*auto/);
+  assert.doesNotMatch(block, /scrollbar-width:\s*none\s*;/);
+
+  // And the tabs must actually get the room. They carried no flex declaration
+  // while .code-state held the remainder, so one ellipsized status word kept
+  // the space and the second tab was unreachable. basis 0 is what makes a
+  // flexible scroll container: room is whatever the siblings leave.
+  assert.match(block, /flex:\s*1 1 0/);
+  assert.match(block, /min-width:\s*0/);
+  assert.doesNotMatch(state, /flex:\s*1 1 auto/);
+
+  // The one sibling that is allowed to give way rather than squeeze a tab. The
+  // Ctrl+Enter hint inside Run is 62px - most of what still pushed the second
+  // tab out of view after the flex fix - and it is worth exactly that when the
+  // pane is wide. A container query rather than a media query: the pane is
+  // user-resizable and its width is persisted, so only the strip knows whether
+  // it is tight.
+  assert.match(css, /container-type:\s*inline-size/);
+  assert.match(css, /@container \(max-width: 38rem\)\s*\{[^}]*\.code-run kbd\s*\{[^}]*display:\s*none/s);
 });
 
 test("the status strip owns the session facts the header and the rail used to split", async () => {

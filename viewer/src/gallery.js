@@ -2,9 +2,13 @@
 // of reviews described by the engineering question each one answers, rather
 // than by the id of the study that produced it.
 //
-// It renders no geometry and reads no scene. Cards are plain links, so a
-// selection is an ordinary navigation and the existing boot path runs
-// unchanged on arrival - there is no second state machine to keep in step.
+// Cards are plain links, so a selection is an ordinary navigation and the
+// existing boot path runs unchanged on arrival - there is no second state
+// machine to keep in step. The geometry is shown, not rendered: each card is a
+// photograph the Pages build shot from the very bundle shipping beside it, so
+// the picture cannot drift from the model and the landing page costs no WebGL
+// context. Twelve live viewports would spend twelve browser contexts to draw
+// twelve frozen frames.
 
 /** Turn a bundle id into a readable title, for catalogs that carry only ids. */
 export function titleFromId(bundleId) {
@@ -133,15 +137,18 @@ function card(entry) {
   }
 
   if (entry.project) {
-    // The model.py this review was built from opens in the studio. Text, not a
-    // control: the whole card is already one link.
-    const edit = document.createElement("p");
-    edit.className = "gallery-card-edit";
-    edit.dataset.galleryEdit = "";
-    const command = document.createElement("code");
-    command.textContent = `python -m tuba.cli_studio ${entry.project}`;
-    edit.append("Edit locally: ", command);
-    body.append(edit);
+  // Provenance, not an instruction: the folder that produced this review,
+  // the way a figure is credited. The studio command itself is stated once in
+  // the footer - thirteen copies of it were thirteen chances to drift, and
+  // this line sits inside the card's one link, so anything that looked
+  // clickable here would have been a link to the review instead of the thing
+  // it appeared to promise. It is not <code>, because <code> reads as "copy
+  // me".
+    const origin = document.createElement("p");
+    origin.className = "gallery-card-origin";
+    origin.dataset.galleryOrigin = "";
+    origin.textContent = entry.project;
+    body.append(origin);
   }
 
   link.append(body);
@@ -154,12 +161,14 @@ export function renderGallery(container, catalog) {
 
   // This page is the URL people share, and it used to name the product
   // nowhere: the word "Tuba" appeared only in <title>. A visitor arriving cold
-  // could read twelve cards, find "python -m tuba.cli_studio" on each of them,
-  // and still have nothing saying what Tuba is or where to get it.
+  // could read twelve cards and still have nothing saying what Tuba is or
+  // where to get it.
   const masthead = document.createElement("div");
   masthead.className = "gallery-masthead";
   const wordmark = document.createElement("span");
-  wordmark.className = "gallery-wordmark";
+  // One class for the product mark on both surfaces: the review header draws
+  // the same one, so the two cannot drift apart in weight or tracking again.
+  wordmark.className = "wordmark";
   wordmark.textContent = "Tuba";
   const tagline = document.createElement("span");
   tagline.className = "gallery-tagline";
@@ -215,6 +224,19 @@ function galleryFooter() {
     + "result together with the run that produced it. Every review above is published "
     + "with its own evidence.";
   footer.append(note);
+
+  // The command is stated here, once. It used to be on all thirteen cards,
+  // which put a terminal command at reader prominence on a page whose subject
+  // is the engineering question - and the card is one link, so clicking it
+  // opened the review rather than doing what the <code> styling promised.
+  const edit = document.createElement("p");
+  edit.className = "gallery-footer-edit";
+  const editLead = document.createElement("span");
+  editLead.textContent = "Each review is a project folder. Open any of them with ";
+  const command = document.createElement("code");
+  command.textContent = "python -m tuba.cli_studio examples/<id>";
+  edit.append(editLead, command, ".");
+  footer.append(edit);
 
   const nav = document.createElement("nav");
   nav.className = "gallery-footer-links";

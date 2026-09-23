@@ -7,10 +7,13 @@
      so that hover resolved to nothing and the chip faded instead of lifting. */
   --graphite-highlight: #2a353d;
   --chrome-text: #f3f5f5;
-  /* The two greys the rail was already using as tokens without naming them:
-     -2 labels a control or a band, -3 is mono metadata under one. Between them
-     they were 19 of the 80 colour literals in this file. Both clear AA on
-     --graphite-raised (5.92:1 and 4.77:1); do not darken either. */
+  /* The three greys under --chrome-text, brightest to most muted: -1 is body
+     prose beside a heading, -2 labels a control or a band, -3 is mono metadata
+     under one. The landing gallery and the header meta were each writing -1 by
+     hand as a hex literal and one of them was a digit out of step with the
+     other, so the two surfaces were already not the same grey. All three clear
+     AA on --graphite-raised (8.28:1, 5.92:1 and 4.77:1); do not darken any. */
+  --chrome-text-1: #b9c5c9;
   --chrome-text-2: #9aa7ad;
   --chrome-text-3: #8895a0;
   --paper-raised: #ffffff;
@@ -130,16 +133,21 @@ textarea,
   padding: 0.25rem 0.85rem;
 }
 
-/* "TUBA / ENGINEERING REVIEW" above the scene name is decoration: the scene
-   name already says what this is, and the kicker cost a whole line of header. */
-.app-identity .app-kicker {
-  display: none;
+/* One product mark, drawn the same way on the landing masthead and in the
+   review header. Arriving at a scene must not be a change of product, so the
+   name is not decoration on one surface and absent from the other. */
+.wordmark {
+  color: var(--chrome-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .app-identity {
   display: flex;
   align-items: baseline;
-  gap: 0.65rem;
+  gap: 0.6rem;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -157,17 +165,8 @@ textarea,
   white-space: nowrap;
 }
 
-.app-kicker {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.app-kicker,
 .app-header .meta {
-  color: #b9c5c9;
+  color: var(--chrome-text-1);
 }
 
 .app-header .meta {
@@ -188,7 +187,11 @@ textarea,
    spent on the scene and on state, not on permanent chrome. Two later, more
    specific rules opt back in: the Solve button, which is the studio's one
    primary action and takes the accent as a fill, and the Report link, which
-   is the way out to the tables a reviewer signs off from. */
+   is the way out to the tables a reviewer signs off from.
+
+   This rule owns every action in the bar, Gallery included. The Gallery link
+   used to carry its own colour, size and underline-on-hover underneath it,
+   which made one of the three actions read as a different kind of control. */
 .header-actions > a,
 .header-actions > button {
   width: auto;
@@ -1062,7 +1065,7 @@ textarea,
 }
 
 .cockpit-rail .prow > .pname {
-  color: #b9c5c9;
+  color: var(--chrome-text-1);
   font-size: 0.72rem;
 }
 
@@ -1757,7 +1760,7 @@ h3 {
 .sidebar .meta,
 .cockpit-rail .meta,
 .inspector .meta {
-  color: #b9c5c9;
+  color: var(--chrome-text-1);
 }
 
 [data-layer-list],
@@ -1932,7 +1935,7 @@ pre {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.35;
-  color: #b9c5c9;
+  color: var(--chrome-text-1);
   text-wrap: pretty;
 }
 
@@ -2004,7 +2007,7 @@ pre {
 
 .restraint-word {
   font-size: 0.68rem;
-  color: #b9c5c9;
+  color: var(--chrome-text-1);
 }
 
 .restraint-word.is-free {
@@ -2015,7 +2018,7 @@ pre {
 .evidence-reference > summary {
   border-top: 1px solid var(--graphite-line);
   padding-top: 0.7rem;
-  color: #b9c5c9;
+  color: var(--chrome-text-1);
   font-size: 0.75rem;
   cursor: pointer;
 }
@@ -2057,7 +2060,7 @@ pre {
 
 .property-table th {
   width: 44%;
-  color: #b9c5c9;
+  color: var(--chrome-text-1);
   font-weight: 500;
   padding-right: 0.6rem;
 }
@@ -2170,8 +2173,9 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
    Landing gallery
 
    The front door for a reader who has never opened a Tuba review. It reuses the
-   review shell's tokens so arriving at a scene is not a change of product, and
-   it renders in place of that shell rather than alongside it.
+   review shell's tokens - and the review header's .wordmark - so arriving at a
+   scene is not a change of product, and it renders in place of that shell
+   rather than alongside it.
    --------------------------------------------------------------------------- */
 
 body[data-view="gallery"] .app-shell {
@@ -2205,14 +2209,6 @@ body[data-view="gallery"] {
   margin: 0 auto 1.25rem;
 }
 
-.gallery-wordmark {
-  color: var(--chrome-text);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
 .gallery-tagline {
   color: var(--chrome-text-3);
   font-family: var(--font-mono);
@@ -2230,7 +2226,7 @@ body[data-view="gallery"] {
 .gallery-intro {
   max-width: 68rem;
   margin: 0 auto 2.25rem;
-  color: #b9c4c9;
+  color: var(--chrome-text-1);
   line-height: 1.5;
 }
 
@@ -2248,6 +2244,22 @@ body[data-view="gallery"] {
   line-height: 1.5;
 }
 
+/* The one place the studio command is stated. It belongs to the footer rather
+   than to thirteen cards: it is documentation about the whole set, and the
+   cards have a folder name each already. */
+.gallery-footer-edit {
+  margin: 0;
+  color: var(--chrome-text-3);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.gallery-footer-edit code {
+  color: var(--chrome-text-1);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
 /* Padding, not max-inline-size. A narrower box with `margin: 0 auto` centred
    itself inside the column, so the prose started a couple of centimetres right
    of the heading it belongs to. This shortens the line and leaves the left edge
@@ -2260,7 +2272,8 @@ body[data-view="gallery"] {
    pushed the last card off screen and failed the Pages scroll check. */
 @media (min-width: 71rem) {
   .gallery-intro,
-  .gallery-footer-note {
+  .gallery-footer-note,
+  .gallery-footer-edit {
     padding-right: max(0px, calc(68rem - 60ch));
   }
 }
@@ -2304,13 +2317,15 @@ body[data-view="gallery"] {
   color: inherit;
   text-decoration: none;
   overflow: hidden;
-  transition: border-color 120ms ease, transform 120ms ease;
+  /* Border and background state only. The card used to lift 2px as well, the
+     one place in the product that animated a transform on hover - every shell
+     control answers a pointer with a border or fill change and nothing moves. */
+  transition: border-color 120ms ease;
 }
 
 .gallery-card:hover,
 .gallery-card:focus-visible {
   border-color: var(--accent);
-  transform: translateY(-2px);
 }
 
 .gallery-card-image {
@@ -2348,7 +2363,7 @@ body[data-view="gallery"] {
 
 .gallery-card-summary {
   margin: 0;
-  color: #b9c4c9;
+  color: var(--chrome-text-1);
   font-size: 0.9rem;
   line-height: 1.45;
 }
@@ -2366,7 +2381,7 @@ body[data-view="gallery"] {
   border: 1px solid var(--graphite-line);
   border-radius: 2px;
   padding: 0.12rem 0.4rem;
-  color: #8ea0a8;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.04em;
@@ -2376,45 +2391,29 @@ body[data-view="gallery"] {
   margin: 0.35rem 0 0;
   padding-top: 0.6rem;
   border-top: 1px solid var(--graphite-line);
-  color: #8ea0a8;
+  color: var(--chrome-text-3);
   font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.gallery-card-edit {
+.gallery-card-origin {
   margin: 0;
-  color: #8ea0a8;
+  color: var(--chrome-text-3);
+  /* A literal path, so it reads as an id the way the element chips do. It is
+     deliberately not <code>: the card is one link and this line sits inside
+     it, so anything that looked copyable here would have been a link to the
+     review instead. */
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
-.gallery-card-edit code {
-  color: #b9c4c9;
-  font-family: var(--font-mono);
-}
-
-.gallery-back {
-  align-self: flex-start;
-  color: var(--chrome-text-2);
-  font-size: 0.78rem;
-  text-decoration: none;
-}
-
-.gallery-back:hover,
-.gallery-back:focus-visible {
-  text-decoration: underline;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .gallery-card {
     transition: none;
-  }
-  .gallery-card:hover,
-  .gallery-card:focus-visible {
-    transform: none;
   }
 }
 
@@ -2618,13 +2617,50 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   padding-right: 0.5rem;
   border-bottom: 1px solid var(--graphite-line);
   background: var(--graphite-raised);
+  /* So the shortcut hint below can respond to the pane's width rather than to
+     the window's. The pane is user-resizable and its width is persisted, so a
+     media query would answer the wrong question. */
+  container-type: inline-size;
+}
+
+/* The Ctrl+Enter hint inside Run is worth its 62px when there is room and is
+   what pushed a file tab out of view when there is not. Dropped by container
+   query; the button's title still names the shortcut and #code-keys still
+   announces it. */
+@container (max-width: 38rem) {
+  .code-run kbd {
+    display: none;
+  }
 }
 
 .code-tabs {
   display: flex;
+  /* Basis 0, so the strip takes exactly what the status line and the two
+     buttons leave. It used to carry no flex declaration at all (0 1 auto) and
+     .code-state held the remainder (1 1 auto), so one truncated status word
+     kept the room and the file tabs were squeezed to 85px of the 333px they
+     needed - the second tab unreachable without scrolling.
+
+     min-width: 0 is what lets the box sit narrower than its content and scroll
+     internally rather than forcing the head wider than the pane. */
+  flex: 1 1 0;
   min-width: 0;
   overflow-x: auto;
-  scrollbar-width: none;
+  /* Visible, and thin enough to fit the 2.25rem strip. It used to be
+     `scrollbar-width: none`, which left model.py plus one tab per load case
+     with no indication at all that more of them sat past the right edge - a
+     trackpad-only affordance.
+
+     No ::-webkit-scrollbar rules. Those leave WebKit's arrow buttons at their
+     default size, and on a strip this short the buttons stack into a little
+     box of their own beside the tabs - worse than the overflow they were
+     meant to reveal. `scrollbar-width` and `scrollbar-color` are the standard
+     path and have no buttons to suppress. `overflow-y` is pinned because
+     overflow-x: auto lets it compute to auto as well, and a vertical bar here
+     would be a second scrollbar in a one-line strip. */
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--graphite-line) transparent;
 }
 
 /* model.py and each generated .comm; the open one keeps the underline. */
@@ -2635,7 +2671,11 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   gap: 0.45rem;
   width: auto;
   margin-bottom: -1px;
-  padding: 0 1rem;
+  /* 0.6rem, not 1rem. A file tab is a mono label beside a role tag and does
+     not need a button's padding: at 1rem the two tabs spent 64px of a 543px
+     strip on whitespace alone, which is most of what pushed the second tab
+     out of view. */
+  padding: 0 0.6rem;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
@@ -2694,7 +2734,11 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
 }
 
 .code-state {
-  flex: 1 1 auto;
+  /* Natural width, and the first thing to give way. It was `1 1 auto`, which
+     made it the flex remainder and let a single ellipsized word hold the space
+     the file tabs needed. text-align is now a no-op - the box hugs its text -
+     and it reads fine: the status sits against the actions it describes. */
+  flex: 0 1 auto;
   align-self: center;
   min-width: 0;
   overflow: hidden;

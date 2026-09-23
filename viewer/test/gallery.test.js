@@ -121,3 +121,21 @@ test("the gallery offers a way onward rather than ending at the last card", asyn
   assert.match(source, /\["Setup", "\.\.\/setup\.html"\]/);
   assert.match(source, /https:\/\/github\.com\/jgwagenfeld\/Tuba_v4/);
 });
+
+test("the studio command is stated once, in the footer, not on every card", async () => {
+  const source = await readFile(new URL("../src/gallery.js", import.meta.url), "utf-8");
+
+  // Thirteen cards used to each carry `Edit locally: python -m tuba.cli_studio
+  // ...` as <code>, inside the card's one link. Two problems: a terminal
+  // command at reader prominence on a page whose subject is the engineering
+  // question, and <code> promising "copy me" on an element whose click opened
+  // the review instead. The command is now documentation about the set; each
+  // card carries only the folder that produced it, as provenance.
+  const commands = source.match(/python -m tuba\.cli_studio/g) ?? [];
+  assert.equal(commands.length, 1, "the studio command belongs in the footer, once");
+  assert.match(source, /gallery-footer-edit/);
+  assert.match(source, /gallery-card-origin/);
+
+  // And nothing copyable-looking sits inside the card link.
+  assert.doesNotMatch(source, /gallery-card-edit/);
+});

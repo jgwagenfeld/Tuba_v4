@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import Any
+import math
 import numpy as np
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.tuyau import (
@@ -764,6 +765,7 @@ def _result_state_tuyau_subpoint_scene(
     state_key = _safe_id(result_state.id)
     object_id = f"object:tuyau_subpoints:{state_key}"
     asset_id = f"geometry:tuyau_subpoints:{state_key}"
+    glyph_radius = _tuyau_subpoint_glyph_radius([row for _, row, _, _ in candidates])
     starts: list[list[float]] = []
     ends: list[list[float]] = []
     display_positions: list[list[float]] = []
@@ -817,7 +819,7 @@ def _result_state_tuyau_subpoint_scene(
     # the rest.
     profile = section_profile(*section_shapes.pop()) if len(section_shapes) == 1 else None
     peak = _tuyau_subpoint_peak(values, element_ids, subpoint_indices, sector_indices, layer_indices, profile)
-    asset_bounds = _bounds_for_points([*starts, *ends], 0.006)
+    asset_bounds = _bounds_for_points([*starts, *ends], glyph_radius)
     object_metadata = {
         "result_state_id": result_state.id,
         "load_case": result_state.load_case,
@@ -838,7 +840,7 @@ def _result_state_tuyau_subpoint_scene(
             object_ids=[object_id],
             generation_config={
                 "source": "tuba.tuyau_subpoint_field",
-                "radius_m": 0.006,
+                "radius_m": glyph_radius,
                 "radial_segments": 8,
                 "starts": starts,
                 "ends": ends,
@@ -1010,7 +1012,44 @@ def _tuyau_subpoint_point(model: TubaModel, row: dict[str, Any]) -> list[float] 
     if isinstance(node_id, str) and node_id in model.nodes:
         return _node_coords(model, node_id)
     return None
+
+
+#: Bounds on the drawn sub-point tick cross-section, so a hairline wall still
+#: reads and a heavy one cannot swallow the run it marks.
+_GLYPH_RADIUS_MIN_M = 0.0005
+_GLYPH_RADIUS_MAX_M = 0.01
+#: Legacy tick thickness for rows that carry no section dimensions.
+_GLYPH_RADIUS_FALLBACK_M = 0.006
+
+
+def _tuyau_subpoint_glyph_radius(rows: list[dict[str, Any]]) -> float:
+    """Cross-section radius of the sub-point ticks, taken from the real wall.
+
+    A third of the wall and under half the gap between neighbouring sectors, so
+    the rosette reads as discrete ticks instead of a fat collar that fattens the
+    run past its OD.
+    """
+    candidates: list[float] = []
+    for row in rows:
+        inner = _as_float(row.get("inner_radius_m"))
+        outer = _as_float(row.get("outer_radius_m"))
+        if inner is None or outer is None or outer <= inner:
+            continue
+        nsec = _as_int(row.get("tuyau_nsec")) or CODE_ASTER_TUYAU_NSEC
+        wall = outer - inner
+        sector_gap = 2.0 * math.pi * outer / (2 * int(nsec) + 1)
+        candidates.append(min(wall / 3.0, sector_gap / 2.5))
+    if not candidates:
+        return _GLYPH_RADIUS_FALLBACK_M
+    return max(_GLYPH_RADIUS_MIN_M, min(min(candidates), _GLYPH_RADIUS_MAX_M))
+
+
 def _tuyau_subpoint_glyph_points(row: dict[str, Any], point: list[float]) -> list[list[float]] | None:
+    """A radial tick at the sub-point, sized to the section's real wall.
+
+    The tick spans one radial layer of the TUYAU grid and is clamped to the
+    bore and the OD, so a glyph can never overshoot the pipe it marks.
+    """
     center = _coerce_point(row.get("centerline_position"))
     if center is None:
         return None
@@ -1020,8 +1059,20 @@ def _tuyau_subpoint_glyph_points(row: dict[str, Any], point: list[float]) -> lis
     norm = float(np.linalg.norm(radial))
     if norm <= 1.0e-12:
         return None
-    start = center_arr + radial * 0.85
-    end = center_arr + radial * 1.25
+    unit = radial / norm
+    inner = _as_float(row.get("inner_radius_m"))
+    outer = _as_float(row.get("outer_radius_m"))
+    if inner is None or outer is None or outer <= inner:
+        half = norm * 0.05
+        start_r = max(norm - half, 0.0)
+        end_r = norm + half
+    else:
+        ncou = _as_int(row.get("tuyau_ncou")) or CODE_ASTER_TUYAU_NCOU
+        half = (outer - inner) / (4.0 * max(int(ncou), 1))
+        start_r = max(inner, norm - half)
+        end_r = min(outer, norm + half)
+    start = center_arr + unit * start_r
+    end = center_arr + unit * end_r
     return [[float(value) for value in start], [float(value) for value in end]]
 def _result_state_element_result_metadata(data: dict[str, Any]) -> dict[str, Any]:
     metadata: dict[str, Any] = {}

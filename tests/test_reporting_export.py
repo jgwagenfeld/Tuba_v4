@@ -211,6 +211,45 @@ def test_printable_html_has_fixed_section_order_csv_links_and_escaped_content(
     assert "<script>" not in html
 
 
+def test_printable_html_carries_a_relative_way_back_to_the_viewer(tmp_path, solved_review):
+    """The report used to end at </main> with no anchor to the viewer at all.
+
+    It swaps to a light print stylesheet and a different type scale, so a
+    reader who crossed from the viewer landed on a document that looked like
+    another product and had only browser Back. That made this the sharpest dead
+    end in the product.
+
+    The link is relative on purpose: this document has to open from a zip in
+    ten years with no network. A relative link degrades to nothing there; an
+    absolute one rots.
+    """
+    default_output = write_engineering_review(solved_review, tmp_path / "default")
+    default_html = default_output.index_path.read_text(encoding="utf-8")
+
+    assert 'href="../"' in default_html
+    assert "Back to the review viewer" in default_html
+    # Relative, never absolute - the same rule the manifest's CSV links follow.
+    assert "http://" not in default_html.split("Back to the review viewer")[0][-200:]
+    assert 'href="/' not in default_html
+
+    # And the caller may be more precise: the studio and the Pages build both
+    # know which bundle this is and can return to it rather than to the set.
+    precise_output = write_engineering_review(
+        solved_review,
+        tmp_path / "precise",
+        back_uri="../?bundle=code-aster-review",
+    )
+    precise_html = precise_output.index_path.read_text(encoding="utf-8")
+
+    assert 'href="../?bundle=code-aster-review"' in precise_html
+    assert 'href="../"' not in precise_html
+
+    # A screen affordance only. On paper "back to the viewer" is a sentence
+    # about software the reader is not using.
+    assert ".back { display: none; }" in precise_html
+    assert precise_html.index(".back { display: none; }") > precise_html.index("@media print")
+
+
 def test_model_only_html_explicitly_marks_results_unavailable(tmp_path):
     review = build_engineering_review(
         build_review_model(),

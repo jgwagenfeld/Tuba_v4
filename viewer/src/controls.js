@@ -208,9 +208,10 @@ function withVisibility(state) {
 
 function valueForGroup(obj, groupBy, state) {
   if (groupBy === "body") {
-    // The finder's default axis. Vectors, clash markers and proposals belong to
-    // no composited body, so they get a named bucket rather than vanishing -
-    // three e2e scenarios reach for exactly those objects.
+    // Vectors, clash markers and proposals belong to no composited body, so
+    // they get a named bucket rather than vanishing - three e2e scenarios reach
+    // for exactly those objects. This is one of six grouping axes, not the
+    // default one: the finder opens on `group`.
     for (const layerId of state?.objectLayerIds?.[obj.id] ?? []) {
       const bodyId = bodyIdForLayerId(layerId, state?.layers?.[layerId]?.category);
       if (bodyId) return bodyId;

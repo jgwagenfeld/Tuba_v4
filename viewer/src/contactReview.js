@@ -86,7 +86,7 @@ export function renderContactReview(state, dispatch, rerender, part = "table", o
       input.onchange = () => update({ type: "setContactArrows", quantity: key, visible: input.checked });
       wrapper.prepend(input);
     }
-    const neutralLabel = add("label", "Neutral pipe coloring (contact review)");
+    const neutralLabel = add("label", "Neutral pipe colouring (contact review)");
     const neutral = document.createElement("input"); neutral.type = "checkbox"; neutral.checked = state.contactNeutral !== false;
     neutral.dataset.focusKey = "contact-neutral";
     neutral.onchange = () => update({ type: "setContactNeutral", neutral: neutral.checked }); neutralLabel.prepend(neutral);
