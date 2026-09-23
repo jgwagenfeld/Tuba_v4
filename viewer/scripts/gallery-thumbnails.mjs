@@ -44,7 +44,7 @@ try {
   browser = await chromium.launch({ headless: true });
   // 16:10 matches the card's aspect-ratio, so the shot is never re-cropped.
   const page = await browser.newPage({ viewport: { height: 800, width: 1280 } });
-  page.setDefaultTimeout(30_000);
+  page.setDefaultTimeout(60_000);
 
   for (const bundleId of bundleIds) {
     const url = new URL("/", baseUrl);
