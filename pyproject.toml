@@ -31,6 +31,12 @@ dependencies = [
     "gmsh>=4.11",
 ]
 
+[project.urls]
+Homepage = "https://github.com/jgwagenfeld/Tuba_v4"
+Documentation = "https://jgwagenfeld.github.io/Tuba_v4/"
+Repository = "https://github.com/jgwagenfeld/Tuba_v4"
+Issues = "https://github.com/jgwagenfeld/Tuba_v4/issues"
+
 [project.scripts]
 tuba-viewer = "tuba.visualization.viewer:main"
 tuba-skill = "tuba.skills:main"
@@ -97,6 +103,7 @@ docs = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+pythonpath = ["."]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -59,12 +59,16 @@ viewer/node_modules/
 .superpowers/
 .worktrees/
 .impeccable/
+.codex/
+.kombai/
 # Per-machine agent settings. Also covered by a global ignore on one machine,
 # which does nothing for anyone else who clones this repo.
 .claude/settings.local.json
 # pytest-benchmark output. It carried solved .rmed and .csv artifacts once and
 # left about 98 MB of them in history before it stopped being tracked.
 .benchmarks/
+.cache/
+.tmp-install-verify/
 
 # Runtime logs
 *.log

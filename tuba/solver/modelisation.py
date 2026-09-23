@@ -11,6 +11,7 @@ model, which is exactly the sort of duplication that drifts. This module owns it
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
