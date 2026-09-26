@@ -2633,6 +2633,60 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   display: none;
 }
 
+.code-tools { min-width: 0; }
+.code-case-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  border-bottom: 1px solid var(--graphite-line);
+  color: var(--chrome-text-2);
+  font-size: 0.75rem;
+}
+.code-case-bar label { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.code-case-bar select {
+  width: auto;
+  min-width: 0;
+  max-width: 16rem;
+  padding: 0.2rem;
+  color: var(--chrome-text);
+  background: var(--graphite-raised);
+  border: 1px solid var(--graphite-line);
+  font: inherit;
+}
+.code-case-bar > span { white-space: nowrap; }
+.case-inputs { font-size: 0.75rem; }
+.code-tools .case-inputs { border-bottom: 1px solid var(--graphite-line); color: var(--chrome-text); }
+.code-tools .case-inputs > summary { cursor: pointer; padding: 0.4rem 0.65rem; }
+.case-compare { display: flex; align-items: center; gap: 0.4rem; padding: 0 0.65rem; }
+.case-compare input { width: auto; margin: 0; }
+[data-case-inputs] { max-height: 30vh; overflow: auto; padding: 0 0.65rem; }
+.case-defaults, .case-input-note { margin: 0.4rem 0; line-height: 1.5; }
+.case-input-note { color: var(--chrome-text-2); }
+.case-input-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+.case-input-table th, .case-input-table td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--graphite-line);
+  text-align: left;
+  vertical-align: top;
+}
+.case-input-table th { white-space: nowrap; }
+.case-input-table td:first-child { max-width: 18rem; overflow-wrap: anywhere; }
+.case-input-table .case-assignment {
+  display: inline;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.case-input-table .case-assignment[aria-pressed="true"] { color: var(--focus-on-dark); }
+
 .code-pane-head {
   display: flex;
   align-items: stretch;
@@ -2655,6 +2709,7 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   .code-run kbd {
     display: none;
   }
+  .code-role { display: none; }
 }
 
 .code-tabs {
@@ -3076,7 +3131,7 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
 }
 
 /* A property's own line in model.py, beside the value it explains. */
-.inspector .script-line-chip {
+.inspector .script-line-chip, .case-inputs .script-line-chip {
   float: right;
   width: auto;
   margin-left: 0.4rem;

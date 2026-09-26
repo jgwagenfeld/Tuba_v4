@@ -9,6 +9,7 @@ import {
 } from "./codeLink.js";
 import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.js";
 import { deriveBundleSource } from "./bundleSource.js";
+import { elementInputSection, loadCaseDefinitions, renderLoadCaseInputs } from "./loadCaseInputs.js";
 import { contactObjectId, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
@@ -161,6 +162,13 @@ const dom = {
   modeSwitch: document.querySelector("[data-mode-switch]"),
   codePane: document.querySelector("[data-code-pane]"),
   codeTabs: document.querySelector("[data-code-tabs]"),
+  codeCase: document.querySelector("[data-code-case]"),
+  codeCaseStatus: document.querySelector("[data-code-case-status]"),
+  codeInputs: document.querySelector("[data-code-inputs]"),
+  inputCount: document.querySelector("[data-input-count]"),
+  compareCases: document.querySelector("[data-compare-cases]"),
+  buildInputs: document.querySelector('[data-case-inputs="build"]'),
+  reviewInputs: document.querySelector('[data-case-inputs="review"]'),
   commText: document.querySelector("[data-comm-text]"),
   codeState: document.querySelector("[data-code-state]"),
   codeMeshToggle: document.querySelector("[data-code-mesh-toggle]"),
@@ -206,6 +214,10 @@ function dispatch(action) {
     measuring = false;
   }
   currentState = reduceViewerState(currentState, action);
+  if (action.type === "setActiveLoadCase" && studio.codeTab !== null) {
+    studio.codeTab = codePaneCases().includes(action.loadCase) ? action.loadCase : null;
+    if (studio.codeTab !== null) void loadComm();
+  }
   if (action.type === "selectObject") selectedObjectId = selectionRepresentative(currentState, action.objectId);
   if (action.type === "selectObjects") selectedObjectId = currentState.selectedObjectIds[0] ?? null;
   return currentState;
@@ -469,6 +481,7 @@ function render() {
   renderBuildIssues();
   renderProperties();
   renderScriptSelection();
+  renderCaseInputs();
   renderCanvas();
   restoreFocus(focus);
 }
@@ -2510,6 +2523,8 @@ function renderProperties() {
   for (const section of sections) {
     dom.properties.append(renderEvidenceSection(section));
   }
+  const inputs = currentState.selectedObjectIds.length === 1 ? elementInputSection(currentState, selectedObject) : null;
+  if (inputs) dom.properties.append(renderEvidenceSection(inputs));
   if (issueSummary) {
     dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
     appendIssueReviewActions(issueSummary);
@@ -3370,6 +3385,7 @@ function renderMode() {
   dom.codeText.readOnly = !studio.available;
   dom.codeRun.hidden = !studio.available;
   if (!studio.available) dom.codeState.textContent = "Read-only";
+  else if (dom.codeState.textContent === "Read-only") dom.codeState.textContent = "Python";
   renderCodeTabs();
   renderCodeMeshToggle();
   renderSolveControls();
@@ -3402,23 +3418,54 @@ function renderCodeTabs() {
   const cases = codePaneCases();
   if (!cases.includes(studio.codeTab)) studio.codeTab = null;
   const { codeTab } = studio;
-  const key = `${studio.available ? "studio" : "bundle"}\n${cases.join("\n")}`;
+  const selected = currentState.activeLoadCase ?? cases[0] ?? null;
+  const names = [...new Set([...getLoadCaseOptions(currentState).map((entry) => entry.id), ...cases])];
+  const key = JSON.stringify([studio.available, names, selected]);
   if (dom.codeTabs.dataset.cases !== key || !dom.codeTabs.children.length) {
     dom.codeTabs.dataset.cases = key;
-    dom.codeTabs.replaceChildren(
-      codeTabButton(null, "model.py", "source", "The source: every other file here is generated from it"),
-      ...cases.map((name) =>
-        codeTabButton(name, `${name}.comm`, "generated", "Generated from model.py and study.py: the Code_Aster commands a Solve would run now. Read-only.")
-      )
-    );
+    const source = codeTabButton(null, "model.py", "source", "Edit load cases and local fields in Python");
+    dom.codeTabs.replaceChildren(source);
+    if (selected && cases.includes(selected)) {
+      dom.codeTabs.append(codeTabButton(selected, "Solver .comm", "generated",
+        `${selected}.comm — read-only Code_Aster input for the selected case`));
+    }
+    dom.codeCase.replaceChildren(...names.map((name) => new Option(name, name)));
   }
+  dom.codeCase.value = selected ?? "";
+  dom.codeCase.parentElement.parentElement.hidden = names.length === 0;
   for (const button of dom.codeTabs.children) {
     button.setAttribute("aria-pressed", String((button.dataset.codeTab || null) === codeTab));
   }
   dom.codeGutter.hidden = codeTab !== null;
   dom.codeText.parentElement.hidden = codeTab !== null;
   dom.commText.hidden = codeTab === null;
+  dom.codeRun.hidden = !studio.available || codeTab !== null;
+  if (!studio.available || codeTab !== null) dom.codeState.textContent = "Read-only";
+  else if (dom.codeState.textContent === "Read-only") dom.codeState.textContent = "Python";
 }
+
+function renderCaseInputs() {
+  const definitions = loadCaseDefinitions(currentState);
+  const active = definitions.find((entry) => entry.load_case === currentState.activeLoadCase);
+  dom.codeInputs.hidden = !active;
+  dom.reviewInputs.parentElement.hidden = !active;
+  dom.inputCount.textContent = active ? `(${active.fields?.length ?? active.field_count ?? 0} local)` : "";
+  const result = getResultStateOptions(currentState).some((entry) => entry.loadCase === currentState.activeLoadCase);
+  dom.codeCaseStatus.textContent = studio.reviewStale ? "Review outdated" : result ? "Solved result" : "Model inputs";
+  for (const [host, compare] of [[dom.buildInputs, dom.compareCases.checked], [dom.reviewInputs, false]]) {
+    renderLoadCaseInputs(host, currentState, {
+      compare,
+      select: (objectIds) => { dispatch({ type: "selectObjects", objectIds }); render(); },
+      sourceLink: scriptLineChip
+    });
+  }
+}
+
+dom.codeCase.addEventListener("change", () => {
+  dispatch({ type: "setActiveLoadCase", loadCase: dom.codeCase.value });
+  render();
+});
+dom.compareCases.addEventListener("change", renderCaseInputs);
 
 function codeTabButton(tab, file, role, title) {
   const button = document.createElement("button");
@@ -3436,6 +3483,7 @@ function codeTabButton(tab, file, role, title) {
 
 function showCodeTab(tab) {
   if (studio.codeTab === tab) return;
+  if (tab !== null && currentState.activeLoadCase !== tab) dispatch({ type: "setActiveLoadCase", loadCase: tab });
   studio.codeTab = tab;
   renderCodeTabs();
   renderCodeFoot();
@@ -3486,7 +3534,7 @@ async function loadComm() {
 function renderSolveControls() {
   const project = studio.project;
   const canSolve = Boolean(project?.can_solve) && !currentState.embed;
-  const label = studio.solving ? "Solving…" : project?.solves ? "Solve" : "Build review";
+  const label = studio.solving ? "Solving…" : project?.solves ? (codePaneCases().length > 1 ? "Solve all" : "Solve") : "Build review";
   for (const button of [dom.solveButton, dom.reviewEmptySolve]) {
     button.hidden = !canSolve;
     button.disabled = studio.solving || studio.preparing;
@@ -3731,7 +3779,7 @@ function renderCodeFoot() {
     // instead of leaving the missing tabs unexplained.
     const hint = document.createElement("span");
     hint.dataset.noStudyHint = "";
-    hint.textContent = "No study.py load cases — add LOAD_CASES to study.py for .comm tabs and Solve";
+    hint.textContent = "No study.py load cases — add LOAD_CASES to study.py for solver files and Solve";
     foot.push(hint);
   }
   dom.codeFoot.replaceChildren(...foot);

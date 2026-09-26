@@ -1,0 +1,59 @@
+{
+  "artifacts": {
+    "study.comm": {
+      "sha256": "89f4985e0985a34e3bef9236ad688cd6e70cd9d5ac445c589c09d9fa72fc20f7",
+      "size_bytes": 5241
+    },
+    "study.export": {
+      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
+      "size_bytes": 377
+    },
+    "study.mail": {
+      "sha256": "31349d81b9352e300a29f1c8f3a3c8d24a43cc5c142824692f06de3dcafea4d3",
+      "size_bytes": 18929
+    },
+    "study.mess": {
+      "sha256": "c39aec777c34d404f8cb5ec92802621b437ba63615830384677174cf318f9d0c",
+      "size_bytes": 37865
+    },
+    "study.rmed": {
+      "sha256": "12e7fc269cf9be7c6058494533f9ff95afb221e9dc5620c4960c7dcc7c014517",
+      "size_bytes": 4610891
+    },
+    "study_depl.csv": {
+      "sha256": "cdf161389c5634c2a57bcd4073910e50290dfeb73139341a2f82ee73b7492a40",
+      "size_bytes": 46968
+    },
+    "study_effo.csv": {
+      "sha256": "8ac80589105e650da139ceefd7d3a0ba3fad132be7bb62859223af927431d502",
+      "size_bytes": 76706
+    },
+    "study_manifest.json": {
+      "sha256": "3afb7dfa454f78fcc94eba42e56d87d6a42abe031e68af29d7329d73f26cc0fe",
+      "size_bytes": 163362
+    },
+    "study_reac.csv": {
+      "sha256": "346c2429def22f89f4ccca8c4a20b2551e0f4257b47310f30ce6c76da1156187",
+      "size_bytes": 46968
+    },
+    "study_sieq.csv": {
+      "sha256": "44f914bf202582d81165190edc4e202f88512b124d300252a5feb36358e9bbdd",
+      "size_bytes": 11351592
+    },
+    "study_tuba_fem.json": {
+      "sha256": "d0b3db613463df035b25a22b062a489e268c07ac8ea8a31fd0f08c635744088c",
+      "size_bytes": 13524
+    }
+  },
+  "execution_method": "wsl",
+  "schema_version": "tuba.code_aster_execution.v1",
+  "solved_at": "2026-09-26T20:57:54.964694Z",
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v2",
+    "fingerprint": "f2b2b0a85534d54a7afbff66c5cc8b92595e8fd7b0a3188a4a58534867f54289",
+    "load_case": "Sustained",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster",
+  "solver_version": "18.0.12"
+}

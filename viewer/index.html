@@ -63,9 +63,9 @@
         <!-- Build mode's left column. It takes the rail's slot, so the viewport
              narrows beside the script instead of disappearing under it. -->
         <section id="model-script" class="code-pane" aria-label="model.py" data-code-pane hidden>
+          <div class="code-tools">
           <div class="code-pane-head">
-            <!-- model.py is the one file written here. Each .comm tab is generated from
-                 it and study.py on request: the commands a Solve would run now. -->
+            <!-- Python stays primary; the selected case owns one generated-file view. -->
             <div class="code-tabs" role="group" aria-label="Files" data-code-tabs></div>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
             <button type="button" class="code-mesh-toggle" data-code-mesh-toggle aria-pressed="false" title="Toggle 1D analysis mesh (Alt+M)">
@@ -83,6 +83,16 @@
               Run
               <kbd>Ctrl+Enter</kbd>
             </button>
+          </div>
+          <div class="code-case-bar">
+            <label>Case <select data-code-case aria-label="Load case"></select></label>
+            <span data-code-case-status></span>
+          </div>
+          <details class="case-inputs" data-code-inputs>
+            <summary>Input assignments <span data-input-count></span></summary>
+            <label class="case-compare"><input type="checkbox" data-compare-cases> Compare cases</label>
+            <div data-case-inputs="build"></div>
+          </details>
           </div>
           <div class="code-editor">
             <pre class="code-gutter" data-code-gutter aria-hidden="true"></pre>
@@ -147,6 +157,10 @@
                     <div data-layer-list></div>
                   </details>
                 </div>
+              </details>
+              <details class="review-section case-inputs" data-review-inputs>
+                <summary>Input assignments</summary>
+                <div data-case-inputs="review"></div>
               </details>
               <details class="review-section" data-objects-section open>
                 <summary>Objects</summary>

@@ -322,6 +322,21 @@ def _load_case_overlay(
             "nodal_force_count": len(load_case.nodal_forces),
             "line_load_count": len(line_load_fields),
             "field_count": len(load_case.fields),
+            **_script_line_fields(model.operations.get(case_name) or load_case),
+            "fields": [
+                {
+                    **field.to_dict(),
+                    **_script_line_fields(field),
+                    "affected_element_ids": [
+                        element.id for element in (
+                            [element for element in model.elements
+                             if element.n1 in field.node_ids or element.n2 in field.node_ids]
+                            if field.scope == "nodes" else model.resolve_operation_field_elements(field)
+                        )
+                    ],
+                }
+                for field in load_case.fields
+            ],
             "pressure_fields": [
                 {"element_ids": list(element_ids), "pressure_pa": value}
                 for element_ids, value in pressure_fields

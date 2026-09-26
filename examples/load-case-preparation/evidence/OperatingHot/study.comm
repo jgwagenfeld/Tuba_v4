@@ -1,0 +1,648 @@
+DEBUT(PAR_LOT='NON');
+
+# ----- Read mesh -----
+MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
+                      UNITE=20);
+
+MAIL = MAIL0;
+
+# ----- Model definition -----
+MODELE = AFFE_MODELE(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='AllPipes',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='TUYAU_3M',
+        ),
+    ),
+);
+
+# ----- Material definitions -----
+MAT_STEEL = DEFI_MATERIAU(
+    ELAS=_F(
+        E=2.100000E+11,
+        NU=3.000000E-01,
+        RHO=7.850000E+03,
+        ALPHA=1.200000E-05,
+    ),
+);
+
+# ----- Material assignment -----
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            MATER=MAT_STEEL,
+        ),
+    ),
+);
+
+# ----- Cross-section properties -----
+CARA = AFFE_CARA_ELEM(
+    MODELE=MODELE,
+    POUTRE=(
+        _F(
+            GROUP_MA='GF0AB739',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.02000000E-03),
+        ),
+        _F(
+            GROUP_MA='G8652C19',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.02000000E-03),
+        ),
+        _F(GROUP_MA='G8652C19', SECTION='COUDE'),
+        _F(
+            GROUP_MA='G21F400B',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.02000000E-03),
+        ),
+        _F(GROUP_MA='G21F400B', SECTION='COUDE'),
+        _F(
+            GROUP_MA='GD57111F',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.02000000E-03),
+        ),
+        _F(GROUP_MA='GD57111F', SECTION='COUDE'),
+        _F(
+            GROUP_MA='G95148D5',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(5.71500000E-02, 6.02000000E-03),
+        ),
+        _F(GROUP_MA='G95148D5', SECTION='COUDE'),
+    ),
+    ORIENTATION=(
+        _F(
+            GROUP_NO='G06D7539',
+            CARA='GENE_TUYAU',
+            VALE=(1.00000000E+00, 1.00000000E+00, 1.00000000E+00),
+        ),
+    ),
+);
+
+# ----- Boundary conditions -----
+BC_0 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N0',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
+    ),
+);
+
+BC_1 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N5',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
+    ),
+);
+
+BC_2 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N6',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
+    ),
+);
+
+BC_3 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N11',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+        WO=0.0,
+    ),
+);
+
+# ----- Gravity -----
+GRAVITY = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    PESANTEUR=_F(
+        GRAVITE=9.81,
+        DIRECTION=(0.0, 0.0, -1.0),
+    ),
+);
+
+# ----- Internal pressure -----
+PRESSURE = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    FORCE_TUYAU=(
+        _F(
+            GROUP_MA=('G865AF37', 'G8652C19', 'G8DCD4C6', 'G21F400B', 'GF75806A',),
+            PRES=1.500000E+06,
+        ),
+        _F(
+            GROUP_MA=('G5E41366', 'GD57111F', 'G93D04F2', 'G95148D5', 'G3742589',),
+            PRES=4.000000E+05,
+        ),
+    ),
+);
+
+# ----- Thermal expansion -----
+TEMP_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MODELE=MODELE,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            NOM_CMP='TEMP',
+            VALE=2.000000E+01,
+        ),
+        _F(
+            GROUP_MA=('G865AF37', 'G8652C19', 'G8DCD4C6', 'G21F400B', 'GF75806A',),
+            NOM_CMP='TEMP',
+            VALE=1.500000E+02,
+        ),
+        _F(
+            GROUP_NO='GN_N6',
+            NOM_CMP='TEMP',
+            VALE=8.000000E+01,
+        ),
+        _F(
+            GROUP_NO='GE071088',
+            NOM_CMP='TEMP',
+            VALE=7.396529E+01,
+        ),
+        _F(
+            GROUP_NO='GN_N7',
+            NOM_CMP='TEMP',
+            VALE=6.793057E+01,
+        ),
+        _F(
+            GROUP_NO='G4332322',
+            NOM_CMP='TEMP',
+            VALE=6.787133E+01,
+        ),
+        _F(
+            GROUP_NO='G272AE98',
+            NOM_CMP='TEMP',
+            VALE=6.781208E+01,
+        ),
+        _F(
+            GROUP_NO='G73469E2',
+            NOM_CMP='TEMP',
+            VALE=6.775284E+01,
+        ),
+        _F(
+            GROUP_NO='G3E7544A',
+            NOM_CMP='TEMP',
+            VALE=6.769359E+01,
+        ),
+        _F(
+            GROUP_NO='G5C10C6C',
+            NOM_CMP='TEMP',
+            VALE=6.763435E+01,
+        ),
+        _F(
+            GROUP_NO='GB3506E1',
+            NOM_CMP='TEMP',
+            VALE=6.757510E+01,
+        ),
+        _F(
+            GROUP_NO='G697A89F',
+            NOM_CMP='TEMP',
+            VALE=6.751585E+01,
+        ),
+        _F(
+            GROUP_NO='G5644DCD',
+            NOM_CMP='TEMP',
+            VALE=6.745661E+01,
+        ),
+        _F(
+            GROUP_NO='G585B8E8',
+            NOM_CMP='TEMP',
+            VALE=6.739736E+01,
+        ),
+        _F(
+            GROUP_NO='G52A43AF',
+            NOM_CMP='TEMP',
+            VALE=6.733812E+01,
+        ),
+        _F(
+            GROUP_NO='G047059D',
+            NOM_CMP='TEMP',
+            VALE=6.727887E+01,
+        ),
+        _F(
+            GROUP_NO='GA83EA56',
+            NOM_CMP='TEMP',
+            VALE=6.721963E+01,
+        ),
+        _F(
+            GROUP_NO='GF80B0EC',
+            NOM_CMP='TEMP',
+            VALE=6.716038E+01,
+        ),
+        _F(
+            GROUP_NO='G790DEFE',
+            NOM_CMP='TEMP',
+            VALE=6.710113E+01,
+        ),
+        _F(
+            GROUP_NO='GF0F23E6',
+            NOM_CMP='TEMP',
+            VALE=6.704189E+01,
+        ),
+        _F(
+            GROUP_NO='G7883D1E',
+            NOM_CMP='TEMP',
+            VALE=6.698264E+01,
+        ),
+        _F(
+            GROUP_NO='G711BFAC',
+            NOM_CMP='TEMP',
+            VALE=6.692340E+01,
+        ),
+        _F(
+            GROUP_NO='GDC7DBB2',
+            NOM_CMP='TEMP',
+            VALE=6.686415E+01,
+        ),
+        _F(
+            GROUP_NO='GD50CAEF',
+            NOM_CMP='TEMP',
+            VALE=6.680491E+01,
+        ),
+        _F(
+            GROUP_NO='G251AAED',
+            NOM_CMP='TEMP',
+            VALE=6.674566E+01,
+        ),
+        _F(
+            GROUP_NO='G3EA22B8',
+            NOM_CMP='TEMP',
+            VALE=6.668642E+01,
+        ),
+        _F(
+            GROUP_NO='GDA29710',
+            NOM_CMP='TEMP',
+            VALE=6.662717E+01,
+        ),
+        _F(
+            GROUP_NO='G0E777DD',
+            NOM_CMP='TEMP',
+            VALE=6.656792E+01,
+        ),
+        _F(
+            GROUP_NO='G160140E',
+            NOM_CMP='TEMP',
+            VALE=6.650868E+01,
+        ),
+        _F(
+            GROUP_NO='G5E0BBB2',
+            NOM_CMP='TEMP',
+            VALE=6.644943E+01,
+        ),
+        _F(
+            GROUP_NO='GD59B53B',
+            NOM_CMP='TEMP',
+            VALE=6.639019E+01,
+        ),
+        _F(
+            GROUP_NO='G56A63E3',
+            NOM_CMP='TEMP',
+            VALE=6.633094E+01,
+        ),
+        _F(
+            GROUP_NO='G18C78FA',
+            NOM_CMP='TEMP',
+            VALE=6.627170E+01,
+        ),
+        _F(
+            GROUP_NO='G7CD3733',
+            NOM_CMP='TEMP',
+            VALE=6.621245E+01,
+        ),
+        _F(
+            GROUP_NO='GD6288A3',
+            NOM_CMP='TEMP',
+            VALE=6.615320E+01,
+        ),
+        _F(
+            GROUP_NO='G38709BD',
+            NOM_CMP='TEMP',
+            VALE=6.609396E+01,
+        ),
+        _F(
+            GROUP_NO='GN_N8',
+            NOM_CMP='TEMP',
+            VALE=6.603471E+01,
+        ),
+        _F(
+            GROUP_NO='G2D09077',
+            NOM_CMP='TEMP',
+            VALE=6.000000E+01,
+        ),
+        _F(
+            GROUP_NO='GN_N9',
+            NOM_CMP='TEMP',
+            VALE=5.396529E+01,
+        ),
+        _F(
+            GROUP_NO='G1AE3C1D',
+            NOM_CMP='TEMP',
+            VALE=5.390604E+01,
+        ),
+        _F(
+            GROUP_NO='G2049A5C',
+            NOM_CMP='TEMP',
+            VALE=5.384680E+01,
+        ),
+        _F(
+            GROUP_NO='G4BDAB1C',
+            NOM_CMP='TEMP',
+            VALE=5.378755E+01,
+        ),
+        _F(
+            GROUP_NO='G6A91AC9',
+            NOM_CMP='TEMP',
+            VALE=5.372830E+01,
+        ),
+        _F(
+            GROUP_NO='G8F99A95',
+            NOM_CMP='TEMP',
+            VALE=5.366906E+01,
+        ),
+        _F(
+            GROUP_NO='GA3302A5',
+            NOM_CMP='TEMP',
+            VALE=5.360981E+01,
+        ),
+        _F(
+            GROUP_NO='G44D815D',
+            NOM_CMP='TEMP',
+            VALE=5.355057E+01,
+        ),
+        _F(
+            GROUP_NO='G30532F5',
+            NOM_CMP='TEMP',
+            VALE=5.349132E+01,
+        ),
+        _F(
+            GROUP_NO='G9171836',
+            NOM_CMP='TEMP',
+            VALE=5.343208E+01,
+        ),
+        _F(
+            GROUP_NO='GA8CC5F3',
+            NOM_CMP='TEMP',
+            VALE=5.337283E+01,
+        ),
+        _F(
+            GROUP_NO='GD969FD2',
+            NOM_CMP='TEMP',
+            VALE=5.331358E+01,
+        ),
+        _F(
+            GROUP_NO='G25EA8E0',
+            NOM_CMP='TEMP',
+            VALE=5.325434E+01,
+        ),
+        _F(
+            GROUP_NO='G0E749F7',
+            NOM_CMP='TEMP',
+            VALE=5.319509E+01,
+        ),
+        _F(
+            GROUP_NO='GF22788B',
+            NOM_CMP='TEMP',
+            VALE=5.313585E+01,
+        ),
+        _F(
+            GROUP_NO='G1015FDD',
+            NOM_CMP='TEMP',
+            VALE=5.307660E+01,
+        ),
+        _F(
+            GROUP_NO='G77B5018',
+            NOM_CMP='TEMP',
+            VALE=5.301736E+01,
+        ),
+        _F(
+            GROUP_NO='G12D558F',
+            NOM_CMP='TEMP',
+            VALE=5.295811E+01,
+        ),
+        _F(
+            GROUP_NO='G5BE60DA',
+            NOM_CMP='TEMP',
+            VALE=5.289887E+01,
+        ),
+        _F(
+            GROUP_NO='G41C8313',
+            NOM_CMP='TEMP',
+            VALE=5.283962E+01,
+        ),
+        _F(
+            GROUP_NO='GA035093',
+            NOM_CMP='TEMP',
+            VALE=5.278037E+01,
+        ),
+        _F(
+            GROUP_NO='GC53020D',
+            NOM_CMP='TEMP',
+            VALE=5.272113E+01,
+        ),
+        _F(
+            GROUP_NO='GF994618',
+            NOM_CMP='TEMP',
+            VALE=5.266188E+01,
+        ),
+        _F(
+            GROUP_NO='G9CE5DB1',
+            NOM_CMP='TEMP',
+            VALE=5.260264E+01,
+        ),
+        _F(
+            GROUP_NO='G27FD288',
+            NOM_CMP='TEMP',
+            VALE=5.254339E+01,
+        ),
+        _F(
+            GROUP_NO='G0CE0460',
+            NOM_CMP='TEMP',
+            VALE=5.248415E+01,
+        ),
+        _F(
+            GROUP_NO='GD95B15B',
+            NOM_CMP='TEMP',
+            VALE=5.242490E+01,
+        ),
+        _F(
+            GROUP_NO='G2CF7DBC',
+            NOM_CMP='TEMP',
+            VALE=5.236565E+01,
+        ),
+        _F(
+            GROUP_NO='G451D4E3',
+            NOM_CMP='TEMP',
+            VALE=5.230641E+01,
+        ),
+        _F(
+            GROUP_NO='G1D69E4C',
+            NOM_CMP='TEMP',
+            VALE=5.224716E+01,
+        ),
+        _F(
+            GROUP_NO='G93930B6',
+            NOM_CMP='TEMP',
+            VALE=5.218792E+01,
+        ),
+        _F(
+            GROUP_NO='G5DCBBE6',
+            NOM_CMP='TEMP',
+            VALE=5.212867E+01,
+        ),
+        _F(
+            GROUP_NO='GN_N10',
+            NOM_CMP='TEMP',
+            VALE=5.206943E+01,
+        ),
+        _F(
+            GROUP_NO='GC15275C',
+            NOM_CMP='TEMP',
+            VALE=4.603471E+01,
+        ),
+        _F(
+            GROUP_NO='GN_N11',
+            NOM_CMP='TEMP',
+            VALE=4.000000E+01,
+        ),
+    ),
+);
+
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            MATER=MAT_STEEL,
+        ),
+    ),
+    AFFE_VARC=_F(
+        TOUT='OUI',
+        NOM_VARC='TEMP',
+        CHAM_GD=TEMP_FIELD,
+        VALE_REF=2.000000E+01,
+    ),
+);
+
+# ----- Solve -----
+RESU = MECA_STATIQUE(
+    MODELE=MODELE,
+    CHAM_MATER=CHMAT,
+    CARA_ELEM=CARA,
+    EXCIT=(
+        _F(CHARGE=BC_0),
+        _F(CHARGE=BC_1),
+        _F(CHARGE=BC_2),
+        _F(CHARGE=BC_3),
+        _F(CHARGE=GRAVITY),
+        _F(CHARGE=PRESSURE),
+    ),
+);
+
+# ----- Derived fields -----
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
+    FORCE='REAC_NODA',
+);
+
+# ----- Write MED results file -----
+IMPR_RESU(
+    FORMAT='MED',
+    UNITE=80,
+    RESU=_F(
+        RESULTAT=RESU,
+        CARA_ELEM=CARA,
+        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),
+    ),
+);
+
+# ----- Text table for EFGE_ELNO -----
+TAB_EFFO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='EFGE_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_EFFO,
+    UNITE=38,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for DEPL -----
+TAB_DEPL = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='DEPL',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_DEPL,
+    UNITE=39,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for REAC_NODA -----
+TAB_REAC = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='REAC_NODA',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_REAC,
+    UNITE=40,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for SIEQ_ELNO -----
+TAB_SIEQ = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='SIEQ_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('VMIS',),
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_SIEQ,
+    UNITE=41,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+FIN();

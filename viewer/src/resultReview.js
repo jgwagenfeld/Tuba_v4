@@ -7,7 +7,7 @@ export function formatPseudoTime(value) {
 
 export function getLoadCaseOptions(state) {
   const byLoadCase = new Map();
-  for (const overlay of [...(state.resultStates ?? []), ...(state.geometryStates ?? []), ...solverResultOverlays(state)]) {
+  for (const overlay of [...(state.resultStates ?? []), ...(state.geometryStates ?? []), ...solverResultOverlays(state), ...(state.overlays ?? []).filter((item) => item.kind === "load_case")]) {
     const data = overlay.data ?? {};
     const loadCase = data.load_case;
     if (!loadCase || byLoadCase.has(loadCase)) {
@@ -36,6 +36,15 @@ export function getResultStateOptions(state) {
 
 export function coherentResultContext(previousState, nextState) {
   const options = getResultStateOptions(nextState);
+  if (options.length === 0) {
+    const cases = getLoadCaseOptions(nextState);
+    const previousCase = previousState.activeLoadCase ?? previousState.coloring?.loadCase;
+    return {
+      activeResultStateId: null,
+      activeLoadCase: cases.find(option => option.id === previousCase)?.id ??
+        nextState.activeLoadCase ?? nextState.coloring?.loadCase ?? cases[0]?.id ?? null
+    };
+  }
   const previous = options.find(
     (option) =>
       option.id === previousState.activeResultStateId &&
@@ -49,6 +58,7 @@ export function coherentResultContext(previousState, nextState) {
   }
 
   const next =
+    options.find((option) => option.loadCase === previousState.activeLoadCase) ??
     options.find(
       (option) =>
         option.id === nextState.activeResultStateId &&

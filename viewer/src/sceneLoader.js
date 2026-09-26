@@ -99,7 +99,7 @@ export function createViewerState(bundle) {
   const resultStates = overlays.filter((overlay) => overlay.kind === "result_state");
   const geometryStates = overlays.filter((overlay) => overlay.kind === "geometry_state");
   const activeResultState = resultStates[0] ?? null;
-  const initialLoadCase = activeResultState?.data?.load_case ?? geometryStates[0]?.data?.load_case ?? null;
+  const initialLoadCase = activeResultState?.data?.load_case ?? geometryStates[0]?.data?.load_case ?? overlays.find((overlay) => overlay.kind === "load_case")?.data?.load_case ?? null;
   const activeGeometryState =
     geometryStates.find(
       (overlay) =>
@@ -191,6 +191,7 @@ export function getVisibleObjectIds(state) {
   // inspects the built model, so its authored vectors stay drawn.
   const contactReview = sceneStage(state) !== "build" && contactColoringActive(state);
   return state.objects
+    .filter((obj) => !state.activeLoadCase || !obj.metadata?.load_case || obj.metadata.load_case === state.activeLoadCase)
     .filter((obj) => !state.activeResultStateId || !obj.metadata?.result_state_id || obj.metadata.result_state_id === state.activeResultStateId)
     .filter((obj) => !state.activeGeometryStateId || !obj.metadata?.geometry_state_id || obj.metadata.geometry_state_id === state.activeGeometryStateId)
     .filter((obj) => !contactReview || !["applied_load", "displacement_vector", "reaction_vector"].includes(obj.kind))

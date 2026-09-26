@@ -490,6 +490,8 @@ class OperationField:
     station_end: Optional[float] = None
     element_ids: List[str] = field(default_factory=list)
     node_ids: List[str] = field(default_factory=list)
+    source_line: Optional[int] = script_line_field()
+    source_call_line: Optional[int] = script_line_field()
 
     def to_dict(self) -> Dict[str, Any]:
         """The canonical payload: absent selectors stay absent, direction is float-cast.
@@ -657,6 +659,7 @@ class Operation:
             element_ids=list(element_ids or []),
             node_ids=list(node_ids or []),
         )
+        field_record.source_line, field_record.source_call_line = script_lines()
         self.fields.append(field_record)
         return field_record
 
