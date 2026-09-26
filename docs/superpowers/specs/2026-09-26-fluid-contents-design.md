@@ -1,6 +1,6 @@
 # Operation-specific fluid contents
 
-**Status:** Approved by the user, 2026-09-26. Product implementation has not started.
+**Status:** Approved by the user, 2026-09-26. Implemented on `codex/fluid-contents`; see the implementation plan for qualification evidence and limitations.
 **Basis:** Package A of `docs/superpowers/plans/2026-09-26-library-reliability-and-v2-parity.md`.
 **Branch:** `codex/fluid-contents`, based on completed reliability milestone `ca17624`.
 

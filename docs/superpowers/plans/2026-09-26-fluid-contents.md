@@ -10,7 +10,7 @@
 
 **Spec:** [Approved design](../specs/2026-09-26-fluid-contents-design.md).
 
-**Status:** Written and self-reviewed, 2026-09-26; awaiting written-plan review. Product implementation has not started.
+**Status:** Implemented and solver-qualified, 2026-09-26. Regression checks and independent review passed. Browser visual inspection remains policy-blocked; see the evidence and limitation below.
 
 ## Global Constraints
 
@@ -41,6 +41,7 @@ Run all commands from the fluid-contents worktree. In each PowerShell test proce
 ```powershell
 $env:UV_NO_SYNC='1'
 $env:UV_PROJECT_ENVIRONMENT='D:\Gitprojects\Tuba_v4\.venv'
+$env:PYTHONPATH=(Get-Location).Path
 ```
 
 Use existing test helpers where their geometry matches; independent expected mass and reaction formulas must not call the new physical helpers. Add focused cases to existing owning suites rather than creating competing harnesses.
@@ -82,7 +83,7 @@ _element_quantities(model: TubaModel, elem: Element, props: ElementPhysicalPrope
 
 Public functions resolve an explicit case name with `model.resolve_load_case(operation)`; `None` passes no case and remains dry. The density resolver validates fields through `operation_fields_problem`, selects each field once, and assigns by element ID. Identical overlaps overwrite with the same value; conflicts have already failed validation. The calculation helper is the existing physical calculation extended with contents, not a second formula implementation.
 
-- [ ] **1. Write the failing public mass and admission checks.** Put the following procedural helper and tests in `tests/test_fluid_contents.py`:
+- [x] **1. Write the failing public mass and admission checks.** Put the following procedural helper and tests in `tests/test_fluid_contents.py`:
 
 ```python
 import math
@@ -155,12 +156,12 @@ def test_invalid_density_is_not_coerced(value):
         quantity_takeoff(model, operation='Bad')
 ```
 
-- [ ] **2. Run the first red check.** `uv run python -m pytest tests/test_fluid_contents.py -q`. Expect failures for the missing operation keyword and absent strict density admission, not import/setup errors.
-- [ ] **3. Implement strict construction and selection.** Keep `_number` in `validation.py` as the strict finite-real check. Factor current `Operation.add_field` record creation into one private model helper used by both operation construction and `define_load_case(fields=...)`; it must reject invalid density before `float` conversion. Keep other quantities' existing behavior. Revalidate mutable records through `operation_field_problem` and include both named case dictionaries in `_validate_operation_fields`.
+- [x] **2. Run the first red check.** `uv run python -m pytest tests/test_fluid_contents.py -q`. Expect failures for the missing operation keyword and absent strict density admission, not import/setup errors.
+- [x] **3. Implement strict construction and selection.** Keep `_number` in `validation.py` as the strict finite-real check. Factor current `Operation.add_field` record creation into one private model helper used by both operation construction and `define_load_case(fields=...)`; it must reject invalid density before `float` conversion. Keep other quantities' existing behavior. Revalidate mutable records through `operation_field_problem` and include both named case dictionaries in `_validate_operation_fields`.
 
 For fluid fields accept only uniform `all/group/route/elements`, with at most one nonempty selector family. Reject explicit scope/selector conflicts, node IDs, direction and non-route stations. Extend whole-element station checking without adding fluid to the set that allows beam loads. For `all`, filter to `pipe_straight`/`pipe_bend`; for explicit scopes reject every selected non-pipe and every missing element. Require `PipeSection` and nonempty selection. Use the existing overlap owner for equal-versus-conflicting densities, independent of gravity.
 
-- [ ] **4. Implement the shared mass calculation and append defaulted fields.** The calculation is:
+- [x] **4. Implement the shared mass calculation and append defaulted fields.** The calculation is:
 
 ```python
 bore_area = math.pi * (section.OD - 2 * section.WT)**2 / 4
@@ -170,7 +171,7 @@ mass = pipe_mass + insulation_mass + fluid_mass
 
 Only pipe elements with `PipeSection` acquire contents; other elements have fluid mass zero. Corrosion allowance does not alter this nominal bore. Check finiteness of bore, per-length components, effective density and length-multiplied masses, converting arithmetic overflow into a contextual `ValueError`. Append the three physical fields and `ElementQuantities.fluid_mass_kg` with zero defaults. Add defaulted `QuantityRecord.pipe_mass_kg`/`fluid_mass_kg` and `QuantityTakeoff.operation`; sum them in existing total/group owners. Resolve the density map outside the takeoff loop, and pass computed properties to `_element_quantities`.
 
-- [ ] **5. Pin selector and overlap edge cases.** Extend the new test file with the following test and cases:
+- [x] **5. Pin selector and overlap edge cases.** Extend the new test file with the following test and cases:
 
 ```python
 def test_equal_overlaps_apply_once_and_conflicts_fail_without_gravity():
@@ -204,7 +205,7 @@ def test_unsupported_selection_never_silently_changes_meaning(selectors):
 
 Also pin complete spans ending at `2 + 5e-10` as admitted, `2 - 1e-5` as a rejected cut, all-pipes excluding a structural beam, mixed explicit groups rejecting that same beam, empty groups, missing routes and unknown operation names. Use two route runs to ensure a boundary selects one element rather than its neighbor. Set a selected pipe to a non-pipe section and reject. Use a normal 2 m pipe with `OD=10`, `WT=1`, density `1e308` to exercise finite-input multiplication overflow, without invalid geometry or an infinite input masking it.
 
-- [ ] **6. Preserve JSON and script replay.** Add `fluid_density` to the schema enum. Emit legacy `fields` only when nonempty; reconstruct through the same field path. Add a `fields=...` suffix to generated `define_load_case` calls only when needed. Pin replay using:
+- [x] **6. Preserve JSON and script replay.** Add `fluid_density` to the schema enum. Emit legacy `fields` only when nonempty; reconstruct through the same field path. Add a `fields=...` suffix to generated `define_load_case` calls only when needed. Pin replay using:
 
 ```python
 def test_legacy_and_operation_fields_survive_json_and_generated_python():
@@ -224,7 +225,7 @@ def test_legacy_and_operation_fields_survive_json_and_generated_python():
 
 Extend existing authored-project tests with an authored file containing the same three states; reload it, verify quantities and byte-for-byte original file content after the existing refused generated-write operation.
 
-- [ ] **7. Run the portable owning suites and commit Task 1.**
+- [x] **7. Run the portable owning suites and commit Task 1.**
 
 ```powershell
 uv run python -m pytest tests/test_fluid_contents.py tests/test_operation_fields.py tests/test_model_script.py tests/test_insulation_solver.py -q
@@ -240,7 +241,7 @@ Expected: portable tests pass; real insulation test can skip in this portable ru
 
 **Interfaces:** Consume Task 1's density resolver and physical calculation. Keep public solver signatures unchanged. Use existing `analysis_study_inputs`, `volume_study_inputs`, `beam_contract`, `validate_path`, and project `expected_identity` as the side-effect-free owners. Keep the source model/material immutable.
 
-- [ ] **1. Write a failing compiler isolation check.**
+- [x] **1. Write a failing compiler isolation check.**
 
 ```python
 def test_compiler_assigns_contents_per_element_without_mutating_material(tmp_path):
@@ -264,13 +265,13 @@ def test_compiler_assigns_contents_per_element_without_mutating_material(tmp_pat
 
 Run `uv run python -m pytest tests/test_fluid_contents.py -q`; expect missing effective densities.
 
-- [ ] **2. Extend the existing insulation override.** Resolve the selected case's density map once before iterating elements in `aster_comm.py`. Visit an element if it has insulation or assigned nonzero contents; compute the combined mass through Task 1. Preserve the existing positive insulation-density gravity guard. Emit one per-element material override with original E, nu and alpha and `RHO=props.mass_kg_per_m / props.metal_area_m2`. Keep existing variable names/order/comments for no-fluid models. Use existing gravity loading exactly once; no new contents nodal loads.
-- [ ] **3. Add rejection tests before changing preflight.** For each diagnostic/full/volume/mixed/Model.solve boundary, snapshot a directory containing `study.comm`, `study.mail` and a sentinel; invoke an unsupported selected fluid field with densities both zero and positive; assert `ValueError` mentioning contents/fluid and exact directory byte equality. For a fresh path assert the path remains absent. Use existing volume/mixed fixtures so missing CAD or section prerequisites cannot be the reason for passing. Pin overflow on the ordinary diagnostic and full exporters too.
+- [x] **2. Extend the existing insulation override.** Resolve the selected case's density map once before iterating elements in `aster_comm.py`. Visit an element if it has insulation or assigned nonzero contents; compute the combined mass through Task 1. Preserve the existing positive insulation-density gravity guard. Emit one per-element material override with original E, nu and alpha and `RHO=props.mass_kg_per_m / props.metal_area_m2`. Keep existing variable names/order/comments for no-fluid models. Use existing gravity loading exactly once; no new contents nodal loads.
+- [x] **3. Add rejection tests before changing preflight.** For each diagnostic/full/volume/mixed/Model.solve boundary, snapshot a directory containing `study.comm`, `study.mail` and a sentinel; invoke an unsupported selected fluid field with densities both zero and positive; assert `ValueError` mentioning contents/fluid and exact directory byte equality. For a fresh path assert the path remains absent. Use existing volume/mixed fixtures so missing CAD or section prerequisites cannot be the reason for passing. Pin overflow on the ordinary diagnostic and full exporters too.
 
 For project solves, extend the current `force=True` rejection test with contents in a SOLID_3D selected operation; seed both evidence and `.tuba/staging` sentinels and assert they remain unchanged. For contact paths, use the existing shoe fixture with fluid only in the first stage, then a repeated first/final stage; both must reject before writes. Also test a single selected contact case without `load_path`.
 
-- [ ] **4. Route guards through existing owners.** Validate derived masses during side-effect-free beam input resolution, before any file allocation. Make diagnostic export obtain that same preflight before its `mkdir`/writers. Reject a selected fluid field, including explicit zero, before volume geometry construction and before mixed export's root creation. Check all selected contact/history cases, preserving existing thermal/pressure rules. For project solves compute every selected operation's `expected_identity` before entering the claim/staging mutation block, even with `force=True`, and reuse those identities for the existing evidence verdict. This makes the existing exporter contracts own the checks; do not duplicate their contents/formulation policy in the project layer.
-- [ ] **5. Pin identity and dry compatibility.** Test separate changes to density, scope, selected group membership, nominal bore and selected case. Each must change `build_solver_input_identity(...).fingerprint`; an attested real fixture mutated this way must fail the existing evidence reuse/verdict path. Use the established provenance fixture machinery; do not invent solver output. Verify an unselected valid fluid operation does not block a supported empty volume/mixed selection.
+- [x] **4. Route guards through existing owners.** Validate derived masses during side-effect-free beam input resolution, before any file allocation. Make diagnostic export obtain that same preflight before its `mkdir`/writers. Reject a selected fluid field, including explicit zero, before volume geometry construction and before mixed export's root creation. Check all selected contact/history cases, preserving existing thermal/pressure rules. For project solves compute every selected operation's `expected_identity` before entering the claim/staging mutation block, even with `force=True`, and reuse those identities for the existing evidence verdict. This makes the existing exporter contracts own the checks; do not duplicate their contents/formulation policy in the project layer.
+- [x] **5. Pin identity and dry compatibility.** Test separate changes to density, scope, selected group membership, nominal bore and selected case. Each must change `build_solver_input_identity(...).fingerprint`; an attested real fixture mutated this way must fail the existing evidence reuse/verdict path. Use the established provenance fixture machinery; do not invent solver output. Verify an unselected valid fluid operation does not block a supported empty volume/mixed selection.
 
 The following baseline was captured from `b8bc0b5` before product changes on 2026-09-26. Add this permanent regression for `tests/fixtures/pre_operation_model.json`:
 
@@ -294,7 +295,7 @@ def test_pre_contents_model_keeps_canonical_inputs_script_and_compiler(tmp_path)
 
 If a mismatch is intentional, investigate and document the exact semantic change before deciding whether a compiler/schema identity bump is necessary. Do not simply regenerate expectations.
 
-- [ ] **6. Run the owning regressions and commit Task 2.**
+- [x] **6. Run the owning regressions and commit Task 2.**
 
 ```powershell
 uv run python -m pytest tests/test_fluid_contents.py tests/test_export_validation.py tests/test_project_solve.py tests/test_solver_input_provenance.py tests/test_insulation_solver.py tests/test_operation_fields.py -q
@@ -310,7 +311,7 @@ Stage only files actually changed. Expected: all portable checks pass; no baseli
 
 **Interfaces:** Add `build_operation_quantities_table(model: TubaModel) -> ReportTable` to `MODEL_TABLE_BUILDERS`, ID `operation_quantities`, source `model`. Consume `quantity_takeoff(model, operation=name)` and existing `build_engineering_review`, `write_engineering_review`, `SceneRequest`, `build_visualization_scene`, `write_scene_bundle`. No new result contract.
 
-- [ ] **1. Pin the model-source report before implementation.**
+- [x] **1. Pin the model-source report before implementation.**
 
 ```python
 def test_operation_quantities_are_model_inputs():
@@ -335,7 +336,7 @@ def test_operation_quantities_are_model_inputs():
 
 Run this test red, then implement the table in the existing registry with columns `name`, `gravity`, `pipe_mass_kg`, `insulation_mass_kg`, `fluid_mass_kg`, `total_mass_kg`. One row for every named operation/load case; no invented default case. Ensure CSV/JSON report export includes the table through existing generic exporters.
 
-- [ ] **2. Write the mandatory real matrix using the Task 1 procedural helper.** No skip conditions other than the existing `TUBA_RUN_CODE_ASTER_INTEGRATION != '1'` portable-suite marker. Runtime selection is `os.environ.get('TUBA_CODE_ASTER_EXEC_METHOD', 'auto')`, never hardcoded WSL. Use per-case `tmp_path` work directories.
+- [x] **2. Write the mandatory real matrix using the Task 1 procedural helper.** No skip conditions other than the existing `TUBA_RUN_CODE_ASTER_INTEGRATION != '1'` portable-suite marker. Runtime selection is `os.environ.get('TUBA_CODE_ASTER_EXEC_METHOD', 'auto')`, never hardcoded WSL. Use per-case `tmp_path` work directories.
 
 ```python
 import math
@@ -386,7 +387,7 @@ def test_contents_gravity_matrix(tmp_path, formulation, bent, insulated):
 
 This is 24 actual solves across eight pytest cases. `NodeResult.displacement` is the existing six-component imported vector in `tuba/solver/base.py`; use its translation at index 2, not a separately calculated substitute.
 
-- [ ] **3. Add the independent isolation/reference cases.** Use these fixed assertions in additional real tests:
+- [x] **3. Add the independent isolation/reference cases.** Use these fixed assertions in additional real tests:
 
 ```python
 # Gravity disabled, downward 100 N tip load, each formulation, densities 0 and 1000:
@@ -405,15 +406,15 @@ for density, reaction in reactions_by_density.items():
 
 For TUYAU add gravity-only and 1.5e6 Pa pressurized cases at densities 0 and 1000 on the same straight route: vertical reaction and bending moment must match the independent weight formulas; compare the pressure-induced axial displacement increment across densities to prove the two inputs remain independent. Retain a portable assertion that POU_D_T rejects that pressure. Use `add_nodal_force` and existing result accessors; preserve force signs. Do not weaken tolerances after seeing results; investigate any discrepancy in geometry, discretization, formulation or extraction first.
 
-- [ ] **4. Add the procedural example and gate entry.** `examples/fluid_contents.py` defines an insulated route using constants and builder calls, three operations (empty, 800 kg/m3 operating at 1e6 Pa, 1000 kg/m3 hydrotest at 1.5e6 Pa), and solves each with TUYAU. Build the engineering review from all returned runs and a scene from the imported result state using the existing example conventions. Write review/scene only after every solve succeeds. Add `tests/test_code_aster_fluid_contents.py` to `REFERENCE_TESTS`. Missing runtime must raise, with no manufactured result fallback.
-- [ ] **5. Run real qualification, the example and the full regression suite.**
+- [x] **4. Add the procedural example and gate entry.** `examples/fluid_contents.py` defines an insulated route using constants and builder calls, three operations (empty, 800 kg/m3 operating at 1e6 Pa, 1000 kg/m3 hydrotest at 1.5e6 Pa), and solves each with TUYAU. Build the engineering review from all returned runs and a scene from the imported result state using the existing example conventions. Write review/scene only after every solve succeeds. Add `tests/test_code_aster_fluid_contents.py` to `REFERENCE_TESTS`. Missing runtime must raise, with no manufactured result fallback.
+- [x] **5. Run real qualification, the example and the full regression suite.**
 
 ```powershell
 $env:TUBA_CODE_ASTER_EXEC_METHOD='wsl'
 $env:TUBA_RUN_CODE_ASTER_INTEGRATION='1'
 uv run python -m tuba.solver.code_aster_doctor --check
 uv run python -m pytest tests/test_code_aster_fluid_contents.py -q --junitxml=.build/qualification/fluid-contents.xml
-uv run python examples/fluid_contents.py
+uv run python -m examples.fluid_contents
 uv run python scripts/check_code_aster_references.py --report .build/qualification/code-aster-references.xml
 Remove-Item Env:TUBA_RUN_CODE_ASTER_INTEGRATION
 uv run python -m pytest -q --junitxml=.build/qualification/python-suite.xml
@@ -423,7 +424,7 @@ Execute commands sequentially and inspect each exit code. The WSL setting is thi
 
 Inspect the example's emitted review JSON/CSV and scene manifest: three solved cases, genuine Code_Aster lineage, three mass rows, masses matching the independent values, and imported displacement/reaction data. If the added table is not exposed by the existing generic review UI, investigate that failing acceptance before calling the example complete.
 
-- [ ] **6. Commit Task 3, perform one final review, and hand off.** Stage only this task's files, commit `feat: report and qualify operation-specific fluid contents`, and build the review package against `ca17624`. Request one fresh read-only whole-branch review as required by executing-plans, with the approved spec, this plan, tests and exact qualification evidence. Fix actionable findings, rerun affected checks, and update this plan with actual results and remaining limitations. Do not rerun the entire gate without a relevant code/test change or unresolved concern. Leave the branch ready for review; do not merge or push.
+- [x] **6. Commit Task 3, perform one final review, and hand off.** Stage only this task's files, commit `feat: report and qualify operation-specific fluid contents`, and build the review package against `ca17624`. Request one fresh read-only whole-branch review as required by executing-plans, with the approved spec, this plan, tests and exact qualification evidence. Fix actionable findings, rerun affected checks, and update this plan with actual results and remaining limitations. Do not rerun the entire gate without a relevant code/test change or unresolved concern. Leave the branch ready for review; do not merge or push.
 
 ## Self-review of this plan
 
@@ -433,3 +434,47 @@ Inspect the example's emitted review JSON/CSV and scene manifest: three solved c
 - All five Review Focus conditions have named checks in their owning tasks. The physical formula is shared; numerical expected values remain independent.
 - The four dry compatibility hashes above were measured before product implementation. They are compatibility evidence only, not proof of fluid functionality.
 - Execution will record actual outcomes; unchecked items and planned commands do not claim implementation or solver verification.
+
+
+## Final execution record
+
+- Implementation commits: `e6aab55` (fields/persistence/quantities), `6113c3d`
+  (compiler/preflight), `816da68` (reports/example/reference gate plus final boundary checks).
+- Portable owning suites: Task 1 97 passed / 1 optional integration skip / 5 subtests;
+  Task 2 189 passed / 3 optional integration skips / 5 subtests; report/quantity/gate
+  suites 138 passed / 4 optional integration skips. Aggregate-overflow owning checks
+  subsequently passed 111 tests, and the legacy JSON-schema regression passed.
+- Real contents references: 13 passed, zero skips, 34 actual Code_Aster solves,
+  179.06 seconds. Evidence: `.build/qualification/fluid-contents.xml`.
+- Procedural example: three real solves and imported review/scene artifacts at
+  `.build/fluid-contents/review/`. Masses match independent formulas at 1e-12
+  relative tolerance. Anchor reactions: Empty 450.265939646 N, Operating
+  529.162640912 N, Hydrotest 548.886816228 N. The current compiler reproduces all
+  three solved command files byte-for-byte.
+- One independent gpt-6-astra review of `ca17624..816da68`: no findings; 35 additional
+  read-only boundary assertions passed. No review fixes or deferred minors.
+- Input reports preserve incomplete-model review: missing material/section definitions
+  produce unavailable masses with an explicit reason. Malformed contents still fail
+  quantity/solver admission. Rows use stable case-name ordering.
+- The shared editable environment points direct file execution at main. Run this
+  worktree's example as `python -m examples.fluid_contents` and pin `PYTHONPATH` for
+  qualification subprocesses. The first unpinned broad run was interrupted and
+  restarted; it is not qualification evidence.
+- Browser security policy rejected local file-URL inspection. No workaround was
+  attempted. JSON/CSV/HTML and scene-lineage checks passed; interactive rendering
+  remains unverified.
+- Full Python regression run: **1747 passed, 55 skipped, 138 subtests passed** in
+  1319.57 seconds. One existing Windows ZMQ event-loop warning. Evidence:
+  `.build/qualification/python-suite.xml`. The aggregate-overflow and legacy-schema
+  tests were added after that run collected its tests; both passed separately at
+  the final implementation revision in `.build/qualification/final-boundaries.xml`.
+  This covers all 1804 currently collected tests (1749 passes across the full run
+  and those two additional checks, 55 portable-run skips).
+- Mandatory real gate: **45 passed, zero skips, 2 subtests passed**, 1179.36 seconds.
+  Evidence: `.build/qualification/code-aster-references.xml`. Execution uses the
+  configured WSL Ubuntu backend; the example attests Code_Aster **18.0.12**.
+- JUnit artifacts were independently parsed for failures/errors and, for both real
+  solver qualification files, forbidden skips. Logs, rulings and the review package
+  remain in the ignored `.superpowers/sdd/2026-09-26-fluid-contents/` evidence folder.
+- No merge, push or publication has occurred. Next planned package is B,
+  temperature-dependent material physics; it has not been started.

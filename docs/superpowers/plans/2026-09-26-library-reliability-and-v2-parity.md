@@ -273,13 +273,20 @@ Each package below first produces its own design and implementation plan. Those 
 
 **Owners:** `tuba/model.py`, `tuba/schema.py`, `tuba/attributes.py` if scoped assignments reuse that owner, `tuba/physical.py`, `tuba/quantities.py`, `tuba/solver/aster_comm.py`, `tuba/solver/aster_loads.py`, `tuba/reporting/tables.py`, and provenance/project replay tests. Add `tests/test_fluid_contents.py` and `tests/test_code_aster_fluid_contents.py`.
 
-- [ ] Design operation-specific empty/full contents using density in kg/m3 and existing route/group/element selection conventions. Default to empty so existing models retain their meaning. Reject conflicting overlapping contents assignments. Defer partially filled/free-surface behavior until its geometry and scope are explicitly designed.
-- [ ] Implement the contents mass once in the physical-property owner; use it for gravity compilation and operation-specific quantity/report totals. Keep metal, insulation, and contents masses separately inspectable. Do not alter E or section stiffness to account for fluid mass.
-- [ ] Preserve the distinction between contents density and pressure; hydrotest users author both independently. Do not silently invent pressure head or fluid transients.
-- [ ] Qualify straight and bent 1D pipes, insulation plus fluid, empty/operating/hydrotest cases, and both supported 1D formulations. Reject unqualified solid/history combinations at preflight until their owning packages support contents.
-- [ ] Pin independent mass and reaction checks: for a full straight, `m_fluid = rho_fluid * pi * ID**2 / 4 * L`; summed gravity reactions must match total weight. For a bend, use arc length. Verify all reported mass totals and fingerprints change with density/case changes.
+- [x] Design operation-specific empty/full contents using density in kg/m3 and existing route/group/element selection conventions. Default to empty so existing models retain their meaning. Reject conflicting overlapping contents assignments. Defer partially filled/free-surface behavior until its geometry and scope are explicitly designed.
+- [x] Implement the contents mass once in the physical-property owner; use it for gravity compilation and operation-specific quantity/report totals. Keep metal, insulation, and contents masses separately inspectable. Do not alter E or section stiffness to account for fluid mass.
+- [x] Preserve the distinction between contents density and pressure; hydrotest users author both independently. Do not silently invent pressure head or fluid transients.
+- [x] Qualify straight and bent 1D pipes, insulation plus fluid, empty/operating/hydrotest cases, and both supported 1D formulations. Reject unqualified solid/history combinations at preflight until their owning packages support contents.
+- [x] Pin independent mass and reaction checks: for a full straight, `m_fluid = rho_fluid * pi * ID**2 / 4 * L`; summed gravity reactions must match total weight. For a bend, use arc length. Verify all reported mass totals and fingerprints change with density/case changes.
 
 **Done:** One procedural example solves all three contents states, imports reactions/displacements, and reports attributable mass and reaction changes. Real-solver references join Task 3's gate.
+
+Implementation and numerical qualification completed on `codex/fluid-contents`
+(`816da68` implementation head). See [the package plan](2026-09-26-fluid-contents.md)
+for APIs, evidence and exact limits: 45 mandatory real references passed without
+skips, the full regression run and final boundary checks passed, and independent
+review found no issues. Browser inspection of the local report was policy-blocked;
+artifact checks passed. Package B remains the next planned task.
 
 ### Package B: Temperature-dependent material physics
 
