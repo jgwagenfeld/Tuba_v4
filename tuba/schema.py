@@ -326,7 +326,7 @@ MODEL_SCHEMA_V4 = {
             "type": "object",
             "required": ["quantity", "value"],
             "properties": {
-                "quantity": {"enum": ["pressure", "temperature", "wind", "line_load"]},
+                "quantity": {"enum": ["pressure", "temperature", "wind", "line_load", "fluid_density"]},
                 "value": {"type": "number"},
                 "direction": {"$ref": "#/$defs/vector3"},
                 "scope": {"enum": ["all", "group", "route", "elements", "nodes"]},

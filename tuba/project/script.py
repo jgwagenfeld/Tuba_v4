@@ -272,7 +272,8 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True, prologue:
         lines.append(
             f"model.define_load_case({_literal(name)}, gravity={_literal(case.gravity)}, "
             f"pressure={_literal(case.internal_pressure)}, temperature={_literal(case.temperature)}, "
-            f"ref_temperature={_literal(case.ref_temperature)})"
+            f"ref_temperature={_literal(case.ref_temperature)}"
+            + (f", fields={_literal(data['load_cases'][name]['fields'])}" if case.fields else "") + ")"
         )
         for force in case.nodal_forces:
             lines.append(

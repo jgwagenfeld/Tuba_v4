@@ -159,6 +159,36 @@ def _pipe_node_ids(model: TubaModel) -> set[str]:
     }
 
 
+def fluid_field_problem(field_record, *, infer_scope: bool = False, selectors: list[str] | None = None) -> str | None:
+    """Strict contents admission, also used before authoring can coerce a value."""
+    errors: list[str] = []
+    _number(field_record.value, "fluid_density", errors, lower=0)
+    if errors:
+        return errors[0]
+    selectors = selectors if selectors is not None else [name for name, value in (
+        ("group", field_record.group is not None),
+        ("route", field_record.route_id is not None),
+        ("elements", bool(field_record.element_ids)),
+        ("nodes", bool(field_record.node_ids)),
+    ) if value]
+    scope = field_record.scope
+    if len(selectors) > 1 or (selectors and scope != selectors[0] and not (infer_scope and scope == "all")):
+        return "fluid_density has competing selectors or a conflicting scope."
+    if infer_scope and selectors:
+        scope = selectors[0]
+    if scope not in {"all", "group", "route", "elements"} or field_record.node_ids:
+        return "fluid_density requires all, group, route or elements scope."
+    if field_record.profile != "uniform" or field_record.direction is not None:
+        return "fluid_density requires a uniform profile without direction."
+    for name in ("station_start", "station_end"):
+        value = getattr(field_record, name)
+        if value is not None:
+            if scope != "route":
+                return "fluid_density station selectors require route scope."
+            _number(value, f"fluid_density {name}", errors)
+    return errors[0] if errors else None
+
+
 def operation_field_problem(
     field_record,
     model: TubaModel,
@@ -170,10 +200,14 @@ def operation_field_problem(
     Code_Aster exporters both cross it. Messages read as the tail of
     ``Operation 'Name' field 2 <message>``.
     """
-    if field_record.quantity not in {"pressure", "temperature", "wind", "line_load"}:
+    if field_record.quantity == "fluid_density":
+        problem = fluid_field_problem(field_record)
+        if problem:
+            return problem
+    if field_record.quantity not in {"pressure", "temperature", "wind", "line_load", "fluid_density"}:
         return (
             f"has unsupported quantity {field_record.quantity!r}; "
-            "supported quantities are pressure, temperature, wind, and line_load."
+            "supported quantities are pressure, temperature, wind, line_load, and fluid_density."
         )
     if field_record.scope not in {"all", "group", "route", "elements", "nodes"}:
         return f"has unsupported scope {field_record.scope!r}."
@@ -220,6 +254,10 @@ def operation_field_problem(
         if field_record.quantity in {"wind", "line_load"}:
             return "selects no pipe or beam elements."
         return "selects no pipe elements."
+    if field_record.quantity == "fluid_density":
+        refused = [e.id for e in selected if not isinstance(model.sections.get(e.section), PipeSection)]
+        if refused:
+            return f"fluid_density requires PipeSection on elements {refused!r}."
     return None
 
 
@@ -282,7 +320,7 @@ def operation_fields_problem(fields: Sequence[Any], model: TubaModel) -> list[st
 
 
 def _validate_operation_fields(model: TubaModel, errors: list[str]) -> None:
-    for operation_name, operation in getattr(model, "operations", {}).items():
+    for operation_name, operation in {**model.load_cases, **model.operations}.items():
         errors.extend(
             f"Operation {operation_name!r} {problem}"
             for problem in operation_fields_problem(getattr(operation, "fields", []), model)
@@ -316,6 +354,8 @@ def _node_field_problem(field_record, model: TubaModel, pipe_nodes: set[str]) ->
 
 
 def _operation_field_value_key(field_record) -> tuple[Any, ...]:
+    if field_record.quantity == "fluid_density":
+        return (float(field_record.value),)
     direction = None
     if field_record.direction is not None:
         vector = np.asarray(field_record.direction, dtype=float)
