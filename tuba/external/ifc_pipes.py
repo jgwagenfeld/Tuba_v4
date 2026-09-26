@@ -8,7 +8,7 @@ import ifcopenshell.guid
 import numpy as np
 
 from tuba.external.ifc_mapping import IfcGuidRegistry, add_property_set, ifc_property
-from tuba.external.ifc_placements import create_local_placement, placement_for_target
+from tuba.external.ifc_placements import create_local_placement, placement_for_target, product_local_points
 
 # Second body representation carrying the solved operating shape. "Body" stays
 # the as-built geometry so a viewer that knows only the standard identifier is
@@ -98,7 +98,7 @@ def _create_pipe_product(
             ifc_property(ifc_file, "WallThicknessM", float(section.WT)),
         ],
     )
-    axis_points = _pipe_axis_points(model, elem)
+    axis_points = product_local_points(_pipe_axis_points(model, elem), frame)
     body = _swept_disk_body(ifc_file, model, elem, axis_points)
     axis = ifc_file.create_entity(
         "IfcShapeRepresentation",
@@ -119,7 +119,7 @@ def _create_pipe_product(
     # occupies, and a property saying how far it moved is not something a BIM
     # clash engine can intersect.
     representations = [axis, body_rep]
-    operating_body = operating_swept_disk(ifc_file, model, elem, axis_points, result_state)
+    operating_body = operating_swept_disk(ifc_file, model, elem, _pipe_axis_points(model, elem), result_state, frame)
     if operating_body is not None:
         representations.append(
             ifc_file.create_entity(
@@ -145,7 +145,8 @@ def _create_pipe_product(
 
 
 def operating_swept_disk(
-    ifc_file: Any, model: Any, elem: Any, cold_points: list[np.ndarray], result_state: Any | None
+    ifc_file: Any, model: Any, elem: Any, cold_points: list[np.ndarray], result_state: Any | None,
+    frame: Any | None = None,
 ) -> Any | None:
     """Build the pipe's swept disk on its operating centreline, or None."""
     if result_state is None:
@@ -156,7 +157,7 @@ def operating_swept_disk(
         np.asarray(point, dtype=float)
         for point in displace_polyline(element=elem, result_state=result_state, points=cold_points)
     ]
-    return _swept_disk_body(ifc_file, model, elem, points)
+    return _swept_disk_body(ifc_file, model, elem, product_local_points(points, frame))
 
 
 def _pipe_axis_points(model: Any, elem: Any) -> list[np.ndarray]:

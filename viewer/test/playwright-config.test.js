@@ -39,5 +39,7 @@ test("Playwright serves the built Pages artifact or an explicit prebuilt root", 
   const prebuiltConfig = await loadConfig("../_site");
   assert.match(prebuiltConfig.webServer.command, /\.\.\/_site/);
   assert.match(prebuiltConfig.webServer.command, /configFile: false/);
+  assert.match(prebuiltConfig.webServer.command, /await preview\(/);
+  assert.doesNotMatch(prebuiltConfig.webServer.command, /createServer/);
   assert.doesNotMatch(prebuiltConfig.webServer.command, /scripts\/build_pages\.py/);
 });

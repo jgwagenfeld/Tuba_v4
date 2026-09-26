@@ -12,7 +12,7 @@ const DOCUMENTATION_PAGES = ["/index.html", "/setup.html"];
 test("published expansion loop contains pipe geometry without legacy envelope skins", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/viewer/?bundle=autorouted-expansion-loop", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("status")).toHaveText("Ready", { timeout: 60_000 });
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 60_000 });
   await expect(page.locator("[data-task-rail]")).toBeVisible();
   await expect(page.locator("[data-rail-toggle]")).toHaveAttribute("aria-expanded", "true");
   // Reviews ship without a design standard now that the code checks are gone,
@@ -59,7 +59,7 @@ test("published expansion loop contains pipe geometry without legacy envelope sk
 test("left controls toggle reserves space beside the viewport", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/viewer/?bundle=autorouted-expansion-loop");
-  await expect(page.getByRole("status")).toHaveText("Ready", { timeout: 60_000 });
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 60_000 });
   for (const width of [1440, 1024, 800]) {
     await page.setViewportSize({ width, height: 900 });
     const rail = page.locator("[data-task-rail]");
@@ -112,7 +112,7 @@ test("assembled Pages keeps results accessible when WebGL2 is unavailable", asyn
 
   await page.goto("/viewer/?bundle=code-aster-review", { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-viewport-unavailable]")).toBeVisible();
-  await expect(page.getByRole("status")).toHaveText("Results ready · 3D unavailable");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Results ready · 3D unavailable");
   await expect(page.locator("[data-canvas]")).toBeHidden();
 
   // The rail is one column; the colouring channel's legend names the field.
@@ -133,7 +133,7 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
   });
 
   await page.goto("/viewer/?bundle=code-aster-review", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("status")).toHaveText("Ready");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
   await page.waitForFunction(() => {
     const canvas = document.querySelector("[data-canvas]");
     return (
@@ -156,6 +156,9 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
 
+  await expect(page.locator("[data-build-identity]")).toHaveText(/^Source [a-f0-9]{12}$/);
+  await expect(page.locator("[data-viewer-identity]")).toHaveText(/^Viewer [a-f0-9]{12}$/);
+
   // Keep the existing full-canvas visual baseline; initial open state is checked above.
   await page.locator("[data-rail-toggle]").click();
   for (const [name, viewport] of Object.entries(VIEWPORTS)) {
@@ -176,6 +179,9 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
     await expect(page).toHaveScreenshot(`pages-${name}.png`, {
       animations: "disabled",
       caret: "hide",
+      // Content hashes change with each build; assert their format above and
+      // keep the rest of the header covered by the visual comparison.
+      mask: [page.locator("[data-build-identity], [data-viewer-identity]")],
       // Narrow software-rendered WebGL varies slightly between Ubuntu runners.
       maxDiffPixelRatio: name === "narrow" ? 0.015 : 0.002
     });
@@ -222,7 +228,7 @@ test("assembled Pages documentation is accessible", async ({ page }) => {
 
 test("assembled Pages renders the native 3D tee result fields", async ({ page, request }) => {
   await page.goto("/viewer/?bundle=pipe-tee-volume-review", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("status")).toHaveText("Ready");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 30_000 });
   await page.waitForFunction(() => {
     const canvas = document.querySelector("[data-canvas]");
     return canvas?.dataset.renderer === "three" && Number(canvas.dataset.renderedObjects ?? 0) > 0;

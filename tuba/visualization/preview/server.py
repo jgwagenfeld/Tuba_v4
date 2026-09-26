@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import shutil
+import json
+import re
 import tempfile
 import threading
 import time
@@ -58,6 +60,7 @@ class ProjectStudioServer(PreviewServer):
         # once per bundle, here for a bundle left on disk and in _produce_review for each new one.
         self._review_identities = attested_identities(self.out_dir / "review")
         self._solve_lock = threading.Lock()
+        self._ifc_lock = threading.RLock()
         # Busy with a review (the startup import or a Solve); _preparing marks the import.
         self._solving = False
         self._preparing = False
@@ -115,6 +118,9 @@ class ProjectStudioServer(PreviewServer):
         artifact_dir = self._declared_artifact_dir()
         operations = self._declared_operations()
         if self.study is not None and (artifact_dir is not None or not operations):
+            if artifact_dir is not None and operations and not artifact_dir.exists():
+                # Portable project ZIPs omit evidence; Solve remains available.
+                return self
             # Attested evidence imports without a solver, and a study with no solver
             # has nothing to wait for; a study that must solve waits for Solve. It runs
             # in the background: the viewer is already up and hears review_ready.
@@ -227,10 +233,15 @@ class ProjectStudioServer(PreviewServer):
         return bool(stale)
 
     def _publish_scene(self) -> dict[str, Any]:
+        with self._ifc_lock:
+            return self._publish_scene_locked()
+
+    def _publish_scene_locked(self) -> dict[str, Any]:
         from tuba.visualization.builders import SceneRequest, build_visualization_scene
 
         self.revision += 1
         scene = build_visualization_scene(SceneRequest(self.model, include_analysis_mesh=True, clash_results=self._model_clashes()))
+        self._merge_ifc_references(scene)
         staging = self.out_dir / ".build-staging"
         shutil.rmtree(staging, ignore_errors=True)
         write_scene_bundle(scene, staging)
@@ -279,11 +290,16 @@ class ProjectStudioServer(PreviewServer):
                     time.sleep(0.1)
 
     def _produce_review(self, namespace: dict[str, Any], *, artifact_dir: Path | None) -> None:
+        with self._ifc_lock:
+            self._produce_review_locked(namespace, artifact_dir=artifact_dir)
+
+    def _produce_review_locked(self, namespace: dict[str, Any], *, artifact_dir: Path | None) -> None:
         from tuba.project.freshness import attested_identities
 
         work = self.out_dir / ".review-work"
         shutil.rmtree(work, ignore_errors=True)
         root = self._review_builder()(namespace, work, artifact_dir=artifact_dir)
+        self._rewrite_review_references(Path(root))
         identities = attested_identities(Path(root))
         self._swap_bundle("review", Path(root))
         self._review_identities = identities
@@ -307,7 +323,177 @@ class ProjectStudioServer(PreviewServer):
             "solving": (self._solving and not self._preparing) or solve_claimed(self.project.root),
             "preparing_review": self._preparing,
             "unverified": list(self.unverified),
+            "ifc": self.ifc_capability(),
         }
+
+    @property
+    def _ifc_root(self) -> Path:
+        return self.project.root / "references" / "ifc"
+
+    def _ifc_manifests(self):
+        for path in sorted(self._ifc_root.glob("*/manifest.json")):
+            if re.fullmatch(r"[0-9a-f]{64}", path.parent.name) and (path.parent / "source.ifc").is_file():
+                try:
+                    manifest = json.loads(path.read_text(encoding="utf-8"))
+                    if manifest["preview"]["sha256"] == path.parent.name:
+                        yield path.parent.name, manifest
+                except (OSError, ValueError, KeyError):
+                    continue
+
+    def ifc_capability(self) -> dict[str, Any]:
+        from tuba.external.ifc_reference import require_ifc
+
+        try:
+            require_ifc()
+            available, reason = True, None
+        except ImportError as exc:
+            available, reason = False, str(exc)
+        return {"available": available, "reason": reason, "max_upload_bytes": 16777216,
+                "export": "geometry-only", "references": [self._ifc_summary(identity, manifest)
+                                                       for identity, manifest in self._ifc_manifests()],
+                "export_scope": "Native Tuba model geometry only; IFC references are excluded",
+                "export_available": available and self._ifc_export_issue() is None,
+                "export_reason": self._ifc_export_issue()}
+
+    def _ifc_export_issue(self) -> str | None:
+        model = self.model
+        if model is None:
+            return "model.py has not run successfully yet"
+        if model.imported_components or model.cad_assets or model.mesh_groups:
+            return "Imported components, CAD assets, or mesh groups cannot be included in IFC export"
+        if model.tees:
+            return "Tee records cannot be included in IFC export"
+        if any(element.type not in {"pipe_straight", "pipe_bend", "beam", "bar", "cable"} for element in model.elements):
+            return "An element type cannot be included in IFC export"
+        if any(obstacle.get("type") != "cuboid" for obstacle in model.obstacles):
+            return "Only cuboid obstacles can be included in IFC export"
+        return None
+
+    @staticmethod
+    def _ifc_summary(identity: str, manifest: dict) -> dict[str, Any]:
+        preview = manifest["preview"]
+        return {"id": identity, "name": preview["name"], "product_count": len(preview["products"]),
+                "warning_count": len(preview["warnings"])}
+
+    def _merge_ifc_references(self, scene):
+        from tuba.external.ifc_reference import merge_reference
+
+        for identity, manifest in self._ifc_manifests():
+            merge_reference(scene, identity, manifest)
+
+    def _rewrite_review_references(self, root: Path) -> None:
+        from tuba.visualization.scene import VisualizationScene
+
+        path = root / "scene.json"
+        if not path.is_file():
+            return
+        scene = VisualizationScene.from_dict(json.loads(path.read_text(encoding="utf-8")))
+        scene.objects = [obj for obj in scene.objects if not obj.id.startswith("ifc:")]
+        scene.geometry_assets = [asset for asset in scene.geometry_assets if not asset.id.startswith("ifc:")]
+        scene.layers = [layer for layer in scene.layers if not layer.id.startswith("ifc:")]
+        for asset in scene.geometry_assets:
+            if asset.uri:
+                payload = json.loads((root / asset.uri).read_text(encoding="utf-8"))
+                asset.generation_config = payload["generation_config"]
+        self._merge_ifc_references(scene)
+        source = root / "source.py"
+        source_bytes = source.read_bytes() if source.is_file() else None
+        write_scene_bundle(scene, root)
+        if source_bytes is not None:
+            source.write_bytes(source_bytes)
+
+    def _republish_ifc(self) -> tuple[str, str]:
+        if self.model is not None:
+            self._publish_scene()
+        review = self.out_dir / "review"
+        if (review / "scene.json").is_file():
+            staging = self.out_dir / ".ifc-review-staging"
+            shutil.rmtree(staging, ignore_errors=True)
+            shutil.copytree(review, staging)
+            self._rewrite_review_references(staging)
+            self._swap_bundle("review", staging)
+        return f"{self.base_url}build/", f"{self.base_url}review/"
+
+    def ifc_request(self, route: str, body: bytes | None = None, name: str = "reference.ifc"):
+        with self._ifc_lock:
+            return self._ifc_request_locked(route, body, name)
+
+    def _ifc_request_locked(self, route: str, body: bytes | None, name: str):
+        from tuba.external.ifc_reference import conversion_zip, extract, require_ifc, validate_assignment
+
+        try:
+            require_ifc()
+            if route == "preview":
+                preview, _ = extract(body or b"", name)
+                return 200, {"ok": True, "preview": preview}
+            if route == "attach":
+                preview, meshes = extract(body or b"", name)
+                identity = preview["sha256"]
+                target = self._ifc_root / identity
+                if target.is_dir():
+                    return 200, {"ok": True, "reference": self._ifc_summary(identity, json.loads((target / "manifest.json").read_text(encoding="utf-8"))),
+                                 "build_url": f"{self.base_url}build/", "review_url": f"{self.base_url}review/"}
+                self._ifc_root.mkdir(parents=True, exist_ok=True)
+                with tempfile.TemporaryDirectory(dir=self._ifc_root) as temp:
+                    folder = Path(temp)
+                    (folder / "source.ifc").write_bytes(body)
+                    manifest = {"preview": preview, "meshes": meshes}
+                    (folder / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+                    folder.rename(target)
+                try:
+                    build_url, review_url = self._republish_ifc()
+                except Exception:
+                    shutil.rmtree(target)
+                    self._republish_ifc()
+                    raise
+                return 201, {"ok": True, "reference": self._ifc_summary(identity, manifest),
+                             "build_url": build_url, "review_url": review_url}
+            if route == "export":
+                issue = self._ifc_export_issue()
+                if issue:
+                    return 409, {"ok": False, "error": issue}
+                from tuba.external.ifc import IfcExporter
+                with tempfile.TemporaryDirectory() as temp:
+                    path = Path(temp) / "export.ifc"
+                    IfcExporter().export_model(self.model, path)
+                    return 200, path.read_bytes()
+            try:
+                payload = json.loads((body or b"").decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return 400, {"ok": False, "error": "Invalid JSON body"}
+            if not isinstance(payload, dict):
+                return 400, {"ok": False, "error": "Expected JSON object"}
+            identity = payload.get("id" if route == "remove" else "reference_id")
+            if not isinstance(identity, str) or re.fullmatch(r"[0-9a-f]{64}", identity) is None:
+                return 400, {"ok": False, "error": "Invalid reference ID"}
+            target = self._ifc_root / identity
+            if not (target / "source.ifc").is_file():
+                return 404, {"ok": False, "error": "Unknown IFC reference"}
+            if route == "remove":
+                if set(payload) != {"id"}:
+                    return 400, {"ok": False, "error": "Expected only reference ID"}
+                retired = self._ifc_root / f".{identity}-removing"
+                target.rename(retired)
+                try:
+                    build_url, review_url = self._republish_ifc()
+                except Exception:
+                    retired.rename(target)
+                    self._republish_ifc()
+                    raise
+                shutil.rmtree(retired)
+                return 200, {"ok": True, "id": identity, "build_url": build_url, "review_url": review_url}
+            if route == "convert":
+                guids, material, section = validate_assignment(payload)
+                return 200, conversion_zip((target / "source.ifc").read_bytes(), guids, material, section)
+            return 404, {"ok": False, "error": "Unknown IFC route"}
+        except ImportError as exc:
+            return 503, {"ok": False, "error": str(exc)}
+        except KeyError as exc:
+            return 404, {"ok": False, "error": str(exc)}
+        except ValueError as exc:
+            return 422, {"ok": False, "error": str(exc)}
+        except (OSError, RuntimeError) as exc:
+            return 500, {"ok": False, "error": f"IFC operation failed: {exc}"}
 
     def code_aster_commands(self, case: str) -> tuple[int, dict[str, Any]]:
         """The ``study.comm`` a Solve of *case* would compile now from model.py and study.py.

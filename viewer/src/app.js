@@ -23,7 +23,8 @@ import {
   WEBGL2_UNAVAILABLE,
   applyHoverHighlight,
   createThreeCanvasRenderer,
-  pickRenderedObject
+  pickRenderedObject,
+  pickRenderedPoint
 } from "./renderer.js";
 import {
   OPACITY_STEPS,
@@ -80,8 +81,9 @@ import {
 } from "./units.js";
 import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
-import { getPropertySections } from "./selection.js";
+import { distance, getPropertySections } from "./selection.js";
 import { getSelectionSummary } from "./selectionSummary.js";
+import { initExchange, renderPublishedDownloads } from "./exchange.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
   colorChannelOf,
@@ -96,6 +98,10 @@ const dom = {
   status: document.querySelector("[data-runtime-status]"),
   sceneTitle: document.querySelector("[data-scene-title]"),
   sceneMeta: document.querySelector("[data-scene-meta]"),
+  buildIdentity: document.querySelector("[data-build-identity]"),
+  viewerIdentity: document.querySelector("[data-viewer-identity]"),
+  exchangeOpen: document.querySelector("[data-exchange-open]"),
+  exchangeDialog: document.querySelector("[data-exchange-dialog]"),
   reportLink: document.querySelector("[data-report-link]"),
   statusChip: document.querySelector("[data-status-chip]"),
   statusStrip: document.querySelector("[data-status-strip]"),
@@ -184,8 +190,21 @@ const startupConfig = Object.freeze({
 let currentBundle = null;
 let currentBundleUrl = ".";
 let currentState = null;
+let userChoseColor = false;
+let reviewOpened = false;
+let refreshExchange = null;
 
 function dispatch(action) {
+  if (["setModelColorBy", "setColorChannel", "setColoringField", "setColoringComponent",
+    "setActiveLoadCase", "setActiveResultState", "setActiveGeometryState"].includes(action.type)) {
+    userChoseColor = true;
+  }
+  if (["setActiveGeometryState", "setActiveResultState", "setActiveLoadCase", "setVisualDeformationScale", "setLayerVisibility",
+    "setBodyVisibility", "setOverlayVisibility", "applySectionBox", "restoreVisibility",
+    "hideSelected", "isolateSelection", "resetLayerVisibility", "restoreViewState"].includes(action.type)) {
+    measurementPoints = [];
+    measuring = false;
+  }
   currentState = reduceViewerState(currentState, action);
   if (action.type === "selectObject") selectedObjectId = selectionRepresentative(currentState, action.objectId);
   if (action.type === "selectObjects") selectedObjectId = currentState.selectedObjectIds[0] ?? null;
@@ -209,6 +228,8 @@ let pendingHoverPoint = null;
 let orbiting = false;
 let pointerDownPoint = null;
 let suppressNextCanvasClick = false;
+let measuring = false;
+let measurementPoints = [];
 const bootId = globalThis.__tubaViewerBootId ?? `boot:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 globalThis.__tubaViewerBootId = bootId;
 
@@ -261,6 +282,7 @@ async function main() {
   const catalog = await loadBundleCatalog();
   document.body.dataset.embed = String(startupConfig.embed);
   dom.appShell.dataset.embed = String(startupConfig.embed);
+  showIdentity(dom.viewerIdentity, "Viewer", __TUBA_VIEWER_BUILD__);
 
   // The gallery is a navigation surface: cards are links, and the geometry
   // arrives as photographs the Pages build shot from the very bundles shipping
@@ -292,6 +314,21 @@ async function main() {
     render();
     initBundlePicker(catalog);
     await initStudio(catalog);
+    refreshExchange = initExchange(dom.exchangeDialog, {
+      project: studio.project,
+      catalogEntry: normalizeCatalog(catalog).find(entry => bundleKey(entry.id) === bundleKey(currentBundleUrl)),
+      reload: async () => { await loadBundle(currentBundleUrl, { preserve: true }); render(); }
+    });
+    dom.exchangeOpen.addEventListener("click", () => {
+      dom.exchangeDialog.showModal();
+      void refreshExchange?.();
+    });
+    const identity = studio.available
+      ? await sourceIdentity(studio.ranCode)
+      : (normalizeCatalog(catalog).find(entry => bundleKey(entry.id) === bundleKey(currentBundleUrl))?.build_identity
+        ?? (sourceView.available ? await sourceIdentity(sourceView.text.get(sourceView.scriptUri) ?? "") : ""));
+    showIdentity(dom.buildIdentity, "Source", identity);
+    showIdentity(dom.viewerIdentity, "Viewer", __TUBA_VIEWER_BUILD__);
     const previewSocketUrl = startupConfig.previewWebSocketUrl ?? (studio.available ? sameHostPreviewSocketUrl() : null);
     if (previewSocketUrl) {
       connectLivePreview(previewSocketUrl);
@@ -299,6 +336,18 @@ async function main() {
   } catch (error) {
     setStatus(error.message, true);
   }
+}
+
+async function sourceIdentity(source) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
+  return `sha256:${[...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function showIdentity(element, label, full) {
+  element.textContent = full ? `${label} ${full.replace(/^sha256:/, "").slice(0, 12)}` : "";
+  element.title = full ? `${label} ${full}` : "";
+  if (full) element.setAttribute("aria-label", `${label} ${full}`);
+  else element.removeAttribute("aria-label");
 }
 
 // The catalog owns gallery navigation. A standalone bundle does not need one.
@@ -346,10 +395,10 @@ function initBundlePicker(catalog) {
   }
   dom.bundlePicker.replaceChildren(...options);
   dom.bundlePicker.hidden = false;
-  dom.bundlePicker.addEventListener("change", () => switchBundle(dom.bundlePicker.value));
+  dom.bundlePicker.addEventListener("change", () => switchBundle(dom.bundlePicker.value, catalog));
 }
 
-async function switchBundle(bundleId) {
+async function switchBundle(bundleId, catalog) {
   currentBundleUrl = bundleId;
   const url = new URL(window.location.href);
   url.searchParams.set("bundle", bundleId);
@@ -357,6 +406,11 @@ async function switchBundle(bundleId) {
   setStatus(`Loading ${bundleId}`);
   try {
     await loadBundle(bundleId, { preserve: false });
+    const entry = normalizeCatalog(catalog).find(item => bundleKey(item.id) === bundleKey(bundleId));
+    renderPublishedDownloads(dom.exchangeDialog, entry);
+    const identity = entry?.build_identity ?? (sourceView.available
+      ? await sourceIdentity(sourceView.text.get(sourceView.scriptUri) ?? "") : "");
+    showIdentity(dom.buildIdentity, "Source", identity);
     setStatus("Ready");
     render();
   } catch (error) {
@@ -380,10 +434,14 @@ async function loadBundle(bundleUrl, options = {}) {
     embed: startupConfig.embed
   });
   const nextState = { ...viewerState, ...workflowState };
-  const loadedState = options.preserve && currentState ? preserveViewerStateForReload(currentState, nextState) : nextState;
+  const loadedState = options.preserve && currentState
+    ? preserveViewerStateForReload(currentState, nextState, { reviewDefaultColor: options.reviewDefaultColor })
+    : nextState;
   currentState = startupConfig.embed
     ? { ...loadedState, embed: true, stage: "embed" }
     : loadedState;
+  measurementPoints = [];
+  measuring = false;
   // Load takes the scene as the bundle declared it. Arrival used to have to
   // resist a task preset deliberately; there is no task any more, so this is the
   // rule everywhere: changing stage or section changes the lens, never the
@@ -1999,6 +2057,7 @@ function appendTraceField(parent, labelText, valueText) {
 
 // Object navigation remains beside the result and display controls.
 const FIND_SCOPES = [
+  { id: "engineering", label: "Engineering" },
   { id: "body", label: "Body" },
   { id: "kind", label: "Kind" },
   { id: "material", label: "Material" },
@@ -2015,7 +2074,7 @@ const BODY_GROUP_LABELS = {
   other: "Other (not a body)"
 };
 
-let findGroupBy = "group";
+let findGroupBy = "engineering";
 
 function openFind() {
   dom.objectsSection.open = true;
@@ -2065,14 +2124,34 @@ function renderObjects() {
     shown += drawn.length;
     hidden += notDrawn.length;
 
-    dom.objectList.append(groupHeader({ ...group, objectIds: members }, members.length, selectedIds));
-    for (const id of drawn) {
-      dom.objectList.append(objectRow(byId.get(id), true, selectedIds));
+    if (findGroupBy === "engineering") {
+      if (group.id === "engineering:analysis") {
+        dom.objectList.append(groupHeader({ ...group, objectIds: members }, members.length, selectedIds));
+        for (const id of members) dom.objectList.append(objectRow(byId.get(id), visible.has(id), selectedIds));
+      } else {
+        const parent = members.find((id) => group.id === `engineering:${id}`);
+        const primary = parent ?? drawn[0] ?? members[0];
+        dom.objectList.append(objectRow(byId.get(primary), visible.has(primary), selectedIds));
+        const derived = members.filter((id) => id !== primary);
+        if (derived.length) {
+          const details = document.createElement("details");
+          details.className = "representation-list";
+          details.open = Boolean(currentSearch.trim());
+          const summary = document.createElement("summary");
+          summary.textContent = `${derived.length} representations`;
+          details.append(summary);
+          for (const id of derived) details.append(objectRow(byId.get(id), visible.has(id), selectedIds));
+          dom.objectList.append(details);
+        }
+      }
+    } else {
+      dom.objectList.append(groupHeader({ ...group, objectIds: members }, members.length, selectedIds));
+      for (const id of drawn) dom.objectList.append(objectRow(byId.get(id), true, selectedIds));
     }
     // Never silently dropped. The old list skipped anything not currently drawn,
     // so searching for something in a body you had switched off returned an
     // empty pane with no explanation.
-    if (notDrawn.length > 0) {
+    if (findGroupBy !== "engineering" && notDrawn.length > 0) {
       dom.objectList.append(hiddenReveal(notDrawn, byId));
     }
   }
@@ -2111,6 +2190,7 @@ function objectRow(match, drawn, selectedIds) {
   button.type = "button";
   button.className = "object-row";
   button.dataset.objectId = object.id;
+  button.title = object.id;
   button.dataset.focusKey = `object:${object.id}`;
   // Two spans concatenate into "Smoke pipepipe - element:..." with no separator
   // in the accessible name, so state it explicitly.
@@ -2183,6 +2263,37 @@ function refLabel(ref) {
 // View utilities stay available while searching for objects.
 function renderRailUtility(shown = 0, hidden = 0) {
   dom.railUtility.replaceChildren();
+  for (const [label, action] of [["Fit selected", "fitSelection"], ["Hide selected", "hideSelected"], ["Isolate selected", "isolateSelection"]]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "utility-button";
+    button.textContent = label;
+    button.disabled = !currentState.selectedObjectIds?.length;
+    button.addEventListener("click", () => { dispatch({ type: action }); render(); });
+    dom.railUtility.append(button);
+  }
+  const measure = document.createElement("button");
+  measure.type = "button";
+  measure.className = "utility-button";
+  measure.dataset.measure = "";
+  measure.textContent = measuring ? "Cancel measure" : "Measure two points";
+  measure.setAttribute("aria-pressed", String(measuring));
+  measure.addEventListener("click", () => {
+    measuring = !measuring;
+    measurementPoints = [];
+    render();
+  });
+  dom.railUtility.append(measure);
+  const readout = document.createElement("div");
+  readout.className = "measurement-readout";
+  readout.setAttribute("role", "status");
+  const system = getUnitSystem(currentState);
+  const coordinates = measurementPoints.map(({ point }, index) =>
+    `P${index + 1} (${point.map((value) => formatQuantity(value, "m", system)).join(", ")})`);
+  readout.textContent = measurementPoints.length === 2
+    ? `${coordinates.join(" · ")} · Distance ${formatQuantity(distance(measurementPoints[0].point, measurementPoints[1].point), "m", system)}`
+    : measuring ? `${coordinates.join(" · ")}${coordinates.length ? " · " : ""}Click ${coordinates.length ? "second" : "first"} point on visible geometry.` : "";
+  dom.railUtility.append(readout);
   {
     // "All layers" is not here any more - the tree moved into the Display
     // strip, as the last row of the list whose curated rows it backs up.
@@ -2729,6 +2840,15 @@ dom.canvas.addEventListener("click", (event) => {
   }
   const rect = dom.canvas.getBoundingClientRect();
   const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  if (measuring) {
+    const hit = pickRenderedPoint(lastRenderGraph, point, { width: rect.width, height: rect.height });
+    if (hit) {
+      measurementPoints.push(hit);
+      if (measurementPoints.length === 2) measuring = false;
+      render();
+    }
+    return;
+  }
   const objectId = pickRenderedObject(lastRenderGraph, point, { width: rect.width, height: rect.height });
   if (objectId) {
     selectedObjectId = objectId;
@@ -3488,7 +3608,8 @@ async function showStudioBundle(mode) {
   url.searchParams.set("bundle", bundle);
   window.history.replaceState({}, "", url);
   try {
-    await loadBundle(bundle, { preserve: true });
+    await loadBundle(bundle, { preserve: true, reviewDefaultColor: bundle === "review" && !reviewOpened && !userChoseColor });
+    if (bundle === "review") reviewOpened = true;
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -3530,6 +3651,8 @@ async function runScript() {
     studio.reviewStale = Boolean(result.review_stale);
     dom.codeProblem.hidden = true;
     await loadBundle(currentBundleUrl, { preserve: true });
+    showIdentity(dom.buildIdentity, "Source", await sourceIdentity(studio.ranCode));
+    await refreshExchange?.();
     render();
     const elements = Number(result.elements);
     dom.codeState.textContent = Number.isFinite(elements) ? `Ran · ${elements} element${elements === 1 ? "" : "s"}` : "Ran";
@@ -3565,6 +3688,8 @@ async function refreshScriptFromDisk() {
     if (typeof result?.code !== "string" || result.code === studio.ranCode) return;
     const { scrollTop } = dom.codeText;
     setScriptText(result.code);
+    showIdentity(dom.buildIdentity, "Source", await sourceIdentity(studio.ranCode));
+    await refreshExchange?.();
     dom.codeText.scrollTop = scrollTop;
     studio.error = null;
     dom.codeProblem.hidden = true;

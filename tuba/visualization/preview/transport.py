@@ -109,6 +109,8 @@ class PreviewServer:
             script_post_handler=getattr(self, "execute_python_code", None),
             solve_handler=getattr(self, "start_solve", None),
             project_handler=getattr(self, "project_info", None),
+            ifc_handler=getattr(self, "ifc_request", None),
+            project_name=getattr(getattr(self, "project", None), "name", None),
             comm_handler=getattr(self, "code_aster_commands", None),
             bound_host=self.host,
         )
@@ -190,6 +192,8 @@ def _handler_factory(
     script_post_handler: Any = None,
     solve_handler: Any = None,
     project_handler: Any = None,
+    ifc_handler: Any = None,
+    project_name: str | None = None,
     comm_handler: Any = None,
     bound_host: str = "127.0.0.1",
 ):
@@ -220,6 +224,12 @@ def _handler_factory(
                 self._refuse()
                 return
             parsed = urlparse(self.path)
+            if parsed.path == "/api/ifc/export" and ifc_handler is not None:
+                if not self._same_origin():
+                    self._refuse()
+                    return
+                self._ifc_response("export", ifc_handler("export"))
+                return
             if parsed.path == "/preview/ws":
                 self._handle_websocket()
                 return
@@ -270,6 +280,25 @@ def _handler_factory(
             if not self._same_origin():
                 # Every POST route mutates the model or runs Python on this machine.
                 self._refuse()
+                return
+            parsed = urlparse(self.path)
+            if parsed.path in ("/api/ifc/preview", "/api/ifc/attach", "/api/ifc/remove", "/api/ifc/convert") and ifc_handler is not None:
+                raw = self.headers.get("Content-Length")
+                try:
+                    size = int(raw) if raw is not None else 0
+                except ValueError:
+                    size = 0
+                if size > _MAX_BODY_BYTES:
+                    self.close_connection = True
+                    self._ifc_response("error", (413, {"ok": False, "error": "IFC request exceeds 16 MiB"}))
+                    return
+                route = parsed.path.rsplit("/", 1)[1]
+                media_type = "application/octet-stream" if route in ("preview", "attach") else "application/json"
+                if size < 1 or (route in ("remove", "convert") and size > 65536) or self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != media_type:
+                    self._ifc_response("error", (400, {"ok": False, "error": f"Expected nonempty {media_type} body"}))
+                    return
+                name = self.headers.get("X-IFC-Name", "reference.ifc")
+                self._ifc_response(route, ifc_handler(route, self.rfile.read(size), name))
                 return
             length = self._content_length()
             if length is None:
@@ -329,6 +358,26 @@ def _handler_factory(
             self.send_response(404)
             self._response_headers()
             self.end_headers()
+
+        def _ifc_response(self, route: str, response: tuple[int, Any]) -> None:
+            status, result = response
+            if isinstance(result, bytes):
+                data = result
+                media_type = "application/x-step" if route == "export" else "application/zip"
+                base = re.sub(r"[^A-Za-z0-9_-]", "_", project_name or out_dir.name)[:64] or "project"
+                filename = f"{base}.ifc" if route == "export" else f"{base}-ifc-pipes.zip"
+            else:
+                data = json.dumps(result).encode("utf-8")
+                media_type, filename = "application/json", None
+            self.send_response(status)
+            self._response_headers()
+            self.send_header("Content-Type", media_type)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data)))
+            if filename:
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.end_headers()
+            self.wfile.write(data)
 
         def _serve_file(self, raw_path: str) -> None:
             relative = unquote(raw_path.lstrip("/"))

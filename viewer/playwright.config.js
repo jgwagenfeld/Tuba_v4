@@ -6,9 +6,9 @@ const buildPages = prebuiltSiteRoot
   ? ""
   : "cd .. && uv run python scripts/build_pages.py pages --output .build/pages-check && cd viewer && ";
 const serveStatic =
-  `node --input-type=module --eval "import { createServer } from 'vite'; ` +
-  `const server = await createServer({ root: process.argv[1], configFile: false, logLevel: 'error', ` +
-  `server: { host: '127.0.0.1', port: 4173, strictPort: true } }); await server.listen();" ` +
+  `node --input-type=module --eval "import { preview } from 'vite'; ` +
+  `await preview({ root: process.argv[1], configFile: false, logLevel: 'error', build: { outDir: '.' }, ` +
+  `preview: { host: '127.0.0.1', port: 4173, strictPort: true } });" ` +
   JSON.stringify(siteRoot);
 
 export default defineConfig({

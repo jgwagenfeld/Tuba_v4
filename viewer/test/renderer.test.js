@@ -18,6 +18,7 @@ import {
   zoomCameraBy,
   STANDARD_VIEW_DIRECTIONS,
   pickRenderedObject,
+  pickRenderedPoint,
   prepareAssetRenderConfig,
   sectionBoxClippingPlanes,
   applySectionBoxClipping
@@ -1303,6 +1304,10 @@ test("pickRenderedObject uses Three.js raycasting metadata", () => {
   // One pixel off centre: the ray down the axis hits the sphere's pole vertex
   // exactly, which three.js reports as a miss.
   assert.equal(pickRenderedObject(graph, { x: 51, y: 51 }, { width: 100, height: 100 }), "object:marker");
+  const hit = pickRenderedPoint(graph, { x: 51, y: 51 }, { width: 100, height: 100 });
+  assert.equal(hit.objectId, "object:marker");
+  assert.equal(hit.point.length, 3);
+  assert.ok(hit.point.every(Number.isFinite));
 });
 
 test("pickRenderedObject skips dense TUYAU glyph instances", () => {

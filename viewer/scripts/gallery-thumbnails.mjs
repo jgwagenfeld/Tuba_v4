@@ -14,7 +14,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
-import { createServer } from "vite";
+import { createServer, preview } from "vite";
 
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const siteRoot = process.env.TUBA_PAGES_SITE_ROOT?.trim();
@@ -31,14 +31,19 @@ let server;
 let browser;
 try {
   await mkdir(outDir, { recursive: true });
-  server = await createServer({
-    root: siteRoot ? resolve(viewerRoot, siteRoot, "viewer") : viewerRoot,
-    configFile: siteRoot ? false : undefined,
+  server = siteRoot ? await preview({
+    root: resolve(viewerRoot, siteRoot, "viewer"),
+    configFile: false,
+    build: { outDir: "." },
+    logLevel: "error",
+    preview: { host: "127.0.0.1", port: 15975, strictPort: false }
+  }) : await createServer({
+    root: viewerRoot,
     cacheDir: resolve(viewerRoot, "../.build/gallery-thumbnail-vite"),
     logLevel: "error",
     server: { host: "127.0.0.1", port: 15975, strictPort: false }
   });
-  await server.listen();
+  if (!siteRoot) await server.listen();
   const baseUrl = server.resolvedUrls.local[0];
 
   browser = await chromium.launch({ headless: true });
@@ -64,5 +69,6 @@ try {
   }
 } finally {
   await browser?.close();
-  await server?.close();
+  if (siteRoot && server) await new Promise(resolve => server.httpServer.close(resolve));
+  else await server?.close();
 }

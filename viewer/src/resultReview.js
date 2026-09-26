@@ -72,7 +72,7 @@ export function getGeometryStateOptions(state, loadCase = state.activeLoadCase ?
     const data = overlay.data ?? {};
     return {
       id: data.id ?? overlay.id,
-      label: overlay.name || data.id || overlay.id,
+      label: geometryStateLabel(overlay),
       loadCase: data.load_case ?? null,
       purpose: data.purpose ?? null,
       stateType: data.state_type ?? null,
@@ -80,6 +80,18 @@ export function getGeometryStateOptions(state, loadCase = state.activeLoadCase ?
       overlay
     };
   });
+}
+
+export function geometryStateLabel(overlay) {
+  const data = overlay.data ?? {};
+  const scale = Number(data.visual_scale ?? data.displacement_scale);
+  const label = data.state_type === "operating" && data.purpose === "engineering"
+    ? "actual deformation"
+    : data.state_type === "deformed" || data.purpose === "visualization"
+      ? `${scale > 1 ? "exaggerated" : "displayed"} deformation${Number.isFinite(scale) && scale > 0 ? ` (${scale}×)` : ""}`
+      : data.state_type === "cold" ? "reference geometry" :
+        (data.state_type ?? overlay.name ?? "geometry").replaceAll("_", " ");
+  return data.load_case ? `${data.load_case} — ${label}` : label[0].toUpperCase() + label.slice(1);
 }
 
 export function getActiveResultState(state) {

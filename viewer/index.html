@@ -22,6 +22,8 @@
                gallery. The gallery explains the set; this moves within it. -->
           <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
           <div class="meta" data-scene-meta></div>
+          <small class="meta" data-build-identity></small>
+          <small class="meta" data-viewer-identity></small>
         </div>
         <!-- Build writes the model, Review reads what the solver made of it.
              Only a studio server can run model.py, so a static bundle never
@@ -43,6 +45,7 @@
              things you can do from it. -->
         <div class="header-actions">
           <button type="button" class="solve-button" data-solve hidden>Solve</button>
+          <button type="button" data-exchange-open aria-haspopup="dialog">Exchange</button>
           <a href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
         </div>
@@ -251,6 +254,38 @@
         </div>
       </footer>
     </main>
+    <dialog class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title">
+      <form method="dialog" class="exchange-head">
+        <h2 id="exchange-title">Project exchange</h2>
+        <button type="submit" aria-label="Close exchange">Close</button>
+      </form>
+      <p>IFC export contains geometry only. Engineering results require a Code_Aster solve and review.</p>
+      <p data-ifc-export-scope></p>
+      <p data-ifc-studio-only hidden>Open this project in Tuba Studio to preview, attach, or convert an IFC file.</p>
+      <nav data-exchange-downloads aria-label="Published downloads"></nav>
+      <button type="button" data-ifc-export hidden>Download model IFC (geometry only)</button>
+      <h3>IFC references</h3>
+      <div data-ifc-references></div>
+      <label>IFC file <input data-ifc-file type="file" accept=".ifc,.ifczip" hidden></label>
+      <div class="exchange-actions">
+        <button type="button" data-ifc-preview hidden>Preview IFC</button>
+        <button type="button" data-ifc-attach hidden>Attach reference</button>
+      </div>
+      <div data-ifc-products class="exchange-products"></div>
+      <form data-ifc-assignments hidden>
+        <h3>Convert selected straight pipes to a new project</h3>
+        <p>All selected pipes receive these explicit values. Add loads and supports before solving.</p>
+        <label>Material <input name="material_name" required value="S235JR"></label>
+        <label>Young's modulus (Pa) <input name="E_pa" type="number" required min="1" step="any" value="210000000000"></label>
+        <label>Poisson ratio <input name="nu" type="number" required min="0" max="0.49" step="any" value="0.3"></label>
+        <label>Density (kg/m³) <input name="rho_kg_m3" type="number" required min="1" step="any" value="7850"></label>
+        <label>Section <input name="section_name" required value="DN100"></label>
+        <label>Outer diameter (m) <input name="outer_diameter_m" type="number" required min="0.000001" step="any" value="0.1143"></label>
+        <label>Wall thickness (m) <input name="wall_thickness_m" type="number" required min="0.000001" step="any" value="0.006"></label>
+        <button type="button" data-ifc-convert>Download new project ZIP</button>
+      </form>
+      <p data-ifc-status role="status" aria-live="polite"></p>
+    </dialog>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

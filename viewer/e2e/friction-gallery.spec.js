@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("hot-line gallery glyphs preserve relative reaction magnitudes", async ({ page }) => {
   await page.goto("/viewer/?bundle=autorouted-expansion-loop");
-  await expect(page.getByRole("status")).toContainText("Ready", { timeout: 45_000 });
+  await expect(page.locator("[data-runtime-status]")).toContainText("Ready", { timeout: 45_000 });
   const vectors = await page.evaluate(() => window.__tubaViewer.state.geometryPayloads
     .filter(p => p.format === "vector").map(p => p.generation_config)
     .filter(c => c.result_type === "reaction_force"));
@@ -29,7 +29,7 @@ test("gallery opens the combined attested pipe-shoe comparison", async ({ page }
   const card = page.locator('[data-gallery-card="native-friction-review"]');
   await expect(card).toContainText("Results");
   await card.click();
-  await expect(page.getByRole("status")).toContainText("Ready", { timeout: 45_000 });
+  await expect(page.locator("[data-runtime-status]")).toContainText("Ready", { timeout: 45_000 });
   expect(await page.evaluate(() => window.__tubaViewer.state.sceneId)).toBe("scene:native-friction:comparison");
   expect(await page.evaluate(() => window.__tubaViewer.state.resultStates.length)).toBe(51);
   await expect(page.locator("[data-task-rail]")).toBeVisible();

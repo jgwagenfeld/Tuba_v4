@@ -1,8 +1,10 @@
 import { getVisibleObjectIds } from "./sceneLoader.js";
 import { bodyIdForLayerId } from "./bodies.js";
+import { selectionKey } from "./reviewSelection.js";
 
 export function buildObjectTree(state, options = {}) {
-  const groupBy = options.groupBy ?? "kind";
+  const groupBy = options.groupBy ?? "engineering";
+  if (groupBy === "engineering") return engineeringTree(state);
   const groups = new Map();
   for (const obj of state.objects) {
     const value = valueForGroup(obj, groupBy, state);
@@ -13,6 +15,38 @@ export function buildObjectTree(state, options = {}) {
     groups.get(id).objectIds.push(obj.id);
   }
   return { id: "root", label: "Scene", objectIds: [], children: [...groups.values()] };
+}
+
+function engineeringTree(state) {
+  const objects = state.objects ?? [];
+  const physical = objects.filter((obj) => !isDerived(obj));
+  const byRef = new Map();
+  for (const obj of physical) {
+    if (!isPhysicalParent(obj) || typeof obj.entity_ref !== "string") continue;
+    if (!byRef.has(obj.entity_ref) || ["pipe", "beam"].includes(obj.kind)) byRef.set(obj.entity_ref, obj);
+  }
+  const groups = physical.map((obj) => ({
+    id: `engineering:${obj.id}`, label: obj.name || obj.id, objectIds: [obj.id], children: []
+  }));
+  const byId = new Map(groups.map((group) => [group.objectIds[0], group]));
+  const analysis = { id: "engineering:analysis", label: "Unmapped analysis", objectIds: [], children: [] };
+  for (const obj of objects.filter(isDerived)) {
+    const parent = byRef.get(selectionKey(obj)) ?? byRef.get(obj.metadata?.source_ref);
+    const group = byId.get(parent?.id) ?? analysis;
+    group.objectIds.push(obj.id);
+    group.children.push({ id: obj.id, label: obj.name || obj.id, objectIds: [obj.id], children: [] });
+  }
+  if (analysis.objectIds.length) groups.push(analysis);
+  return { id: "root", label: "Scene", objectIds: [], children: groups };
+}
+
+function isPhysicalParent(obj) {
+  return ["pipe", "beam", "support", "obstacle", "equipment", "rack_member"].includes(obj.kind);
+}
+
+function isDerived(obj) {
+  return /^(analysis_mesh|deformed_|solver_result|result_)/.test(obj.kind ?? "") ||
+    ["geometry_state", "displacement_vector", "reaction_vector", "reaction_moment_vector", "tuyau_subpoint_field"].includes(obj.kind);
 }
 
 // The fields a reader can actually see on a result row, in the order a match in

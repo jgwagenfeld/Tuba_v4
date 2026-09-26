@@ -569,6 +569,10 @@ textarea,
   opacity: 0.55;
 }
 
+.representation-list { margin-left: 0.65rem; border-left: 1px solid var(--graphite-line); }
+.representation-list > summary { cursor: pointer; padding: 0.2rem 0.35rem; font-size: 0.7rem; }
+.measurement-readout { flex-basis: 100%; font-size: 0.72rem; line-height: 1.4; }
+
 .object-name {
   font-size: 0.74rem;
   overflow: hidden;
@@ -634,6 +638,7 @@ textarea,
 
 .rail-utility {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
 }
@@ -2322,6 +2327,25 @@ body[data-view="gallery"] {
      control answers a pointer with a border or fill change and nothing moves. */
   transition: border-color 120ms ease;
 }
+
+.gallery-card-frame { min-width: 0; }
+.gallery-card-downloads { display: flex; gap: 1rem; padding: .55rem .8rem 0; }
+.gallery-card-identity { display: block; padding: .35rem .8rem; color: var(--chrome-text-3); overflow-wrap: anywhere; }
+
+.exchange-dialog {
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: min(90vh, 54rem);
+  overflow: auto;
+  color: var(--chrome-text-1);
+  background: var(--graphite-raised);
+  border: 1px solid var(--graphite-line);
+}
+.exchange-dialog::backdrop { background: rgb(0 0 0 / 65%); }
+.exchange-head, .exchange-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.exchange-dialog label { display: block; margin: .6rem 0; }
+.exchange-dialog input:not([type="checkbox"]) { max-width: 100%; }
+.exchange-products { max-height: 14rem; overflow: auto; }
+.exchange-products label { padding: .3rem 0; border-bottom: 1px solid var(--graphite-line); }
 
 .gallery-card:hover,
 .gallery-card:focus-visible {

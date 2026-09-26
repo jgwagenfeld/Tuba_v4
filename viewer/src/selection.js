@@ -1,6 +1,14 @@
 import { getVisibleObjectIds } from "./sceneLoader.js";
 import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.js";
 
+export function distance(first, second) {
+  if (![first, second].every((point) => Array.isArray(point) && point.length === 3 &&
+    point.every((value) => typeof value === "number" && Number.isFinite(value)))) {
+    throw new TypeError("Measurement requires two finite 3D points in metres.");
+  }
+  return Math.hypot(...first.map((value, index) => value - second[index]));
+}
+
 export function selectObject(state, objectId, options = {}) {
   objectId = selectionRepresentative(state, objectId);
   if (!state.objects.some((obj) => obj.id === objectId)) {
@@ -79,6 +87,13 @@ export function getPropertySections(state, objectId) {
     { id: "clash", title: "Clash", rows: compactRows(clashRows) },
     { id: "issues", title: "Issues", rows: compactRows(issueRows) },
     { id: "external_refs", title: "External Refs", rows: compactRows(externalRows) },
+    { id: "ifc", title: "IFC reference", rows: compactRows({
+      guid: obj.source?.ifc_guid,
+      class: obj.metadata?.ifc_class,
+      reference: obj.source?.reference_id,
+      ...Object.fromEntries(Object.entries(obj.metadata?.properties ?? {}).flatMap(([set, values]) =>
+        Object.entries(values ?? {}).map(([name, value]) => [`${set}.${name}`, String(value)])))
+    }) },
     { id: "provenance", title: "Provenance", rows: compactRows(provenanceRows) }
   ].filter((section) => Object.keys(section.rows).length > 0);
 }

@@ -4,6 +4,8 @@ from dataclasses import FrozenInstanceError
 from importlib import import_module
 from pathlib import Path
 import subprocess
+import sys
+from zipfile import ZipFile
 from types import SimpleNamespace
 
 import pytest
@@ -112,6 +114,51 @@ def test_contact_gallery_rejects_a_missing_shoe_increment():
     states[1]["contact_results"].clear()
     with pytest.raises(ValueError, match="missing a shoe increment"):
         build_pages._validate_contact_result_fields(scene)
+
+
+@pytest.mark.parametrize("required", [None, {"displacement", "reaction_force", "reaction_moment"}, {"displacement"}])
+def test_engineering_fields_accept_only_attested_optional_internal_forces(required):
+    families = required or ("stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints")
+    overlays, fields = [], []
+    for family in (*families, "internal_forces"):
+        overlay_id = f"overlay:{family}"
+        overlays.append({"id": overlay_id, "kind": "solver_result", "data": {
+            "result_type": family, "result_state_id": "state:1", "load_case": "Operating", "values": {"e": 1}
+        }})
+        fields.append({"id": f"field:{family}", "overlay_id": overlay_id,
+                       "result_state_id": "state:1", "load_case": "Operating", "components": ["magnitude"]})
+    scene = {"overlays": overlays, "result_fields": fields}
+    build_pages._validate_engineering_result_fields(scene, families=required)
+    overlays[-1]["data"]["values"] = {}
+    with pytest.raises(ValueError, match="values"):
+        build_pages._validate_engineering_result_fields(scene, families=required)
+    overlays[-1]["data"]["values"] = {"e": 1}
+    overlays[-1]["data"]["result_type"] = "unknown"
+    with pytest.raises(ValueError, match="family"):
+        build_pages._validate_engineering_result_fields(scene, families=required)
+
+
+def test_gallery_archive_runs_after_extraction_and_omits_unsupported_ifc(tmp_path):
+    gallery = next(item for item in build_pages.OFFICIAL_GALLERIES if item.id == "imported_component_mixed_demo")
+    build_pages._publish_downloads(tmp_path, gallery)
+    archive = tmp_path / "downloads" / f"{gallery.id}.zip"
+    assert archive.is_file()
+    assert not (tmp_path / "downloads" / f"{gallery.id}.ifc").exists()
+    with ZipFile(archive) as source:
+        names = set(source.namelist())
+        assert {"examples/imported_component_mixed_demo/model.py", "examples/imported_component_mixed_demo/study.py",
+                "examples/imported_component_mixed_system.py", "examples/assets/imported_component_demo.stl",
+                "README.md"} <= names
+        assert not any(name.endswith((".rmed", ".csv")) or "evidence/" in name for name in names)
+        source.extractall(tmp_path / "unpacked")
+    run = subprocess.run([sys.executable, "-c", "from pathlib import Path; "
+        "import examples.imported_component_mixed_system as source; "
+        "assert Path(source.__file__).resolve().is_relative_to(Path.cwd()); "
+        "from tuba.project import load_project; "
+        "assert load_project(Path('examples/imported_component_mixed_demo')).run_model()['model'].imported_components"],
+        cwd=tmp_path / "unpacked", env={**os.environ, "PYTHONPATH": str(build_pages.ROOT)},
+        capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
 
 
 def _project_tree(root: Path) -> None:

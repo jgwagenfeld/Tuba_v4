@@ -204,9 +204,17 @@ function rangeOf(values) {
   return numeric.length > 0 ? [Math.min(...numeric), Math.max(...numeric)] : null;
 }
 
-function fieldLabel(field) {
+export function fieldLabel(field) {
   const support = field.support && field.support !== "node" ? ` (${field.support})` : "";
-  return `${field.label || field.id}${support}`;
+  const raw = field.label || field.id;
+  const normalized = String(raw).toLowerCase().replace(/_magnitude$/, "");
+  const readable = {
+    displacement: "Displacement",
+    reaction_force: "Reaction force",
+    reaction_moment: "Reaction moment",
+    stress: "Stress"
+  }[normalized] ?? String(raw).replaceAll("_", " ").replace(/^[a-z]/, (letter) => letter.toUpperCase());
+  return `${readable}${support}`;
 }
 
 export { AXES as COLORING_AXES };

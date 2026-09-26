@@ -8,6 +8,10 @@ import { formatQuantity } from "../src/units.js";
 // opened here the way a reviewer reaches them.
 const CONTACT_TABLE = "[data-contact-table]";
 
+// The attested 51-state contact history is a 43 MB scene. Use the same
+// readiness budget as its gallery test, then retain all engineering assertions.
+test.setTimeout(120_000);
+
 async function openReviewDrawer(page) {
   const drawer = page.locator("[data-review-drawer]");
   if (!(await drawer.evaluate((details) => details.open))) {
@@ -25,10 +29,13 @@ async function openDisplaySection(page) {
 }
 
 test("real contact history preserves forces through selection and display scaling", async ({ page }) => {
+  // Three complete regime checks rebuild and trace the large scene repeatedly.
+  // Keep full failure traces; Linux recording exceeded the shared 120s budget.
+  test.setTimeout(180_000);
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/viewer/?bundle=native-friction-review");
-  await expect(page.getByRole("status")).toContainText("Ready");
+  await expect(page.locator("[data-runtime-status]")).toContainText("Ready", { timeout: 45_000 });
   await expect(page.locator("[data-task-rail]")).toBeVisible();
   await openReviewDrawer(page);
   const panel = page.locator(CONTACT_TABLE).getByRole("region", { name: "Contact review", exact: true });
@@ -92,7 +99,7 @@ test("a missing contact increment displays unavailable, never an invented state"
     await route.fulfill({ response, json: scene });
   });
   await page.goto("/viewer/?bundle=native-friction-review");
-  await expect(page.getByRole("status")).toContainText("Ready");
+  await expect(page.locator("[data-runtime-status]")).toContainText("Ready", { timeout: 45_000 });
   await expect(page.locator("[data-task-rail]")).toBeVisible();
   await openReviewDrawer(page);
   const panel = page.locator(CONTACT_TABLE).getByRole("region", { name: "Contact review", exact: true });
@@ -102,7 +109,7 @@ test("a missing contact increment displays unavailable, never an invented state"
 
 test("frictionless copy displays zero force and no utilization in the shared solve", async ({ page }) => {
   await page.goto("/viewer/?bundle=native-friction-review");
-  await expect(page.getByRole("status")).toContainText("Ready");
+  await expect(page.locator("[data-runtime-status]")).toContainText("Ready", { timeout: 45_000 });
   await expect(page.locator("[data-task-rail]")).toBeVisible();
   await openReviewDrawer(page);
   const panel = page.locator(CONTACT_TABLE).getByRole("region", { name: "Contact review", exact: true });

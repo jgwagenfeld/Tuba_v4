@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import Any
+from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -126,6 +127,10 @@ def validate_pages_tree(root: Path) -> None:
             raise ValueError(
                 f"Gallery {entry.get('id')!r} cannot publish without {', '.join(missing)}."
             )
+        for kind, uri in entry.get("downloads", {}).items():
+            if kind not in {"project", "ifc"} or uri != f"downloads/{entry['id']}.{'zip' if kind == 'project' else 'ifc'}":
+                raise ValueError("Gallery download declaration is invalid.")
+            _bundle_path(root / "viewer", uri)
     viewer_directories = {
         path.name: path
         for path in (root / "viewer").iterdir()
@@ -139,7 +144,7 @@ def validate_pages_tree(root: Path) -> None:
     if bundle_directories != list(PAGES_BUNDLE_IDS):
         raise ValueError("Pages viewer directories must match its official catalog exactly.")
     unexpected_directories = (
-        set(viewer_directories) - set(bundle_directories) - {"assets", "licenses", "gallery"}
+        set(viewer_directories) - set(bundle_directories) - {"assets", "licenses", "gallery", "downloads"}
     )
     if unexpected_directories:
         raise ValueError("Pages viewer contains an unexpected non-bundle directory.")
@@ -226,6 +231,7 @@ def build_examples(
         destination = output / gallery.id
         gallery.bundle_producer(destination, gallery.artifact_dir)
         validate_official_bundle(destination, gallery.profile)
+        _publish_downloads(output, gallery)
         bundle_ids.append(gallery.id)
     return tuple(bundle_ids)
 
@@ -238,10 +244,69 @@ def write_bundle_catalog(viewer_root: Path, bundle_ids: tuple[str, ...]) -> Path
     so a recipe bundle keeps working without a registry entry.
     """
     by_id = {gallery.id: gallery for gallery in OFFICIAL_GALLERIES}
-    catalog = [by_id[bundle_id].to_catalog_entry() for bundle_id in bundle_ids]
+    catalog = []
+    for bundle_id in bundle_ids:
+        entry = by_id[bundle_id].to_catalog_entry()
+        if entry.get("project") and (ROOT / entry["project"] / "model.py").is_file():
+            model_path = ROOT / entry["project"] / "model.py"
+            entry["build_identity"] = "sha256:" + hashlib.sha256(
+                model_path.read_text(encoding="utf-8").encode("utf-8")
+            ).hexdigest()
+        downloads = {}
+        for kind, suffix in (("project", "zip"), ("ifc", "ifc")):
+            uri = f"downloads/{bundle_id}.{suffix}"
+            if (viewer_root / uri).is_file():
+                downloads[kind] = uri
+        if downloads:
+            entry["downloads"] = downloads
+        catalog.append(entry)
     target = viewer_root / "bundles.json"
     target.write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
     return target
+
+
+def _publish_downloads(viewer_root: Path, gallery: Any) -> None:
+    if not gallery.project:
+        return
+    project = ROOT / gallery.project
+    destination = viewer_root / "downloads"
+    destination.mkdir(exist_ok=True)
+    (destination / f"{gallery.id}.ifc").unlink(missing_ok=True)
+    with ZipFile(destination / f"{gallery.id}.zip", "w", ZIP_DEFLATED) as archive:
+        for source in (project / "model.py", project / "study.py"):
+            if source.is_file():
+                archive.write(source, source.relative_to(ROOT).as_posix())
+        imports = set()
+        for source in (project / "model.py", project / "study.py"):
+            if source.is_file():
+                imports.update(re.findall(r"^from examples\.([A-Za-z_][A-Za-z_0-9]*) import", source.read_text(encoding="utf-8"), re.M))
+        for name in sorted(imports):
+            source = ROOT / "examples" / f"{name}.py"
+            archive.write(source, source.relative_to(ROOT).as_posix())
+        # The imported component example resolves this local asset from archive root.
+        if gallery.id == "imported_component_mixed_demo":
+            source = ROOT / "examples/assets/imported_component_demo.stl"
+            archive.write(source, source.relative_to(ROOT).as_posix())
+        archive.writestr("README.md", "Run from this archive root with Tuba installed:\n"
+                         f"python -m tuba.cli_studio {gallery.project}\n\n"
+                         "The source is editable. Code_Aster is required to solve and review "
+                         "engineering results; solver evidence is not included.\n")
+    try:
+        from tuba.external.ifc import IfcExporter
+        from tuba.project import load_project
+
+        model = load_project(project).run_model()["model"]
+        if (model.imported_components or model.cad_assets or model.tees or model.mesh_groups
+                or gallery.volume_export
+                or any(element.type not in {"pipe_straight", "pipe_bend", "beam", "bar", "cable"}
+                       for element in model.elements)
+                or any(obstacle.get("type") != "cuboid" for obstacle in model.obstacles)):
+            return  # The exporter cannot represent these meshes completely.
+        target = destination / f"{gallery.id}.ifc"
+        IfcExporter().export_model(model, target)
+    except (ImportError, ValueError, TypeError, RuntimeError, AttributeError):
+        # Optional IfcOpenShell or unsupported example geometry: no catalog link.
+        (destination / f"{gallery.id}.ifc").unlink(missing_ok=True)
 
 
 GALLERY_SHOOTER = ROOT / "viewer" / "scripts" / "gallery-thumbnails.mjs"
@@ -510,8 +575,9 @@ def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool =
         expected["tuyau_subpoints"] = "solver_result"
     if families is not None:
         expected = {family: "solver_result" for family in families}
-    if not isinstance(fields, list) or len(fields) != len(expected):
-        raise ValueError(f"Engineering-review bundles require {len(expected)} result fields.")
+    optional = {"internal_forces"} - set(expected)
+    if not isinstance(fields, list) or not len(expected) <= len(fields) <= len(expected) + len(optional):
+        raise ValueError(f"Engineering-review bundles require {len(expected)} result fields, with optional internal forces.")
     overlays_by_id = {
         overlay.get("id"): overlay
         for overlay in overlays
@@ -527,7 +593,7 @@ def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool =
             raise ValueError("Engineering-review result-field must match its overlay.")
         data = overlay.get("data")
         family = data.get("result_type") if isinstance(data, dict) else None
-        if family not in expected or overlay.get("kind") != expected[family]:
+        if family not in expected | {key: "solver_result" for key in optional} or overlay.get("kind") != "solver_result":
             raise ValueError("Engineering-review result-field overlay family is invalid.")
         if family in found or not isinstance(data.get("values"), Mapping) or not data["values"]:
             raise ValueError("Engineering-review result-field overlay values are invalid.")
@@ -540,7 +606,7 @@ def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool =
         ):
             raise ValueError("Engineering-review result-field provenance is invalid.")
         found.add(family)
-    if found != set(expected):
+    if not set(expected) <= found or found - set(expected) - optional:
         raise ValueError("Engineering-review result-field families are incomplete.")
 
 

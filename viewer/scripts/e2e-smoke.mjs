@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
-import { createServer } from "vite";
+import { createServer, preview } from "vite";
 
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scenario = process.argv[2] ?? "smoke";
@@ -785,6 +785,19 @@ const scenarios = {
         return response.ok ? await response.json() : [];
       });
       assert.ok(published.length > 0, "the published catalog must not be empty");
+      assert.equal(published.find(entry => entry.id === "support-rack-review")?.downloads?.ifc,
+        "downloads/support-rack-review.ifc", "Pages must install IFC support and publish the rack IFC");
+      for (const entry of published) {
+        assert.equal(entry.downloads?.project, `downloads/${entry.id}.zip`);
+        for (const [kind, uri] of Object.entries(entry.downloads)) {
+          const response = await page.request.get(new URL(uri, page.url()).href);
+          assert.ok(response.ok(), `missing ${entry.id} ${kind} download`);
+          const bytes = await response.body();
+          assert.ok(bytes.length > 0);
+          assert.equal(bytes.subarray(0, kind === "ifc" ? 13 : 2).toString(),
+            kind === "ifc" ? "ISO-10303-21;" : "PK");
+        }
+      }
       assert.equal(
         await cards.count(),
         published.length,
@@ -933,10 +946,20 @@ const scenarios = {
       );
 
       const field = page.getByRole("combobox", { name: "Colour the scene by" });
+      const fieldOptions = await field.locator("option").evaluateAll((options) =>
+        options.map((option) => ({ label: option.textContent, value: option.value }))
+      );
+      const internalForceValue = "field:solver_result:internal_forces:result_state:Operating";
+      const internalForceOptions = fieldOptions.filter(option => option.value === internalForceValue);
+      // Section forces are optional; validate their label when the scene publishes them.
+      assert.ok(internalForceOptions.length <= 1);
+      if (internalForceOptions.length) {
+        assert.deepEqual(internalForceOptions, [
+          { label: "Section Forces (EFGE ELNO) (cell)", value: internalForceValue }
+        ]);
+      }
       assert.deepEqual(
-        await field.locator("option").evaluateAll((options) =>
-          options.map((option) => ({ label: option.textContent, value: option.value }))
-        ),
+        fieldOptions.filter(option => option.value !== internalForceValue),
         [
           { label: "Default (Role)", value: "model:default" },
           { label: "Section", value: "model:section" },
@@ -944,9 +967,9 @@ const scenarios = {
           { label: "Group", value: "model:group" },
           { label: "Insulation", value: "model:insulation" },
           { label: "FE VMIS (not code stress) (cell)", value: "field:solver_result:stress:result_state:Operating" },
-          { label: "displacement_magnitude", value: "field:solver_result:displacement:result_state:Operating" },
-          { label: "reaction_force_magnitude", value: "field:solver_result:reaction_force:result_state:Operating" },
-          { label: "reaction_moment_magnitude", value: "field:solver_result:reaction_moment:result_state:Operating" },
+          { label: "Displacement", value: "field:solver_result:displacement:result_state:Operating" },
+          { label: "Reaction force", value: "field:solver_result:reaction_force:result_state:Operating" },
+          { label: "Reaction moment", value: "field:solver_result:reaction_moment:result_state:Operating" },
           { label: "FE VMIS (not code stress) (subpoint)", value: "field:solver_result:tuyau_subpoints:result_state:Operating" }
         ]
       );
@@ -958,7 +981,7 @@ const scenarios = {
         return (
           viewer?.state?.coloring?.fieldId === "field:solver_result:displacement:result_state:Operating" &&
           viewer.state.coloring.component === "magnitude" &&
-          viewer.resultReview?.legend?.field === "displacement_magnitude" &&
+          viewer.resultReview?.legend?.field === "Displacement" &&
           viewer.resultReview.legend.component === "magnitude"
         );
       });
@@ -971,11 +994,11 @@ const scenarios = {
         return (
           viewer?.state?.coloring?.fieldId === "field:solver_result:displacement:result_state:Operating" &&
           viewer.state.coloring.component === "DZ" &&
-          viewer.resultReview?.legend?.field === "displacement_magnitude" &&
+          viewer.resultReview?.legend?.field === "Displacement" &&
           viewer.resultReview.legend.component === "DZ"
         );
       });
-      assert.match(await page.locator("[data-result-legend]").textContent(), /displacement_magnitude DZ:.*m/);
+      assert.match(await page.locator("[data-result-legend]").textContent(), /Displacement DZ:.*m/);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.notEqual(
         await framebufferFingerprint(canvas),
@@ -1207,9 +1230,9 @@ const scenarios = {
       await page.getByRole("combobox", { name: "Component", exact: true }).selectOption("DZ");
       await page.waitForFunction(() => {
         const review = window.__tubaViewer?.resultReview;
-        return review?.legend?.component === "DZ" && review.legend?.field === "displacement_magnitude";
+        return review?.legend?.component === "DZ" && review.legend?.field === "Displacement";
       });
-      assert.match(await page.locator("[data-result-legend]").textContent(), /displacement_magnitude DZ:/);
+      assert.match(await page.locator("[data-result-legend]").textContent(), /Displacement DZ:/);
 
       await page.getByRole("combobox", { name: "Colour the scene by" }).selectOption(
         "field:solver_result:tuyau_subpoints:result_state:Operating"
@@ -1377,9 +1400,14 @@ let browser;
 let server;
 
 try {
-  server = await createServer({
-    root: staticSiteRoot ?? viewerRoot,
-    ...(staticSiteRoot ? { configFile: false } : {}),
+  server = staticSiteRoot ? await preview({
+    root: staticSiteRoot,
+    configFile: false,
+    build: { outDir: "." },
+    logLevel: "error",
+    preview: { host: "127.0.0.1", port: 15974, strictPort: false }
+  }) : await createServer({
+    root: viewerRoot,
     logLevel: "error",
     server: {
       host: "127.0.0.1",
@@ -1387,7 +1415,7 @@ try {
       strictPort: false
     }
   });
-  await server.listen();
+  if (!staticSiteRoot) await server.listen();
   const baseUrl = server.resolvedUrls.local[0];
 
   browser = await chromium.launch({ headless: true });
@@ -1484,7 +1512,9 @@ try {
 async function shutdown() {
   browser?.process?.()?.kill();
   await boundedClose("browser", () => browser?.close());
-  await boundedClose("vite server", () => server?.close());
+  await boundedClose("vite server", () => staticSiteRoot && server
+    ? new Promise(resolve => server.httpServer.close(resolve))
+    : server?.close());
 }
 
 async function boundedClose(label, close) {

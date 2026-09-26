@@ -10,6 +10,8 @@
 // context. Twelve live viewports would spend twelve browser contexts to draw
 // twelve frozen frames.
 
+import { publishedDownloads } from "./exchange.js";
+
 /** Turn a bundle id into a readable title, for catalogs that carry only ids. */
 export function titleFromId(bundleId) {
   return String(bundleId)
@@ -152,7 +154,32 @@ function card(entry) {
   }
 
   link.append(body);
-  return link;
+  const wrapper = document.createElement("div");
+  wrapper.className = "gallery-card-frame";
+  wrapper.append(link);
+  const downloads = publishedDownloads(entry);
+  if (downloads.length) {
+    const nav = document.createElement("nav");
+    nav.className = "gallery-card-downloads";
+    nav.setAttribute("aria-label", `${entry.title} downloads`);
+    for (const [kind, uri] of downloads) {
+      const download = document.createElement("a");
+      download.href = uri;
+      download.download = "";
+      download.textContent = kind === "project" ? "Project ZIP" : "IFC geometry";
+      nav.append(download);
+    }
+    wrapper.append(nav);
+  }
+  if (entry.build_identity) {
+    const identity = document.createElement("small");
+    identity.className = "gallery-card-identity";
+    identity.textContent = `Source ${entry.build_identity.replace(/^sha256:/, "").slice(0, 12)}`;
+    identity.title = `Source ${entry.build_identity}`;
+    identity.setAttribute("aria-label", identity.title);
+    wrapper.append(identity);
+  }
+  return wrapper;
 }
 
 export function renderGallery(container, catalog) {
@@ -174,6 +201,12 @@ export function renderGallery(container, catalog) {
   tagline.className = "gallery-tagline";
   tagline.textContent = "Code_Aster-backed piping engineering and result review";
   masthead.append(wordmark, tagline);
+  const identity = document.createElement("small");
+  identity.className = "gallery-viewer-identity";
+  identity.textContent = `Viewer ${__TUBA_VIEWER_BUILD__.replace(/^sha256:/, "").slice(0, 12)}`;
+  identity.title = `Viewer ${__TUBA_VIEWER_BUILD__}`;
+  identity.setAttribute("aria-label", identity.title);
+  masthead.append(identity);
   container.append(masthead);
 
   const heading = document.createElement("h1");

@@ -143,7 +143,7 @@ export function reduceViewerState(state, action) {
   }
 }
 
-export function preserveViewerStateForReload(previousState, nextState) {
+export function preserveViewerStateForReload(previousState, nextState, { reviewDefaultColor = false } = {}) {
   const objectIds = new Set(nextState.objects.map((obj) => obj.id));
   const layers = { ...nextState.layers };
   for (const [id, previousLayer] of Object.entries(previousState.layers ?? {})) {
@@ -187,13 +187,13 @@ export function preserveViewerStateForReload(previousState, nextState) {
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
     unitSystem: previousState.unitSystem ?? nextState.unitSystem,
-    modelColorBy: previousState.modelColorBy ?? nextState.modelColorBy ?? "default",
+    modelColorBy: reviewDefaultColor ? nextState.modelColorBy : previousState.modelColorBy ?? nextState.modelColorBy ?? "default",
     // Which channel tints the scene is the reader's choice, so a reload keeps it.
-    colorChannel: previousState.colorChannel ?? nextState.colorChannel,
+    colorChannel: reviewDefaultColor ? nextState.colorChannel : previousState.colorChannel ?? nextState.colorChannel,
     stage: previousState.stage ?? nextState.stage,
     // Carried over so a reload keeps the user's field selection, then snapped
     // back onto what the new scene actually offers.
-    coloring: previousState.coloring ?? nextState.coloring,
+    coloring: reviewDefaultColor ? nextState.coloring : previousState.coloring ?? nextState.coloring,
     visibleOverlayIds: overlays.filter((overlay) => overlay.visible !== false).map((overlay) => overlay.id)
   };
   return withDefaultBodyOpacity(withVisibility(withCoherentColoring(preserved)));

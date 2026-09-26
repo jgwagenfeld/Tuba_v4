@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
 
 test("profile comparison keeps labels and solved local frames through deformation changes", async ({ page }) => {
+  // Full tracing of the solved scene and deformation interactions needs extra time on Linux.
+  test.setTimeout(90_000);
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/viewer/?bundle=profile-orientation-review");
-  await expect(page.getByRole("status")).toHaveText("Ready", { timeout: 45_000 });
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 45_000 });
   const labels = ["label:roll-0", "label:roll-45", "label:roll-90"];
   const rendered = () => page.evaluate(() => window.__tubaViewer.lastRender.objectIds);
   expect(await rendered()).toEqual(expect.arrayContaining(labels));

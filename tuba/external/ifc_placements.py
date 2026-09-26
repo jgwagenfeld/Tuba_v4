@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from tuba.placements import PlacementFrame
 
 
@@ -56,3 +58,14 @@ def placement_for_target(model: Any, target: str) -> PlacementFrame | None:
             frame_id = assignment.frame.split(":", 1)[1] if ":" in assignment.frame else assignment.frame
             return getattr(model, "placement_frames", {}).get(frame_id)
     return None
+
+
+def product_local_points(points: Any, frame: PlacementFrame | None) -> list[np.ndarray]:
+    """Convert model world points to an IFC product's local representation frame."""
+    values = [np.asarray(point, dtype=float) for point in points]
+    if frame is None:
+        return values
+    basis = frame.to_coordinate_system()
+    rotation = np.column_stack((basis.x_axis, basis.y_axis, basis.z_axis))
+    origin = np.asarray(basis.origin)
+    return [rotation.T @ (point - origin) for point in values]

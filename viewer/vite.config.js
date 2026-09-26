@@ -1,10 +1,20 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { defineConfig } from "vite";
 
 const PUBLIC_DIR = "public";
 const LICENSE_FILES = ["font-notices.txt", "OFL-1.1.txt"];
+
+function viewerIdentity() {
+  const hash = createHash("sha256");
+  for (const name of readdirSync("src").filter(name => /\.(js|css)$/.test(name)).sort()) {
+    hash.update(name).update(readFileSync(join("src", name)));
+  }
+  hash.update(readFileSync("index.html"));
+  return hash.digest("hex");
+}
 
 // A bundle is any public/ subdirectory that carries a scene.json. Listing them
 // here means the viewer's example dropdown reflects what is actually on disk -
@@ -154,6 +164,7 @@ export default defineConfig(({ command }) => ({
   base: "./",
   publicDir: command === "serve" ? PUBLIC_DIR : false,
   plugins: [bundleManifest()],
+  define: { __TUBA_VIEWER_BUILD__: JSON.stringify(`sha256:${viewerIdentity()}`) },
   build: {
     outDir: "../tuba/visualization/_viewer",
     emptyOutDir: true,

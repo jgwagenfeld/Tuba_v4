@@ -376,6 +376,11 @@ test("viewer state reload preserves the colouring channel and review controls", 
   assert.deepEqual(preserved.selectedObjectIds, ["object:cold"]);
   assert.equal(preserved.activeLoadCase, "Hot");
   assert.equal(preserved.activeResultStateId, "result_state:Hot");
+
+  const firstAutomaticReview = preserveViewerStateForReload(previous, nextState, { reviewDefaultColor: true });
+  assert.equal(firstAutomaticReview.colorChannel, nextState.colorChannel);
+  assert.deepEqual(firstAutomaticReview.coloring, nextState.coloring);
+  assert.deepEqual(firstAutomaticReview.selectedObjectIds, ["object:cold"]);
 });
 
 test("full scene reload adopts the new coherent result pair when the old load case disappears", () => {

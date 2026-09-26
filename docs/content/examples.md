@@ -161,6 +161,12 @@ No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** wri
 
 Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review`, `support-rack-review`, `hydrogen-plant-layout`, `line-load-studio` and `rack_bridge_demo`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
 
+Gallery cards offer a project ZIP when one was built. Extract it and run Studio from the archive root; the ZIP includes the example's shared Python helpers and local assets. It does not contain solver evidence. Some cards also offer a geometry-only IFC file when the exporter can represent the whole native model geometry. Imported CAD, volume meshes and unsupported elements have no IFC link. A downloaded IFC contains no stress or operating-state results.
+
+In Studio, **Exchange** previews an IFC's units, bounds, products and warnings before attaching it as a reference. Attaching or removing a reference changes the displayed scene, not `model.py` or the solver model. Select supported straight pipes and supply explicit material and section values to download a separate, unsolved conversion project; fittings and unresolved geometry cannot be converted. Add loads and supports before a Code_Aster solve. Gallery uploads require a local Studio session and the optional `tuba[ifc]` installation.
+
+Contributors can run `uv run python scripts/ifc_exchange_browser_smoke.py` after installing the IFC extra, viewer dependencies and Playwright Chromium. This opt-in check uses a temporary Studio project to upload, preview, attach, convert, export and remove a real IFC; it executes the downloaded conversion project and checks that authored source remains unchanged.
+
 ```powershell
 python -m tuba.cli_studio examples/code-aster-review
 python -m tuba.project examples/code-aster-review --output .build/code-aster-review --artifact-dir examples/code-aster-review/evidence/Operating

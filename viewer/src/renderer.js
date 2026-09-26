@@ -482,6 +482,10 @@ const PICK_LINE_TOLERANCE_PX = 6;
 const PICK_PRIORITY_ANNOTATION = 1;
 
 export function pickRenderedObject(graph, point, viewport) {
+  return pickRenderedPoint(graph, point, viewport)?.objectId ?? null;
+}
+
+export function pickRenderedPoint(graph, point, viewport) {
   if (!graph?.camera || !graph.renderableObjects?.length) {
     return null;
   }
@@ -500,8 +504,8 @@ export function pickRenderedObject(graph, point, viewport) {
     (object) => object.visible !== false && object.userData?.pickable !== false && object.userData?.format !== "tuyau_subpoint_glyphs"
   );
   const intersections = raycaster.intersectObjects(raycastTargets, true);
-  let fallbackObjectId = null;
-  let volumeObjectId = null;
+  let fallback = null;
+  let volume = null;
   for (const intersection of intersections) {
     // Raycasting ignores clipping planes: without this a click picked geometry
     // the section box had already cut away.
@@ -516,20 +520,20 @@ export function pickRenderedObject(graph, point, viewport) {
     // The space between load arrows is selectable, but must not steal a hit
     // from a real support or arrow inside that volume.
     if (intersection.object.userData.pickVolumeHit) {
-      volumeObjectId ??= objectId;
+      volume ??= { objectId, point: intersection.point.toArray() };
       continue;
     }
     if (intersection.object.userData?.pickPriority === PICK_PRIORITY_ANNOTATION) {
-      return objectId;
+      return { objectId, point: intersection.point.toArray() };
     }
-    if (fallbackObjectId === null) {
-      fallbackObjectId = objectId;
+    if (fallback === null) {
+      fallback = { objectId, point: intersection.point.toArray() };
     }
   }
   // A miss selects nothing. It used to fall back to the object whose bounds
   // centre projected nearest the click, which for a long pipe run is nowhere
   // near where it is drawn - a near-miss selected something across the model.
-  return volumeObjectId ?? fallbackObjectId;
+  return volume ?? fallback;
 }
 
 // World size of one screen pixel. Exact for the app's orthographic camera; a

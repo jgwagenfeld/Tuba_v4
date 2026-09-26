@@ -16,6 +16,7 @@ from tuba.external.ifc_placements import (
     create_local_placement,
     frame_from_local_placement,
     placement_for_target,
+    product_local_points,
 )
 from tuba.placements import PlacementAssignment
 
@@ -67,6 +68,14 @@ class IfcExporter:
 
         # 1. Setup Project, Site, Building structure
         project = ifc_file.create_entity("IfcProject", GlobalId=ifcopenshell.guid.new(), Name=model.project_name)
+        origin = ifc_file.create_entity("IfcCartesianPoint", Coordinates=(0.0, 0.0, 0.0))
+        world = ifc_file.create_entity("IfcAxis2Placement3D", Location=origin)
+        context = ifc_file.create_entity("IfcGeometricRepresentationContext", ContextIdentifier="Model",
+                                         ContextType="Model", CoordinateSpaceDimension=3,
+                                         Precision=1e-6, WorldCoordinateSystem=world)
+        project.RepresentationContexts = [context]
+        metre = ifc_file.create_entity("IfcSIUnit", UnitType="LENGTHUNIT", Name="METRE")
+        project.UnitsInContext = ifc_file.create_entity("IfcUnitAssignment", Units=[metre])
         site = ifc_file.create_entity("IfcSite", GlobalId=ifcopenshell.guid.new(), Name="Tuba Site")
         building = ifc_file.create_entity("IfcBuilding", GlobalId=ifcopenshell.guid.new(), Name="Tuba Plant Section")
         storey = ifc_file.create_entity("IfcBuildingStorey", GlobalId=ifcopenshell.guid.new(), Name="Ground Floor Level")
@@ -80,7 +89,7 @@ class IfcExporter:
         created_elements: Dict[str, ifcopenshell.entity_instance] = {}
         registry = IfcGuidRegistry()
         created_elements.update(
-            export_pipe_products(ifc_file, model, storey, project, registry, result_state)
+            export_pipe_products(ifc_file, model, storey, context, registry, result_state)
         )
 
         # Default 2D position for profiles
@@ -116,6 +125,8 @@ class IfcExporter:
             frame = placement_for_target(model, f"element:{elem.id}")
             if frame is not None:
                 ifc_elem.ObjectPlacement = create_local_placement(ifc_file, frame)
+            world_p1, world_p2 = p1, p2
+            p1, p2 = product_local_points((p1, p2), frame)
             created_elements[elem.id] = ifc_elem
 
             # Spatial containment relation (contained in storey)
@@ -221,8 +232,9 @@ class IfcExporter:
                         )
                         rep_type = "SweptSolid"
                         # Same profile, re-placed on the operating endpoints.
-                        operating_ends = _operating_ends(elem, result_state, p1, p2)
+                        operating_ends = _operating_ends(elem, result_state, world_p1, world_p2)
                         if operating_ends is not None:
+                            operating_ends = product_local_points(operating_ends, frame)
                             hot_placement, hot_length = _extrusion_placement(ifc_file, *operating_ends)
                             operating_solid = ifc_file.create_entity(
                                 "IfcExtrudedAreaSolid",
@@ -252,8 +264,9 @@ class IfcExporter:
                         InnerRadius=inner_radius
                     )
                     rep_type = "SweptSolid"
-                    operating_ends = _operating_ends(elem, result_state, p1, p2)
+                    operating_ends = _operating_ends(elem, result_state, world_p1, world_p2)
                     if operating_ends is not None:
+                        operating_ends = product_local_points(operating_ends, frame)
                         operating_solid = ifc_file.create_entity(
                             "IfcSweptDiskSolid",
                             Directrix=_polyline(ifc_file, operating_ends),
@@ -265,7 +278,7 @@ class IfcExporter:
                     # Shape representation
                     rep = ifc_file.create_entity(
                         "IfcShapeRepresentation",
-                        ContextOfItems=project,
+                        ContextOfItems=context,
                         RepresentationIdentifier="Body",
                         RepresentationType=rep_type,
                         Items=[solid]
@@ -275,7 +288,7 @@ class IfcExporter:
                         representations.append(
                             ifc_file.create_entity(
                                 "IfcShapeRepresentation",
-                                ContextOfItems=project,
+                                ContextOfItems=context,
                                 RepresentationIdentifier=OPERATING_BODY_IDENTIFIER,
                                 RepresentationType=rep_type,
                                 Items=[operating_solid],
@@ -304,6 +317,7 @@ class IfcExporter:
             frame = placement_for_target(model, support_ref) if support_ref is not None else None
             if frame is not None:
                 ifc_sup.ObjectPlacement = create_local_placement(ifc_file, frame)
+            coords = product_local_points((coords,), frame)[0]
 
             # Contained in storey
             ifc_file.create_entity(
@@ -319,7 +333,7 @@ class IfcExporter:
                 box = ifc_file.create_entity("IfcBoundingBox", Corner=pt, XDim=0.2, YDim=0.2, ZDim=0.2)
                 rep = ifc_file.create_entity(
                     "IfcShapeRepresentation",
-                    ContextOfItems=project,
+                    ContextOfItems=context,
                     RepresentationIdentifier="Box",
                     RepresentationType="BoundingBox",
                     Items=[box]
@@ -329,24 +343,28 @@ class IfcExporter:
             except Exception:
                 pass
 
-            # Enrich support with FEA property set
-            r_forc = np.zeros(3)
-            r_moment = np.zeros(3)
-            if results:
-                node_res = results.node_results.get(sup.node)
-                if node_res is not None and node_res.reaction_force is not None:
-                    r_forc = node_res.reaction_force[:3]
-                    r_moment = node_res.reaction_force[3:]
-
             friction_coeff = getattr(sup, "friction_coefficient", 0.0)
+            support_props = [
+                ifc_file.create_entity("IfcPropertySingleValue", Name="SupportType", NominalValue=ifc_file.create_entity("IfcLabel", sup.type)),
+                ifc_file.create_entity("IfcPropertySingleValue", Name="FrictionCoefficient", NominalValue=ifc_file.create_entity("IfcReal", float(friction_coeff))),
+            ]
+            support_pset = ifc_file.create_entity("IfcPropertySet", GlobalId=ifcopenshell.guid.new(),
+                                                  Name="Pset_TubaSupport", HasProperties=support_props)
+            ifc_file.create_entity("IfcRelDefinesByProperties", GlobalId=ifcopenshell.guid.new(),
+                                   RelatedObjects=[ifc_sup], RelatingPropertyDefinition=support_pset)
 
+            node_res = results.node_results.get(sup.node) if results is not None else None
+            reaction = node_res.reaction_force if node_res is not None else None
+            if reaction is None:
+                continue
+            r_forc = reaction[:3]
+            r_moment = reaction[3:]
             props = [
                 ifc_file.create_entity("IfcPropertySingleValue", Name="VerticalReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[2]))),
                 ifc_file.create_entity("IfcPropertySingleValue", Name="LateralReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[1]))),
                 ifc_file.create_entity("IfcPropertySingleValue", Name="AxialReaction_N", NominalValue=ifc_file.create_entity("IfcReal", float(r_forc[0]))),
                 ifc_file.create_entity("IfcPropertySingleValue", Name="TorsionalMoment_Nm", NominalValue=ifc_file.create_entity("IfcReal", float(r_moment[0]))),
-                ifc_file.create_entity("IfcPropertySingleValue", Name="SupportType", NominalValue=ifc_file.create_entity("IfcLabel", sup.type)),
-                ifc_file.create_entity("IfcPropertySingleValue", Name="FrictionCoefficient", NominalValue=ifc_file.create_entity("IfcReal", float(friction_coeff))),
+                *support_props,
             ]
             pset = ifc_file.create_entity(
                 "IfcPropertySet",
@@ -371,9 +389,8 @@ class IfcExporter:
                 Name=obs_id,
                 Description=f"Obstacle type: {obs_type}"
             )
-            frame = placement_for_target(model, f"obstacle:{obs_id}")
-            if frame is not None:
-                ifc_obs.ObjectPlacement = create_local_placement(ifc_file, frame)
+            # Obstacles are world-axis bounds; rotating a local IfcBoundingBox
+            # would change nonsquare extents. Keep its representation in world coordinates.
 
             # Contained in storey
             ifc_file.create_entity(
@@ -386,22 +403,22 @@ class IfcExporter:
             # Build box geometry for cuboids
             if obs_type == "cuboid" and "min_point" in obs and "max_point" in obs:
                 try:
-                    pmin = np.array(obs["min_point"])
-                    pmax = np.array(obs["max_point"])
+                    pmin = np.asarray(obs["min_point"], dtype=float)
+                    pmax = np.asarray(obs["max_point"], dtype=float)
                     dims = pmax - pmin
                     pt = ifc_file.create_entity("IfcCartesianPoint", Coordinates=pmin.tolist())
                     box = ifc_file.create_entity("IfcBoundingBox", Corner=pt, XDim=float(dims[0]), YDim=float(dims[1]), ZDim=float(dims[2]))
                     rep = ifc_file.create_entity(
                         "IfcShapeRepresentation",
-                        ContextOfItems=project,
+                        ContextOfItems=context,
                         RepresentationIdentifier="Box",
                         RepresentationType="BoundingBox",
                         Items=[box]
                     )
                     product_rep = ifc_file.create_entity("IfcProductDefinitionShape", Representations=[rep])
                     ifc_obs.Representation = product_rep
-                except Exception:
-                    pass
+                except Exception as exc:
+                    raise RuntimeError(f"Failed to create IFC representation for obstacle {obs_id!r}.") from exc
 
         # 6. Enrich elements with FEA stress property sets
         if results:
@@ -856,7 +873,7 @@ class IfcImporter:
                     for definition in fastener.IsDefinedBy:
                         if definition.is_a("IfcRelDefinesByProperties"):
                             prop_def = definition.RelatingPropertyDefinition
-                            if prop_def.is_a("IfcPropertySet") and prop_def.Name == "Pset_TubaSupportForces":
+                            if prop_def.is_a("IfcPropertySet") and prop_def.Name in ("Pset_TubaSupport", "Pset_TubaSupportForces"):
                                 for prop in prop_def.HasProperties:
                                     if prop.is_a("IfcPropertySingleValue"):
                                         if prop.Name == "SupportType":
