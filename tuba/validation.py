@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Sequence
+import math
+from numbers import Real
 from typing import Any
 
 import numpy as np
@@ -23,6 +25,21 @@ class ModelValidationError(ValueError):
 
 def validate_model(model: TubaModel) -> None:
     errors: list[str] = []
+
+    for name, material in model.materials.items():
+        label = f"Material {name!r}"
+        _number(material.E, f"{label} E", errors, lower=0, open_lower=True)
+        _number(material.nu, f"{label} nu", errors, lower=-1, upper=0.5,
+                open_lower=True, open_upper=True)
+        _number(material.rho, f"{label} rho", errors, lower=0)
+        _number(material.alpha, f"{label} alpha", errors)
+
+    for kind, cases in (("Load case", model.load_cases), ("Operation", model.operations)):
+        for name, case in cases.items():
+            label = f"{kind} {name!r}"
+            _number(case.temperature, f"{label} temperature", errors)
+            _number(case.ref_temperature, f"{label} ref_temperature", errors)
+            _number(case.internal_pressure, f"{label} internal_pressure", errors, lower=0)
 
     for node_id, node in model.nodes.items():
         coords = np.asarray(node.coords, dtype=float)
@@ -368,23 +385,62 @@ def _validate_placement_assignments(model: TubaModel, errors: list[str]) -> None
             seen.add(key)
 
 
+def _number(value, label: str, errors: list[str], *, lower=None, upper=None,
+            open_lower: bool = False, open_upper: bool = False) -> bool:
+    """Check a real finite engineering scalar without coercing or replacing it."""
+    expected = "a finite real number"
+    if lower is not None:
+        expected += f" {'>' if open_lower else '>='} {lower}"
+    if upper is not None:
+        expected += f" {'<' if open_upper else '<='} {upper}"
+    valid = isinstance(value, Real) and not isinstance(value, (bool, np.bool_))
+    if valid:
+        try:
+            valid = math.isfinite(value)
+        except OverflowError:
+            valid = False
+    if valid and lower is not None:
+        valid = value > lower if open_lower else value >= lower
+    if valid and upper is not None:
+        valid = value < upper if open_upper else value <= upper
+    if not valid:
+        errors.append(f"{label} must be {expected}; got {value!r}.")
+    return bool(valid)
+
+
 def _validate_section(name: str, section, errors: list[str]) -> None:
     if isinstance(section, PipeSection):
-        if section.OD <= 0.0:
-            errors.append(f"Pipe section {name!r} OD must be positive.")
-        if section.WT <= 0.0:
-            errors.append(f"Pipe section {name!r} WT must be positive.")
-        if section.WT * 2.0 >= section.OD:
-            errors.append(f"Pipe section {name!r} WT is too large for OD.")
+        label = f"Pipe section {name!r}"
+        od_ok = _number(section.OD, f"{label} OD", errors, lower=0, open_lower=True)
+        wt_ok = _number(section.WT, f"{label} WT", errors, lower=0, open_lower=True,
+                        upper=section.OD / 2 if od_ok else None, open_upper=True)
+        _number(section.corrosion_allowance, f"{label} corrosion_allowance", errors,
+                lower=0, upper=section.WT if wt_ok else None, open_upper=True)
     elif isinstance(section, BarSection):
-        if section.OD <= 0.0:
-            errors.append(f"Bar section {name!r} OD must be positive.")
+        _number(section.OD, f"Bar section {name!r} OD", errors, lower=0, open_lower=True)
+        # WT == 0 and WT >= OD/2 both represent solid bars in the existing model.
+        _number(section.WT, f"Bar section {name!r} WT", errors, lower=0)
     elif isinstance(section, CableSection):
-        if section.radius <= 0.0:
-            errors.append(f"Cable section {name!r} radius must be positive.")
+        label = f"Cable section {name!r}"
+        _number(section.radius, f"{label} radius", errors, lower=0, open_lower=True)
+        _number(section.pretension, f"{label} pretension", errors, lower=0)
+        _number(section.compression_modulus_ratio, f"{label} compression_modulus_ratio",
+                errors, lower=0, upper=1)
     elif isinstance(section, RectangularSection):
-        if section.height_y <= 0.0 or section.height_z <= 0.0:
-            errors.append(f"Rectangular section {name!r} dimensions must be positive.")
+        label = f"Rectangular section {name!r}"
+        thickness_ok = []
+        for axis in ("y", "z"):
+            height = getattr(section, f"height_{axis}")
+            valid = _number(height, f"{label} height_{axis}", errors, lower=0, open_lower=True)
+            thickness_ok.append(_number(
+                getattr(section, f"thickness_{axis}"), f"{label} thickness_{axis}", errors,
+                lower=0, upper=height / 2 if valid else None, open_upper=True,
+            ))
+        if all(thickness_ok) and ((section.thickness_y == 0) != (section.thickness_z == 0)):
+            errors.append(
+                f"{label} thickness_y and thickness_z must both be zero for a solid section "
+                f"or both positive for a hollow section; got {section.thickness_y!r}, {section.thickness_z!r}."
+            )
     elif isinstance(section, IBeamSection):
         if not section.profile_name:
             errors.append(f"I-beam section {name!r} profile_name must not be empty.")

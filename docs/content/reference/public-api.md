@@ -6,6 +6,23 @@ These are the stable entry points for the supported workflow. Signatures below a
 
 `tuba.Model` is the public alias for `TubaModel`.
 
+`model.validate()` checks numerical inputs as well as references. Materials require
+finite `E > 0`, `-1 < nu < 0.5`, `rho >= 0`, and finite `alpha`. Zero density is
+valid for a massless idealization; zero or negative thermal expansion coefficients
+are allowed. Temperatures and reference temperatures must be finite (negative
+Celsius values are allowed). Uniform internal pressure must be finite and
+nonnegative; this input does not represent external pressure or vacuum.
+
+Pipe dimensions require finite `OD > 0`, `0 < WT < OD/2`, and
+`0 <= corrosion_allowance < WT`. Bar wall thickness is nonnegative; the existing
+`WT == 0` or `WT >= OD/2` solid-bar convention is preserved. Cable radius must be
+positive, pretension nonnegative, and compression modulus ratio in `[0, 1]`.
+Rectangular sections have positive heights and either two zero wall thicknesses
+(solid) or two positive thicknesses smaller than their respective half-heights
+(hollow). Numeric strings, booleans, NaN, and infinity are rejected as engineering
+scalars. Errors identify the record and property. Validation runs again at study
+export/solve, so mutation after construction does not bypass these checks.
+
 ::: tuba.model.TubaModel
     options:
       show_source: false
