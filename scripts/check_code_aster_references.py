@@ -21,6 +21,7 @@ REFERENCE_TESTS = (
     'tests/test_code_aster_mixed_volume_reference.py',
     'tests/test_code_aster_tee_volume_reference.py',
     'tests/test_insulation_solver.py',
+    'tests/test_code_aster_fluid_contents.py',
     'tests/integration/test_code_aster_friction.py',
 )
 

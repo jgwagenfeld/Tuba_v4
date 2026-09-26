@@ -92,12 +92,15 @@ def beam_contract(
             raise ValueError("POU_D_T pipe tee/branch flexibility is unsupported.")
 
     densities = _fluid_density_by_element(model, load_case)
+    total_mass = 0.0
     for element in model.elements:
-        if element.id in densities:
-            props = _physical_properties_for_element(model, element, densities[element.id])
-            _element_quantities(model, element, props)
+        if densities:
+            props = _physical_properties_for_element(model, element, densities.get(element.id, 0.0))
+            total_mass += _element_quantities(model, element, props).total_mass_kg
             if props.metal_area_m2 <= 0 or not math.isfinite(props.mass_kg_per_m / props.metal_area_m2):
                 raise ValueError(f"Element {element.id!r} fluid_density effective material density must be finite.")
+    if not math.isfinite(total_mass):
+        raise ValueError(f"Operation {load_case_name!r} fluid_density total mass must be finite.")
 
     inputs: dict[str, Any] | None = (
         {"pipe_modelization": pipe_modelization.value, "bend_segments": bend_segments(pipe_modelization)}

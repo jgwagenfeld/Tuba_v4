@@ -284,3 +284,79 @@ def test_unselected_contents_does_not_block_empty_volume_or_mixed_export(tmp_pat
                                        element_ids=[model.elements[0].id], max_element_size=0.005)
     mixed = solver.export_mixed_analysis_study(model, 'Empty', tmp_path / 'mixed')
     assert volume.load_case == mixed.load_case == 'Empty'
+
+
+def test_operation_quantities_are_model_inputs():
+    from tuba.reporting.tables import build_model_tables
+    model = contents_model()
+    model.define_load_case('Empty', gravity=False)
+    model.define_operation('Operating').add_field('fluid_density', 800)
+    table = next(table for table in build_model_tables(model)
+                 if table.id == 'operation_quantities')
+    assert table.source == 'model'
+    rows = {row['name']: row for row in table.rows}
+    assert rows['Empty']['fluid_mass_kg'] == 0
+    assert rows['Empty']['gravity'] is False
+    assert rows['Operating']['fluid_mass_kg'] == pytest.approx(math.pi * 0.08**2 / 4 * 800 * 2)
+    for row in rows.values():
+        assert row['total_mass_kg'] == pytest.approx(
+            row['pipe_mass_kg'] + row['insulation_mass_kg'] + row['fluid_mass_kg'])
+    empty_table = next(table for table in build_model_tables(Model('Empty'))
+                       if table.id == 'operation_quantities')
+    assert not empty_table.rows
+
+
+def test_contents_input_table_exports_to_json_csv_and_html(tmp_path):
+    import csv
+    import json
+    from tuba.reporting import build_engineering_review, write_engineering_review
+    model = contents_model()
+    model.define_operation('Filled').add_field('fluid_density', 1000)
+    output = write_engineering_review(build_engineering_review(model), tmp_path)
+    tables = json.loads(output.review_path.read_text())['tables']
+    table = tables['operation_quantities']
+    assert table['source'] == 'model'
+    with output.csv_paths['operation_quantities'].open(newline='') as stream:
+        row = next(csv.DictReader(stream))
+    assert float(row['fluid_mass_kg']) == pytest.approx(math.pi / 4 * 0.08**2 * 1000 * 2)
+    assert 'Contents mass' in output.index_path.read_text(encoding='utf-8')
+
+
+def test_contents_example_does_not_publish_when_solver_is_unavailable(tmp_path, monkeypatch):
+    import runpy
+    namespace = runpy.run_path('examples/fluid_contents.py')
+    def unavailable(*args, **kwargs):
+        raise RuntimeError('Code_Aster runtime unavailable')
+    monkeypatch.setattr(Model, 'solve', unavailable)
+    with pytest.raises(RuntimeError, match='Code_Aster runtime unavailable'):
+        namespace['main'](tmp_path / 'contents')
+    assert not (tmp_path / 'contents' / 'review').exists()
+
+
+def test_finite_element_masses_cannot_overflow_the_case_total(tmp_path):
+    from tuba.solver.aster import CodeAsterSolver
+    model = contents_model(insulated=False)
+    # Each member has a finite mass near 1e308 kg, but the case total overflows.
+    model.nodes[model.elements[0].n2].coords[0] = 200
+    with model.pipe('Pipe', 'Steel', route='P-200') as pipe:
+        pipe.start([0, 2, 0], support='anchor')
+        pipe.run(200)
+    model.define_operation('Huge').add_field('fluid_density', 1e308)
+    for element in model.elements:
+        assert math.isfinite(element_quantities(model, element, operation='Huge').total_mass_kg)
+    with pytest.raises(ValueError, match='finite'):
+        quantity_takeoff(model, operation='Huge')
+    with pytest.raises(ValueError, match='finite'):
+        CodeAsterSolver().export_study(model, 'Huge', tmp_path / 'study')
+    assert not (tmp_path / 'study').exists()
+
+
+def test_schema_validates_legacy_case_fields_too():
+    from tuba.schema import validate_model_dict
+    model = contents_model()
+    model.define_load_case('Legacy', fields=[OperationField('fluid_density', 800)])
+    data = model.to_dict()
+    validate_model_dict(data)
+    data['load_cases']['Legacy']['fields'][0]['quantity'] = 'unsupported'
+    with pytest.raises(ValueError, match='quantity'):
+        validate_model_dict(data)

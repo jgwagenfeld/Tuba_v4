@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Any
 
 from tuba.model import TubaModel
@@ -136,6 +137,8 @@ def _add_record(totals: dict[str, float], record: QuantityRecord) -> None:
     totals["total_mass_kg"] += record.total_mass_kg
     totals["pipe_mass_kg"] += record.pipe_mass_kg
     totals["fluid_mass_kg"] += record.fluid_mass_kg
+    if not math.isfinite(totals["total_mass_kg"]):
+        raise ValueError("Quantity total mass must be finite.")
     totals["insulation_mass_kg"] += record.insulation_mass_kg
     totals["insulation_volume_m3"] += record.insulation_volume_m3
     totals["insulation_cost"] += record.insulation_cost
