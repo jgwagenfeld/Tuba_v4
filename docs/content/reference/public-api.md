@@ -19,8 +19,8 @@ Pipe dimensions require finite `OD > 0`, `0 < WT < OD/2`, and
 positive, pretension nonnegative, and compression modulus ratio in `[0, 1]`.
 Rectangular sections have positive heights and either two zero wall thicknesses
 (solid) or two positive thicknesses smaller than their respective half-heights
-(hollow). Numeric strings, booleans, NaN, and infinity are rejected as engineering
-scalars. Errors identify the record and property. Validation runs again at study
+(hollow). These scalar inputs reject numeric strings, booleans, NaN, and infinity.
+Errors identify the record and property. Validation runs again at study
 export/solve, so mutation after construction does not bypass these checks.
 
 ::: tuba.model.TubaModel
