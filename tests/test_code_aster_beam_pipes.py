@@ -96,7 +96,7 @@ class BeamPipeReferenceTests(unittest.TestCase):
         model.load_cases["Load"].add_nodal_force(end, [1000, 1000, 0])
         model.load_cases["Load"].temperature = 120
         root = Path(".build/beam-qualification/straight").resolve()
-        run = model.solve("Load", pipe_modelization="POU_D_T", work_dir=str(root), exec_method="wsl", wsl_distro="Ubuntu", force=True)
+        run = model.solve("Load", pipe_modelization="POU_D_T", work_dir=str(root), exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"), force=True)
         u = run.results.node_results[end].displacement
         section = model.sections["Pipe"]
         area = math.pi / 4 * (section.OD**2 - (section.OD - 2*section.WT)**2)
@@ -124,7 +124,7 @@ class BeamPipeReferenceTests(unittest.TestCase):
         observed = []
         for segments in (32, 64):
             root = Path(f".build/beam-qualification/elbow-{segments}").resolve()
-            solver = CodeAsterSolver(pipe_modelization="POU_D_T", work_dir=str(root), exec_method="wsl", wsl_distro="Ubuntu")
+            solver = CodeAsterSolver(pipe_modelization="POU_D_T", work_dir=str(root), exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"))
             solver._BEND_SEGMENTS = segments
             run = solver.solve(model, "Load", force=True)
             u = run.results.node_results[end].displacement

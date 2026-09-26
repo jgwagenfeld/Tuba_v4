@@ -133,3 +133,39 @@ def test_validation_collects_material_section_and_case_errors():
         model.validate()
     for entity, property_name in [('Steel', 'E'), ('Pipe', 'WT'), ('Hot', 'temperature')]:
         assert any(entity in line and property_name in line for line in str(error.value).splitlines())
+
+
+@pytest.mark.parametrize('value', [None, 'wide', [], complex(1, 2)])
+def test_coupled_pipe_preserves_invalid_section_diagnostic(value):
+    from tests.test_mixed_code_aster_export import build_mixed_fixture
+
+    model = build_mixed_fixture()
+    model.sections['PipeSec'].OD = value
+    with pytest.raises(ModelValidationError, match='PipeSec.*OD'):
+        model.validate()
+
+
+@pytest.mark.parametrize(('property_name', 'value'), [
+    ('A', float('nan')), ('IY', float('inf')), ('EZ', None), ('IZ', '1'),
+    ('JX', True), ('A', 0), ('IY', -1), ('IZ', 0), ('JX', 0),
+])
+def test_ibeam_mutation_is_rejected_before_export(tmp_path, property_name, value):
+    from tuba.solver.aster import CodeAsterSolver
+
+    model = Model('I-beam admission')
+    model.add_material('Steel', E=2e11, nu=0.3)
+    section = model.add_ibeam_section('Beam', 'IPE80')
+    start, end = model.add_node([0, 0, 0]), model.add_node([1, 0, 0])
+    model.add_element(id='beam', type='beam', n1=start, n2=end, section='Beam', material='Steel')
+    model.define_operation('Dead')
+    section.properties[property_name] = value
+    with pytest.raises(ModelValidationError, match=f'Beam.*{property_name}'):
+        CodeAsterSolver().export_analysis_study(model, 'Dead', tmp_path / 'study')
+    assert not (tmp_path / 'study').exists()
+
+
+def test_ibeam_catalog_offsets_can_be_zero_or_negative():
+    model = Model('I-beam admission')
+    section = model.add_ibeam_section('Beam', 'IPE80')
+    section.properties.update(EY=0, EZ=-1e-5, IYR2=-1e-12)
+    model.validate()

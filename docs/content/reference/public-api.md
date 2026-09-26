@@ -19,7 +19,10 @@ Pipe dimensions require finite `OD > 0`, `0 < WT < OD/2`, and
 positive, pretension nonnegative, and compression modulus ratio in `[0, 1]`.
 Rectangular sections have positive heights and either two zero wall thicknesses
 (solid) or two positive thicknesses smaller than their respective half-heights
-(hollow). These scalar inputs reject numeric strings, booleans, NaN, and infinity.
+(hollow). I-beam properties must be finite, with positive area, principal inertias,
+torsion constant (`A`, `IY`, `IZ`, `JX`), and supplied profile dimensions
+(`H`, `B`, `Tw`, `Tf`); signed offsets and higher moments retain catalog conventions.
+These scalar inputs reject numeric strings, booleans, NaN, and infinity.
 Errors identify the record and property. Validation runs again at study
 export/solve, so mutation after construction does not bypass these checks.
 

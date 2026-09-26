@@ -444,6 +444,11 @@ def _validate_section(name: str, section, errors: list[str]) -> None:
     elif isinstance(section, IBeamSection):
         if not section.profile_name:
             errors.append(f"I-beam section {name!r} profile_name must not be empty.")
+        required = {'A', 'IY', 'IZ', 'JX'}
+        for key in sorted(required | section.properties.keys()):
+            positive = key in required | {'H', 'B', 'Tw', 'Tf'}
+            _number(section.properties.get(key), f"I-beam section {name!r} {key}", errors,
+                    lower=0 if positive else None, open_lower=positive)
     else:
         errors.append(f"Section {name!r} has unsupported type {type(section).__name__}.")
 
@@ -637,6 +642,9 @@ def _validate_pipe_to_solid_port(
         )
         return
 
+    if not _number(section.OD, f"Coupling {coupling_id!r} section {source.section!r} OD",
+                   errors, lower=0, open_lower=True):
+        return
     pipe_radius = float(section.OD) / 2.0
     tolerance = max(0.001, pipe_radius * 0.02)
     if abs(pipe_radius - port.radius) > tolerance:

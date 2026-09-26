@@ -1,5 +1,6 @@
 """Qualification must fail closed even when pytest exits zero after skipping."""
 
+import ast
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -16,6 +17,20 @@ def load_gate():
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
     return gate
+
+
+def test_required_references_do_not_force_a_platform_runtime():
+    gate = load_gate()
+    forced = []
+    for filename in gate.REFERENCE_TESTS:
+        tree = ast.parse((gate.ROOT / filename).read_text(encoding='utf-8'))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                for keyword in node.keywords:
+                    if keyword.arg in {'exec_method', 'wsl_distro'} and isinstance(keyword.value, ast.Constant):
+                        if keyword.value.value not in {None, 'auto'}:
+                            forced.append(f'{filename}:{node.lineno} {keyword.arg}={keyword.value.value!r}')
+    assert not forced, '\n'.join(forced)
 
 
 @pytest.mark.parametrize('xml', [

@@ -50,7 +50,7 @@ FIN
 ''')
     CodeAsterSolver()._write_export(root)
     execution = run_code_aster_export(root / 'study.export', root,
-        CodeAsterRuntimeConfig(exec_method='wsl', wsl_distro='Ubuntu', timeout_seconds=240))
+        CodeAsterRuntimeConfig(exec_method=os.environ.get('TUBA_CODE_ASTER_EXEC_METHOD', 'auto'), timeout_seconds=240))
     return parse_tables.parse_csv_table(root / 'study_effo.csv')
 
 
