@@ -66,11 +66,17 @@ def _terminal_resultant(result_state, analysis_mesh):
     origin = np.asarray([-0.08, 0.0, 0.0])
     force = np.zeros(3)
     moment = np.zeros(3)
-    for node_id, reaction in result_state.node_reactions.items():
+    # Persistent results also contain model-node aliases of mesh reactions.
+    # Sum each physical mesh node once, including moments at 1D anchors.
+    for node_id, coords in analysis_mesh.nodes.items():
+        reaction = result_state.node_reactions.get(node_id)
+        if reaction is None:
+            continue
         nodal_force = np.asarray(reaction[:3], dtype=float)
-        point = np.asarray(analysis_mesh.nodes[node_id], dtype=float)
+        nodal_moment = np.asarray([0.0 if value is None else value for value in reaction[3:]])
+        point = np.asarray(coords, dtype=float)
         force += nodal_force
-        moment += np.cross(point - origin, nodal_force)
+        moment += np.cross(point - origin, nodal_force) + nodal_moment
     assert np.linalg.norm(force) > 0.0
     assert np.linalg.norm(moment) > 0.0
     return force, moment

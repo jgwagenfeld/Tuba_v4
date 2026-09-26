@@ -4,6 +4,7 @@ import ast
 import importlib.util
 from pathlib import Path
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -31,6 +32,21 @@ def test_required_references_do_not_force_a_platform_runtime():
                         if keyword.value.value not in {None, 'auto'}:
                             forced.append(f'{filename}:{node.lineno} {keyword.arg}={keyword.value.value!r}')
     assert not forced, '\n'.join(forced)
+
+
+def test_tee_resultant_counts_mesh_reactions_once_and_includes_nodal_moments():
+    from tests.test_code_aster_tee_volume_reference import _terminal_resultant
+
+    # N4 is the model alias of VN1; it is not a second physical reaction.
+    state = SimpleNamespace(node_reactions={
+        'N4': (0, 0, 10, 0, 3, 0),
+        'VN1': (0, 0, 10, 0, 3, 0),
+        'VN2': (0, 0, 2, None, None, None),
+    })
+    mesh = SimpleNamespace(nodes={'VN1': (-0.2, 0, 0), 'VN2': (-0.08, 0, 0)})
+    force, moment = _terminal_resultant(state, mesh)
+    assert force == pytest.approx((0, 0, 12))
+    assert moment == pytest.approx((0, 4.2, 0))
 
 
 @pytest.mark.parametrize('xml', [
