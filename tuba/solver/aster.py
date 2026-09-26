@@ -442,6 +442,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         force: bool = False,
     ) -> AnalysisRun:
         """Generate, execute, attest, and import an explicit pipe-volume study."""
+        model.validate()
         output_dir = self.work_dir or Path(tempfile.mkdtemp(prefix="tuba_aster_volume_"))
         study = self.export_volume_study(
             model,
@@ -468,6 +469,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         model edit changes that identity and forces a fresh solve; pass
         ``force=True`` to re-execute regardless.
         """
+        model.validate()
         self._require_solve_ready_study(study)
         work_dir = Path(study.work_dir)
         _, manifest_study, _, _ = load_and_validate_artifact_chain(

@@ -72,6 +72,7 @@ def solve_project(
         raise ValueError(f"{project.name} has no study operations to solve.")
     namespace = project.run_model() if namespace is None else namespace
     model = namespace["model"]
+    model.validate()
     folders = {operation: evidence_dir(project.root, operation) for operation in operations}
     exporter = settings.solver()
     with claim_solve(project.root):

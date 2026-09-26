@@ -45,6 +45,28 @@ def _files(folder: Path) -> dict[str, bytes]:
     return {path.name: path.read_bytes() for path in folder.iterdir() if path.is_file()}
 
 
+@pytest.mark.parametrize('force', [False, True])
+def test_invalid_numerics_fail_before_project_tool_state_changes(tmp_path, force):
+    from tuba.validation import ModelValidationError
+
+    project = _copy(tmp_path, RACK)
+    namespace = project.run_model()
+    model = namespace['model']
+    next(iter(model.materials.values())).E = -1
+    staging = project.root / '.tuba' / 'staging'
+    staging.mkdir(parents=True)
+    (staging / 'previous-input').write_bytes(b'preserve before validation')
+    before = {p.relative_to(project.root): p.read_bytes()
+              for p in project.root.rglob('*') if p.is_file()}
+
+    with pytest.raises(ModelValidationError, match='E'):
+        solve_project(project, namespace, force=force)
+
+    after = {p.relative_to(project.root): p.read_bytes()
+             for p in project.root.rglob('*') if p.is_file()}
+    assert after == before
+
+
 class _Exported(Exception):
     pass
 
