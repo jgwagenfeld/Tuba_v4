@@ -206,17 +206,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             The path to the output directory containing the study files.
         """
         self._bend_node_cache.clear()
-        if self.pipe_modelization is PipeModelization.SOLID_3D:
-            raise ValueError("Use export_volume_study for SOLID_3D.")
-        # Resolve load case ------------------------------------------------
-        if self.load_path is not None:
-            if not self.load_path or isinstance(self.load_path, str):
-                raise ValueError('load_path must be a nonempty sequence of load-case names.')
-            if load_case_name is not None and load_case_name != self.load_path[-1]:
-                raise ValueError('The compatibility load case must be the final load_path stage.')
-            load_case_name = self.load_path[-1]
-        load_case_name, load_case = model.resolve_load_case(load_case_name)
-        model.validate()
+        load_case_name, load_case, _, _ = self.analysis_study_inputs(model, load_case_name)
 
         # Prepare directory ------------------------------------------------
         if output_dir is not None:
@@ -442,7 +432,11 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         force: bool = False,
     ) -> AnalysisRun:
         """Generate, execute, attest, and import an explicit pipe-volume study."""
-        model.validate()
+        element_ids = tuple(element_ids)
+        self.volume_study_inputs(
+            model, load_case_name, element_ids=element_ids, max_element_size=max_element_size,
+            element_order=element_order, export_tensor_stress=export_tensor_stress,
+        )
         output_dir = self.work_dir or Path(tempfile.mkdtemp(prefix="tuba_aster_volume_"))
         study = self.export_volume_study(
             model,

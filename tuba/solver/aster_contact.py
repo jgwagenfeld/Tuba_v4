@@ -71,6 +71,7 @@ def shoes(model, formulation):
 
 
 def validate_path(model, load_case, load_path):
+    from tuba.solver.compiler_contract import reject_fluid_contents
     if any(s.type == "spring" or s.mass > 0 for s in model.supports):
         raise ValueError("Native shoes with discrete springs or support masses are not yet qualified.")
     names = tuple(load_path) if load_path is not None else (load_case.name,)
@@ -81,6 +82,7 @@ def validate_path(model, load_case, load_path):
     if not np.isfinite(reference):
         raise ValueError("Load-path reference temperature must be finite.")
     for case in cases:
+        reject_fluid_contents(case, "native contact load paths")
         if not np.isfinite(case.temperature) or case.ref_temperature != reference:
             raise ValueError('Load-path temperatures must be finite with one reference temperature.')
         if case.internal_pressure or case.fields:

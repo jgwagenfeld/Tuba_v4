@@ -14,7 +14,7 @@ from tuba.model import TubaModel
 from tuba.refs import EntityRef
 from tuba.solver.aster_sidecar import build_solver_name_map, dump_solver_sidecar, dump_study_manifest
 from tuba.solver.code_aster_runtime import write_artifact_text
-from tuba.solver.compiler_contract import mixed_contract
+from tuba.solver.compiler_contract import mixed_contract, reject_fluid_contents
 
 
 class MixedCodeAsterStudyExporter:
@@ -38,9 +38,10 @@ class MixedCodeAsterStudyExporter:
         from tuba.solver.aster_contact import shoes
         from tuba.solver.modelisation import PipeModelization
         shoes(model, PipeModelization.SOLID_3D)
-        load_case_name, _ = model.resolve_load_case(load_case_name)
+        load_case_name, load_case = model.resolve_load_case(load_case_name)
 
         model.validate()
+        reject_fluid_contents(load_case, "mixed/CAD studies")
         root = Path(output_dir)
         root.mkdir(parents=True, exist_ok=True)
 

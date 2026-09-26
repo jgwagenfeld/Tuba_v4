@@ -88,6 +88,96 @@ def test_exported_study_revalidates_mutated_model_before_artifact_access(tmp_pat
     assert {p.name: p.read_bytes() for p in tmp_path.iterdir() if p.is_file()} == before
 
 
+@pytest.mark.parametrize('surface', ['export_volume_study', 'export_mixed_analysis_study',
+                                    'direct_volume', 'direct_mixed', 'model_solve'])
+@pytest.mark.parametrize('density', [0, 800])
+@pytest.mark.parametrize('existing', [False, True])
+def test_unsupported_contents_fail_before_all_volume_and_mixed_writes(tmp_path, monkeypatch, surface, density, existing):
+    from tests.test_fluid_contents import contents_model
+    from tuba.solver.aster_volume import PipeVolumeStudyExporter
+    from tuba.solver.mixed_study import MixedCodeAsterStudyExporter
+    model = contents_model(insulated=False)
+    model.define_operation('Filled').add_field('fluid_density', density)
+    output = tmp_path / 'study'
+    if existing:
+        output.mkdir()
+        for name in ('study.comm', 'study.mail', 'sentinel'):
+            (output / name).write_bytes(b'previous evidence')
+    before = {p.name: p.read_bytes() for p in output.glob('*')}
+    def forbidden(*args, **kwargs):
+        pytest.fail('Contents reached meshing or solver before refusal')
+    monkeypatch.setattr(MixedCodeAsterStudyExporter, '_write_med', forbidden)
+    import tuba.solver.aster_volume as volume
+    monkeypatch.setattr(volume, 'build_pipe_volume_mesh', forbidden)
+    options = dict(element_ids=[model.elements[0].id], max_element_size=0.02)
+    with pytest.raises(ValueError, match='fluid_density'):
+        if surface == 'direct_volume':
+            PipeVolumeStudyExporter().export_analysis_study(model, 'Filled', output, **options)
+        elif surface == 'direct_mixed':
+            MixedCodeAsterStudyExporter().export_analysis_study(model, 'Filled', output)
+        elif surface == 'model_solve':
+            model.solve(operation='Filled', work_dir=str(output), pipe_modelization='3D',
+                        volume_element_ids=options['element_ids'], max_element_size=0.02)
+        else:
+            getattr(CodeAsterSolver(), surface)(model, 'Filled', output,
+                **(options if surface == 'export_volume_study' else {}))
+    assert output.exists() == existing
+    assert {p.name: p.read_bytes() for p in output.glob('*')} == before
+
+
+@pytest.mark.parametrize('surface', ['export_study', 'export_analysis_study'])
+@pytest.mark.parametrize('earlier', [None, ('Filled', 'Empty'), ('Filled', 'Empty', 'Filled')])
+def test_contents_contact_and_history_refuse_before_writes(tmp_path, surface, earlier):
+    from tests.test_fluid_contents import contents_model
+    from tuba.model import OperationField
+    model = contents_model(insulated=False)
+    model.add_support(model.elements[-1].n2, type='rest', id='shoe', friction_coefficient=0.3)
+    model.define_load_case('Filled', fields=[OperationField('fluid_density', 800)])
+    model.define_load_case('Empty')
+    output = tmp_path / 'study'
+    output.mkdir()
+    (output / 'sentinel').write_bytes(b'previous')
+    solver = CodeAsterSolver(pipe_modelization='POU_D_T', load_path=earlier)
+    with pytest.raises(ValueError, match='fluid_density'):
+        getattr(solver, surface)(model, earlier[-1] if earlier else 'Filled', output)
+    assert {p.name: p.read_bytes() for p in output.iterdir()} == {'sentinel': b'previous'}
+
+
+@pytest.mark.parametrize('surface', ['export_study', 'export_analysis_study'])
+def test_contents_overflow_fails_before_directory_creation(tmp_path, surface):
+    from tests.test_fluid_contents import contents_model
+    model = contents_model(insulated=False)
+    model.sections['Pipe'].OD, model.sections['Pipe'].WT = 10, 1
+    model.define_operation('Filled').add_field('fluid_density', 1e308)
+    output = tmp_path / 'study'
+    with pytest.raises(ValueError, match='finite'):
+        getattr(CodeAsterSolver(), surface)(model, 'Filled', output)
+    assert not output.exists()
+
+
+def test_fluid_volume_solve_does_not_allocate_tempdir(monkeypatch):
+    from tests.test_fluid_contents import contents_model
+    import tuba.solver.aster as aster
+    model = contents_model(insulated=False)
+    model.define_operation('Filled').add_field('fluid_density', 0)
+    def forbidden(**kwargs):
+        pytest.fail('Unsupported contents allocated a temporary directory')
+    monkeypatch.setattr(aster.tempfile, 'mkdtemp', forbidden)
+    with pytest.raises(ValueError, match='fluid_density'):
+        model.solve(operation='Filled', pipe_modelization='3D',
+                    volume_element_ids=[model.elements[0].id], max_element_size=0.02)
+
+
+def test_pressurized_beam_contents_rejects_before_writes(tmp_path):
+    from tests.test_fluid_contents import contents_model
+    model = contents_model(insulated=False)
+    model.define_operation('Hydro', pressure=1.5e6).add_field('fluid_density', 1000)
+    output = tmp_path / 'study'
+    with pytest.raises(ValueError, match='pressure is unsupported'):
+        CodeAsterSolver(pipe_modelization='POU_D_T').export_study(model, 'Hydro', output)
+    assert not output.exists()
+
+
 class TestCodeAsterExportValidation(unittest.TestCase):
     def test_export_study_validates_before_writing_files(self):
         model = _model_with_missing_section()

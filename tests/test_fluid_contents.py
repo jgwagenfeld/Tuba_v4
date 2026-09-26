@@ -206,3 +206,81 @@ for name, density in [('Operating', 800), ('Hydrotest', 1000)]:
     with pytest.raises(AuthoredModelScript):
         write_model_script(target, model, last_text=None)
     assert target.read_bytes() == before
+
+
+def test_compiler_assigns_contents_per_element_without_mutating_material(tmp_path):
+    from tuba.solver.aster import CodeAsterSolver
+    model = contents_model(insulated=False)
+    with model.pipe('Pipe', 'Steel', route='P-200') as pipe:
+        pipe.start([0, 2, 0], support='anchor')
+        pipe.run(2)
+    case = model.define_operation('Filled')
+    case.add_field('fluid_density', 800, route_id='P-100')
+    case.add_field('fluid_density', 1000, route_id='P-200')
+    before = model.to_dict()
+    CodeAsterSolver().export_study(model, 'Filled', tmp_path)
+    comm = (tmp_path / 'study.comm').read_text()
+    area = math.pi / 4 * (0.1**2 - 0.08**2)
+    for density in (800, 1000):
+        effective = 7850 + density * math.pi / 4 * 0.08**2 / area
+        assert f'RHO={effective:.12E}' in comm
+    assert model.to_dict() == before
+
+
+def test_pre_contents_model_keeps_canonical_inputs_script_and_compiler(tmp_path):
+    import hashlib
+    import json
+    from pathlib import Path
+    from tuba.project.script import generate_model_script
+    from tuba.solver.aster import CodeAsterSolver
+    from tuba.analysis.provenance import build_solver_input_identity
+    model = Model.from_dict(json.loads(Path('tests/fixtures/pre_operation_model.json').read_text()))
+    canonical = json.dumps(model.to_dict(), sort_keys=True, separators=(',', ':')).encode()
+    assert hashlib.sha256(canonical).hexdigest() == '079723f441084622c16582f7f1bd99922a096df084567e612966be7a709f7838'
+    assert hashlib.sha256(generate_model_script(model).encode()).hexdigest() == 'ab29cffcc7d5c81f86ec479cbdd3c3c3a6f63e9ae332f5ca8c6cc0462baf7751'
+    CodeAsterSolver().export_study(model, 'Hot', tmp_path)
+    text = (tmp_path / 'study.comm').read_text().replace('\r\n', '\n').encode()
+    assert hashlib.sha256(text).hexdigest() == '9767c67601af67b4ba119c9e920cbd5dae798ec883f23144d38483884b4f8884'
+    assert build_solver_input_identity(model, 'Hot').fingerprint == 'c67e5e0fee6c935b961c85cc38a51ccdc39aad418616f418b087af91d44e5ed8'
+
+
+@pytest.mark.parametrize('change', ['density', 'scope', 'members', 'bore', 'case'])
+def test_contents_dependencies_invalidate_exported_identity(tmp_path, change):
+    from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+    from tuba.analysis.provenance import build_solver_input_identity
+    from tuba.solver.aster import CodeAsterSolver
+    model = contents_model(bent=True, insulated=False)
+    ids = [e.id for e in model.elements]
+    model.groups['selected'] = {'nodes': [], 'elements': ids[:1]}
+    field = model.define_operation('Filled').add_field('fluid_density', 800, group='selected')
+    model.define_operation('Other').add_field('fluid_density', 800, group='selected')
+    study = CodeAsterSolver().export_analysis_study(model, 'Filled', tmp_path)
+    case = 'Filled'
+    if change == 'density':
+        field.value = 1000
+    elif change == 'scope':
+        field.scope, field.group, field.element_ids = 'elements', None, ids[:1]
+    elif change == 'members':
+        model.groups['selected']['elements'] = ids
+    elif change == 'bore':
+        model.sections['Pipe'].WT = 0.012
+    else:
+        case = 'Other'
+    assert build_solver_input_identity(model, case) != study.solver_input_identity
+    if change != 'case':
+        with pytest.raises(ValueError, match='fingerprint'):
+            import_code_aster_artifacts(model=model, work_dir=tmp_path)
+
+
+def test_unselected_contents_does_not_block_empty_volume_or_mixed_export(tmp_path):
+    from tuba.solver.aster import CodeAsterSolver
+    model = contents_model(insulated=False)
+    # Shorten only the geometric model to keep this actual volume mesh small.
+    model.nodes[model.elements[0].n2].coords[0] = 0.2
+    model.define_operation('Empty', gravity=False)
+    model.define_operation('Filled').add_field('fluid_density', 1000)
+    solver = CodeAsterSolver()
+    volume = solver.export_volume_study(model, 'Empty', tmp_path / 'volume',
+                                       element_ids=[model.elements[0].id], max_element_size=0.005)
+    mixed = solver.export_mixed_analysis_study(model, 'Empty', tmp_path / 'mixed')
+    assert volume.load_case == mixed.load_case == 'Empty'

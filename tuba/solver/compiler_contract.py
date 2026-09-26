@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+import math
 from typing import Any
 
 from tuba.analysis.provenance import (
@@ -78,6 +79,25 @@ def beam_contract(
 ) -> CompilerContract:
     """The pipe/beam compilation: modelization, subdivision, discrete supports and contact."""
     from tuba.solver.aster_contact import shoes, validate_path
+    from tuba.physical import _fluid_density_by_element, _physical_properties_for_element, _element_quantities
+
+    if pipe_modelization is PipeModelization.POU_D_T:
+        if load_case.internal_pressure != 0 or any(f.quantity == "pressure" and f.value != 0 for f in load_case.fields):
+            raise ValueError("POU_D_T pipe pressure is unsupported: pressure end thrust and pressure stress require qualification.")
+        pipe_degree = {}
+        for elem in [e for e in model.elements if e.type in {"pipe_straight", "pipe_bend"}]:
+            for node in (elem.n1, elem.n2):
+                pipe_degree[node] = pipe_degree.get(node, 0) + 1
+        if getattr(model, "tees", []) or any(degree > 2 for degree in pipe_degree.values()):
+            raise ValueError("POU_D_T pipe tee/branch flexibility is unsupported.")
+
+    densities = _fluid_density_by_element(model, load_case)
+    for element in model.elements:
+        if element.id in densities:
+            props = _physical_properties_for_element(model, element, densities[element.id])
+            _element_quantities(model, element, props)
+            if props.metal_area_m2 <= 0 or not math.isfinite(props.mass_kg_per_m / props.metal_area_m2):
+                raise ValueError(f"Element {element.id!r} fluid_density effective material density must be finite.")
 
     inputs: dict[str, Any] | None = (
         {"pipe_modelization": pipe_modelization.value, "bend_segments": bend_segments(pipe_modelization)}
@@ -96,6 +116,8 @@ def beam_contract(
         # evidence solved before GROUP_NO lacks this input, so it reads stale.
         inputs = dict(inputs or {}, discrete_support_nodes="GROUP_NO")
     contact_specs = shoes(model, pipe_modelization)
+    if contact_specs:
+        reject_fluid_contents(load_case, "native contact studies")
     if load_path is not None and (not contact_specs or pipe_modelization is not PipeModelization.POU_D_T):
         raise ValueError("load_path histories require pipe_modelization='POU_D_T' and a resting shoe.")
     if contact_specs:
@@ -122,6 +144,12 @@ def beam_contract(
         line_segments=line_segments,
         discrete_support_nodes=discrete,
     )
+
+
+def reject_fluid_contents(load_case: LoadCase, context: str) -> None:
+    """Contents weight is qualified only for linear 1D pipe studies."""
+    if any(field.quantity == "fluid_density" for field in load_case.fields):
+        raise ValueError(f"Operation {load_case.name!r}: fluid_density is unsupported in {context}.")
 
 
 def volume_contract(

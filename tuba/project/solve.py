@@ -75,13 +75,17 @@ def solve_project(
     model.validate()
     folders = {operation: evidence_dir(project.root, operation) for operation in operations}
     exporter = settings.solver()
+    identities = {
+        operation: expected_identity(model, operation, solver_options=options, volume_export=volume_export)
+        for operation in operations
+    }
     with claim_solve(project.root):
         solve = operations if force else tuple(
             operation
             for operation in operations
             if not evidence_verdict(
                 folders[operation],
-                expected_identity(model, operation, solver_options=options, volume_export=volume_export),
+                identities[operation],
             ).reusable
         )
         staging = project.root / STAGING
