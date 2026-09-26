@@ -1,6 +1,6 @@
 # Operation-specific fluid contents
 
-**Status:** Proposed for review, 2026-09-26. Product implementation has not started.
+**Status:** Approved by the user, 2026-09-26. Product implementation has not started.
 **Basis:** Package A of `docs/superpowers/plans/2026-09-26-library-reliability-and-v2-parity.md`.
 **Branch:** `codex/fluid-contents`, based on completed reliability milestone `ca17624`.
 
@@ -208,4 +208,4 @@ no merge, push or publication is part of this package.
 Self-review: every Package A requirement is covered above. The pressure limitation
 is explicit, old defaults remain dry, additional mass has one physical owner,
 legacy field persistence is included, and unsupported cases fail before side
-effects. This document is a proposal, not evidence that fluid contents already work.
+effects. This document specifies the approved design; it is not evidence that fluid contents already work.
