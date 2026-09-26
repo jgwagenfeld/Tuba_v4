@@ -1,6 +1,6 @@
 # Library Reliability and V2 Parity Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. This document schedules the work; it does not authorize publishing, pushing, or replacing concurrent work.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking. This document schedules the work; it does not authorize publishing, pushing, or replacing concurrent work.
 
 **Goal:** Make Tuba's supported engineering workflows reject invalid input, restore valuable v2 piping capabilities, and qualify realistic combinations through Code_Aster and processed results.
 
@@ -56,6 +56,102 @@ The next implementation batch is **Milestone 1 only**. Milestones are independen
 
 ## Milestone 1: Reliability
 
+### Implementation record, 2026-09-26 — complete
+
+Branch `codex/library-reliability` is isolated at `.worktrees/library-reliability`,
+based on `f56240f1df5afa4fa1ec2b50385b4111e5ce8a2b`. Implementation and reference
+repairs are at `c4618ed13f16a566850a4606fd11e2a46401e119`. No merge or push is included.
+
+Implemented numerical admission in the existing validator, added the three
+missing pre-side-effect validation calls, and replaced smoke-only CI/release
+qualification with the shared mandatory selection. Review also closed mutable
+I-beam properties and coupled-pipe diagnostic gaps. No dependencies or solver
+physics were changed.
+
+Verification completed so far:
+
+- Original baseline: 12 validation/export/schema tests passed.
+- Numerical regression first run: 130 failed, 18 passed; implementation selection:
+  208 passed and 5 subtests passed.
+- Side-effect regression first run: 4 failed; implementation selection: 129 passed.
+  Two real Code_Aster smoke/reference tests passed.
+- Gate regression first run: 19 failed. Review regressions reproduced all three
+  findings (one platform test, 13 numerical cases). After fixes, the combined
+  selection passed 265 tests and 5 subtests. All 174 bundled I-beam profiles pass.
+- First expanded real qualification: 31 passed, 1 failed, 2 subtests passed.
+  The failure exposed a stale tee-reference calculation: the current mixed
+  fixture supplies both model aliases and physical mesh reactions. The reference
+  now counts each mesh reaction once and includes beam-anchor nodal moments.
+  Its arithmetic regression failed first and passes after repair; the real tee
+  reference passes both mesh sizes with its original tolerances. Gate/workflow
+  tests then passed 33 tests.
+- Full Python suite after the production fixes: 1,667 passed, 42 skipped,
+  138 subtests passed in 1,178.59 s. One Windows ZMQ event-loop compatibility
+  warning. The additional tee-helper regression is covered by the 33-test run
+  above; the solver references require their separate opt-in run.
+- Complete real-solver gate after the tee-reference repair: **32 passed, zero
+  skipped, 2 subtests passed in 1,159.45 s**. Command exited zero and the shared
+  gate independently accepted its JUnit report. This completes Milestone 1.
+
+Local evidence is preserved under `.build/qualification/`: the JUnit report
+`code-aster-references.xml`, `qualification-final.log`, `python-suite.log`,
+`doctor.log`, and `implementation-log.md`. These generated files are not committed.
+
+Real-solver execution uses WSL Ubuntu, Code_Aster `18.0.12 (n/a)`, after a passing
+runtime doctor. The required file selection is listed under Task 3. Its existing
+acceptance thresholds remain unchanged:
+
+| Reference | Existing acceptance basis |
+| --- | --- |
+| Cantilever smoke | Displacement 3%; force and moment reactions 0.1% |
+| Beam pipes | Axial, bending, thermal, elbow and refinement differences 1%; elbow reaction moment 0.1 Nm |
+| Supports | Existing displacement/reaction/contact checks, including 1-2% references and Coulomb ratio 0.1% |
+| Line loads | Existing 0.1-0.2% relative / 1 N absolute reaction comparisons |
+| Nodal temperature | Displacement-vector error at most 0.25% |
+| Pipe volumes | Hoop stress 5%, radial stress 8%, bend pressure resultant 3% |
+| Mixed volumes | Solve/import, artifact identity and scene-contract assertions; these cases alone do not establish a numerical error bound |
+| Tee refinement | Force 5%, moment 8%, stress 35%, hotspot movement 0.02 m, hotspot within 0.06 m of junction |
+| Insulation | Weight and wind reactions `rel=1e-5` |
+| Friction cycles | Force/equilibrium/Coulomb bounds 10 N, penetration 1e-5 m, refinement endpoint difference 30 N, plus existing slip/work/status checks |
+
+Reproduce from the implementation worktree on this host:
+
+```powershell
+$env:UV_NO_SYNC='1'
+$env:UV_PROJECT_ENVIRONMENT='D:\Gitprojects\Tuba_v4\.venv'
+uv run python -m pytest -q --tb=short
+$env:TUBA_CODE_ASTER_EXEC_METHOD='wsl'
+uv run python -m tuba.solver.code_aster_doctor --check
+uv run python scripts/check_code_aster_references.py
+```
+
+Decisions made during implementation:
+
+- Reuse the installed Python environment with `UV_NO_SYNC=1` and
+  `UV_PROJECT_ENVIRONMENT`, without installing packages. This preserves shared
+  work; optional-package availability remains an environment constraint.
+- Keep the JSON schema structural and the existing semantic validator authoritative.
+  Callers using only `validate_model_dict` still receive structural checks.
+- Add project-level admission before claiming or clearing solve staging. This adds
+  one validation traversal but preserves prior artifacts on invalid forced solves.
+- Correct the stale Pages test expectation to include its already-configured IFC
+  dependency. The Pages workflow itself is unchanged.
+- Require finite persisted I-beam properties, positive required A/IY/IZ/JX and
+  supplied H/B/Tw/Tf, while preserving signed catalog offsets. Malformed custom
+  sections previously admitted are deliberately rejected.
+- Let newly mandatory beam, insulation and friction references inherit the runtime
+  configuration instead of forcing WSL/Ubuntu. Local execution follows the same
+  runtime discovery contract as Linux CI.
+- Repair the tee reference's reaction aggregation instead of changing its
+  convergence tolerances. It qualifies the existing mixed tee fixture; separate
+  mixed-workflow checks remain in the gate.
+
+Fresh review reported three Important findings, all fixed with failing-then-passing
+regressions; no Minor findings were deferred. Its exclusions remain explicit:
+later milestones are unimplemented, this is not a comprehensive admission audit
+of every field/support/geometry/formulation, and numerical qualification is based
+on the actual runs recorded here rather than the reviewer's inspection.
+
 ### Task 1: Reject invalid engineering scalars consistently
 
 **Files:** Modify `tuba/validation.py`; modify `tuba/schema.py` only where schema admission otherwise contradicts semantic validation; inspect `tuba/model.py` reconstruction and section semantics. Create `tests/test_numeric_validation.py`; extend `tests/test_validation.py` and `tests/test_schema.py` as needed. Document input rules in `docs/content/reference/public-api.md`.
@@ -79,7 +175,7 @@ The next implementation batch is **Milestone 1 only**. Milestones are independen
 
 Do not clamp values, substitute zero, silently change cable behavior, or globally rewrite serializers. Catch inappropriate scalar types as actionable `ModelValidationError` messages rather than leaking incidental arithmetic exceptions.
 
-- [ ] Add the following regression to `tests/test_numeric_validation.py`, then parameterize the same admission boundary over the table above. Include both mutation and load-case/operation variants.
+- [x] Add the following regression to `tests/test_numeric_validation.py`, then parameterize the same admission boundary over the table above. Include both mutation and load-case/operation variants.
 
 ```python
 import pytest
@@ -93,12 +189,12 @@ def test_nan_operating_temperature_is_rejected():
         model.validate()
 ```
 
-- [ ] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_numeric_validation.py -q` and record the missing-validation failures.
-- [ ] Implement shared finite/domain checks in `tuba/validation.py`; invoke material and uniform-case checks from `validate_model`, and strengthen `_validate_section`. Apply matching schema constraints where expressible; semantic finiteness checks remain authoritative for Python values.
-- [ ] Add passing boundary examples: zero density, zero alpha, a finite negative Celsius temperature, valid negative nu, zero pressure, zero corrosion, and the existing solid-bar representation. Add invalid string/bool values for material and load scalars so error behavior is deliberate.
-- [ ] Verify deserialized invalid records are refused by reconstruction or subsequent `validate()`; check mutable records cannot bypass admission. Preserve valid old-model round trips.
-- [ ] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_numeric_validation.py tests/test_validation.py tests/test_schema.py tests/test_tuba_core.py tests/test_operation_model.py tests/test_operation_fields.py -q`.
-- [ ] Review the diff and record the exact rules and test results. Commit only this task's owned paths when implementation is being committed; no repo-wide staging.
+- [x] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_numeric_validation.py -q` and record the missing-validation failures.
+- [x] Implement shared finite/domain checks in `tuba/validation.py`; invoke material and uniform-case checks from `validate_model`, and strengthen `_validate_section`. Apply matching schema constraints where expressible; semantic finiteness checks remain authoritative for Python values.
+- [x] Add passing boundary examples: zero density, zero alpha, a finite negative Celsius temperature, valid negative nu, zero pressure, zero corrosion, and the existing solid-bar representation. Add invalid string/bool values for material and load scalars so error behavior is deliberate.
+- [x] Verify deserialized invalid records are refused by reconstruction or subsequent `validate()`; check mutable records cannot bypass admission. Preserve valid old-model round trips.
+- [x] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_numeric_validation.py tests/test_validation.py tests/test_schema.py tests/test_tuba_core.py tests/test_operation_model.py tests/test_operation_fields.py -q`.
+- [x] Review the diff and record the exact rules and test results. Commit only this task's owned paths when implementation is being committed; no repo-wide staging.
 
 ### Task 2: Enforce validation before study side effects
 
@@ -106,7 +202,7 @@ def test_nan_operating_temperature_is_rejected():
 
 **Interfaces:** Existing `export_study`, `analysis_study_inputs`, `export_analysis_study`, `volume_study_inputs`, mixed export, and `Model.solve` consume Task 1 validation. Preserve their signatures and successful return types. Do not reimplement scalar rules in individual writers.
 
-- [ ] Add an export regression with an output directory that does not exist. This pins the observed NaN-temperature failure and the side-effect boundary.
+- [x] Add an export regression with an output directory that does not exist. This pins the observed NaN-temperature failure and the side-effect boundary.
 
 ```python
 def test_invalid_temperature_does_not_create_study(tmp_path):
@@ -128,10 +224,10 @@ def test_invalid_temperature_does_not_create_study(tmp_path):
     assert not output.exists()
 ```
 
-- [ ] Run the export tests and inspect every entry point above. Extend existing volume/mixed fixtures with one invalid material and one invalid uniform load; spy on their meshing/runtime boundary and assert it is not called. Verify a pre-existing valid artifact directory remains byte-identical after rejection.
-- [ ] Move calls to the common validation boundary ahead of writes/meshing where tests require it. Ensure direct solver calls and the project solve path receive the same error. Do not remove formulation-specific guards.
-- [ ] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_export_validation.py tests/test_code_aster_study.py tests/test_code_aster_volume_study.py tests/test_mixed_code_aster_export.py tests/test_project_solve.py tests/test_solver_input_provenance.py -q`.
-- [ ] Run the two real Code_Aster smoke/reference tests using the command below, confirming valid loads still compile, solve, and import. Review and record the scoped result before committing owned changes.
+- [x] Run the export tests and inspect every entry point above. Extend existing volume/mixed fixtures with one invalid material and one invalid uniform load; spy on their meshing/runtime boundary and assert it is not called. Verify a pre-existing valid artifact directory remains byte-identical after rejection.
+- [x] Move calls to the common validation boundary ahead of writes/meshing where tests require it. Ensure direct solver calls and the project solve path receive the same error. Do not remove formulation-specific guards.
+- [x] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_export_validation.py tests/test_code_aster_study.py tests/test_code_aster_volume_study.py tests/test_mixed_code_aster_export.py tests/test_project_solve.py tests/test_solver_input_provenance.py -q`.
+- [x] Run the two real Code_Aster smoke/reference tests using the command below, confirming valid loads still compile, solve, and import. Review and record the scoped result before committing owned changes.
 
 ```powershell
 $env:UV_NO_SYNC='1'
@@ -161,13 +257,13 @@ tests/test_insulation_solver.py
 tests/integration/test_code_aster_friction.py
 ```
 
-- [ ] Add tests around JUnit verdict handling for passing results, failures, errors, one skipped required case, and zero collected tests. Use actual minimal XML documents, for example `<testsuites><testsuite tests="1" failures="0" errors="0" skipped="1"><testcase name="reference"><skipped/></testcase></testsuite></testsuites>`, which must return a failing verdict.
-- [ ] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_code_aster_reference_gate.py -q` before implementation to establish failing cases.
-- [ ] Implement the small subprocess/JUnit gate. Count verdicts once rather than double-counting suite aggregates and child records. Remove only this invocation's previous report before running; a failed invocation must never reuse an old passing report. Preserve the subprocess failure code even if XML is absent.
-- [ ] Replace both workflows' smoke-only pytest command with `uv run python scripts/check_code_aster_references.py`. Retain the existing release dependency on `code-aster-integration`. Upload the qualification report on failure as well as success. Do not weaken existing gallery/release checks.
-- [ ] Run the gate tests and then the full real reference command locally with WSL selected. Record solver version, source SHA, selection, tolerances already asserted by each test, and result counts. A discovered engineering failure is a blocker with a bounded fix, not a reason to skip the case.
-- [ ] Keep self-hosted solver execution restricted to trusted code; do not expose it to arbitrary fork PRs. Main/manual/release qualification remains the default until runner isolation supports more triggers.
-- [ ] Review the workflow diff and commit the gate independently from physics changes. Milestone 1 is complete only when Tasks 1-3 pass on the integrated revision.
+- [x] Add tests around JUnit verdict handling for passing results, failures, errors, one skipped required case, and zero collected tests. Use actual minimal XML documents, for example `<testsuites><testsuite tests="1" failures="0" errors="0" skipped="1"><testcase name="reference"><skipped/></testcase></testsuite></testsuites>`, which must return a failing verdict.
+- [x] Run `$env:UV_NO_SYNC='1'; uv run python -m pytest tests/test_code_aster_reference_gate.py -q` before implementation to establish failing cases.
+- [x] Implement the small subprocess/JUnit gate. Count verdicts once rather than double-counting suite aggregates and child records. Remove only this invocation's previous report before running; a failed invocation must never reuse an old passing report. Preserve the subprocess failure code even if XML is absent.
+- [x] Replace both workflows' smoke-only pytest command with `uv run python scripts/check_code_aster_references.py`. Retain the existing release dependency on `code-aster-integration`. Upload the qualification report on failure as well as success. Do not weaken existing gallery/release checks.
+- [x] Run the gate tests and then the full real reference command locally with WSL selected. Record solver version, source SHA, selection, tolerances already asserted by each test, and result counts. A discovered engineering failure is a blocker with a bounded fix, not a reason to skip the case.
+- [x] Keep self-hosted solver execution restricted to trusted code; do not expose it to arbitrary fork PRs. Main/manual/release qualification remains the default until runner isolation supports more triggers.
+- [x] Review the workflow diff and commit the gate independently from physics changes. Milestone 1 is complete only when Tasks 1-3 pass on the integrated revision.
 
 ## Milestone 2: Restore valuable V2 capabilities
 
