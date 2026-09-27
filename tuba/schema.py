@@ -178,6 +178,10 @@ MODEL_SCHEMA_V4 = {
                     "internal_pressure": {"type": "number"},
                     "temperature": {"type": "number"},
                     "ref_temperature": {"type": "number"},
+                    "fields": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/operationField"},
+                    },
                     "nodal_forces": {
                         "type": "array",
                         "items": {"$ref": "#/$defs/nodalForce"},
@@ -326,7 +330,7 @@ MODEL_SCHEMA_V4 = {
             "type": "object",
             "required": ["quantity", "value"],
             "properties": {
-                "quantity": {"enum": ["pressure", "temperature", "wind", "line_load"]},
+                "quantity": {"enum": ["pressure", "temperature", "wind", "line_load", "fluid_density"]},
                 "value": {"type": "number"},
                 "direction": {"$ref": "#/$defs/vector3"},
                 "scope": {"enum": ["all", "group", "route", "elements", "nodes"]},

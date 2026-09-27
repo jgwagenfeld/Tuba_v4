@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from tuba.geometry.profiles import profile_for_section
-from tuba.model import Element, TubaModel
+from tuba.model import Element, LoadCase, PipeSection, TubaModel
 from tuba.refs import EntityRef
 
 
@@ -32,6 +32,9 @@ class ElementPhysicalProperties:
     mass_kg_per_m: float
     wind_diameter_m: float
     surface_area_m2_per_m: float
+    fluid_density_kg_m3: float = 0.0
+    bore_area_m2: float = 0.0
+    fluid_mass_kg_per_m: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -47,10 +50,36 @@ class ElementQuantities:
     insulation_cost: float
     surface_area_m2: float
     wind_projected_area_m2: float
+    fluid_mass_kg: float = 0.0
 
 
-def physical_properties_for_element(model: TubaModel, element: Element | str | EntityRef) -> ElementPhysicalProperties:
+def _fluid_density_by_element(model: TubaModel, case: LoadCase | None) -> dict[str, float]:
+    """Resolve a case once, applying equal overlapping contents assignments once."""
+    if case is None:
+        return {}
+    from tuba.validation import operation_fields_problem
+
+    problems = operation_fields_problem(case.fields, model)
+    if problems:
+        raise ValueError(f"Operation {case.name!r}: " + "; ".join(problems))
+    return {elem.id: float(field.value)
+            for field in case.fields if field.quantity == "fluid_density"
+            for elem in model.resolve_operation_field_elements(field)}
+
+
+def physical_properties_for_element(
+    model: TubaModel, element: Element | str | EntityRef, *, operation: str | None = None,
+) -> ElementPhysicalProperties:
+    """Physical inputs for a named case, or dry metal and insulation by default."""
     elem = _resolve_element(model, element)
+    case = model.resolve_load_case(operation)[1] if operation is not None else None
+    densities = _fluid_density_by_element(model, case)
+    return _physical_properties_for_element(model, elem, densities.get(elem.id, 0.0))
+
+
+def _physical_properties_for_element(
+    model: TubaModel, elem: Element, fluid_density: float,
+) -> ElementPhysicalProperties:
     section = model.sections[elem.section]
     material = model.materials[elem.material]
     profile = profile_for_section(section)
@@ -75,7 +104,16 @@ def physical_properties_for_element(model: TubaModel, element: Element | str | E
     effective_od = effective_radius * 2.0
     insulation_volume = math.pi * max(effective_radius**2 - bare_radius**2, 0.0)
     insulation_mass = insulation_volume * insulation_density
-    mass = pipe_mass + insulation_mass
+    bore_area = 0.0
+    if elem.type in {"pipe_straight", "pipe_bend"} and isinstance(section, PipeSection):
+        try:
+            bore_area = math.pi * (section.OD - 2 * section.WT)**2 / 4
+        except OverflowError as exc:
+            raise ValueError(f"Element {elem.id!r} fluid_density bore area must be finite.") from exc
+    fluid_mass = fluid_density * bore_area
+    mass = pipe_mass + insulation_mass + fluid_mass
+    if not all(math.isfinite(value) for value in (bore_area, fluid_mass, mass)):
+        raise ValueError(f"Element {elem.id!r} fluid_density derived mass must be finite.")
 
     return ElementPhysicalProperties(
         element_id=elem.id,
@@ -95,13 +133,24 @@ def physical_properties_for_element(model: TubaModel, element: Element | str | E
         mass_kg_per_m=mass,
         wind_diameter_m=effective_od,
         surface_area_m2_per_m=math.pi * effective_od,
+        fluid_density_kg_m3=fluid_density,
+        bore_area_m2=bore_area,
+        fluid_mass_kg_per_m=fluid_mass,
     )
 
 
-def element_quantities(model: TubaModel, element: Element | str | EntityRef) -> ElementQuantities:
+def element_quantities(
+    model: TubaModel, element: Element | str | EntityRef, *, operation: str | None = None,
+) -> ElementQuantities:
     elem = _resolve_element(model, element)
-    props = physical_properties_for_element(model, elem)
+    props = physical_properties_for_element(model, elem, operation=operation)
+    return _element_quantities(model, elem, props)
+
+
+def _element_quantities(model: TubaModel, elem: Element, props: ElementPhysicalProperties) -> ElementQuantities:
     length = element_length(model, elem)
+    if not math.isfinite(props.mass_kg_per_m * length):
+        raise ValueError(f"Element {elem.id!r} fluid_density derived total mass must be finite.")
     return ElementQuantities(
         element_id=elem.id,
         length_m=length,
@@ -114,6 +163,7 @@ def element_quantities(model: TubaModel, element: Element | str | EntityRef) -> 
         insulation_cost=props.insulation_cost_per_m * length,
         surface_area_m2=props.surface_area_m2_per_m * length,
         wind_projected_area_m2=props.wind_diameter_m * length,
+        fluid_mass_kg=props.fluid_mass_kg_per_m * length,
     )
 
 

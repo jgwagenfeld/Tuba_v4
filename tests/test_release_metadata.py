@@ -110,7 +110,7 @@ def test_ci_and_release_workflows_cover_local_release_gates():
     assert "scripts/check_release_tag.py" in release
     assert 'tag "${{ inputs.tag }}"' in release
     assert "TUBA_RUN_CODE_ASTER_INTEGRATION: \"1\"" in ci
-    assert "tests/test_code_aster_real_smoke.py" in ci
+    assert "scripts/check_code_aster_references.py" in ci
 
 
 def test_windows_ifc_job_fails_closed_on_the_locked_runtime():
@@ -147,7 +147,7 @@ def test_source_release_gates_tag_on_build_and_real_code_aster_without_pypi():
     assert code_aster["runs-on"] == ["self-hosted", "code-aster"]
     assert code_aster["env"]["TUBA_RUN_CODE_ASTER_INTEGRATION"] == "1"
     assert "uv run python -m tuba.solver.code_aster_doctor --check" in commands
-    assert "uv run python -m pytest tests/test_code_aster_real_smoke.py" in commands
+    assert "uv run python scripts/check_code_aster_references.py" in commands
     assert jobs["build"]["needs"] == "code-aster-integration"
     assert jobs["tag"]["needs"] == "build"
     assert jobs["tag"]["permissions"]["contents"] == "write"
@@ -233,7 +233,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
 
     build = "uv run python scripts/build_pages.py pages --output _site"
     assert source.count(build) == 1
-    assert "uv sync --group docs --extra code-aster-rmed --locked" in commands
+    assert "uv sync --group docs --extra code-aster-rmed --extra ifc --locked" in commands
     assert any(
         step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
         for step in steps
@@ -258,7 +258,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
     sync = _only_step_index(
         steps,
         lambda step: step.get("run")
-        == "uv sync --group docs --extra code-aster-rmed --locked",
+        == "uv sync --group docs --extra code-aster-rmed --extra ifc --locked",
     )
     npm = _only_step_index(
         steps,

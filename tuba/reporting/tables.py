@@ -341,6 +341,32 @@ def build_load_cases_table(model: TubaModel) -> ReportTable:
     )
 
 
+def build_operation_quantities_table(model: TubaModel) -> ReportTable:
+    """Calculated input masses, distinct from imported solver reactions."""
+    from tuba.quantities import quantity_takeoff
+
+    mass_columns = ("pipe_mass_kg", "insulation_mass_kg", "fluid_mass_kg", "total_mass_kg")
+    missing_definition = any(e.material not in model.materials or e.section not in model.sections
+                             for e in model.elements)
+    rows = []
+    for name, case in sorted({**model.load_cases, **model.operations}.items()):
+        masses = ({key: None for key in mass_columns} if missing_definition
+                  else quantity_takeoff(model, operation=name).totals)
+        rows.append({"name": name, "gravity": case.gravity,
+                     **{key: masses[key] for key in mass_columns}})
+    return ReportTable(
+        id="operation_quantities", title="Operation quantities (calculated inputs)", source="model",
+        columns=(ReportColumn("name", "Case"), ReportColumn("gravity", "Gravity enabled"),
+                 ReportColumn("pipe_mass_kg", "Metal mass", unit="kg"),
+                 ReportColumn("insulation_mass_kg", "Insulation mass", unit="kg"),
+                 ReportColumn("fluid_mass_kg", "Contents mass", unit="kg"),
+                 ReportColumn("total_mass_kg", "Total mass", unit="kg")),
+        rows=tuple(rows),
+        unavailable_reason=("Mass quantities require a defined material and section for every element."
+                            if missing_definition else None),
+    )
+
+
 MODEL_TABLE_BUILDERS = (
     build_project_summary_table,
     build_nodes_table,
@@ -349,6 +375,7 @@ MODEL_TABLE_BUILDERS = (
     build_materials_table,
     build_supports_table,
     build_load_cases_table,
+    build_operation_quantities_table,
 )
 
 

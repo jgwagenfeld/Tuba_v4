@@ -50,7 +50,7 @@ FIN
 ''')
     CodeAsterSolver()._write_export(root)
     execution = run_code_aster_export(root / 'study.export', root,
-        CodeAsterRuntimeConfig(exec_method='wsl', wsl_distro='Ubuntu', timeout_seconds=240))
+        CodeAsterRuntimeConfig(exec_method=os.environ.get('TUBA_CODE_ASTER_EXEC_METHOD', 'auto'), timeout_seconds=240))
     return parse_tables.parse_csv_table(root / 'study_effo.csv')
 
 
@@ -167,7 +167,7 @@ class NativeContactReference(unittest.TestCase):
                 (case_root/'qualification.json').write_text(json.dumps(record,indent=2))
         (root/'choc-driver-qualification.json').write_text(json.dumps(records,indent=2))
         lines=['# Native contact diagnostic qualification', '',
-               'Code_Aster 18.00.12; real WSL Ubuntu external execution. SI units. Selected law: DIS_CHOC (penalty contact).',
+               'Real Code_Aster external execution using the configured runtime. SI units. Selected law: DIS_CHOC (penalty contact).',
                'POU_D_T circular pipe OD114.3mm, WT6mm, L2m, E200GPa; beam base tangential travel imposed, pipe tangential displacement solved. Normal displacement fixes a measured 10 kN preload. This is not a force-controlled opening qualification.',
                '', 'Acceptance: force/reference within 1%; reaction-force equilibrium below 10 N (0.1%); penetration <=1e-5m; Coulomb excess <=10N; endpoint step sensitivity <=30N.', '',
                '| kn N/m | kt N/m | step | penetration m | stick N | slide N | reverse unload N | reverse slide N | equilibrium N |',

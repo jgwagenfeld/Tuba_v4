@@ -59,7 +59,14 @@ jobs:
       - run: npm ci
         working-directory: viewer
       - run: uv run python -m tuba.solver.code_aster_doctor --check
-      - run: uv run python -m pytest tests/test_code_aster_real_smoke.py
+      - run: uv run python scripts/check_code_aster_references.py
+      - name: Upload numerical qualification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-aster-reference-results
+          path: .build/qualification/code-aster-references.xml
+          if-no-files-found: warn
       - run: uv run python scripts/refresh_code_aster_gallery.py --all
       - run: uv run python scripts/build_pages.py pages --output .build/code-aster-pages
 

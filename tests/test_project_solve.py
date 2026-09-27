@@ -45,8 +45,62 @@ def _files(folder: Path) -> dict[str, bytes]:
     return {path.name: path.read_bytes() for path in folder.iterdir() if path.is_file()}
 
 
+@pytest.mark.parametrize('force', [False, True])
+def test_invalid_numerics_fail_before_project_tool_state_changes(tmp_path, force):
+    from tuba.validation import ModelValidationError
+
+    project = _copy(tmp_path, RACK)
+    namespace = project.run_model()
+    model = namespace['model']
+    next(iter(model.materials.values())).E = -1
+    staging = project.root / '.tuba' / 'staging'
+    staging.mkdir(parents=True)
+    (staging / 'previous-input').write_bytes(b'preserve before validation')
+    before = {p.relative_to(project.root): p.read_bytes()
+              for p in project.root.rglob('*') if p.is_file()}
+
+    with pytest.raises(ModelValidationError, match='E'):
+        solve_project(project, namespace, force=force)
+
+    after = {p.relative_to(project.root): p.read_bytes()
+             for p in project.root.rglob('*') if p.is_file()}
+    assert after == before
+
+
 class _Exported(Exception):
     pass
+
+
+@pytest.mark.parametrize('force', [False, True])
+def test_contents_volume_rejection_preserves_project_staging_and_evidence(tmp_path, force):
+    from tuba.model import OperationField
+    root = tmp_path / 'contents-project'
+    root.mkdir()
+    (root / 'model.py').write_text(VOLUME_MODEL, encoding='utf-8')
+    (root / 'study.py').write_text(VOLUME_STUDY, encoding='utf-8')
+    project = load_project(root)
+    namespace = project.run_model()
+    namespace['model'].load_cases['Pressure'].fields.append(OperationField('fluid_density', 1000))
+    for folder in (root / '.tuba' / 'staging', root / 'evidence' / 'Pressure'):
+        folder.mkdir(parents=True)
+        (folder / 'sentinel').write_bytes(b'previous evidence')
+    before = {p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+    with pytest.raises(ValueError, match='fluid_density'):
+        solve_project(project, namespace, force=force, solver=_RefuseToSolve())
+    assert {p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()} == before
+
+
+def test_adding_contents_invalidates_committed_real_evidence(tmp_path):
+    from tuba.model import OperationField
+    from tuba.project.freshness import expected_identity, stale_operations
+    project = _copy(tmp_path, RACK)
+    model = project.run_model()['model']
+    folder = project.root / 'evidence' / 'Operating'
+    identity = expected_identity(model, 'Operating')
+    assert evidence.evidence_verdict(folder, identity).reusable
+    definition = model.operations.get('Operating', model.load_cases.get('Operating'))
+    definition.fields.append(OperationField('fluid_density', 1000))
+    assert stale_operations(model, [identity], project_root=project.root) == ['Operating']
 
 
 class _RefuseToSolve:

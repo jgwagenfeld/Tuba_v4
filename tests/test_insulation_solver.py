@@ -62,7 +62,7 @@ def test_insulation_reaches_solver_identity_wind_and_surface():
 def test_insulated_pipe_gravity_matches_total_weight():
     model, fixed, _ = insulated_cantilever()
     root = Path(os.environ.get("TUBA_INSULATION_CHECK_DIR", ".build/insulation-check"))
-    run = model.solve(load_case="Weight", work_dir=str(root), exec_method="wsl")
+    run = model.solve(load_case="Weight", work_dir=str(root), exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"))
     expected = (7850 * math.pi * (0.05**2 - 0.04**2) + 100 * math.pi * (0.1**2 - 0.05**2)) * 2 * 9.81
     reaction = run.results.node_results[fixed].reaction_force
     assert reaction[2] == pytest.approx(expected, rel=1e-5)
@@ -70,7 +70,7 @@ def test_insulated_pipe_gravity_matches_total_weight():
 
     model.get_element("pipe").type = "beam"
     model.define_operation("Wind", gravity=False).add_field("wind", 1000, direction=[0, 1, 0])
-    wind = model.solve(load_case="Wind", work_dir=str(root / "wind"), exec_method="wsl")
+    wind = model.solve(load_case="Wind", work_dir=str(root / "wind"), exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"))
     reaction = wind.results.node_results[fixed].reaction_force
     assert reaction[1] == pytest.approx(-400, rel=1e-5)
     assert abs(reaction[5]) == pytest.approx(400, rel=1e-5)

@@ -16,6 +16,7 @@ MODEL_TABLE_IDS = (
     "materials",
     "supports",
     "load_cases",
+    "operation_quantities",
 )
 
 
@@ -73,6 +74,7 @@ def test_model_table_rows_are_sorted_by_stable_ids(review_model):
     ]
     assert [row["support_id"] for row in _rows(tables, "supports")] == ["SUP-1", "SUP-2"]
     assert [row["load_case"] for row in _rows(tables, "load_cases")] == ["Hot", "Upset"]
+    assert [row["name"] for row in _rows(tables, "operation_quantities")] == ["Hot", "Upset"]
 
 
 def test_line_list_uses_node_distance_for_straights_and_arc_length_for_bends(review_model):
@@ -207,3 +209,6 @@ def test_missing_material_does_not_create_a_mass_value(review_model):
     )
 
     assert pipe["total_mass_kg"] is None
+    quantities = _table(build_model_tables(review_model), "operation_quantities")
+    assert quantities.unavailable_reason
+    assert all(row["total_mass_kg"] is None for row in quantities.rows)

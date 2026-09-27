@@ -638,30 +638,54 @@ class Operation:
         node_ids: Optional[List[str]] = None,
         direction: Optional[List[float]] = None,
     ) -> OperationField:
-        if group is not None:
-            scope = "group"
-        elif route_id is not None:
-            scope = "route"
-        elif element_ids is not None:
-            scope = "elements"
-        elif node_ids is not None:
-            scope = "nodes"
-        field_record = OperationField(
-            quantity=quantity,
-            value=float(value),
-            direction=(None if direction is None else [float(value) for value in direction]),
-            scope=scope,
-            profile=profile,
-            group=group,
-            route_id=route_id,
-            station_start=station_start,
-            station_end=station_end,
-            element_ids=list(element_ids or []),
-            node_ids=list(node_ids or []),
+        field_record = _make_operation_field(
+            quantity, value, scope=scope, profile=profile, group=group, route_id=route_id,
+            station_start=station_start, station_end=station_end, element_ids=element_ids,
+            node_ids=node_ids, direction=direction,
         )
         field_record.source_line, field_record.source_call_line = script_lines()
         self.fields.append(field_record)
         return field_record
+
+
+def _make_operation_field(
+    quantity, value, *, scope="all", profile="uniform", group=None, route_id=None,
+    station_start=None, station_end=None, element_ids=None, node_ids=None, direction=None,
+) -> OperationField:
+    if quantity == "fluid_density":
+        from tuba.validation import fluid_field_problem
+        raw = OperationField(quantity=quantity, value=value, scope=scope, profile=profile,
+                             group=group, route_id=route_id, station_start=station_start,
+                             station_end=station_end, element_ids=element_ids or [],
+                             node_ids=node_ids or [], direction=direction)
+        selectors = [name for name, value in (("group", group), ("route", route_id),
+                                             ("elements", element_ids), ("nodes", node_ids))
+                     if value is not None]
+        problem = fluid_field_problem(raw, infer_scope=True, selectors=selectors)
+        if problem:
+            raise ValueError(problem)
+    if group is not None:
+        scope = "group"
+    elif route_id is not None:
+        scope = "route"
+    elif element_ids is not None:
+        scope = "elements"
+    elif node_ids is not None:
+        scope = "nodes"
+    field_record = OperationField(
+        quantity=quantity,
+        value=float(value),
+        direction=(None if direction is None else [float(value) for value in direction]),
+        scope=scope,
+        profile=profile,
+        group=group,
+        route_id=route_id,
+        station_start=station_start,
+        station_end=station_end,
+        element_ids=list(element_ids or []),
+        node_ids=list(node_ids or []),
+    )
+    return field_record
 
 
 # ---------------------------------------------------------------------------
@@ -1099,6 +1123,7 @@ class TubaModel:
         pressure: float = 0.0,
         temperature: float = 20.0,
         ref_temperature: float = 20.0,
+        fields: Optional[List[Dict[str, Any] | OperationField]] = None,
     ) -> LoadCase:
         if name in self.operations:
             raise ValueError(
@@ -1112,6 +1137,8 @@ class TubaModel:
             temperature=temperature,
             ref_temperature=ref_temperature,
         )
+        lc.fields = [record if isinstance(record, OperationField) else _make_operation_field(**record)
+                     for record in fields or []]
         lc.source_line, lc.source_call_line = script_lines()
         self.load_cases[name] = lc
         return lc
@@ -1140,11 +1167,8 @@ class TubaModel:
             metadata=dict(metadata or {}),
         )
         op.source_line, op.source_call_line = script_lines()
-        for field_record in fields or []:
-            if isinstance(field_record, OperationField):
-                op.fields.append(field_record)
-            else:
-                op.add_field(**field_record)
+        op.fields = [record if isinstance(record, OperationField) else _make_operation_field(**record)
+                     for record in fields or []]
         self.operations[name] = op
         return op
 
@@ -1171,6 +1195,7 @@ class TubaModel:
 
     def resolve_operation_field_elements(self, field_record: OperationField) -> List[Element]:
         load_quantities = {"wind", "line_load"}
+        whole_elements = load_quantities | {"fluid_density"}
         allowed_types = (
             {"beam", "pipe_straight", "pipe_bend"}
             if field_record.quantity in load_quantities
@@ -1191,7 +1216,7 @@ class TubaModel:
                 start = field_record.station_start if field_record.station_start is not None else float("-inf")
                 end = field_record.station_end if field_record.station_end is not None else float("inf")
                 # Wind and line loads ignore float noise at the range ends; other quantities keep the strict overlap.
-                noise = 1e-9 if field_record.quantity in load_quantities else 0.0
+                noise = 1e-9 if field_record.quantity in whole_elements else 0.0
                 covered = [
                     e for e in covered
                     if e.station_start is not None
@@ -1199,7 +1224,7 @@ class TubaModel:
                     and e.station_start < end - noise
                     and e.station_end > start + noise
                 ]
-                if field_record.quantity in load_quantities:
+                if field_record.quantity in whole_elements:
                     # FORCE_POUTRE loads whole elements, so wind and line loads must not cover part of one.
                     partial = [e for e in covered if e.station_start < start - noise or e.station_end > end + noise]
                     if partial:
@@ -1217,9 +1242,12 @@ class TubaModel:
             raise ValueError(f"Unsupported operation field scope {field_record.scope!r}.")
 
         selected = [e for e in covered if e.type in allowed_types]
-        if field_record.scope == "elements" or field_record.quantity in load_quantities:
+        if (field_record.scope == "elements" or field_record.quantity in load_quantities
+                or (field_record.quantity == "fluid_density" and field_record.scope != "all")):
             # Named elements must exist, and wind and line loads may not cover elements that cannot carry them.
             named = set(field_record.element_ids) if field_record.scope == "elements" else {e.id for e in covered}
+            if field_record.scope == "group" and field_record.quantity == "fluid_density":
+                named = set(self.groups[field_record.group].get("elements", []))
             refused = sorted(named - {e.id for e in selected})
             if refused:
                 remedy = (
@@ -1475,6 +1503,7 @@ class TubaModel:
                     "internal_pressure": lc.internal_pressure,
                     "temperature": lc.temperature,
                     "ref_temperature": lc.ref_temperature,
+                    **({"fields": [record.to_dict() for record in lc.fields]} if lc.fields else {}),
                     **({"nodal_forces": [force.to_dict() for force in lc.nodal_forces]} if lc.nodal_forces else {}),
                 }
                 for name, lc in self.load_cases.items()
@@ -1616,6 +1645,7 @@ class TubaModel:
                 pressure=lc.get("internal_pressure", 0.0),
                 temperature=lc.get("temperature", 20.0),
                 ref_temperature=lc.get("ref_temperature", 20.0),
+                fields=lc.get("fields", []),
             )
             for force_data in lc.get("nodal_forces", []):
                 load_case.nodal_forces.append(NodalForce.from_dict(force_data))

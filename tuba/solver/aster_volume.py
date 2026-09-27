@@ -13,7 +13,7 @@ from tuba.analysis.provenance import (
     build_solver_input_identity,
 )
 from tuba.geometry.volume import VolumeGeometry, build_volume_geometry
-from tuba.solver.compiler_contract import volume_contract
+from tuba.solver.compiler_contract import volume_contract, reject_fluid_contents
 from tuba.meshing import build_pipe_volume_mesh
 from tuba.model import PipeSection, TubaModel
 from tuba.solver.aster_comm import _pipe_orientation_vector
@@ -53,6 +53,7 @@ def volume_study_inputs(
     shoes(model, PipeModelization.SOLID_3D)
     load_case_name, load_case = model.resolve_load_case(load_case_name)
     model.validate()
+    reject_fluid_contents(load_case, "volume and mixed studies")
     if any(model.get_insulation(f"element:{element.id}") for element in model.elements):
         raise ValueError("Insulated pipe-volume studies are not supported; use the pipe beam/TUYAU solver so insulation weight is included.")
     ids = tuple(element_ids)

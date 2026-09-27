@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
-from tuba.physical import physical_properties_for_element
+from tuba.physical import _fluid_density_by_element, _physical_properties_for_element
 from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
 from tuba.solver.code_aster_runtime import write_artifact_text
 
@@ -134,15 +134,6 @@ class _CommWriterMixin:
         cable_elems = [e for e in model.elements if e.type == "cable"]
         beam_pipes = self.pipe_modelization is PipeModelization.POU_D_T
         has_pipe_stress = bool(pipe_straights or pipe_bends) and not beam_pipes
-        if beam_pipes:
-            if load_case.internal_pressure != 0 or any(f.quantity == "pressure" and f.value != 0 for f in load_case.fields):
-                raise ValueError("POU_D_T pipe pressure is unsupported: pressure end thrust and pressure stress require qualification.")
-            pipe_degree = {}
-            for elem in pipe_straights + pipe_bends:
-                for node in (elem.n1, elem.n2):
-                    pipe_degree[node] = pipe_degree.get(node, 0) + 1
-            if getattr(model, "tees", []) or any(degree > 2 for degree in pipe_degree.values()):
-                raise ValueError("POU_D_T pipe tee/branch flexibility is unsupported.")
 
         straight_elems = pipe_straights + beam_elems + bar_elems + cable_elems
         bend_elems = pipe_bends
@@ -320,18 +311,21 @@ class _CommWriterMixin:
 
         # Carry non-structural insulation mass on the steel section. E, NU,
         # ALPHA and wall geometry stay unchanged; RHO supplies static gravity.
+        fluid_densities = _fluid_density_by_element(model, load_case)
         for index, elem in enumerate(model.elements):
-            if model.get_insulation(f"element:{elem.id}") is None:
+            if model.get_insulation(f"element:{elem.id}") is None and not fluid_densities.get(elem.id):
                 continue
-            props = physical_properties_for_element(model, elem)
+            props = _physical_properties_for_element(model, elem, fluid_densities.get(elem.id, 0.0))
             if load_case.gravity and props.insulation_thickness_m > 0 and props.insulation_mass_kg_per_m <= 0:
                 raise ValueError(f"Insulation on {elem.id!r} requires a positive density for gravity loading.")
-            if props.insulation_mass_kg_per_m <= 0:
+            if props.insulation_mass_kg_per_m + props.fluid_mass_kg_per_m <= 0:
                 continue
             mat = model.materials[elem.material]
             density = props.mass_kg_per_m / props.metal_area_m2
             var = f"IM{index}"
             w(f"# Insulation mass for {elem.id}: {props.insulation_mass_kg_per_m:.12E} kg/m")
+            if props.fluid_mass_kg_per_m:
+                w(f"# Fluid contents mass for {elem.id}: {props.fluid_mass_kg_per_m:.12E} kg/m")
             w(f"{var} = DEFI_MATERIAU(ELAS=_F(E={mat.E:.12E}, NU={mat.nu:.12E}, "
               f"RHO={density:.12E}, ALPHA={mat.alpha:.12E}));")
             affe_entries.append(f"        _F(GROUP_MA='{map_name(elem.id)}', MATER={var}),")
