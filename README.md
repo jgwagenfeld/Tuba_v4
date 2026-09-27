@@ -70,8 +70,7 @@ Scene bundles contain model geometry, analysis meshes, results, and run metadata
 ## Features
 
 - Define pipe runs, bends, supports, racks and imported components in Python.
-- Route lines automatically around obstacles, including expansion loops for hot
-  lines.
+- Route lines automatically around obstacles and add thermal expansion loops.
 - Analyse with beam, `TUYAU` pipe-wall or full 3D solid idealisations.
 - Assign [fluid contents by operation](docs/content/modeling.md#fluid-contents-by-operation)
   for empty, operating and hydrotest 1D piping, with separate mass reporting.

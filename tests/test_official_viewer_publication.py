@@ -111,18 +111,18 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     # be checking that a value which cannot exist does not exist.
 
     engineering = json.loads((tmp_path / "code-aster-review" / "scene.json").read_text(encoding="utf-8"))
-    assert len(engineering["result_fields"]) == 5
+    assert len(engineering["result_fields"]) == 6
     assert {
         next(overlay for overlay in engineering["overlays"] if overlay["id"] == field["overlay_id"])["data"]["result_type"]
         for field in engineering["result_fields"]
-    } == {"stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"}
+    } == {"stress", "internal_forces", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"}
     assert {layer["category"] for layer in engineering["layers"]} == {
         "design", "analysis_mesh", "results", "annotations"
     }
     for bundle_id in ("autorouted-expansion-loop", "support-rack-review"):
         scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
         review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
-        assert len(scene["result_fields"]) == 5
+        assert len(scene["result_fields"]) == 6
         assert review["analysis_status"] == "solved"
         assert "code_compliance" not in review["tables"]
 

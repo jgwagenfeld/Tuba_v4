@@ -127,7 +127,7 @@ class TestVisualizationResults(unittest.TestCase):
         self.assertEqual(stress.data["range"], {"min": 120.0e6, "max": 120.0e6})
         self.assertEqual(
             {overlay.data.get("result_type") for overlay in scene.overlays if overlay.kind == "solver_result"},
-            {"stress", "displacement", "reaction_force", "reaction_moment"},
+            {"stress", "internal_forces", "displacement", "reaction_force", "reaction_moment"},
         )
 
     def test_analysis_run_cannot_mix_with_lower_level_result_records(self):

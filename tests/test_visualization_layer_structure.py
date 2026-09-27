@@ -341,9 +341,14 @@ class TestResultFieldCatalogue(unittest.TestCase):
         scalars = [f for f in self.scene.result_fields if f.components == ("magnitude",)]
         self.assertTrue(vectors, f"expected vector fields among {list(by_support)}")
         self.assertTrue(scalars, f"expected scalar fields among {list(by_support)}")
+        overlays = {overlay.id: overlay for overlay in self.scene.overlays}
         for result_field in vectors:
-            self.assertEqual(result_field.components, ("DX", "DY", "DZ", "magnitude"))
-            self.assertEqual(result_field.support, "node")
+            if overlays[result_field.overlay_id].data["result_type"] == "internal_forces":
+                self.assertEqual(result_field.components, ("N", "VY", "VZ", "MT", "MFY", "MFZ", "magnitude"))
+                self.assertEqual(result_field.support, "cell")
+            else:
+                self.assertEqual(result_field.components, ("DX", "DY", "DZ", "magnitude"))
+                self.assertEqual(result_field.support, "node")
 
     def test_declared_range_matches_the_overlay_values(self):
         overlays = {overlay.id: overlay for overlay in self.scene.overlays}
