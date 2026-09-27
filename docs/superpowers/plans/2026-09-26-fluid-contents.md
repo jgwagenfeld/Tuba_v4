@@ -24,7 +24,7 @@
 - New dataclass fields are appended with defaults to preserve existing constructor calls.
 - No global caches, fluid object hierarchy, new visualization surface or general preflight framework.
 - Missing Code_Aster fails loudly before result publication. Required real references must pass with zero skips.
-- No merge, push or publication is part of this package. Preserve main and the other chat's isometry worktree.
+- No merge, push or publication is part of this package. Preserve unrelated work in shared checkouts.
 
 ## Review Focus
 
@@ -476,5 +476,7 @@ Inspect the example's emitted review JSON/CSV and scene manifest: three solved c
 - JUnit artifacts were independently parsed for failures/errors and, for both real
   solver qualification files, forbidden skips. Logs, rulings and the review package
   remain in the ignored `.superpowers/sdd/2026-09-26-fluid-contents/` evidence folder.
-- No merge, push or publication has occurred. Next planned package is B,
-  temperature-dependent material physics; it has not been started.
+- Subsequently merged locally into `main` as `5be87fc` on 2026-09-27. The merged
+  tree passed 442 regression tests (one optional skip) and all 13 real fluid
+  Code_Aster references. No push or publication has occurred. Next planned package
+  is B, temperature-dependent material physics; it has not been started.

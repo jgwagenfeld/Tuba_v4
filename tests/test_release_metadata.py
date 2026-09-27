@@ -175,7 +175,7 @@ def test_self_hosted_solver_jobs_refresh_every_engineering_gallery_before_pages_
         commands = [step["run"] for step in steps if "run" in step]
 
         assert any(step.get("uses") == "actions/setup-node@v4" for step in steps)
-        assert "uv sync --group docs --extra dev --extra code-aster-rmed --locked" in commands
+        assert "uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked" in commands
         assert any(
             step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
             for step in steps
@@ -351,7 +351,7 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
 
     assembled_steps = workflow["jobs"]["assembled-pages"]["steps"]
     assembled = [step["run"] for step in assembled_steps if "run" in step]
-    assert "uv sync --group docs --extra dev --extra code-aster-rmed --locked" in assembled
+    assert "uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked" in assembled
     assert "uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q" in assembled
     build = "uv run python scripts/build_pages.py pages --output .build/pages-check"
     assert assembled.count(build) == 1
@@ -364,7 +364,7 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     sync = _only_step_index(
         assembled_steps,
         lambda step: step.get("run")
-        == "uv sync --group docs --extra dev --extra code-aster-rmed --locked",
+        == "uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked",
     )
     npm = _only_step_index(
         assembled_steps,

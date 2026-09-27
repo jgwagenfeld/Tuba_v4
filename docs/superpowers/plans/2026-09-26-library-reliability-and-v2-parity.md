@@ -10,6 +10,10 @@
 
 **Spec:** The requirements and acceptance criteria in this document derive from the 2026-09-26 library review requested in this conversation, v4 `f56240f1df5afa4fa1ec2b50385b4111e5ce8a2b`, v2 `fe4dbe0ebcd91e059fb69644683dcb4546a618c0`, and `AGENTS.md`. Read the related designs listed below before implementing their extensions. This is an umbrella work plan: Milestone 1 has immediate implementation tasks; Milestones 2-4 define separate subsystem plans to write before those implementations.
 
+Reliability and fluid contents were merged locally into `main` as `5be87fc` on
+2026-09-27. The completion records below remain the qualification history;
+later packages remain planned. No push or publication is included.
+
 ## Global Constraints
 
 - "The whole point of Tuba v4 is to define piping structure, evaluate it with Code_Aster, and display processed results."
@@ -52,7 +56,7 @@ The reviewed v4 baseline had 201 focused tests pass and nine skip. Two public-im
 
 Recommended sequence: **1 -> A -> B -> C -> D -> E -> F -> G -> H -> I -> J**. D may be brought forward when first extending a formulation. A and B can be designed independently, but both modify model/schema/provenance contracts, so their implementations need coordinated ownership. No calendar estimates are assigned until each later package's solver spike and implementation plan are complete.
 
-The next implementation batch is **Milestone 1 only**. Milestones are independently reviewable and releasable; do not accumulate all four into one branch.
+Milestone 1 and Package A are complete. The next planned package is **B: temperature-dependent material physics**. Packages remain independently reviewable and releasable; do not accumulate all four milestones into one branch.
 
 ## Milestone 1: Reliability
 

@@ -9,6 +9,29 @@ const VIEWPORTS = {
 
 const DOCUMENTATION_PAGES = ["/index.html", "/setup.html"];
 
+test("load-case gallery exposes four solved cases and their input assignments", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/viewer/?bundle=load-case-preparation");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 60_000 });
+  const cases = page.getByRole("combobox", { name: /^Case/ });
+  expect(await cases.locator("option").evaluateAll(options => options.map(option => option.value).sort()))
+    .toEqual(["Occasional", "OperatingHot", "PressureOnly", "Sustained"]);
+  for (const name of ["OperatingHot", "PressureOnly", "Sustained", "Occasional"]) {
+    await cases.selectOption(name);
+    await expect.poll(() => page.evaluate(() => window.__tubaViewer.state.activeLoadCase)).toBe(name);
+    const state = await page.evaluate(() => {
+      const viewer = window.__tubaViewer.state;
+      return viewer.resultStates.find(result => result.data.id === viewer.activeResultStateId)?.data;
+    });
+    expect(state.load_case).toBe(name);
+  }
+  await cases.selectOption("OperatingHot");
+  await page.locator("[data-review-inputs] > summary").click();
+  await expect(page.getByRole("table", { name: "OperatingHot input assignments" })).toContainText("temperature");
+  await expect(page.locator("[data-canvas]")).toHaveAttribute("data-render-diagnostics", "0");
+  await page.screenshot({ path: "../.build/load-case-inputs.png" });
+});
+
 test("published expansion loop contains pipe geometry without legacy envelope skins", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/viewer/?bundle=autorouted-expansion-loop", { waitUntil: "domcontentloaded" });

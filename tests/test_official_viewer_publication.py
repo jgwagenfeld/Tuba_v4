@@ -192,19 +192,22 @@ def test_beam_review_validates_its_load_case_evidence(tmp_path: Path) -> None:
     assert {s["load_case"] for s in states} == {"global"}
     states[0]["study_id"] = "foreign"
     with pytest.raises(ValueError, match="own study and mesh"):
-        build_pages._validate_beam_review(root, scene, review)
+        build_pages._validate_independent_case_review(
+            root, scene, review, families={"displacement", "reaction_force", "reaction_moment"})
     scene = _scene(root)
     state = next(o["data"] for o in scene["overlays"] if o["kind"] == "result_state")
     state["load_case"] = "relabelled"
     with pytest.raises(ValueError, match="load case must match its solver identity"):
-        build_pages._validate_beam_review(root, scene, review)
+        build_pages._validate_independent_case_review(
+            root, scene, review, families={"displacement", "reaction_force", "reaction_moment"})
     scene = _scene(root)
     field = scene["result_fields"][0]
     field["load_case"] = "relabelled"
     # Keep the overlay self-consistent: the owning state must still reject this.
     next(o["data"] for o in scene["overlays"] if o["id"] == field["overlay_id"])["load_case"] = "relabelled"
     with pytest.raises(ValueError, match="fields must match their state load case"):
-        build_pages._validate_beam_review(root, scene, review)
+        build_pages._validate_independent_case_review(
+            root, scene, review, families={"displacement", "reaction_force", "reaction_moment"})
     for key, value in (("load_case", "relabelled"), ("result_state_id", "missing"),
                        ("result_state_id", "result_state:local")):
         scene = _scene(root)
@@ -212,11 +215,13 @@ def test_beam_review_validates_its_load_case_evidence(tmp_path: Path) -> None:
                         and o["data"]["load_case"] == "global")
         geometry[key] = value
         with pytest.raises(ValueError, match="geometry state must reference its own result load case"):
-            build_pages._validate_beam_review(root, scene, review)
+            build_pages._validate_independent_case_review(
+                root, scene, review, families={"displacement", "reaction_force", "reaction_moment"})
     scene = _scene(root)
     (root / "artifacts/global/study_depl.csv").write_text("corrupt", encoding="utf-8")
     with pytest.raises(ValueError, match="attestation"):
-        build_pages._validate_beam_review(root, scene, review)
+        build_pages._validate_independent_case_review(
+            root, scene, review, families={"displacement", "reaction_force", "reaction_moment"})
 
 
 def test_contact_history_requires_its_attested_run() -> None:

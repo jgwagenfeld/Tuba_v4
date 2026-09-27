@@ -32,6 +32,7 @@ components* show imported Code_Aster results.
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png" width="250" alt="Line loads review in the Tuba viewer"></a><br><b>Line loads</b><br>Where does a distributed line load go once the line is restrained?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png" width="250" alt="Road crossing review in the Tuba viewer"></a><br><b>Road crossing</b><br>How does a line cross an 8 m roadway on a shoe-supported rack bridge?</td>
 </tr>
+<tr><td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png" width="250" alt="Load-case preparation in the Tuba viewer"></a><br><b>Load-case preparation</b><br>How do sustained, thermal, occasional and pressure loads change the same pipe?</td></tr>
 </table>
 
 ## Example
@@ -72,6 +73,8 @@ Scene bundles contain model geometry, analysis meshes, results, and run metadata
 - Route lines automatically around obstacles, including expansion loops for hot
   lines.
 - Analyse with beam, `TUYAU` pipe-wall or full 3D solid idealisations.
+- Assign [fluid contents by operation](docs/content/modeling.md#fluid-contents-by-operation)
+  for empty, operating and hydrotest 1D piping, with separate mass reporting.
 - Recover deflection, wall stress, element forces and support reactions.
 - Check operating-state clearances against the deformed line and apply your own
   design rules.

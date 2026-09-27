@@ -76,6 +76,22 @@ The reporting builder consumes authoritative model, study, mesh, and result reco
       show_source: false
       members_order: source
 
+## Operation quantities
+
+`operation.add_field("fluid_density", density_kg_m3, ...)` assigns a full-bore
+contents density with the existing pipe selectors. See [fluid contents by
+operation](../modeling.md#fluid-contents-by-operation) for validation rules and
+solver limitations. Pressure and contents density are independent inputs.
+
+::: tuba.quantities.quantity_takeoff
+    options:
+      show_source: false
+
+The default is dry metal plus insulation; `operation="Operating"` includes the
+named case's contents. Totals expose `pipe_mass_kg`, `insulation_mass_kg`,
+`fluid_mass_kg` and `total_mass_kg`. These are model-derived quantities, not
+imported solver reactions.
+
 ## Autorouting
 
 Autorouting produces candidates for review. Engineering acceptance still requires a real Code_Aster evaluation and the configured acceptance criteria.

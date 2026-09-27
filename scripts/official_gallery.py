@@ -287,6 +287,20 @@ OFFICIAL_GALLERIES = (
         ),
     ),
     _project_gallery(
+        "load-case-preparation",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "load-case-preparation",
+        title="Load-case preparation",
+        elements=("TUYAU_3M",),
+        question="How do sustained, thermal, occasional and pressure loads change the same pipe?",
+        summary=(
+            "Two restrained pipe lines solved in four states: Sustained, OperatingHot, Occasional and PressureOnly. "
+            "Compare Code_Aster results and export signed expansion differences for user-owned checks; "
+            "no standard or utilization verdict is assigned."
+        ),
+    ),
+    _project_gallery(
         "native-friction-review",
         frozenset({"dev", "pages"}),
         "contact-engineering-review",

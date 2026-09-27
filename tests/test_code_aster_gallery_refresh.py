@@ -60,6 +60,7 @@ def test_official_gallery_records_own_refresh_metadata():
         "guyed-mast-review",
         "hydrogen-plant-layout",
         "line-load-studio",
+        "load-case-preparation",
         "native-friction-review",
         "pipe-tee-volume-review",
         "profile-orientation-review",

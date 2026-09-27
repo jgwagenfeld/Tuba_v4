@@ -28,6 +28,7 @@ secrets.*
 .npmrc
 .pypirc
 
+Isometrien/
 build/
 .build/
 /_site/
@@ -43,6 +44,8 @@ generated/
 viewer/dist/
 viewer/node_modules/
 /viewer/public/bundles.json
+/viewer/public/downloads/
+/viewer/public/load-case-preparation/
 /viewer/public/autorouted-expansion-loop/
 /viewer/public/code-aster-review/
 /viewer/public/elements-supports-review/

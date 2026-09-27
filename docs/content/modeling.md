@@ -111,6 +111,50 @@ model.add_support(pipe_node, "rest", attached_to=rack_node, friction_coefficient
 
 The restraint then acts between matching directions of the two nodes; the offset between their positions carries no lever arm. Every rest is a one-way contact shoe: it carries compression, slides with its friction coefficient and lifts off. Give the pipe its own node, because a pipe built through the structure node is welded to it.
 
+## Fluid contents by operation
+
+Pipes are empty by default. A `fluid_density` field describes a completely filled
+bore in kg/m3 for one operation; zero density keeps it empty. For an existing
+route named `P-100`:
+
+```python
+from tuba.quantities import quantity_takeoff
+
+model.define_operation("Empty", gravity=True)
+operating = model.define_operation("Operating", gravity=True, pressure=1.0e6)
+operating.add_field("fluid_density", 800.0, route_id="P-100")
+hydrotest = model.define_operation("Hydrotest", gravity=True, pressure=1.5e6)
+hydrotest.add_field("fluid_density", 1000.0, route_id="P-100")
+
+masses = quantity_takeoff(model, operation="Operating").totals
+run = model.solve(operation="Operating")  # Requires a working Code_Aster runtime.
+```
+
+Use no selector for all pipe elements, or select one `group`, `route_id`, or
+`element_ids` list. Route station limits must cover whole elements. Density must
+be finite and nonnegative; node selections, directional fields and partial
+element coverage are rejected. Equal overlapping densities count once;
+conflicting densities are rejected.
+
+Contents mass is density times bore area times length, using arc length for
+bends. Gravity includes metal, insulation and contents without changing elastic
+stiffness. With gravity disabled, contents still appear in mass quantities but
+add no gravity load. Pressure is authored independently: density does not create
+hydrostatic pressure, pressure head or fluid transients.
+
+Contents are qualified for linear 1D straight and bent `PipeSection` elements
+using `TUYAU_3M` or `POU_D_T`. Use `TUYAU_3M` when applying pressure;
+`POU_D_T` pressure and tee/branch flexibility are unsupported. Fluid fields are
+rejected for native contact/history, solid-volume and mixed/CAD studies,
+including explicit zero-density fields. Partial filling and free surfaces are
+not modeled.
+
+`quantity_takeoff(model)` reports dry metal and insulation. Pass `operation=`
+to include that case's contents. The report's **Operation quantities (calculated
+inputs)** table separates metal, insulation, contents and total mass; these
+are calculated inputs, while reactions and displacements come from Code_Aster.
+See the [runnable fluid-contents example](examples.md#fluid-contents).
+
 ## Operation temperatures and sampled fields
 
 An operation sets one temperature for the whole model, and operation fields change it locally. An element field gives whole elements one value. It selects them by `element_ids`, by a route with an optional station range, by a group, or all pipe elements:

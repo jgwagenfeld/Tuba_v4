@@ -95,7 +95,7 @@ jobs:
           cache-dependency-path: viewer/package-lock.json
       - name: Install Linux graphics runtime
         run: sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libgomp1
-      - run: uv sync --group docs --extra dev --extra code-aster-rmed --locked
+      - run: uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked
       - run: npm ci
         working-directory: viewer
       - run: uv run python -m pytest tests/test_release_metadata.py tests/test_pages_build.py -q
@@ -154,7 +154,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: viewer/package-lock.json
-      - run: uv sync --group docs --extra dev --extra code-aster-rmed --locked
+      - run: uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked
       - run: npm ci
         working-directory: viewer
       - run: uv run python -m tuba.solver.code_aster_doctor --check

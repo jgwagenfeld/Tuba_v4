@@ -29,6 +29,7 @@ REQUIRED = {
     "viewer/code-aster-review/scene.json",
     "viewer/elements-supports-review/scene.json",
     "viewer/imported_component_mixed_demo/scene.json",
+    "viewer/load-case-preparation/scene.json",
     "viewer/native-friction-review/scene.json",
     "viewer/pipe-tee-volume-review/scene.json",
     "viewer/profile-orientation-review/scene.json",
@@ -44,6 +45,7 @@ OFFICIAL_BUNDLES = [
     "hydrogen-plant-layout",
     "imported_component_mixed_demo",
     "line-load-studio",
+    "load-case-preparation",
     "native-friction-review",
     "pipe-tee-volume-review",
     "profile-orientation-review",
@@ -136,6 +138,38 @@ def test_engineering_fields_accept_only_attested_optional_internal_forces(requir
     overlays[-1]["data"]["result_type"] = "unknown"
     with pytest.raises(ValueError, match="family"):
         build_pages._validate_engineering_result_fields(scene, families=required)
+
+
+def test_independent_piping_cases_require_stress_fields_and_matching_provenance(tmp_path, monkeypatch):
+    scene = {"overlays": [], "result_fields": [], "solver_input_identities": []}
+    review = {"provenance": []}
+    attested = []
+    monkeypatch.setattr(build_pages, "_validate_execution_attestation",
+                        lambda root, identity, result: attested.append(identity["load_case"]))
+    for case in ("Sustained", "OperatingHot"):
+        identity = dict(fingerprint=case, load_case=case, schema_id="test", compiler_id="test")
+        scene["solver_input_identities"].append(identity)
+        state = dict(id=f"result_state:{case}", study_id=f"study:{case}", mesh_id=f"analysis_mesh:{case}",
+                     load_case=case, solver_input_identity=identity)
+        scene["overlays"].append({"kind": "result_state", "data": state})
+        for kind in ("study", "analysis_mesh", "result_state"):
+            review["provenance"].append(dict(kind=kind, id=f"{kind}:{case}", solver_name="Code_Aster",
+                                             metadata={"solver_input_identity": identity}))
+        for family in ("stress", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"):
+            overlay_id = f"overlay:{case}:{family}"
+            scene["overlays"].append({"id": overlay_id, "kind": "solver_result", "data": {
+                "result_type": family, "result_state_id": state["id"], "load_case": case, "values": {"e": 1}}})
+            scene["result_fields"].append(dict(id=overlay_id.replace("overlay:", "field:", 1),
+                overlay_id=overlay_id, result_state_id=state["id"], load_case=case, components=["magnitude"]))
+    build_pages._validate_independent_case_review(tmp_path, scene, review)
+    assert attested == ["Sustained", "OperatingHot"]
+    removed = scene["result_fields"].pop()
+    with pytest.raises(ValueError, match="result fields"):
+        build_pages._validate_independent_case_review(tmp_path, scene, review)
+    scene["result_fields"].append(removed)
+    state["mesh_id"] = "analysis_mesh:Sustained"
+    with pytest.raises(ValueError, match="own study and mesh"):
+        build_pages._validate_independent_case_review(tmp_path, scene, review)
 
 
 def test_gallery_archive_runs_after_extraction_and_omits_unsupported_ifc(tmp_path):

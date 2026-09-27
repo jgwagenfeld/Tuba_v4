@@ -397,13 +397,20 @@ def validate_official_bundle(root: Path, profile: str) -> None:
         required.add("annotations")
     if not required <= categories or categories - required - {"annotations"}:
         raise ValueError("Engineering-review bundles require all four layer categories.")
+    independent_cases = profile == "beam-engineering-review" or (
+        profile == "engineering-review" and len(scene.get("solver_input_identities", [])) > 1
+    )
     if profile == "contact-engineering-review":
         _validate_contact_result_fields(scene)
-    elif profile == "beam-engineering-review":
-        _validate_beam_review(root, scene, review)
+    elif independent_cases:
+        _validate_independent_case_review(
+            root, scene, review,
+            families={"displacement", "reaction_force", "reaction_moment"}
+            if profile == "beam-engineering-review" else None,
+        )
     else:
         _validate_engineering_result_fields(scene, volume=profile == "volume-engineering-review")
-    if profile != "beam-engineering-review":
+    if not independent_cases:
         identity = _validate_engineering_provenance(scene, review)
         result = next(record for record in review["provenance"] if isinstance(record, dict) and record.get("kind") == "result_state")
         evidence = _validate_execution_attestation(root, identity, result)
@@ -422,22 +429,24 @@ def validate_official_bundle(root: Path, profile: str) -> None:
     _validate_embedded_portability(root)
 
 
-def _validate_beam_review(root: Path, scene: dict[str, Any], review: dict[str, Any]) -> None:
-    """Validate every independent beam load case and its own solver evidence."""
+def _validate_independent_case_review(
+    root: Path, scene: dict[str, Any], review: dict[str, Any], *, families: set[str] | None = None,
+) -> None:
+    """Validate every independent load case and its own solver evidence and required fields."""
     states = [overlay["data"] for overlay in scene.get("overlays", []) if overlay.get("kind") == "result_state"]
     state_ids = {state["id"] for state in states}
     identities = scene.get("solver_input_identities", [])
     provenance = review.get("provenance", [])
     if not states or len(state_ids) != len(states) or len(identities) != len(states):
-        raise ValueError("Beam review requires distinct load-case states and identities.")
+        raise ValueError("Review requires distinct load-case states and identities.")
     if len(provenance) != 3 * len(states):
-        raise ValueError("Beam review requires study, mesh and result provenance for each load case.")
+        raise ValueError("Review requires study, mesh and result provenance for each load case.")
     for state in states:
         identity = state.get("solver_input_identity")
         if identity not in identities:
-            raise ValueError("Beam result identity must match the scene.")
+            raise ValueError("Result identity must match the scene.")
         if not isinstance(identity, dict) or state.get("load_case") != identity.get("load_case"):
-            raise ValueError("Beam result load case must match its solver identity.")
+            raise ValueError("Result load case must match its solver identity.")
         records = [record for record in provenance if record.get("metadata", {}).get("solver_input_identity") == identity]
         reference = _validate_engineering_provenance(
             dict(scene, solver_input_identities=[identity]), dict(review, provenance=records)
@@ -446,15 +455,15 @@ def _validate_beam_review(root: Path, scene: dict[str, Any], review: dict[str, A
         if (by_kind["result_state"]["id"] != state["id"]
                 or by_kind["study"]["id"] != state.get("study_id")
                 or by_kind["analysis_mesh"]["id"] != state.get("mesh_id")):
-            raise ValueError("Beam result must reference its own study and mesh.")
+            raise ValueError("Result must reference its own study and mesh.")
         fields = [field for field in scene.get("result_fields", []) if field.get("result_state_id") == state["id"]]
         if any(field.get("load_case") != state.get("load_case") for field in fields):
-            raise ValueError("Beam result fields must match their state load case.")
+            raise ValueError("Result fields must match their state load case.")
         _validate_engineering_result_fields(dict(scene, result_fields=fields),
-                                           families={"displacement", "reaction_force", "reaction_moment"})
+                                           families=families)
         _validate_execution_attestation(root, reference, by_kind["result_state"])
     if any(field.get("result_state_id") not in state_ids for field in scene.get("result_fields", [])):
-        raise ValueError("Beam review contains a field outside its load cases.")
+        raise ValueError("Review contains a field outside its load cases.")
     states_by_id = {state["id"]: state for state in states}
     for overlay in scene.get("overlays", []):
         if overlay.get("kind") != "geometry_state":
@@ -464,7 +473,7 @@ def _validate_beam_review(root: Path, scene: dict[str, Any], review: dict[str, A
             continue
         result = states_by_id.get(geometry.get("result_state_id"))
         if result is None or geometry.get("load_case") != result.get("load_case"):
-            raise ValueError("Beam geometry state must reference its own result load case.")
+            raise ValueError("Review geometry state must reference its own result load case.")
 
 
 def _read_json(path: Path) -> dict[str, Any]:

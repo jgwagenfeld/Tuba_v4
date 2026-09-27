@@ -174,6 +174,42 @@ python -m tuba.project examples/code-aster-review --output .build/code-aster-rev
 
 `tuba.project` imports the attested evidence given with `--artifact-dir`, such as the project's own `evidence/<operation>/` folder. Without it, it first solves the study's operations into that folder, reusing evidence that still matches the model and study (`--force` solves again), and builds the review from there.
 
+## Load-case preparation
+
+[![Load-case preparation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation)
+
+Two restrained pipe lines solved in four states: Sustained, OperatingHot, Occasional and PressureOnly. Compare Code_Aster results and export signed expansion differences for user-owned checks; no standard or utilization verdict is assigned.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation) &middot; Evidence: **Results**
+
+`examples/load-case-preparation` solves **Sustained**, **OperatingHot**,
+**Occasional** and **PressureOnly** with Code_Aster. Its review includes all four
+states and a CSV of signed element-end forces, including the hot-minus-sustained
+expansion difference. No standard or utilization verdict is assigned; pressure
+design remains a separate user calculation. See the project's `README.md` for
+load assumptions, component conventions and check inputs.
+
+```powershell
+python -m tuba.cli_studio examples/load-case-preparation
+python -m tuba.project examples/load-case-preparation --output .build/load-case-preparation
+```
+
+## Fluid contents
+
+`examples/fluid_contents.py` solves one insulated cantilever in Empty, Operating
+(800 kg/m3 at 1.0 MPa) and Hydrotest (1000 kg/m3 at 1.5 MPa) states using
+Code_Aster `TUYAU_3M`. The review separates input masses and imported results for
+all three cases. No review is written if any solve fails.
+
+```powershell
+python -m examples.fluid_contents
+python -m tuba.visualization.viewer .build/fluid-contents/review --open
+```
+
+The example requires a configured Code_Aster runtime and runs locally; it is
+not a prebuilt gallery card. See [fluid contents by operation](modeling.md#fluid-contents-by-operation)
+for selectors, units and unsupported combinations.
+
 ## Autorouting example outputs
 
 ```powershell

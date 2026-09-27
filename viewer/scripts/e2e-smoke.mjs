@@ -883,6 +883,7 @@ const scenarios = {
             "hydrogen-plant-layout",
             "imported_component_mixed_demo",
             "line-load-studio",
+            "load-case-preparation",
             "native-friction-review",
             "pipe-tee-volume-review",
             "profile-orientation-review",

@@ -10,9 +10,9 @@ const LICENSE_FILES = ["font-notices.txt", "OFL-1.1.txt"];
 function viewerIdentity() {
   const hash = createHash("sha256");
   for (const name of readdirSync("src").filter(name => /\.(js|css)$/.test(name)).sort()) {
-    hash.update(name).update(readFileSync(join("src", name)));
+    hash.update(name).update(readFileSync(join("src", name), "utf8").replace(/\r\n/g, "\n"));
   }
-  hash.update(readFileSync("index.html"));
+  hash.update(readFileSync("index.html", "utf8").replace(/\r\n/g, "\n"));
   return hash.digest("hex");
 }
 

@@ -58,6 +58,10 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
     **Road crossing** — How does a line cross an 8 m roadway on a shoe-supported rack bridge?
 
+-   [![Load-case preparation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation)
+
+    **Load-case preparation** — How do sustained, thermal, occasional and pressure loads change the same pipe?
+
 </div>
 
 ## Start here

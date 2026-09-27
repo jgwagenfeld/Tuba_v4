@@ -55,7 +55,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: viewer/package-lock.json
-      - run: uv sync --group docs --extra dev --extra code-aster-rmed --locked
+      - run: uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked
       - run: npm ci
         working-directory: viewer
       - run: uv run python -m tuba.solver.code_aster_doctor --check
