@@ -15,8 +15,8 @@ export function relatedSelectionIds(state, objectIds) {
 
 export function selectionRepresentative(state, objectId) {
   const object = state.objects.find(o => o.id === objectId);
-  return String(object?.kind).startsWith("deformed_")
-    ? resolveEntityObjectId(state, object.entity_ref) ?? objectId : objectId;
+  const key = selectionKey(object);
+  return key && key !== objectId ? resolveEntityObjectId(state, key) ?? objectId : objectId;
 }
 
 export function resolveEntityObjectId(state, entityRef) {

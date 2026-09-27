@@ -123,6 +123,125 @@ async function framebufferSnapshot(canvas) {
 }
 
 const scenarios = {
+  "display-palette": {
+    bundle: "code-aster-review",
+    minimumObjects: 1,
+    beforeNavigate(page) {
+      captureUnexpectedBrowserEvents(page);
+      page.setDefaultNavigationTimeout(60_000);
+    },
+    async run(page) {
+      const review = page.locator('button[data-mode="review"]');
+      if (await review.isVisible()) await review.click();
+      const palette = page.locator("[data-display-palette]");
+      const trigger = palette.locator(":scope > summary");
+      const canvas = page.locator("[data-canvas]");
+      assert.equal(await page.locator("[data-objects-section]").evaluate(el => el.open), false);
+      assert.equal(await palette.evaluate(el => el.open), false);
+      await trigger.click();
+      const geometry = palette.getByRole("checkbox", { name: "Geometry", exact: true });
+      await geometry.check();
+      const before = await framebufferFingerprint(canvas);
+      await geometry.focus();
+      await geometry.press("Space");
+      await page.waitForFunction(() => document.querySelector('[data-body="geometry"]').dataset.bodyVisible === "false");
+      assert.equal(await geometry.isChecked(), false);
+      assert.equal(await geometry.evaluate(el => el === document.activeElement), true);
+      assert.notEqual(await framebufferFingerprint(canvas), before, "visibility must update the actual canvas");
+      await geometry.press("Space");
+      assert.equal(await geometry.isChecked(), true);
+      const opacity = palette.locator('[data-body-opacity="geometry"]');
+      const priorOpacity = await opacity.textContent();
+      const opaqueFrame = await framebufferFingerprint(canvas);
+      await opacity.click();
+      assert.notEqual(await opacity.textContent(), priorOpacity);
+      assert.notEqual(await framebufferFingerprint(canvas), opaqueFrame, "opacity must update the actual canvas");
+      assert.equal(await palette.evaluate(el => el.open), true, "toggling keeps the palette open");
+      await opacity.press("Escape");
+      assert.equal(await palette.evaluate(el => el.open), false);
+      assert.equal(await trigger.evaluate(el => el === document.activeElement), true);
+      await page.locator("[data-rail-toggle]").click();
+      assert.equal(await page.locator("[data-task-rail]").isVisible(), false);
+      for (const width of [1280, 800, 390]) {
+        await page.setViewportSize({ width, height: 800 });
+        if (!(await palette.evaluate(el => el.open))) await trigger.click();
+        const box = await palette.boundingBox();
+        const view = await canvas.boundingBox();
+        assert.ok(box.x >= view.x && box.x + box.width <= view.x + view.width + 1);
+        assert.ok(box.y >= view.y && box.y + box.height <= view.y + view.height + 1);
+        assert.equal(await palette.evaluate(el => el.scrollWidth <= el.clientWidth), true);
+      }
+      await page.setViewportSize({ width: 1280, height: 800 });
+      const { default: AxeBuilder } = await import("@axe-core/playwright");
+      const accessibility = await new AxeBuilder({ page }).include("[data-display-palette]").analyze();
+      assert.deepEqual(accessibility.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })), []);
+      await page.screenshot({ path: "../.build/display-palette.png" });
+      await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
+      assert.equal(await palette.evaluate(el => el.open), false, "outside click dismisses the palette");
+      assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
+    }
+  },
+  "colour-context": {
+    bundle: "profile-orientation-review",
+    minimumObjects: 30,
+    beforeNavigate: captureUnexpectedBrowserEvents,
+    async run(page) {
+      await openResultsTask(page);
+      const canvas = page.locator("[data-canvas]");
+      const field = page.getByRole("combobox", { name: "Colour the scene by" });
+      const before = await framebufferFingerprint(canvas);
+      await field.selectOption("model:material");
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.notEqual(await framebufferFingerprint(canvas), before, "choosing material must repaint the canvas");
+      const bluePixels = () => canvas.evaluate(target => {
+        const gl = target.getContext("webgl2");
+        const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+        gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        let blue = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (pixels[i + 2] > 80 && pixels[i + 2] > pixels[i] * 1.4 && pixels[i + 2] > pixels[i + 1] * 1.15) blue++;
+        }
+        return blue;
+      });
+      const unselectedBlue = await bluePixels();
+      assert.ok(unselectedBlue > 100, "deformed steel surfaces must be blue");
+      await page.getByRole("listitem").filter({ hasText: "steel" }).click();
+      await page.waitForFunction(() => window.__tubaViewer.state.selectedObjectIds.length === 36);
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: "../.build/colour-context-selected.png" });
+      const selectedBlue = await bluePixels();
+      // Selection opens the inspector and narrows the canvas; raw pixel counts
+      // are not comparable across that resize. Material equality is unit-tested.
+      assert.ok(selectedBlue > 100, `selected surfaces must remain blue, got ${selectedBlue} pixels`);
+      await page.getByRole("button", { name: "Clear selection", exact: true }).click();
+      const geometry = page.getByRole("combobox", { name: "Deformed state", exact: true });
+      await geometry.selectOption({ index: 0 });
+      assert.equal(await field.inputValue(), "model:material", "shape selection must preserve colour choice");
+      const displacement = await field.locator("option").evaluateAll(options => options.find(o => /Displacement/.test(o.textContent))?.value);
+      await field.selectOption(displacement);
+      for (const component of ["DX", "DY", "DZ", "magnitude"]) {
+        const control = page.getByRole("combobox", { name: "Component", exact: true });
+        if (!await control.locator(`option[value="${component}"]`).count()) continue;
+        await control.selectOption(component);
+        assert.equal(await page.evaluate(() => window.__tubaViewer.resultReview.legend.component), component);
+      }
+      await page.goto(new URL("?bundle=native-friction-review", page.url()).toString());
+      await page.waitForFunction(() => document.querySelector("[data-canvas]")?.dataset.renderer === "three");
+      const step = page.getByRole("combobox", { name: "Step", exact: true });
+      for (const index of [25, 50, 0]) {
+        await step.selectOption({ index });
+        const context = await page.evaluate(() => {
+          const state = window.__tubaViewer.state;
+          const active = state.resultFields.find(f => f.id === state.coloring.fieldId);
+          const owner = state.overlays.find(o => o.id === active?.overlay_id)?.data?.result_state_id;
+          return { step: state.activeResultStateId, owner, loadCase: state.activeLoadCase, fieldCase: active?.load_case };
+        });
+        assert.equal(context.owner, context.step);
+        assert.equal(context.fieldCase, context.loadCase);
+      }
+      assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
+    }
+  },
   smoke: {
     bundle: "/test/fixtures/smoke_scene",
     minimumObjects: 3
@@ -1093,13 +1212,11 @@ const scenarios = {
           renderDiagnostics: viewer.lastRender.diagnostics
         };
       });
-      // Exact, so a bundle that silently loses geometry fails loudly. Refreshed
-      // for the regenerated bundle: the load reports no diagnostics at all, so
-      // the drop from 221/218 is the model changing, not objects going missing.
-      assert.equal(loaded.objects, 209);
-      assert.equal(loaded.geometryPayloads, 216);
+      // Pinned to the published fixture, including its independent profile layers.
+      assert.equal(loaded.objects, 211);
+      assert.equal(loaded.geometryPayloads, 208);
       assert.equal(loaded.overlays, 11);
-      assert.equal(loaded.layers, 40);
+      assert.equal(loaded.layers, 49);
       assert.equal(loaded.resultFields, 5);
       assert.equal(loaded.hasParserDiagnostics, true);
       assert.equal(loaded.hasFieldContext, true);
@@ -1110,9 +1227,8 @@ const scenarios = {
       assert.equal(loaded.parserDiagnosticOverlays[0].data.result_state_id, "result_state:Operating");
       assert.deepEqual(loaded.renderDiagnostics, []);
 
-      // The hover-skip path only engages above MAX_HOVER_PICK_OBJECTS, so make
-      // sure the analysis mesh is on before exercising it. No task preset hides
-      // it now; this simply guarantees the dense scene the check needs.
+      // Exercise hover coalescing with the analysis mesh visible.
+      await page.locator("summary").filter({ hasText: /^Display$/ }).click();
       await page.getByLabel("Analysis mesh", { exact: true }).check();
       await page.waitForFunction(() => (window.__tubaViewer?.lastRender?.renderableCount ?? 0) > 50);
 
@@ -1139,7 +1255,7 @@ const scenarios = {
         }
       });
       assert.ok(hoverBurst.elapsedMs < 50, `dense-scene hover dispatch took ${hoverBurst.elapsedMs.toFixed(1)}ms`);
-      assert.equal(hoverBurst.scheduledAnimationFrames, 0, "dense-scene hover must skip picking frames");
+      assert.ok(hoverBurst.scheduledAnimationFrames <= 1, "a hover burst must schedule at most one picking frame");
 
       const canvas = page.locator("[data-canvas]");
       const fingerprint = () => framebufferFingerprint(canvas);
@@ -1399,6 +1515,7 @@ const staticSiteRoot = scenario.startsWith("pages-")
 
 let browser;
 let server;
+let page;
 
 try {
   server = staticSiteRoot ? await preview({
@@ -1420,7 +1537,7 @@ try {
   const baseUrl = server.resolvedUrls.local[0];
 
   browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { height: 800, width: 1280 } });
+  page = await browser.newPage({ viewport: { height: 800, width: 1280 } });
   // "Copy Entity Ref" now waits for the clipboard write to resolve before it
   // reports success, so the scenario needs the permission the browser would
   // otherwise refuse. Without it the button correctly reports a failure, which
@@ -1506,6 +1623,8 @@ try {
   process.exit(0);
 } catch (error) {
   console.error(error);
+  console.error(page?.__tubaUnexpectedBrowserEvents ?? []);
+  console.error(await page?.locator("[data-runtime-status]").textContent({ timeout: 1000 }).catch(() => "No runtime status"));
   await shutdown();
   process.exit(1);
 }

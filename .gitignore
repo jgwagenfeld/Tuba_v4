@@ -45,9 +45,9 @@ viewer/dist/
 viewer/node_modules/
 /viewer/public/bundles.json
 /viewer/public/downloads/
-/viewer/public/load-case-preparation/
 /viewer/public/autorouted-expansion-loop/
 /viewer/public/code-aster-review/
+/viewer/public/load-case-preparation/
 /viewer/public/elements-supports-review/
 /viewer/public/gmsh-tee-mesh-review/
 /viewer/public/guyed-mast-review/
@@ -98,7 +98,16 @@ notebooks/advanced_piping_rack.ifc
 /bim_demo_model.json
 
 # Agent scratch notes (specs/decisions/todos)
-.agents/
+/.agents/*
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/tuba-pages-verification/
+/.agents/skills/tuba-pages-verification/*
+!/.agents/skills/tuba-pages-verification/SKILL.md
+!/.agents/skills/isometry-to-tuba/
+!/.agents/skills/isometry-to-tuba/**
+!/.agents/skills/tuba-to-isometry/
+!/.agents/skills/tuba-to-isometry/**
 
 /viewer/public/native-friction-review/
 /viewer/public/profile-orientation-review/

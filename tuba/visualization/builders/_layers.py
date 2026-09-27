@@ -103,8 +103,8 @@ LAYER_ID_PREFIX_CATEGORY: tuple[tuple[str, str], ...] = (
     ("deformed:", "results"),
 )
 
-#: Fields whose overlay stores per-node vectors rather than per-object scalars.
-VECTOR_RESULT_TYPES = frozenset({"displacement", "reaction_force", "reaction_moment"})
+#: Fields whose overlay stores per-node vectors or per-element multi-component values.
+VECTOR_RESULT_TYPES = frozenset({"displacement", "reaction_force", "reaction_moment", "internal_forces"})
 VECTOR_COMPONENTS = ("DX", "DY", "DZ", "magnitude")
 SCALAR_COMPONENTS = ("magnitude",)
 
@@ -249,6 +249,8 @@ def build_result_fields(overlays: list[Overlay]) -> list[ResultField]:
             continue
         result_type = str(data.get("result_type") or overlay.kind)
         is_vector = result_type in VECTOR_RESULT_TYPES
+        declared_components = data.get("components")
+        components = tuple(declared_components) if declared_components else (VECTOR_COMPONENTS if is_vector else SCALAR_COMPONENTS)
         fields.append(
             ResultField(
                 id=overlay.id.replace("overlay:", "field:", 1),
@@ -257,7 +259,7 @@ def build_result_fields(overlays: list[Overlay]) -> list[ResultField]:
                 result_state_id=str(data.get("result_state_id") or ""),
                 overlay_id=overlay.id,
                 support=str(data.get("support") or _support_for(result_type)),
-                components=VECTOR_COMPONENTS if is_vector else SCALAR_COMPONENTS,
+                components=components,
                 unit=str(data.get("unit") or data.get("legend", {}).get("unit") or ""),
                 range=_range_for(data, values),
                 compliance_role=data.get("compliance_role"),
@@ -269,7 +271,7 @@ def build_result_fields(overlays: list[Overlay]) -> list[ResultField]:
 def _support_for(result_type: str) -> str:
     if result_type == "tuyau_subpoints":
         return "subpoint"
-    if result_type in VECTOR_RESULT_TYPES:
+    if result_type in ("displacement", "reaction_force", "reaction_moment"):
         return "node"
     return "cell"
 

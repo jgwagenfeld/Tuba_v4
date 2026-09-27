@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
 from uuid import uuid4
@@ -29,6 +30,49 @@ class GeneratedPipeVolumeMesh:
     settings: dict[str, Any]
     med_path: Path
     geometry: VolumeGeometry
+
+
+@lru_cache(maxsize=128)
+def tee_surface_meshes(geometry: VolumeGeometry) -> dict[str, dict[str, list]]:
+    """Tessellate the canonical tee wall for display, retaining element picking.
+
+    This is an idealized surface, not an analysis mesh or a manufacturer fillet.
+    The three face partitions share one conformal wall, with no internal caps.
+    """
+    if geometry.kind != "tee":
+        raise ValueError("Expected canonical tee geometry.")
+    size = min(solid.radius for solid in geometry.outer) / 4
+    with gmsh_model(gmsh, "tuba_tee_display", initialize_args=["-noenv"], options={
+        "General.Terminal": 0, "Mesh.MeshSizeMin": size / 2,
+        "Mesh.MeshSizeMax": size, "Mesh.MeshSizeFromCurvature": 24,
+        "Mesh.ElementOrder": 1, "Mesh.RecombineAll": 0,
+        "Mesh.SubdivisionAlgorithm": 0,
+    }):
+        _build_tee_geometry(geometry)
+        gmsh.model.mesh.generate(2)
+        tags, coordinates, _ = gmsh.model.mesh.getNodes()
+        vertices = np.asarray(coordinates).reshape(-1, 3)
+        indices = {int(tag): i for i, tag in enumerate(tags)}
+        types, _, node_tags = gmsh.model.mesh.getElements(2)
+        if list(types) != [2]:
+            raise RuntimeError("Expected linear triangles for the tee display surface.")
+        faces = np.array([indices[int(tag)] for tag in node_tags[0]]).reshape(-1, 3)
+    centers = vertices[faces].mean(axis=1)
+    junction = np.asarray(geometry.outer[1].start)
+    distances = []
+    for terminal in geometry.terminals:
+        axis = np.asarray(terminal.point) - junction
+        station = np.clip((centers - junction) @ axis / (axis @ axis), 0, 1)
+        distances.append(np.linalg.norm(centers - junction - station[:, None] * axis, axis=1))
+    owners = np.argmin(distances, axis=0)
+    surfaces = {}
+    for i, terminal in enumerate(geometry.terminals):
+        selected = faces[owners == i]
+        used, remapped = np.unique(selected, return_inverse=True)
+        surfaces[terminal.element_id] = {
+            "vertices": vertices[used].tolist(), "faces": remapped.reshape(-1, 3).tolist(),
+        }
+    return surfaces
 
 
 def build_pipe_volume_mesh(

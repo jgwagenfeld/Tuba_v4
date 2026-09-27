@@ -55,11 +55,12 @@ export function getActiveField(state) {
 }
 
 function fieldsForActiveResult(state) {
-  if (!state.activeResultStateId) return getResultFields(state);
   const overlays = new Map((state.overlays ?? []).map((overlay) => [overlay.id, overlay]));
+  const loadCase = state.activeLoadCase ?? state.coloring?.loadCase;
   return getResultFields(state).filter((field) => {
     const owner = overlays.get(field.overlay_id)?.data?.result_state_id ?? field.result_state_id;
-    return !owner || owner === state.activeResultStateId;
+    return (!loadCase || !field.load_case || field.load_case === loadCase) &&
+      (!state.activeResultStateId || !owner || owner === state.activeResultStateId);
   });
 }
 
@@ -75,13 +76,10 @@ export function componentIsSelectable(state) {
 }
 
 export function setColoringLoadCase(state, loadCase) {
-  // Changing case re-points the field: the same field id belongs to one case,
-  // so keeping it would silently show the previous case's numbers.
+  // Retain the requested quantity; getActiveField resolves its counterpart
+  // within the new case and result step before falling back to another field.
   const next = { ...(state.coloring ?? {}), loadCase: loadCase ?? null };
-  const candidate = getResultFields(state).find((field) => field.load_case === loadCase);
-  next.fieldId = candidate?.id ?? null;
-  // Choosing a case is choosing to colour by results, whatever lens is open.
-  return { ...withCoherentColoring({ ...state, coloring: next }), colorChannel: "results" };
+  return withCoherentColoring({ ...state, coloring: next });
 }
 
 export function setColoringField(state, fieldId) {
@@ -139,17 +137,25 @@ export function getColoringLegend(state) {
   const declared = (field.components ?? ["magnitude"]).length === 1 ? field.range : null;
   const range = declared ?? rangeOf(Object.values(getColoringValues(state)));
   if (!range) return null;
+  const component = getActiveComponent(state);
   return {
     fieldId: field.id,
     field: fieldLabel(field),
-    component: getActiveComponent(state),
+    component,
     support: field.support,
-    unit: field.unit ?? "",
+    unit: componentUnit(field, component),
     loadCase: field.load_case ?? null,
     range: { min: range[0], max: range[1] },
     complianceRole: field.compliance_role ?? null,
     overlay
   };
+}
+
+function componentUnit(field, component) {
+  if (["MT", "MFY", "MFZ", "MX", "MY", "MZ"].includes(component)) return "N·m";
+  if (["N", "VY", "VZ", "FX", "FY", "FZ"].includes(component)) return "N";
+  if (["DRX", "DRY", "DRZ"].includes(component)) return "rad";
+  return field.unit ?? "";
 }
 
 // Rendered next to the legend, never as a tooltip and never suppressed by a
@@ -190,11 +196,22 @@ export function getColoringValues(state) {
   return resolved;
 }
 
+const COMPONENT_INDEX = {
+  DX: 0, DY: 1, DZ: 2,
+  FX: 0, FY: 1, FZ: 2,
+  MX: 0, MY: 1, MZ: 2,
+  DRX: 3, DRY: 4, DRZ: 5,
+  N: 0, VY: 1, VZ: 2, MT: 3, MFY: 4, MFZ: 5
+};
+
 export function scalarFor(value, component) {
   if (Array.isArray(value)) {
-    const index = { DX: 0, DY: 1, DZ: 2 }[component];
-    if (index !== undefined) return Number(value[index]);
-    return Math.hypot(...value.slice(0, 3).map(Number));
+    const index = COMPONENT_INDEX[component];
+    if (index !== undefined && index < value.length) return Number(value[index]);
+    if (component === "magnitude" || !component) {
+      return Math.hypot(...value.slice(0, Math.min(3, value.length)).map(Number));
+    }
+    return Number(value[0]);
   }
   return Number(value);
 }

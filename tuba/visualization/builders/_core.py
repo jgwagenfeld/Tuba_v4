@@ -160,11 +160,30 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
         diagnostics.extend(contribution.diagnostics)
 
     if opts.include_elements:
+        tee_surfaces = {}
+        # Cold geometry only: solved/deformed surfaces remain owned by their result path.
+        if model.tees and not (result_state_records or geometry_state_records or unscoped_volume_skin):
+            from tuba.geometry.volume import build_volume_geometry
+
+            for node_id in model.tees:
+                element_ids = [elem.id for elem in model.elements if node_id in (elem.n1, elem.n2)]
+                if any(f"element:{eid}" in volume_element_refs or eid in tee_surfaces for eid in element_ids):
+                    continue
+                try:
+                    from tuba.meshing.pipe_volume import tee_surface_meshes
+
+                    tee_surfaces.update(tee_surface_meshes(build_volume_geometry(model, element_ids)))
+                except (ImportError, OSError, ValueError, RuntimeError) as exc:
+                    diagnostics.append(SceneDiagnostic(
+                        severity="warning", target=f"node:{node_id}",
+                        message=f"Joined tee display unavailable; showing centerline tubes: {exc}",
+                    ))
         for elem in model.elements:
             volume_skin = elem.type.startswith("pipe") and (
                 unscoped_volume_skin or f"element:{elem.id}" in volume_element_refs
             )
-            merge(_build_element_object(model, elem, opts, resolved_ifc_guid_map, volume_skin=volume_skin))
+            merge(_build_element_object(model, elem, opts, resolved_ifc_guid_map,
+                                        volume_skin=volume_skin, tee_surface=tee_surfaces.get(elem.id)))
 
     if opts.include_supports:
         for support in model.supports:

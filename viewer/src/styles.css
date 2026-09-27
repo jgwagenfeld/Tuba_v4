@@ -3298,6 +3298,63 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
 .review-section .rail-find { padding-inline: 0; }
 .review-section .find-scope { flex-wrap: wrap; }
 .review-section .object-list { max-height: 24rem; overflow: auto; }
+
+/* Display stays reachable even when the review rail is closed. The tint keeps
+   labels legible over both the white canvas and coloured result surfaces. */
+.display-palette {
+  position: absolute;
+  z-index: 5;
+  top: 0.75rem;
+  left: 2.5rem;
+  max-width: calc(100% - 3.25rem);
+  max-height: calc(100% - 4.5rem);
+  overflow: auto;
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+  padding: 0;
+  border: 1px solid #65747c;
+  border-radius: 0.6rem;
+  background: rgb(27 37 44 / 94%);
+  backdrop-filter: blur(12px);
+  color: var(--chrome-text);
+  color-scheme: dark;
+  box-shadow: 0 0.4rem 1.4rem rgb(14 20 24 / 18%);
+  scrollbar-color: #65747c transparent;
+}
+.display-palette[hidden] { display: none; }
+.display-palette[open] { width: 21rem; }
+.display-palette > summary {
+  padding: 0.6rem 0.8rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.display-palette > summary:hover { color: var(--accent); }
+.display-palette[open] > summary { border-bottom: 1px solid var(--graphite-line); }
+.display-palette-content { padding: 0 0.65rem 0.6rem; }
+.display-palette h2 {
+  margin: 0.8rem 0 0.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--chrome-text-1);
+}
+.display-palette .body-head { gap: 0.3rem; }
+.display-palette .body-toggle { min-height: 1.75rem; }
+.display-palette .body-name { white-space: normal; }
+.display-palette .body-row { padding: 0.25rem 0.3rem; }
+.display-palette .body-row[data-body-visible="true"] { background: rgb(94 216 229 / 7%); }
+.display-palette button {
+  border-color: #65747c;
+  background: var(--sidebar-control);
+  color: var(--chrome-text);
+}
+.display-palette .body-caret { color: var(--chrome-text-1); }
+.display-palette .meta,
+.display-palette .layer-toggle { color: var(--chrome-text-1); }
+.display-palette .body-metric { color: var(--chrome-text-1); }
+
 .group-header[aria-pressed="true"] { color: var(--accent); border-left: 2px solid var(--accent); }
 .review-drawer {
   grid-area: review; min-width: 0; min-height: 0;

@@ -86,6 +86,26 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(force_asset.generation_config["reaction_force_n"], [100.0, 0.0, -500.0])
         self.assertEqual(moment_asset.generation_config["reaction_moment_nm"], [25.0, 0.0, -75.0])
 
+    def test_result_state_adds_internal_forces_overlay(self):
+        model, result_state = _model_and_result_state()
+
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state], scene_id="scene:result_forces"))
+        scene.validate()
+
+        forces = _result_overlay(scene, "internal_forces")
+        self.assertIsNotNone(forces)
+        self.assertEqual(forces.data["result_state_id"], result_state.id)
+        self.assertEqual(forces.data["result_type"], "internal_forces")
+        self.assertEqual(forces.data["components"], ["N", "VY", "VZ", "MT", "MFY", "MFZ", "magnitude"])
+        self.assertEqual(forces.data["legend"]["field"], "Section Forces (EFGE_ELNO)")
+        self.assertIn("object:element:pipe_0", forces.data["values"])
+        self.assertEqual(len(forces.data["values"]["object:element:pipe_0"]), 6)
+
+        # Check result fields catalogue
+        field = next(f for f in scene.result_fields if f.overlay_id == forces.id)
+        self.assertEqual(field.components, ("N", "VY", "VZ", "MT", "MFY", "MFZ", "magnitude"))
+        self.assertEqual(field.support, "cell")
+
     def test_result_state_missing_element_results_emit_diagnostics(self):
         model, result_state = _model_and_result_state(element_results=False)
 

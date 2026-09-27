@@ -15,6 +15,15 @@ reaction, thermal-expansion, operating-state clash, compliance, or result
 visualization workflows. Export-only paths are development and diagnostic
 surfaces only.
 
+## Concurrent Work
+
+Use an isolated worktree for multi-file work while another session uses the
+checkout. Inspect current HEAD and staged/unstaged changes before committing.
+Use explicit owned pathspecs for staging and ordinary commits; never use
+repo-wide staging in a shared checkout. For a merge commit, review the full
+index against both parents. Unexpected deletions or staged changes require
+ownership checks before restoring, deleting, or committing them.
+
 ## Code_Aster Rules
 
 - Do not present fabricated, mock, hand-built, or proxy values as solver
@@ -119,3 +128,6 @@ There are two result-display paths. Keep them distinct; do not add a third.
   that the `viewer/` Three.js app renders. Use it for shareable review bundles.
 
 Prefer one path per notebook/example rather than mixing both.
+
+For gallery freshness or Pages readiness, read
+`.agents/skills/tuba-pages-verification/SKILL.md`.

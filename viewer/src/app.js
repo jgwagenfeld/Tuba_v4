@@ -123,6 +123,7 @@ const dom = {
   railUtility: document.querySelector("[data-rail-utility]"),
   railPopover: document.querySelector("[data-rail-popover]"),
   displayStrip: document.querySelector("[data-display-strip]"),
+  displayPalette: document.querySelector("[data-display-palette]"),
   sectionBoxControls: document.querySelector("[data-section-box-controls]"),
   bodyList: document.querySelector("[data-body-list]"),
   projectionNote: document.querySelector("[data-projection-note]"),
@@ -531,6 +532,8 @@ function restoreFocus(focus) {
 function renderRailChrome() {
   const view = currentWorkspace();
   dom.taskRail.hidden = !view.railVisible;
+  dom.displayPalette.hidden = isBuildMode() || currentState.embed;
+  if (dom.displayPalette.hidden) dom.displayPalette.open = false;
   dom.reviewDrawer.hidden = isBuildMode() || currentState.embed;
   dom.railToggle.hidden = !view.railToggleVisible;
   dom.railToggle.setAttribute("aria-expanded", String(railExpanded));
@@ -921,7 +924,7 @@ function renderResultControls() {
 
   // The field itself is chosen in the pinned "Colour by" control; what is left
   // here are the refinements that hang off it - the case and the component.
-  const showComponent = fieldOptions.length > 0 && componentIsSelectable(currentState);
+  const showComponent = colorChannelOf(currentState) === "results" && fieldOptions.length > 0 && componentIsSelectable(currentState);
   if (loadCases.length > 0) {
     dom.resultControls.append(
       propertyRow(
@@ -934,7 +937,19 @@ function renderResultControls() {
     );
   }
   if (showComponent) {
-    const components = (getActiveField(currentState)?.components ?? ["magnitude"]).map((id) => ({ id, label: id }));
+    const componentLabels = {
+      magnitude: "Magnitude",
+      N: "N (Axial Force)",
+      VY: "VY (Shear Force Y)",
+      VZ: "VZ (Shear Force Z)",
+      MT: "MT (Torsion)",
+      MFY: "MFY (Bending Moment Y)",
+      MFZ: "MFZ (Bending Moment Z)"
+    };
+    const components = (getActiveField(currentState)?.components ?? ["magnitude"]).map((id) => ({
+      id,
+      label: componentLabels[id] ?? id
+    }));
     dom.resultControls.append(
       propertyRow(
         "Component",
@@ -1189,9 +1204,7 @@ function renderHeader() {
 
 function renderDisplayStrip() {
   dom.displayStrip.hidden = currentState.embed;
-  // What is drawn stays on screen: the rail is one column of sections now, so
-  // nothing is swapped out to make room and the Deformed toggle cannot vanish
-  // while its own scale control is on screen.
+  // The floating palette reuses the same visibility controls and live scene.
   renderColorBy();
   renderBodyList();
   renderOverlayList();
@@ -2876,6 +2889,16 @@ dom.resetView.addEventListener("click", () => viewportRenderer?.resetView());
 dom.bodyLegendToggle.addEventListener("click", () => {
   bodyLegendOpen = !bodyLegendOpen;
   render();
+});
+
+dom.displayPalette.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !dom.displayPalette.open) return;
+  event.preventDefault();
+  dom.displayPalette.open = false;
+  dom.displayPalette.querySelector("summary").focus();
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!dom.displayPalette.contains(event.target)) dom.displayPalette.open = false;
 });
 
 dom.canvas.addEventListener("pointerdown", (event) => {

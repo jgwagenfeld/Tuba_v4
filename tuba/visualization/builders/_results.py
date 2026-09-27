@@ -91,6 +91,9 @@ def _build_result_state_result_scene(
         stress_overlay = _result_state_stress_overlay(model, result_state, diagnostics)
         if stress_overlay is not None:
             overlays.append(stress_overlay)
+        forces_overlay = _result_state_internal_forces_overlay(model, result_state, diagnostics)
+        if forces_overlay is not None:
+            overlays.append(forces_overlay)
 
     if volume_overlay is not None:
         displacement_objects, displacement_assets, displacement_overlay = (
@@ -455,6 +458,72 @@ def _result_state_stress_overlay(
             "element_results": element_metadata,
         },
     )
+
+
+def _result_state_internal_forces_overlay(
+    model: TubaModel,
+    result_state: ResultState,
+    diagnostics: list[SceneDiagnostic],
+) -> Overlay | None:
+    values: dict[str, list[float]] = {}
+    object_ids: list[str] = []
+    entity_refs: list[EntityRef] = []
+    element_metadata: dict[str, dict[str, Any]] = {}
+
+    for elem in model.elements:
+        object_id = _object_id(EntityRef("element", elem.id))
+        data = result_state.element_results.get(elem.id)
+        if data is None:
+            continue
+        fn1 = data.get("forces_n1")
+        fn2 = data.get("forces_n2")
+        if not fn1 and not fn2:
+            continue
+        envelope = []
+        for i in range(6):
+            v1 = fn1[i] if fn1 and i < len(fn1) and fn1[i] is not None and np.isfinite(fn1[i]) else 0.0
+            v2 = fn2[i] if fn2 and i < len(fn2) and fn2[i] is not None and np.isfinite(fn2[i]) else 0.0
+            envelope.append(float(v1 if abs(v1) >= abs(v2) else v2))
+        values[object_id] = envelope
+        object_ids.append(object_id)
+        entity_refs.append(EntityRef("element", elem.id))
+        element_metadata[object_id] = _result_state_element_result_metadata(data)
+
+    if not values:
+        return None
+
+    magnitudes = [float(np.linalg.norm(v[:3])) for v in values.values()]
+    min_mag = min(magnitudes) if magnitudes else 0.0
+    max_mag = max(magnitudes) if magnitudes else 0.0
+
+    return Overlay(
+        id=f"overlay:solver_result:internal_forces:{result_state.id}",
+        kind="solver_result",
+        object_ids=object_ids,
+        entity_refs=entity_refs,
+        name=f"Section Forces (EFGE_ELNO) {result_state.load_case}",
+        data={
+            "result_type": "internal_forces",
+            "result_state_id": result_state.id,
+            "study_id": result_state.study_id,
+            "mesh_id": result_state.mesh_id,
+            "load_case": result_state.load_case,
+            "field": "internal_forces",
+            "values": values,
+            "components": ["N", "VY", "VZ", "MT", "MFY", "MFZ", "magnitude"],
+            "unit": "N",
+            "legend": {
+                "field": "Section Forces (EFGE_ELNO)",
+                "unit": "N",
+                "range": {"min": min_mag, "max": max_mag},
+                "color_map": "turbo",
+                "thresholds": {},
+            },
+            "element_results": element_metadata,
+        },
+    )
+
+
 def _result_state_displacement_overlay(
     model: TubaModel,
     result_state: ResultState,

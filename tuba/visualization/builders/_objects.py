@@ -51,6 +51,7 @@ def _build_element_object(
     ifc_guid_map: dict[str, str] | None = None,
     *,
     volume_skin: bool = False,
+    tee_surface: dict[str, list] | None = None,
 ) -> SceneContribution:
     """One element's scene contribution; *volume_skin* hides its display geometry behind the mesh."""
     diagnostics: list[SceneDiagnostic] = []
@@ -131,6 +132,11 @@ def _build_element_object(
         generation_config["inner_radius_m"] = float(inner_diameter) / 2.0
     asset_format = "tube"
     asset_bounds = _bounds_for_points(points, radius)
+    if tee_surface is not None:
+        generation_config.update(tee_surface, source="tuba.tee_wall")
+        metadata["display_geometry"] = "Idealized joined tee wall; no manufacturer fillet"
+        asset_format = "mesh"
+        asset_bounds = _bounds_for_points(tee_surface["vertices"], 0.0)
     if not elem.type.startswith("pipe"):
         surface = straight_section_surface_mesh(
             model.sections[elem.section],

@@ -32,10 +32,9 @@ def gmsh_model(
         model_added = False
         try:
             if owned_session:
-                if initialize_args is None:
-                    gmsh.initialize()
-                else:
-                    gmsh.initialize(initialize_args)
+                # Studio can build geometry on a worker thread; signal handlers
+                # belong to the application's main thread, not the mesher.
+                gmsh.initialize(initialize_args or [], interruptible=False)
             gmsh.model.add(model_name)
             model_added = True
             for name, value in (options or {}).items():

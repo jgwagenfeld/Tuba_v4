@@ -1,4 +1,5 @@
 import { colorChannelOf } from "./workflowState.js";
+import { selectionKey } from "./reviewSelection.js";
 
 // Categorical color palette for model properties (Section, Material, Group, Insulation).
 // Accessible, high-contrast, visually distinct shades.
@@ -118,6 +119,11 @@ export function getModelObjectColor(state, objectIds = []) {
 
   for (const id of ids) {
     const obj = (state?.objects || []).find((o) => o.id === id);
+    const key = selectionKey(obj);
+    const source = (state?.objects || []).find((o) => isModelColorable(o) && selectionKey(o) === key);
+    if (source && coloring.colorByObjectId.has(source.id)) {
+      return coloring.colorByObjectId.get(source.id);
+    }
     if (obj) {
       const val = getModelObjectPropertyValue(obj, mode) || "Unassigned";
       if (coloring.colorByValue.has(val)) {

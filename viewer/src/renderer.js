@@ -3,6 +3,10 @@ import * as THREE from "three";
 import { selectionKey } from "./reviewSelection.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { OutlinePass } from "three/examples/jsm/postprocessing/OutlinePass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import {
   colorForScalarValue,
   getActiveResultState,
@@ -91,6 +95,10 @@ export function createThreeSceneGraph(state, options = {}) {
   addContactMarkers(root, state);
   const keysById = new Map((state.objects ?? []).map(o => [o.id, selectionKey(o)]));
   const supportIds = new Set((state.objects ?? []).filter(o => o.kind === "support").map(o => o.id));
+  const structuralIds = new Set((state.objects ?? []).filter(o => String(selectionKey(o)).startsWith("element:")).map(o => o.id));
+  const meshIds = new Set((state.objects ?? []).filter(o => String(o.kind).includes("analysis_mesh")).map(o => o.id));
+  const surfaceKeys = new Set((state.objects ?? []).filter(o => structuralIds.has(o.id) &&
+    !meshIds.has(o.id) && objectsByObjectId.has(o.id)).map(selectionKey));
   const objectsBySelectionKey = new Map();
   for (const object of root.children) {
     for (const id of object.userData.objectIds ?? []) {
@@ -99,7 +107,12 @@ export function createThreeSceneGraph(state, options = {}) {
       objectsBySelectionKey.get(key).add(object);
     }
     const isSupport = (object.userData.objectIds ?? []).some(id => supportIds.has(id));
-    if ((isSupport && !object.userData.contactStatus) || object.userData.pickVolume) {
+    const isStructure = (object.userData.objectIds ?? []).some(id => structuralIds.has(id));
+    // One surface outline, not a cage around every underlying FE segment.
+    const outlineStructure = isStructure && (object.userData.objectIds ?? []).some(id =>
+      !meshIds.has(id) || !surfaceKeys.has(keysById.get(id)));
+    object.userData.outlineSurface = outlineStructure;
+    if ((isSupport && !object.userData.contactStatus) || (!isStructure && object.userData.pickVolume)) {
       const outline = new THREE.BoxHelper(object.userData.pickVolume ?? object, SELECT_HIGHLIGHT);
       outline.material.depthTest = false;
       outline.renderOrder = 40;
@@ -108,7 +121,7 @@ export function createThreeSceneGraph(state, options = {}) {
       object.userData.highlightOutline = outline;
       scene.add(outline);
     }
-    if (isSupport) object.traverse(part => { part.userData.preserveHighlightColor = true; });
+    if (isSupport || isStructure) object.traverse(part => { part.userData.preserveHighlightColor = true; });
   }
 
   // Fit to what was actually drawn, not to what the assets declare. Deformed
@@ -159,6 +172,8 @@ const SCENE_GRAPH_STATE_KEYS = [
   "activeResultStateId",
   "activeGeometryStateId",
   "coloring",
+  "modelColorBy",
+  "colorChannel",
   "resultVectorScales",
   "bodyOpacity",
   "contactArrows",
@@ -245,6 +260,9 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   viewHelper.setLabels("X", "Y", "Z");
 
   let currentGraph = null;
+  let highlightComposer = null;
+  let highlightRenderPass = null;
+  const outlinePasses = [];
   let deformationInteractionActive = false;
   let redrawFrameId = null;
   const cameraDirection = new THREE.Vector3();
@@ -261,11 +279,42 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
       return false;
     }
     renderer.setSize(width, height, false);
+    highlightComposer?.setSize(width, height);
     return true;
   };
   const drawFrame = (graph) => {
     renderer.clear();
-    renderer.render(graph.scene, camera);
+    const surfaces = graph.renderableObjects.filter(object => object.visible && object.userData.outlineSurface);
+    const selected = surfaces.filter(object => object.userData.selected && !object.userData.hovered);
+    const hovered = surfaces.filter(object => object.userData.hovered);
+    if (selected.length || hovered.length) {
+      if (!highlightComposer) {
+        highlightComposer = new EffectComposer(renderer);
+        highlightRenderPass = new RenderPass(graph.scene, camera);
+        highlightComposer.addPass(highlightRenderPass);
+        for (const color of [SELECT_HIGHLIGHT, HOVER_HIGHLIGHT]) {
+          const pass = new OutlinePass(renderer.getSize(new THREE.Vector2()), graph.scene, camera);
+          pass.visibleEdgeColor.setHex(color);
+          pass.hiddenEdgeColor.setHex(color);
+          // Additive edges disappear against the viewer's light background.
+          pass.overlayMaterial.blending = THREE.NormalBlending;
+          pass.overlayMaterial.premultipliedAlpha = true;
+          pass.edgeStrength = 1;
+          outlinePasses.push(pass);
+          highlightComposer.addPass(pass);
+        }
+        highlightComposer.addPass(new OutputPass());
+      }
+      highlightRenderPass.scene = graph.scene;
+      outlinePasses.forEach((pass, index) => {
+        pass.renderScene = graph.scene;
+        pass.selectedObjects = index === 0 ? selected : hovered;
+        pass.enabled = pass.selectedObjects.length > 0;
+      });
+      highlightComposer.render();
+    } else {
+      renderer.render(graph.scene, camera);
+    }
     viewHelper.render(renderer);
     if (deformationInteractionActive) drawDeformationOverlay(deformationOverlay, graph.deformationPreview, camera);
     canvas.dataset.cameraDirection = camera
@@ -668,6 +717,7 @@ function updateHighlightOutline(object) {
   const outline = object.userData.highlightOutline;
   if (!outline) return;
   outline.visible = object.visible && (object.userData.hovered || object.userData.selected);
+  if (outline.visible) outline.update();
   outline.material.color.setHex(object.userData.hovered ? HOVER_HIGHLIGHT : SELECT_HIGHLIGHT);
 }
 

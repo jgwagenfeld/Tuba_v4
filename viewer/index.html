@@ -142,27 +142,11 @@
                 <p class="projection-note" data-projection-note></p>
                 <section class="section-profile" aria-label="TUYAU section sub-point grid" data-section-profile></section>
               </details>
-              <details class="review-section">
-                <summary>Display</summary>
-                <div data-layers-block>
-                  <h3>Geometry &amp; mesh</h3>
-                  <div class="body-list" data-body-list></div>
-                  <div data-overlays-block hidden>
-                    <h3>Supports, loads &amp; vectors</h3>
-                    <div class="body-list" data-overlay-list></div>
-                  </div>
-                  <div data-contact-display></div>
-                  <details class="strip-drawer layer-tree">
-                    <summary>All layers <span class="layer-tally" data-layer-tally></span></summary>
-                    <div data-layer-list></div>
-                  </details>
-                </div>
-              </details>
               <details class="review-section case-inputs" data-review-inputs>
                 <summary>Input assignments</summary>
                 <div data-case-inputs="review"></div>
               </details>
-              <details class="review-section" data-objects-section open>
+              <details class="review-section" data-objects-section>
                 <summary>Objects</summary>
                 <div class="rail-find">
                   <input type="search" data-search aria-label="Search objects" placeholder="Find object, material, route" />
@@ -185,6 +169,22 @@
           </div>
         </aside>
         <section class="viewport">
+          <details class="review-section display-palette" data-display-palette hidden>
+            <summary>Display</summary>
+            <div class="display-palette-content" data-layers-block>
+              <h2>Geometry &amp; mesh</h2>
+              <div class="body-list" data-body-list></div>
+              <div data-overlays-block hidden>
+                <h2>Supports, loads &amp; vectors</h2>
+                <div class="body-list" data-overlay-list></div>
+              </div>
+              <div data-contact-display></div>
+              <details class="strip-drawer layer-tree">
+                <summary>All layers <span class="layer-tally" data-layer-tally></span></summary>
+                <div data-layer-list></div>
+              </details>
+            </div>
+          </details>
           <canvas
             data-canvas
             tabindex="0"

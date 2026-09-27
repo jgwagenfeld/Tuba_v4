@@ -303,6 +303,43 @@ def test_a_byte_order_mark_does_not_hide_the_header():
     assert not is_generated('from tuba import Model\n\nmodel = Model("Hand written")\n')
 
 
+@pytest.mark.parametrize("in_helper", [False, True], ids=["direct", "helper"])
+def test_line_loads_link_to_their_own_definition_in_the_scene(tmp_path: Path, in_helper: bool):
+    from textwrap import indent
+
+    from tuba.visualization import SceneRequest, build_visualization_scene
+
+    loads = '''op.add_field(
+    "line_load", 350.0, direction=[0.0, 0.0, -1.0],
+    element_ids=["pipe_str_0", "pipe_bend_0"],
+)
+op.add_field("line_load", 500.0, direction=[0.0, 1.0, 0.0], element_ids=["pipe_str_1"])
+'''
+    script = _BUILDER + '\nop = model.define_operation("Loads", gravity=False)\n'
+    script += "def add_loads(op):\n" + indent(loads, "    ") + "add_loads(op)\n" if in_helper else loads
+    path = tmp_path / "model.py"
+    path.write_text(script, encoding="utf-8")
+    model = run_model_script(path)["model"]
+    lines = script.splitlines()
+    definitions = [index for index, line in enumerate(lines, 1) if line.strip().startswith("op.add_field(")]
+    call_line = lines.index("add_loads(op)") + 1 if in_helper else None
+    case_line = lines.index('op = model.define_operation("Loads", gravity=False)') + 1
+
+    scene = build_visualization_scene(SceneRequest(model))
+    glyphs = [obj for obj in scene.objects if obj.metadata.get("vector_kind") == "line_load"]
+    assert len(glyphs) == len(model.elements)
+    for glyph in glyphs:
+        definition = definitions[0 if glyph.metadata["value_npm"] == 350.0 else 1]
+        assert glyph.metadata["source_line"] == definition
+        assert glyph.metadata.get("source_call_line") == call_line
+        assert glyph.metadata["property_lines"]["load_case"] == case_line
+
+    # Source links are runtime annotations, not engineering input or model identity.
+    data = model.to_dict()
+    assert "source_line" not in str(data) and "source_call_line" not in str(data)
+    assert TubaModel.from_dict(data).operations["Loads"].fields == model.operations["Loads"].fields
+
+
 def test_node_ids_outside_the_add_node_sequence_are_refused():
     data = Model("Custom ids").to_dict()
     data["nodes"] = {"inlet": [0.0, 0.0, 0.0]}

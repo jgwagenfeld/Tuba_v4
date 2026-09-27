@@ -3,6 +3,17 @@ import test from "node:test";
 import { createThreeSceneGraph, applyHoverHighlight, applySelectionHighlight } from "../src/renderer.js";
 import { selectObject, hideSelected, isolateSelection, fitSelection } from "../src/selection.js";
 
+test("picking an FE segment selects its authored element, while explicit nodes stay individual", () => {
+  const state = { objects: [
+    { id: "beam", kind: "rack_member", entity_ref: "element:B" },
+    { id: "segment", kind: "analysis_mesh_element", metadata: { source_ref: "element:B" } },
+    { id: "deformed", kind: "deformed_analysis_mesh_element", metadata: { source_ref: "element:B" } },
+    { id: "node", kind: "analysis_mesh_node", entity_ref: "element:B" }
+  ] };
+  for (const id of ["segment", "deformed"]) assert.deepEqual(selectObject(state, id).selectedObjectIds, ["beam"]);
+  assert.deepEqual(selectObject(state, "node").selectedObjectIds, ["node"]);
+});
+
 test("engineering selection follows solved bodies without selecting mesh nodes or unrelated members", () => {
   const objects = [
     { id: "beam", entity_ref: "element:B1", kind: "rack_member" },

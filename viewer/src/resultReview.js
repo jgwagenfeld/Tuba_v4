@@ -77,7 +77,9 @@ export function coherentResultContext(previousState, nextState) {
 export function getGeometryStateOptions(state, loadCase = state.activeLoadCase ?? null) {
   return (state.geometryStates ?? []).filter((overlay) => {
     const geometryLoadCase = overlay.data?.load_case ?? null;
-    return !loadCase || geometryLoadCase === loadCase;
+    const owner = overlay.data?.result_state_id;
+    return !loadCase || ((!geometryLoadCase || geometryLoadCase === loadCase) &&
+      (!state.activeResultStateId || !owner || owner === state.activeResultStateId));
   }).map((overlay) => {
     const data = overlay.data ?? {};
     return {
@@ -330,25 +332,26 @@ export function getResultVectorScale(state, vectorType) {
 
 export function getVisualDeformationDisplayScale(state) {
   const value = Number(state.visualDeformationScale ?? 1);
-  return Number.isFinite(value) && value > 0 ? value : 1;
+  return Number.isFinite(value) && value >= 0 ? value : 1;
 }
 
 export function setActiveLoadCase(state, loadCase) {
-  const resultState = getResultStateOptions(state).find((candidate) => candidate.loadCase === loadCase);
+  const results = getResultStateOptions(state).filter((candidate) => candidate.loadCase === loadCase);
+  const resultState = results.find((candidate) => candidate.id === state.activeResultStateId) ?? results[0];
   const activeGeometryState = getGeometryStateOptions(state, null).find(
     (candidate) => candidate.id === state.activeGeometryStateId
   );
-  const geometryOptions = getGeometryStateOptions(state, loadCase);
+  const next = { ...state, activeLoadCase: loadCase ?? null, activeResultStateId: resultState?.id ?? null };
+  const geometryOptions = getGeometryStateOptions(next, loadCase);
   const geometryState =
+    geometryOptions.find((candidate) => candidate.id === state.activeGeometryStateId) ??
     (activeGeometryState?.purpose
       ? geometryOptions.find((candidate) => candidate.purpose === activeGeometryState.purpose)
       : null) ??
     geometryOptions[0] ??
     null;
   return {
-    ...state,
-    activeLoadCase: loadCase ?? null,
-    activeResultStateId: resultState?.id ?? null,
+    ...next,
     activeGeometryStateId: geometryState?.id ?? null,
     visualDeformationScale:
       geometryState?.purpose === "visualization" && geometryState.visualScale != null
@@ -360,12 +363,9 @@ export function setActiveLoadCase(state, loadCase) {
 export function setActiveResultState(state, resultStateId) {
   const option = getResultStateOptions(state).find((candidate) => candidate.id === resultStateId);
   if (option) {
-    const next = setActiveLoadCase(state, option.loadCase);
-    const geometry = getGeometryStateOptions(state, null).filter((item) => item.overlay.data?.result_state_id === option.id);
+    const next = setActiveLoadCase({ ...state, activeResultStateId: option.id }, option.loadCase);
     return {
       ...next,
-      activeResultStateId: option.id,
-      activeGeometryStateId: (geometry.find((item) => item.purpose === "visualization") ?? geometry[0])?.id ?? next.activeGeometryStateId,
       visualDeformationScale: state.visualDeformationScale
     };
   }
@@ -378,6 +378,7 @@ export function setActiveResultState(state, resultStateId) {
 
 export function setActiveGeometryState(state, geometryStateId) {
   const option = getGeometryStateOptions(state).find((candidate) => candidate.id === geometryStateId);
+  if (geometryStateId && !option) return state;
   return {
     ...state,
     activeGeometryStateId: geometryStateId ?? null,

@@ -277,7 +277,9 @@ test("the rail is one scrollable column of sections, not swapped panels", async 
   // the rail foot. Reaching supports or reaction forces used to mean opening
   // the popover, opening All layers, then finding the right category.
   assert.match(markup, /data-overlay-list[\s\S]*class="strip-drawer layer-tree"[\s\S]*data-layer-list/);
-  assert.doesNotMatch(markup, /rail-popover[\s\S]*data-layer-list/);
+  const rail = markup.slice(markup.indexOf('<aside id="review-controls"'), markup.indexOf('<section class="viewport">'));
+  assert.doesNotMatch(rail, /data-layer-list/);
+  assert.match(markup, /class="viewport"[\s\S]*data-display-palette[\s\S]*data-layer-list/);
   assert.doesNotMatch(app, /\["layers", "All layers"\]/);
   // Issues are a companion, not a destination: the list follows the layers in
   // the same column, so a clash row and a result field are read together.

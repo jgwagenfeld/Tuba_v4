@@ -87,10 +87,7 @@ export function reduceViewerState(state, action) {
     case "setContactHistoryAxis":
       return { ...state, contactHistoryAxis: action.axis };
     case "setActiveResultState":
-      return {
-        ...withVisibility(withCoherentColoring(setActiveResultState(state, action.resultStateId))),
-        colorChannel: "results"
-      };
+      return withVisibility(withCoherentColoring(setActiveResultState(state, action.resultStateId)));
     case "setActiveLoadCase":
       return withVisibility(setColoringLoadCase(setActiveLoadCase(state, action.loadCase), action.loadCase));
     case "setColoringField":
@@ -98,12 +95,7 @@ export function reduceViewerState(state, action) {
     case "setColoringComponent":
       return setColoringComponent(state, action.component);
     case "setActiveGeometryState":
-      // A deformed or reference geometry state is a result of the solve, so
-      // choosing one is choosing to read results.
-      return {
-        ...withVisibility(setActiveGeometryState(state, action.geometryStateId)),
-        colorChannel: "results"
-      };
+      return withVisibility(setActiveGeometryState(state, action.geometryStateId));
     case "setResultThreshold":
       return setResultThreshold(state, action.threshold);
     case "setUtilizationThreshold":
@@ -165,7 +157,7 @@ export function preserveViewerStateForReload(previousState, nextState, { reviewD
     ? previousState.activeGeometryStateId
     : nextState.activeGeometryStateId;
   const coherentState = setActiveLoadCase(
-    { ...nextState, activeGeometryStateId: retainedGeometryStateId },
+    { ...nextState, activeResultStateId: resultContext.activeResultStateId, activeGeometryStateId: retainedGeometryStateId },
     resultContext.activeLoadCase
   );
   const preserved = {
