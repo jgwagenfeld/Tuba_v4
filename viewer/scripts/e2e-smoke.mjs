@@ -1429,7 +1429,7 @@ const scenarios = {
       assert.equal(await page.locator("[data-viewer-workspace]").isVisible(), true);
       assert.equal(await page.locator("[data-canvas]").isVisible(), true);
       assert.equal(await page.locator("[data-inspector]").isHidden(), true);
-      assert.equal(await page.getByRole("status").getAttribute("data-error"), "false");
+      assert.equal(await page.locator("[data-runtime-status]").getAttribute("data-error"), "false");
       const legacyState = await page.evaluate(() => ({
         legacyReview: window.__tubaViewer?.state?.legacyReview,
         review: window.__tubaViewer?.state?.review,
@@ -1537,7 +1537,8 @@ try {
   const baseUrl = server.resolvedUrls.local[0];
 
   browser = await chromium.launch({ headless: true });
-  page = await browser.newPage({ viewport: { height: 800, width: 1280 } });
+  const context = await browser.newContext({ viewport: { height: 800, width: 1280 } });
+  page = await context.newPage();
   // "Copy Entity Ref" now waits for the clipboard write to resolve before it
   // reports success, so the scenario needs the permission the browser would
   // otherwise refuse. Without it the button correctly reports a failure, which
