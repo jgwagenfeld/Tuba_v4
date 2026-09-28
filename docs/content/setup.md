@@ -12,7 +12,7 @@ Tuba model -> Code_Aster solve -> imported result artifacts -> result display
 
 | Requirement | Detail |
 | --- | --- |
-| Python | 3.11 or 3.12 (`requires-python = ">=3.11,<3.13"`) |
+| Tuba Python | 3.11 or 3.12 (`requires-python = ">=3.11,<3.13"`); conda selects Python separately for the solver |
 | Git | Required to install the tagged checkout |
 | Operating system | Tuba is OS-independent; the tested solver path is native Linux or Windows with WSL2 Ubuntu |
 | Code_Aster | Required for solving; authoring, export inspection, and preserved-artifact review can run without it |
@@ -33,7 +33,22 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install ".[code-aster-rmed]"
 ```
 
-There is no supported ordinary PyPI installation of the compiled Code_Aster solver. Tuba v4 is currently validated with `code-aster=18.0.12`; change that pin only after the real solver smoke test passes with the newer release.
+There is no supported ordinary PyPI installation of the compiled Code_Aster solver.
+Install it in a separate conda environment and let conda select its Python and
+compiled dependencies:
+
+```bash
+conda create -y -n tuba-code-aster -c conda-forge code-aster
+```
+
+Run this in Linux (Ubuntu WSL on Windows) after installing Miniforge as described
+below. This is the command used for the verified installation: Code_Aster 18.0.12
+with Python 3.14.6. Tuba's Python 3.11/3.12 requirement applies to Tuba's own
+environment, not to this external solver environment.
+
+A fresh installation may select a newer solver. To request the tested solver
+version, replace `code-aster` with `code-aster=18.0.12`; do not add a Python pin.
+Run the doctor and real solver smoke test below after installing or updating.
 
 ## Windows: install Code_Aster in WSL2 Ubuntu
 
@@ -57,14 +72,14 @@ bash Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
 '@ | wsl -d Ubuntu -- bash -s
 ```
 
-Install the pinned solver and expose a stable `run_aster` wrapper:
+Install the solver and expose a stable `run_aster` wrapper. If the
+`tuba-code-aster` environment already exists, skip `conda create`:
 
 ```powershell
 @'
 set -euo pipefail
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda create -y -n tuba-code-aster --override-channels -c conda-forge \
-  python=3.12 code-aster=18.0.12
+conda create -y -n tuba-code-aster -c conda-forge code-aster
 mkdir -p "$HOME/bin"
 cat > "$HOME/bin/run_aster" <<'SH'
 #!/usr/bin/env bash
@@ -130,8 +145,7 @@ curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
   https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash /tmp/Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda create -y -n tuba-code-aster --override-channels -c conda-forge \
-  python=3.12 code-aster=18.0.12
+conda create -y -n tuba-code-aster -c conda-forge code-aster
 
 mkdir -p "$HOME/bin"
 cat > "$HOME/bin/run_aster" <<'SH'
@@ -155,7 +169,7 @@ The doctor must report `command: ready` before a production solve.
 | `TUBA_CODE_ASTER_WSL_DISTRO` | WSL distribution, normally `Ubuntu` |
 | `TUBA_CODE_ASTER_RUNNER_COMMAND` / `TUBA_CODE_ASTER_RUNNER` | Explicit `run_aster` command for `command` mode |
 | `TUBA_CODE_ASTER_DOCKER_IMAGE` | Advanced fallback image; a run through it is always unverified |
-| `TUBA_CODE_ASTER_PYTHON` | Host-executable Python for the in-process bridge |
+| `TUBA_CODE_ASTER_PYTHON` | Host-executable Python for the external-process bridge |
 | `TUBA_RUN_CODE_ASTER_INTEGRATION` | Set to `1` to opt in to the real-solver smoke test |
 
 A Code_Aster run executed through Docker is always unverified: an engineering review refuses its results, and so does a scene built from analysis runs. A mutable or placeholder image name is not a production dependency.

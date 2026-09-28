@@ -102,7 +102,7 @@ python -m venv .venv
 .venv/bin/python -m pip install .        # Windows: .\.venv\Scripts\python.exe
 ```
 
-Analysis requires [Code_Aster](https://code-aster.org), installed separately. Modeling, geometric routing, and viewing existing results do not require a local solver installation. On Windows, the supported solver setup uses WSL2 Ubuntu.
+Analysis requires [Code_Aster](https://code-aster.org), installed in a separate conda environment with its own Python dependencies. Modeling, geometric routing, and viewing existing results do not require a local solver installation. On Windows, use WSL2 Ubuntu; follow the [setup walkthrough](docs/content/setup.md#windows-install-code_aster-in-wsl2-ubuntu) to install and verify the solver.
 
 **[Setup →](https://jgwagenfeld.github.io/Tuba_v4/setup.html)** ·
 **[Tutorial →](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html)** ·

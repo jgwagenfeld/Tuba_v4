@@ -2375,9 +2375,22 @@ body[data-view="gallery"] {
   color: var(--chrome-text-1);
   background: var(--graphite-raised);
   border: 1px solid var(--graphite-line);
+  padding: 1.5rem;
+  line-height: 1.45;
 }
 .exchange-dialog::backdrop { background: rgb(0 0 0 / 65%); }
 .exchange-head, .exchange-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.exchange-head h2 { margin: 0; color: var(--chrome-text); }
+.exchange-dialog h3 { color: var(--chrome-text); }
+.exchange-dialog button { width: auto; background: var(--sidebar-control); color: var(--chrome-text); border-color: var(--graphite-line); }
+.exchange-head button { flex: 0 0 auto; }
+.exchange-dialog button:hover, .exchange-dialog a:hover { border-color: var(--accent); }
+.exchange-dialog button:disabled { opacity: .5; cursor: not-allowed; }
+.exchange-dialog [hidden] { display: none; }
+.exchange-download { padding: 1rem 0; border-bottom: 1px solid var(--graphite-line); }
+.exchange-download a { display: inline-block; color: var(--accent); font-weight: 600; text-underline-offset: .2em; }
+.exchange-download p { margin: .4rem 0 0; }
+.exchange-note { font-size: .9rem; color: var(--chrome-text-2); }
 .exchange-dialog label { display: block; margin: .6rem 0; }
 .exchange-dialog input:not([type="checkbox"]) { max-width: 100%; }
 .exchange-products { max-height: 14rem; overflow: auto; }

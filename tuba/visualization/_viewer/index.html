@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-B5J3U9Y4.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DLiagJ_w.css">
+    <script type="module" crossorigin src="./assets/index-BAIXkpXv.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DWmI2_g2.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -49,7 +49,7 @@
              things you can do from it. -->
         <div class="header-actions">
           <button type="button" class="solve-button" data-solve hidden>Solve</button>
-          <button type="button" data-exchange-open aria-haspopup="dialog">Exchange</button>
+          <button type="button" data-exchange-open aria-haspopup="dialog" title="Download project files or exchange IFC geometry">Exchange</button>
           <a href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
         </div>
@@ -282,17 +282,23 @@
         </div>
       </footer>
     </main>
-    <dialog class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title">
+    <dialog class="exchange-dialog" data-exchange-dialog aria-labelledby="exchange-title" aria-describedby="exchange-purpose">
       <form method="dialog" class="exchange-head">
-        <h2 id="exchange-title">Project exchange</h2>
+        <h2 id="exchange-title">Downloads &amp; IFC</h2>
         <button type="submit" aria-label="Close exchange">Close</button>
       </form>
-      <p>IFC export contains geometry only. Engineering results require a Code_Aster solve and review.</p>
-      <p data-ifc-export-scope></p>
-      <p data-ifc-studio-only hidden>Open this project in Tuba Studio to preview, attach, or convert an IFC file.</p>
-      <nav data-exchange-downloads aria-label="Published downloads"></nav>
+      <p id="exchange-purpose">Continue working in Tuba Studio or share model geometry with CAD/BIM tools.</p>
+      <section data-exchange-published>
+        <nav data-exchange-downloads aria-label="Published downloads"></nav>
+        <p class="exchange-note">Edit model.py and run geometry in Build. Use Download there to save your changes. Open Tuba for IFC imports and new Code_Aster evaluations.</p>
+      </section>
+      <section data-ifc-studio-controls hidden>
+      <h3>Export geometry</h3>
+      <p>IFC is a format for sharing 3D geometry with CAD/BIM tools. This export excludes solver results and attached IFC references.</p>
       <button type="button" data-ifc-export hidden>Download model IFC (geometry only)</button>
-      <h3>IFC references</h3>
+      <p data-ifc-export-scope></p>
+      <h3>Import an IFC reference</h3>
+      <p>Preview an IFC file, then attach it to view alongside your piping. A reference does not become part of the engineering model.</p>
       <div data-ifc-references></div>
       <label>IFC file <input data-ifc-file type="file" accept=".ifc,.ifczip" hidden></label>
       <div class="exchange-actions">
@@ -313,6 +319,8 @@
         <button type="button" data-ifc-convert>Download new project ZIP</button>
       </form>
       <p data-ifc-status role="status" aria-live="polite"></p>
+      </section>
+      <p class="exchange-note">Engineering results require a Code_Aster solve and review in Tuba. Downloading or importing geometry does not perform an analysis.</p>
     </dialog>
   </body>
 </html>

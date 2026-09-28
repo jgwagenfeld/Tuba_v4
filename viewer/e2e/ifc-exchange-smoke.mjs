@@ -12,7 +12,7 @@ try {
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 60_000 });
   await page.getByRole("button", { name: "Exchange" }).click();
-  const dialog = page.getByRole("dialog", { name: "Project exchange" });
+  const dialog = page.getByRole("dialog", { name: "Downloads & IFC" });
   await dialog.waitFor();
   await dialog.locator("[data-ifc-file]").setInputFiles(fixture);
   await dialog.getByRole("button", { name: "Preview IFC" }).click();

@@ -77,6 +77,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - run: npm run e2e -- section-camera
+      - run: node e2e/exchange-dialog-smoke.mjs
       - run: npm run e2e -- legacy-workflow
       - run: npm run build
       - run: git diff --exit-code

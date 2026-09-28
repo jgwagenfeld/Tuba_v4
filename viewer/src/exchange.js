@@ -9,13 +9,22 @@ export function publishedDownloads(entry) {
 export function renderPublishedDownloads(dialog, entry) {
   const downloads = dialog.querySelector("[data-exchange-downloads]");
   downloads.replaceChildren();
-  for (const [kind, uri] of publishedDownloads(entry)) {
+  const available = publishedDownloads(entry);
+  for (const [kind, uri] of available) {
+    const row = document.createElement("div");
+    row.className = "exchange-download";
     const link = document.createElement("a");
     link.href = uri;
     link.download = "";
-    link.textContent = kind === "project" ? "Project ZIP" : "IFC geometry only";
-    downloads.append(link, document.createTextNode(" "));
+    link.textContent = kind === "project" ? "Download project ZIP" : "Download IFC geometry";
+    const description = document.createElement("p");
+    description.textContent = kind === "project"
+      ? "Editable Python source for Tuba Studio. Follow the included README to open it. Solver results are not included."
+      : "3D geometry for CAD/BIM coordination, in IFC format. Does not include engineering results or an editable Tuba model.";
+    row.append(link, description);
+    downloads.append(row);
   }
+  if (!available.length) downloads.textContent = "No downloads were published for this review.";
 }
 
 export async function fetchIfcCapability(fetcher = fetch) {
@@ -48,7 +57,7 @@ export function initExchange(dialog, { project, catalogEntry, reload }) {
   const status = dialog.querySelector("[data-ifc-status]");
   const exportLink = dialog.querySelector("[data-ifc-export]");
   const exportScope = dialog.querySelector("[data-ifc-export-scope]");
-  const studioOnly = dialog.querySelector("[data-ifc-studio-only]");
+  const studioControls = dialog.querySelector("[data-ifc-studio-controls]");
   const form = dialog.querySelector("[data-ifc-assignments]");
   let capability = project?.ifc ?? null;
   let preview = null;
@@ -60,14 +69,16 @@ export function initExchange(dialog, { project, catalogEntry, reload }) {
   function say(message) { status.textContent = message; }
   function controls() {
     const available = Boolean(capability?.available);
-    studioOnly.hidden = Boolean(project);
-    file.hidden = previewButton.hidden = attachButton.hidden = convertButton.hidden = form.hidden = !project;
+    studioControls.hidden = !project;
+    dialog.querySelector("[data-exchange-published]").hidden = Boolean(project);
+    file.hidden = previewButton.hidden = attachButton.hidden = convertButton.hidden = !project;
+    form.hidden = !project || !attachedId;
     exportLink.hidden = !project || !capability?.export_available;
     file.disabled = previewButton.disabled = attachButton.disabled = convertButton.disabled = !available || busy;
     attachButton.disabled ||= !preview || !file.files?.length;
     convertButton.disabled ||= !attachedId || !products.querySelector("input:checked");
     exportLink.disabled = !capability?.export_available || busy;
-    exportScope.textContent = project ? (capability?.export_reason || capability?.export_scope || "Geometry only") : "Published downloads are listed on each Gallery card when available.";
+    exportScope.textContent = capability?.export_reason || "";
     if (project && !available) say(capability?.reason || "Install IFC support: pip install 'tuba[ifc]'");
   }
   function renderReferences() {

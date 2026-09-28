@@ -1185,10 +1185,11 @@ function createTube(asset, config, format) {
   capMaterial.side = THREE.DoubleSide;
   const normal = new THREE.Vector3(0, 0, 1);
   for (const position of [0, 1]) {
-    const cap = new THREE.Mesh(new THREE.RingGeometry(innerRadius, radius, 28), capMaterial);
-    cap.position.copy(curve.getPoint(position));
-    cap.quaternion.setFromUnitVectors(normal, curve.getTangent(position).normalize());
-    pipe.add(cap);
+    // Morph targets interpolate vertices, so caps must share the tube's coordinates.
+    const capGeometry = new THREE.RingGeometry(innerRadius, radius, 28);
+    capGeometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(normal, curve.getTangent(position).normalize()));
+    capGeometry.translate(...curve.getPoint(position).toArray());
+    pipe.add(new THREE.Mesh(capGeometry, capMaterial));
   }
   pipe.name = asset.id;
   return { format, object: pipe };
