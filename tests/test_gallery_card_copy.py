@@ -8,11 +8,11 @@ same twelve cards by hand: the docs home page, the Examples page and the README.
 
 Nothing held them in step. ``tests/test_static_site_docs.py`` checks that each
 bundle URL and thumbnail appears, and that ``examples.md`` carries each title
-and summary - it never checks the question or the evidence badge. So the home
-page's Beam orientation card drifted to "How do section orientation and local
-axes change bending?" while the registry, the viewer and the README all said
-"How does a rolled I-section change the response to the same tip force?", and
-every check stayed green.
+and summary - it never checks the question or whether a solver stands behind the
+card. So the home page's Beam orientation card drifted to "How do section
+orientation and local axes change bending?" while the registry, the viewer and
+the README all said "How does a rolled I-section change the response to the same
+tip force?", and every check stayed green.
 
 These tests make the registry the single owner: a card's copy may be edited in
 ``official_gallery.py``, and the hand-written surfaces have to follow.
@@ -73,14 +73,59 @@ def test_card_title_matches_the_registry(path: Path, gallery) -> None:
 
 
 @pytest.mark.parametrize("gallery", PUBLISHED, ids=lambda g: g.id)
-def test_examples_page_states_the_registry_evidence_badge(gallery) -> None:
-    """The badge is what tells a reader whether numbers stand behind a card."""
-    text = EXAMPLES.read_text(encoding="utf-8")
-    block = _example_block(text, gallery.title)
-    assert gallery.evidence in block, (
-        f"examples.md's {gallery.title!r} block does not state the registry's "
-        f"evidence badge {gallery.evidence!r}"
-    )
+def test_examples_page_states_whether_a_solver_stands_behind_the_card(gallery) -> None:
+    """Whether numbers stand behind a card, stated in the page's own words.
+
+    This used to assert ``gallery.evidence in block`` against a per-profile
+    string, which was the literal word ``"Results"`` for four of the six
+    profiles. That made the check both weak - the word appears in almost any
+    English sentence about a review - and wrong: the registry also mapped two
+    profiles to ``"Mesh only - no results"``, so a geometry-only example had to
+    be spelled a particular way to pass, and the viewer card showed the same
+    string.
+
+    The registry now says *whether* a profile is solved, and this asserts the
+    page says so in prose: a solved example has to say Code_Aster or results ran,
+    and an unsolved one has to say it has no solver results. Both directions are
+    checked, because the failure that matters is a geometry-only card reading as
+    an analysis.
+    """
+    block = _example_block(EXAMPLES.read_text(encoding="utf-8"), gallery.title)
+    lowered = block.lower()
+    if gallery.solved:
+        assert "code_aster" in lowered or "results" in lowered, (
+            f"examples.md's {gallery.title!r} block is a solved review but never "
+            f"says Code_Aster or results ran"
+        )
+    else:
+        assert "no solver results" in lowered, (
+            f"examples.md's {gallery.title!r} block publishes geometry only but "
+            f"does not say it has no solver results"
+        )
+
+
+@pytest.mark.parametrize("gallery", PUBLISHED, ids=lambda g: g.id)
+def test_a_solved_card_claims_a_case_count_and_an_unsolved_one_claims_none(gallery) -> None:
+    """A card may not claim an analysis it does not have, nor deny one it does.
+
+    ``OfficialGallery.__post_init__`` refuses the mismatch at import. This is the
+    same rule asserted from the outside, against the catalog the viewer actually
+    renders - so a future profile added to ``PROFILE_SOLVED`` without wiring a
+    case count through ``_project_gallery`` fails here rather than shipping a
+    card that claims results it cannot show.
+    """
+    entry = gallery.to_catalog_entry()
+    if gallery.solved:
+        assert entry["solved"] is True
+        assert entry["case_count"] and entry["case_count"] > 0, (
+            f"{gallery.id} is a solved review and declares no load cases"
+        )
+    else:
+        assert entry["solved"] is False
+        assert entry["case_count"] == 0, (
+            f"{gallery.id} publishes geometry only but its catalog entry claims "
+            f"{entry['case_count']} load case(s)"
+        )
 
 
 @pytest.mark.parametrize("gallery", PUBLISHED, ids=lambda g: g.id)

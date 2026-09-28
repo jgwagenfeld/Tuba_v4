@@ -15,11 +15,14 @@ import {
   buildObjectTree,
   getIssueSummary,
   groupIssues,
+  issueParticipants,
+  issueSeverityMetres,
+  triageIssues,
   saveViewState,
   sectionBoxDefaults,
   rankObjectMatches
 } from "./controls.js";
-import { bundleIdsOf, bundleKey, normalizeCatalog, renderGallery, shouldShowGallery } from "./gallery.js";
+import { bundleIdsOf, bundleKey, normalizeCatalog } from "./gallery.js";
 import {
   WEBGL2_UNAVAILABLE,
   applyHoverHighlight,
@@ -108,6 +111,7 @@ const dom = {
   statusChip: document.querySelector("[data-status-chip]"),
   statusStrip: document.querySelector("[data-status-strip]"),
   solverFact: document.querySelector("[data-solver-fact]"),
+  applicabilityFact: document.querySelector("[data-applicability-fact]"),
   selectionFact: document.querySelector("[data-selection-fact]"),
   stripUnits: document.querySelector("[data-strip-units]"),
   taskRail: document.querySelector("[data-task-rail]"),
@@ -305,22 +309,24 @@ function bundleSourceEdited() {
 }
 
 async function main() {
-  const catalog = await loadBundleCatalog();
+  const { catalog, error: catalogError } = await loadBundleCatalog();
   bundleTitles = new Map(normalizeCatalog(catalog).map(entry => [bundleKey(entry.id), entry.title]));
+  // main.js has already decided this is a review: it read the catalog to find
+  // out. It is read again here for the bundle switcher and the exchange dialog,
+  // which is one small JSON file rather than a Three.js context.
   document.body.dataset.embed = String(startupConfig.embed);
   dom.appShell.dataset.embed = String(startupConfig.embed);
   showIdentity(dom.viewerIdentity, "Viewer", __TUBA_VIEWER_BUILD__);
 
-  // The gallery is a navigation surface: cards are links, and the geometry
-  // arrives as photographs the Pages build shot from the very bundles shipping
-  // beside them. Returning here means the Three.js viewport is never
-  // constructed on the landing path - the scene is shown, not rendered, which
-  // is the whole reason a card is one PNG rather than a WebGL context.
-  if (dom.gallery && shouldShowGallery({ ...startupConfig, catalog })) {
-    document.body.dataset.view = "gallery";
-    dom.gallery.hidden = false;
-    renderGallery(dom.gallery, catalog);
-    setStatus("Ready");
+  // The gallery is not handled here any more. main.js reads the catalog, draws
+  // the gallery when that is the right landing page, and only then imports this
+  // module - so the Three.js viewport is never constructed on the landing path,
+  // and its 2 MB of core never reaches a page that draws thirteen photographs.
+  // Reaching main() at all means a review was asked for.
+  if (catalogError && !startupConfig.requestedBundle) {
+    // Only reachable if this module is loaded directly, which nothing does. Kept
+    // as a guard so the shell never presents an empty state as a working one.
+    setErrorStatus({ message: catalogError }, "The gallery could not be listed.");
     return;
   }
 
@@ -361,13 +367,59 @@ async function main() {
       connectLivePreview(previewSocketUrl);
     }
   } catch (error) {
-    setStatus(error.message, true);
+    setErrorStatus(error, "This review could not be opened.");
   }
 }
 
 async function sourceIdentity(source) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
   return `sha256:${[...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+// The one gate every failure message passes through.
+//
+// `setStatus(error.message, true)` appeared at six call sites and put whatever
+// the rejection carried into the status strip - which is the product's trust
+// surface, the one line that answers "is what I am looking at current, and from
+// what". A bundle fetch failure rendered "Failed to load /foo/scene.json: 404
+// Not Found"; a solve failure rendered the first line of a Python traceback. In
+// a tool whose contract is that no number appears without a Code_Aster run
+// behind it, an unparsed traceback in the trust surface is a contract failure,
+// not a cosmetic one.
+//
+// So: known failures get a sentence naming the problem and the next step, the
+// raw text is kept and offered under Technical details, and anything genuinely
+// unrecognised is reported as unrecognised rather than as a stack frame. A
+// traceback is never silently discarded - it is where the bug is.
+const ERROR_HINTS = [
+  [/failed to load .*?(scene\.json|review\.json|metadata)/i, "A review file is missing from this bundle."],
+  [/\b(404|not found)\b/i, "That file is not in this bundle. It may be an incomplete export."],
+  [/\b(401|403|forbidden|unauthorized)\b/i, "The studio refused this request. Reload the page and sign in again if prompted."],
+  [/\b(5\d\d)\b/, "The studio server failed while handling the request. Try again; if it persists the server log has the detail."],
+  [/\b(abort|timeout|timed out|networkerror|failed to fetch|load failed)\b/i, "The studio could not be reached. Check that it is still running, then retry."],
+  [/websocket|live preview.*(closed|disconnect|invalid)/i, "The live connection to the studio dropped. Reload to reconnect."],
+  [/webgl2?/i, "This browser could not start WebGL2. The review report carries the processed result tables."]
+];
+
+export function humanizeError(error, context = "") {
+  const raw = String(error?.message ?? error ?? "").trim();
+  const lead = raw.split("\n").find((line) => line.trim()) ?? "";
+  // A traceback's first line is usually the exception type and message; the
+  // frames below it are the bug, not the news.
+  const looksLikeTraceback = /\n\s+File "|Traceback \(most recent call last\)/.test(raw);
+  const oneLine = looksLikeTraceback ? lead : raw;
+  for (const [pattern, sentence] of ERROR_HINTS) {
+    if (pattern.test(oneLine)) {
+      return { message: context ? `${context} ${sentence}` : sentence, detail: raw || null };
+    }
+  }
+  if (!raw) {
+    return { message: context ? `${context} The reason was not reported.` : "Something failed, and the reason was not reported.", detail: null };
+  }
+  return {
+    message: context ? `${context} ${oneLine}` : oneLine,
+    detail: looksLikeTraceback ? raw : null
+  };
 }
 
 function showIdentity(element, label, full) {
@@ -378,17 +430,30 @@ function showIdentity(element, label, full) {
 }
 
 // The catalog owns gallery navigation. A standalone bundle does not need one.
+// The fetch is allowed to fail loudly enough to be reported: this used to return
+// [] on any error, and shouldShowGallery then said "no gallery" - so an empty or
+// unreachable catalog dropped a visitor into an empty studio shell with the
+// title "Scene" and no indication that the front door had failed to load. A
+// missing catalog is now a stated reason, not an absence.
 async function loadBundleCatalog() {
+  let response;
   try {
-    const response = await fetch("./bundles.json");
-    if (response.ok) {
-      const bundles = await response.json();
-      return Array.isArray(bundles) ? bundles : [];
-    }
-  } catch {
-    // A standalone bundle does not need a gallery catalog.
+    response = await fetch("./bundles.json");
+  } catch (error) {
+    return { catalog: [], error: `The gallery catalog could not be loaded (${error.message})` };
   }
-  return [];
+  if (!response.ok) {
+    return { catalog: [], error: `The gallery catalog is unavailable (HTTP ${response.status}).` };
+  }
+  try {
+    const bundles = await response.json();
+    if (!Array.isArray(bundles)) {
+      return { catalog: [], error: "The gallery catalog is not a list of reviews." };
+    }
+    return { catalog: bundles, error: null };
+  } catch (error) {
+    return { catalog: [], error: `The gallery catalog is not readable JSON (${error.message}).` };
+  }
 }
 
 // Moving between reviews is one control. The gallery introduces the set and is
@@ -442,7 +507,7 @@ async function switchBundle(bundleId, catalog) {
     setStatus("Ready");
     render();
   } catch (error) {
-    setStatus(error.message, true);
+    setErrorStatus(error, "That review could not be opened.");
   }
 }
 
@@ -595,8 +660,12 @@ function renderStatusStrip() {
   dom.statusStrip.hidden = currentState.embed;
   renderStatusChip();
   renderSolverFact();
+  renderApplicabilityFact();
   renderDiscretisationCheck();
-  dom.analysisDetails.hidden = dom.solverFact.hidden && dom.discretisationCheck.hidden;
+  // The mesh check is the only diagnostic left in the strip, and it alone
+  // decides whether the disclosure is worth opening. Solver provenance and the
+  // code-applicability caveat are permanent facts now, not popover contents.
+  dom.analysisDetails.hidden = dom.discretisationCheck.hidden;
   renderSelectionFact();
   dom.stripUnits.replaceChildren(...(currentState.embed ? [] : [unitSystemChip()]));
 }
@@ -606,6 +675,27 @@ function renderSolverFact() {
   dom.solverFact.hidden = !label;
   dom.solverFact.textContent = label;
   dom.solverFact.title = label ? "Solver, runtime version and load cases behind this review" : "";
+}
+
+// Whether the stress currently colouring the scene is code stress is the one
+// fact that decides if a number on screen may be used for a pipe. It was
+// rendered only into the viewport legend - 0.72rem, bottom-left, inside a
+// 15rem slab - which made the most consequential sentence in the product the
+// quietest thing on screen, while a folder path in the header rendered at
+// 0.83rem as its peer. It now sits in the status strip beside the verdict, at
+// strip weight, and never inside a disclosure. Deliberately not gated on the
+// Results layer being visible: the caveat is about the number, not the pixels,
+// and hiding it because someone toggled a display body is how a compliance
+// notice becomes a compliance failure.
+function renderApplicabilityFact() {
+  const notice = getComplianceNotice(currentState);
+  dom.applicabilityFact.hidden = !notice;
+  if (!notice) return;
+  dom.applicabilityFact.textContent = notice;
+  dom.applicabilityFact.title =
+    "The field colouring this scene is finite-element output, not a code stress. "
+    + "It is for reviewing load paths and relative magnitudes, not for code compliance.";
+  dom.applicabilityFact.setAttribute("role", "note");
 }
 
 // What is selected, said once for the whole selection. The inspector describes
@@ -1566,7 +1656,7 @@ function sectionRosette(profile) {
 function renderDiscretisationCheck() {
   dom.discretisationCheck.replaceChildren();
   const check = getDiscretisationCheck(currentState);
-  dom.analysisSummary.textContent = check && !check.within_tolerance ? "Analysis details · mesh warning" : "Analysis details";
+  dom.analysisSummary.textContent = check && !check.within_tolerance ? "Mesh detail · warning" : "Mesh detail";
   dom.analysisSummary.classList.toggle("mesh-warning", Boolean(check && !check.within_tolerance));
   dom.discretisationCheck.hidden = !check;
   if (!check) return;
@@ -1604,7 +1694,7 @@ function unitSystemChip() {
   const active = UNIT_SYSTEMS.find((system) => system.id === getUnitSystem(currentState));
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "bar-button bar-units";
+  button.className = "bar-button bar-units strip-units";
   button.dataset.unitSystem = active.id;
   button.dataset.focusKey = "unit-system";
   button.textContent = active.label;
@@ -1913,35 +2003,58 @@ function renderSectionBoxControls() {
 // A short column, not a row of nine. The view gizmo in the corner already
 // orbits to any axis - including the four this omits - so spelling every one
 // out as a button spent the top of the viewport on a duplicate control.
-const CAMERA_BUTTONS = [
+// Two groups, not five neighbours. `+X` and `+Z` set the camera to look down an
+// axis; `+` and `−` zoom. They were one row of five same-sized buttons two
+// characters apart, so "which + am I pressing" was a real question, and the only
+// answer was a tooltip. The axis views are named, the zoom pair is a labelled
+// pair, and a rule separates them.
+const CAMERA_VIEWS = [
   { glyph: "ISO", label: "Isometric", view: "iso" },
-  { glyph: "+X", label: "+X", view: "positiveX" },
-  { glyph: "+Z", label: "+Z", view: "positiveZ" },
+  { glyph: "+X", label: "Look down +X", view: "positiveX" },
+  { glyph: "+Z", label: "Look down +Z", view: "positiveZ" }
+];
+
+const CAMERA_ZOOMS = [
   { glyph: "+", label: "Zoom in", zoom: 1.25 },
   { glyph: "−", label: "Zoom out", zoom: 0.8 }
 ];
 
 function renderCameraControls() {
   dom.cameraControls.replaceChildren();
-  for (const spec of CAMERA_BUTTONS) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = spec.glyph;
+  const group = (label) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "camera-group";
+    wrapper.setAttribute("role", "group");
+    wrapper.setAttribute("aria-label", label);
+    return wrapper;
+  };
+  const button = (spec) => {
+    const element = document.createElement("button");
+    element.type = "button";
+    element.textContent = spec.glyph;
     // The glyph is short enough to be ambiguous, so the accessible name spells
     // the action out rather than reading as "plus".
-    button.setAttribute("aria-label", spec.label);
-    button.dataset.focusKey = `camera:${spec.view ?? spec.label}`;
-    button.title = spec.label;
-    button.addEventListener("click", () =>
+    element.setAttribute("aria-label", spec.label);
+    element.dataset.focusKey = `camera:${spec.view ?? spec.label}`;
+    element.title = spec.label;
+    element.addEventListener("click", () =>
       spec.view ? viewportRenderer?.setStandardView(spec.view) : viewportRenderer?.zoomBy(spec.zoom)
     );
-    dom.cameraControls.append(button);
-  }
+    return element;
+  };
+
+  const views = group("Standard views");
+  for (const spec of CAMERA_VIEWS) views.append(button(spec));
+  const zooms = group("Zoom");
+  for (const spec of CAMERA_ZOOMS) zooms.append(button(spec));
+  dom.cameraControls.append(views, zooms);
+
   // Moved in beside them: one column of view controls reads as one control,
   // where a separate floating button read as a second, unrelated one. The
   // accessible name stays "Reset 3D view" - only the visible label shortens.
   dom.resetView.textContent = "⤢";
   dom.resetView.title = "Reset view — fit the full scene";
+  dom.resetView.setAttribute("aria-label", "Reset 3D view — fit the full scene");
   dom.cameraControls.append(dom.resetView);
 }
 
@@ -2125,6 +2238,8 @@ function closeFind() {
   dom.searchInput.blur();
 }
 
+dom.objectList.addEventListener("keydown", onObjectListKeydown);
+
 function renderFindPane() {
   dom.findDismiss.hidden = currentSearch.trim() === "";
 
@@ -2166,8 +2281,21 @@ function renderObjects() {
 
     if (findGroupBy === "engineering") {
       if (group.id === "engineering:analysis") {
+        // Solver-generated objects that map to no authored element. They were
+        // listed as a flat run of peer rows with their authored siblings, which
+        // meant a 34-isometric model opened on 300+ rows of generated ids and the
+        // engineering objects came last - the screen-reader order was the inverse
+        // of the task order. They are still reachable, and still searchable; they
+        // are simply not peers of things an engineer drew.
         dom.objectList.append(groupHeader({ ...group, objectIds: members }, members.length, selectedIds));
-        for (const id of members) dom.objectList.append(objectRow(byId.get(id), visible.has(id), selectedIds));
+        const details = document.createElement("details");
+        details.className = "representation-list generated-list";
+        details.open = Boolean(currentSearch.trim());
+        const summary = document.createElement("summary");
+        summary.textContent = `${members.length} solver-generated object${members.length === 1 ? "" : "s"}`;
+        details.append(summary);
+        for (const id of members) details.append(objectRow(byId.get(id), visible.has(id), selectedIds));
+        dom.objectList.append(details);
       } else {
         const parent = members.find((id) => group.id === `engineering:${id}`);
         const primary = parent ?? drawn[0] ?? members[0];
@@ -2178,7 +2306,7 @@ function renderObjects() {
           details.className = "representation-list";
           details.open = Boolean(currentSearch.trim());
           const summary = document.createElement("summary");
-          summary.textContent = `${derived.length} representations`;
+          summary.textContent = `${derived.length} representation${derived.length === 1 ? "" : "s"}`;
           details.append(summary);
           for (const id of derived) details.append(objectRow(byId.get(id), visible.has(id), selectedIds));
           dom.objectList.append(details);
@@ -2199,7 +2327,64 @@ function renderObjects() {
   if (shown === 0 && hidden === 0) {
     dom.objectList.append(metaLine(currentSearch.trim() ? "No object matches that." : "This scene has no objects."));
   }
+  applyRovingTabindex();
   renderRailUtility(shown, hidden);
+}
+
+// A 34-isometric model has 300+ objects, and as a flat run of buttons the list
+// was 300+ tab stops - so reaching a pipe by keyboard cost more than reaching it
+// with the mouse, which is exactly backwards. Roving tabindex makes the list one
+// stop with arrow-key movement inside it, which is what a listbox does. The
+// list carries no role of its own because the rows are real buttons carrying
+// aria-pressed: a listbox would replace those with options and cost the press
+// semantics, so the arrow handling is the affordance and the buttons stay
+// buttons.
+function applyRovingTabindex() {
+  const rows = dom.objectList.querySelectorAll("button[tabindex]");
+  const current = document.activeElement;
+  const inList = current instanceof HTMLElement && dom.objectList.contains(current);
+  const first = rows[0] ?? null;
+  for (const row of rows) row.tabIndex = -1;
+  if (first) first.tabIndex = 0;
+  if (!inList) return;
+  // Coming back from elsewhere keeps the last row the reader was on, rather than
+  // throwing them to the top of a 300-row list.
+  const remembered = dom.objectList.querySelector(`[data-object-id="${CSS.escape(current?.dataset?.objectId ?? "")}"]`);
+  if (remembered instanceof HTMLElement) {
+    first.tabIndex = -1;
+    remembered.tabIndex = 0;
+  }
+}
+
+// Arrow keys move within the list; Home and End go to its ends. Anything else
+// falls through, so typing in the search box above and Tab out of the list both
+// behave as they always did.
+const LIST_ROWS = "button[data-object-id], .group-header";
+
+function onObjectListKeydown(event) {
+  if (event.defaultPrevented) return;
+  if (event.target !== event.currentTarget) return;
+  const rows = [...event.currentTarget.querySelectorAll(LIST_ROWS)].filter(
+    (row) => row.offsetParent !== null || row.getClientRects().length > 0
+  );
+  if (rows.length === 0) return;
+  const index = rows.indexOf(document.activeElement.closest(LIST_ROWS));
+  const forward = event.key === "ArrowDown";
+  const backward = event.key === "ArrowUp";
+  const jump = {
+    Home: 0,
+    End: rows.length - 1
+  }[event.key];
+  if (!forward && !backward && jump === undefined) return;
+  event.preventDefault();
+  const next = jump !== undefined
+    ? jump
+    : index < 0
+      ? 0
+      : Math.min(rows.length - 1, Math.max(0, index + (forward ? 1 : -1)));
+  for (const row of rows) row.tabIndex = -1;
+  rows[next].tabIndex = 0;
+  rows[next].focus();
 }
 
 function groupHeader(group, count, selected) {
@@ -2240,12 +2425,28 @@ function objectRow(match, drawn, selectedIds) {
   button.setAttribute("aria-pressed", String(selected));
   if (!drawn) button.classList.add("not-drawn");
 
+  // Which pipe is this - the whole job of this panel - is the entity ref, and it
+  // used to be the tail of the second line, ellipsised away first. The ref now
+  // leads its own line and the kind trails it, because `element:pipe_str_28` is
+  // what goes in a bug report and `deformed_centerline` is only a label.
+  const ref = refLabel(object.entity_ref);
   const name = document.createElement("span");
   name.className = "object-name";
   appendHighlighted(name, object.name || object.id, match);
   const meta = document.createElement("span");
   meta.className = "object-meta";
-  meta.textContent = [object.kind, refLabel(object.entity_ref)].filter(Boolean).join(" · ");
+  if (ref) {
+    const refSpan = document.createElement("span");
+    refSpan.className = "object-ref";
+    refSpan.textContent = ref;
+    meta.append(refSpan);
+  }
+  if (object.kind) {
+    const kind = document.createElement("span");
+    kind.className = "object-kind";
+    kind.textContent = object.kind;
+    meta.append(kind);
+  }
   button.append(name, meta);
 
   // Say which field the hit landed in whenever it was not one the row shows,
@@ -2384,7 +2585,24 @@ function issueRow(issue, { focusKey = null } = {}) {
   button.type = "button";
   button.className = issue.id === currentState.activeIssueId ? "selected" : "";
   if (focusKey) button.dataset.focusKey = focusKey;
-  button.textContent = `${String(issue.severity ?? "warning").toUpperCase()} - ${issue.title ?? issue.id}`;
+  // Severity, then how bad, then what. The old row was "ERROR - element:X clashes
+  // with element:Y" at 0.72rem, so 197 clashes were 197 identical lines with the
+  // one number the solver had computed - the overlap - nowhere in them.
+  const severity = document.createElement("span");
+  severity.className = `issue-severity issue-severity-${issue.severity ?? "warning"}`;
+  severity.textContent = String(issue.severity ?? "warning").toUpperCase();
+  const title = document.createElement("span");
+  title.className = "issue-title";
+  title.textContent = issue.title ?? issue.id;
+  button.append(severity, title);
+  const metres = issueSeverityMetres(currentState, issue);
+  if (metres > 0) {
+    const magnitude = document.createElement("span");
+    magnitude.className = "issue-magnitude";
+    magnitude.textContent = `${formatQuantity(metres, "m", getUnitSystem(currentState))} overlap`;
+    magnitude.title = "Overlap depth - the list is ordered worst first";
+    button.append(magnitude);
+  }
   button.addEventListener("click", () => {
     dispatch({ type: "focusIssue", issueId: issue.id });
     const marker = currentState.selectedObjectIds
@@ -2396,6 +2614,82 @@ function issueRow(issue, { focusKey = null } = {}) {
   return button;
 }
 
+
+// One group of issues: a header that says how many and what the worst overlap
+// is, the rows for the worst of them, and a disclosure holding the rest. The
+// count is in the summary because the count is the finding - "197 clashes across
+// 34 isometries" is the answer, and the 197 rows were never going to be read.
+const ISSUE_ROW_LIMIT = 25;
+
+// `row` builds one row, so each list keeps its own focus-key namespace: the
+// review rail's rows and Build's rows are separate panels and both can be live.
+// `target` is the list being filled - the two differ, and Build's list lives in
+// the code pane.
+function appendIssueGroup(group, row, target = dom.issueList) {
+  const header = document.createElement("div");
+  header.className = "issue-group-head";
+  const label = document.createElement("span");
+  label.className = `issue-severity issue-severity-${group.severity}`;
+  label.textContent = group.severity.toUpperCase();
+  const caseText = document.createElement("span");
+  caseText.className = "issue-group-case";
+  caseText.textContent = group.loadCase === "no_load_case" ? "no load case" : `case ${group.loadCase}`;
+  const tally = document.createElement("span");
+  tally.className = "issue-group-count";
+  const worst = group.issues[0] ? issueSeverityMetres(currentState, group.issues[0]) : 0;
+  tally.textContent = worst > 0
+    ? `${group.total} · worst ${formatQuantity(worst, "m", getUnitSystem(currentState))}`
+    : `${group.total}`;
+  tally.title = "Issues in this group, and the deepest overlap among them";
+  header.append(label, caseText, tally);
+
+  // The participant that repeats across the group is the one fact that turns 197
+  // rows into a finding: one cable tray, one clearance envelope, one support.
+  const repeat = mostRepeatedParticipant(group.issues);
+  if (repeat) {
+    const culprit = document.createElement("p");
+    culprit.className = "issue-group-culprit";
+    culprit.textContent = `${group.total} involving ${repeat}`;
+    header.append(culprit);
+  }
+  target.append(header);
+
+  const shown = group.issues.slice(0, ISSUE_ROW_LIMIT);
+  for (const issue of shown) {
+    target.append(row(issue));
+  }
+  if (group.issues.length > shown.length) {
+    const rest = document.createElement("details");
+    rest.className = "issue-overflow";
+    const summary = document.createElement("summary");
+    summary.textContent = `${group.issues.length - shown.length} more, less severe`;
+    rest.append(summary);
+    for (const issue of group.issues.slice(ISSUE_ROW_LIMIT)) {
+      rest.append(row(issue));
+    }
+    target.append(rest);
+  }
+}
+
+function mostRepeatedParticipant(issues) {
+  const counts = new Map();
+  for (const issue of issues) {
+    for (const participant of issueParticipants(currentState, issue)) {
+      counts.set(participant, (counts.get(participant) ?? 0) + 1);
+    }
+  }
+  let best = null;
+  let bestCount = 0;
+  for (const [participant, count] of counts) {
+    if (count > bestCount) {
+      best = participant;
+      bestCount = count;
+    }
+  }
+  // Only worth saying when it is actually most of the group, or every group of
+  // two would claim its single participant as the culprit.
+  return bestCount >= 3 && bestCount >= issues.length * 0.5 ? best : null;
+}
 
 function renderIssues() {
   dom.issueList.replaceChildren();
@@ -2411,7 +2705,7 @@ function renderIssues() {
   filterLabel.append(filterInput, " Operating-only");
   dom.issueList.append(filterLabel);
 
-  const groups = groupIssues(currentState, issueFilters);
+  const groups = triageIssues(currentState, issueFilters);
   if (groups.length === 0) {
     const empty = document.createElement("div");
     empty.className = "meta";
@@ -2419,14 +2713,11 @@ function renderIssues() {
     dom.issueList.append(empty);
     return;
   }
+  // The focus key is what puts the keyboard back where it was after the
+  // re-render this list triggers on every click, so it is set where the row is
+  // built rather than passed around as a prefix.
   for (const group of groups) {
-    const header = document.createElement("div");
-    header.className = "tree-row";
-    header.textContent = `${group.severity.toUpperCase()} - ${group.loadCase} - ${group.status} (${group.issues.length})`;
-    dom.issueList.append(header);
-    for (const issue of group.issues) {
-      dom.issueList.append(issueRow(issue, { focusKey: `issue:${issue.id}` }));
-    }
+    appendIssueGroup(group, (issue) => issueRow(issue, { focusKey: `issue:${issue.id}` }));
   }
 }
 
@@ -2440,11 +2731,26 @@ function renderBuildIssues() {
   const issues = isBuildMode() ? (currentState.issues ?? []) : [];
   dom.buildIssues.hidden = issues.length === 0;
   if (issues.length === 0) return;
+  // Worst first, rolled up per load case, with the count kept in the summary.
+  // This list used to be 197 identical rows in a 516px column, which is the
+  // moment in the product where the reader most needs to be told where to look.
+  const groups = triageIssues(currentState, {});
+  const total = issues.length;
   const heading = document.createElement("h2");
-  heading.textContent = `Model issues (${issues.length})`;
+  const worst = issues.reduce(
+    (deepest, issue) => Math.max(deepest, issueSeverityMetres(currentState, issue)),
+    0
+  );
+  heading.textContent = worst > 0
+    ? `Model issues (${total} · deepest ${formatQuantity(worst, "m", getUnitSystem(currentState))})`
+    : `Model issues (${total})`;
   dom.buildIssues.append(heading);
-  for (const issue of issues) {
-    dom.buildIssues.append(issueRow(issue, { focusKey: `build-issue:${issue.id}` }));
+  for (const group of groups) {
+    appendIssueGroup(
+      group,
+      (issue) => issueRow(issue, { focusKey: `build-issue:${issue.id}` }),
+      dom.buildIssues
+    );
   }
 }
 
@@ -3009,6 +3315,25 @@ function setStatus(message, severity = false) {
   dom.status.dataset.ready = String(level === "ok" && message === "Ready");
 }
 
+// Every failure goes through here, so there is exactly one place where a raw
+// backend string can reach the status strip and it is never the whole message.
+// The detail is kept and parked under the header's Technical details
+// disclosure, because a traceback is where the bug lives - it just is not what a
+// reviewer needs read at them.
+function setErrorStatus(error, context = "") {
+  const { message, detail } = humanizeError(error, context);
+  if (detail) {
+    const meta = dom.sceneMeta ?? dom.appShell.querySelector("[data-scene-meta]");
+    if (meta) {
+      const block = document.createElement("pre");
+      block.className = "status-detail";
+      block.textContent = detail;
+      meta.append(block);
+    }
+  }
+  setStatus(message, true);
+}
+
 function connectLivePreview(wsUrl) {
   const socket = new WebSocket(wsUrl);
   socket.addEventListener("open", () => setStatus("Live preview connected"));
@@ -3061,9 +3386,9 @@ async function handleLivePreviewEvent(raw) {
       render();
       // In the studio the script pane already says what ran; a revision number
       // parked in the header only reads as jargon.
-      setStatus(studio.available ? "Ready" : `Preview reloaded ${message.bundle_revision ?? ""}`.trim());
+      setStatus(studio.available ? "Ready" : "Preview reloaded");
     } catch (error) {
-      setStatus(error.message, true);
+      setErrorStatus(error, "The rebuilt model could not be reloaded.");
     }
     return;
   }
@@ -3646,7 +3971,17 @@ async function solveProject() {
   const result = await response.json().catch(() => ({}));
   // 409: someone else's solve is running, so the button stays busy.
   studio.solving = response.status === 409;
-  setStatus(result.error ?? `Solve refused (${response.status})`, true);
+  if (response.status === 409) {
+    // A real, actionable state rather than a failure: a solve is already running.
+    setStatus("A solve is already running for this model.");
+  } else {
+    // The status code was the whole message before, which told a reviewer
+    // nothing. The server's own text, if it sent one, is still kept as detail.
+    setErrorStatus(
+      { message: result.error ?? `The studio refused to start a solve (HTTP ${response.status}).` },
+      ""
+    );
+  }
   render();
 }
 
@@ -3654,8 +3989,16 @@ async function handleSolveEvent(message) {
   studio.solving = message.type === "solve_started";
   studio.preparing = false;
   if (message.type === "solve_failed" || message.type === "review_failed") {
-    const what = message.type === "solve_failed" ? "Solve" : "Review import";
-    setStatus(`${what} failed: ${String(message.error ?? "").split("\n")[0]}`, true);
+    // This is the single most consequential error in the product: it is the one
+    // place where a number the reviewer was about to trust failed to be
+    // produced. It used to render the first line of whatever the backend sent,
+    // which for a Python failure is the exception line of a traceback. The
+    // traceback is kept - it is where the bug is - but it goes under Technical
+    // details and the strip says what happened and what to do.
+    const what = message.type === "solve_failed"
+      ? "Code_Aster did not finish. No results were produced."
+      : "The review could not be imported after the solve.";
+    setErrorStatus({ message: message.error }, `${what} Open Technical details for the solver output.`);
   }
   if (message.type === "solve_finished" || message.type === "review_ready") {
     studio.hasReview = true;
@@ -3666,7 +4009,7 @@ async function handleSolveEvent(message) {
         try {
           await loadBundle("review", { preserve: true });
         } catch (error) {
-          setStatus(error.message, true);
+          setErrorStatus(error, "The finished review could not be loaded.");
         }
       } else {
         await showStudioBundle("review");
@@ -3714,7 +4057,7 @@ async function showStudioBundle(mode) {
     await loadBundle(bundle, { preserve: true, reviewDefaultColor: bundle === "review" && !reviewOpened && !userChoseColor });
     if (bundle === "review") reviewOpened = true;
   } catch (error) {
-    setStatus(error.message, true);
+    setErrorStatus(error, `The ${bundle === "review" ? "review" : "model"} could not be loaded.`);
   }
 }
 
@@ -3818,10 +4161,29 @@ async function runScript() {
 }
 
 function showScriptError({ error, line } = {}) {
-  const message = String(error ?? "model.py failed");
-  studio.error = { message, line: Number.isInteger(line) && line > 0 ? line : null };
+  // A Python exception message is this product's own language and belongs in the
+  // pane beside the script - a traceback's frames are not. The frames are kept in
+  // a disclosure under the message rather than dropped, because they are where
+  // the bug is, and "what failed" is what the reader needs.
+  const raw = String(error ?? "model.py failed");
+  const { message, detail } = humanizeError(raw, "model.py did not run.");
+  studio.error = { message, line: Number.isInteger(line) && line > 0 ? line : null, detail };
   dom.codeProblem.hidden = false;
-  dom.codeProblem.textContent = studio.error.line ? `Line ${studio.error.line}: ${message}` : message;
+  dom.codeProblem.replaceChildren();
+  const summary = document.createElement("span");
+  summary.className = "code-problem-summary";
+  summary.textContent = studio.error.line ? `Line ${studio.error.line}: ${message}` : message;
+  dom.codeProblem.append(summary);
+  if (detail) {
+    const trace = document.createElement("details");
+    trace.className = "code-problem-trace";
+    const traceSummary = document.createElement("summary");
+    traceSummary.textContent = "Full output";
+    const traceBody = document.createElement("pre");
+    traceBody.textContent = detail;
+    trace.append(traceSummary, traceBody);
+    dom.codeProblem.append(trace);
+  }
   dom.codeState.textContent = "Failed · 3D shows the last good run";
   // The problem bar is where the error is read; the header status stays free
   // for the viewer's own trouble.
@@ -4234,11 +4596,112 @@ dom.codeText.addEventListener("keydown", (event) => {
   }
 });
 
+// Global shortcuts. There was exactly one (Alt+M, Build only), so switching
+// stage - the largest move in the product - cost a click on a 73x30 target, and
+// finding the object you were told about in a bug report cost 20+ tab stops.
+// Every one of these is also reachable by mouse and named in the `?` overlay.
+const SHORTCUTS = [
+  ["B", "Build stage", () => void setMode("build"), () => Boolean(dom.modeSwitch) && !dom.modeSwitch.hidden],
+  ["R", "Review stage", () => void setMode("review"), () => Boolean(dom.modeSwitch) && !dom.modeSwitch.hidden],
+  ["/", "Find an object", () => { dom.searchInput.focus(); dom.searchInput.select(); }, () => !dom.searchInput.hidden],
+  ["[", "Previous issue", () => stepIssue(-1), () => !dom.issueList.hidden],
+  ["]", "Next issue", () => stepIssue(1), () => !dom.issueList.hidden],
+  ["F", "Fit the whole scene", () => dom.resetView.click(), () => !dom.resetView.hidden],
+  ["?", "Show this list", () => toggleShortcutOverlay(true), () => true]
+];
+
+function isTypingTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
 window.addEventListener("keydown", (event) => {
   if (event.altKey && event.key.toLowerCase() === "m" && isBuildMode()) {
     event.preventDefault();
     dom.codeMeshToggle?.click();
+    return;
+  }
+  if (event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return;
+  if (event.key === "Escape" && shortcutOverlay?.contains(document.activeElement)) {
+    toggleShortcutOverlay(false);
+    return;
+  }
+  if (event.key === "Escape") {
+    toggleShortcutOverlay(false);
+    return;
+  }
+  for (const [key, , run, available] of SHORTCUTS) {
+    if (event.key !== key) continue;
+    if (!available()) return;
+    event.preventDefault();
+    run();
+    return;
   }
 });
+
+// [ and ] walk the issue list without a pointer, which is the only way to reach
+// the warning a 1-warning review is reporting from the keyboard.
+function stepIssue(direction) {
+  const rows = [...dom.issueList.querySelectorAll("button")];
+  if (rows.length === 0) return;
+  const index = rows.findIndex((row) => row === document.activeElement);
+  rows[(index + direction + rows.length) % rows.length].click();
+}
+
+let shortcutOverlay = null;
+
+function toggleShortcutOverlay(show) {
+  if (!show && !shortcutOverlay) return;
+  if (show) {
+    if (!shortcutOverlay) shortcutOverlay = buildShortcutOverlay();
+    document.body.append(shortcutOverlay);
+    shortcutOverlay.querySelector("button")?.focus();
+    return;
+  }
+  shortcutOverlay?.remove();
+}
+
+function buildShortcutOverlay() {
+  const overlay = document.createElement("div");
+  overlay.className = "shortcut-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Keyboard shortcuts");
+  overlay.dataset.shortcutOverlay = "";
+
+  const panel = document.createElement("div");
+  panel.className = "shortcut-panel";
+  const heading = document.createElement("h2");
+  heading.textContent = "Keyboard";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "shortcut-close";
+  close.setAttribute("aria-label", "Close shortcuts");
+  close.textContent = "Close";
+  close.addEventListener("click", () => toggleShortcutOverlay(false));
+  const head = document.createElement("div");
+  head.className = "shortcut-head";
+  head.append(heading, close);
+
+  const list = document.createElement("dl");
+  list.className = "shortcut-list";
+  for (const [key, label] of [...SHORTCUTS, ["Ctrl+Enter", "Run model.py (Build)"], ["Ctrl+S", "Download model.py"], ["Alt+M", "Toggle the analysis mesh (Build)"]]) {
+    const term = document.createElement("dt");
+    const kbd = document.createElement("kbd");
+    kbd.textContent = key;
+    term.append(kbd);
+    const description = document.createElement("dd");
+    description.textContent = label;
+    list.append(term, description);
+  }
+
+  panel.append(head, list);
+  overlay.append(panel);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) toggleShortcutOverlay(false);
+  });
+  return overlay;
+}
 
 main();

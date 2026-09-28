@@ -39,7 +39,18 @@
   --warning-on-dark: #f0b429;
   --font-ui: "Roboto Condensed", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
-  color: var(--text);
+  /* --chrome-text, not --text. The root was `color: var(--text)` (#172127) over
+     `background: var(--graphite)` (#151c22) - 1.1:1, the detector's top finding on
+     this file. It was a latent trap rather than a visible defect: the only live
+     instance sat on --paper-raised at 16.36:1, so any element that set neither a
+     colour nor a background was one refactor away from invisible-on-invisible
+     text.
+
+     Dropping the declaration is not the fix - it hands the default to the UA,
+     which is #000000 on the same #151c22 and worse. The shell is dark, so its
+     inherited text colour has to be the dark shell's own text token. Every
+     light-surface rule below (the paper buttons, the plot) sets its own. */
+  color: var(--chrome-text);
   background: var(--graphite);
   font-family: var(--font-ui);
   font-synthesis: none;
@@ -153,14 +164,19 @@ textarea,
 }
 
 /* The document's one h1: what you are looking at. It used to be a <strong>,
-   which left the page's only h1 inside a panel that could be closed. */
+   which left the page's only h1 inside a panel that could be closed, and at
+   0.9rem it was the same computed size as body text - the detector's flat-type-
+   hierarchy finding was measuring a real thing, not just the hidden shell. The
+   title of a review is the title; it is set like one, and it is the largest
+   type in the header so the wordmark reads as the mark and this reads as the
+   subject. */
 .app-identity h1 {
   margin: 0;
   min-width: 4rem;
   overflow: hidden;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  letter-spacing: 0.015em;
+  letter-spacing: 0.005em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -230,12 +246,32 @@ textarea,
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  min-height: 1.85rem;
+  min-height: 2.1rem;
   border-top: 1px solid var(--graphite-line);
   background: var(--graphite);
   color: var(--chrome-text);
   padding: 0.2rem 0.85rem;
   overflow: visible;
+}
+
+/* The strip is the trust surface: it holds the verdict, what produced it,
+   whether the numbers are code stress, and the units every readout is in. Its
+   contents used to be allowed to wrap into a second row on a narrow window,
+   which put the applicability caveat under the fold of the one line that
+   carries it. Below 900px the tail wraps as a block instead, so the trust
+   facts stay on the first line and the runtime chatter moves beneath them. */
+@media (max-width: 900px) {
+  .status-strip {
+    flex-wrap: wrap;
+    row-gap: 0.3rem;
+  }
+
+  .strip-tail {
+    flex: 1 0 100%;
+    margin-left: 0;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--graphite-line);
+  }
 }
 
 .analysis-details {
@@ -296,17 +332,61 @@ textarea,
   padding-left: 0.55rem;
 }
 
-/* A fact, not a control. Mono because every one of them is a measurement or an
-   identifier, and dimmed because a permanent line must not compete with the
-   scene it describes. */
+/* The verdict and the applicability caveat, not a measurement and not an
+   identifier: proportional, weighted, and at 0.8rem so the strip is legible
+   rather than merely present. Up from 0.7rem, which rendered the solver and
+   mesh facts at 11.2px - smaller than body text in the rail, which is where the
+   reader had to be to make sense of them. */
 .strip-fact {
-  color: var(--chrome-text-2);
+  color: var(--chrome-text-1);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Solver, version, case count. A permanent session fact, so it gets the accent
+   rather than the dim treatment - it is the answer to "from what", asked on
+   every screen, and it was previously three clicks into a popover. */
+.strip-solver {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* The code-applicability caveat. This is the sentence that decides whether the
+   stress on screen may be used for a pipe, and it was rendering at 0.72rem in a
+   corner legend slab - quieter than a folder path in the header. Now it is
+   strip weight, warning-coloured, and never inside a disclosure. The weight is
+   the only thing carrying the claim, so the glyph does the work a colour-blind
+   reader cannot: a leading marker, not a hue alone. */
+.strip-applicability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--warning-on-dark);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.strip-applicability::before {
+  content: "▲";
+  font-size: 0.62em;
+  line-height: 1;
+}
+
+.strip-applicability[hidden] {
+  display: none;
+}
+
+/* The warning variant only when the mesh check itself failed. A passing check
+   stays quiet; a failing one has to be visible without opening anything. */
+.strip-applicability[data-level="warn"] {
+  color: var(--danger-on-dark);
 }
 
 .strip-fact[hidden] {
@@ -595,6 +675,13 @@ textarea,
   padding: 0.25rem 0.35rem;
 }
 
+/* A roving-tabindex list is one tab stop. Without this the 300-row object list
+   of a 34-isometric model was 300 tab stops, so reaching an object by keyboard
+   cost more than reaching it with the mouse. */
+.object-list:focus {
+  outline: none;
+}
+
 .object-row:hover {
   background: var(--graphite-raised);
 }
@@ -611,6 +698,17 @@ textarea,
 
 .representation-list { margin-left: 0.65rem; border-left: 1px solid var(--graphite-line); }
 .representation-list > summary { cursor: pointer; padding: 0.2rem 0.35rem; font-size: 0.7rem; }
+
+/* Solver-generated objects. Named as generated rather than as a count alone, so
+   a collapsed block says what it is holding instead of just how much. */
+.generated-list {
+  margin-left: 0;
+  border-left: 0;
+}
+
+.generated-list > summary {
+  color: var(--chrome-text-2);
+}
 .measurement-readout { flex-basis: 100%; font-size: 0.72rem; line-height: 1.4; }
 
 .object-name {
@@ -626,18 +724,40 @@ textarea,
   border-radius: 0.1rem;
 }
 
-/* --chrome-text-3 clears AA on --graphite-raised, but every rail button is
-   painted --sidebar-control, which is lighter: the same grey is 4.28:1 there
-   and the object list failed the Pages contrast check the moment the find pane
-   stopped being hidden. One step brighter restores the hierarchy without
-   darkening either token. */
+/* The two-line row: name above, identity below. The name may ellipsise - it is
+   a label and the id is below it - but the line that never may is the entity
+   ref, because `element:pipe_str_28` is what goes in a bug report. It used to be
+   the tail of this same line, after the kind, and it was the first thing cut at
+   165px on a phone. */
 .object-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
   color: var(--chrome-text-2);
   font-family: var(--font-mono);
-  font-size: 0.63rem;
+  font-size: 0.66rem;
+}
+
+/* Never ellipsised and never reordered. This is the one string in the panel the
+   reader came for. */
+.object-ref {
+  flex: 0 0 auto;
+  color: var(--chrome-text-1);
+  white-space: nowrap;
+}
+
+/* The kind is the label; it is what may be lost when the row is narrow. */
+.object-kind {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.object-kind::before {
+  content: "· ";
 }
 
 .match-chip {
@@ -1264,6 +1384,19 @@ textarea,
   font-size: 0.66rem;
 }
 
+/* The caveat stays in the legend as well as the strip. It is duplicated, not
+   moved, and on purpose: the strip says the review is not code stress, the
+   legend says this specific colour bar is not code stress, and a reader who
+   screenshots the viewport takes the legend with it. The strip copy is the
+   session fact; this one travels with the numbers it qualifies. */
+.compliance-notice {
+  color: var(--warning-on-dark);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
 /* Under its toggle, top-right. It opens on request, so it no longer has to
    dodge the camera controls - and no longer disappears when the rail opens,
    which silently withdrew a panel the reader had asked for. */
@@ -1583,21 +1716,42 @@ body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
   --controls-width: min(18.5rem, max(45vw, 15rem));
 }
 
+/* Every floating control in the viewport is inset by this, so nothing can sit
+   on the seam or be half-drawn by it. It exists because five controls were each
+   given their own hard-coded offset and they disagreed: the rail toggle landed
+   at x=0 with its left border removed, which drew its focus ring three pixels
+   off the left edge of the window, and the Display disclosure 2.5rem to its
+   right was placed relative to nothing. */
+.viewport {
+  --viewport-chrome: 0.75rem;
+  --viewport-chrome-wide: 2.5rem;
+}
+
 .rail-toggle {
   position: absolute;
   z-index: 7;
-  top: 0.75rem;
-  left: var(--controls-width);
+  top: var(--viewport-chrome, 0.75rem);
+  /* Offset from the rail's own edge when the rail is open, and from the chrome
+     inset when it is collapsed - so a collapsed rail does not park the toggle on
+     the window edge with a clipped focus ring. */
+  left: max(var(--controls-width), var(--viewport-chrome, 0.75rem));
   width: 1.75rem;
   height: 2.75rem;
   padding: 0;
   border: 1px solid var(--graphite-line);
-  border-left: 0;
-  border-radius: 0 0.4rem 0.4rem 0;
+  /* The right-only radius and border assumed the toggle is always a tab on the
+     rail's edge. With the rail collapsed that is a button on the scene, so it
+     gets a full border and full radius. */
+  border-radius: 0.15rem;
   background: var(--graphite-raised);
   color: var(--chrome-text);
   font-size: 1.75rem;
   cursor: pointer;
+}
+
+body[data-rail-open="true"] .rail-toggle {
+  border-right: 0;
+  border-radius: 0 0.4rem 0.4rem 0;
 }
 
 .rail-toggle:hover { background: var(--graphite); }
@@ -1691,7 +1845,22 @@ body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace {
   right: 8.5rem;
   display: flex;
   align-items: center;
+  gap: 0.5rem;
+}
+
+/* Axis views and zoom are different actions and are no longer one run of
+   five same-sized buttons. `+X` sets where the camera looks; `+` changes how
+   close it is, and they sat two characters apart with a tooltip as the only way
+   to tell them apart. */
+.camera-group {
+  display: flex;
+  align-items: center;
   gap: 0.15rem;
+}
+
+.camera-group + .camera-group {
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--graphite-line);
 }
 
 .camera-controls button {
@@ -1865,14 +2034,6 @@ input[type="range"] {
 .field-details > div {
   margin-top: 0.4rem;
   overflow-wrap: anywhere;
-}
-
-/* Travels with the legend and is never collapsed away: mislabelling FE stress
-   as code stress is a compliance problem, not a display preference. */
-.compliance-notice {
-  color: var(--warning-on-dark);
-  font-weight: 600;
-  margin-top: 0.25rem;
 }
 
 button {
@@ -2177,6 +2338,34 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     grid-template-rows: minmax(0, 1fr);
     overflow: hidden;
   }
+
+  /* The stage switch and the review picker are competing for the same row as
+     the wordmark and the scene name, and at 900px the picker (min-width 15rem)
+     plus the stage switch plus three actions leave the identity block with less
+     room than its own wordmark - so the h1 collapsed to nothing and the picker
+     overprinted the stage switch. Rather than let four fixed-width controls
+     crush one, the header becomes two rows here: identity and actions on top,
+     the switch and the picker beneath. Nothing is hidden to achieve it. */
+  .app-header {
+    flex-wrap: wrap;
+    row-gap: 0.4rem;
+  }
+
+  .app-identity {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .mode-switch {
+    order: 3;
+    flex: 0 0 auto;
+  }
+
+  .bundle-picker {
+    order: 4;
+    flex: 1 1 8rem;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 800px) {
@@ -2202,6 +2391,97 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     padding: 0.3rem 0.4rem;
   }
 
+  /* Phone. The scene name is allowed to lose its tail - the picker one row
+     down is the way to the full set - but the wordmark and the h1 must never
+     overprint each other, which they did because .app-identity was
+     `flex: 1 1 auto` with an h1 at `min-width: 4rem`: the h1 could shrink to
+     its minimum while the wordmark kept its intrinsic width, and the two
+     overlapped rather than wrapping. */
+  .app-identity {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .app-identity h1 {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .wordmark {
+    flex: 0 0 auto;
+    font-size: 0.95rem;
+  }
+
+  /* The scene name is the one thing in the header worth keeping whole on a
+     phone, so it keeps its size while the wordmark steps down beneath the
+     breakpoint where the header is two rows anyway. */
+  .app-identity h1 {
+    font-size: 1.05rem;
+  }
+
+  .mode-switch {
+    order: 3;
+    flex: 1 1 auto;
+  }
+
+  .mode-switch button {
+    flex: 1 1 0;
+  }
+
+  .bundle-picker {
+    order: 4;
+    flex: 1 1 100%;
+  }
+
+  /* The rail is an absolutely positioned overlay whose width resolved to 15rem
+     at 390px - 62% of the phone, leaving a 150px viewport and a legend slab
+     clipped mid-word. Below 520px it is a bottom sheet instead, capped at 45vh
+     so the scene is never fully displaced by a panel the reader can dismiss. */
+  .cockpit-rail {
+    inset: auto 0 0 0;
+    width: auto;
+    max-height: 45vh;
+    border-left: 0;
+    border-top: 1px solid var(--graphite-line);
+    border-radius: 0.4rem 0.4rem 0 0;
+    box-shadow: 0 -0.5rem 1.5rem rgb(0 0 0 / 35%);
+  }
+
+  .rail-toggle {
+    /* Above the sheet, not on its edge: the sheet is full width, so a toggle
+       at left: var(--controls-width) would sit at x=0 with its focus ring drawn
+       off the window. This one is a button on the scene. */
+    left: 0.75rem;
+    top: 0.75rem;
+    height: 2.25rem;
+    border: 1px solid var(--graphite-line);
+    border-radius: 0.15rem;
+    font-size: 1.25rem;
+  }
+
+  /* The display disclosure and the toggle are both top-left now, so the
+     disclosure moves to the top-right rather than sitting under the toggle. */
+  .display-palette {
+    left: auto;
+    right: 0.75rem;
+    max-width: calc(100% - 1.5rem);
+    max-height: calc(100% - 6rem);
+  }
+
+  .display-palette[open] {
+    width: auto;
+  }
+
+  .body-legend {
+    right: 0.75rem;
+    top: 3.1rem;
+    max-width: calc(100% - 1.5rem);
+  }
+
+  .camera-controls {
+    flex-wrap: wrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2257,11 +2537,17 @@ body[data-view="gallery"] {
   letter-spacing: 0.02em;
 }
 
+/* 1.9rem against the masthead's 1.05rem and a group heading's 1.15rem: the page
+   has one h1 and it is the largest thing on it. The detector's flat-type-
+   hierarchy finding was measuring the hidden studio shell, but the real step
+   from h1 to card question was 1.9rem to 1.05rem - close enough that the page
+   read as a list rather than a title over a list. The card question is the one
+   that had to move, because a card question is a sentence. */
 .gallery-heading {
   max-width: 68rem;
   margin: 0 auto 0.5rem;
-  font-size: 1.9rem;
-  letter-spacing: 0.01em;
+  font-size: 2.15rem;
+  letter-spacing: -0.01em;
 }
 
 .gallery-intro {
@@ -2349,24 +2635,207 @@ body[data-view="gallery"] {
   grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
 }
 
-.gallery-card {
+/* Grouped by what each review solved. Thirteen undifferentiated cards was the
+   page's one decision point offering thirteen equal options with no way to
+   narrow it; the grouping is derived from the declared Code_Aster modelisations
+   plus the solver flag, so a card cannot be filed under something it is not. */
+.gallery-group {
+  margin: 0 0 2.5rem;
+}
+
+.gallery-group-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  max-width: 68rem;
+  margin: 0 auto 0.2rem;
+  font-size: 1.15rem;
+}
+
+.gallery-group-count {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.gallery-group-note {
+  max-width: 68rem;
+  margin: 0 auto 1rem;
+  color: var(--chrome-text-2);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.gallery-group-details > summary {
+  max-width: 68rem;
+  margin: 0 auto 0.75rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.25rem;
+  color: var(--chrome-text-1);
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.gallery-group-details > summary:hover {
+  border-color: var(--accent);
+}
+
+.gallery-group-details[open] > summary {
+  border-radius: 0.25rem 0.25rem 0 0;
+}
+
+/* The viewer build hash used to sit beside the wordmark in the masthead. It is
+   in the footer now, with the per-card source hashes, and this position states
+   the one fact a reader can use: how much of this set is actually solved. */
+.gallery-masthead-fact {
+  color: var(--chrome-text-1);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.gallery-footer-build {
+  max-width: 68rem;
+  margin: 0 0 1.25rem;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+/* The catalog did not load. This is the state the landing page had none of: the
+   visitor used to land in an empty studio shell titled "Scene" with a status
+   line reading "Ready". */
+.gallery-unavailable {
+  max-width: 68rem;
+  margin: 0 0 1rem;
+  border-left: 2px solid var(--warning-on-dark);
+  color: var(--warning-on-dark);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding-left: 0.85rem;
+}
+
+/* The card is a link; its surface is on the frame. This rule owns only the
+   link's own box, so the two never disagree about where the card ends. The card
+   used to lift 2px on hover, the one place in the product that animated a
+   transform - every shell control answers a pointer with a border or fill change
+   and nothing moves. */
+
+/* The card's surface lives on the frame, not on the link inside it.
+   Downloads and the source hash are siblings of the link, not children, so
+   putting the background on .gallery-card left them painted on the page
+   background below a card that ended 79px earlier - which is why three cards in
+   a row had their download rows and hashes at three different y values. The
+   frame is the whole card; the link is the part that navigates. */
+.gallery-card-frame {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   border: 1px solid var(--graphite-line);
   border-radius: 4px;
   background: var(--graphite-raised);
-  color: inherit;
-  text-decoration: none;
   overflow: hidden;
-  /* Border and background state only. The card used to lift 2px as well, the
-     one place in the product that animated a transform on hover - every shell
-     control answers a pointer with a border or fill change and nothing moves. */
   transition: border-color 120ms ease;
 }
 
-.gallery-card-frame { min-width: 0; }
-.gallery-card-downloads { display: flex; gap: 1rem; padding: .55rem .8rem 0; }
-.gallery-card-identity { display: block; padding: .35rem .8rem; color: var(--chrome-text-3); overflow-wrap: anywhere; }
+.gallery-card-frame:hover,
+.gallery-card-frame:focus-within {
+  border-color: var(--accent);
+}
+
+.gallery-card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+}
+
+.gallery-card-downloads {
+  display: flex;
+  gap: 1rem;
+  margin-top: auto;
+  padding: 0.55rem 0.8rem 0;
+}
+
+/* These were the browser's own link blue on the dark card: rgb(0,0,238) at
+   16px underlined, measured 1.83:1 on --graphite, and the only colour-contrast
+   violation axe found on either surface. A download in the primary action zone
+   of a marketing page, in default UA styling, because no rule ever named it. */
+.gallery-card-downloads a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  color: var(--chrome-text-1);
+  font-size: 0.75rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--graphite-line);
+}
+
+.gallery-card-downloads a:hover,
+.gallery-card-downloads a:focus-visible {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Provenance, and the smallest thing on the card. It was an unstyled <small>
+   at 13.33px - larger than the folder path directly above it at 11.52px, so the
+   least meaningful string was the biggest. A truncated hash is not provenance to
+   a reader anyway; it is a build detail, and it is now below everything. */
+.gallery-card-identity {
+  display: block;
+  padding: 0.35rem 0.8rem 0.5rem;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+/* The facts a card is chosen on: how many cases, how many element types, which
+   solver. The old evidence badge was one uppercase string, and four of the six
+   profiles mapped to the literal word "Results" - so twelve of thirteen cards
+   wore the same claim and the two without results behind them looked identical
+   to the eleven that had some. */
+.gallery-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery-card-fact {
+  border: 1px solid var(--graphite-line);
+  border-radius: 2px;
+  color: var(--chrome-text-1);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  padding: 0.1rem 0.35rem;
+}
+
+/* A card with no analysis behind it must not read as one. Warning colour, a
+   marker rather than a hue alone, and it comes first - before the element
+   chips, so the "is this a review or a picture" question is answered before
+   anything else on the card. */
+.gallery-card-fact-unsolved {
+  border-color: var(--warning-on-dark);
+  color: var(--warning-on-dark);
+  font-weight: 600;
+}
+
+.gallery-card-fact-unsolved::before {
+  content: "▲ ";
+}
+
+.gallery-card-fact-solver {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 .exchange-dialog {
   width: min(42rem, calc(100vw - 2rem));
@@ -2396,16 +2865,16 @@ body[data-view="gallery"] {
 .exchange-products { max-height: 14rem; overflow: auto; }
 .exchange-products label { padding: .3rem 0; border-bottom: 1px solid var(--graphite-line); }
 
-.gallery-card:hover,
-.gallery-card:focus-visible {
-  border-color: var(--accent);
-}
-
+/* The thumbnails are 1280x800 - a 16:10 frame, not 8:5 - and `cover` cropped
+   about 11% off the top and bottom to fit, which cut the shoe markings and the
+   support symbols off the bottom of every card. `contain` shows the whole
+   render, which is the point: the picture is a photograph of the bundle, and a
+   photograph with its edges trimmed is not evidence of the geometry. */
 .gallery-card-image {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 10;
-  object-fit: cover;
+  object-fit: contain;
   background: var(--graphite);
   border-bottom: 1px solid var(--graphite-line);
 }
@@ -2417,10 +2886,13 @@ body[data-view="gallery"] {
   padding: 1rem 1.1rem 1.15rem;
 }
 
+/* A sentence, not a label, so it is set as body-adjacent rather than as a
+   heading competing with the page's own h1. */
 .gallery-card-question {
   margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.3;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .gallery-card-title {
@@ -2460,15 +2932,18 @@ body[data-view="gallery"] {
   letter-spacing: 0.04em;
 }
 
+/* A claim, and a path, were rendered identically: both --chrome-text-3, both
+   mono, both 0.72rem, separated only by an uppercase transform. A claim outranks
+   a path, so it is the one that gets the weight and the rule between them. */
 .gallery-card-evidence {
   margin: 0.35rem 0 0;
   padding-top: 0.6rem;
   border-top: 1px solid var(--graphite-line);
-  color: var(--chrome-text-3);
+  color: var(--chrome-text-1);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .gallery-card-origin {
@@ -2479,13 +2954,13 @@ body[data-view="gallery"] {
      it, so anything that looked copyable here would have been a link to the
      review instead. */
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gallery-card {
+  .gallery-card-frame {
     transition: none;
   }
 }
@@ -3034,20 +3509,45 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   background: #2a2226;
   color: #ffcfcb;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   line-height: 1.45;
   padding: 0.45rem 0.85rem;
-  white-space: pre-wrap;
 }
 
 .code-problem[hidden] {
   display: none;
 }
 
+/* The message, and then the traceback behind a disclosure. A Python exception is
+   this product's own language; its frames are not, and they used to be the text
+   the reader had to scroll through to find the sentence naming the failure. */
+.code-problem-summary {
+  display: block;
+}
+
+.code-problem-trace {
+  margin-top: 0.35rem;
+}
+
+.code-problem-trace > summary {
+  cursor: pointer;
+  color: #ffb3ad;
+  font-size: 0.72rem;
+}
+
+.code-problem-trace pre {
+  max-height: 12rem;
+  margin: 0.35rem 0 0;
+  overflow: auto;
+  color: #ffcfcb;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+}
+
 .build-issues {
   display: grid;
   gap: 0.3rem;
-  max-height: 10rem;
+  max-height: 16rem;
   overflow: auto;
   border-top: 1px solid var(--graphite-line);
   background: var(--graphite-raised);
@@ -3058,27 +3558,120 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
   display: none;
 }
 
+/* The count is the finding. 197 clashes used to render as 197 identical rows of
+   two element ids in a 516px column, and the one number the solver had computed
+   - the overlap - appeared in none of them. */
 .build-issues h2 {
+  margin: 0;
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.issue-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.55rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--graphite-raised);
+  padding-block: 0.25rem;
+}
+
+.issue-severity {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* Severity is not a hue alone - the word is always there beside the colour, so
+   the ordering survives a monochrome viewport and a colour-blind reader. */
+.issue-severity-error,
+.issue-severity-critical {
+  color: var(--danger-on-dark);
+}
+
+.issue-severity-warning {
+  color: var(--warning-on-dark);
+}
+
+.issue-severity-info {
+  color: var(--chrome-text-2);
+}
+
+.issue-group-case {
+  color: var(--chrome-text-1);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.issue-group-count {
+  color: var(--chrome-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* The participant that accounts for most of the group. This is the line that
+   turns a count into a finding: one offending cable tray behind 180 of them. */
+.issue-group-culprit {
+  flex: 1 0 100%;
   margin: 0;
   color: var(--chrome-text-2);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
 }
 
+.issue-row,
 .build-issues button {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.5rem;
   width: 100%;
   border: 1px solid var(--graphite-line);
   border-radius: 0.15rem;
   background: transparent;
   color: #d9e0e2;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   text-align: left;
   padding: 0.35rem 0.5rem;
   cursor: pointer;
+}
+
+.issue-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The number the list is ordered by, on the row itself. */
+.issue-magnitude {
+  flex: 0 0 auto;
+  color: var(--warning-on-dark);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.issue-overflow {
+  margin-left: 0.5rem;
+  border-left: 1px solid var(--graphite-line);
+}
+
+.issue-overflow > summary {
+  cursor: pointer;
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
 }
 
 .build-issues button:hover {
@@ -3091,7 +3684,7 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 }
 
 .build-issues button.selected {
-  border-color: var(--accent-ink);
+  border-color: var(--accent);
 }
 
 .code-pane-foot {
@@ -3358,11 +3951,16 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 
 /* Display stays reachable even when the review rail is closed. The tint keeps
    labels legible over both the white canvas and coloured result surfaces. */
+/* Offset clears the rail toggle, which is 1.75rem wide and now sits at the
+   chrome inset. It used to be a flat 2.5rem while the toggle sat at
+   left: 0, so a 1.75rem-wide control and its 3px focus ring overlapped the
+   disclosure - the two controls a reader needs first in an unfamiliar viewport
+   covered each other. */
 .display-palette {
   position: absolute;
   z-index: 5;
-  top: 0.75rem;
-  left: 2.5rem;
+  top: var(--viewport-chrome, 0.75rem);
+  left: calc(var(--viewport-chrome, 0.75rem) + 2.25rem);
   max-width: calc(100% - 3.25rem);
   max-height: calc(100% - 4.5rem);
   overflow: auto;

@@ -1,11 +1,38 @@
 <!doctype html>
 <html lang="en">
-  <head>
+    <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tuba Viewer</title>
+    <!-- The viewer head named the product nowhere but <title>: no description,
+         no theme colour, no share card. The gallery is the URL people send, and
+         a link pasted into a chat or a ticket showed up as "Tuba Viewer" over
+         an empty dark rectangle. The docs site beside it sets all of these, so
+         the two halves of one product had two different metadata disciplines. -->
+    <meta
+      name="description"
+      content="Tuba builds piping and structural models in Python, solves them with Code_Aster, and reviews the results: deformed shape, stress fields, support reactions and clashes."
+    />
+    <meta name="theme-color" content="#151c22" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Tuba" />
+    <meta property="og:title" content="Tuba — Code_Aster piping engineering review" />
+    <meta
+      property="og:description"
+      content="Define piping structure in Python, solve it with Code_Aster, and review the deformed shape, stresses and support loads in the browser."
+    />
+    <title>Tuba — Code_Aster piping engineering review</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/src/styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Tuba",
+        "applicationCategory": "EngineeringApplication",
+        "description": "Piping and structural engineering: author a model in Python, solve it with Code_Aster, review the processed results.",
+        "url": "https://jgwagenfeld.github.io/Tuba_v4/"
+      }
+    </script>
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -265,10 +292,22 @@
              actually status - solved, and anything demanding attention - and
              routes to the task that explains them. -->
         <button type="button" class="status-chip" data-status-chip hidden></button>
+        <!-- Whether the numbers on screen are engineering-usable is a fact about
+             the review, not about the legend, so it is stated here at strip
+             weight. It used to live only inside the viewport legend, in a corner
+             slab at 0.72rem, while a folder path in the header was its peer -
+             the visual weight ran opposite to the stakes, in a tool where a
+             mislabelled FE stress is a compliance problem. Always visible, never
+             inside a disclosure, and it routes to the field that carries it. -->
+        <span class="strip-applicability" data-applicability-fact hidden></span>
+        <!-- Solver, version and case count, likewise permanent. Three clicks into
+             a popover was too far to answer "is what I am looking at current, and
+             from what"; the mesh check below stays behind its disclosure because
+             it is a diagnostic rather than a verdict. -->
+        <span class="strip-fact strip-solver" data-solver-fact hidden></span>
         <details class="analysis-details" data-analysis-details hidden>
-          <summary data-analysis-summary>Analysis details</summary>
+          <summary data-analysis-summary>Mesh detail</summary>
           <div class="analysis-details-content">
-            <span class="strip-fact" data-solver-fact hidden></span>
             <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
           </div>
         </details>

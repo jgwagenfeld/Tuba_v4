@@ -5,7 +5,9 @@ import { readFile } from "node:fs/promises";
 import {
   bundleIdsOf,
   bundleKey,
+  groupEntries,
   normalizeCatalog,
+  reviewFacts,
   shouldShowGallery,
   titleFromId
 } from "../src/gallery.js";
@@ -16,7 +18,9 @@ const PUBLISHED = [
     title: "Pipe on a support rack",
     question: "What do the supports and the steel underneath actually carry?",
     summary: "A line resting on a framed rack.",
-    evidence: "Results",
+    solved: true,
+    case_count: 1,
+    elements: ["TUYAU_3M", "POU_D_T"],
     thumbnail: "gallery/support-rack-review.png"
   },
   {
@@ -24,7 +28,10 @@ const PUBLISHED = [
     title: "Tee junction mesh",
     question: "What does the analysis actually discretise at a branch?",
     summary: "The conformal tetrahedral wall mesh.",
-    evidence: "Mesh only - no results",
+    solved: false,
+    case_count: 0,
+    evidence: "Mesh only",
+    elements: ["3D"],
     thumbnail: "gallery/gmsh-tee-mesh-review.png"
   }
 ];
@@ -37,7 +44,92 @@ test("gallery accepts the published catalog untouched", () => {
     "gmsh-tee-mesh-review"
   ]);
   assert.equal(entries[0].question, PUBLISHED[0].question);
-  assert.equal(entries[1].evidence, "Mesh only - no results");
+  assert.equal(entries[1].solved, false);
+});
+
+// A card's facts are what a reviewer chooses on. PROFILE_EVIDENCE used to map
+// four solved profiles onto the literal word "Results", so twelve of thirteen
+// cards wore the same badge saying nothing - and the two cards with no results
+// behind them looked identical to the eleven that had some. These assert size
+// instead, and that a geometry-only card cannot be mistaken for a solved one.
+test("a solved card states its size rather than the word Results", () => {
+  const facts = reviewFacts(PUBLISHED[0]);
+
+  assert.deepEqual(
+    facts.map((fact) => fact.text),
+    ["1 load case", "2 element types"]
+  );
+  assert.equal(facts.some((fact) => fact.text === "Results"), false);
+});
+
+test("a card with no results says so and claims no cases", () => {
+  const facts = reviewFacts(PUBLISHED[1]);
+
+  assert.deepEqual(facts.map((fact) => fact.kind), ["unsolved", "evidence"]);
+  assert.match(facts[0].text, /not solved/i);
+  assert.equal(facts.some((fact) => fact.kind === "cases"), false);
+});
+
+test("card facts never invent a solver, a case count or a size", () => {
+  // A bare id list from the dev server carries none of this, and a card may not
+  // manufacture facts the catalog did not supply.
+  const bare = normalizeCatalog(["my-recipe"])[0];
+
+  assert.deepEqual(reviewFacts(bare), []);
+});
+
+// Thirteen undifferentiated cards was the page's one decision point offering
+// thirteen equal options with no way to narrow it. The grouping is derived from
+// the declared Code_Aster modelisations plus the solver flag, so a card cannot be
+// filed under something it is not - and a geometry-only card must not be filed
+// as an analysis even when its geometry is pipework.
+test("cards are grouped by what the review actually solved", () => {
+  const catalog = [
+    { id: "loop", elements: ["TUYAU_3M", "DIS_T"], solved: true, case_count: 1 },
+    { id: "mast", elements: ["POU_D_T", "CABLE"], solved: true, case_count: 1 },
+    { id: "tee", elements: ["3D", "TUYAU_3M"], solved: true, case_count: 1 },
+    { id: "step", elements: ["TUYAU_3M"], solved: false, case_count: 0 }
+  ];
+  const groups = groupEntries(normalizeCatalog(catalog));
+
+  const byId = Object.fromEntries(groups.map((group) => [group.id, group.members.map((m) => m.id)]));
+  assert.deepEqual(byId.pipe, ["loop"]);
+  assert.deepEqual(byId.beams, ["mast"]);
+  assert.deepEqual(byId.solids, ["tee"]);
+  // A geometry-only card declares the elements its geometry is made of, and must
+  // still land in "geometry only" - never in a subject group, and never counted
+  // in both.
+  assert.deepEqual(byId.geometry, ["step"]);
+  for (const group of groups) {
+    const ids = group.members.map((member) => member.id);
+    assert.equal(new Set(ids).size, ids.length, `${group.id} repeats a card`);
+  }
+  assert.equal(
+    groups.reduce((total, group) => total + group.members.length, 0),
+    catalog.length,
+    "every card lands in exactly one group"
+  );
+});
+
+test("the largest group leads, so the page opens on what most of the set is", () => {
+  const catalog = [
+    { id: "a", elements: ["TUYAU_3M"], solved: true },
+    { id: "b", elements: ["TUYAU_3M"], solved: true },
+    { id: "c", elements: ["TUYAU_3M"], solved: true },
+    { id: "d", elements: ["CABLE"], solved: true }
+  ];
+  const groups = groupEntries(normalizeCatalog(catalog));
+
+  assert.equal(groups[0].id, "pipe");
+  assert.equal(groups[0].members.length, 3);
+});
+
+test("a card with no declared elements still appears", () => {
+  // A bare id from the dev server has no elements and no solved flag; it may not
+  // vanish because it cannot be classified.
+  const groups = groupEntries(normalizeCatalog(["mystery"]));
+
+  assert.equal(groups.flatMap((group) => group.members.map((m) => m.id)).join(), "mystery");
 });
 
 test("gallery accepts the bare id list the dev server discovers", () => {

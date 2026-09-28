@@ -463,7 +463,21 @@ def test_every_published_gallery_can_explain_itself():
             f"{gallery.id} must lead with an engineering question, not a label"
         )
         assert len(gallery.summary.split()) >= 10, f"{gallery.id} summary is too thin"
-        assert gallery.evidence, f"{gallery.id} has no evidence badge"
+        # Whether a solver stands behind the card, rather than a per-profile
+        # label: the old check asserted a non-empty evidence string, which for
+        # four of six profiles was the literal word "Results" - so twelve of
+        # thirteen cards wore the same badge and the two geometry-only ones
+        # looked identical to the eleven that had results.
+        assert isinstance(gallery.solved, bool), f"{gallery.id} has no solved flag"
+        if gallery.solved:
+            assert gallery.case_count, (
+                f"{gallery.id} is a solved review and declares no load cases"
+            )
+        else:
+            assert gallery.case_count is None, (
+                f"{gallery.id} publishes geometry only but declares "
+                f"{gallery.case_count} load case(s)"
+            )
 
 
 def _publishable_card(**overrides):
@@ -473,6 +487,7 @@ def _publishable_card(**overrides):
         question="Where does a hot line move, and what does it reach?",
         summary=" ".join(["a"] * 12),
         elements=("TUYAU_3M",),
+        case_count=1,
     )
     return OfficialGallery(
         "demo",

@@ -5,8 +5,21 @@ import { readFile } from "node:fs/promises";
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   compact: { width: 1024, height: 768 },
-  narrow: { width: 800, height: 900 }
+  narrow: { width: 800, height: 900 },
+  // Phone. This case did not exist, and that is why a broken header survived:
+  // at 390px the wordmark, the scene name, the bundle picker and the stage
+  // switch all competed for one row, the scene name collapsed to nothing and
+  // the picker overprinted the switch. The narrowest golden was 800px, so no
+  // committed reference image could see it. Every layout claim about a phone in
+  // this file is now backed by a phone.
+  phone: { width: 390, height: 844 }
 };
+
+// Above this width a viewport is expected to behave like a desktop with a
+// narrower window; at or below it the shell goes to its single-column form.
+const PHONE_WIDTH = 520;
+
+const NARROW_VIEWPORTS = new Set(["narrow", "phone"]);
 
 const DOCUMENTATION_PAGES = ["/index.html", "/setup.html"];
 
@@ -307,11 +320,104 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
       // keep the rest of the header covered by the visual comparison.
       mask: [page.locator("[data-build-identity]:visible, [data-viewer-identity]:visible")],
       // Narrow software-rendered WebGL varies slightly between Ubuntu runners.
-      maxDiffPixelRatio: name === "narrow" ? 0.015 : 0.002
+      maxDiffPixelRatio: NARROW_VIEWPORTS.has(name) ? 0.015 : 0.002
     });
   }
 
   expect(browserErrors).toEqual([]);
+});
+
+// Overlap is not overflow, which is why a scroll-width check did not catch the
+// broken phone header: two flex children at left: 0 and left: 296px in a 390px
+// row overprint each other and still report scrollWidth === clientWidth. This
+// measures the boxes against each other instead, at every committed viewport.
+test("no two header controls overprint each other at any committed width", async ({ page }) => {
+  await page.goto("/viewer/?bundle=code-aster-review", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
+
+  for (const [name, viewport] of Object.entries(VIEWPORTS)) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+
+    const overlaps = await page.evaluate(() => {
+      // Only the identity block's own children and the two controls that
+      // compete with it. Header actions are a separate flex line by design.
+      const selectors = [
+        ".wordmark",
+        ".app-identity h1",
+        ".bundle-picker",
+        ".mode-switch"
+      ];
+      const boxes = selectors
+        .map((selector) => ({ selector, element: document.querySelector(selector) }))
+        .filter(({ element }) => element && element.getClientRects().length > 0)
+        .map(({ selector, element }) => {
+          const rect = element.getBoundingClientRect();
+          return { selector, rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height } };
+        });
+      const found = [];
+      for (let a = 0; a < boxes.length; a += 1) {
+        for (let b = a + 1; b < boxes.length; b += 1) {
+          const one = boxes[a].rect;
+          const two = boxes[b].rect;
+          const overlapX = Math.min(one.x + one.w, two.x + two.w) - Math.max(one.x, two.x);
+          const overlapY = Math.min(one.y + one.h, two.y + two.h) - Math.max(one.y, two.y);
+          if (overlapX > 1 && overlapY > 1) {
+            found.push(`${boxes[a].selector} x ${boxes[b].selector} (${overlapX.toFixed(0)}x${overlapY.toFixed(0)}px)`);
+          }
+        }
+      }
+      return found;
+    });
+
+    expect(overlaps, `${name} (${viewport.width}px) header controls overprint`).toEqual([]);
+  }
+});
+
+// The 1.83:1 download links were the only colour-contrast violation axe found on
+// either surface, and they were in the primary action zone of a shared page. No
+// rule ever named them, so they rendered in the browser's own link blue. The
+// page has a card with downloads only when the catalog publishes one, so this
+// asserts on the element wherever it appears rather than assuming a card.
+test("gallery download links are legible on the card surface", async ({ page }) => {
+  await page.goto("/viewer/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("[data-gallery]")).toBeVisible();
+  await expect(page.locator("[data-gallery-grid]").first()).toBeVisible();
+
+  const links = page.locator(".gallery-card-downloads a");
+  if ((await links.count()) === 0) {
+    // No published download in this catalog. The rule still has to exist, or the
+    // next bundle that publishes one inherits UA blue again.
+    const styled = await page.evaluate(() => {
+      const probe = document.createElement("a");
+      probe.className = "gallery-card-downloads";
+      probe.style.display = "none";
+      document.body.append(probe);
+      const inner = document.createElement("a");
+      inner.textContent = "probe";
+      probe.append(inner);
+      const color = getComputedStyle(inner).color;
+      probe.remove();
+      return color;
+    });
+    expect(styled).not.toBe("rgb(0, 0, 238)");
+    return;
+  }
+
+  const contrast = await links.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const style = getComputedStyle(node);
+      return { color: style.color, fontSize: style.fontSize, decoration: style.textDecorationLine };
+    })
+  );
+  for (const style of contrast) {
+    expect(style.color).not.toBe("rgb(0, 0, 238)");
+    expect(parseFloat(style.fontSize)).toBeGreaterThanOrEqual(11);
+    expect(style.decoration).not.toBe("underline");
+  }
+
+  const violations = await new AxeBuilder({ page }).analyze();
+  expect(violations.violations).toEqual([]);
 });
 
 test("assembled Pages documentation is accessible", async ({ page }) => {

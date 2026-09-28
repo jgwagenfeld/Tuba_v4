@@ -737,6 +737,7 @@ def test_examples_main_does_not_create_or_overwrite_catalog_when_validation_fail
                 question="Does a broken bundle stop the publisher?",
                 summary="A deliberately invalid bundle used to prove the gate holds.",
                 elements=("TUYAU_3M",),
+                case_count=1,
             ),
         ),
     )

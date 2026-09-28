@@ -15,22 +15,35 @@ from tuba.project import STUDY_SCRIPT, load_project
 ROOT = Path(__file__).resolve().parents[1]
 
 
-#: How much evidence a profile actually carries, in the reviewer's words rather
-#: than the solver's. This is the honest half of hiding the solver: the badge
-#: never disappears, it just stops being the headline.
 #: Every ``MODELISATION`` a card may declare, as produced by
 #: :func:`tuba.solver.modelisation.modelisation_assignments`. A typo here would
 #: otherwise ship as a chip nobody can look up.
 ELEMENT_MODELISATIONS = frozenset({"TUYAU_3M", "POU_D_T", "3D", "BARRE", "CABLE", "DIS_TR", "DIS_T"})
 
 
-PROFILE_EVIDENCE = {
-    "engineering-review": "Results",
-    "volume-engineering-review": "Results",
-    "contact-engineering-review": "Results",
-    "beam-engineering-review": "Results",
-    "mesh-review": "Mesh only - no results",
-    "model-review": "Model only - no results",
+#: Which profiles carry Code_Aster results, and which publish geometry only.
+#:
+#: This replaces a per-profile evidence *string*, which mapped four solved
+#: profiles onto the single word "Results" - so twelve of thirteen cards wore the
+#: same uppercase badge that said nothing, while the two cards with no results
+#: behind them were visually identical to the eleven that had some. A grid of
+#: thirteen cards must not imply thirteen analyses. The viewer now derives the
+#: facts it prints from these flags plus the real case count, and a solved card
+#: says how big it is rather than that it is.
+PROFILE_SOLVED = {
+    "engineering-review": True,
+    "volume-engineering-review": True,
+    "contact-engineering-review": True,
+    "beam-engineering-review": True,
+    "mesh-review": False,
+    "model-review": False,
+}
+
+#: What a card with no results is, in the reviewer's words. Kept as a label
+#: rather than dropped, so a geometry-only example still says what it is.
+PROFILE_UNSOLVED_LABEL = {
+    "mesh-review": "Mesh only",
+    "model-review": "Model only",
 }
 
 
@@ -61,6 +74,11 @@ class OfficialGallery:
     #: The example folder whose ``model.py`` this review is built from, relative to
     #: the repository root. The card tells a reader how to open it in the studio.
     project: str | None = field(default=None, kw_only=True)
+
+    #: How many load cases Code_Aster solved. Read from the study, never guessed.
+    #: ``None`` for a geometry-only example, which is what tells the viewer to say
+    #: so on the card instead of implying an analysis exists.
+    case_count: int | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         """Reject a card that cannot introduce its review.
@@ -94,30 +112,60 @@ class OfficialGallery:
         unknown = sorted(set(self.elements) - ELEMENT_MODELISATIONS)
         if unknown:
             raise ValueError(f"{self.id}: unknown element modelisation(s) {unknown}")
-        if self.profile not in PROFILE_EVIDENCE:
+        if self.profile not in PROFILE_SOLVED:
             raise ValueError(
-                f"{self.id}: no evidence badge is defined for profile {self.profile!r}"
+                f"{self.id}: no solved flag is defined for profile {self.profile!r}"
+            )
+        # A card may not claim an analysis it does not have, nor deny one it
+        # does. The two are checked here, next to the copy, because this is a
+        # compliance claim on a published page and the failure mode is a grid
+        # that implies thirteen solved reviews where two are geometry only.
+        solved = PROFILE_SOLVED[self.profile]
+        if solved and not self.case_count:
+            raise ValueError(
+                f"{self.id}: profile {self.profile!r} is a solved review but "
+                f"declares no load cases - the card would claim results it cannot show"
+            )
+        if not solved and self.case_count:
+            raise ValueError(
+                f"{self.id}: profile {self.profile!r} publishes geometry only but "
+                f"declares {self.case_count} load case(s) - the card would claim "
+                f"results the bundle does not carry"
+            )
+        if not solved and self.summary and "no solver results" not in self.summary.lower():
+            raise ValueError(
+                f"{self.id}: a geometry-only example must say so in its summary, "
+                f"so nobody opens it expecting a review"
             )
 
     @property
-    def evidence(self) -> str:
-        return PROFILE_EVIDENCE[self.profile]
+    def solved(self) -> bool:
+        return PROFILE_SOLVED[self.profile]
 
     @property
     def thumbnail(self) -> str:
         return f"gallery/{self.id}.png"
 
     def to_catalog_entry(self) -> dict[str, Any]:
-        """The record the viewer renders a gallery card from."""
+        """The record the viewer renders a gallery card from.
+
+        ``solved`` and ``case_count`` are what the card's facts are built from.
+        The viewer prints the case count, the element types and the solver, and
+        says plainly when there is no analysis - rather than the single word
+        "Results", which twelve of thirteen cards used to share.
+        """
         entry = {
             "id": self.id,
             "title": self.title,
             "question": self.question,
             "summary": self.summary,
-            "evidence": self.evidence,
+            "solved": self.solved,
+            "case_count": self.case_count if self.solved else 0,
             "elements": list(self.elements),
             "thumbnail": self.thumbnail,
         }
+        if not self.solved:
+            entry["evidence"] = PROFILE_UNSOLVED_LABEL[self.profile]
         if self.project is not None:
             entry["project"] = self.project
         return entry
@@ -159,18 +207,23 @@ def _project_gallery(
     def refresh(_scratch_root: Path) -> tuple[Any, str]:
         return folder.run_model()["model"], cases[0]
 
-    solves = bool(cases) and config.ARTIFACT_DIR is not None
+    # The case count is the study's own LOAD_CASES, and it is only published when
+    # the profile claims a solved review. A geometry-only example has cases in its
+    # study too - it just never sends them to Code_Aster - so passing the count
+    # unconditionally would be the lie the dataclass now refuses to carry.
+    published_cases = len(cases) if PROFILE_SOLVED[profile] else None
     return OfficialGallery(
         gallery_id,
         audiences,
         profile,
         produce,
         config.ARTIFACT_DIR,
-        refresh if solves else None,
+        refresh if published_cases else None,
         config.VOLUME_EXPORT or False,
         solver_options=dict(config.SOLVER_OPTIONS),
         refresh_load_cases=cases if len(cases) > 1 else (),
         project=f"examples/{project}",
+        case_count=published_cases,
         **card,
     )
 

@@ -123,10 +123,34 @@ def validate_pages_tree(root: Path) -> None:
     if [entry.get("id") for entry in catalog] != list(PAGES_BUNDLE_IDS):
         raise ValueError(f"Pages catalog must contain exactly {list(PAGES_BUNDLE_IDS)!r}.")
     for entry in catalog:
-        missing = [key for key in ("title", "question", "summary", "evidence") if not entry.get(key)]
+        missing = [key for key in ("title", "question", "summary") if not entry.get(key)]
         if missing:
             raise ValueError(
                 f"Gallery {entry.get('id')!r} cannot publish without {', '.join(missing)}."
+            )
+        # Whether a solver stands behind the card, and how big it is. These
+        # replaced a required `evidence` string, which four of the six profiles
+        # filled with the literal word "Results" - so the gate was satisfied by
+        # twelve identical badges while saying nothing, and a geometry-only card
+        # passed on the strength of a phrase rather than a flag. The flag is the
+        # compliance claim; the count is what makes the card choosable.
+        if not isinstance(entry.get("solved"), bool):
+            raise ValueError(
+                f"Gallery {entry.get('id')!r} does not declare whether it was solved."
+            )
+        if entry["solved"] and not entry.get("case_count"):
+            raise ValueError(
+                f"Gallery {entry.get('id')!r} claims results but declares no load cases."
+            )
+        if not entry["solved"] and entry.get("case_count"):
+            raise ValueError(
+                f"Gallery {entry.get('id')!r} publishes geometry only but claims "
+                f"{entry['case_count']} load case(s)."
+            )
+        if not entry["solved"] and not entry.get("elements"):
+            raise ValueError(
+                f"Gallery {entry.get('id')!r} publishes geometry only and must say "
+                f"what the geometry is."
             )
         for kind, uri in entry.get("downloads", {}).items():
             if kind not in {"project", "ifc"} or uri != f"downloads/{entry['id']}.{'zip' if kind == 'project' else 'ifc'}":

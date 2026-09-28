@@ -43,15 +43,39 @@ def _viewer_files(root: Path) -> dict[str, str]:
 
 
 def _referenced_viewer_assets(package_root: Path) -> set[str]:
+    """Every asset the built shell actually loads, walked to a fixed point.
+
+    The walk has to be transitive and has to follow dynamic imports, because the
+    entry chunk is no longer the whole application: ``main.js`` reaches the studio
+    through ``await import("./app.js")`` so that the landing gallery never pays
+    for Three.js, and Vite emits that as a separate chunk referenced by a path
+    string rather than by ``new URL(..., import.meta.url)``. A single pass over
+    the entry's static references reported ``app-*.js`` as an unreferenced
+    orphan - a false failure that would have been "fixed" by going back to a
+    static import and putting 2 MB of renderer back on the gallery's first paint.
+    """
     html = (package_root / "index.html").read_text(encoding="utf-8")
     referenced = set(re.findall(r"\./assets/([^\"']+\.(?:js|css))", html))
-    for script in tuple(referenced):
-        if script.endswith(".js"):
-            js = (package_root / "assets" / script).read_text(encoding="utf-8")
-            referenced.update(re.findall(r"new URL\([\"'`]([^\"'`]+\.js)[\"'`],\s*import\.meta\.url\)", js))
-    for stylesheet in tuple(referenced):
-        if not stylesheet.endswith(".css"):
+    pending = list(referenced)
+    seen: set[str] = set()
+    while pending:
+        asset = pending.pop()
+        if asset in seen or not asset.endswith(".js"):
             continue
+        seen.add(asset)
+        js = (package_root / "assets" / asset).read_text(encoding="utf-8")
+        # A worker or a static asset resolved against the importing module.
+        found = set(
+            re.findall(r"new URL\([\"'`]([^\"'`]+\.js)[\"'`],\s*import\.meta\.url\)", js)
+        )
+        # A lazily loaded chunk, resolved against the importing module too.
+        found.update(re.findall(r"import\(\s*[\"'`]\./([^\"'`]+\.js)[\"'`]\s*\)", js))
+        found.update(re.findall(r"from\s*[\"'`]\./([^\"'`]+\.js)[\"'`]", js))
+        for name in found:
+            if name not in referenced:
+                referenced.add(name)
+                pending.append(name)
+    for stylesheet in {name for name in referenced if name.endswith(".css")}:
         css = (package_root / "assets" / stylesheet).read_text(encoding="utf-8")
         referenced.update(re.findall(r"url\(\./([^\"')]+\.woff2?)\)", css))
     return referenced

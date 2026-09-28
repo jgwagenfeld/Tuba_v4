@@ -144,6 +144,56 @@ export function groupIssues(state, criteria = {}) {
   return [...groups.values()];
 }
 
+// How bad a clash is, in metres, so the list can be ordered by it. A 34-isometric
+// reconstruction reported 197 of them as 197 identical rows of two element ids -
+// the list had thrown away the one number the solver had computed. Penetration is
+// that number; a clearance violation with a negative margin has no penetration
+// field, so it falls back to how far past the clearance it sits, and an issue
+// with neither sorts last rather than first.
+export function issueSeverityMetres(state, issue) {
+  const review = issueReviewData(state, issue);
+  const clash = review.clash ?? review;
+  const penetration = clash?.penetration_m;
+  if (Number.isFinite(penetration) && penetration > 0) return penetration;
+  const distance = clash?.distance_m;
+  const clearance = clash?.metadata?.operating_distance_m ?? clash?.metadata?.cold_distance_m;
+  if (Number.isFinite(distance) && Number.isFinite(clearance) && clearance > distance) {
+    return clearance - distance;
+  }
+  return 0;
+}
+
+// The object a clash is really about. Two ids per row is a pair; the pair reads
+// as noise, so the row states the pair and the summary above it names the
+// participant that repeats - which on a real model is the one thing worth
+// knowing, because one offending cable tray or one undersized clearance
+// envelope accounts for most of the count.
+export function issueParticipants(state, issue) {
+  const review = issueReviewData(state, issue);
+  return review.object_pair ?? review.clash_review?.object_pair ?? issue.entity_refs ?? [];
+}
+
+// Ordered triage: worst first, inside each load case, and collapsed past a
+// threshold so a 197-clash model is a summary plus the top rows rather than 197
+// buttons. The count stays in the summary, because the count is the finding.
+export function triageIssues(state, criteria = {}, { limit = 25 } = {}) {
+  const groups = groupIssues(state, criteria).map((group) => {
+    const ranked = [...group.issues].sort(
+      (a, b) => issueSeverityMetres(state, b) - issueSeverityMetres(state, a)
+    );
+    return { ...group, issues: ranked, total: ranked.length, shown: ranked.slice(0, limit) };
+  });
+  // Worst-first across cases: an error in a rarely-run case still outranks a
+  // warning in the operating case only if it is worse, and the operating case
+  // otherwise leads because it is first in the scene.
+  return groups.sort((a, b) => {
+    const worst = Math.max(0, ...a.issues.map((issue) => issueSeverityMetres(state, issue)))
+      - Math.max(0, ...b.issues.map((issue) => issueSeverityMetres(state, issue)));
+    if (Math.abs(worst) > 1e-9) return -worst;
+    return a.severity.localeCompare(b.severity);
+  });
+}
+
 export function focusIssue(state, issueId) {
   const issue = (state.issues ?? []).find((candidate) => candidate.id === issueId);
   if (!issue) {

@@ -42,8 +42,48 @@ test("viewer app enters through JavaScript and owns CSS layout", async () => {
   assert.match(html, /\/src\/main\.js/);
   assert.doesNotMatch(html, /<style>/);
   assert.match(main, /import "\.\/styles\.css"/);
-  assert.match(main, /import "\.\/app\.js"/);
   assert.match(css, /data-canvas/);
+});
+
+// The landing gallery and the review are two front doors, and they were bundled
+// as one. main.js used to statically import app.js, which statically imports
+// renderer.js, which statically imports three - so three.core.js (2.08 MB) was a
+// hard boot dependency of a page that never creates a WebGL context. Measured on
+// the published gallery: 74.4% of its transfer, to draw thirteen photographs.
+//
+// This asserts the fix at the only place it can be asserted without a browser:
+// the studio must be reached by a dynamic import, and nothing in the gallery's
+// own import graph may reach three.
+test("the gallery path does not bundle the renderer or three", async () => {
+  const main = await readViewerFile("src/main.js");
+  const gallery = await readViewerFile("src/gallery.js");
+  const app = await readViewerFile("src/app.js");
+  const renderer = await readViewerFile("src/renderer.js");
+
+  // main.js loads the studio, but only on the branch that wants a review.
+  assert.doesNotMatch(main, /^import .*"\.\/app\.js";$/m);
+  assert.match(main, /await import\("\.\/app\.js"\)/);
+  // And it must read the catalog before that import, or the decision to load
+  // the studio is made after the studio is already on the wire.
+  assert.ok(
+    main.indexOf("bundles.json") < main.indexOf('await import("./app.js")'),
+    "the catalog must be read before the studio is imported"
+  );
+
+  // gallery.js is what the landing page imports. It must not reach three, and
+  // it must not reach the renderer.
+  assert.doesNotMatch(gallery, /from "\.\/renderer\.js"/);
+  assert.doesNotMatch(gallery, /from "three/);
+  // exchange.js is imported by gallery.js for publishedDownloads, so it has to
+  // be light too - it is the only thing gallery.js pulls in besides itself.
+  const exchange = await readViewerFile("src/exchange.js");
+  assert.doesNotMatch(exchange, /from "three/);
+  assert.doesNotMatch(exchange, /from "\.\/renderer\.js"/);
+
+  // Sanity: the studio really does need three, or the dynamic import buys
+  // nothing and the assertion above is passing for the wrong reason.
+  assert.match(renderer, /from "three/);
+  assert.match(app, /from "\.\/renderer\.js"/);
 });
 
 test("scaffold exposes one semantic engineering workflow shell", async () => {
