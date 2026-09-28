@@ -2757,7 +2757,8 @@ body[data-studio="false"] .code-pane-head {
   padding-bottom: 0.3rem;
 }
 body[data-studio="false"] .code-tabs { flex-basis: 100%; }
-body[data-studio="false"] .code-state { margin-right: auto; padding-left: 0.5rem; }
+body[data-studio="false"] .code-state { margin-left: auto; }
+body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 
 /* The Ctrl+Enter hint inside Run is worth its 62px when there is room and is
    what pushed a file tab out of view when there is not. Dropped by container
@@ -2929,15 +2930,15 @@ body[data-studio="false"] .code-state { margin-right: auto; padding-left: 0.5rem
   min-height: 1.5rem;
   border: 1px solid var(--accent);
   border-radius: 0.15rem;
-  background: transparent;
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--graphite);
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.15rem 0.55rem;
 }
 
 .code-pane .code-run:hover {
-  background: #153b43;
+  background: var(--chrome-text);
 }
 
 .code-pane .code-run:disabled {
@@ -2951,7 +2952,7 @@ body[data-studio="false"] .code-state { margin-right: auto; padding-left: 0.5rem
 }
 
 .code-run kbd {
-  color: var(--chrome-text-2);
+  color: inherit;
   font-family: var(--font-mono);
   font-size: 0.625rem;
 }

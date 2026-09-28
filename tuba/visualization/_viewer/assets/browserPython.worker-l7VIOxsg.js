@@ -1,24 +1,4 @@
-// Python 3.12 matches Tuba's supported interpreter. NumPy here is preview-only:
-// solver identities and engineering results always come from native Code_Aster.
-const INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
-let python;
-
-self.onmessage = async ({ data: { code, runtimeUrl } }) => {
-  try {
-    if (!python) {
-      self.postMessage({ status: "Loading Python (first update)…" });
-      const { loadPyodide } = await import(/* @vite-ignore */ `${INDEX_URL}pyodide.mjs`);
-      python = await loadPyodide({ indexURL: INDEX_URL, stdout() {}, stderr() {} });
-      await python.loadPackage(["numpy", "jsonschema"]);
-      self.postMessage({ status: "Loading Tuba…" });
-      const response = await fetch(runtimeUrl, { cache: "no-cache" });
-      if (!response.ok) throw new Error(`Could not load Tuba (${response.status}). Reload and try again.`);
-      python.unpackArchive(await response.arrayBuffer(), "zip", { extractDir: "/home/pyodide" });
-    }
-    self.postMessage({ status: "Building geometry…" });
-    const globals = python.toPy({ _browser_code: code });
-    try {
-      const result = python.runPython(`
+const e=`https://cdn.jsdelivr.net/pyodide/v0.27.7/full/`;let t;self.onmessage=async({data:{code:n,runtimeUrl:r}})=>{try{if(!t){self.postMessage({status:`Loading Python (first update)…`});let{loadPyodide:n}=await import(`${e}pyodide.mjs`);t=await n({indexURL:e,stdout(){},stderr(){}}),await t.loadPackage([`numpy`,`jsonschema`]),self.postMessage({status:`Loading Tuba…`});let i=await fetch(r,{cache:`no-cache`});if(!i.ok)throw Error(`Could not load Tuba (${i.status}). Reload and try again.`);t.unpackArchive(await i.arrayBuffer(),`zip`,{extractDir:`/home/pyodide`})}self.postMessage({status:`Building geometry…`});let i=t.toPy({_browser_code:n});try{let e=t.runPython(`
 import json, sys, os
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -61,10 +41,4 @@ def _browser_preview(code):
         directory.cleanup()
 
 _browser_preview(_browser_code)
-`, { globals });
-      self.postMessage(JSON.parse(result));
-    } finally { globals.destroy(); }
-  } catch (error) {
-    self.postMessage({ ok: false, error: error.message });
-  }
-};
+`,{globals:i});self.postMessage(JSON.parse(e))}finally{i.destroy()}}catch(e){self.postMessage({ok:!1,error:e.message})}};

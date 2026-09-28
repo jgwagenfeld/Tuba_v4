@@ -17,7 +17,7 @@ The first figure is model geometry only. After a real Code_Aster solve, the revi
 [![The solved tutorial pipe in the Tuba viewer, coloured by FE Von Mises stress, with support reactions.](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
 To experiment with geometry before installing, open the gallery in **Build**,
-edit `model.py`, and click **Run geometry**. This produces an unsolved preview;
+edit `model.py`, and click **Update geometry**. This produces an unsolved preview;
 the evaluation below still requires Code_Aster. See [browser editing](setup.md#try-a-model-in-the-browser).
 
 ## Prerequisites

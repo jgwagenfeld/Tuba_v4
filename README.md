@@ -7,7 +7,7 @@ Code_Aster analyses, and displaying the results.
 
 ## Gallery
 
-Open a review without installing Tuba. Choose **Build**, edit `model.py`, and **Run geometry** to [try a geometry preview](docs/content/setup.md#try-a-model-in-the-browser).
+Open a review without installing Tuba. Choose **Build**, edit `model.py`, and **Update geometry** to [try a geometry preview](docs/content/setup.md#try-a-model-in-the-browser).
 **Review** shows published Code_Aster results (except *Imported components*); edited geometry needs a new Code_Aster solve.
 [Browse the full gallery →](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 

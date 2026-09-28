@@ -12,12 +12,12 @@ test("gallery scripts build in the browser or explicitly require a native packag
   for (const entry of catalog) {
     const code = await (await request.get(`/viewer/${entry.id}/source.py`)).text();
     const result = await page.evaluate(({ code, workerFile }) => new Promise((resolve, reject) => {
-      const worker = new Worker(new URL(`assets/${workerFile}`, location.href), { type: "module" });
+      const worker = window.previewWorker ??= new Worker(new URL(`assets/${workerFile}`, location.href), { type: "module" });
       const timer = setTimeout(() => { worker.terminate(); reject(new Error("Timed out")); }, 60_000);
       worker.onmessage = ({ data }) => {
         if (data.status) return;
         clearTimeout(timer);
-        worker.terminate();
+        if (!data.ok) { worker.terminate(); window.previewWorker = null; }
         resolve(data.ok ? { ok: true, objects: data.scene.objects.length, results: data.scene.result_fields.length } : data);
       };
       worker.onerror = event => { clearTimeout(timer); worker.terminate(); reject(new Error(event.message)); };
@@ -40,6 +40,8 @@ test("public gallery runs Python geometry, keeps solved review separate, and rec
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/viewer/?bundle=code-aster-review");
   await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
+  const workers = [];
+  page.on("worker", worker => workers.push(worker));
   const originalObjects = await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects));
   await page.getByRole("button", { name: "Build", exact: true }).click();
   const editor = page.locator("[data-code-text]");
@@ -47,9 +49,20 @@ test("public gallery runs Python geometry, keeps solved review separate, and rec
   const original = await editor.inputValue();
   const edited = original.replace("builder.run(3.0)", "builder.run(5.0)")
     .replace('builder.end(support="anchor")', 'builder.end(support="guide")');
-  await editor.fill(edited);
+  await editor.fill(edited + '\nimport tuba\ntuba._preview_marker = True\n_preview_global = True\nfrom pathlib import Path\nPath("run-only.txt").write_text("temporary")\n');
+  const coldStart = Date.now();
   await run.click();
   await expect(page.locator("[data-code-state]")).toHaveText("Geometry preview", { timeout: 90_000 });
+  const coldMs = Date.now() - coldStart;
+  await editor.fill(edited + '\nimport tuba\nassert not hasattr(tuba, "_preview_marker")\nassert "_preview_global" not in globals()\nfrom pathlib import Path\nassert not Path("run-only.txt").exists()\n');
+  const warmStart = Date.now();
+  await run.click();
+  await expect(page.locator("[data-code-state]")).toHaveText("Geometry preview", { timeout: 90_000 });
+  console.log(`Geometry update: cold ${coldMs} ms, warm ${Date.now() - warmStart} ms`);
+  expect(workers).toHaveLength(1);
+  await editor.fill(edited);
+  await run.click();
+  await expect(page.locator("[data-code-state]")).toHaveText("Geometry preview");
   const preview = await page.evaluate(() => {
     const state = window.__tubaViewer.state;
     return { length: state.objects.find(o => o.name === "pipe_str_0").quantities.length_m,
@@ -69,7 +82,9 @@ test("public gallery runs Python geometry, keeps solved review separate, and rec
   await page.getByRole("button", { name: "Build", exact: true }).click();
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(previewObjects);
   const downloading = page.waitForEvent("download");
-  await page.locator("[data-code-download]").click();
+  await page.getByRole("button", { name: "Exchange", exact: true }).click();
+  await page.getByRole("button", { name: "Download model.py", exact: true }).click();
+  await page.getByRole("button", { name: "Close exchange", exact: true }).click();
   expect(await readFile(await (await downloading).path(), "utf8")).toBe(edited);
 
   await editor.fill("def broken(:\n");
@@ -86,9 +101,11 @@ test("public gallery runs Python geometry, keeps solved review separate, and rec
   await run.click();
   await expect(page.locator("[data-code-state]")).toHaveText("Building geometry…", { timeout: 90_000 });
   await run.click();
-  await expect(run).toHaveText("Run geometry");
+  await expect(run).toHaveText("Update geometry");
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(previewObjects);
-  await page.locator("[data-code-reset]").click();
+  await page.getByRole("button", { name: "Exchange", exact: true }).click();
+  await page.getByText("Example actions", { exact: true }).click();
+  await page.getByRole("button", { name: "Reset example", exact: true }).click();
   await expect(editor).toHaveValue(original);
   expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(originalObjects);
   await expect(page.locator("[data-status-chip] [data-status]")).not.toHaveAttribute("data-status", "stale");
@@ -106,12 +123,12 @@ test("switching examples cancels a running browser script and failed runtime loa
   });
   await page.locator("[data-code-run]").click();
   await expect(page.locator("[data-code-problem]")).toContainText("Worker blocked by browser policy");
-  await expect(page.locator("[data-code-run]")).toHaveText("Run geometry");
+  await expect(page.locator("[data-code-run]")).toHaveText("Update geometry");
   await page.evaluate(() => { window.Worker = window.originalWorker; delete window.originalWorker; });
   await page.route("**/pyodide.mjs", route => route.abort());
   await page.locator("[data-code-run]").click();
   await expect(page.locator("[data-code-problem]")).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator("[data-code-run]")).toHaveText("Run geometry");
+  await expect(page.locator("[data-code-run]")).toHaveText("Update geometry");
   await page.unroute("**/pyodide.mjs");
   await page.locator("[data-code-text]").fill("while True:\n    pass\n");
   await page.locator("[data-code-run]").click();
@@ -121,7 +138,7 @@ test("switching examples cancels a running browser script and failed runtime loa
   await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
   await page.getByRole("button", { name: "Build", exact: true }).click();
   await expect(page.locator("[data-code-text]")).not.toHaveValue("while True:\n    pass\n");
-  await expect(page.locator("[data-code-run]")).toHaveText("Run geometry");
+  await expect(page.locator("[data-code-run]")).toHaveText("Update geometry");
   await expect(page.locator("[data-code-problem]")).toBeHidden();
   await page.locator("[data-code-run]").click();
   await expect(page.locator("[data-code-state]")).toHaveText("Geometry preview", { timeout: 90_000 });

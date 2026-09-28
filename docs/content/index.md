@@ -66,7 +66,7 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
 ## Start here
 
-- **[Try browser editing](setup.md#try-a-model-in-the-browser)** — choose **Build**, edit `model.py`, and **Run geometry** without installing Tuba. The preview is unsolved; **Review** retains published Code_Aster results and marks them outdated after edits.
+- **[Try browser editing](setup.md#try-a-model-in-the-browser)** — choose **Build**, edit `model.py`, and **Update geometry** without installing Tuba. The preview is unsolved; **Review** retains published Code_Aster results and marks them outdated after edits.
 - **[Setup](setup.md)** — install Tuba, and the solver when you want to compute your own results.
 - **[Tutorial](tutorial.md)** — build a model, run Code_Aster, and display the results.
 - **[Examples](examples.md)** — what each published review demonstrates.

@@ -135,7 +135,7 @@ python -m tuba.cli_studio examples/line-load-studio
 
 ### Browser geometry editing
 
-The public gallery also accepts `model.py` edits in **Build**. **Run geometry**
+The public gallery also accepts `model.py` edits in **Build**. **Update geometry**
 executes Tuba Python in the browser and displays an unsolved scene through the
 same web viewer. **Review** retains the published Code_Aster evidence and marks
 it outdated after edits. Use a local Tuba installation with Code_Aster to

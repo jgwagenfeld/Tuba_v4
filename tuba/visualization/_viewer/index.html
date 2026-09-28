@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-BAIXkpXv.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DWmI2_g2.css">
+    <script type="module" crossorigin src="./assets/index-DNruliqK.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DojVnzuS.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -71,7 +71,6 @@
           <div class="code-pane-head">
             <!-- Python stays primary; the selected case owns one generated-file view. -->
             <div class="code-tabs" role="group" aria-label="Files" data-code-tabs></div>
-            <span class="code-state" data-code-state role="status" aria-live="polite"></span>
             <button type="button" class="code-mesh-toggle" data-code-mesh-toggle aria-pressed="false" title="Toggle 1D analysis mesh (Alt+M)">
               <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="1" y1="8" x2="15" y2="8" />
@@ -82,8 +81,7 @@
               </svg>
               Mesh
             </button>
-            <button type="button" class="code-run" data-code-download title="Download edited model.py (Ctrl+S)" hidden>Download</button>
-            <button type="button" class="code-run" data-code-reset title="Restore the published example" hidden>Reset</button>
+            <span class="code-state" data-code-state role="status" aria-live="polite"></span>
             <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
               <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M1 1l7 4-7 4z" fill="currentColor" /></svg>
               Run
@@ -289,8 +287,17 @@
       </form>
       <p id="exchange-purpose">Continue working in Tuba Studio or share model geometry with CAD/BIM tools.</p>
       <section data-exchange-published>
+        <h3>Current script</h3>
+        <button type="button" data-code-download title="Download edited model.py (Ctrl+S)" hidden>Download model.py</button>
+        <p class="exchange-note">Includes your current edits. Published project downloads below contain the original example.</p>
+        <details>
+          <summary>Example actions</summary>
+          <p>Discard your edits and restore the published example.</p>
+          <button type="button" data-code-reset hidden>Reset example</button>
+        </details>
+        <h3>Published files</h3>
         <nav data-exchange-downloads aria-label="Published downloads"></nav>
-        <p class="exchange-note">Edit model.py and run geometry in Build. Use Download there to save your changes. Open Tuba for IFC imports and new Code_Aster evaluations.</p>
+        <p class="exchange-note">Edit model.py and update geometry in Build. Download model.py above to save your changes. Open Tuba for IFC imports and new Code_Aster evaluations.</p>
       </section>
       <section data-ifc-studio-controls hidden>
       <h3>Export geometry</h3>

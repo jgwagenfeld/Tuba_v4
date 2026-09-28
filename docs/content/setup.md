@@ -180,10 +180,11 @@ A Code_Aster run executed through Docker is always unverified: an engineering re
 ## Try a model in the browser
 
 Open a [gallery example](examples.md), choose **Build**, edit `model.py`, and
-click **Run geometry** (Ctrl+Enter). Python runs on your computer inside the
+click **Update geometry** (Ctrl+Enter). Python runs on your computer inside the
 browser; no Tuba installation or server account is required. The first run
-downloads the Python runtime. **Stop** cancels a run, **Reset** restores the
-published example, and **Download** saves your script.
+downloads the Python runtime; successful updates reuse it for the rest of the tab's session.
+**Stop** cancels a run. **Exchange → Example actions → Reset example** restores the
+published example, and **Exchange → Download model.py** saves your script.
 
 The preview contains geometry only. **Review** continues to show the published
 Code_Aster results and marks them outdated when your script differs. A preview

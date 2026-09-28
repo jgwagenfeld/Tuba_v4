@@ -5,7 +5,7 @@ states whether it contains solver results or model geometry only.
 
 [Example gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
-To try changes, choose **Build**, edit `model.py`, and click **Run geometry**.
+To try changes, choose **Build**, edit `model.py`, and click **Update geometry**.
 This creates an unsolved preview in your browser; see [browser editing](setup.md#try-a-model-in-the-browser)
 for controls, draft lifetime and native-package limits.
 

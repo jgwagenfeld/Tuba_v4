@@ -1,22 +1,39 @@
+let worker;
+let activeJob;
+
 export function runBrowserModel(code, onProgress) {
-  // A fresh worker per run prevents one script's imports/global mutations from
-  // contaminating the next example. Termination also stops infinite loops.
-  let worker;
+  activeJob?.cancel();
   let rejectRun;
   let timer;
+  let settled = false;
   const promise = new Promise((resolve, reject) => {
-    rejectRun = reject;
-    worker = new Worker(new URL("./browserPython.worker.js", import.meta.url), { type: "module" });
-    timer = setTimeout(() => reject(new Error("Geometry preview timed out. Shorten the script and try again.")), 120_000);
-    worker.onerror = event => reject(new Error(event.message || "The browser Python worker could not start."));
-    worker.onmessage = ({ data }) => {
-      if (data.status) onProgress(data.status);
-      else if (data.ok) resolve(data.scene);
-      else reject(Object.assign(new Error(data.error), { line: data.line }));
+    const finish = (error, scene) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (worker) worker.onmessage = worker.onerror = null;
+      // Stop really interrupts Python; failed runs also discard their state.
+      if (error) { worker?.terminate(); worker = null; }
+      activeJob = null;
+      if (error) reject(error);
+      else resolve(scene);
     };
-    worker.postMessage({ code, runtimeUrl: new URL("./tuba-browser.zip", document.baseURI).href });
-  }).finally(() => { clearTimeout(timer); worker?.terminate(); });
-  return { promise, cancel: () => rejectRun(new DOMException("Preview stopped", "AbortError")) };
+    rejectRun = error => finish(error);
+    try {
+      worker ??= new Worker(new URL("./browserPython.worker.js", import.meta.url), { type: "module" });
+      timer = setTimeout(() => finish(new Error("Geometry preview timed out. Shorten the script and try again.")), 120_000);
+      worker.onerror = event => finish(new Error(event.message || "The browser Python worker could not start."));
+      worker.onmessage = ({ data }) => {
+        if (data.status) onProgress(data.status);
+        else if (data.ok) finish(null, data.scene);
+        else finish(Object.assign(new Error(data.error), { line: data.line }));
+      };
+      worker.postMessage({ code, runtimeUrl: new URL("./tuba-browser.zip", document.baseURI).href });
+    } catch (error) { finish(error); }
+  });
+  const job = { promise, cancel: () => rejectRun(new DOMException("Preview stopped", "AbortError")) };
+  if (!settled) activeJob = job;
+  return job;
 }
 
 export function browserSceneBundle(scene) {

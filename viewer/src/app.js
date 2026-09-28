@@ -3484,11 +3484,11 @@ function renderCodeTabs() {
   dom.commText.hidden = codeTab === null;
   dom.codeRun.hidden = !(studio.available || sourceView.available) || codeTab !== null;
   if (!studio.available) {
-    dom.codeRun.textContent = browserJob ? "Stop" : "Run geometry";
+    dom.codeRun.textContent = browserJob ? "Stop" : "Update geometry";
     dom.codeRun.title = browserJob ? "Stop the browser preview" : "Run Python in your browser (Ctrl+Enter)";
   }
-  dom.codeReset.hidden = studio.available || !sourceView.available || codeTab !== null;
-  dom.codeDownload.hidden = studio.available || !sourceView.available || codeTab !== null;
+  dom.codeReset.hidden = studio.available || !sourceView.available;
+  dom.codeDownload.hidden = studio.available || !sourceView.available;
   if (codeTab !== null) dom.codeState.textContent = "Read-only";
   else if (!studio.available) dom.codeState.textContent = browserJob ? browserProgress
     : sourceView.preview ? (dom.codeText.value === sourceView.preview.code ? "Geometry preview" : "Edited · run to update")
@@ -3752,7 +3752,7 @@ function showBrowserBundle(stage) {
 async function runBrowserScript() {
   if (browserJob) { stopBrowserPreview(); render(); return; }
   const code = dom.codeText.value;
-  browserProgress = "Loading Python…";
+  browserProgress = "Starting…";
   studio.error = null;
   dom.codeProblem.hidden = true;
   const job = runBrowserModel(code, status => {
@@ -3860,7 +3860,7 @@ function renderCodeFoot() {
   if (!studio.available) {
     const note = document.createElement("span");
     note.textContent = studio.codeTab === null
-      ? "Run geometry executes Python in your browser. Review shows the published Code_Aster results; edits require a new solve. Download model.py to continue in Tuba."
+      ? "Update geometry executes Python in your browser. Review shows the published Code_Aster results; edits require a new solve. Use Exchange → Download model.py to save your edits."
       : "Published solver input · read-only · not regenerated from draft edits";
     dom.codeFoot.replaceChildren(note);
     return;
@@ -4076,6 +4076,7 @@ dom.codeMeshToggle?.addEventListener("click", () => {
 dom.codeRun.addEventListener("click", () => void runScript());
 dom.codeDownload.addEventListener("click", downloadScript);
 dom.codeReset.addEventListener("click", () => {
+  dom.exchangeDialog.close();
   stopBrowserPreview();
   bundleDrafts.delete(sourceView.baseUrl);
   sourceView.preview = null;
