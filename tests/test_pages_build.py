@@ -23,6 +23,7 @@ REQUIRED = {
     "overview.html",
     "viewer/index.html",
     "viewer/bundles.json",
+    "viewer/tuba-browser.zip",
     "viewer/autorouted-expansion-loop/scene.json",
     "viewer/licenses/font-notices.txt",
     "viewer/licenses/OFL-1.1.txt",
@@ -204,6 +205,7 @@ def _project_tree(root: Path) -> None:
     (viewer / "licenses" / "OFL-1.1.txt").write_text("OFL", encoding="utf-8")
     (viewer / "index.html").write_text("viewer", encoding="utf-8")
     (viewer / "bundles.json").write_text("[]\n", encoding="utf-8")
+    (viewer / "tuba-browser.zip").write_bytes(b"runtime archive")
     (root / "docs" / "content").mkdir(parents=True)
 
 

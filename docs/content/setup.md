@@ -160,6 +160,22 @@ The doctor must report `command: ready` before a production solve.
 
 A Code_Aster run executed through Docker is always unverified: an engineering review refuses its results, and so does a scene built from analysis runs. A mutable or placeholder image name is not a production dependency.
 
+## Try a model in the browser
+
+Open a [gallery example](examples.md), choose **Build**, edit `model.py`, and
+click **Run geometry** (Ctrl+Enter). Python runs on your computer inside the
+browser; no Tuba installation or server account is required. The first run
+downloads the Python runtime. **Stop** cancels a run, **Reset** restores the
+published example, and **Download** saves your script.
+
+The preview contains geometry only. **Review** continues to show the published
+Code_Aster results and marks them outdated when your script differs. A preview
+does not calculate stress, displacement, reactions, compliance, or operating
+clashes. Download the script and use Tuba with Code_Aster for evaluation.
+Native packages such as Gmsh and IFC tools are unavailable in the browser;
+scripts requiring them report an error and retain the last successful preview.
+Browser edits are kept while switching examples in the tab, not after a reload.
+
 ## Open the notebooks
 
 ```powershell

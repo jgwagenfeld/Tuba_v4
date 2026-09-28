@@ -191,7 +191,7 @@ export function initExchange(dialog, { project, catalogEntry, reload }) {
   return refresh;
 }
 
-function download(blob, name) {
+export function download(blob, name) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

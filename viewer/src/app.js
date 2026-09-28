@@ -83,8 +83,9 @@ import {
 import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { distance, getPropertySections } from "./selection.js";
+import { browserSceneBundle, runBrowserModel } from "./browserPreview.js";
 import { getSelectionSummary } from "./selectionSummary.js";
-import { initExchange, renderPublishedDownloads } from "./exchange.js";
+import { download, initExchange, renderPublishedDownloads } from "./exchange.js";
 import { preserveViewerStateForReload, reduceViewerState } from "./viewerState.js";
 import {
   colorChannelOf,
@@ -177,6 +178,8 @@ const dom = {
   codeState: document.querySelector("[data-code-state]"),
   codeMeshToggle: document.querySelector("[data-code-mesh-toggle]"),
   codeRun: document.querySelector("[data-code-run]"),
+  codeDownload: document.querySelector("[data-code-download]"),
+  codeReset: document.querySelector("[data-code-reset]"),
   codeGutter: document.querySelector("[data-code-gutter]"),
   codeText: document.querySelector("[data-code-text]"),
   codeSelectionMark: document.querySelector('[data-code-mark="selection"]'),
@@ -250,8 +253,7 @@ let measurementPoints = [];
 const bootId = globalThis.__tubaViewerBootId ?? `boot:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 globalThis.__tubaViewerBootId = bootId;
 
-// Build mode exists only when a studio server can run model.py. A static
-// bundle - Pages, a report folder - is review-only and never shows it.
+// Studio executes model.py natively; published bundles can preview it in a worker.
 const studio = {
   available: false,
   // The script as last run. Line numbers in scene metadata refer to this text.
@@ -283,8 +285,8 @@ const studio = {
 
 // A published bundle ships the model script that built it and the .comm each
 // load case produced. The viewer shows them in the same Build workspace a
-// studio edits; with no server here the pane is frozen read-only and the
-// Results side is the review.
+// studio edits. Browser previews build separate, unsolved geometry; the published
+// scene and its Code_Aster results remain intact for Review.
 const sourceView = {
   available: false,
   baseUrl: ".",
@@ -294,6 +296,13 @@ const sourceView = {
   // Fetched files, keyed by bundle-relative URI, so switching tabs is free.
   text: new Map()
 };
+const bundleDrafts = new Map();
+let browserJob = null;
+let browserProgress = "";
+
+function bundleSourceEdited() {
+  return !studio.available && sourceView.available && dom.codeText.value !== studio.ranCode;
+}
 
 async function main() {
   const catalog = await loadBundleCatalog();
@@ -439,6 +448,7 @@ async function switchBundle(bundleId, catalog) {
 
 
 async function loadBundle(bundleUrl, options = {}) {
+  stopBrowserPreview();
   currentBundle = await loadSceneBundleFromUrl(bundleUrl);
   // A static bundle can show its origin script; a studio owns the live one, so
   // it must not be overwritten by whatever the bundle happens to carry.
@@ -634,19 +644,26 @@ function renderStatusChip() {
 // A published review: what the solver made of the model, and only its
 // exceptions. A clean review is not news; a warning is.
 function reviewStatusChipModel() {
+  if (!studio.available && sourceView.preview && isBuildMode()) {
+    return { status: "not_solved", alerts: ["Browser geometry preview"],
+      ariaLabel: "Geometry preview, not evaluated by Code_Aster", onClick: () => void setMode("review") };
+  }
   if (currentState.embed || !currentState.review) return null;
   const status = cockpitStatusViewModel(currentState.review);
+  const edited = bundleSourceEdited();
+  const analysisStatus = edited ? "stale" : String(status.analysisStatus);
   const alerts = [
+    edited ? "Edited model · Code_Aster required" : null,
     status.warningCount > 0
       ? `${status.warningCount} warning${status.warningCount === 1 ? "" : "s"}`
       : null
   ].filter(Boolean);
   return {
-    status: String(status.analysisStatus),
+    status: analysisStatus,
     alerts,
     clock: null,
     statusTarget: alerts.length > 0 ? "issues" : "colour",
-    ariaLabel: `Analysis ${status.analysisStatus}${alerts.length > 0 ? `, ${alerts.join(", ")}` : ""} - show the review rail`,
+    ariaLabel: `Analysis ${analysisStatus}${alerts.length > 0 ? `, ${alerts.join(", ")}` : ""} - show the review rail`,
     onClick: () => {
       railExpanded = true;
       // setMode owns the stage move. This used to assign the studio's own mode
@@ -3346,7 +3363,7 @@ function isBuildMode() {
   return currentWorkspace().stage === "build";
 }
 
-// -- A published bundle's model.py and .comm, read-only -----------------------
+// -- A published bundle's editable model.py and original solver .comm --------
 
 async function loadBundleSource(baseUrl) {
   clearBundleSource();
@@ -3367,9 +3384,17 @@ async function loadBundleSource(baseUrl) {
   sourceView.loadCases = derived.loadCases;
   sourceView.text.set(derived.scriptUri, script);
   setScriptText(script);
+  const draft = bundleDrafts.get(root);
+  if (draft) {
+    dom.codeText.value = draft.code;
+    renderGutter();
+  }
+  renderCodeFoot();
 }
 
 function clearBundleSource() {
+  sourceView.preview = null;
+  if (!studio.available) { studio.error = null; dom.codeProblem.hidden = true; }
   sourceView.available = false;
   sourceView.baseUrl = ".";
   sourceView.scriptUri = null;
@@ -3402,13 +3427,11 @@ function renderMode() {
     button.setAttribute("aria-pressed", String(button.dataset.mode === document.body.dataset.mode));
   }
   dom.codePane.hidden = !view.scriptVisible;
-  dom.codeText.readOnly = !studio.available;
-  dom.codeRun.hidden = !studio.available;
-  if (!studio.available) dom.codeState.textContent = "Read-only";
-  else if (dom.codeState.textContent === "Read-only") dom.codeState.textContent = "Python";
+  dom.codeText.readOnly = !(studio.available || sourceView.available);
   renderCodeTabs();
   renderCodeMeshToggle();
   renderSolveControls();
+  renderCodeFoot();
 }
 
 function renderCodeMeshToggle() {
@@ -3459,8 +3482,17 @@ function renderCodeTabs() {
   dom.codeGutter.hidden = codeTab !== null;
   dom.codeText.parentElement.hidden = codeTab !== null;
   dom.commText.hidden = codeTab === null;
-  dom.codeRun.hidden = !studio.available || codeTab !== null;
-  if (!studio.available || codeTab !== null) dom.codeState.textContent = "Read-only";
+  dom.codeRun.hidden = !(studio.available || sourceView.available) || codeTab !== null;
+  if (!studio.available) {
+    dom.codeRun.textContent = browserJob ? "Stop" : "Run geometry";
+    dom.codeRun.title = browserJob ? "Stop the browser preview" : "Run Python in your browser (Ctrl+Enter)";
+  }
+  dom.codeReset.hidden = studio.available || !sourceView.available || codeTab !== null;
+  dom.codeDownload.hidden = studio.available || !sourceView.available || codeTab !== null;
+  if (codeTab !== null) dom.codeState.textContent = "Read-only";
+  else if (!studio.available) dom.codeState.textContent = browserJob ? browserProgress
+    : sourceView.preview ? (dom.codeText.value === sourceView.preview.code ? "Geometry preview" : "Edited · run to update")
+    : bundleSourceEdited() ? "Edited draft" : "Python";
   else if (dom.codeState.textContent === "Read-only") dom.codeState.textContent = "Python";
 }
 
@@ -3471,7 +3503,10 @@ function renderCaseInputs() {
   dom.reviewInputs.parentElement.hidden = !active;
   dom.inputCount.textContent = active ? `(${active.fields?.length ?? active.field_count ?? 0} local)` : "";
   const result = getResultStateOptions(currentState).some((entry) => entry.loadCase === currentState.activeLoadCase);
-  dom.codeCaseStatus.textContent = studio.reviewStale ? "Review outdated" : result ? "Solved result" : "Model inputs";
+  dom.codeCaseStatus.textContent = studio.reviewStale || bundleSourceEdited() ? "Review outdated" : result ? "Solved result" : "Model inputs";
+  if (!studio.available && sourceView.preview && isBuildMode()) {
+    dom.codeCaseStatus.textContent = "Geometry only · not solved";
+  }
   for (const [host, compare] of [[dom.buildInputs, dom.compareCases.checked], [dom.reviewInputs, false]]) {
     renderLoadCaseInputs(host, currentState, {
       compare,
@@ -3642,19 +3677,19 @@ async function handleSolveEvent(message) {
 }
 
 // One stage transition, whether a studio runs model.py or a published bundle
-// shows the same pane frozen. The two used to be separate branches holding
+// edits a draft in the same pane. The two used to be separate branches holding
 // separate copies of which stage we were in, and they had drifted: the studio
 // forced a workflow tab while the published path dispatched enterBuild, so the
 // same move took two actions and only one was tested.
 async function setMode(stage) {
   if (!studio.available && !sourceView.available) return;
   if (currentStage() === stage) return;
-  // Only a studio has a second bundle to swap in; a published bundle shipped
-  // one scene that is both the built model and the review.
+  // Build can use a fresh geometry preview. Review always uses its solved bundle.
   if (studio.available) {
     await showStudioBundle(stage);
-  } else if (stage === "build") {
-    studio.codeTab = null;
+  } else {
+    if (stage === "build") studio.codeTab = null;
+    if (sourceView.preview) showBrowserBundle(stage);
   }
   dispatch({ type: "setStage", stage });
   if (stage !== "build" && !studio.available) {
@@ -3685,7 +3720,8 @@ async function showStudioBundle(mode) {
 
 function setScriptText(code) {
   dom.codeText.value = code;
-  studio.ranCode = code;
+  // Textareas normalize Windows newlines; compare edits against that same text.
+  studio.ranCode = dom.codeText.value;
   studio.revealLine = null;
   renderGutter();
   renderCodeFoot();
@@ -3694,10 +3730,57 @@ function setScriptText(code) {
 function scriptLinesMoved() {
   // ponytail: a changed line count is the "did my line numbers move" test; an
   // edit that swaps two lines keeps the count and fools it until the next run.
-  return lineCount(dom.codeText.value) !== lineCount(studio.ranCode);
+  const linkedCode = !studio.available && isBuildMode() && sourceView.preview ? sourceView.preview.code : studio.ranCode;
+  return lineCount(dom.codeText.value) !== lineCount(linkedCode);
+}
+
+function stopBrowserPreview() {
+  browserJob?.cancel();
+  browserJob = null;
+  browserProgress = "";
+}
+
+function showBrowserBundle(stage) {
+  const bundle = stage === "build" && sourceView.preview ? sourceView.preview.bundle : currentBundle;
+  currentState = { ...withDefaultBodyOpacity(createViewerState(bundle)),
+    ...createWorkflowState({ review: bundle.review, embed: false }), stage };
+  selectedObjectId = null;
+  measurementPoints = [];
+  measuring = false;
+}
+
+async function runBrowserScript() {
+  if (browserJob) { stopBrowserPreview(); render(); return; }
+  const code = dom.codeText.value;
+  browserProgress = "Loading Python…";
+  studio.error = null;
+  dom.codeProblem.hidden = true;
+  const job = runBrowserModel(code, status => {
+    if (browserJob !== job) return;
+    browserProgress = status;
+    renderCodeTabs();
+  });
+  browserJob = job;
+  renderCodeTabs();
+  try {
+    const scene = await job.promise;
+    if (browserJob !== job) return;
+    sourceView.preview = { code, bundle: browserSceneBundle(scene) };
+    if (isBuildMode()) showBrowserBundle("build");
+  } catch (error) {
+    if (browserJob === job && error.name !== "AbortError") showScriptError({ error: error.message, line: error.line });
+  } finally {
+    if (browserJob === job) {
+      browserJob = null;
+      browserProgress = "";
+      render();
+      if (!studio.error && isBuildMode()) viewportRenderer?.resetView();
+    }
+  }
 }
 
 async function runScript() {
+  if (!studio.available && sourceView.available) return runBrowserScript();
   if (studio.running || !studio.available) return;
   studio.running = true;
   dom.codeRun.disabled = true;
@@ -3777,8 +3860,8 @@ function renderCodeFoot() {
   if (!studio.available) {
     const note = document.createElement("span");
     note.textContent = studio.codeTab === null
-      ? "Shipped with this review · read-only"
-      : "Generated from model.py + study.py · read-only · solver input, not results";
+      ? "Run geometry executes Python in your browser. Review shows the published Code_Aster results; edits require a new solve. Download model.py to continue in Tuba."
+      : "Published solver input · read-only · not regenerated from draft edits";
     dom.codeFoot.replaceChildren(note);
     return;
   }
@@ -3880,9 +3963,7 @@ function renderScriptLink(object) {
     section.append(scriptLineButton(callLine, `called from model.py:${callLine}`));
   }
 
-  // A published bundle's pane is frozen: the link reveals the line, but there
-  // is nothing here that could rewrite it and run.
-  if (!studio.available) return section;
+  if (!studio.available && !sourceView.available) return section;
 
   const length = runLengthLiteral(source);
   if (length === null) return section;
@@ -3911,13 +3992,15 @@ function renderScriptLink(object) {
       return;
     }
     dom.codeText.value = replaceScriptLine(dom.codeText.value, line, withRunLength(source, next));
-    renderGutter();
+    dom.codeText.dispatchEvent(new Event("input", { bubbles: true }));
     void runScript();
   });
   row.append(name, input, unit);
   const note = document.createElement("p");
   note.className = "script-link-note";
-  note.textContent = "Changing it rewrites this line and runs model.py.";
+  note.textContent = studio.available
+    ? "Changing it rewrites this line and runs model.py."
+    : "Changing it runs a geometry preview in your browser. Engineering results require a new Code_Aster solve.";
   section.append(row, note);
   return section;
 }
@@ -3991,6 +4074,29 @@ dom.codeMeshToggle?.addEventListener("click", () => {
 });
 
 dom.codeRun.addEventListener("click", () => void runScript());
+dom.codeDownload.addEventListener("click", downloadScript);
+dom.codeReset.addEventListener("click", () => {
+  stopBrowserPreview();
+  bundleDrafts.delete(sourceView.baseUrl);
+  sourceView.preview = null;
+  studio.error = null;
+  dom.codeProblem.hidden = true;
+  setScriptText(sourceView.text.get(sourceView.scriptUri));
+  showBrowserBundle("build");
+  render();
+});
+
+function downloadScript() {
+  download(new Blob([dom.codeText.value], { type: "text/x-python;charset=utf-8" }), "model.py");
+  const draft = bundleDrafts.get(sourceView.baseUrl);
+  if (draft) draft.downloaded = draft.code;
+}
+
+window.addEventListener("beforeunload", (event) => {
+  if (![...bundleDrafts.values()].some(draft => draft.code !== draft.downloaded)) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 // -- Script pane resize: drag the right edge; double-click resets to the default --
 const CODE_PANE_MIN_PX = 300;
@@ -4069,6 +4175,17 @@ dom.codeResize.addEventListener("dblclick", resetCodePaneWidth);
 
 dom.codeText.addEventListener("input", () => {
   studio.revealLine = null;
+  if (!studio.available && sourceView.available) {
+    const key = sourceView.baseUrl;
+    if (bundleSourceEdited()) {
+      bundleDrafts.set(key, { code: dom.codeText.value, downloaded: bundleDrafts.get(key)?.downloaded });
+    } else {
+      bundleDrafts.delete(key);
+    }
+    renderCodeTabs();
+    renderStatusChip();
+    renderCaseInputs();
+  }
   renderGutter();
   renderCodeFoot();
   // Redraw the inspector when its script links stop (or start again) matching the lines.
@@ -4093,7 +4210,8 @@ dom.codeText.addEventListener("keydown", (event) => {
   const modifier = event.ctrlKey || event.metaKey;
   if (modifier && (event.key === "Enter" || event.key.toLowerCase() === "s")) {
     event.preventDefault();
-    void runScript();
+    if (studio.available || event.key === "Enter") void runScript();
+    else if (sourceView.available) downloadScript();
     return;
   }
   // Tab indents, so Escape is the way out: Escape, then Tab, leaves the editor.
@@ -4111,7 +4229,7 @@ dom.codeText.addEventListener("keydown", (event) => {
   // insertText keeps the browser's undo history; setRangeText is the fallback.
   if (!document.execCommand("insertText", false, "    ")) {
     dom.codeText.setRangeText("    ", dom.codeText.selectionStart, dom.codeText.selectionEnd, "end");
-    renderGutter();
+    dom.codeText.dispatchEvent(new Event("input", { bubbles: true }));
   }
 });
 

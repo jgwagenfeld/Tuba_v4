@@ -1075,7 +1075,7 @@ const scenarios = {
       assert.ok(internalForceOptions.length <= 1);
       if (internalForceOptions.length) {
         assert.deepEqual(internalForceOptions, [
-          { label: "Section Forces (EFGE ELNO) (cell)", value: internalForceValue }
+          { label: "Section Forces (EFGE ELNO) (elements)", value: internalForceValue }
         ]);
       }
       assert.deepEqual(
@@ -1086,11 +1086,11 @@ const scenarios = {
           { label: "Material", value: "model:material" },
           { label: "Group", value: "model:group" },
           { label: "Insulation", value: "model:insulation" },
-          { label: "FE VMIS (not code stress) (cell)", value: "field:solver_result:stress:result_state:Operating" },
+          { label: "Von Mises stress (elements)", value: "field:solver_result:stress:result_state:Operating" },
           { label: "Displacement", value: "field:solver_result:displacement:result_state:Operating" },
           { label: "Reaction force", value: "field:solver_result:reaction_force:result_state:Operating" },
           { label: "Reaction moment", value: "field:solver_result:reaction_moment:result_state:Operating" },
-          { label: "FE VMIS (not code stress) (subpoint)", value: "field:solver_result:tuyau_subpoints:result_state:Operating" }
+          { label: "Von Mises stress (wall points)", value: "field:solver_result:tuyau_subpoints:result_state:Operating" }
         ]
       );
 
@@ -1118,7 +1118,7 @@ const scenarios = {
           viewer.resultReview.legend.component === "DZ"
         );
       });
-      assert.match(await page.locator("[data-result-legend]").textContent(), /Displacement DZ:.*m/);
+      assert.match(await page.locator("[data-viewport-legend]").textContent(), /Displacement DZ.*m/);
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.notEqual(
         await framebufferFingerprint(canvas),
@@ -1349,12 +1349,12 @@ const scenarios = {
         const review = window.__tubaViewer?.resultReview;
         return review?.legend?.component === "DZ" && review.legend?.field === "Displacement";
       });
-      assert.match(await page.locator("[data-result-legend]").textContent(), /Displacement DZ:/);
+      assert.match(await page.locator("[data-viewport-legend]").textContent(), /Displacement DZ/);
 
       await page.getByRole("combobox", { name: "Colour the scene by" }).selectOption(
         "field:solver_result:tuyau_subpoints:result_state:Operating"
       );
-      await page.waitForFunction(() => window.__tubaViewer?.resultReview?.legend?.field === "FE VMIS (not code stress) (subpoint)");
+      await page.waitForFunction(() => window.__tubaViewer?.resultReview?.legend?.field === "Von Mises stress (wall points)");
       assert.match(await page.locator("[data-compliance-notice]").textContent(), /FE stress - not ASME code stress/);
 
       const deformedState = page.getByRole("combobox", { name: "Deformed state", exact: true });

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { readFile } from "node:fs/promises";
 
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
@@ -30,6 +31,79 @@ test("review keeps technical details optional and stress fields distinguishable"
   await expect(page.locator("[data-compliance-notice]")).toHaveCount(0);
   await expect(page.locator("[data-field-description]")).toContainText("Support: node");
   await expect(page.locator("[data-projection-note]")).toBeHidden();
+});
+
+test("gallery Build edits stay drafts and invalidate the published review", async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/viewer/?bundle=code-aster-review");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready", { timeout: 60_000 });
+  await page.getByRole("button", { name: "Build", exact: true }).click();
+  const editor = page.locator("[data-code-text]");
+  await expect(editor).toBeEditable();
+  await expect(page.locator("[data-code-run]")).toHaveText("Run geometry");
+  const original = await editor.inputValue();
+  const draft = original.replace("builder.run(3.0)", "builder.run(4.0)");
+  expect(draft).not.toBe(original);
+  const objects = await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects));
+  const badge = page.locator("[data-status-chip] [data-status]");
+  const originalStatus = await badge.getAttribute("data-status");
+  expect(originalStatus).not.toBe("stale");
+  const wouldLoseDraft = () => page.evaluate(() => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  await editor.fill(draft);
+  await expect(badge).toHaveAttribute("data-status", "stale");
+  await expect(page.locator("[data-code-case-status]")).toHaveText("Review outdated");
+  await expect(page.locator("[data-code-foot]")).toContainText("Python in your browser");
+  await expect(page.locator("[data-code-foot]")).toContainText("published Code_Aster results");
+  expect(await wouldLoseDraft()).toBe(true);
+  expect(await page.evaluate(() => JSON.stringify(window.__tubaViewer.state.objects))).toBe(objects);
+  await page.screenshot({ path: "../.build/gallery-edit-build.png" });
+  await page.getByRole("button", { name: /Solver \.comm/ }).click();
+  await expect(page.locator("[data-comm-text]")).toHaveAttribute("data-state", "ready");
+  await expect(page.locator("[data-code-state]")).toHaveText("Read-only");
+  await expect(page.locator("[data-code-download]")).toBeHidden();
+  await page.getByRole("button", { name: /model\.py/ }).click();
+  await expect(editor).toHaveValue(draft);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await expect(badge).toHaveAttribute("data-status", "stale");
+  await page.screenshot({ path: "../.build/gallery-edit-review.png" });
+  await page.locator("[data-bundle-picker]").selectOption("autorouted-expansion-loop");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
+  await expect(badge).not.toHaveAttribute("data-status", "stale");
+  await page.locator("[data-bundle-picker]").selectOption("code-aster-review");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
+  await expect(badge).toHaveAttribute("data-status", "stale");
+  await page.getByRole("button", { name: "Build", exact: true }).click();
+  await expect(editor).toHaveValue(draft);
+  const downloaded = page.waitForEvent("download");
+  await page.locator("[data-code-download]").click();
+  const file = await downloaded;
+  expect(file.suggestedFilename()).toBe("model.py");
+  expect(await readFile(await file.path(), "utf8")).toBe(draft);
+  expect(await wouldLoseDraft()).toBe(false);
+  await expect(badge).toHaveAttribute("data-status", "stale");
+  await editor.fill(original);
+  await expect(badge).toHaveAttribute("data-status", originalStatus);
+  expect(await wouldLoseDraft()).toBe(false);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await page.locator("[data-objects-section] > summary").click();
+  await page.getByRole("searchbox", { name: "Search objects" }).fill("pipe_str_0");
+  await page.locator('[data-object-id="object:element:pipe_str_0"]').click();
+  await page.getByRole("button", { name: "Build", exact: true }).click();
+  const length = page.getByRole("spinbutton", { name: /Length/ });
+  await length.fill("4");
+  await length.press("Tab");
+  await expect(editor).toHaveValue(draft);
+  await expect(page.locator("[data-code-state]")).toHaveText("Geometry preview", { timeout: 90_000 });
+  await expect(badge).toHaveAttribute("data-status", "not_solved");
+  expect(await wouldLoseDraft()).toBe(true);
+  await page.locator("[data-code-reset]").click();
+  expect(errors).toEqual([]);
 });
 
 test("load-case gallery exposes four solved cases and their input assignments", async ({ page }) => {
@@ -227,7 +301,7 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
       caret: "hide",
       // Content hashes change with each build; assert their format above and
       // keep the rest of the header covered by the visual comparison.
-      mask: [page.locator("[data-build-identity], [data-viewer-identity]")],
+      mask: [page.locator("[data-build-identity]:visible, [data-viewer-identity]:visible")],
       // Narrow software-rendered WebGL varies slightly between Ubuntu runners.
       maxDiffPixelRatio: name === "narrow" ? 0.015 : 0.002
     });

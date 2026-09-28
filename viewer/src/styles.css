@@ -2738,6 +2738,14 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   container-type: inline-size;
 }
 
+body[data-studio="false"] .code-pane-head {
+  flex-wrap: wrap;
+  row-gap: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+body[data-studio="false"] .code-tabs { flex-basis: 100%; }
+body[data-studio="false"] .code-state { margin-right: auto; padding-left: 0.5rem; }
+
 /* The Ctrl+Enter hint inside Run is worth its 62px when there is room and is
    what pushed a file tab out of view when there is not. Dropped by container
    query; the button's title still names the shortcut and #code-keys still
@@ -2924,9 +2932,7 @@ body[data-mode="build"]:not([data-embed="true"]) .viewer-workspace {
   opacity: 0.6;
 }
 
-/* A published bundle's pane is read-only, so the Run control is absent rather
-   than disabled: there is no server here that could run it. The author display
-   rule above would otherwise beat the user-agent [hidden] rule. */
+/* Keep hidden editor controls hidden despite their author display rule. */
 .code-pane .code-run[hidden] {
   display: none;
 }

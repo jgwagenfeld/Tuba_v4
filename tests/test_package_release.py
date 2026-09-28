@@ -45,6 +45,10 @@ def _viewer_files(root: Path) -> dict[str, str]:
 def _referenced_viewer_assets(package_root: Path) -> set[str]:
     html = (package_root / "index.html").read_text(encoding="utf-8")
     referenced = set(re.findall(r"\./assets/([^\"']+\.(?:js|css))", html))
+    for script in tuple(referenced):
+        if script.endswith(".js"):
+            js = (package_root / "assets" / script).read_text(encoding="utf-8")
+            referenced.update(re.findall(r"new URL\([\"'`]([^\"'`]+\.js)[\"'`],\s*import\.meta\.url\)", js))
     for stylesheet in tuple(referenced):
         if not stylesheet.endswith(".css"):
             continue
@@ -182,6 +186,7 @@ def test_viewer_production_build_synchronizes_the_python_package():
         "favicon.svg",
         "index.html",
         "licenses",
+        "tuba-browser.zip",
     }
     source_licenses = ROOT / "viewer" / "public" / "licenses"
     assert {

@@ -322,8 +322,7 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         metadata={
             "node": support.node,
             **support_data,
-            # "Defined by" is the line that made the support's point; the restraint links to the support itself.
-            **(_script_line_fields(model.nodes.get(support.node)) or _script_line_fields(support)),
+            **_script_line_fields(support),
             **({"property_lines": {"restraint": support.source_line}} if support.source_line is not None else {}),
         },
     )

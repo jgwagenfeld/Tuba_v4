@@ -330,10 +330,10 @@ class TestStudioServer(unittest.TestCase):
         lines = {name: obj.get("metadata", {}).get("source_line") for name, obj in objects.items()}
         self.assertEqual(lines["pipe_str_0"], _line_of(_BUILDER_SCRIPT, "builder.run(4.0)"))
         self.assertEqual(lines["pipe_bend_0"], _line_of(_BUILDER_SCRIPT, "builder.bend("))
-        # A support links to the step that made its point; its restraint links to the support's own line.
+        # Selecting a support links to its definition, not the earlier step that made its node.
         self.assertEqual(lines["support_0"], _line_of(_BUILDER_SCRIPT, "builder.start("))
-        self.assertEqual(lines["support_1"], _line_of(_BUILDER_SCRIPT, "builder.bend("))
-        self.assertEqual(lines["support_2"], _line_of(_BUILDER_SCRIPT, "builder.run(2.0)"))
+        self.assertEqual(lines["support_1"], _line_of(_BUILDER_SCRIPT, "builder.add_support("))
+        self.assertEqual(lines["support_2"], _line_of(_BUILDER_SCRIPT, "builder.end("))
         self.assertEqual(
             objects["support_1"]["metadata"]["property_lines"], {"restraint": _line_of(_BUILDER_SCRIPT, "builder.add_support(")}
         )
@@ -366,7 +366,7 @@ class TestStudioServer(unittest.TestCase):
             },
         )
         support = objects["support_0"]["metadata"]
-        self.assertEqual(support["source_line"], line("start = model.add_node("))
+        self.assertEqual(support["source_line"], line("model.add_support("))
         self.assertEqual(support["property_lines"], {"restraint": line("model.add_support(")})
         operating = objects["N1 applied force (Operating)"]["metadata"]
         self.assertEqual(operating["source_line"], line("operating.add_nodal_force("))
@@ -514,6 +514,22 @@ class TestStudioServer(unittest.TestCase):
         self.assertEqual(lines(elements["F_pipe"]), (10, 14))
         self.assertEqual(lines(supports["F_anchor"]), (11, 14))
         self.assertEqual(lines(elements["direct"]), (15, None))
+
+        from tuba.visualization import SceneRequest, build_visualization_scene
+
+        scene = build_visualization_scene(SceneRequest(namespace["model"]))
+        metadata = {obj.name: obj.metadata for obj in scene.objects}
+        for name, call_line in (("NF_anchor", 13), ("F_anchor", 14)):
+            self.assertEqual(metadata[name]["source_line"], 11)
+            self.assertEqual(metadata[name]["source_call_line"], call_line)
+
+        # Missing support provenance must not falsely identify its node's line.
+        supports["F_anchor"].source_line = None
+        supports["F_anchor"].source_call_line = None
+        scene = build_visualization_scene(SceneRequest(namespace["model"]))
+        metadata = next(obj.metadata for obj in scene.objects if obj.name == "F_anchor")
+        self.assertNotIn("source_line", metadata)
+        self.assertNotIn("source_call_line", metadata)
 
     def test_blank_line_moves_source_lines_but_not_the_solver_fingerprint(self):
         from tuba.analysis.provenance import build_solver_input_identity

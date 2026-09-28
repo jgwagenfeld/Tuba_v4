@@ -3,6 +3,7 @@ viewer/public/favicon.svg text eol=lf
 viewer/public/licenses/*.txt text eol=lf
 tuba/visualization/_viewer/** text eol=lf
 tuba/visualization/_viewer/assets/*.js -whitespace
+tuba/visualization/_viewer/*.zip -text -whitespace
 *.woff -text -whitespace
 *.woff2 -text -whitespace
 

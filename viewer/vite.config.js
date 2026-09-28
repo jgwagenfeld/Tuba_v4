@@ -41,14 +41,13 @@ const SHOOTER = join(REPO_ROOT, "viewer", "scripts", "gallery-thumbnails.mjs");
 // Pages build - so everyone working locally saw bare title chips and the copy
 // nobody could see drifted unnoticed. The dev server asks the same module.
 let cachedCatalog;
-function officialCatalog() {
-  if (cachedCatalog !== undefined) return cachedCatalog;
-  const python = [
+const python = [
     join(REPO_ROOT, ".venv", "Scripts", "python.exe"),
     join(REPO_ROOT, ".venv", "bin", "python"),
-    "python3",
-    "python"
+    process.platform === "win32" ? "python" : "python3"
   ].find((candidate) => !candidate.includes("venv") || existsSync(candidate));
+function officialCatalog() {
+  if (cachedCatalog !== undefined) return cachedCatalog;
   const run = spawnSync(python, ["-m", "scripts.official_gallery"], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -159,12 +158,31 @@ function bundleManifest() {
   };
 }
 
+function browserRuntime() {
+  function archive() {
+    const result = spawnSync(python, [join(REPO_ROOT, "scripts", "build_browser_runtime.py")], { maxBuffer: 16 * 1024 * 1024 });
+    if (result.status !== 0) throw new Error(`Browser runtime build failed: ${result.stderr}`);
+    return result.stdout;
+  }
+  return {
+    name: "tuba-browser-runtime",
+    generateBundle() { this.emitFile({ type: "asset", fileName: "tuba-browser.zip", source: archive() }); },
+    configureServer(server) {
+      server.middlewares.use("/tuba-browser.zip", (_request, response) => {
+        response.setHeader("content-type", "application/zip");
+        response.end(archive());
+      });
+    }
+  };
+}
+
 export default defineConfig(({ command }) => ({
   root: ".",
   base: "./",
   publicDir: command === "serve" ? PUBLIC_DIR : false,
-  plugins: [bundleManifest()],
+  plugins: [bundleManifest(), browserRuntime()],
   define: { __TUBA_VIEWER_BUILD__: JSON.stringify(`sha256:${viewerIdentity()}`) },
+  worker: { format: "es" },
   build: {
     outDir: "../tuba/visualization/_viewer",
     emptyOutDir: true,

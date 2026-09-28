@@ -3,6 +3,10 @@
 Date: 2026-09-15
 Status: accepted
 
+Amendment (2026-09-28): for supports, selection highlighting and "Defined by"
+use the support's own definition and call-site lines, matching the Restraint
+link. This supersedes the node-line rule and its test expectations below.
+
 Terms follow `CONTEXT.md` (Model script, Generated and Authored model script,
 Authoring session, Model fingerprint). This spec adds **Pipe run**: the records
 that one `with model.pipe(...)` block, or one `build_pipe_run` call, creates
