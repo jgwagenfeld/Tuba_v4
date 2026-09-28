@@ -9,6 +9,29 @@ const VIEWPORTS = {
 
 const DOCUMENTATION_PAGES = ["/index.html", "/setup.html"];
 
+test("review keeps technical details optional and stress fields distinguishable", async ({ page }) => {
+  await page.goto("/viewer/?bundle=code-aster-review");
+  await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
+  await expect(page.locator("[data-color-legend]")).toBeEmpty();
+  await expect(page.locator("[data-field-description]")).toBeHidden();
+  await expect(page.locator("[data-solver-fact]")).toBeHidden();
+  await expect(page.locator("[data-discretisation-check]")).toBeHidden();
+  await expect(page.locator("[data-scene-title]")).toHaveClass("visually-hidden");
+  const fields = page.getByRole("combobox", { name: "Colour the scene by" });
+  await fields.selectOption({ label: "Von Mises stress (wall points)" });
+  await expect(page.locator("[data-viewport-legend]")).toContainText("Von Mises stress (wall points)");
+  await expect(page.locator("[data-compliance-notice]")).toBeVisible();
+  await page.locator("[data-field-details] > summary").click();
+  await expect(page.locator("[data-field-description]")).toContainText("Support: subpoint");
+  await page.locator("[data-analysis-summary]").press("Enter");
+  await expect(page.locator("[data-solver-fact]")).toContainText("Code_Aster");
+  await expect(page.locator("[data-discretisation-check]")).toBeVisible();
+  await fields.selectOption({ label: "Displacement" });
+  await expect(page.locator("[data-compliance-notice]")).toHaveCount(0);
+  await expect(page.locator("[data-field-description]")).toContainText("Support: node");
+  await expect(page.locator("[data-projection-note]")).toBeHidden();
+});
+
 test("load-case gallery exposes four solved cases and their input assignments", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/viewer/?bundle=load-case-preparation");
@@ -139,7 +162,7 @@ test("assembled Pages keeps results accessible when WebGL2 is unavailable", asyn
   await expect(page.locator("[data-canvas]")).toBeHidden();
 
   // The rail is one column; the colouring channel's legend names the field.
-  await expect(page.locator("[data-color-legend]")).toContainText("FE VMIS (not code stress)");
+  await expect(page.locator("[data-viewport-legend]")).toContainText("Von Mises stress");
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
   expect(browserErrors).toEqual([]);

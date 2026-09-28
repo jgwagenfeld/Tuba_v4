@@ -11,6 +11,7 @@ import {
   getColoringValues,
   getComplianceNotice,
   getFieldOptions,
+  fieldLabel,
   getLoadCaseOptionsFromFields,
   scalarFor,
   setColoringComponent,
@@ -20,6 +21,16 @@ import {
   withCoherentColoring
 } from "../src/coloring.js";
 import { preserveViewerStateForReload } from "../src/viewerState.js";
+
+test("readable field names preserve the sampling distinction and unknown quantities", () => {
+  assert.equal(fieldLabel({ label: "FE VMIS (not code stress)", support: "cell" }), "Von Mises stress (elements)");
+  assert.equal(fieldLabel({ label: "FE VMIS (not code stress)", support: "subpoint" }), "Von Mises stress (wall points)");
+  assert.equal(fieldLabel({ label: "displacement", support: "node" }), "Displacement");
+  assert.equal(fieldLabel({ label: "custom_stress", support: "integration_point" }), "Custom stress (integration_point)");
+  const state = baseState();
+  state.resultFields[0].label = "FE VMIS (not code stress)";
+  assert.equal(getComplianceNotice(state), "FE stress - not ASME code stress");
+});
 
 const STRESS_OVERLAY = {
   id: "overlay:solver_result:stress:Operating",

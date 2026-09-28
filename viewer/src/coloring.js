@@ -162,7 +162,9 @@ function componentUnit(field, component) {
 // visibility preset: an FE stress screenshot mislabelled as code stress is a
 // compliance problem, not a UI nicety.
 export function getComplianceNotice(state) {
-  const role = getActiveField(state)?.compliance_role;
+  const field = getActiveField(state);
+  const role = field?.compliance_role ?? (field?.label?.toLowerCase() === "fe vmis (not code stress)"
+    ? "visualization_only_not_asme_code_stress" : null);
   if (!role) return null;
   if (role === "visualization_only_not_asme_code_stress") {
     return "FE stress - not ASME code stress";
@@ -222,13 +224,16 @@ function rangeOf(values) {
 }
 
 export function fieldLabel(field) {
-  const support = field.support && field.support !== "node" ? ` (${field.support})` : "";
+  const supportName = { cell: "elements", subpoint: "wall points" }[field.support] ?? field.support;
+  const support = supportName && supportName !== "node" ? ` (${supportName})` : "";
   const raw = field.label || field.id;
   const normalized = String(raw).toLowerCase().replace(/_magnitude$/, "");
   const readable = {
     displacement: "Displacement",
     reaction_force: "Reaction force",
     reaction_moment: "Reaction moment",
+    "fe vmis": "Von Mises stress",
+    "fe vmis (not code stress)": "Von Mises stress",
     stress: "Stress"
   }[normalized] ?? String(raw).replaceAll("_", " ").replace(/^[a-z]/, (letter) => letter.toUpperCase());
   return `${readable}${support}`;

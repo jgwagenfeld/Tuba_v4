@@ -137,7 +137,10 @@ const dom = {
   colorBy: document.querySelector("[data-color-by]"),
   colorLegend: document.querySelector("[data-color-legend]"),
   resultControls: document.querySelector("[data-result-controls]"),
-  resultLegend: document.querySelector("[data-result-legend]"),
+  fieldDetails: document.querySelector("[data-field-details]"),
+  fieldDescription: document.querySelector("[data-field-description]"),
+  analysisDetails: document.querySelector("[data-analysis-details]"),
+  analysisSummary: document.querySelector("[data-analysis-summary]"),
   resultShape: document.querySelector("[data-result-shape]"),
   overlaysBlock: document.querySelector("[data-overlays-block]"),
   overlayList: document.querySelector("[data-overlay-list]"),
@@ -198,6 +201,7 @@ const startupConfig = Object.freeze({
 
 let currentBundle = null;
 let currentBundleUrl = ".";
+let bundleTitles = new Map();
 let currentState = null;
 let userChoseColor = false;
 let reviewOpened = false;
@@ -293,6 +297,7 @@ const sourceView = {
 
 async function main() {
   const catalog = await loadBundleCatalog();
+  bundleTitles = new Map(normalizeCatalog(catalog).map(entry => [bundleKey(entry.id), entry.title]));
   document.body.dataset.embed = String(startupConfig.embed);
   dom.appShell.dataset.embed = String(startupConfig.embed);
   showIdentity(dom.viewerIdentity, "Viewer", __TUBA_VIEWER_BUILD__);
@@ -381,7 +386,7 @@ async function loadBundleCatalog() {
 // the right landing page; once inside, a round trip through it to compare two
 // models is friction, so the header keeps a direct switch.
 function initBundlePicker(catalog) {
-  if (startupConfig.embed || !dom.bundlePicker) {
+  if (startupConfig.embed || studio.project || !dom.bundlePicker) {
     return;
   }
   const entries = normalizeCatalog(catalog);
@@ -408,6 +413,7 @@ function initBundlePicker(catalog) {
   }
   dom.bundlePicker.replaceChildren(...options);
   dom.bundlePicker.hidden = false;
+  renderHeader();
   dom.bundlePicker.addEventListener("change", () => switchBundle(dom.bundlePicker.value, catalog));
 }
 
@@ -580,6 +586,7 @@ function renderStatusStrip() {
   renderStatusChip();
   renderSolverFact();
   renderDiscretisationCheck();
+  dom.analysisDetails.hidden = dom.solverFact.hidden && dom.discretisationCheck.hidden;
   renderSelectionFact();
   dom.stripUnits.replaceChildren(...(currentState.embed ? [] : [unitSystemChip()]));
 }
@@ -761,14 +768,16 @@ function renderColorBy() {
   dom.colorBy.append(colorBySelect([...modelOptions, ...fieldOptions], selected));
 
   if (channel === "results") {
-    // The full legend is the ramp over the viewport; this is the name of what
-    // is tinting the scene, stated where the choice is made.
     const legend = getScalarLegend(currentState);
-    dom.colorLegend.append(metaLine(
-      legend ? `${legend.field} - see the ramp in the viewport` : "No result field to colour by."
-    ));
+    const field = getActiveField(currentState);
+    dom.fieldDetails.hidden = !field && !legend;
+    dom.fieldDescription.textContent = field
+      ? `Solver field: ${field.label || field.id}. Support: ${field.support || "unspecified"}.`
+      : (legend?.field ?? "");
+    if (!legend) dom.colorLegend.append(metaLine("No result field to colour by."));
     return;
   }
+  dom.fieldDetails.hidden = true;
   const mode = currentState.modelColorBy ?? "default";
   if (mode !== "default") {
     dom.colorLegend.append(modelLegendChips(mode));
@@ -896,7 +905,6 @@ function renderReactionTable() {
 
 function renderResultControls() {
   dom.resultControls.replaceChildren();
-  dom.resultLegend.replaceChildren();
   dom.resultShape.replaceChildren();
   dom.hotspotList.replaceChildren();
 
@@ -973,19 +981,6 @@ function renderResultControls() {
     );
   }
 
-  // What the colour means. Its own element between the two bands: the legend is
-  // read by name, and the compliance notice rides with it.
-  const legend = getScalarLegend(currentState);
-  if (legend) {
-    const scale = document.createElement("div");
-    const component = legend.component && legend.component !== "magnitude" ? ` ${legend.component}` : "";
-    const system = getUnitSystem(currentState);
-    const low = formatValue(legend.range.min, legend.unit, system);
-    const high = formatQuantity(legend.range.max, legend.unit, system);
-    scale.textContent = `${legend.field}${component}: ${low} - ${high}`.trim();
-    dom.resultLegend.append(scale);
-  }
-
   dom.resultShape.append(
     railGroup("Deformation", `\u00d7${formatScale(getVisualDeformationDisplayScale(currentState))}`)
   );
@@ -1015,6 +1010,7 @@ function renderResultControls() {
     dom.hotspotList.append(empty);
     return;
   }
+  const legend = getScalarLegend(currentState);
   for (const hotspot of hotspots) {
     const button = document.createElement("button");
     button.type = "button";
@@ -1171,8 +1167,11 @@ const STORED_THRESHOLD_STEP_PA = 1e6;
 
 function renderHeader() {
   // A studio's live build bundle has no review to name it: show the model, not the scene id.
-  dom.sceneTitle.textContent = currentState.review?.project_name
-    ?? (studio.project ? String(currentState.sceneId ?? "").replace(/^scene:/, "") : currentState.sceneId);
+  dom.sceneTitle.textContent = (!studio.project && bundleTitles.get(bundleKey(currentBundleUrl)))
+    || (currentState.review?.project_name
+      ?? String(currentState.sceneId ?? "").replace(/^scene:/, ""));
+  // The picker is the visible title when multiple published examples are available.
+  dom.sceneTitle.classList.toggle("visually-hidden", !dom.bundlePicker.hidden);
   // Deliberately no units here. This printed the bundle's storage units
   // (m / N / Pa) while every readout on screen follows the unit chip, which
   // defaults to mm / MPa - so the header asserted Pa in the same eyeful as the
@@ -1415,7 +1414,7 @@ function opacityChip(body) {
 // Why the sub-points land where they do. Shown only when the scene actually
 // carries projected sub-points, because otherwise it explains nothing on screen.
 function renderProjectionNote() {
-  const overlay = getSectionProfile(currentState);
+  const overlay = getActiveField(currentState)?.support === "subpoint" && getSectionProfile(currentState);
   dom.projectionNote.hidden = !overlay;
   if (!overlay) {
     dom.projectionNote.textContent = "";
@@ -1445,7 +1444,7 @@ function renderSectionProfile() {
   heading.className = "strip-heading strip-toggle";
   heading.dataset.focusKey = "section:wall";
   heading.setAttribute("aria-expanded", String(wallSectionOpen));
-  heading.textContent = `${wallSectionOpen ? "▾" : "▸"} Wall section · ${getSubpointLegend(currentState)?.field ?? "sub-points"}`;
+  heading.textContent = `${wallSectionOpen ? "▾" : "▸"} Wall section`;
   heading.addEventListener("click", () => {
     wallSectionOpen = !wallSectionOpen;
     render();
@@ -1546,14 +1545,12 @@ function sectionRosette(profile) {
 // A geometric fidelity check on the mesh, not a code check: how far the straight
 // chord falls inside the true bend arc, against a stated fraction of the radius.
 //
-// It reads as one line in the status strip now rather than a headed block in
-// the rail foot. It kept its pinning either way - the verdict is sign-off
-// evidence and must not be scrollable past - but the rail foot only pinned it
-// inside a panel that Build mode hides and a narrow window closes, and the
-// heading spent two rail rows saying what "Mesh" says here.
+// Measurements live in Analysis details; a coarse mesh stays visible in its summary.
 function renderDiscretisationCheck() {
   dom.discretisationCheck.replaceChildren();
   const check = getDiscretisationCheck(currentState);
+  dom.analysisSummary.textContent = check && !check.within_tolerance ? "Analysis details · mesh warning" : "Analysis details";
+  dom.analysisSummary.classList.toggle("mesh-warning", Boolean(check && !check.within_tolerance));
   dom.discretisationCheck.hidden = !check;
   if (!check) return;
 

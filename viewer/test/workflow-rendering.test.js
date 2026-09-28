@@ -505,9 +505,9 @@ test("the status strip owns the session facts the header and the rail used to sp
   assert.match(css, /\.app-shell\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto/s);
   assert.match(css, /\.status-strip\s*\{[^}]*display:\s*flex/s);
   assert.match(css, /\[data-embed="true"\][^{]*\.status-strip[^{]*\{[^}]*display:\s*none/s);
-  // The verdict and the mesh check are the last segments to give way, because
-  // nothing else on screen carries them.
-  assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\[data-solver-fact\],\s*\.status-strip \.strip-selection\s*\{[^}]*display:\s*none/s);
+  // Analysis details remain available on narrow screens.
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\.status-strip \.strip-selection\s*\{[^}]*display:\s*none/s);
+  assert.doesNotMatch(css, /\[data-solver-fact\][^{]*\{[^}]*display:\s*none/s);
 });
 
 test("a studio opens a solved project on its results, not on the script", async () => {

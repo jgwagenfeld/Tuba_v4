@@ -134,7 +134,7 @@ test("only a review that declares contact focus gives up its scalar legend", () 
   assert.equal(getScalarLegend(contactReview), null, "a declared contact review colours the pipe neutrally");
 
   const { reviewFocus, ...restsOnShoes } = contactReview;
-  assert.equal(getScalarLegend(restsOnShoes).field, "FE VMIS (cell)");
+  assert.equal(getScalarLegend(restsOnShoes).field, "Von Mises stress (elements)");
 });
 
 test("history visibility isolates the active increment and contact-neutral review suppresses unrelated arrows", async () => {

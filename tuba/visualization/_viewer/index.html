@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tuba Viewer</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-Cl5NJYdZ.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-B9UAjs-3.css">
+    <script type="module" crossorigin src="./assets/index-zMuuMMDO.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BFJ0fhxi.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -22,9 +22,12 @@
           <!-- Switching review is one control, not a round trip through the
                gallery. The gallery explains the set; this moves within it. -->
           <select class="bundle-picker" data-bundle-picker aria-label="Example scene" hidden></select>
-          <div class="meta" data-scene-meta></div>
-          <small class="meta" data-build-identity></small>
-          <small class="meta" data-viewer-identity></small>
+          <details class="meta">
+            <summary>Technical details</summary>
+            <div data-scene-meta></div>
+            <div data-build-identity></div>
+            <div data-viewer-identity></div>
+          </details>
         </div>
         <!-- Build writes the model, Review reads what the solver made of it.
              Only a studio server can run model.py, so a static bundle never
@@ -138,9 +141,12 @@
                   <div data-color-by></div>
                   <div data-color-legend></div>
                 </div>
-                <div class="result-legend" data-result-legend></div>
+                <details class="field-details" data-field-details hidden>
+                  <summary>Field details</summary>
+                  <div data-field-description></div>
+                  <p class="projection-note" data-projection-note></p>
+                </details>
                 <div class="result-controls" data-result-shape></div>
-                <p class="projection-note" data-projection-note></p>
                 <section class="section-profile" aria-label="TUYAU section sub-point grid" data-section-profile></section>
               </details>
               <details class="review-section case-inputs" data-review-inputs>
@@ -260,8 +266,13 @@
              actually status - solved, and anything demanding attention - and
              routes to the task that explains them. -->
         <button type="button" class="status-chip" data-status-chip hidden></button>
-        <span class="strip-fact" data-solver-fact hidden></span>
-        <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
+        <details class="analysis-details" data-analysis-details hidden>
+          <summary data-analysis-summary>Analysis details</summary>
+          <div class="analysis-details-content">
+            <span class="strip-fact" data-solver-fact hidden></span>
+            <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
+          </div>
+        </details>
         <span class="strip-fact strip-selection" data-selection-fact hidden></span>
         <div class="strip-tail">
           <span class="strip-units" data-strip-units></span>
