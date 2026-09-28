@@ -4,18 +4,18 @@ from io import BytesIO
 from pathlib import Path
 import sys
 import tomllib
-from zipfile import ZipFile, ZipInfo
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def browser_runtime_archive(root: Path = ROOT) -> bytes:
     output = BytesIO()
-    # Store verbatim: zlib versions differ across Python distributions/runners.
-    with ZipFile(output, "w") as archive:
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         def add(name: str, data: bytes) -> None:
             entry = ZipInfo(name, date_time=(2020, 1, 1, 0, 0, 0))
             entry.create_system = 3
+            entry.compress_type = ZIP_DEFLATED
             archive.writestr(entry, data)
 
         for folder in ("tuba", "examples"):

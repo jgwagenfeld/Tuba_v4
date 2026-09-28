@@ -6,6 +6,7 @@ tuba/visualization/_viewer/assets/*.js -whitespace
 tuba/visualization/_viewer/*.zip -text -whitespace
 *.woff -text -whitespace
 *.woff2 -text -whitespace
+*.stl -text -whitespace
 
 # Solver attestation hashes bind exact bytes; never rewrite their line endings.
 examples/*/evidence/** -text -whitespace
