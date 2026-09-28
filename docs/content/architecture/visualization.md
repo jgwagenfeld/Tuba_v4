@@ -13,7 +13,7 @@ A geometry-only scene may be used for model review when it is visibly labelled a
 
 ## Web-scene contract
 
-`VisualizationScene` is the renderer-independent boundary. It carries scene objects, geometry assets, explicit layers, result fields, overlays, issues, review records, diagnostics, and saved view state. The bundle writer serializes the manifest and deterministic geometry payloads; the Three.js viewer renders that contract rather than reconstructing engineering meaning from filenames.
+`VisualizationScene` is the renderer-independent boundary. It carries scene objects, geometry assets, explicit layers, result fields, overlays, issues, review records, diagnostics, and saved view state. Ordinary geometry is stored directly in the manifest; only dense stress glyphs use separate payload files. Asset hashes cover the full geometry in either form, and older bundles with individual payload files remain readable. The Three.js viewer renders that contract rather than reconstructing engineering meaning from filenames.
 
 The four layer categories answer what is drawn:
 

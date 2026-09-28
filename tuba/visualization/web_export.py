@@ -30,9 +30,9 @@ def write_scene_bundle(
 ) -> SceneBundle:
     """Write a browser-loadable semantic scene bundle.
 
-    The first implementation writes deterministic JSON geometry payloads. Later
-    renderer adapters can replace those payloads with GLB/XKT/Fragments assets
-    while keeping the same scene and metadata contract.
+    Ordinary geometry lives in the scene manifest. Only dense stress glyphs
+    use separate payload files, keeping thousands of small duplicate files out
+    of multi-state reviews.
 
     ``source`` copies the authoring Tuba script beside the scene as
     ``source.py`` and records it as ``source_uri``, so a reviewer can read the
@@ -44,6 +44,11 @@ def write_scene_bundle(
     geometry_dir = root / "geometry"
     metadata_dir.mkdir(parents=True, exist_ok=True)
     geometry_dir.mkdir(parents=True, exist_ok=True)
+    previous_scene = root / "scene.json"
+    previous_assets = (
+        json.loads(previous_scene.read_text(encoding="utf-8")).get("geometry_assets", [])
+        if previous_scene.is_file() else []
+    )
 
     scene_payload = scene.to_dict()
     scene_payload["geometry_assets"] = []
@@ -56,7 +61,9 @@ def write_scene_bundle(
 
     for asset in scene.geometry_assets:
         asset_payload = asset.to_dict()
-        asset_payload["uri"] = _relative_geometry_uri(asset.id)
+        asset_payload["uri"] = (
+            _relative_geometry_uri(asset.id) if asset.format == "tuyau_subpoint_glyphs" else ""
+        )
         asset_payload["generation_config"] = _manifest_generation_config(asset_payload)
         geometry_payload = {
             "asset_id": asset.id,
@@ -73,7 +80,8 @@ def write_scene_bundle(
         # subpoint asset holds ~24k glyphs); write them compact. The content hash
         # above is computed over the canonical compact form, so dropping the
         # indentation changes neither the data nor the hash.
-        _write_json(root / asset_payload["uri"], geometry_payload, compact=True)
+        if asset_payload["uri"]:
+            _write_json(root / asset_payload["uri"], geometry_payload, compact=True)
 
     # Validate the payload that consumers will actually read.
     VisualizationScene.from_dict(scene_payload).validate()
@@ -86,6 +94,14 @@ def write_scene_bundle(
     _write_json(geometry_dir / "geometry_assets.json", scene_payload["geometry_assets"])
     # Publish scene.json last so live viewers do not reload a half-written bundle.
     _write_json(root / "scene.json", scene_payload)
+    # Remove only files declared by the previous export, after publishing the
+    # replacement. Never glob-delete geometry supplied by another producer.
+    retained = {asset["uri"] for asset in scene_payload["geometry_assets"]}
+    for asset in previous_assets:
+        uri = asset.get("uri")
+        if (uri and uri not in retained and isinstance(asset.get("id"), str)
+                and uri == _relative_geometry_uri(asset["id"])):
+            (root / uri).unlink(missing_ok=True)
 
     return SceneBundle(
         root=root,

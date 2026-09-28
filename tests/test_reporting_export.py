@@ -421,7 +421,7 @@ def test_reused_output_removes_only_obsolete_generated_reports_and_scene(
     )
     write_engineering_review_with_scene(solved_review, tmp_path, scene=scene)
     stale_result_csv = tmp_path / "reports" / "fe_stress.csv"
-    stale_geometry = tmp_path / "geometry" / "geometry_E-20.json"
+    stale_geometry = tmp_path / "geometry" / "geometry_assets.json"
     assert stale_result_csv.is_file()
     assert stale_geometry.is_file()
 
@@ -451,7 +451,6 @@ def test_reused_output_removes_only_obsolete_generated_reports_and_scene(
     assert not stale_result_csv.exists()
     assert not (tmp_path / "scene.json").exists()
     assert not (tmp_path / "metadata" / "objects.json").exists()
-    assert not (tmp_path / "geometry" / "geometry_assets.json").exists()
     assert not stale_geometry.exists()
     assert all(path.read_text(encoding="utf-8") == "keep" for path in user_files)
 
@@ -603,7 +602,9 @@ def test_visualization_adapter_preserves_scene_bundle_layout(tmp_path, solved_re
     assert (tmp_path / "scene.json").is_file()
     assert (tmp_path / "metadata" / "objects.json").is_file()
     assert (tmp_path / "geometry" / "geometry_assets.json").is_file()
-    assert (tmp_path / "geometry" / "geometry_E-20.json").is_file()
+    scene_payload = json.loads((tmp_path / "scene.json").read_text())
+    assert scene_payload["geometry_assets"][0]["generation_config"] == {"entity_ref": "element:E-20"}
+    assert not (tmp_path / "geometry" / "geometry_E-20.json").exists()
 
 
 def test_visualization_adapter_with_no_scene_matches_core_export(tmp_path, solved_review):

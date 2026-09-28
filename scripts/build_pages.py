@@ -507,8 +507,19 @@ def _validate_geometry(root: Path, scene: dict[str, Any]) -> None:
     for asset in scene.get("geometry_assets", []):
         if not isinstance(asset, dict) or not isinstance(asset.get("uri"), str):
             raise ValueError("Geometry asset is missing its URI.")
-        payload_path = _bundle_path(root, asset["uri"])
-        payload = _read_json(payload_path)
+        if asset["uri"]:
+            payload = _read_json(_bundle_path(root, asset["uri"]))
+        else:
+            if not isinstance(asset.get("generation_config"), dict):
+                raise ValueError("Inline geometry is missing its generation config.")
+            payload = {
+                "asset_id": asset["id"],
+                "format": asset["format"],
+                "bounds": asset["bounds"],
+                "object_ids": asset["object_ids"],
+                "generation_config": asset["generation_config"],
+                "hash": asset.get("hash"),
+            }
         _reject_unsafe_references(payload)
         _reject_error_diagnostics(payload)
         expected = _geometry_hash({key: value for key, value in payload.items() if key != "hash"})

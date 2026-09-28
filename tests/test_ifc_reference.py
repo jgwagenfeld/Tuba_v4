@@ -159,8 +159,8 @@ def test_studio_preview_attach_restart_remove_and_boundaries(tmp_path):
         review = json.loads((tmp_path / "out" / "review" / "scene.json").read_text())
         assert any(obj.get("source", {}).get("ifc_guid") == guid for obj in review["objects"])
         native_asset = next(asset for asset in review["geometry_assets"] if not asset["id"].startswith("ifc:"))
-        native_payload = json.loads((tmp_path / "out" / "review" / native_asset["uri"]).read_text())
-        assert native_payload["generation_config"]
+        assert native_asset["uri"] == ""
+        assert native_asset["generation_config"]
         assert post(server, "attach", data)[0] == 200
         assert post(server, "remove", b'{"id":"../bad"}', "application/json")[0] == 400
         assert post(server, "convert", json.dumps({"reference_id": identity, "guids": ["unknown"],

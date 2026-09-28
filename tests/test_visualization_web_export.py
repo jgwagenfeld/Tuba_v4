@@ -47,7 +47,7 @@ class TestVisualizationWebExport(unittest.TestCase):
             restored.validate()
             self.assertEqual(restored.scene_id, "scene_bundle")
 
-    def test_write_scene_bundle_exports_relative_geometry_payloads_with_object_ids(self):
+    def test_write_scene_bundle_keeps_geometry_inline_without_duplicate_files(self):
         scene = self._scene()
 
         with TemporaryDirectory() as tmpdir:
@@ -55,14 +55,33 @@ class TestVisualizationWebExport(unittest.TestCase):
             scene_payload = json.loads(bundle.scene_path.read_text(encoding="utf-8"))
             asset = scene_payload["geometry_assets"][0]
 
-            self.assertFalse(Path(asset["uri"]).is_absolute())
-            geometry_payload_path = bundle.root / asset["uri"]
-            self.assertTrue(geometry_payload_path.exists())
+            self.assertEqual(asset["uri"], "")
+            self.assertEqual(asset["object_ids"], ["object:element:pipe_0"])
+            self.assertEqual(asset["generation_config"], scene.geometry_assets[0].generation_config)
+            self.assertEqual([path.name for path in bundle.geometry_dir.iterdir()], ["geometry_assets.json"])
 
-            geometry_payload = json.loads(geometry_payload_path.read_text(encoding="utf-8"))
-            self.assertEqual(geometry_payload["asset_id"], asset["id"])
-            self.assertEqual(geometry_payload["object_ids"], asset["object_ids"])
-            self.assertEqual(geometry_payload["generation_config"]["entity_ref"], "element:pipe_0")
+            from scripts.build_pages import _validate_geometry
+            _validate_geometry(bundle.root, scene_payload)
+            asset["generation_config"]["radius_m"] *= 2
+            with self.assertRaisesRegex(ValueError, "hash does not match"):
+                _validate_geometry(bundle.root, scene_payload)
+
+    def test_reexport_removes_only_previous_exported_geometry_files(self):
+        scene = self._scene()
+        with TemporaryDirectory() as tmpdir:
+            bundle = write_scene_bundle(scene, tmpdir)
+            payload = json.loads(bundle.scene_path.read_text(encoding="utf-8"))
+            asset = payload["geometry_assets"][0]
+            asset["uri"] = "geometry/geometry_element_pipe_0.json"
+            legacy = bundle.root / asset["uri"]
+            legacy.write_text("{}", encoding="utf-8")
+            unrelated = bundle.geometry_dir / "keep.json"
+            unrelated.write_text("{}", encoding="utf-8")
+            payload["geometry_assets"].append({"uri": "geometry/keep.json"})
+            bundle.scene_path.write_text(json.dumps(payload), encoding="utf-8")
+            write_scene_bundle(scene, tmpdir)
+            self.assertFalse(legacy.exists())
+            self.assertTrue(unrelated.exists())
 
     def test_write_scene_bundle_exports_object_identity_map(self):
         scene = self._scene()

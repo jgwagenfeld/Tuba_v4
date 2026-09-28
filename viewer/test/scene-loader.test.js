@@ -284,12 +284,12 @@ test("starts URL geometry requests concurrently and preserves asset order", asyn
   ]);
 });
 
-test("uses complete manifest geometry and fetches only stripped payload formats", async () => {
+for (const uri of ["", "geometry/tube.json"]) test(`uses manifest geometry with URI '${uri}' and fetches only stripped payloads`, async () => {
   const assets = [
     {
       id: "tube",
       format: "tube",
-      uri: "geometry/tube.json",
+      uri,
       bounds: [0, 0, 0, 1, 1, 1],
       object_ids: ["pipe"],
       hash: "tube-hash",
