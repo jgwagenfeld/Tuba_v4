@@ -228,6 +228,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
         encoding="utf-8"
     )
     workflow = yaml.safe_load(source)
+    assert workflow["jobs"]["deploy"]["if"] == "${{ github.ref == 'refs/heads/main' && !inputs.update_snapshots }}"
     steps = workflow["jobs"]["build"]["steps"]
     commands = [step["run"] for step in steps if "run" in step]
 
