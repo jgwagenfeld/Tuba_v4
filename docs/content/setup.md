@@ -13,14 +13,17 @@ Tuba model -> Code_Aster solve -> imported result artifacts -> result display
 | Requirement | Detail |
 | --- | --- |
 | Tuba Python | 3.11 or 3.12 (`requires-python = ">=3.11,<3.13"`); conda selects Python separately for the solver |
-| Git | Required to install the tagged checkout |
+| Git | Required to install the source checkout |
 | Operating system | Tuba is OS-independent; the tested solver path is native Linux or Windows with WSL2 Ubuntu |
 | Code_Aster | Required for solving; authoring, export inspection, and preserved-artifact review can run without it |
 
-## Install Tuba from the tagged checkout
+## Install Tuba from source
+
+These instructions install the current development branch, which evolves with
+the gallery and this manual. Record `git rev-parse HEAD` to identify your checkout.
 
 ```powershell
-git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
+git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
 cd Tuba_v4
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip

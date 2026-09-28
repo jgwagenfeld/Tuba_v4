@@ -53,4 +53,4 @@ python -m unittest tests.test_code_aster_real_smoke -v
 ```
 
 The real solver smoke test requires a configured Code_Aster runtime and the
-integration opt-in documented in `README.md`.
+integration opt-in documented in [Setup](docs/content/setup.md#run-the-real-solver-smoke-test).

@@ -7,8 +7,8 @@ Code_Aster analyses, and displaying the results.
 
 ## Gallery
 
-Every review opens in your browser, no install needed. All except *Imported
-components* show imported Code_Aster results.
+Open a review without installing Tuba. Choose **Build**, edit `model.py`, and **Run geometry** to [try a geometry preview](docs/content/setup.md#try-a-model-in-the-browser).
+**Review** shows published Code_Aster results (except *Imported components*); edited geometry needs a new Code_Aster solve.
 [Browse the full gallery →](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
 <table>
@@ -93,10 +93,10 @@ python -m tuba.skills --target ~/.config/opencode/skills                     # A
 
 ## Getting started
 
-Tuba needs Python 3.11 or 3.12.
+Install the current development branch with Python 3.11 or 3.12:
 
 ```bash
-git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
+git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
 cd Tuba_v4
 python -m venv .venv
 .venv/bin/python -m pip install .        # Windows: .\.venv\Scripts\python.exe

@@ -102,11 +102,11 @@ class TestStaticSiteDocs(unittest.TestCase):
             for phrase in phrases:
                 self.assertIn(phrase, text, name)
 
-    def test_setup_uses_the_tagged_github_checkout(self):
+    def test_setup_uses_the_documented_development_checkout(self):
         text = (CONTENT / "setup.md").read_text(encoding="utf-8")
 
         self.assertIn(
-            "git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
+            "git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
             text,
         )
         self.assertIn("python -m pip install .", text)

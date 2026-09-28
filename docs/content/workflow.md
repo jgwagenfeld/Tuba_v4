@@ -133,6 +133,14 @@ python -m tuba.cli_studio examples/line-load-studio
 - **Code_Aster `.comm` Inspector:** The tab strip generates and previews the exact Code_Aster commands that will be executed for each load case.
 - **Solve Integration:** Clicking **Solve** executes Code_Aster and automatically transitions the viewer to the solved engineering review bundle.
 
+### Browser geometry editing
+
+The public gallery also accepts `model.py` edits in **Build**. **Run geometry**
+executes Tuba Python in the browser and displays an unsolved scene through the
+same web viewer. **Review** retains the published Code_Aster evidence and marks
+it outdated after edits. Use a local Tuba installation with Code_Aster to
+evaluate the downloaded script. See [browser setup and limits](setup.md#try-a-model-in-the-browser).
+
 ### Static Scene Inspection
 
 To review a pre-compiled `.json` scene bundle without running a studio server:

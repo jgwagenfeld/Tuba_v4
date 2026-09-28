@@ -16,6 +16,10 @@ The first figure is model geometry only. After a real Code_Aster solve, the revi
 
 [![The solved tutorial pipe in the Tuba viewer, coloured by FE Von Mises stress, with support reactions.](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
+To experiment with geometry before installing, open the gallery in **Build**,
+edit `model.py`, and click **Run geometry**. This produces an unsolved preview;
+the evaluation below still requires Code_Aster. See [browser editing](setup.md#try-a-model-in-the-browser).
+
 ## Prerequisites
 
 ```powershell
@@ -117,6 +121,10 @@ Tuba model values use SI units.
 Missing or empty required result rows indicate a failed or incomplete run.
 
 ## Review controls
+
+Selecting a support highlights its defining call in the displayed `model.py`
+when source metadata is available. The **Defined by** entry and restraint link
+use the support definition, including `pipe.end(support="anchor")`.
 
 The browser rail is one column of sections, not a set of tabs; see [visualization architecture](architecture/visualization.md) for what each holds. What colours the scene - a model property or a solver field - is chosen from the pinned **Colour by** control, above the result refinements, the layer list, and the issue list. The review's tables live in the generated report that the header links to.
 

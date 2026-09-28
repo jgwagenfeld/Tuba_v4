@@ -19,7 +19,7 @@ Tuba is split by ownership: model authoring, Code_Aster export/execution/import,
 | `tuba.reporting` | Renderer-independent engineering review records and tables |
 | `tuba.plotting` | PyVista quick-look and export |
 | `tuba.visualization` | JSON scene contract and scene bundle writing |
-| `viewer/` | Three.js review renderer; no engineering calculation |
+| `viewer/` | Three.js review renderer and browser Python geometry preview; Code_Aster results are imported |
 | `tuba.clash`, `tuba.rules` | Geometric clash and rule checks |
 | `tuba.quantities`, `tuba.load_path` | Quantity takeoff and load-path analysis |
 | `tuba.external` | IFC and BOM boundaries |
@@ -34,6 +34,19 @@ tuba.builder -> tuba.model -> tuba.solver.aster -> tuba.analysis
 ```
 
 Routing proposes geometry; `tuba.routing.adapter` owns explicit model mutation. Solver output enters review only through artifact parsing and `ResultState` creation.
+
+## Browser geometry preview
+
+`viewer/src/browserPreview.js` starts a fresh Pyodide worker for each run.
+`browserPython.worker.js` executes the authored `model.py` through the real Tuba
+Python APIs and returns a geometry-only scene to the existing renderer.
+`scripts/build_browser_runtime.py` packages the Python sources as
+`tuba-browser.zip`; the Vite build emits it alongside the viewer. Rebuild the
+viewer after changing Python code used by the browser.
+
+The worker cannot run Code_Aster or native Gmsh/IFC tools. Published results stay
+with their original model; they must never be attached to an edited preview.
+See [Setup](setup.md#try-a-model-in-the-browser) for user-facing behavior.
 
 ## Change ownership
 
@@ -130,8 +143,7 @@ The self-hosted `code-aster-integration` jobs run on trusted pushes to `main`
 and beta release dispatches, never on pull requests. They run the real solver
 smoke and reference cases, refresh every gallery in
 `scripts/official_gallery.py` that declares a refresh producer
-(`code-aster-review`, `support-rack-review`, `autorouted-expansion-loop`,
-`elements-supports-review`, and `pipe-tee-volume-review`), then pass the fresh
+through `scripts/refresh_code_aster_gallery.py --all`, then pass the fresh
 artifacts through the strict Pages assembler. A failed solve, attestation,
 bundle profile, or Pages build blocks the gate and beta release.
 

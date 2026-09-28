@@ -5,6 +5,10 @@ states whether it contains solver results or model geometry only.
 
 [Example gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
+To try changes, choose **Build**, edit `model.py`, and click **Run geometry**.
+This creates an unsolved preview in your browser; see [browser editing](setup.md#try-a-model-in-the-browser)
+for controls, draft lifetime and native-package limits.
+
 Piping-code evaluations, clearance checks, and project-specific design rules
 are included only where stated.
 
@@ -163,7 +167,7 @@ Each published review is a folder under `examples/` holding `model.py`, which bu
 
 Gallery cards offer a project ZIP when one was built. Extract it and run Studio from the archive root; the ZIP includes the example's shared Python helpers and local assets. It does not contain solver evidence. Some cards also offer a geometry-only IFC file when the exporter can represent the whole native model geometry. Imported CAD, volume meshes and unsupported elements have no IFC link. A downloaded IFC contains no stress or operating-state results.
 
-In Studio, **Exchange** previews an IFC's units, bounds, products and warnings before attaching it as a reference. Attaching or removing a reference changes the displayed scene, not `model.py` or the solver model. Select supported straight pipes and supply explicit material and section values to download a separate, unsolved conversion project; fittings and unresolved geometry cannot be converted. Add loads and supports before a Code_Aster solve. Gallery uploads require a local Studio session and the optional `tuba[ifc]` installation.
+In Studio, **Exchange** previews an IFC's units, bounds, products and warnings before attaching it as a reference. Attaching or removing a reference changes the displayed scene, not `model.py` or the solver model. Select supported straight pipes and supply explicit material and section values to download a separate, unsolved conversion project; fittings and unresolved geometry cannot be converted. Add loads and supports before a Code_Aster solve. IFC imports require a local Studio session and the optional `tuba[ifc]` installation. In the public gallery, **Exchange** provides downloads; browser geometry editing is available separately in **Build**.
 
 Contributors can run `uv run python scripts/ifc_exchange_browser_smoke.py` after installing the IFC extra, viewer dependencies and Playwright Chromium. This opt-in check uses a temporary Studio project to upload, preview, attach, convert, export and remove a real IFC; it executes the downloaded conversion project and checks that authored source remains unchanged.
 

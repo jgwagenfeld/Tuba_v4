@@ -45,7 +45,7 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn("results require a completed Code_Aster run", text)
         self.assertIn("and imported result files", text)
         self.assertIn("does not run an analysis", text)
-        self.assertIn("git clone --branch v4.0.1", text)
+        self.assertIn("git clone --branch main", text)
 
     def test_setup_documents_required_runtime_and_doctor(self):
         """Runtime setup lives on the Setup page; it owns every detail of it."""
@@ -59,7 +59,7 @@ class TestCodeAsterDocs(unittest.TestCase):
         self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
         self.assertIn(". .venv/bin/activate", text)
 
-    def test_public_installation_uses_a_tagged_github_checkout(self):
+    def test_public_installation_uses_the_development_checkout(self):
         paths = [
             Path("README.md"),
             Path("docs/content/setup.md"),
@@ -70,7 +70,7 @@ class TestCodeAsterDocs(unittest.TestCase):
         texts = {path: path.read_text(encoding="utf-8") for path in paths}
 
         self.assertIn(
-            "git clone --branch v4.0.1 --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
+            "git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
             texts[Path("README.md")],
         )
         for path, text in texts.items():
