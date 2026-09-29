@@ -16,3 +16,8 @@ notebooks/code_aster_results/bim_operating/* -text -whitespace
 notebooks/code_aster_results/advanced_operating_hot/* -text -whitespace
 notebooks/code_aster_results/building_profile_end_force/* -text -whitespace
 viewer/public/code-aster-review/artifacts/* -text -whitespace
+
+# Study cards and reference figures are regenerated from the evidence and compared
+# byte for byte by `scripts/build_study_cards.py --check`, so their line endings are
+# pinned rather than left to the checkout.
+examples/*/reference/** text eol=lf

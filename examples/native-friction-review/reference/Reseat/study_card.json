@@ -1,0 +1,219 @@
+{
+  "attested_artifacts": [
+    {
+      "name": "study.comm",
+      "sha256": "9f02c39318dfb09af1a956b7caa77f4c347925af1767b379303085561a60b3d4",
+      "size_bytes": 12520
+    },
+    {
+      "name": "study.export",
+      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
+      "size_bytes": 377
+    },
+    {
+      "name": "study.mail",
+      "sha256": "48055fef5f2f5eae424d2393069afac8ee9f8c2d5d3e9a74659d577e3b085870",
+      "size_bytes": 20203
+    },
+    {
+      "name": "study.mess",
+      "sha256": "72fe6abf22e678f09a525d05978d0dceb56e2b7139e730d9c0350c09c252d80a",
+      "size_bytes": 215495
+    },
+    {
+      "name": "study.rmed",
+      "sha256": "32491088454bff81618c503e9368cca37d368eaadb7202ab6c28e07f0beb2a03",
+      "size_bytes": 1662999
+    },
+    {
+      "name": "study_contact.json",
+      "sha256": "ecad9cff4430adc1ac184fc7da5be291c92034ebd5c5df86d2b1996b520ea934",
+      "size_bytes": 34045
+    },
+    {
+      "name": "study_depl.csv",
+      "sha256": "6fc1e074bc311d9028d6ecca519e4d22aa069da2b1d3f6e4ef8e9c19bdeaabdc",
+      "size_bytes": 2248636
+    },
+    {
+      "name": "study_effo.csv",
+      "sha256": "f3af08ca9fd304afe9fd8f3001aa5afe99226200b37d092e47bfc9d0ba0f2700",
+      "size_bytes": 4901162
+    },
+    {
+      "name": "study_manifest.json",
+      "sha256": "48e0774d2fd085b78beaa4f65b07596e6e8f63997ecf3fb14cf269cd3c4006ff",
+      "size_bytes": 175273
+    },
+    {
+      "name": "study_reac.csv",
+      "sha256": "9f8079584d411a27e3d1e314e5dac0ff21991fe97e2f9b261b368cff9cb18ce5",
+      "size_bytes": 2248636
+    },
+    {
+      "name": "study_tuba_fem.json",
+      "sha256": "442b9c331d9bde0531dcd79404306d14791df878bd70fad6501029dfa1f85854",
+      "size_bytes": 13896
+    }
+  ],
+  "comm_keywords": [
+    {
+      "count": 1,
+      "name": "AFFE_CARA_ELEM"
+    },
+    {
+      "count": 11,
+      "name": "AFFE_CHAR_MECA"
+    },
+    {
+      "count": 2,
+      "name": "AFFE_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "AFFE_MODELE"
+    },
+    {
+      "count": 1,
+      "name": "CALC_CHAMP"
+    },
+    {
+      "count": 1,
+      "name": "CREA_RESU"
+    },
+    {
+      "count": 11,
+      "name": "CREA_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "DEBUT"
+    },
+    {
+      "count": 5,
+      "name": "DEFI_FONCTION"
+    },
+    {
+      "count": 1,
+      "name": "DEFI_LIST_INST"
+    },
+    {
+      "count": 1,
+      "name": "DEFI_LIST_REEL"
+    },
+    {
+      "count": 5,
+      "name": "DEFI_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "FIN"
+    },
+    {
+      "count": 1,
+      "name": "IMPR_RESU"
+    },
+    {
+      "count": 3,
+      "name": "IMPR_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "LIRE_MAILLAGE"
+    },
+    {
+      "count": 1,
+      "name": "STAT_NON_LINE"
+    }
+  ],
+  "evidence_reason": "the attestation is intact and the run was verified.",
+  "evidence_status": "verified",
+  "export_units": [
+    {
+      "direction": "D",
+      "filename": "study.comm",
+      "logical": "comm",
+      "meaning": "command file",
+      "unit": "1"
+    },
+    {
+      "direction": "D",
+      "filename": "study.mail",
+      "logical": "mail",
+      "meaning": "mesh",
+      "unit": "20"
+    },
+    {
+      "direction": "R",
+      "filename": "study.mess",
+      "logical": "mess",
+      "meaning": "message log",
+      "unit": "6"
+    },
+    {
+      "direction": "R",
+      "filename": "study.resu",
+      "logical": "resu",
+      "meaning": "result database",
+      "unit": "8"
+    },
+    {
+      "direction": "R",
+      "filename": "study.rmed",
+      "logical": "rmed",
+      "meaning": "result MED",
+      "unit": "80"
+    },
+    {
+      "direction": "R",
+      "filename": "study_effo.csv",
+      "logical": "effo",
+      "meaning": "element end forces (EFGE_ELNO)",
+      "unit": "38"
+    },
+    {
+      "direction": "R",
+      "filename": "study_depl.csv",
+      "logical": "depl",
+      "meaning": "displacements (DEPL)",
+      "unit": "39"
+    },
+    {
+      "direction": "R",
+      "filename": "study_reac.csv",
+      "logical": "reac",
+      "meaning": "node reactions (REAC_NODA)",
+      "unit": "40"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sieq.csv",
+      "logical": "sieq",
+      "meaning": "stress invariants (SIEQ_ELNO)",
+      "unit": "41"
+    },
+    {
+      "direction": "R",
+      "filename": "study_contact.json",
+      "logical": "libr",
+      "meaning": "contact history",
+      "unit": "42"
+    }
+  ],
+  "keyword_inventory_is_lower_bound": false,
+  "schema_version": "tuba.study_card.v1",
+  "source": "evidence/Reseat",
+  "study": {
+    "element_count": 132,
+    "execution_method": "wsl",
+    "id": "analysis_study:Reseat",
+    "load_case": "Reseat",
+    "mesh_id": "analysis_mesh:Reseat",
+    "model_revision": 0,
+    "node_count": 134,
+    "project_name": "Native piping friction comparison",
+    "solved_at": "2026-09-29T06:04:33.083937Z",
+    "solver_name": "Code_Aster",
+    "solver_version": "18.0.12"
+  }
+}

@@ -19,9 +19,12 @@ def browser_runtime_archive(root: Path = ROOT) -> bytes:
             archive.writestr(entry, data)
 
         for folder in ("tuba", "examples"):
+            # `evidence` and `reference` are excluded together on purpose: a study card
+            # describes evidence for a reader of the repository, so a browser that
+            # carries neither carries nothing that depends on them.
             for path in sorted((root / folder).rglob("*"), key=lambda path: path.relative_to(root).as_posix()):
                 if (path.is_file() and path.suffix in {".py", ".json", ".input", ".output", ".stl"}
-                        and not {"_viewer", "__pycache__", "evidence"}.intersection(path.parts)):
+                        and not {"_viewer", "__pycache__", "evidence", "reference"}.intersection(path.parts)):
                     data = path.read_bytes()
                     # Git checkouts may use CRLF; keep the shipped archive identical.
                     if path.suffix != ".stl":

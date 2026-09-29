@@ -194,6 +194,21 @@ python -m tuba.project examples/code-aster-review --output .build/code-aster-rev
 
 `tuba.project` imports the attested evidence given with `--artifact-dir`, such as the project's own `evidence/<operation>/` folder. Without it, it first solves the study's operations into that folder, reusing evidence that still matches the model and study (`--force` solves again), and builds the review from there.
 
+## Study cards and reference figures
+
+Solved evidence is a pile of artifacts, and the generated `study.comm` and `study.export` are text only Code_Aster reads. Each project therefore also carries a **study card** under `reference/<operation>/`: a page that states what was solved, lists the Code_Aster commands the generated command file actually calls, shows the export unit map, and records the artifact hashes and the evidence verdict, all read back out of the evidence.
+
+```powershell
+python scripts/build_study_cards.py                # write the cards and figures
+python scripts/build_study_cards.py --check        # fail when a committed card is stale
+```
+
+Cards live in `reference/` rather than beside the evidence because evidence promotion removes every file a solve did not attest — a card kept inside `evidence/` would be deleted by the next solve. `--check` is the CI form and is exercised by the test suite.
+
+A project can also commit **reference figures**: a `reference_series.py` next to `model.py` exposes `reference_figures(project_root, evidence_folder)` and returns the solved series beside an analytical one, drawn as a deterministic SVG with no plotting dependency. `examples/profile-orientation-review` is the worked case — its two figures put the Code_Aster beam solution against closed-form cantilever beam theory along all 97 mesh stations and across all three section rolls, agreeing to 2.5e-12 m.
+
+Both are finite-element comparisons. A card and a figure describe what the solver was given and returned; neither is a code check, a utilization or an acceptance verdict, and Tuba evaluates no standard.
+
 ## Load-case preparation
 
 [![Load-case preparation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation)

@@ -1,0 +1,198 @@
+{
+  "attested_artifacts": [
+    {
+      "name": "study.comm",
+      "sha256": "b7e47b3c613832cb8e8d203bd27f5255fe5f10ac8b9f4e62ffc05c1904763e7e",
+      "size_bytes": 8157
+    },
+    {
+      "name": "study.export",
+      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
+      "size_bytes": 377
+    },
+    {
+      "name": "study.mail",
+      "sha256": "a9175456698e7d7f5728fa5f4d21a30db494176f2e65fcce83ba8deaa48cabdf",
+      "size_bytes": 41439
+    },
+    {
+      "name": "study.mess",
+      "sha256": "adb0bb6910dd555e92d4766c68f1c07e01cb17a76823adc9829b03ae46a0d5cd",
+      "size_bytes": 37780
+    },
+    {
+      "name": "study.rmed",
+      "sha256": "07795b31fa7aefd4b832b12c5a3bb8fc53e6104c1dd5d09fae515b81544da062",
+      "size_bytes": 138254
+    },
+    {
+      "name": "study_depl.csv",
+      "sha256": "135f2b6f32c7333910667abb1444f356474b08a67a5ef0c34b349b93ea1dc97a",
+      "size_bytes": 95989
+    },
+    {
+      "name": "study_effo.csv",
+      "sha256": "4bfe9ca7755cf65ea8cdb5edefe6224ad2bed7732c45eede3ffc2dc91024cb9a",
+      "size_bytes": 209930
+    },
+    {
+      "name": "study_manifest.json",
+      "sha256": "7f3bf62a1f41070b674c39a1bc93f95e7a8ed88e10cf1a9bcc2c4b1a5be49689",
+      "size_bytes": 206605
+    },
+    {
+      "name": "study_reac.csv",
+      "sha256": "312709846dc91bd7915e708515892dcd5f2db4e8d06cf3bef9cb0987d3aaf237",
+      "size_bytes": 95989
+    },
+    {
+      "name": "study_tuba_fem.json",
+      "sha256": "4b71f17cfc6ecf6604b840a384fc44cde8d0d6ca14910ce7bf21c956482e08b1",
+      "size_bytes": 29288
+    }
+  ],
+  "comm_keywords": [
+    {
+      "count": 1,
+      "name": "AFFE_CARA_ELEM"
+    },
+    {
+      "count": 4,
+      "name": "AFFE_CHAR_MECA"
+    },
+    {
+      "count": 1,
+      "name": "AFFE_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "AFFE_MODELE"
+    },
+    {
+      "count": 1,
+      "name": "CALC_CHAMP"
+    },
+    {
+      "count": 3,
+      "name": "CREA_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "DEBUT"
+    },
+    {
+      "count": 1,
+      "name": "DEFI_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "FIN"
+    },
+    {
+      "count": 1,
+      "name": "IMPR_RESU"
+    },
+    {
+      "count": 3,
+      "name": "IMPR_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "LIRE_MAILLAGE"
+    },
+    {
+      "count": 1,
+      "name": "MECA_STATIQUE"
+    }
+  ],
+  "evidence_reason": "the attestation is intact and the run was verified.",
+  "evidence_status": "verified",
+  "export_units": [
+    {
+      "direction": "D",
+      "filename": "study.comm",
+      "logical": "comm",
+      "meaning": "command file",
+      "unit": "1"
+    },
+    {
+      "direction": "D",
+      "filename": "study.mail",
+      "logical": "mail",
+      "meaning": "mesh",
+      "unit": "20"
+    },
+    {
+      "direction": "R",
+      "filename": "study.mess",
+      "logical": "mess",
+      "meaning": "message log",
+      "unit": "6"
+    },
+    {
+      "direction": "R",
+      "filename": "study.resu",
+      "logical": "resu",
+      "meaning": "result database",
+      "unit": "8"
+    },
+    {
+      "direction": "R",
+      "filename": "study.rmed",
+      "logical": "rmed",
+      "meaning": "result MED",
+      "unit": "80"
+    },
+    {
+      "direction": "R",
+      "filename": "study_effo.csv",
+      "logical": "effo",
+      "meaning": "element end forces (EFGE_ELNO)",
+      "unit": "38"
+    },
+    {
+      "direction": "R",
+      "filename": "study_depl.csv",
+      "logical": "depl",
+      "meaning": "displacements (DEPL)",
+      "unit": "39"
+    },
+    {
+      "direction": "R",
+      "filename": "study_reac.csv",
+      "logical": "reac",
+      "meaning": "node reactions (REAC_NODA)",
+      "unit": "40"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sieq.csv",
+      "logical": "sieq",
+      "meaning": "stress invariants (SIEQ_ELNO)",
+      "unit": "41"
+    },
+    {
+      "direction": "R",
+      "filename": "study_contact.json",
+      "logical": "libr",
+      "meaning": "contact history",
+      "unit": "42"
+    }
+  ],
+  "keyword_inventory_is_lower_bound": false,
+  "schema_version": "tuba.study_card.v1",
+  "source": "evidence/global",
+  "study": {
+    "element_count": 288,
+    "execution_method": "wsl",
+    "id": "analysis_study:global",
+    "load_case": "global",
+    "mesh_id": "analysis_mesh:global",
+    "model_revision": 0,
+    "node_count": 291,
+    "project_name": "I-section orientation: the same tip force at 0, 45 and 90 degrees",
+    "solved_at": "2026-09-19T14:34:53.003617Z",
+    "solver_name": "Code_Aster",
+    "solver_version": "18.0.12"
+  }
+}

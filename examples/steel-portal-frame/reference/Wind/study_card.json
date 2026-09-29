@@ -1,0 +1,198 @@
+{
+  "attested_artifacts": [
+    {
+      "name": "study.comm",
+      "sha256": "dac4a5e0fc1152daaa7c63033065fe7354d0acc8eac323ff18fc9d8e0853337d",
+      "size_bytes": 71624
+    },
+    {
+      "name": "study.export",
+      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
+      "size_bytes": 377
+    },
+    {
+      "name": "study.mail",
+      "sha256": "11d9e74c267305cdbc4c20bda89fddc15baffa71c1b23996aea8854c3a1889e4",
+      "size_bytes": 67313
+    },
+    {
+      "name": "study.mess",
+      "sha256": "e2a3dc6c96f621a611f6fb0c259c47e91c37c522f657280ba560ad6ff0fef35f",
+      "size_bytes": 130081
+    },
+    {
+      "name": "study.rmed",
+      "sha256": "546b47670c069cec4dba08d32d6ae24c72f7f305a62916976b57d6dd9afc8942",
+      "size_bytes": 695718
+    },
+    {
+      "name": "study_depl.csv",
+      "sha256": "0dcde3f09b51ab2d1a7c5a16585da6b868bc30d9c2af6518175f665c3da91dd5",
+      "size_bytes": 69340
+    },
+    {
+      "name": "study_effo.csv",
+      "sha256": "22190620a8c5ae0a2a185cbd9bf0f7148a21d5ec286bab3a475b7d85f457c3c0",
+      "size_bytes": 407218
+    },
+    {
+      "name": "study_manifest.json",
+      "sha256": "36e78707e34b29366036c0f2db94b52a986b6d6e6bbb4510b7e22c29a89b3ec3",
+      "size_bytes": 281008
+    },
+    {
+      "name": "study_reac.csv",
+      "sha256": "4e1cc6aa2e301827cfe9275bce4800bb2b5231265c04aff25b38b91ef663d225",
+      "size_bytes": 69340
+    },
+    {
+      "name": "study_tuba_fem.json",
+      "sha256": "52e0c0972b02719b3563290884faea492cdf4df6b305bc318b6afc02271abc91",
+      "size_bytes": 48091
+    }
+  ],
+  "comm_keywords": [
+    {
+      "count": 1,
+      "name": "AFFE_CARA_ELEM"
+    },
+    {
+      "count": 15,
+      "name": "AFFE_CHAR_MECA"
+    },
+    {
+      "count": 1,
+      "name": "AFFE_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "AFFE_MODELE"
+    },
+    {
+      "count": 1,
+      "name": "CALC_CHAMP"
+    },
+    {
+      "count": 3,
+      "name": "CREA_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "DEBUT"
+    },
+    {
+      "count": 1,
+      "name": "DEFI_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "FIN"
+    },
+    {
+      "count": 1,
+      "name": "IMPR_RESU"
+    },
+    {
+      "count": 3,
+      "name": "IMPR_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "LIRE_MAILLAGE"
+    },
+    {
+      "count": 1,
+      "name": "MECA_STATIQUE"
+    }
+  ],
+  "evidence_reason": "the attestation is intact and the run was verified.",
+  "evidence_status": "verified",
+  "export_units": [
+    {
+      "direction": "D",
+      "filename": "study.comm",
+      "logical": "comm",
+      "meaning": "command file",
+      "unit": "1"
+    },
+    {
+      "direction": "D",
+      "filename": "study.mail",
+      "logical": "mail",
+      "meaning": "mesh",
+      "unit": "20"
+    },
+    {
+      "direction": "R",
+      "filename": "study.mess",
+      "logical": "mess",
+      "meaning": "message log",
+      "unit": "6"
+    },
+    {
+      "direction": "R",
+      "filename": "study.resu",
+      "logical": "resu",
+      "meaning": "result database",
+      "unit": "8"
+    },
+    {
+      "direction": "R",
+      "filename": "study.rmed",
+      "logical": "rmed",
+      "meaning": "result MED",
+      "unit": "80"
+    },
+    {
+      "direction": "R",
+      "filename": "study_effo.csv",
+      "logical": "effo",
+      "meaning": "element end forces (EFGE_ELNO)",
+      "unit": "38"
+    },
+    {
+      "direction": "R",
+      "filename": "study_depl.csv",
+      "logical": "depl",
+      "meaning": "displacements (DEPL)",
+      "unit": "39"
+    },
+    {
+      "direction": "R",
+      "filename": "study_reac.csv",
+      "logical": "reac",
+      "meaning": "node reactions (REAC_NODA)",
+      "unit": "40"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sieq.csv",
+      "logical": "sieq",
+      "meaning": "stress invariants (SIEQ_ELNO)",
+      "unit": "41"
+    },
+    {
+      "direction": "R",
+      "filename": "study_contact.json",
+      "logical": "libr",
+      "meaning": "contact history",
+      "unit": "42"
+    }
+  ],
+  "keyword_inventory_is_lower_bound": false,
+  "schema_version": "tuba.study_card.v1",
+  "source": "evidence/Wind",
+  "study": {
+    "element_count": 559,
+    "execution_method": "wsl",
+    "id": "analysis_study:Wind",
+    "load_case": "Wind",
+    "mesh_id": "analysis_mesh:Wind",
+    "model_revision": 0,
+    "node_count": 210,
+    "project_name": "Steel_Portal_Frame_Hall",
+    "solved_at": "2026-09-29T09:25:46.178153Z",
+    "solver_name": "Code_Aster",
+    "solver_version": "18.0.12"
+  }
+}

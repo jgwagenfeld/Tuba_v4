@@ -1,0 +1,203 @@
+{
+  "attested_artifacts": [
+    {
+      "name": "study.comm",
+      "sha256": "b0225cc9cfe3ae29ec49f5ac21f8514c5df3fd679f0113815e8a1dee95b87d23",
+      "size_bytes": 5631
+    },
+    {
+      "name": "study.export",
+      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
+      "size_bytes": 377
+    },
+    {
+      "name": "study.mail",
+      "sha256": "31349d81b9352e300a29f1c8f3a3c8d24a43cc5c142824692f06de3dcafea4d3",
+      "size_bytes": 18929
+    },
+    {
+      "name": "study.mess",
+      "sha256": "29d8579bb3573ec1ed5c8a402bf9f8e92fdde6a496a008f80f465063adf5b95c",
+      "size_bytes": 39286
+    },
+    {
+      "name": "study.rmed",
+      "sha256": "6d677f4c379c3feab703d188bde369bdb5f1ba3dd9a24d8b7092e7f18c455e81",
+      "size_bytes": 4610891
+    },
+    {
+      "name": "study_depl.csv",
+      "sha256": "c7713c2d5027cb230415ada6c3a5afd7429a02869e1a5fce263cd403709d2f8e",
+      "size_bytes": 46968
+    },
+    {
+      "name": "study_effo.csv",
+      "sha256": "9bcfef7fae9c5c64999658d996339a1bcf04fe0824739eb513ededee39c26f96",
+      "size_bytes": 76706
+    },
+    {
+      "name": "study_manifest.json",
+      "sha256": "e8112f891675dbe2a4d48ba9e3ad8d9f6b2184de2b1ffdb1bc0b79dd74b86e70",
+      "size_bytes": 163368
+    },
+    {
+      "name": "study_reac.csv",
+      "sha256": "338026b18be83c1e5dff162e4eb29ac1d21fa384b3bdd80536bd6f1d88b13441",
+      "size_bytes": 46968
+    },
+    {
+      "name": "study_sieq.csv",
+      "sha256": "3408cb4a504dc012b4786f9490f40cc08c41956e49a52aacc523481df9b783ab",
+      "size_bytes": 11351592
+    },
+    {
+      "name": "study_tuba_fem.json",
+      "sha256": "6fb5fc4dc8e175b83dd000a9d4abefb083fe39fc732c0dedeb3c3935ce7210d1",
+      "size_bytes": 13527
+    }
+  ],
+  "comm_keywords": [
+    {
+      "count": 1,
+      "name": "AFFE_CARA_ELEM"
+    },
+    {
+      "count": 7,
+      "name": "AFFE_CHAR_MECA"
+    },
+    {
+      "count": 1,
+      "name": "AFFE_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "AFFE_MODELE"
+    },
+    {
+      "count": 1,
+      "name": "CALC_CHAMP"
+    },
+    {
+      "count": 4,
+      "name": "CREA_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "DEBUT"
+    },
+    {
+      "count": 1,
+      "name": "DEFI_MATERIAU"
+    },
+    {
+      "count": 1,
+      "name": "FIN"
+    },
+    {
+      "count": 1,
+      "name": "IMPR_RESU"
+    },
+    {
+      "count": 4,
+      "name": "IMPR_TABLE"
+    },
+    {
+      "count": 1,
+      "name": "LIRE_MAILLAGE"
+    },
+    {
+      "count": 1,
+      "name": "MECA_STATIQUE"
+    }
+  ],
+  "evidence_reason": "the attestation is intact and the run was verified.",
+  "evidence_status": "verified",
+  "export_units": [
+    {
+      "direction": "D",
+      "filename": "study.comm",
+      "logical": "comm",
+      "meaning": "command file",
+      "unit": "1"
+    },
+    {
+      "direction": "D",
+      "filename": "study.mail",
+      "logical": "mail",
+      "meaning": "mesh",
+      "unit": "20"
+    },
+    {
+      "direction": "R",
+      "filename": "study.mess",
+      "logical": "mess",
+      "meaning": "message log",
+      "unit": "6"
+    },
+    {
+      "direction": "R",
+      "filename": "study.resu",
+      "logical": "resu",
+      "meaning": "result database",
+      "unit": "8"
+    },
+    {
+      "direction": "R",
+      "filename": "study.rmed",
+      "logical": "rmed",
+      "meaning": "result MED",
+      "unit": "80"
+    },
+    {
+      "direction": "R",
+      "filename": "study_effo.csv",
+      "logical": "effo",
+      "meaning": "element end forces (EFGE_ELNO)",
+      "unit": "38"
+    },
+    {
+      "direction": "R",
+      "filename": "study_depl.csv",
+      "logical": "depl",
+      "meaning": "displacements (DEPL)",
+      "unit": "39"
+    },
+    {
+      "direction": "R",
+      "filename": "study_reac.csv",
+      "logical": "reac",
+      "meaning": "node reactions (REAC_NODA)",
+      "unit": "40"
+    },
+    {
+      "direction": "R",
+      "filename": "study_sieq.csv",
+      "logical": "sieq",
+      "meaning": "stress invariants (SIEQ_ELNO)",
+      "unit": "41"
+    },
+    {
+      "direction": "R",
+      "filename": "study_contact.json",
+      "logical": "libr",
+      "meaning": "contact history",
+      "unit": "42"
+    }
+  ],
+  "keyword_inventory_is_lower_bound": false,
+  "schema_version": "tuba.study_card.v1",
+  "source": "evidence/Occasional",
+  "study": {
+    "element_count": 70,
+    "execution_method": "wsl",
+    "id": "analysis_study:Occasional",
+    "load_case": "Occasional",
+    "mesh_id": "analysis_mesh:Occasional",
+    "model_revision": 0,
+    "node_count": 142,
+    "project_name": "Load-case preparation",
+    "solved_at": "2026-09-26T20:58:31.974776Z",
+    "solver_name": "Code_Aster",
+    "solver_version": "18.0.12"
+  }
+}

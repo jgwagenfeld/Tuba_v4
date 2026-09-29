@@ -171,6 +171,26 @@ def test_reporting_public_api_exports_the_engineering_review_builder():
         "ReviewProvenance",
         "build_engineering_review",
         "write_engineering_review",
+        "CommKeyword",
+        "ExportUnit",
+        "FigureSeries",
+        "ReferenceFigureError",
+        "StudyCard",
+        "StudyCardError",
+        "build_study_card",
+        "compare_series",
+        "evidence_folders",
+        "parse_code_aster_keywords",
+        "parse_export_units",
+        "render_reference_figure",
+        "render_study_card_markdown",
+        "write_project_study_cards",
+        "write_reference_figure",
+        "write_study_card",
     )
     assert hasattr(reporting, "build_engineering_review")
     assert hasattr(reporting, "write_engineering_review")
+    # A study card and a reference figure are the reviewable half of a solve: the
+    # generated command file is text only Code_Aster reads, so these make it readable.
+    for name in ("build_study_card", "write_study_card", "write_reference_figure"):
+        assert hasattr(reporting, name)
