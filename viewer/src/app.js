@@ -10,7 +10,7 @@ import {
 import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.js";
 import { deriveBundleSource } from "./bundleSource.js";
 import { elementInputSection, loadCaseDefinitions, renderLoadCaseInputs } from "./loadCaseInputs.js";
-import { contactObjectId, renderContactReview } from "./contactReview.js";
+import { contactObjectId, contactStageNav, renderContactReview } from "./contactReview.js";
 import {
   buildObjectTree,
   getIssueSummary,
@@ -68,6 +68,7 @@ import {
   getLoadCaseOptions,
   getResultStateOptions,
   getScalarLegend,
+  getStageGroups,
   isContactReview,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
@@ -1075,8 +1076,19 @@ function renderResultControls() {
       )
     );
   }
-  // Case and converged step stay together, including contact histories.
-  if (resultStates.length > 1 || (fieldOptions.length === 0 && resultStates.length > 0)) {
+  // A staged contact review navigates by load-path stage instead. The flat
+  // dropdown lists every converged increment, so a five-stage cycle arrived as
+  // fifty-one near-identical rows in a menu and the stage a reviewer was
+  // actually asking about was nowhere in it.
+  const stagedContactReview = isContactReview(currentState) && getStageGroups(currentState).length > 1;
+  if (stagedContactReview) {
+    const nav = contactStageNav(currentState, dispatch, render);
+    if (nav) {
+      dom.resultControls.append(railGroup("Load path", `${getStageGroups(currentState).length} stages`));
+      dom.resultControls.append(nav.nav);
+      dom.resultControls.append(nav.steps);
+    }
+  } else if (resultStates.length > 1 || (fieldOptions.length === 0 && resultStates.length > 0)) {
     dom.resultControls.append(
       propertyRow(
         "Step",

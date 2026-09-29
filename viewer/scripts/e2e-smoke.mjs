@@ -227,9 +227,18 @@ const scenarios = {
       }
       await page.goto(new URL("?bundle=native-friction-review", page.url()).toString());
       await page.waitForFunction(() => document.querySelector("[data-canvas]")?.dataset.renderer === "three");
-      const step = page.getByRole("combobox", { name: "Step", exact: true });
-      for (const index of [25, 50, 0]) {
-        await step.selectOption({ index });
+      // A staged contact review navigates by load-path stage, so the increments
+      // are reached through the stage chips and the scrubber rather than a menu.
+      // Each pair is a stage and a position inside it, so the run is sampled at
+      // genuinely different points. The Reference stage is excluded: it holds a
+      // single increment, so its scrubber is correctly disabled.
+      for (const [stageIndex, position] of [[2, 0], [5, 9], [1, 4]]) {
+        const chip = page.locator(".contact-step-nav button").nth(stageIndex);
+        await chip.click();
+        const scrubber = page.getByRole("slider", { name: /Converged increment within/ });
+        assert.equal(await scrubber.isDisabled(), false, `stage ${stageIndex} scrubber must be steppable`);
+        await scrubber.fill(String(position));
+        await scrubber.dispatchEvent("input");
         const context = await page.evaluate(() => {
           const state = window.__tubaViewer.state;
           const active = state.resultFields.find(f => f.id === state.coloring.fieldId);

@@ -28,6 +28,44 @@ async function openDisplaySection(page) {
   await expect(section).toHaveJSProperty("open", true);
 }
 
+// A staged contact review navigates by load-path stage, not by a menu of every
+// converged increment, so a reviewer lands on an increment by choosing its stage
+// and then stepping inside it.
+async function openStage(page, stageIndex) {
+  const chip = page.locator(".contact-step-nav button").nth(stageIndex);
+  await expect(chip).toBeVisible();
+  await chip.click();
+  await expect(chip).toHaveAttribute("aria-pressed", "true");
+  return chip;
+}
+
+async function incrementScrubber(page) {
+  const scrubber = page.getByRole("slider", { name: /Converged increment within/ });
+  await expect(scrubber).toBeVisible();
+  return scrubber;
+}
+
+// Move to one specific increment: its stage, then its position inside that stage.
+// The position comes from the stage record the bundle publishes, so this also
+// checks that the increment order the scrubber steps through is the solved order.
+async function openIncrement(page, state) {
+  await openStage(page, state.metadata.stage_index);
+  const scrubber = await incrementScrubber(page);
+  const withinStage = await page.evaluate(
+    ({ runId, stageIndex, stateId }) => {
+      const findings = window.__tubaViewer.state.contactFindings;
+      const run = findings?.runs?.find(candidate => candidate.run_id === runId) ?? findings?.primary;
+      const stage = run?.stages?.find(candidate => candidate.index === stageIndex);
+      return stage ? stage.result_state_ids.indexOf(stateId) : -1;
+    },
+    { runId: state.metadata.run_id, stageIndex: state.metadata.stage_index, stateId: state.id }
+  );
+  expect(withinStage, `position of ${state.id} inside stage ${state.metadata.stage_index}`).toBeGreaterThanOrEqual(0);
+  await scrubber.fill(String(withinStage));
+  await scrubber.dispatchEvent("input");
+  await expect.poll(() => page.evaluate(() => window.__tubaViewer.state.activeResultStateId)).toBe(state.id);
+}
+
 test("real contact history preserves forces through selection and display scaling", async ({ page }) => {
   // Three complete regime checks rebuild and trace the large scene repeatedly.
   // Keep full failure traces; Linux recording exceeded the shared 120s budget.
@@ -42,12 +80,16 @@ test("real contact history preserves forces through selection and display scalin
   await expect(panel).toBeVisible();
   const states = await page.evaluate(() => window.__tubaViewer.state.resultStates.map(s => s.data));
   expect(states.length).toBeGreaterThan(20);
-  const step = page.getByRole("combobox", { name: "Step", exact: true });
+  // The load path is the navigation a reviewer uses, and it is the five stages
+  // of the cycle rather than the fifty-one increments inside them.
+  const chips = page.locator(".contact-step-nav button");
+  await expect(chips).toHaveCount(6);
+  await expect(chips).toHaveText(["Reference", "Cold", "Hot", "Cold", "Lift", "Reseat"]);
   for (const status of ["sticking", "sliding", "open"]) {
     const state = states.find(s => s.metadata.pseudo_time > 0 && Object.values(s.contact_results).some(c => c.status === status));
     expect(state, `Real ${status} increment`).toBeTruthy();
     const contact = Object.values(state.contact_results).find(c => c.status === status);
-    await step.selectOption(state.id);
+    await openIncrement(page, state);
     await panel.getByRole("button", { name: contact.support_id, exact: true }).click();
     // The solved history for the shoe that was just selected.
     const inspector = page.locator("[data-inspector]");
@@ -80,7 +122,8 @@ test("real contact history preserves forces through selection and display scalin
   await arrows.check();
   // Stepping stays keyboard-operable from the rail's own control.
   const activeBefore = await page.evaluate(() => window.__tubaViewer.state.activeResultStateId);
-  await step.focus();
+  const scrubber = await incrementScrubber(page);
+  await scrubber.focus();
   await page.keyboard.press("ArrowDown");
   await expect.poll(() => page.evaluate(() => window.__tubaViewer.state.activeResultStateId)).not.toBe(activeBefore);
   await page.setViewportSize({ width: 800, height: 900 });

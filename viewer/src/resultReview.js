@@ -29,9 +29,52 @@ export function getResultStateOptions(state) {
       id: data.id ?? overlay.id,
       label: data.metadata?.stage_label ? `${data.metadata.stage_label} / ${formatPseudoTime(data.metadata.pseudo_time)}` : overlay.name || data.load_case || data.id || overlay.id,
       loadCase: data.load_case ?? null,
+      stageIndex: Number.isFinite(data.metadata?.stage_index) ? data.metadata.stage_index : null,
+      stageLabel: data.metadata?.stage_label ?? null,
+      pseudoTime: Number.isFinite(data.metadata?.pseudo_time) ? data.metadata.pseudo_time : null,
       overlay
     };
   });
+}
+
+// The load path, grouped the way a reviewer thinks about it. A staged run
+// publishes its stages in the contact findings, and the increments carry
+// stage_index anyway, so the grouping is derived either way - the flat list of
+// fifty-one options was the reason a five-stage cycle read as a wall of
+// identical rows.
+export function getStageGroups(state) {
+  const options = getResultStateOptions(state);
+  const findingsRun = state.contactFindings?.primary ?? null;
+  const byStage = new Map();
+  for (const option of options) {
+    if (option.stageIndex == null) continue;
+    if (!byStage.has(option.stageIndex)) byStage.set(option.stageIndex, []);
+    byStage.get(option.stageIndex).push(option);
+  }
+  return [...byStage.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([index, members]) => {
+      const published = findingsRun?.stages?.find((stage) => stage.index === index) ?? null;
+      return {
+        index,
+        label: members[members.length - 1].stageLabel ?? `Stage ${index}`,
+        pseudoTime: members[members.length - 1].pseudoTime ?? null,
+        // The stage's end state is the one a reviewer means by "Hot": the
+        // converged result, not the first increment after the load changed.
+        resultStateId: published?.result_state_id ?? members[members.length - 1].id,
+        firstResultStateId: members[0].id,
+        resultStateIds: members.map((member) => member.id),
+        incrementCount: members.length,
+        findings: (findingsRun?.findings ?? []).filter((finding) =>
+          (finding.stage_indices ?? [finding.stage_index]).includes(index)
+        )
+      };
+    });
+}
+
+export function getActiveStageIndex(state) {
+  const active = getActiveResultState(state);
+  return Number.isFinite(active?.stageIndex) ? active.stageIndex : null;
 }
 
 export function coherentResultContext(previousState, nextState) {

@@ -10,6 +10,32 @@ export function resolveBundleId(requestedBundle, availableBundles = []) {
   return requestedBundle || availableBundles[0] || ".";
 }
 
+// A malformed findings block costs the reader the story, not the scene. The
+// per-shoe stage and result-state records are what the contact panel and the
+// stage navigator are built from, so anything without them is dropped rather
+// than rendered as a half-truth.
+function normalizeContactFindings(raw) {
+  if (!raw || typeof raw !== "object" || !Array.isArray(raw.runs)) {
+    return null;
+  }
+  const runs = raw.runs
+    .filter((run) => run && typeof run === "object" && Array.isArray(run.stages) && Array.isArray(run.shoes))
+    .map((run) => ({
+      ...run,
+      stages: run.stages.filter((stage) => stage && typeof stage.result_state_id === "string"),
+      shoes: run.shoes.filter((shoe) => shoe && typeof shoe.support_id === "string"),
+      findings: Array.isArray(run.findings) ? run.findings : []
+    }))
+    .filter((run) => run.stages.length > 0);
+  if (runs.length === 0) {
+    return null;
+  }
+  const primary =
+    runs.find((run) => run.run_id === raw.primary_run_id) ??
+    runs.reduce((best, run) => (run.stages.length > best.stages.length ? run : best), runs[0]);
+  return { ...raw, runs, primary };
+}
+
 export async function loadSceneBundleFromUrl(baseUrl = ".", fetcher = globalThis.fetch) {
   const normalized = String(baseUrl).replace(/\/+$/, "");
   const readJson = async (relativePath) => {
@@ -114,6 +140,10 @@ export function createViewerState(bundle) {
     sceneId: scene.scene_id,
     // The study says what its review is for; the viewer no longer infers it.
     reviewFocus: scene.review_focus ?? null,
+    // What the contact run did, derived in Python. Null for a scene with no
+    // contact history, so a review of a model that merely rests on a shoe is
+    // not handed an empty story.
+    contactFindings: normalizeContactFindings(scene.contact_findings),
     objects,
     objectMap: bundle.objectMap ?? {},
     geometryAssets,
