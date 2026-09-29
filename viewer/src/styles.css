@@ -1060,6 +1060,78 @@ textarea,
   flex: 1 1 100%;
 }
 
+/* The section drawing in the properties rail. It borrows the manual's section
+   plate for its *composition* - object outline, quiet bore, dashed centre lines,
+   named dimensions - but not for its inks: the plate is drawn on white for print
+   and these strokes land on the dark rail, where the plate's near-black labels
+   are invisible. So the strokes use the app's own dark-panel tokens, which is
+   the same rule the status alert and the compliance notice already follow. */
+.profile-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.2rem 0 0.5rem;
+}
+
+.profile-diagram {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.profile-figure figcaption {
+  color: var(--chrome-text-3, #8895a0);
+  font-size: 0.68rem;
+  text-align: center;
+  max-width: 24ch;
+}
+
+.profile-diagram .profile-object {
+  fill: none;
+  stroke: var(--chrome-text, #f3f5f5);
+  stroke-width: 2.3;
+  stroke-linejoin: round;
+}
+
+.profile-diagram .profile-bore {
+  fill: none;
+  stroke: var(--chrome-text-2, #9aa7ad);
+  stroke-width: 1.6;
+}
+
+.profile-diagram .profile-centreline {
+  stroke: var(--accent, #5ed8e5);
+  stroke-width: 0.85;
+  stroke-dasharray: 16 4 3 4;
+}
+
+.profile-diagram .profile-extension {
+  stroke: var(--accent, #5ed8e5);
+  stroke-width: 0.85;
+}
+
+.profile-diagram .profile-dimension {
+  stroke: var(--accent, #5ed8e5);
+  stroke-width: 1.05;
+}
+
+.profile-diagram .profile-dimension-label {
+  fill: var(--chrome-text-1, #b9c5c9);
+  stroke: none;
+  font-size: 9px;
+}
+
+.profile-diagram .profile-dimension-note {
+  fill: var(--warning-on-dark, #f0b429);
+  stroke: none;
+  font-size: 8.5px;
+}
+
+.profile-properties {
+  margin-top: 0.15rem;
+}
+
 /* Which node's section the rosette is showing. A select, not a cycling chip:
    a real run has 105 nodes, and a chip would make the reader walk one click at
    a time to reach the one they can see is hot. The options carry each node's

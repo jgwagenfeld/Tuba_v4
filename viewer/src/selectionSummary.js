@@ -397,6 +397,12 @@ export function getSelectionSummary(state, objectId) {
     .filter((section) => !FOLDED_SECTIONS.has(section.id))
     .map((section) => ({
       title: section.title,
+      id: section.id,
+      // The profile's own dimensions and derived properties, so the rail can
+      // draw the section rather than only list it.
+      ...(section.id === "profile" && obj.metadata?.profile
+        ? { profile: obj.metadata.profile }
+        : {}),
       ...(section.sourceLine ? { sourceLine: section.sourceLine } : {}),
       lines: Object.entries(section.rows).map(([label, value]) => ({
         kind: "row",

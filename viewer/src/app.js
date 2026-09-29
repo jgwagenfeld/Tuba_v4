@@ -125,6 +125,7 @@ import {
 import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { distance, getPropertySections } from "./selection.js";
+import { profileDiagram, profilePropertyRows } from "./profileDiagram.js";
 import { browserSceneBundle, runBrowserModel } from "./browserPreview.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { download, initExchange, renderPublishedDownloads } from "./exchange.js";
@@ -3922,6 +3923,39 @@ function renderEvidenceSection(section) {
   const headingChip = scriptLineChip(section.sourceLine);
   if (headingChip) heading.append(headingChip);
   wrapper.append(heading);
+  // A section you can see is a section you can check against the table under it.
+  // The drawing is derived from the same profile record the rows come from, so
+  // the two cannot disagree about what this member is.
+  if (section.profile) {
+    const diagram = profileDiagram(section.profile);
+    if (diagram) {
+      const figure = document.createElement("figure");
+      figure.className = "profile-figure";
+      figure.append(diagram);
+      const caption = document.createElement("figcaption");
+      caption.textContent = "Section A–A · derived from the section's dimensions, not a solver result";
+      figure.append(caption);
+      wrapper.append(figure);
+    }
+    const derived = profilePropertyRows(section.profile, formatProfileQuantity);
+    if (derived.length) {
+      const derivedTable = document.createElement("table");
+      derivedTable.className = "property-table profile-properties";
+      const derivedBody = document.createElement("tbody");
+      for (const row of derived) {
+        const tr = document.createElement("tr");
+        const th = document.createElement("th");
+        th.scope = "row";
+        th.textContent = row.label;
+        const td = document.createElement("td");
+        td.textContent = row.value;
+        tr.append(th, td);
+        derivedBody.append(tr);
+      }
+      derivedTable.append(derivedBody);
+      wrapper.append(derivedTable);
+    }
+  }
   const table = document.createElement("table");
   table.className = "property-table";
   const body = document.createElement("tbody");
@@ -3991,6 +4025,17 @@ function formatPropertyValue(value) {
   if (Array.isArray(value) || (value && typeof value === "object")) {
     return JSON.stringify(value);
   }
+  return String(value);
+}
+
+// A section property in the units structural engineers quote them in. m2 and m4
+// are the scene contract's SI values, but 8.6e7 mm4 is not a number anyone
+// checks against a section table, and cm2/cm4 is how a rolled section's
+// properties are printed on the table and in the catalog.
+function formatProfileQuantity(value, unit) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "not computed";
+  if (unit === "m2") return `${(value * 1e4).toFixed(1)} cm²`;
+  if (unit === "m4") return `${(value * 1e8).toFixed(1)} cm⁴`;
   return String(value);
 }
 
