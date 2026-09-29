@@ -1,0 +1,1117 @@
+DEBUT(PAR_LOT='NON');
+
+# ----- Read mesh -----
+MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
+                      UNITE=20);
+
+MAIL = MAIL0;
+
+# ----- Model definition -----
+MODELE = AFFE_MODELE(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='AllPipes',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='TUYAU_3M',
+        ),
+        _F(
+            GROUP_MA='G_TUBE',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='POU_D_T',
+        ),
+        _F(
+            GROUP_MA='GA72D480',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='G2F811FE',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='GBB23ACA',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='G74A7F8A',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='G0FA7226',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+        _F(
+            GROUP_MA='GB55BD6C',
+            PHENOMENE='MECANIQUE',
+            MODELISATION='DIS_T',
+        ),
+    ),
+);
+
+# ----- Material definitions -----
+MAT_STEEL = DEFI_MATERIAU(
+    ELAS=_F(
+        E=2.100000E+11,
+        NU=3.000000E-01,
+        RHO=7.850000E+03,
+        ALPHA=1.200000E-05,
+    ),
+);
+
+CM0 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.0,DIST_1=1.0))
+CM1 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.0,DIST_1=1.0))
+CM2 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.3,DIST_1=1.0))
+CM3 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.3,DIST_1=1.0))
+CM4 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.3,DIST_1=1.0))
+CM5 = DEFI_MATERIAU(DIS_CONTACT=_F(RIGI_NOR=10000000000.0,RIGI_TAN=100000000.0,COULOMB=0.3,DIST_1=1.0))
+# ----- Material assignment -----
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='G5AF7883',
+            MATER=MAT_STEEL,
+        ),
+_F(GROUP_MA='GA72D480',MATER=CM0),
+_F(GROUP_MA='G2F811FE',MATER=CM1),
+_F(GROUP_MA='GBB23ACA',MATER=CM2),
+_F(GROUP_MA='G74A7F8A',MATER=CM3),
+_F(GROUP_MA='G0FA7226',MATER=CM4),
+_F(GROUP_MA='GB55BD6C',MATER=CM5),
+    ),
+);
+
+# ----- Cross-section properties -----
+CARA = AFFE_CARA_ELEM(
+    MODELE=MODELE,
+    POUTRE=(
+        _F(
+            GROUP_MA='GD492E03',
+            SECTION='CERCLE',
+            CARA=('R', 'EP'),
+            VALE=(1.36550000E-01, 7.10000000E-03),
+        ),
+        _F(
+            GROUP_MA='GC66F82F',
+            SECTION='GENERALE',
+            CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+            VALE=(2.00949294E-03, 6.83160340E-07, 8.69467166E-06, 2.58673000E+00, 1.79520300E+00, -1.30000000E-08, -2.00000000E-08, 3.49110397E-08, 3.88907881E-03, 3.17100000E-15, 2.79300000E-15, 8.00000000E-02, 4.10000000E-02, 1.05105490E-02),
+        ),
+        _F(
+            GROUP_MA='G6167DC1',
+            SECTION='GENERALE',
+            CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+            VALE=(8.44743440E-03, 1.31784385E-05, 2.31318185E-04, 2.49977500E+00, 1.86338500E+00, 5.60000000E-08, -3.30000000E-08, 4.99132342E-07, 4.82921288E-01, -5.57030000E-14, -4.51690000E-14, 2.00000000E-01, 9.00000000E-02, 2.06285800E-02),
+        ),
+        _F(
+            GROUP_MA='G4549CB0',
+            SECTION='GENERALE',
+            CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+            VALE=(2.84887561E-03, 1.42371346E-06, 1.94352192E-05, 2.59788600E+00, 1.79388900E+00, 3.30000000E-08, -8.00000000E-09, 6.77988057E-08, 1.27471754E-02, -1.07360000E-14, -1.53080000E-14, 1.00000000E-01, 5.00000000E-02, 1.25809360E-02),
+        ),
+        _F(
+            GROUP_MA='GE87720F',
+            SECTION='GENERALE',
+            CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+            VALE=(5.38192814E-03, 6.03785858E-06, 8.35741224E-05, 2.59234600E+00, 1.83060000E+00, 4.30000000E-08, -2.30000000E-08, 1.95471874E-07, 1.24263462E-01, 6.18100000E-15, -5.07800000E-15, 1.50000000E-01, 7.50000000E-02, 1.58252990E-02),
+        ),
+    ),
+    DISCRET=(
+_F(GROUP_MA='GA72D480',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='G2F811FE',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='GBB23ACA',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='G74A7F8A',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='G0FA7226',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+_F(GROUP_MA='GB55BD6C',REPERE='LOCAL',CARA='K_T_D_L',VALE=(0.,0.,0.)),
+    ),
+    ORIENTATION=(
+_F(GROUP_MA='GA72D480',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='G2F811FE',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='GBB23ACA',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='G74A7F8A',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='G0FA7226',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+_F(GROUP_MA='GB55BD6C',CARA='VECT_Y',VALE=(1.0, 0.0, 0.0)),
+        _F(
+            GROUP_NO='G06D7539',
+            CARA='GENE_TUYAU',
+            VALE=(0.00000000E+00, 0.00000000E+00, 1.00000000E+00),
+        ),
+        _F(
+            GROUP_MA='G53FC09C',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G9397FB9',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GCD45565',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G7AF610E',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G80FBE5E',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GF838561',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GBDBFC36',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G96E1376',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G9B31A5E',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G4B85C75',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G4CF9AC5',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G83B55B6',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GC0AC39D',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GAF7FA4E',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GED800EF',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G28D82A0',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G11F09DB',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G7578716',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G41B7367',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G0A0829C',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GD70ECDD',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G50963C7',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G9812DFE',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G2E0192B',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G16B7614',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GBB47DC9',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G5B35A07',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G2D10692',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G9AC641E',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GCDCC098',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GBCF4433',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G56AC941',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G83FC9E4',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G06537E2',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GEAAFCCC',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G36236EA',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G10B886E',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G645C720',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G4F41481',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GB983B25',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G9CAE4F8',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G589DB31',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G22D099F',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G9639B0A',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GDBB14C6',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GE681672',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G0AF03AA',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GFA6489A',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GE31E3B1',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GFC0EE66',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G130AE8B',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GD66D756',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G8ADD36F',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G7B8B992',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G6D095E6',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G5E89897',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GF5086B0',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G51DFF4B',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G8426D13',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GEB97D28',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GB44A0EB',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GB0F4864',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G9E44D29',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G252810A',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G6A76315',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GC689CE1',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GE2A4906',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G68BCF9C',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GC67F286',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GCDAD3DE',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GB71DC73',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G84BB8BC',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G67BC88F',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GFAA34B9',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G8796237',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GD675302',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G27797CF',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G5570751',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G465CA55',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G595DC6F',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='G8EEA3D7',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GF9ED181',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+        _F(
+            GROUP_MA='GDD31B25',
+            CARA='ANGL_VRIL',
+            VALE=0.0000,
+        ),
+    ),
+);
+
+# ----- Boundary conditions -----
+BC_0 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N0',
+        WO=0.0,
+    ),
+);
+
+BC_1 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N1',
+        DY=0.0,
+        WO=0.0,
+    ),
+);
+
+BC_2 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N7',
+        DY=0.0,
+        WO=0.0,
+    ),
+);
+
+BC_3 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N8',
+        WO=0.0,
+    ),
+);
+
+BC_4 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N9',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_5 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N10',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_6 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N11',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_7 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N12',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_8 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N13',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_9 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N14',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_10 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N15',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_11 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N16',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_12 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N17',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_13 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N18',
+        BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+    ),
+);
+
+BC_14 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N2',
+        WO=0.0,
+    ),
+);
+
+BC_15 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N3',
+        WO=0.0,
+    ),
+);
+
+BC_16 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N5',
+        WO=0.0,
+    ),
+);
+
+BC_17 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N6',
+        WO=0.0,
+    ),
+);
+
+BC_18 = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    LIAISON_DDL=(
+        _F(GROUP_NO=('GN_N4', 'GN_N41'), DDL=('DX', 'DX'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),
+        _F(GROUP_NO=('GN_N4', 'GN_N41'), DDL=('DY', 'DY'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),
+        _F(GROUP_NO=('GN_N4', 'GN_N41'), DDL=('DZ', 'DZ'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),
+        _F(GROUP_NO=('GN_N4', 'GN_N41'), DDL=('DRX', 'DRX'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),
+        _F(GROUP_NO=('GN_N4', 'GN_N41'), DDL=('DRY', 'DRY'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),
+        _F(GROUP_NO=('GN_N4', 'GN_N41'), DDL=('DRZ', 'DRZ'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),
+    ),
+    DDL_IMPO=_F(
+        GROUP_NO='GN_N4',
+        WO=0.0,
+    ),
+);
+
+GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='GROUND_0',DX=0.,DY=0.,DZ=0.))
+GROUND1 = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='GROUND_3',DX=0.,DY=0.,DZ=0.))
+GROUND2 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('GD3F8976','GN_N39'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GD3F8976','GN_N39'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GD3F8976','GN_N39'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
+GROUND3 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('GEE3684B','GN_N40'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GEE3684B','GN_N40'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('GEE3684B','GN_N40'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
+GROUND4 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('G7AE05B8','GN_N42'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('G7AE05B8','GN_N42'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('G7AE05B8','GN_N42'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
+GROUND5 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(_F(GROUP_NO=('G674F58A','GN_N43'),DDL=('DX','DX'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('G674F58A','GN_N43'),DDL=('DY','DY'),COEF_MULT=(1.,-1.),COEF_IMPO=0.),_F(GROUP_NO=('G674F58A','GN_N43'),DDL=('DZ','DZ'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)))
+# ----- Gravity -----
+GRAVITY = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    PESANTEUR=_F(
+        GRAVITE=9.81,
+        DIRECTION=(0.0, 0.0, -1.0),
+    ),
+);
+
+# ----- Internal pressure -----
+PRESSURE = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    FORCE_TUYAU=_F(
+        GROUP_MA='AllPipes',
+        PRES=4.000000E+06,
+    ),
+);
+
+# ----- Concentrated nodal forces -----
+POINT_FORCE = AFFE_CHAR_MECA(
+    MODELE=MODELE,
+    FORCE_NODALE=(
+        _F(
+            GROUP_NO='GN_N0',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-2.25000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N1',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-6.75000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N2',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-1.80000000E+03,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N3',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-2.70000000E+03,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N4',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-2.70000000E+03,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N5',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-2.70000000E+03,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N6',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-1.57500000E+03,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N7',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-6.75000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+        _F(
+            GROUP_NO='GN_N8',
+            FX=0.00000000E+00,
+            FY=0.00000000E+00,
+            FZ=-4.50000000E+02,
+            MX=0.00000000E+00,
+            MY=0.00000000E+00,
+            MZ=0.00000000E+00,
+        ),
+    ),
+);
+
+# ----- Thermal expansion -----
+TEMP_REF_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MAILLAGE=MAIL,
+    AFFE=_F(
+        TOUT='OUI',
+        NOM_CMP='TEMP',
+        VALE=2.000000E+01,
+    ),
+);
+
+TEMP_HOT_FIELD = CREA_CHAMP(
+    TYPE_CHAM='NOEU_TEMP_R',
+    OPERATION='AFFE',
+    MODELE=MODELE,
+    AFFE=(
+        _F(
+            TOUT='OUI',
+            NOM_CMP='TEMP',
+            VALE=1.200000E+02,
+        ),
+        _F(
+            GROUP_MA=('G865AF37', 'G8DCD4C6', 'GF75806A', 'G5E41366', 'G93D04F2', 'G3742589', 'G868686F', 'G4913DE3',),
+            NOM_CMP='TEMP',
+            VALE=4.000000E+02,
+        ),
+    ),
+);
+
+TEMP_EVOL = CREA_RESU(
+    OPERATION='AFFE',
+    TYPE_RESU='EVOL_THER',
+    NOM_CHAM='TEMP',
+    AFFE=(
+        _F(CHAM_GD=TEMP_REF_FIELD, INST=0.0),
+        _F(CHAM_GD=TEMP_HOT_FIELD, INST=1.0),
+    ),
+);
+
+CHMAT = AFFE_MATERIAU(
+    MAILLAGE=MAIL,
+    AFFE=(
+        _F(
+            GROUP_MA='G5AF7883',
+            MATER=MAT_STEEL,
+        ),
+_F(GROUP_MA='GA72D480',MATER=CM0),
+_F(GROUP_MA='G2F811FE',MATER=CM1),
+_F(GROUP_MA='GBB23ACA',MATER=CM2),
+_F(GROUP_MA='G74A7F8A',MATER=CM3),
+_F(GROUP_MA='G0FA7226',MATER=CM4),
+_F(GROUP_MA='GB55BD6C',MATER=CM5),
+    ),
+    AFFE_VARC=_F(
+        GROUP_MA=('AllPipes', 'G_TUBE'),
+        NOM_VARC='TEMP',
+        EVOL=TEMP_EVOL,
+        NOM_CHAM='TEMP',
+        VALE_REF=2.000000E+01,
+    ),
+);
+
+# ----- Solve -----
+lst_inst = DEFI_LIST_REEL(DEBUT=0.0, INTERVALLE=_F(JUSQU_A=1.0, NOMBRE=10));
+times = DEFI_LIST_INST(DEFI_LIST=_F(LIST_INST=lst_inst));
+
+RESU = STAT_NON_LINE(
+    MODELE=MODELE,
+    CHAM_MATER=CHMAT,
+    CARA_ELEM=CARA,
+    EXCIT=(
+        _F(CHARGE=BC_0),
+        _F(CHARGE=BC_1),
+        _F(CHARGE=BC_2),
+        _F(CHARGE=BC_3),
+        _F(CHARGE=BC_4),
+        _F(CHARGE=BC_5),
+        _F(CHARGE=BC_6),
+        _F(CHARGE=BC_7),
+        _F(CHARGE=BC_8),
+        _F(CHARGE=BC_9),
+        _F(CHARGE=BC_10),
+        _F(CHARGE=BC_11),
+        _F(CHARGE=BC_12),
+        _F(CHARGE=BC_13),
+        _F(CHARGE=BC_14),
+        _F(CHARGE=BC_15),
+        _F(CHARGE=BC_16),
+        _F(CHARGE=BC_17),
+        _F(CHARGE=BC_18),
+        _F(CHARGE=GROUND0),
+        _F(CHARGE=GROUND1),
+        _F(CHARGE=GROUND2),
+        _F(CHARGE=GROUND3),
+        _F(CHARGE=GROUND4),
+        _F(CHARGE=GROUND5),
+        _F(CHARGE=GRAVITY),
+        _F(CHARGE=PRESSURE),
+        _F(CHARGE=POINT_FORCE),
+    ),
+    COMPORTEMENT=(
+        _F(
+            GROUP_MA=('AllPipes', 'G_TUBE',),
+            RELATION='ELAS',
+        ),
+        _F(GROUP_MA='GA72D480', RELATION='DIS_CHOC', RESI_INTE=1e-9),
+        _F(GROUP_MA='G2F811FE', RELATION='DIS_CHOC', RESI_INTE=1e-9),
+        _F(GROUP_MA='GBB23ACA', RELATION='DIS_CHOC', RESI_INTE=1e-9),
+        _F(GROUP_MA='G74A7F8A', RELATION='DIS_CHOC', RESI_INTE=1e-9),
+        _F(GROUP_MA='G0FA7226', RELATION='DIS_CHOC', RESI_INTE=1e-9),
+        _F(GROUP_MA='GB55BD6C', RELATION='DIS_CHOC', RESI_INTE=1e-9),
+    ),
+    INCREMENT=_F(
+        LIST_INST=times,
+    ),
+    CONVERGENCE=_F(RESI_GLOB_RELA=1e-8, ITER_GLOB_MAXI=50),
+    METHODE='NEWTON',
+);
+
+# ----- Derived fields -----
+RESU = CALC_CHAMP(
+    reuse=RESU,
+    RESULTAT=RESU,
+    CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+    CRITERES=('SIEQ_ELGA', 'SIEQ_ELNO'),
+    FORCE='REAC_NODA',
+);
+
+# ----- Write MED results file -----
+IMPR_RESU(
+    FORMAT='MED',
+    UNITE=80,
+    RESU=_F(
+        RESULTAT=RESU,
+        INST=1.0,
+        CARA_ELEM=CARA,
+        NOM_CHAM=('DEPL', 'SIEQ_ELGA', 'SIEQ_ELNO', 'EFGE_ELNO', 'REAC_NODA'),
+    ),
+);
+
+# ----- Text table for EFGE_ELNO -----
+TAB_EFFO = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='EFGE_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_EFFO,
+    UNITE=38,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for DEPL -----
+TAB_DEPL = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='DEPL',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_DEPL,
+    UNITE=39,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for REAC_NODA -----
+TAB_REAC = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='REAC_NODA',
+        TOUT='OUI',
+        NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_REAC,
+    UNITE=40,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+# ----- Text table for SIEQ_ELNO -----
+TAB_SIEQ = CREA_TABLE(
+    RESU=_F(
+        RESULTAT=RESU,
+        NOM_CHAM='SIEQ_ELNO',
+        TOUT='OUI',
+        NOM_CMP=('VMIS',),
+        INST=1.0,
+    ),
+);
+
+IMPR_TABLE(
+    TABLE=TAB_SIEQ,
+    UNITE=41,
+    FORMAT='TABLEAU',
+    FORMAT_R='1PE24.16',
+    SEPARATEUR=',',
+);
+
+import json
+contact_rows = []
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GA72D480',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GA72D480',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='support_0',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G2F811FE',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G2F811FE',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='support_3',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GBB23ACA',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GBB23ACA',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='support_14',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G74A7F8A',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G74A7F8A',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='support_15',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G0FA7226',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='G0FA7226',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='support_16',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+CT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GB55BD6C',NOM_CHAM='SIEF_ELGA',TOUT_CMP='OUI',INST=1.0))
+forces = CT.EXTR_TABLE().values()
+VT = CREA_TABLE(RESU=_F(RESULTAT=RESU,GROUP_MA='GB55BD6C',NOM_CHAM='VARI_ELGA',TOUT_CMP='OUI',INST=1.0))
+variables = VT.EXTR_TABLE().values()
+if not all(f'V{i}' in variables for i in range(1,11)): raise RuntimeError('Native friction requires the qualified ten-variable DIS_CHOC layout.')
+iv = {float(t): i for i,t in enumerate(variables["INST"]) if variables["POINT"][i] == 1}
+for i,t in enumerate(forces["INST"]):
+    if forces["POINT"][i] != 1: continue
+    j = iv[float(t)]
+    contact_rows.append(dict(support_id='support_17',instant=float(t),N=forces["N"][i],VY=forces["VY"][i],VZ=forces["VZ"][i],slip_y=variables["V5"][j],slip_z=variables["V6"][j],status=variables["V4"][j]))
+with open('fort.42','w') as stream: json.dump(contact_rows,stream,allow_nan=False)
+FIN();

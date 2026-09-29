@@ -39,9 +39,9 @@ REQUIRED = {
 }
 OFFICIAL_BUNDLES = [
     "autorouted-expansion-loop",
-      "code-aster-review",
-      "steel-portal-frame-review",
-      "elements-supports-review",
+    "braced-rack-thermal-split",
+    "code-aster-review",
+    "elements-supports-review",
     "gmsh-tee-mesh-review",
     "guyed-mast-review",
     "hydrogen-plant-layout",
@@ -51,9 +51,11 @@ OFFICIAL_BUNDLES = [
     "native-friction-review",
     "pipe-tee-volume-review",
     "profile-orientation-review",
-      "rack_bridge_demo",
-      "support-rack-review",
-  ]
+    "rack_bridge_demo",
+    "steel-portal-frame-review",
+    "support-rack-review",
+]
+
 # OFFICIAL_BUNDLES above stays written out by hand on purpose: it is the one
 # place that says which reviews are published, so adding or losing one has to
 # be a deliberate edit here. Which of them reach Pages is a property of the

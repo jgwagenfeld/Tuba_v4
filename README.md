@@ -32,7 +32,9 @@ Open a review without installing Tuba. Choose **Build**, edit `model.py`, and **
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png" width="250" alt="Line loads review in the Tuba viewer"></a><br><b>Line loads</b><br>Where does a distributed line load go once the line is restrained?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png" width="250" alt="Road crossing review in the Tuba viewer"></a><br><b>Road crossing</b><br>How does a line cross an 8 m roadway on a shoe-supported rack bridge?</td>
 </tr>
-<tr><td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png" width="250" alt="Load-case preparation in the Tuba viewer"></a><br><b>Load-case preparation</b><br>How do sustained, thermal, occasional and pressure loads change the same pipe?</td></tr>
+<tr><td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png" width="250" alt="Load-case preparation in the Tuba viewer"></a><br><b>Load-case preparation</b><br>How do sustained, thermal, occasional and pressure loads change the same pipe?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png" width="250" alt="Portal frame stability review in the Tuba viewer"></a><br><b>Portal frame stability</b><br>How far is this frame from buckling, and where does it deflect?</td>
+<td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/braced-rack-thermal-split.png" width="250" alt="Braced rack split review in the Tuba viewer"></a><br><b>Braced rack split</b><br>Where does one hot line's growth go on a rack that is growing too?</td></tr>
 </table>
 
 ## Example
@@ -72,11 +74,9 @@ Scene bundles contain model geometry, analysis meshes, results, and run metadata
 - Define pipe runs, bends, supports, racks and imported components in Python.
 - Route lines automatically around obstacles and add thermal expansion loops.
 - Analyse with beam, `TUYAU` pipe-wall or full 3D solid idealisations.
-- Assign [fluid contents by operation](docs/content/modeling.md#fluid-contents-by-operation)
-  for empty, operating and hydrotest 1D piping, with separate mass reporting.
+- Assign [fluid contents by operation](docs/content/modeling.md#fluid-contents-by-operation) for empty, operating and hydrotest 1D piping, with separate mass reporting.
 - Recover deflection, wall stress, element forces and support reactions.
-- Check operating-state clearances against the deformed line and apply your own
-  design rules.
+- Check operating-state clearances against the deformed line and apply your own design rules.
 - Display results in PyVista or the web viewer, export glTF, PLY or Blender files, and
   exchange with IFC.
 

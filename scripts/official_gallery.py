@@ -243,6 +243,21 @@ OFFICIAL_GALLERIES = (
         ),
     ),
     _project_gallery(
+        "braced-rack-thermal-split",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "braced-rack-thermal-split",
+        title="Braced rack split",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="Where does one hot line's growth go on a rack that is growing too?",
+        summary=(
+            "A DN250 line on a four-bay braced steel rack, anchored once at mid-run. One pipe at "
+            "400 C grows at four times the rate of the steel beneath it, so the shoes slide and the "
+            "end bays take the whole expansion. The review shows displacement, wall stress, the "
+            "support reactions and the load path the sliding shoes actually carry."
+        ),
+    ),
+    _project_gallery(
         "code-aster-review",
         frozenset({"dev", "pages"}),
         "engineering-review",
@@ -253,25 +268,6 @@ OFFICIAL_GALLERIES = (
         summary=(
             "A pressurised line with two anchors and two bends. The review shows displacement, "
             "pipe-wall stress, and anchor reactions from one Code_Aster run."
-        ),
-    ),
-    _project_gallery(
-        # Dev-only for now. The evidence has to live in a registered project, and
-        # whether this becomes a public card is a product call, not a side effect
-        # of the feature landing.
-        "steel-portal-frame-review",
-        frozenset({"dev"}),
-        "engineering-review",
-        "steel-portal-frame",
-        title="Portal frame stability",
-        elements=("POU_D_T",),
-        question="How far is this frame from buckling, and where does it deflect?",
-        summary=(
-            "A seven-bay steel portal-frame industrial hall solved for gravity and wind in "
-            "Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. "
-            "The review shows displacements, reactions, member-end section forces, and the "
-            "critical load factors that say how far the frame is from a buckling mode. "
-            "Von Mises is absent by design: a pipe-free frame has no equivalent-stress field."
         ),
     ),
     _project_gallery(
@@ -426,6 +422,32 @@ OFFICIAL_GALLERIES = (
             "A DN150 process line rises from ground sleepers over an 8 m roadway on a four-bay steel rack bridge, "
             "then drops back to grade. Friction shoes carry it at every bay midpoint. The review shows thermal "
             "displacement, wall stress and support reactions from Code_Aster."
+        ),
+    ),
+    _project_gallery(
+        # Published since dfac5a4. It was dev-only while the evidence was still
+        # finding a home in a registered project; both Gravity and Wind now
+        # attest against the model, so the card can stand up in public. It sits
+        # in alphabetical position because the Pages build compares a sorted
+        # directory listing against the catalog order, and a published card
+        # that is out of order fails the build rather than the reader noticing.
+        "steel-portal-frame-review",
+        frozenset({"dev", "pages"}),
+        # Not engineering-review: that profile demands a stress field, and Tuba
+        # only asks Code_Aster for SIEQ when the model has pipe elements. A pure
+        # frame has displacement, reaction and section forces, and saying so is
+        # what beam-engineering-review already checks.
+        "beam-engineering-review",
+        "steel-portal-frame",
+        title="Portal frame stability",
+        elements=("POU_D_T",),
+        question="How far is this frame from buckling, and where does it deflect?",
+        summary=(
+            "A seven-bay steel portal-frame industrial hall solved for gravity and wind in "
+            "Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. "
+            "The review shows displacements, reactions, member-end section forces, and the "
+            "critical load factors that say how far the frame is from a buckling mode. "
+            "Von Mises is absent by design: a pipe-free frame has no equivalent-stress field."
         ),
     ),
     _project_gallery(

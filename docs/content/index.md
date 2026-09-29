@@ -62,6 +62,14 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
     **Load-case preparation** — How do sustained, thermal, occasional and pressure loads change the same pipe?
 
+-   [![Portal frame stability review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review)
+
+    **Portal frame stability** — How far is this frame from buckling, and where does it deflect?
+
+-   [![Braced rack split review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/braced-rack-thermal-split.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split)
+
+    **Braced rack split** — Where does one hot line's growth go on a rack that is growing too?
+
 </div>
 
 ## Start here

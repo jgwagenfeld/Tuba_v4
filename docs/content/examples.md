@@ -127,6 +127,22 @@ A DN150 process line rises from ground sleepers over an 8 m roadway on a four-ba
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo) &middot; Evidence: **Results**
 
+## Portal frame stability
+
+[![Portal frame stability review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review)
+
+A seven-bay steel portal-frame industrial hall solved for gravity and wind in Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. The review shows displacements, reactions, member-end section forces, and the critical load factors that say how far the frame is from a buckling mode. Von Mises is absent by design: a pipe-free frame has no equivalent-stress field.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review) &middot; Evidence: **Results** (2 load cases)
+
+## Braced rack split
+
+[![Braced rack split review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/braced-rack-thermal-split.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split)
+
+A DN250 line on a four-bay braced steel rack, anchored once at mid-run. One pipe at 400 C grows at four times the rate of the steel beneath it, so the shoes slide and the end bays take the whole expansion. The review shows displacement, wall stress, the support reactions and the load path the sliding shoes actually carry.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split) &middot; Evidence: **Results** (1 load case)
+
 ## Local examples
 
 Run an example with:
@@ -163,7 +179,7 @@ No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** wri
 
 ## Gallery projects
 
-Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review`, `support-rack-review`, `hydrogen-plant-layout`, `line-load-studio` and `rack_bridge_demo`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
+Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review`, `steel-portal-frame`, `support-rack-review`, `braced-rack-thermal-split`, `hydrogen-plant-layout`, `line-load-studio`, `load-case-preparation` and `rack_bridge_demo`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
 
 Gallery cards offer a project ZIP when one was built. Extract it and run Studio from the archive root; the ZIP includes the example's shared Python helpers and local assets. It does not contain solver evidence. Some cards also offer a geometry-only IFC file when the exporter can represent the whole native model geometry. Imported CAD, volume meshes and unsupported elements have no IFC link. A downloaded IFC contains no stress or operating-state results.
 

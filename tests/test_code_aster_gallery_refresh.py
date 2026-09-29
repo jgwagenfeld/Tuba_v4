@@ -55,8 +55,8 @@ def test_official_gallery_records_own_refresh_metadata():
 
     assert tuple(gallery.id for gallery in engineering) == (
         "autorouted-expansion-loop",
+        "braced-rack-thermal-split",
         "code-aster-review",
-        "steel-portal-frame-review",
         "elements-supports-review",
         "guyed-mast-review",
         "hydrogen-plant-layout",
@@ -66,6 +66,7 @@ def test_official_gallery_records_own_refresh_metadata():
         "pipe-tee-volume-review",
         "profile-orientation-review",
         "rack_bridge_demo",
+        "steel-portal-frame-review",
         "support-rack-review",
     )
     assert all(gallery.artifact_dir is not None for gallery in engineering)

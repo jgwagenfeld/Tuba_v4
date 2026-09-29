@@ -1007,6 +1007,7 @@ const scenarios = {
         await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.galleryCard)),
         [
             "autorouted-expansion-loop",
+            "braced-rack-thermal-split",
             "code-aster-review",
             "elements-supports-review",
             "guyed-mast-review",
@@ -1018,6 +1019,7 @@ const scenarios = {
             "pipe-tee-volume-review",
             "profile-orientation-review",
             "rack_bridge_demo",
+            "steel-portal-frame-review",
             "support-rack-review"
           ]
       );

@@ -115,6 +115,7 @@ notebooks/advanced_piping_rack.ifc
 /viewer/public/line-load-studio/
 /viewer/public/rack_bridge_demo/
 /viewer/public/steel-portal-frame-review/
+/viewer/public/braced-rack-thermal-split/
 
 # Vite build scratch output
 /.tmp/
