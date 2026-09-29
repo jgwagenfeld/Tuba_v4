@@ -1,28 +1,44 @@
 // The support glyph's visual vocabulary, in one place.
 //
-// The renderer paints three materials and the viewport key names them. When each
+// The renderer paints support marks and the viewport key names them. When each
 // side held its own copy, a colour change in one silently desynced the other and
-// the key ended up naming a mark that was no longer on screen. The key also has
-// to say "authored input" the way the applied-load rows do, because every other
-// coloured arrow in the scene is a Code_Aster result and a reader cannot tell an
-// input from a result by hovering.
+// the key ended up naming a mark that was no longer on screen.
 //
-// Two of these hues are shared with the vector convention - the spring blue is
-// the applied-force blue and the prescribed orange is the reaction-moment orange.
-// That collision predates this module and is left alone here because the
-// screenshot baselines in the Pages build are keyed to those exact colours;
-// the rows below are what make the marks resolvable, not a sixth hue.
-
+// Support glyphs are achromatic, and that is the point rather than a concession.
+// Every hue in the scene belongs to the vector convention, where it carries one
+// bit that matters: blue and teal are authored inputs, red and orange are
+// Code_Aster results. The support glyphs were borrowing from both ends of that -
+// a spring ring in the applied-force blue, a prescribed cone in the
+// reaction-moment orange - so a reader could not tell an authored support from a
+// solved reaction by looking at the mark, only by opening a panel.
+//
+// So hue now means exactly one thing and the three support marks differ by shape
+// alone: solid paired cones for a restraint, rings for a spring, a single hollow
+// cone for a prescribed movement. The key is where a shape is decoded, which is
+// the honest arrangement for a shape-only language.
+//
+// A true neutral, not the cool slate #1f2937: "no colour" has to mean r == g == b,
+// and a tinted grey is still a hue a reader can be misled by. Dark enough to read
+// against the light ground the renderer paints.
 export const SUPPORT_PART_COLORS = Object.freeze({
-  restraint: "#daa520",
-  spring: "#2563eb",
-  prescribed: "#f97316"
+  restraint: "#262626",
+  spring: "#262626",
+  prescribed: "#262626"
 });
 
 export const SUPPORT_PART_LABELS = Object.freeze({
-  restraint: "Restraint — authored input, degrees of freedom held",
-  spring: "Support spring — authored input, stiffness to ground",
-  prescribed: "Prescribed displacement — authored input, penalty stiffness"
+  restraint: "Restraint — authored input, solid cones on the held degrees of freedom",
+  spring: "Support spring — authored input, rings at the support",
+  prescribed: "Prescribed displacement — authored input, hollow cone, penalty stiffness"
+});
+
+// How each part is filled, which is the half of "shape" the primitive geometry
+// cannot express. A prescribed movement is hollow where a restraint is solid, so
+// the two are told apart even at the size a restraint glyph is drawn.
+export const SUPPORT_PART_FILLS = Object.freeze({
+  restraint: "solid",
+  spring: "solid",
+  prescribed: "hollow"
 });
 
 export const SUPPORT_PARTS = Object.freeze(["restraint", "spring", "prescribed"]);

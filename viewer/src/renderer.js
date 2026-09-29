@@ -1499,10 +1499,17 @@ function createSupportGlyph(asset, config, format, point, state) {
   );
   // One definition of the support glyph's vocabulary, shared with the viewport
   // key: a colour changed here and not there used to leave the key naming a mark
-  // that was no longer on screen.
+  // that was no longer on screen. All three are the same neutral, because hue in
+  // this scene belongs to the vector convention and is spent on input-vs-result.
   const restraintMaterial = supportMaterial(Number.parseInt(SUPPORT_PART_COLORS.restraint.slice(1), 16));
   const springMaterial = supportMaterial(Number.parseInt(SUPPORT_PART_COLORS.spring.slice(1), 16));
-  const displacementMaterial = supportMaterial(Number.parseInt(SUPPORT_PART_COLORS.prescribed.slice(1), 16));
+  const displacementMaterial = supportMaterial(Number.parseInt(SUPPORT_PART_COLORS.prescribed.slice(1), 16), {
+    // Hollow, where a restraint is solid. A prescribed movement and a restraint
+    // are both cones on the same axis, so fill is the half of shape that the
+    // primitive geometry cannot express - and the key names it.
+    wireframe: true,
+    opacity: 0.9
+  });
   const glyph = new THREE.Group();
   glyph.name = asset.id;
   glyph.position.copy(point);
@@ -1707,14 +1714,14 @@ function createSupportGlyph(asset, config, format, point, state) {
   return { format, object: glyph };
 }
 
-function supportMaterial(color) {
+function supportMaterial(color, { transparent = true, opacity = 0.5, wireframe = false } = {}) {
   return new THREE.MeshBasicMaterial({
     color,
     depthTest: true,
     depthWrite: false,
-    opacity: 0.5,
-    transparent: true,
-    wireframe: false
+    opacity,
+    transparent,
+    wireframe
   });
 }
 

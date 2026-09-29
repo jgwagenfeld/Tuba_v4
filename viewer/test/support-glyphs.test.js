@@ -7,7 +7,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { describeDofStates, SUPPORT_PART_COLORS, SUPPORT_PART_LABELS, supportParts, visibleSupportParts } from "../src/supportGlyphs.js";
+import { describeDofStates, SUPPORT_PART_COLORS, SUPPORT_PART_FILLS, SUPPORT_PART_LABELS, supportParts, visibleSupportParts } from "../src/supportGlyphs.js";
 
 const FIXED = ["fixed", "fixed", "fixed", "fixed", "fixed", "fixed"];
 const ALL_FREE = ["free", "free", "free", "free", "free", "free"];
@@ -65,6 +65,41 @@ test("the key names every mark it can list, and each says it is an input", () =>
   // "Prescribed displacement" has to say it is a penalty, because a prescribed
   // value a penalty method cannot hold exactly is the thing most worth knowing.
   assert.match(SUPPORT_PART_LABELS.prescribed, /penalty/i);
+});
+
+test("support glyphs are achromatic, so hue is left to the vector convention", () => {
+  // Blue and teal are authored inputs; red and orange are Code_Aster results.
+  // The support glyphs used to borrow a blue and an orange from those two ends,
+  // so a reader could not tell an authored support from a solved reaction by
+  // looking at the mark. One neutral, and shape does the rest.
+  const values = new Set(Object.values(SUPPORT_PART_COLORS));
+  assert.equal(values.size, 1, "all three parts must share one colour");
+  const [only] = [...values];
+  const r = Number.parseInt(only.slice(1, 3), 16);
+  const g = Number.parseInt(only.slice(3, 5), 16);
+  const b = Number.parseInt(only.slice(5, 7), 16);
+  assert.equal(r, g, "the neutral has no red bias");
+  assert.equal(g, b, "the neutral has no blue bias");
+  // Dark enough to read on the light ground the renderer paints (#f8fafc).
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  assert.ok(luminance < 0.25, `neutral luminance ${luminance.toFixed(2)} is too light for the light ground`);
+
+  // And it is not any hue the vector convention spends.
+  for (const vectorColor of ["#2563eb", "#0f766e", "#dc2626", "#f97316", "#7c3aed", "#0284c7"]) {
+    assert.notEqual(only.toLowerCase(), vectorColor, "support glyphs must not reuse a vector hue");
+  }
+});
+
+test("shape, not fill alone, tells a prescribed movement from a restraint", () => {
+  // Both are cones on one axis. Solid-vs-hollow is the second signal, and the
+  // restraint's paired cones are the first.
+  assert.equal(SUPPORT_PART_FILLS.prescribed, "hollow");
+  assert.equal(SUPPORT_PART_FILLS.restraint, "solid");
+  assert.equal(SUPPORT_PART_FILLS.spring, "solid");
+  // The key has to say which is which, or a shape-only language is undecodable.
+  assert.match(SUPPORT_PART_LABELS.prescribed, /hollow cone/);
+  assert.match(SUPPORT_PART_LABELS.restraint, /solid cones/);
+  assert.match(SUPPORT_PART_LABELS.spring, /rings/);
 });
 
 test("held degrees of freedom are spelled out for the inspector", () => {

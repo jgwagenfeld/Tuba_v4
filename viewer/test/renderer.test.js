@@ -4,6 +4,11 @@ import { Box3, BoxGeometry, DoubleSide, Group, Line, LineBasicMaterial, Mesh, Me
 
 import * as rendererModule from "../src/renderer.js";
 import { colorForScalarValue } from "../src/resultReview.js";
+import { SUPPORT_PART_COLORS } from "../src/supportGlyphs.js";
+// Support glyphs are achromatic: hue belongs to the vector convention, where it
+// says authored-input vs Code_Aster-result. The tests below assert that rule
+// through this one constant rather than repeating a literal per part.
+const SUPPORT_NEUTRAL = Number.parseInt(SUPPORT_PART_COLORS.restraint.slice(1), 16);
 
 import {
   SUPPORTED_RENDER_FORMATS,
@@ -373,10 +378,10 @@ test("support restraints use solid V2 DOF glyphs at a visible scale", () => {
   for (const glyph of glyphs) {
     const size = new Box3().setFromObject(glyph).getSize(new Vector3());
     assert.ok(Math.max(size.x, size.y, size.z) >= 0.15, `${glyph.userData.supportGlyph} remains visible`);
-    for (const part of glyph.children) {
-      assert.equal(part.material.wireframe, false);
-      assert.equal(part.material.color.getHex(), 0xdaa520);
-    }
+      for (const part of glyph.children) {
+        assert.equal(part.material.wireframe, false);
+        assert.equal(part.material.color.getHex(), SUPPORT_NEUTRAL);
+      }
   }
 });
 
@@ -615,14 +620,16 @@ test("support springs and prescribed displacements retain V2 colors and axis sem
   const springParts = spring.children.filter((part) => part.userData.supportPart?.startsWith("spring"));
   assert.equal(springParts.filter((part) => part.userData.supportPart === "spring-ring").length, 8);
   assert.equal(springParts.filter((part) => part.userData.supportPart === "spring-rotation").length, 1);
-  assert.ok(springParts.every((part) => part.material.color.getHex() === 0x2563eb && part.material.wireframe === false));
+    assert.ok(springParts.every((part) => part.material.color.getHex() === SUPPORT_NEUTRAL && part.material.wireframe === false));
 
-  const prescribed = graph.objectsByObjectId.get("object:support:prescribed");
-  assert.equal(prescribed.children.filter((part) => part.userData.supportPart === "restraint-cone").length, 2);
-  const displacement = prescribed.children.find((part) => part.userData.supportPart === "prescribed-displacement");
-  assert.ok(displacement);
-  assert.equal(displacement.material.color.getHex(), 0xf97316);
-  assert.equal(displacement.material.wireframe, false);
+    const prescribed = graph.objectsByObjectId.get("object:support:prescribed");
+    assert.equal(prescribed.children.filter((part) => part.userData.supportPart === "restraint-cone").length, 2);
+    const displacement = prescribed.children.find((part) => part.userData.supportPart === "prescribed-displacement");
+    assert.ok(displacement);
+    assert.equal(displacement.material.color.getHex(), SUPPORT_NEUTRAL);
+    // Hollow where a restraint is solid: a prescribed movement and a restraint
+    // are both cones on one axis, and fill is what tells them apart.
+    assert.equal(displacement.material.wireframe, true);
 });
 
 test("scene graph reports invalid assets without throwing", () => {
@@ -1527,7 +1534,7 @@ test("hover tints a support glyph the emissive channel cannot reach", () => {
   const block = graph.objectsByObjectId
     .get("object:support:anchor")
     .children.find((part) => part.userData.supportPart === "fixed-block");
-  assert.equal(block.material.color.getHex(), 0xdaa520);
+    assert.equal(block.material.color.getHex(), SUPPORT_NEUTRAL);
 
   applyHoverHighlight(graph, "object:support:anchor");
   assert.equal(block.userData.hovered, true);
