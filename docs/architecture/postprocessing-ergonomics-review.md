@@ -531,22 +531,22 @@ Stealing the wrong thing from a competitor would be a regression against ADR 000
 | Slice | Lessons | Depends on |
 |---|---|---|
 | **1 — Cheap legibility** | L2 bands + legend bounds, L6 finding walk + threshold→selection, L1 reaction-consistency + value-basis facts, ~~L7~~ *(already shipped)* | nothing; all additive |
-| **2 — The decision** | L3 user reference ratio — **[ADR 0007](../adr/0007-user-reference-ratio-is-not-a-code-check.md)**, `proposed` | needs a material table in the scene |
-| **3 — Diagnostic depth** | L5 envelope, L4 reference stress, L9 report tiers | nothing for L4/L5; L3 for the report tiers |
-| **4 — Structural** | L8 station diagram plots | ~~a new plot surface~~ *(contactReview.js had one)* |
-| **5 — Differentiator** | L10 review state machine | **shipped**; raising a *result* into a disposition is still open |
+| **2 — The decision** | L3 user reference ratio — **[ADR 0007](../adr/0007-user-reference-ratio-is-not-a-code-check.md)**, `accepted` and **shipped** | nothing; the material table rides the ratio overlay's `reference` block |
+| **3 — Diagnostic depth** | L5 envelope, L4 reference stress, L9 report tiers | **shipped** |
+| **4 — Structural** | L8 station diagram plots | ~~a new plot surface~~ *(contactReview.js had one)* — **shipped** |
+| **5 — Differentiator** | L10 review state machine, and raising a *finding* into a disposition | **shipped** |
 
-Slices 1, 3, 4 and 5 shipped on `feat/postprocess-ergonomics`. What remains is
-L3 — the user reference ratio, behind ADR 0007, which needs a material table in
-the scene — L9's report tiers, and the one part of L10 the whole category is
-missing: raising a *finding* into a disposition, so that "this element at this
-station was reviewed and waived" is expressible against a result rather than only
-against a generated clash.
+All five slices are shipped. L3 and the last of L10 — the one part the whole
+category was missing, so that "this element at this station was reviewed and
+waived" is expressible against a *result* and not only against a generated clash
+— were the final two, and both are in.
 
-**L10 is smaller than this document says.** `viewerState.js` already has
-`setIssueReviewStatus` and `setIssueReviewComment`, and the scene contract's
-`Issue` already carries `status`, `created_by`, `created_at` and `comments`. What
-is missing is a surface, not a data model.
+The two L10 halves were not the same size. The state machine was nearly free:
+`viewerState.js` already had `setIssueReviewStatus` and `setIssueReviewComment`,
+and the scene contract's `Issue` already carried `status`, `created_by`,
+`created_at` and `comments`, so what was missing was a surface, not a data model.
+Making a *result* finding reviewable was a data change instead — the finding had
+to be addressable by the same review state the clash path already used.
 
 ### 8.1 Slice 1 — what shipped
 
