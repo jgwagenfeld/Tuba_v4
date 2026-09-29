@@ -1489,6 +1489,33 @@ textarea,
 
 /* The disposition is a decision about an issue, not another field of it, so it
    gets a titled section rather than joining the property table. */
+/* A finding's disposition, on the hotspot row. "unreviewed" is shown in the same
+   slot as a recorded status so a triaged finding and an untouched one cannot
+   both read as a plain row - the difference is what the list exists to show. */
+.hotspot-disposition {
+  margin-left: auto;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-text-3);
+  white-space: nowrap;
+}
+
+.hotspot-disposition.disposition-resolved,
+.hotspot-disposition.disposition-accepted {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.hotspot-disposition.disposition-waived {
+  border-color: var(--warning-on-dark);
+  color: var(--warning-on-dark);
+}
+
 .issue-disposition {
   display: grid;
   gap: 0.3rem;

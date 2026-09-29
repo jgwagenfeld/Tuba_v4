@@ -82,6 +82,8 @@ import {
   dispositionFor,
   dispositionRefusal,
   dispositionTally,
+  findingAddress,
+  findingSubjectId,
   reviewRecordCsv,
   reviewStatus,
   toReviewRecord
@@ -267,6 +269,11 @@ function dispatch(action) {
 }
 
 let selectedObjectId = null;
+// The finding whose disposition the inspector is showing, set from the hotspot
+// list. Module state rather than viewer state because it is a viewer's cursor
+// into the record, not part of the review: it is not saved, not exported and not
+// restored with a saved view.
+let selectedFindingSubject = null;
 let currentSearch = "";
 let issueFilters = { operatingOnly: false };
 let railExpanded = true;
@@ -1210,6 +1217,19 @@ function renderResultControls() {
       position_.textContent = `${activeIndex + 1}/${hotspots.length}`;
       button.append(position_);
     }
+    // A disposition can hang off a finding, not only off a generated clash. That
+    // is the join the whole piping category is missing: nothing can say "this
+    // element, this component, this result step, was examined and waived".
+    const subject = activeFindingSubject(hotspot);
+    const disposition = subject ? dispositionFor(currentState, subject.subjectId) : null;
+    if (subject) {
+      const record = document.createElement("span");
+      record.className = `hotspot-disposition disposition-${disposition?.status ?? "none"}`;
+      record.textContent = disposition
+        ? reviewStatus(disposition.status)?.label ?? disposition.status
+        : "unreviewed";
+      button.append(record);
+    }
     button.addEventListener("click", () => {
       selectedObjectId = hotspot.objectId;
       dispatch({ type: "focusFinding", objectId: hotspot.objectId });
@@ -1753,6 +1773,54 @@ function openSelectedRunDiagram() {
   }
   render();
   openRunDiagram();
+}
+
+// The finding's subject id and address, or null when there is no scalar field to
+// address it against. Both name the result step, the field and the component, so
+// a disposition recorded today still means the same thing after the hotspot list
+// re-sorts or the reviewer switches to the envelope.
+function activeFindingSubject(finding) {
+  const legend = getScalarLegend(currentState);
+  if (!finding || !legend) {
+    return null;
+  }
+  const context = {
+    fieldId: legend.fieldId ?? null,
+    component: legend.component ?? null,
+    resultStateId: currentState.activeResultStateId ?? null,
+    loadCase: currentState.activeLoadCase ?? null,
+    unit: legend.unit ?? null
+  };
+  const subjectId = findingSubjectId(finding, context);
+  if (!subjectId) {
+    return null;
+  }
+  return { subjectId, address: findingAddress(finding, context) };
+}
+
+function activeSubjectFinding() {
+  return getFindings(currentState).find((finding) => finding.objectId === currentState.activeFindingObjectId) ?? null;
+}
+
+// The inspector gets the disposition controls for a finding exactly as it does for
+// an issue, so a reviewer reaches it from where they already are: the object they
+// just walked to with `n`.
+function appendFindingDispositionAction() {
+  const subject = activeFindingSubject(activeSubjectFinding());
+  if (!subject) {
+    return null;
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "bar-button";
+  button.dataset.focusKey = "finding-disposition";
+  button.textContent = "Record a disposition";
+  button.title = "Record what you decided about this finding against the element, field and result step";
+  button.addEventListener("click", () => {
+    selectedFindingSubject = subject;
+    render();
+  });
+  return button;
 }
 
 function renderBodyList() {
@@ -3322,6 +3390,10 @@ function renderIssues() {
     empty.className = "meta";
     empty.textContent = "No issues.";
     dom.issueList.append(empty);
+    // The record's doorway is this panel, so it has to appear even when the
+    // review has no generated issues at all - which is exactly the case for a
+    // review whose only findings are results someone disposed of.
+    dom.issueList.append(renderReviewRecordExport());
     return;
   }
   // The focus key is what puts the keyboard back where it was after the
@@ -3534,7 +3606,24 @@ function renderProperties() {
   if (inputs) dom.properties.append(renderEvidenceSection(inputs));
   if (issueSummary) {
     dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
-    dom.properties.append(renderDispositionSection(issueSummary));
+    dom.properties.append(renderDispositionSection({ kind: "issue", subjectId: issueSummary.id }));
+  } else if (selectedFindingSubject) {
+    // A finding's disposition, reached from the object the reviewer just walked
+    // to. Same controls, same refusal, same export - only the address differs.
+    const finding = activeSubjectFinding();
+    const addressed = finding ? activeFindingSubject(finding) : null;
+    if (addressed) {
+      dom.properties.append(renderPropertySection({
+        title: "Finding",
+        rows: {
+          element: addressed.address.element_id ?? addressed.address.object_id ?? "unknown",
+          quantity: [addressed.address.field, addressed.address.component].filter(Boolean).join(" / ") || "unspecified",
+          load_case: addressed.address.load_case ?? "unspecified",
+          result_state: addressed.address.result_state_id ?? "unspecified"
+        }
+      }));
+      dom.properties.append(renderDispositionSection({ kind: "finding", ...addressed }));
+    }
   }
   const contact = renderContactReview(currentState, dispatch, render, "selection", selectedObjectId);
   if (contact) dom.properties.append(contact);
@@ -3714,20 +3803,50 @@ function formatPropertyValue(value) {
 }
 
 // The disposition controls, as a titled section so it reads as a decision rather
-// than as another field of the issue. `waived` is refused without a reason, and
-// the refusal is stated before the reviewer loses what they typed rather than as
-// a validator that appears after they hit save.
-function renderDispositionSection(issueSummary) {
+// than as another field of the issue. The same controls serve a finding and an
+// issue, because the decision is the same decision - and only the address differs.
+//
+// `waived` is refused without a reason, and the refusal is stated before the
+// reviewer loses what they typed rather than as a validator that appears after
+// they hit save.
+function renderDispositionSection(subject) {
   const section = document.createElement("section");
   section.className = "issue-disposition";
   const heading = document.createElement("h3");
-  heading.textContent = "Disposition";
-  section.append(heading, ...appendIssueReviewActions(issueSummary));
+  heading.textContent = subject.kind === "finding" ? "Disposition — finding" : "Disposition";
+  section.append(heading);
+  if (subject.address) {
+    section.append(metaLine(describeAddress(subject.address)));
+  }
+  section.append(...appendIssueReviewActions(subject));
   return section;
 }
 
-function appendIssueReviewActions(issueSummary) {
-  const record = dispositionFor(currentState, issueSummary.id);
+// The address, said in words. This is the sentence that makes a finding
+// disposition mean something three months later: which element, which quantity,
+// which result step.
+function describeAddress(address) {
+  const parts = [];
+  parts.push(address.element_id ?? address.object_id ?? "unknown element");
+  const quantity = [address.field, address.component].filter(Boolean).join(" / ");
+  if (quantity) {
+    parts.push(quantity);
+  }
+  parts.push(address.load_case ?? address.result_state_id ?? "unknown case");
+  const line = parts.join(" — ");
+  if (!Number.isFinite(Number(address.value))) {
+    return line;
+  }
+  const system = getUnitSystem(currentState);
+  const magnitude = formatQuantity(address.value, address.unit ?? "", system);
+  const utilization = Number.isFinite(Number(address.utilization))
+    ? ` · u=${formatScale(address.utilization)}`
+    : "";
+  return `${line}: ${magnitude}${utilization}`;
+}
+
+function appendIssueReviewActions(subject) {
+  const record = dispositionFor(currentState, subject.subjectId);
   const currentStatus = record?.status ?? "open";
 
   const reviewer = document.createElement("input");
@@ -3776,7 +3895,8 @@ function appendIssueReviewActions(issueSummary) {
     }
     dispatch({
       type: "recordDisposition",
-      issueId: issueSummary.id,
+      subjectId: subject.subjectId,
+      address: subject.address,
       status: status.value,
       comment: comment.value,
       at: new Date().toISOString()

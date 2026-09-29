@@ -1,4 +1,4 @@
-// The review record: what the engineer decided, and who decided it.
+﻿// The review record: what the engineer decided, and who decided it.
 //
 // No tool in the piping category can do this. AutoPIPE has node annotations - a
 // label attached to a point - and an image gallery; CAEPIPE has a QA block, which
@@ -62,12 +62,116 @@ export function dispositionRefusal({ status, comment }) {
   return null;
 }
 
+// A disposition can be recorded against a bundle *issue* or against a *finding* -
+// a result the reviewer looked at and decided about. Nothing in the piping
+// benchmark joins those two: a tool can mark a clash resolved, and it can
+// annotate a node, and it cannot say "this element, this component, this result
+// step, was examined and waived".
+//
+// The subject id has to be *stable*, because a disposition recorded in March
+// against a finding must still mean something in April when the hotspot list
+// re-sorts. It therefore names every coordinate rather than any of them alone:
+// the result step, the field, the component and the object. Drop the component and
+// "waived" silently changes from meaning MFY to meaning MFZ; drop the result step
+// and it changes from meaning Hot to meaning Cold.
+const SUBJECT_SEPARATOR = ":";
+// A field id is itself colon-delimited - `field:solver_result:stress:Hot` - so a
+// raw join is ambiguous and split() recovers the wrong boundaries. The separator
+// is therefore encoded inside each component, which is what makes the id
+// parseable back into exactly the coordinates it was built from.
+const ENCODED_SEPARATOR = "%3A";
+
+export function findingSubjectId(finding, { fieldId = null, component = null, resultStateId = null } = {}) {
+  const objectId = finding?.objectId ?? "";
+  if (!objectId) {
+    return null;
+  }
+  const parts = [resultStateId, fieldId, component, objectId];
+  if (parts.some((part) => part === null || part === undefined)) {
+    // A coordinate that is not known cannot be a coordinate. Returning null
+    // rather than a placeholder means the caller finds out, instead of recording
+    // a disposition against a "-" that reads like a real result step.
+    return null;
+  }
+  return `finding${SUBJECT_SEPARATOR}${parts.map(encodeComponent).join(SUBJECT_SEPARATOR)}`;
+}
+
+function encodeComponent(value) {
+  return String(value).replaceAll(SUBJECT_SEPARATOR, ENCODED_SEPARATOR);
+}
+
+function decodeComponent(value) {
+  return String(value).replaceAll(ENCODED_SEPARATOR, SUBJECT_SEPARATOR);
+}
+
+// The address is what travels with the disposition into the record. It is the
+// same shape as the reporting layer's `governing_location`, and for the same
+// reason: a number on a table that sorts is not an address.
+//
+// `object_id` may come from the finding or from the context, because the two
+// callers differ: one has the finding in hand, the other is reconstructing an
+// address from a subject id and has nothing but the id.
+export function findingAddress(finding, { fieldId = null, component = null, resultStateId = null, loadCase = null, unit = null, object_id = null } = {}) {
+  return {
+    object_id: object_id ?? finding?.objectId ?? null,
+    element_id: finding?.elementId ?? null,
+    subpoint_index: finding?.subpointIndex ?? null,
+    row_index: finding?.rowIndex ?? null,
+    field: fieldId,
+    component,
+    result_state_id: resultStateId,
+    load_case: loadCase,
+    value: finding?.value ?? null,
+    unit: unit ?? finding?.unit ?? null,
+    utilization: finding?.utilization ?? null
+  };
+}
+
+// Everything a disposition is recorded against, in one lookup: what it is, and
+// how to name it.
+export function resolveSubject(state, subjectId) {
+  if (typeof subjectId !== "string" || subjectId.length === 0) {
+    return null;
+  }
+  if (subjectId.startsWith("finding:")) {
+    return { kind: "finding", subjectId, address: parseFindingSubjectId(subjectId) };
+  }
+  const issue = (state.issues ?? []).find((candidate) => candidate.id === subjectId);
+  return issue ? { kind: "issue", subjectId, issue } : null;
+}
+
+// The inverse of findingSubjectId, for a subject that arrived as an id and needs
+// its address back for a record.
+//
+// Only the *coordinates* come back. The descriptive parts of an address - the
+// element, the value, the utilisation, the load case - are deliberately not
+// encoded, because they are what the number was when the decision was taken, and
+// a record that reconstructed them from an id would report a value the reviewer
+// never saw. That is why a disposition stores its address when the caller has one.
+export function parseFindingSubjectId(subjectId) {
+  if (typeof subjectId !== "string" || !subjectId.startsWith(`finding${SUBJECT_SEPARATOR}`)) {
+    return null;
+  }
+  const parts = subjectId.slice(`finding${SUBJECT_SEPARATOR}`.length).split(SUBJECT_SEPARATOR);
+  if (parts.length < 4) {
+    return null;
+  }
+  const [resultStateId, fieldId, component, ...objectParts] = parts;
+  return findingAddress(null, {
+    resultStateId: decodeComponent(resultStateId),
+    fieldId: decodeComponent(fieldId),
+    component: decodeComponent(component),
+    object_id: objectParts.map(decodeComponent).join(SUBJECT_SEPARATOR)
+  });}
+
 export function recordDisposition(state, change) {
-  const issueId = change?.issueId;
-  if (!issueId) {
+  // `issueId` is accepted as an alias so the two reducer actions that predate
+  // findings keep working; every subject is addressed the same way underneath.
+  const subjectId = change?.subjectId ?? change?.issueId;
+  if (!subjectId) {
     return state;
   }
-  const existing = state.issueReviewState?.[issueId] ?? {};
+  const existing = state.reviewDispositions?.[subjectId] ?? {};
   const status = change.status ?? existing.status ?? DEFAULT_REVIEW_STATUS;
   const comment = change.comment ?? existing.comment ?? "";
   if (dispositionRefusal({ status, comment })) {
@@ -86,10 +190,14 @@ export function recordDisposition(state, change) {
   }
   return {
     ...state,
-    issueReviewState: {
-      ...(state.issueReviewState ?? {}),
-      [issueId]: {
+    reviewDispositions: {
+      ...(state.reviewDispositions ?? {}),
+      [subjectId]: {
         ...existing,
+        // Stored on the record rather than reconstructed on export, so a finding
+        // disposition keeps the address it was recorded against even if the
+        // subject id's encoding ever changes.
+        ...(change.address ? { address: change.address } : existing.address ? { address: existing.address } : {}),
         status,
         comment,
         author,
@@ -100,17 +208,18 @@ export function recordDisposition(state, change) {
   };
 }
 
-export function dispositionFor(state, issueId) {
-  const record = state.issueReviewState?.[issueId];
+export function dispositionFor(state, subjectId) {
+  const record = state.reviewDispositions?.[subjectId];
   if (!record) {
     return null;
   }
   return {
-    issueId,
+    subjectId,
     status: record.status ?? DEFAULT_REVIEW_STATUS,
     comment: record.comment ?? "",
     author: record.author ?? null,
     at: record.at ?? null,
+    address: record.address ?? null,
     transitions: transitionsOf(record)
   };
 }
@@ -118,7 +227,7 @@ export function dispositionFor(state, issueId) {
 export function dispositionTally(state) {
   const tally = Object.fromEntries(REVIEW_STATUSES.map((status) => [status.id, 0]));
   let touched = 0;
-  for (const record of Object.values(state.issueReviewState ?? {})) {
+  for (const record of Object.values(state.reviewDispositions ?? {})) {
     const status = record?.status;
     if (status in tally) {
       tally[status] += 1;
@@ -127,15 +236,17 @@ export function dispositionTally(state) {
   }
   return { ...tally, touched };
 }
-
 // The export. A record that names the bundle it came from, because a
 // disposition list detached from the review that produced it is a list of
 // opinions about nothing.
 export function toReviewRecord(state, { scene = null, at = null } = {}) {
   const issues = new Map((state.issues ?? []).map((issue) => [issue.id, issue]));
-  const dispositions = Object.entries(state.issueReviewState ?? {})
-    .filter(([issueId, record]) => issueId && record && transitionsOf(record).length > 0)
-    .map(([issueId, record]) => dispositionEntry(issueId, record, issues.get(issueId)))
+  const dispositions = Object.entries(state.reviewDispositions ?? {})
+    .filter(([subjectId, record]) => subjectId && record && transitionsOf(record).length > 0)
+    .map(([subjectId, record]) => dispositionEntry(subjectId, record, issues.get(subjectId), state))
+    // A disposition whose subject has vanished from the bundle - a scene that
+    // reloaded and lost the issue, a finding whose field was replaced - still
+    // belongs in the record, and losing it would silently delete a decision.
     .sort((left, right) => (right.recorded_at ?? "").localeCompare(left.recorded_at ?? ""));
   return {
     schema: REVIEW_RECORD_SCHEMA,
@@ -154,13 +265,16 @@ export function toReviewRecord(state, { scene = null, at = null } = {}) {
   };
 }
 
-function dispositionEntry(issueId, record, issue) {
+function dispositionEntry(subjectId, record, issue, state) {
   const transitions = transitionsOf(record);
   const latest = transitions.at(-1);
+  const isFinding = subjectId.startsWith("finding:");
+  const address = record.address ?? (isFinding ? parseFindingSubjectId(subjectId) : null);
   return {
-    issue_id: issueId,
+    subject_kind: isFinding ? "finding" : "issue",
+    subject_id: subjectId,
     type: issue?.type ?? null,
-    title: issue?.title ?? null,
+    title: issue?.title ?? findingTitle(address),
     severity: issue?.severity ?? null,
     status: latest?.status ?? record.status ?? DEFAULT_REVIEW_STATUS,
     comment: latest?.comment ?? record.comment ?? "",
@@ -168,13 +282,29 @@ function dispositionEntry(issueId, record, issue) {
     recorded_at: latest?.at ?? record.at ?? null,
     transition_count: transitions.length,
     entity_refs: issue?.entity_refs ?? [],
-    external_refs: issue?.external_refs ?? {},
+    address,
+    // The full log, so the JSON export answers "was this ever looked at" for a
+    // record whose current status says nothing about it.
     transitions
   };
 }
 
+// A finding has no title of its own, so the record names it the way the viewport
+// did: what it is, on what, in what result step. That string is what a person
+// reads in a review meeting, so it is the one in the export.
+function findingTitle(address) {
+  if (!address) {
+    return null;
+  }
+  const where = address.element_id ?? address.object_id ?? "unknown element";
+  const what = [address.field, address.component].filter(Boolean).join(" / ");
+  const when = address.load_case ?? address.result_state_id ?? "unknown case";
+  return `${where}${what ? ` — ${what}` : ""} (${when})`;
+}
+
 export const REVIEW_RECORD_COLUMNS = Object.freeze([
-  "issue_id",
+  "subject_kind",
+  "subject_id",
   "type",
   "title",
   "severity",
@@ -183,7 +313,8 @@ export const REVIEW_RECORD_COLUMNS = Object.freeze([
   "author",
   "recorded_at",
   "transition_count",
-  "entity_refs"
+  "entity_refs",
+  "address"
 ]);
 
 // CSV, not JSON, because the audience is a review meeting and a spreadsheet is

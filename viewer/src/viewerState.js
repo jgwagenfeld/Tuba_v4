@@ -1,4 +1,4 @@
-import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
+﻿import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
@@ -199,7 +199,7 @@ export function preserveViewerStateForReload(previousState, nextState, { reviewD
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,
     resultVectorScales: previousState.resultVectorScales ?? nextState.resultVectorScales,
     utilizationThreshold: previousState.utilizationThreshold ?? nextState.utilizationThreshold,
-    issueReviewState: previousState.issueReviewState ?? nextState.issueReviewState,
+    reviewDispositions: previousState.reviewDispositions ?? nextState.reviewDispositions,
     visualDeformationScale: previousState.visualDeformationScale ?? nextState.visualDeformationScale,
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,
