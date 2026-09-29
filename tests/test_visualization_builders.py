@@ -105,6 +105,11 @@ class TestVisualizationBuilders(unittest.TestCase):
             "stiffness": 125000.0,
             "imposed_displacement": [0.001, 0.0, 0.0],
             "stiffness_matrix": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            # The penalty spring the prescribed displacement compiles to. Distinct
+            # from stiffness_matrix: that is the authored 6x6 record, this is what
+            # the solver restrains the free DOFs with, and a reader cannot tell a
+            # prescribed 4 mm from a hard constraint without it.
+            "spring_stiffness": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
             "blocked_dof": [1, 1, 0, 0, 0, 1],
             "mass": 12.0,
             "friction_coefficient": 0.2,
