@@ -440,6 +440,47 @@ test("a stage column reports what happened in the stage, not only where it ended
   }
 });
 
+test("every shoe is drawn on one plot, so two shoes can be compared at a glance", () => {
+  const dom = shim();
+  try {
+    const state = fixture();
+    const panel = renderContactReview(state, noop, noop, "table");
+    const plot = find(panel, (node) => node.tagName === "SVG");
+    assert.ok(plot, "the panel carries the all-shoes plot the per-shoe chart cannot replace");
+    // One solid force line and two dashed cone lines per shoe.
+    const paths = findAll(plot, (node) => node.tagName === "PATH" && node.getAttribute("stroke") !== "#64748b");
+    assert.equal(paths.length, 6, "two shoes x (force + 2 cone bounds)");
+    assert.equal(paths.filter((p) => p.getAttribute("stroke-dasharray") === null).length, 2,
+      "the force line carries no dash attribute at all, so solid and dashed differ in the DOM");
+    // Distinct hue per shoe, or the comparison is not readable.
+    const solids = paths.filter((p) => !p.getAttribute("stroke-dasharray"));
+    assert.equal(new Set(solids.map((p) => p.getAttribute("stroke"))).size, 2);
+    // A legend that names each shoe and says how hard it worked, and says "no
+    // cone" rather than a fraction of nothing for a mu = 0 shoe.
+    const text = dom.text(plot);
+    assert.match(text, /S1 —/);
+    assert.match(text, /S2 —/);
+    assert.match(text, /100% of cone/);
+    assert.doesNotMatch(text, /0 of cone used/);
+    // The increment on screen is marked on every shoe's line.
+    assert.equal(findAll(plot, (node) => node.tagName === "CIRCLE" && node.getAttribute("r") === "4.5").length, 2);
+  } finally {
+    dom.restore();
+  }
+});
+
+test("a single-shoe run is left to the inspector's richer per-shoe chart", () => {
+  const dom = shim();
+  try {
+    const state = fixture();
+    state.contactFindings.runs[0].shoes = state.contactFindings.runs[0].shoes.slice(0, 1);
+    const panel = renderContactReview(state, noop, noop, "table");
+    assert.equal(find(panel, (node) => node.tagName === "SVG"), null);
+  } finally {
+    dom.restore();
+  }
+});
+
 test("a scene with no findings block still renders the numbers", () => {
   const dom = shim();
   try {

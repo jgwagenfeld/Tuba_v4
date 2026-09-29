@@ -132,6 +132,35 @@ test("real contact history preserves forces through selection and display scalin
   expect(errors).toEqual([]);
 });
 
+test("every shoe is drawn on one force-against-travel plot, from the real history", async ({ page }) => {
+  // The per-shoe chart in the inspector only ever draws one shoe, so this plot is
+  // the only place two shoes can be compared without reading one and then the
+  // other. It is checked against the real 51-state history, not a fixture.
+  test.setTimeout(180_000);
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/viewer/?bundle=native-friction-review");
+  await expect(page.locator("[data-runtime-status]")).toContainText("Ready", { timeout: 45_000 });
+  await openReviewDrawer(page);
+  // Hot is where the friction copy is on its cone and the frictionless copy is not.
+  await openStage(page, 2);
+  const plot = page.locator(".contact-review svg").last();
+  await expect(plot).toBeVisible();
+  for (const id of ["F_S1", "F_S2", "NF_S1", "NF_S2"]) {
+    await expect(plot).toContainText(id);
+  }
+  // One solid force line per shoe, its cone bounds dashed.
+  await expect(plot.locator('path[stroke]:not([stroke="#64748b"]):not([stroke-dasharray])')).toHaveCount(4);
+  // The legend must not tell a frictionless shoe it used a fraction of a cone.
+  await expect(plot).toContainText("no cone (μ = 0)");
+  await expect(plot).toContainText("100% of cone");
+  // Every shoe carries a point per converged increment, so 51 each.
+  await expect(plot.locator("circle")).toHaveCount(51 * 4 + 4);
+  // The travel axis is not pinned to a float artifact at the origin.
+  await expect(plot).toContainText("travel [mm]: 0 …");
+  expect(errors).toEqual([]);
+});
+
 test("a missing contact increment displays unavailable, never an invented state", async ({ page }) => {
   // Deliberately remove data only in this test response, leaving real artifacts intact.
   await page.route("**/scene.json", async route => {

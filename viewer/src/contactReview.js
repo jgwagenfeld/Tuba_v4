@@ -356,6 +356,15 @@ export function renderContactReview(state, dispatch, rerender, part = "table", o
     }
     if (c.utilization > overLimit) row.classList.add("contact-limit-exceeded");
   }
+  // The magnitudes, after the sequence: the strip says what each shoe did and
+  // when, this says how hard and shows the loop the two together make.
+  const overview = contactOverviewChart(state);
+  if (overview) {
+    add("h3", "All shoes: force against travel");
+    panel.append(overview);
+    add("p", "One line per shoe, solid, with its own dashed ±μN cone. Filled ring marks the increment on screen. " +
+      "The projected component, not the full friction cone.");
+  }
   const provenance = add("details", "");
   add("summary", "Contact provenance", provenance);
   for (const key of ["run_id", "analysis_id", "source", "runtime_version", "code_aster_version", "formulation", "convergence_status", "contact_status_tolerances", "contact_variable_mapping", "native_contact_status", "contact_status_basis"]) {
@@ -385,6 +394,123 @@ function stageCellTitle(supportId, group, summary, system, quantity) {
   if (summary.peak_gap_m > 0) parts.push(`clear ${quantity(summary.peak_gap_m, "m")}`);
   if (summary.peak_slip_m > 0) parts.push(`slip ${quantity(summary.peak_slip_m, "m")}`);
   return parts.join(" · ");
+}
+
+// Every shoe on one plot. The per-shoe chart in the inspector is richer - it
+// can be re-axed and it follows a selection - but it only ever draws one shoe,
+// so comparing two shoes means reading one, then the other. This is the answer
+// to "where do I see the friction", and it is what a static all-shoes figure
+// gave before the plot became interactive.
+//
+// Distinct dark hues only: this ground is light (the renderer paints #f8fafc) and
+// the repo's amber #f59e0b is well under AA on it, so a shoe drawn in it would
+// vanish. Hues are taken from tokens the scene already uses.
+const SERIES_COLORS = ["#2563eb", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#4d7c0f"];
+
+export function contactOverviewChart(state) {
+  const shoes = state.contactFindings?.primary?.shoes ?? [];
+  if (shoes.length < 2) return null;
+  const axis = state.contactHistoryAxis ?? "t1";
+  const system = getUnitSystem(state);
+  const series = shoes
+    .map((shoe, order) => ({
+      shoe,
+      color: SERIES_COLORS[order % SERIES_COLORS.length],
+      points: contactHistory(state, shoe.support_id, axis).filter((point) => point.available)
+    }))
+    .filter((entry) => entry.points.length > 0);
+  if (series.length < 2) return null;
+
+  const travel = (point) => toDisplay(point.travel, "m", system);
+  const force = (point) => toDisplay(point.force, "N", system);
+  const cone = (point) => toDisplay(point.contact.friction_limit, "N", system);
+  const every = series.flatMap((entry) => entry.points);
+  const span = Math.max(0, ...every.map(travel)) - Math.min(0, ...every.map(travel));
+  // A converged run parks at travel ~1e-6 mm, which is float noise, not a
+  // negative excursion. Letting it set the axis pins the origin to a rounding
+  // artifact and squashes the part of the travel a reader came to see.
+  const minTravel = Math.min(0, ...every.map(travel));
+  const low = Math.abs(minTravel) < span * 1e-3 ? 0 : minTravel;
+  const high = Math.max(0, ...every.map(travel));
+  const top = Math.max(1e-9, ...every.map((point) => Math.max(Math.abs(force(point)), cone(point))));
+  const x = (value) => 54 + (value - low) / (high - low || 1) * 392;
+  const y = (value) => 105 - value / top * 85;
+  // Tall enough for one legend row per shoe; a fixed height clipped the last one.
+  const height = 232 + series.length * 14;
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 460 ${height}`);
+  svg.setAttribute("role", "img");
+  const names = series.map((entry) => entry.shoe.support_id).join(", ");
+  svg.setAttribute("aria-label",
+    `Solved force against travel for ${names}, with each shoe's Coulomb envelope`);
+  const draw = (tag, attrs, text) => {
+    const el = document.createElementNS(ns, tag);
+    for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
+    if (text) el.textContent = text;
+    svg.append(el);
+    return el;
+  };
+
+  draw("path", { d: "M54 20V190H446 M54 105H446", stroke: "#64748b", fill: "none" });
+  for (const entry of series) {
+    const line = (read) => {
+      let pen = false;
+      return entry.points
+        .map((point) => {
+          const command = `${pen ? "L" : "M"}${x(travel(point)).toFixed(2)},${y(read(point)).toFixed(2)}`;
+          pen = true;
+          return command;
+        })
+        .join(" ");
+    };
+    for (const [read, dash, opacity] of [[cone, "5 4", 0.45], [(p) => -cone(p), "5 4", 0.45], [force, null, 1]]) {
+      const attributes = {
+        d: line(read),
+        stroke: entry.color,
+        "stroke-width": dash ? 1.5 : 2,
+        opacity,
+        fill: "none"
+      };
+      // Omitted rather than set empty, so a solid line is distinguishable from
+      // a dashed one in the DOM and not only in the eye.
+      if (dash) attributes["stroke-dasharray"] = dash;
+      draw("path", attributes);
+    }
+    for (const point of entry.points) {
+      const marker = draw("circle", { cx: x(travel(point)), cy: y(force(point)), r: 2, fill: entry.color });
+      const title = document.createElementNS(ns, "title");
+      title.textContent = `${entry.shoe.support_id} · ${point.label} · ${formatQuantity(point.force, "N", system)}`;
+      marker.append(title);
+    }
+    const current = entry.points.find((point) => point.id === state.activeResultStateId);
+    if (current) {
+      draw("circle", { cx: x(travel(current)), cy: y(force(current)), r: 4.5, fill: entry.color, stroke: "#0b1220" });
+    }
+  }
+
+  const unit = displayUnit("N", system);
+  draw("text", { x: 54, y: 14, "font-size": 11 },
+    `Force on pipe [${unit}], range ±${Number(top.toPrecision(4))}`);
+  draw("text", { x: 54, y: 206, "font-size": 11 },
+    `${axis === "normal" ? "Converged step" : `Signed ${axis} travel [${displayUnit("m", system)}]`}: ` +
+    `${Number(low.toPrecision(4))} … ${Number(high.toPrecision(4))}`);
+
+  series.forEach((entry, index) => {
+    const row = 220 + index * 14;
+    draw("rect", { x: 54, y: row - 7, width: 10, height: 3, fill: entry.color });
+    // A frictionless shoe has no cone, so "N of cone used" would be a fraction
+    // of nothing - the same misreading that made its `indeterminate` status
+    // look like a failure.
+    const reach = entry.shoe.frictionless
+      ? `${formatQuantity(entry.shoe.peak_tangential_force_n, "N", system)} peak, no cone (μ = 0)`
+      : `${formatQuantity(entry.shoe.peak_tangential_force_n, "N", system)} peak, ` +
+        `${(100 * (entry.shoe.peak_utilization ?? 0)).toFixed(0)}% of cone`;
+    draw("text", { x: 70, y: row, "font-size": 10 },
+      `${entry.shoe.support_id} — ${CONTACT_SYMBOLS[entry.shoe.final_status] ?? ""} ${reach}`);
+  });
+  return svg;
 }
 
 function contactChart(state, supportId) {
