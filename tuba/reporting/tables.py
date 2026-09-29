@@ -6,7 +6,11 @@ import math
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
-from tuba.analysis.contact_findings import build_contact_findings, contact_samples
+from tuba.analysis.contact_findings import (
+    build_contact_findings,
+    contact_samples,
+    vector_magnitude,
+)
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.model import (
@@ -496,9 +500,17 @@ def build_contacts_table(
     for support_id, samples in contact_samples(result_states).items():
         for sample in samples:
             contact = sample.contact
+            # The history can reach further back than the states the package was
+            # validated against, so an unrecognised study has to fail the way the
+            # sibling path fails rather than as a bare KeyError.
+            study = studies_by_id.get(sample.state.study_id)
+            if study is None:
+                raise EngineeringReviewError(
+                    f"Contact history references undeclared study {sample.state.study_id!r}."
+                )
             rows.append(
                 {
-                    **_solver_identity(studies_by_id[sample.state.study_id], sample.state),
+                    **_solver_identity(study, sample.state),
                     "stage_index": sample.stage,
                     "stage_label": sample.label,
                     "pseudo_time": sample.pseudo_time,
@@ -597,9 +609,9 @@ def build_contact_findings_table(result_states: Iterable[ResultState]) -> Report
         rows=tuple(rows),
     )
 
-
 def _vector_magnitude(vector: Sequence[float]) -> float:
-    return math.sqrt(sum(float(value) ** 2 for value in vector))
+    """Delegates to the derivation's own helper, so the two cannot disagree."""
+    return vector_magnitude(vector)
 
 
 def build_displacements_table(

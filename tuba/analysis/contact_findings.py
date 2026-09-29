@@ -39,10 +39,18 @@ RELATIVE_FORCE_TOLERANCE = 1.0e-3
 GAP_TOLERANCE_M = 1.0e-9
 
 #: DIS_CHOC reports |Ft| = mu*N exactly on a sliding branch, so a shoe at 100% of
-#: its cone has slid - that is the physics, not a defect. Only above this does
-#: the solver report more friction than its own law allows, which is a
-#: convergence artifact worth a reviewer's attention.
-OVER_LIMIT_UTILIZATION = 1.001
+#: its cone has slid - that is the physics, not a defect. A shoe *above* its cone
+#: is different: the sliding branch cannot produce it, so it means the solver
+#: reported more friction than its own law permits.
+#:
+#: The threshold has to sit in a narrow band. Below it, a shoe sliding on the cone
+#: trips the finding on float noise alone - a solved 3220.834 N against a
+#: 3220.834 N cone reads as 1.0000000000000038, not 1. Above it, the finding is
+#: unreachable: the native reader *raises* unless |Ft| <= mu*N + tolerance with
+#: tolerance = 1e-3 * max(|N|, mu*N), so the most a shoe can ever report is
+#: 1 + 1e-3 relative. One part in ten thousand is above the noise by eight orders
+#: of magnitude and below the reader's own acceptance by an order of magnitude.
+OVER_LIMIT_UTILIZATION = 1.0001
 
 #: Severities are deliberately confined to these two words. The Pages build
 #: refuses a published scene containing any mapping with ``severity: "error"``,
@@ -63,8 +71,12 @@ FINDING_KINDS = (
 )
 
 
-def _magnitude(vector: Sequence[float]) -> float:
+def vector_magnitude(vector: Sequence[float]) -> float:
+    """The length of a stored SI vector. Shared with the report tables."""
     return float(math.sqrt(sum(float(value) ** 2 for value in vector)))
+
+
+_magnitude = vector_magnitude
 
 
 def _is_real(value: Any) -> bool:
@@ -94,10 +106,6 @@ def _force_tolerance(contact: ContactResult) -> float:
     return max(FORCE_TOLERANCE_N, RELATIVE_FORCE_TOLERANCE * max(abs(contact.normal_force), contact.friction_limit))
 
 
-def _carries_normal_force(contact: ContactResult) -> bool:
-    return contact.normal_force > _force_tolerance(contact)
-
-
 def _has_tangential_force(contact: ContactResult) -> bool:
     return _magnitude(contact.tangential_force) > _force_tolerance(contact)
 
@@ -117,6 +125,19 @@ def _frictionless(contact: ContactResult) -> bool:
     solver failure but is the correct description of a mu = 0 support.
     """
     return contact.friction_limit <= 0.0 and contact.status in {"indeterminate", "open"}
+
+
+def _shoe_is_frictionless(history: list[ContactSample]) -> bool:
+    """Whether a shoe has no Coulomb cone anywhere in its history.
+
+    Read across the whole history rather than off the reference sample:
+    ``friction_limit`` is ``mu * max(0, N)``, so an unloaded reference has a zero
+    limit whatever the coefficient is, and asking only about the first sample
+    calls every shoe frictionless - which silently drops its slip, reversal and
+    over-limit findings. A shoe that never shows a positive limit never had a
+    cone.
+    """
+    return not any(sample.contact.friction_limit > 0.0 for sample in history)
 
 
 def _run_id(state: Any) -> str:
@@ -217,6 +238,11 @@ def build_contact_findings(result_states: Iterable[Any]) -> dict[str, Any] | Non
     return {
         "schema": CONTACT_FINDINGS_SCHEMA,
         "primary_run_id": primary["run_id"],
+        # Published so a reader does not have to keep its own copy of the
+        # vocabulary or the threshold in step with this module.
+        "finding_kinds": list(FINDING_KINDS),
+        "over_limit_utilization": OVER_LIMIT_UTILIZATION,
+        "severities": [SEVERITY_INFO, SEVERITY_ATTENTION],
         "runs": runs,
     }
 
@@ -274,9 +300,11 @@ def _stage_records(scoped: dict[str, list[ContactSample]]) -> list[dict[str, Any
 
 
 def _shoe_record(support_id: str, history: list[ContactSample], stage_by_index: dict[int, dict[str, Any]]) -> dict[str, Any]:
-    frictionless = _frictionless(history[0].contact)
-    summaries = [_stage_summary(index, stage_by_index[index], history) for index in sorted(stage_by_index) if
-                 any(sample.stage == index for sample in history)]
+    frictionless = _shoe_is_frictionless(history)
+    # Narrow the run's stages to the ones this shoe actually appears in, so a shoe
+    # that is only added for part of a load path is not given empty columns.
+    present = sorted({sample.stage for sample in history})
+    summaries = [_stage_summary(index, stage_by_index[index], history) for index in present]
     findings: list[dict[str, Any]] = []
 
     if not frictionless:
@@ -317,18 +345,39 @@ def _shoe_record(support_id: str, history: list[ContactSample], stage_by_index: 
     }
 
 
+#: Worst-first: the status a stage is *summarised* by is the one a reviewer most
+#: needs to know happened in it. Open outranks sliding, because a shoe that
+#: lifted clear for one increment and stuck for the other nine carried no friction
+#: for that increment, and a reader scanning the row must not see a green "stuck".
+_STATUS_PRECEDENCE = ("open", "sliding", "indeterminate", "sticking")
+
+
+def _governing_status(statuses: Iterable[str]) -> str:
+    seen = set(statuses)
+    for status in _STATUS_PRECEDENCE:
+        if status in seen:
+            return status
+    return "sticking"
+
+
 def _stage_summary(index: int, stage: dict[str, Any], history: list[ContactSample]) -> dict[str, Any]:
     members = [sample for sample in history if sample.stage == index]
     last = members[-1]
     utilizations = [sample.contact.utilization for sample in members if sample.contact.utilization is not None]
+    statuses = sorted({sample.contact.status for sample in members})
     return {
         "index": index,
         "label": stage["label"],
         "pseudo_time": stage["pseudo_time"],
         "result_state_id": stage["result_state_id"],
+        # `status` is the increment the stage ended on - the instant the 3D view
+        # shows when the stage is selected. `governing_status` is what happened
+        # anywhere in the stage, which is what a column in a per-stage row has to
+        # report. They differ whenever a shoe moved mid-stage and came back.
         "status": last.contact.status,
-        "statuses": sorted({sample.contact.status for sample in members}),
-        "transitioned": len({sample.contact.status for sample in members}) > 1,
+        "governing_status": _governing_status(statuses),
+        "statuses": statuses,
+        "transitioned": len(statuses) > 1,
         "normal_force_n": last.contact.normal_force,
         "tangential_force_n": last.tangential,
         "friction_limit_n": last.contact.friction_limit,
@@ -446,23 +495,36 @@ def _over_limit_findings(history: list[ContactSample]) -> list[dict[str, Any]]:
     samples = [sample for sample in history if (sample.contact.utilization or 0.0) > OVER_LIMIT_UTILIZATION]
     if not samples:
         return []
-    worst = max(samples, key=lambda sample: sample.contact.utilization or 0.0)
+    by_stage: dict[int, list[ContactSample]] = {}
+    for sample in samples:
+        by_stage.setdefault(sample.stage, []).append(sample)
+    # Every run, not just the first: a shoe that overshoots, recovers and
+    # overshoots again has two independent artifacts and the second one used to
+    # be dropped.
     return [
         _finding(
             "over_limit",
             SEVERITY_ATTENTION,
-            worst.contact.support_id,
-            _contiguous_runs([sample.stage for sample in samples])[0],
+            _worst_of(by_stage, run).contact.support_id,
+            run,
             history,
             {
-                "tangential_force_n": worst.tangential,
-                "friction_limit_n": worst.contact.friction_limit,
-                "utilization": worst.contact.utilization,
+                "tangential_force_n": _worst_of(by_stage, run).tangential,
+                "friction_limit_n": _worst_of(by_stage, run).contact.friction_limit,
+                "utilization": _worst_of(by_stage, run).contact.utilization,
             },
             "The reported tangential force exceeds the Coulomb cone, which the sliding branch "
-            "should never produce; treat it as a convergence artifact.",
+            "cannot produce; treat it as a convergence artifact rather than a solved slide.",
         )
+        for run in _contiguous_runs(list(by_stage))
     ]
+
+
+def _worst_of(by_stage: dict[int, list[ContactSample]], run: Sequence[int]) -> ContactSample:
+    return max(
+        (sample for stage in run for sample in by_stage[stage]),
+        key=lambda sample: sample.contact.utilization or 0.0,
+    )
 
 
 def _separation_findings(history: list[ContactSample]) -> list[dict[str, Any]]:

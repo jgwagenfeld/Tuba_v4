@@ -3023,6 +3023,14 @@ body[data-view="gallery"] {
   border-left-color: var(--danger-on-dark);
 }
 
+/* Why a mu = 0 shoe has no cone. Not an attention item - it is an explanation
+   of a status word that otherwise reads as a solver failure. */
+.contact-finding-frictionless {
+  border-left-color: var(--chrome-text-3);
+  color: var(--chrome-text-2);
+  font-style: italic;
+}
+
 /* The per-stage navigator. Stage chips, not a menu: the load path is the
    subject of a contact review, and it is five things long where the increment
    list it replaces is fifty-one. */

@@ -128,7 +128,6 @@ export function contactNarrative(state) {
       STAGE_TIEBREAK.indexOf(left.kind) - STAGE_TIEBREAK.indexOf(right.kind) ||
       (left.support_ids ?? []).join().localeCompare((right.support_ids ?? []).join())
   );
-  const qty = (value, unit) => formatQuantity(value, unit, system) || "unavailable";
   const frictionless = (run.shoes ?? []).filter((shoe) => shoe.frictionless);
   const carried = (run.shoes ?? []).filter((shoe) => !shoe.frictionless);
   const lines = [];
@@ -143,6 +142,15 @@ export function contactNarrative(state) {
       item.textContent = findingSentence(finding, system);
       lines.push(item);
     }
+  } else if (carried.length === 0) {
+    // Every shoe here is mu = 0, so "nothing moved" and "nothing could" are the
+    // same statement. Saying "0 shoes stayed stuck" would read as a defect.
+    const item = document.createElement("li");
+    item.className = "contact-finding";
+    item.textContent =
+      `No shoe has a friction coefficient, so none of the ${(run.shoe_count ?? 0)} shoes in this run ` +
+      `carries a Coulomb cone. There is no friction to review here - it is a comparison, not a demonstration.`;
+    lines.push(item);
   } else {
     const item = document.createElement("li");
     item.className = "contact-finding";
@@ -151,7 +159,20 @@ export function contactNarrative(state) {
       `${carried.length} shoes with a friction coefficient stayed seated and stuck.`;
     lines.push(item);
   }
-  return { findings, lines, system, qty, frictionless, carried, run };
+  // A mu = 0 shoe reads "indeterminate", which looks like a solver failure and is
+  // not one. The derivation already carries the explanation; publish it, because
+  // the row label alone does not say why there is no cone.
+  for (const shoe of frictionless) {
+    if (!shoe.note) continue;
+    const item = document.createElement("li");
+    item.className = "contact-finding contact-finding-frictionless";
+    item.dataset.kind = "frictionless";
+    item.dataset.supportId = shoe.support_id;
+    item.dataset.focusKey = `contact-frictionless:${shoe.support_id}`;
+    item.textContent = `${shoe.support_id}: ${shoe.note}`;
+    lines.push(item);
+  }
+  return { findings, lines, frictionless };
 }
 
 // The stage navigator. The step this control replaces was a fifty-one row
@@ -276,6 +297,11 @@ export function renderContactReview(state, dispatch, rerender, part = "table", o
   if (!contacts.length) { add("p", "Contact results unavailable for this state."); return panel; }
   const groups = getStageGroups(state);
   const shoes = state.contactFindings?.primary?.shoes ?? [];
+  // The cone threshold is published by the derivation rather than repeated here:
+  // it has to sit above a solved slide's float noise and below the native
+  // reader's own acceptance tolerance, and a third copy of that number is how
+  // the finding ends up unreachable.
+  const overLimit = state.contactFindings?.over_limit_utilization ?? 1.0001;
   // The strip needs the published per-stage summaries. Without them every stage
   // cell would be an unknown, which reads as "nothing happened" rather than
   // "this bundle has no story", so it degrades to the single-instant table.
@@ -316,16 +342,19 @@ export function renderContactReview(state, dispatch, rerender, part = "table", o
       const cell = add("td", "", row);
       cell.className = "contact-strip-cell";
       cell.dataset.stageIndex = String(group.index);
-      cell.dataset.status = summary?.status ?? "unknown";
+      // What happened anywhere in the stage, not what it ended on: a shoe that
+      // slid for nine of ten increments and re-stuck must not read as stuck.
+      const shown = summary?.governing_status ?? summary?.status;
+      cell.dataset.status = shown ?? "unknown";
       if (group.index === activeStage) cell.classList.add("is-active");
       if (summary?.transitioned) cell.dataset.transitioned = "true";
-      const symbol = CONTACT_SYMBOLS[summary?.status] ?? "·";
+      const symbol = CONTACT_SYMBOLS[shown] ?? "·";
       cell.textContent = symbol;
       const utilization = summary?.peak_utilization;
       cell.title = stageCellTitle(c.support_id, group, summary, system, quantity);
-      if (utilization != null && utilization > 1.001) cell.classList.add("is-over-limit");
+      if (utilization != null && utilization > overLimit) cell.classList.add("is-over-limit");
     }
-    if (c.utilization > 1.001) row.classList.add("contact-limit-exceeded");
+    if (c.utilization > overLimit) row.classList.add("contact-limit-exceeded");
   }
   const provenance = add("details", "");
   add("summary", "Contact provenance", provenance);
@@ -339,7 +368,13 @@ export function renderContactReview(state, dispatch, rerender, part = "table", o
 function stageCellTitle(supportId, group, summary, system, quantity) {
   if (!summary) return `${supportId}: no contact result in ${group.label}`;
   const parts = [`${supportId} at ${group.label}`];
-  parts.push(summary.statuses?.length > 1 ? summary.statuses.join(" then ") : summary.status);
+  const seen = summary.statuses ?? [summary.status];
+  // Say the whole sequence when the stage held more than one state: naming only
+  // the governing one would hide that the shoe came back.
+  parts.push(seen.length > 1 ? seen.join(" then ") : summary.status);
+  if (summary.transitioned && summary.status !== summary.governing_status) {
+    parts.push(`ended on ${summary.status}`);
+  }
   if (summary.peak_normal_force_n > 0) parts.push(`peak N ${quantity(summary.peak_normal_force_n, "N")}`);
   if (summary.peak_tangential_force_n > 0) {
     parts.push(`peak |Ft| ${quantity(summary.peak_tangential_force_n, "N")}`);

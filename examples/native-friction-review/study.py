@@ -1,4 +1,4 @@
-"""One nonlinear run through Cold, Hot, Cold, Lift and Cold, and the review it shows."""
+"""One nonlinear run through Cold, Hot, Cold, Lift and Reseat, and the review it shows."""
 
 import math
 from dataclasses import replace

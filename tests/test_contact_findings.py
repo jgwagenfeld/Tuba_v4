@@ -12,7 +12,13 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from tuba.analysis.contact_findings import FORCE_TOLERANCE_N, build_contact_findings, contact_samples
+from tuba.analysis.contact_findings import (
+    FINDING_KINDS,
+    FORCE_TOLERANCE_N,
+    OVER_LIMIT_UTILIZATION,
+    build_contact_findings,
+    contact_samples,
+)
 from tuba.analysis.results import ResultState
 from tuba.solver.base import ContactResult
 
@@ -200,10 +206,78 @@ class ContactFindingsDerivation(unittest.TestCase):
 
     def test_a_genuine_overshoot_is_reported_as_a_convergence_artifact(self) -> None:
         overshoot = shoe("shoe", status="sliding", tangential=(-3_100.0, 0.0, 0.0))
-        self.assertGreater(overshoot.utilization, 1.001)
+        self.assertGreater(overshoot.utilization, OVER_LIMIT_UTILIZATION)
         found = by_kind([reference({"shoe": overshoot})], "over_limit")
         self.assertEqual(len(found), 1)
         self.assertIn("convergence artifact", found[0]["note"])
+
+    def test_a_small_overshoot_is_still_caught(self) -> None:
+        # The native reader raises unless |Ft| <= mu*N + 1e-3*max(|N|, mu*N), so
+        # a real overshoot can be as small as one part in a thousand. A threshold
+        # at 1.001 could never fire, which is what made the first version of this
+        # finding dead code.
+        limit = 0.3 * 10_000.0
+        small = shoe("shoe", status="sliding", tangential=(-(limit * 1.0005), 0.0, 0.0))
+        self.assertGreater(small.utilization, OVER_LIMIT_UTILIZATION)
+        self.assertLess(small.utilization, 1.001, "the overshoot has to be one the reader would accept")
+        self.assertEqual(len(by_kind([reference({"shoe": small})], "over_limit")), 1)
+
+    def test_a_shoe_that_recovers_and_overshoots_again_reports_both(self) -> None:
+        def sliding(force: float) -> dict[str, ContactResult]:
+            return {"shoe": shoe("shoe", status="sliding", tangential=(-force, 0.0, 0.0))}
+
+        limit = 0.3 * 10_000.0
+        states = [
+            reference({"shoe": shoe("shoe")}),
+            state(1, "Hot", 1.0, sliding(limit * 1.0005)),
+            state(2, "Cold", 2.0, sliding(limit)),
+            state(3, "Lift", 3.0, sliding(limit * 1.0005)),
+        ]
+        found = by_kind(states, "over_limit")
+        self.assertEqual([finding["stage_indices"] for finding in found], [[1], [3]])
+
+    def test_a_shoe_is_not_frictionless_because_its_reference_is_unloaded(self) -> None:
+        # friction_limit is mu*max(0, N), so an unloaded reference has a zero
+        # limit whatever the coefficient is. Asking only about the first sample
+        # called every shoe frictionless and silently dropped its slip.
+        states = [
+            reference({"shoe": shoe("shoe", normal_force=0.0, status="open", gap=1.0e-3, mu=0.0)}),
+            state(1, "Cold", 1.0, {"shoe": shoe("shoe", normal_force=10_000.0)}),
+            state(2, "Hot", 2.0, {"shoe": shoe("shoe", status="sliding", tangential=(-3_000.0, 0.0, 0.0))}),
+        ]
+        record = build_contact_findings(states)["runs"][0]["shoes"][0]
+        self.assertFalse(record["frictionless"])
+        self.assertEqual([finding["kind"] for finding in by_kind(states, "slip")], ["slip"])
+
+    def test_a_stage_reports_what_happened_in_it_not_only_where_it_ended(self) -> None:
+        # Nine sliding increments and a final re-stick: the stage must read as a
+        # slide, or a reader scanning the row sees a shoe that never moved.
+        members = [("sliding", 3_000.0)] * 3 + [("sticking", 0.0)]
+        history = [
+            reference({"shoe": shoe("shoe")}),
+            state(1, "Hot", 1.0, {"shoe": shoe("shoe", status="sticking")}),
+        ]
+        for offset, (status, force) in enumerate(members):
+            history.append(
+                state(2, "Cold", 2.0 + offset / 10, {"shoe": shoe(
+                    "shoe", status=status, tangential=(-force, 0.0, 0.0))})
+            )
+        summary = next(
+            entry
+            for entry in build_contact_findings(history)["runs"][0]["shoes"][0]["stages"]
+            if entry["index"] == 2
+        )
+        self.assertEqual(summary["status"], "sticking", "the increment the stage ended on")
+        self.assertEqual(summary["governing_status"], "sliding", "what happened in the stage")
+        self.assertTrue(summary["transitioned"])
+
+    def test_the_schema_publishes_its_vocabulary_and_threshold(self) -> None:
+        # A reader that keeps its own copy of the kinds or the cone threshold
+        # drifts from the module that applies them.
+        block = build_contact_findings(staged())
+        self.assertEqual(block["finding_kinds"], list(FINDING_KINDS))
+        self.assertEqual(block["over_limit_utilization"], OVER_LIMIT_UTILIZATION)
+        self.assertEqual(block["severities"], ["info", "attention"])
 
     def test_severities_stay_inside_the_two_words_the_pages_gate_allows(self) -> None:
         states = [

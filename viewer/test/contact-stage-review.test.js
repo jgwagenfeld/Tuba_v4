@@ -227,7 +227,6 @@ function fixture() {
 }
 
 const noop = () => {};
-
 test("the load path is navigable as stages, not as a list of every increment", () => {
   const state = fixture();
   const groups = getStageGroups(state);
@@ -374,6 +373,68 @@ test("a review with no findings says the run was inert rather than showing an em
     const lines = findAll(panel, (node) => node.classList?.contains("contact-finding"));
     assert.equal(lines.length, 1);
     assert.match(dom.text(lines[0]), /No shoe moved across the 6 published stages/);
+  } finally {
+    dom.restore();
+  }
+});
+
+test("a frictionless shoe is explained, because indeterminate reads as a failure", () => {
+  const dom = shim();
+  try {
+    const state = fixture();
+    state.contactFindings.runs[0].shoes.find((s) => s.support_id === "S2").note =
+      "Friction coefficient is zero, so this shoe has no Coulomb cone: it carries " +
+      "compression only and has no stick/slip classification.";
+    const panel = renderContactReview(state, noop, noop, "table");
+    const lines = findAll(panel, (node) => node.classList?.contains("contact-finding"));
+    const note = lines.find((line) => line.dataset?.kind === "frictionless");
+    assert.ok(note, "the derivation's explanation has to reach the reader");
+    assert.match(dom.text(note), /S2: Friction coefficient is zero/);
+    // An explanation is not an alarm.
+    assert.equal(note.classList.contains("contact-finding-attention"), false);
+    assert.equal(note.classList.contains("contact-finding-frictionless"), true);
+  } finally {
+    dom.restore();
+  }
+});
+
+test("an all-frictionless run does not claim that zero shoes stayed stuck", () => {
+  const dom = shim();
+  try {
+    const state = fixture();
+    const run = state.contactFindings.runs[0];
+    run.findings = [];
+    run.shoe_count = 2;
+    for (const shoe of run.shoes) { shoe.frictionless = true; shoe.note = "no cone"; }
+    const panel = renderContactReview(state, noop, noop, "table");
+    const text = dom.text(panel);
+    assert.doesNotMatch(text, /0 shoes/);
+    assert.match(text, /No shoe has a friction coefficient/);
+  } finally {
+    dom.restore();
+  }
+});
+
+test("a stage column reports what happened in the stage, not only where it ended", () => {
+  const dom = shim();
+  try {
+    const state = fixture();
+    // S1 slid through most of the Hot stage and re-stuck on its last increment.
+    const hot = state.contactFindings.runs[0].shoes
+      .find((s) => s.support_id === "S1").stages.find((s) => s.index === 2);
+    hot.status = "sticking";
+    hot.governing_status = "sliding";
+    hot.statuses = ["sliding", "sticking"];
+    hot.transitioned = true;
+    const panel = renderContactReview(state, noop, noop, "table");
+    const table = find(panel, (node) => node.classList?.contains("contact-strip"));
+    const row = findAll(find(table, (node) => node.tagName === "TBODY"), (node) => node.tagName === "TR")[0];
+    const cells = row.children.filter((cell) => cell.classList?.contains("contact-strip-cell"));
+    const hotCell = cells.find((cell) => cell.dataset.stageIndex === "2");
+    assert.equal(hotCell.dataset.status, "sliding", "the reader must not see a shoe that never moved");
+    assert.equal(hotCell.dataset.transitioned, "true");
+    assert.match(hotCell.title, /sliding then sticking/);
+    assert.match(hotCell.title, /ended on sticking/);
   } finally {
     dom.restore();
   }
