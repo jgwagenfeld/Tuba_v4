@@ -13,15 +13,19 @@ The convention, from ``AFFE_CARA_ELEM`` / ``TUYAU`` (u3.11.01):
 * sub-points run angle-fastest, one-based.
 
 Sector 0 sits on the *generatrice* - the reference direction that fixes where
-"angle zero" points. :data:`DISPLAY_GENERATRICE` is the vector Tuba's sub-point
-display-position formula measures from. It describes where the glyphs are drawn;
-it is not a read-back of the ``GENE_TUYAU`` value the ``.comm`` emits for a
-given model.
+"angle zero" points. Tuba computes one per model and writes it to the ``.comm``
+as ``CARA='GENE_TUYAU'`` (see ``_pipe_orientation_vector`` in
+``tuba/solver/aster_comm.py``); :func:`read_gene_tuyau` reads that value back so
+the glyphs land where the solver's sectors actually are.
+:data:`DISPLAY_GENERATRICE` is what to use only when there is no ``.comm`` to
+read - and a result that fell back to it says so, because the sector indices are
+then rotated by an unknown amount relative to the ones Code_Aster computed.
 """
 
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 
 #: Through-thickness layers Tuba requests from Code_Aster.
@@ -31,8 +35,70 @@ CODE_ASTER_TUYAU_NCOU = 3
 CODE_ASTER_TUYAU_NSEC = 16
 
 #: Reference direction the sub-point display-position formula measures angles
-#: from. See the module docstring: a display convention, not a solved value.
+#: from when the solved ``GENE_TUYAU`` is not available. A fallback, not a
+#: solved value - see the module docstring and :data:`GENERATRICE_SOURCES`.
 DISPLAY_GENERATRICE: tuple[float, float, float] = (0.0, 0.0, 1.0)
+
+#: Where a result's generatrice came from, so the contract can say which.
+GENERATRICE_SOLVED = "code_aster_gene_tuyau"
+GENERATRICE_FALLBACK = "display_generatrice_fallback"
+
+_CARA_GENE_TUYAU = re.compile(r"CARA\s*=\s*'GENE_TUYAU'")
+_VALE_TRIPLET = re.compile(r"VALE\s*=\s*\(\s*([^,()]+),\s*([^,()]+),\s*([^,()]+)\s*\)")
+
+
+def read_gene_tuyau(comm_text: str) -> tuple[float, float, float] | None:
+    """The ``GENE_TUYAU`` orientation Code_Aster was given, or ``None``.
+
+    Reads the value Tuba itself wrote into the ``.comm``, so sector 0 on screen
+    is sector 0 in the solver. Returns ``None`` for a file with no such entry,
+    a malformed triplet, or a vector that is not a direction - the caller then
+    falls back to :data:`DISPLAY_GENERATRICE` and records that it did.
+    """
+    match = _CARA_GENE_TUYAU.search(comm_text)
+    if match is None:
+        return None
+    vale = _VALE_TRIPLET.search(comm_text, match.end())
+    if vale is None:
+        return None
+    try:
+        vector = tuple(float(group) for group in vale.groups())
+    except ValueError:
+        return None
+    if not all(math.isfinite(component) for component in vector):
+        return None
+    if math.hypot(*vector) <= 1.0e-12:
+        return None
+    return vector  # type: ignore[return-value]
+
+
+@dataclass(frozen=True)
+class Generatrice:
+    """A section reference direction, and where it came from.
+
+    Carrying the provenance with the vector is the point: a glyph placed with a
+    fallback generatrice is still a measured value in a plausible place, and
+    nothing in the picture would otherwise say the angle is unverified.
+    """
+
+    vector: tuple[float, float, float]
+    source: str
+
+    @property
+    def solved(self) -> bool:
+        return self.source == GENERATRICE_SOLVED
+
+    def to_dict(self) -> dict[str, object]:
+        return {"vector": list(self.vector), "source": self.source, "solved": self.solved}
+
+
+def solve_generatrice(comm_text: str | None) -> Generatrice:
+    """The model\'s own generatrice, or the documented fallback."""
+    if comm_text:
+        vector = read_gene_tuyau(comm_text)
+        if vector is not None:
+            return Generatrice(vector, GENERATRICE_SOLVED)
+    return Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
 
 
 def sectors_per_layer(nsec: int = CODE_ASTER_TUYAU_NSEC) -> int:
@@ -94,15 +160,23 @@ def subpoint_station(
 def section_profile(
     nsec: int = CODE_ASTER_TUYAU_NSEC,
     ncou: int = CODE_ASTER_TUYAU_NCOU,
+    generatrice: Generatrice | None = None,
 ) -> dict[str, object]:
-    """Scene-ready description of the sub-point grid on one element node."""
+    """Scene-ready description of the sub-point grid on one element node.
+
+    The generatrice is reported with its provenance. A panel that says "sector 0
+    on (0, 0, 1)" when the solver was given something else is stating a display
+    convention as a solved angle, which is the one thing a wall-stress claim
+    must not do.
+    """
     sectors = sectors_per_layer(nsec)
     layers = layers_through_wall(ncou)
+    reference = generatrice or Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
     return {
         "nsec": int(nsec),
         "ncou": int(ncou),
         "sectors": sectors,
         "layers": layers,
         "subpoints_per_node": sectors * layers,
-        "display_generatrice": list(DISPLAY_GENERATRICE),
+        "generatrice": reference.to_dict(),
     }

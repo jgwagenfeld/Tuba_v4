@@ -244,7 +244,7 @@ export function getScalarLegend(state) {
       ? withScale(
           {
             ...legend,
-            colorMap: legend.overlay?.data?.legend?.color_map ?? "turbo",
+            colorMap: legend.overlay?.data?.legend?.color_map ?? "cividis",
             ...scaleThresholds(state)
           },
           getLegendScale(state, legend)
@@ -266,7 +266,7 @@ export function getScalarLegend(state) {
       field: data.legend?.field ?? data.field ?? data.result_type ?? overlay.name ?? overlay.id,
       unit: data.legend?.unit ?? data.unit ?? "",
       range,
-      colorMap: data.legend?.color_map ?? "turbo",
+      colorMap: data.legend?.color_map ?? "cividis",
       ...scaleThresholds(state),
       declaredThresholds: data.legend?.thresholds ?? {},
       overlay

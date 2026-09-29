@@ -1,5 +1,16 @@
-﻿import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
-import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
+import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
+import {
+  cycleBodyOpacity,
+  cycleSubpointMode,
+  cycleSubpointNodeId,
+  cycleSubpointThreshold,
+  setBodyOpacity,
+  setBodyVisibility,
+  setOverlayVisibility,
+  setSubpointMode,
+  setSubpointNodeId,
+  withDefaultBodyOpacity
+} from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
 import {
@@ -66,6 +77,16 @@ export function reduceViewerState(state, action) {
       return setBodyOpacity(state, action.bodyId, action.opacity);
     case "cycleBodyOpacity":
       return cycleBodyOpacity(state, action.bodyId);
+    case "cycleSubpointMode":
+      return cycleSubpointMode(state);
+    case "setSubpointMode":
+      return setSubpointMode(state, action.mode);
+    case "cycleSubpointThreshold":
+      return cycleSubpointThreshold(state);
+    case "setSubpointNodeId":
+      return setSubpointNodeId(state, action.nodeId);
+    case "cycleSubpointNodeId":
+      return cycleSubpointNodeId(state);
     case "setUnitSystem":
       return setUnitSystem(state, action.unitSystem);
     case "setModelColorBy":

@@ -16,7 +16,7 @@ import {
   getScalarLegend,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
-import { bodyOpacityForObjectIds } from "./bodies.js";
+import { bodyOpacityForObjectIds, hasSubpointValue, subpointModeSpec, subpointPassesThreshold, subpointThreshold, subpointThresholdValue } from "./bodies.js";
 import { isSupportConfig, supportBlockedDofs } from "./supports.js";
 import { getModelObjectColor } from "./modelColoring.js";
 
@@ -39,6 +39,17 @@ export const SUPPORTED_RENDER_FORMATS = new Set([
 
 const REFERENCE_GEOMETRY_COLOR = 0x9ca3af;
 const REFERENCE_GEOMETRY_OPACITY = 0.32;
+
+// Draw order for the x-ray sub-point batch. Above the analysis mesh (500) and
+// the result annotations below it, and well under the load preview (1000) and
+// the labels (1100) so the field never sits on top of something the reviewer
+// is reading.
+const SUBPOINT_XRAY_RENDER_ORDER = 520;
+
+// Radial segments for a swept tube whose bundle states none. Matches the budget
+// `tuba/visualization/builders/_helpers.py:sweep_radial_segments` sweeps real
+// element assets to, so the two display surfaces facet a section identically.
+const DEFAULT_TUBE_RADIAL_SEGMENTS = 16;
 
 export const STANDARD_VIEW_DIRECTIONS = {
   iso: [1, -1, 0.65],
@@ -177,6 +188,8 @@ const SCENE_GRAPH_STATE_KEYS = [
   "colorChannel",
   "resultVectorScales",
   "bodyOpacity",
+  "subpointMode",
+  "subpointThreshold",
   "contactArrows",
   "contactNeutral"
 ];
@@ -347,6 +360,14 @@ export function createThreeCanvasRenderer(canvas, options = {}) {
   // while the one scene it did thin (1.62M triangles) is a single InstancedMesh
   // costing one draw call. If orbit ever does judder, measure first and thin
   // the thing that is actually slow.
+  //
+  // That measurement now exists: `npm run perf -- <bundle>` drives this exact
+  // loader and graph in a real browser and reports draw calls, draw calls per
+  // object, triangles and frame and orbit times, per sub-point display mode.
+  // Re-run it before touching anything here, and record the rate, not the total
+  // - draw calls per object is what a larger model keeps paying, and it is the
+  // number that says whether merging the pipe shells would be worth breaking
+  // per-element picking and the deformation morph path to save them.
   controls.addEventListener("change", redrawScene);
   // Guarded: the node test environment has no ResizeObserver.
   const resizeObserver =
@@ -1167,8 +1188,13 @@ function createTube(asset, config, format) {
   const radius = positiveNumber(config.radius_m) ?? radiusFromBounds(asset.bounds, 0.035);
   const curve = new THREE.CatmullRomCurve3(points);
   const tubularSegments = Math.max(8, points.length * 12);
+  // Faceting comes from the bundle, which owns the section and states the budget
+  // it swept to. The fallback matches that budget so a tube with no config - a
+  // deformed envelope, a hand-built fixture - is not drawn at a different
+  // resolution than a real one.
+  const radialSegments = Math.max(6, Math.min(48, Math.floor(Number(config.radial_segments) || DEFAULT_TUBE_RADIAL_SEGMENTS)));
   const outer = new THREE.Mesh(
-    new THREE.TubeGeometry(curve, tubularSegments, radius, 14, false),
+    new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false),
     materialForAsset(asset, config, { transparent: format === "tube_envelope" && config.envelope_type !== "insulation" })
   );
   const innerRadius = positiveNumber(config.inner_radius_m);
@@ -1180,14 +1206,14 @@ function createTube(asset, config, format) {
   const pipe = new THREE.Group();
   const innerMaterial = materialForAsset(asset, config);
   innerMaterial.side = THREE.BackSide;
-  pipe.add(outer, new THREE.Mesh(new THREE.TubeGeometry(curve, tubularSegments, innerRadius, 14, false), innerMaterial));
+  pipe.add(outer, new THREE.Mesh(new THREE.TubeGeometry(curve, tubularSegments, innerRadius, radialSegments, false), innerMaterial));
 
   const capMaterial = materialForAsset(asset, config);
   capMaterial.side = THREE.DoubleSide;
   const normal = new THREE.Vector3(0, 0, 1);
   for (const position of [0, 1]) {
     // Morph targets interpolate vertices, so caps must share the tube's coordinates.
-    const capGeometry = new THREE.RingGeometry(innerRadius, radius, 28);
+    const capGeometry = new THREE.RingGeometry(innerRadius, radius, radialSegments * 2);
     capGeometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(normal, curve.getTangent(position).normalize()));
     capGeometry.translate(...curve.getPoint(position).toArray());
     pipe.add(new THREE.Mesh(capGeometry, capMaterial));
@@ -1745,13 +1771,24 @@ function createTuyauSubpointGlyphs(asset, config, format, state) {
   if (count < 1) {
     return invalidAsset(asset, "TUYAU sub-point glyph assets require start and end point arrays.");
   }
+  const xray = config.xray === true;
+  const threshold = config.value_threshold ?? null;
   const radius = positiveNumber(config.radius_m) ?? 0.006;
+  // Thinned marks read at a glance and have nothing behind them to be confused
+  // with, so the mode that surfaces the worst stations draws them a little
+  // heavier than a full field has to.
+  const markRadius = radius * (xray ? 1.6 : 1);
   const radialSegments = Math.max(4, Math.min(16, Math.floor(Number(config.radial_segments) || 8)));
-  const geometry = new THREE.CylinderGeometry(radius, radius, 1, radialSegments, 1, false);
+  const geometry = new THREE.CylinderGeometry(markRadius, markRadius, 1, radialSegments, 1, false);
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     opacity: opacityForConfig(config, 0.94),
-    transparent: true
+    transparent: true,
+    // An x-ray batch ignores depth on purpose: the pipe in front of a bore or
+    // mid-wall station is exactly what would otherwise hide it. It is the one
+    // thing drawn over the analysis mesh and under the load preview.
+    depthTest: !xray,
+    depthWrite: !xray
   });
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   const matrix = new THREE.Matrix4();
@@ -1760,11 +1797,16 @@ function createTuyauSubpointGlyphs(asset, config, format, state) {
   const scale = new THREE.Vector3(1, 1, 1);
   const quaternion = new THREE.Quaternion();
   const yAxis = new THREE.Vector3(0, 1, 0);
-  const values = Array.isArray(config.values) ? config.values.map(Number) : [];
-  const legend = subpointLegend(config, values, state);
+  // Kept raw: an absent value has to stay absent all the way to the pass test and
+  // the colour lookup, or `Number(null)` quietly reports it as zero stress.
+  const values = Array.isArray(config.values) ? config.values : [];
+  const legend = subpointLegend(config, values.map(Number), state);
   let written = 0;
 
   for (let index = 0; index < count; index += 1) {
+    if (!subpointPassesThreshold(values[index], threshold)) {
+      continue;
+    }
     direction.copy(ends[index]).sub(starts[index]);
     const length = direction.length();
     if (length <= 1e-12) {
@@ -1780,6 +1822,10 @@ function createTuyauSubpointGlyphs(asset, config, format, state) {
   }
 
   mesh.count = written;
+  mesh.renderOrder = xray ? SUBPOINT_XRAY_RENDER_ORDER : 0;
+  // The count the body metrics quote is read back off the built mesh, so a
+  // thinned field can never claim more points than it drew.
+  mesh.userData.subpointDrawnCount = written;
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) {
     mesh.instanceColor.needsUpdate = true;
@@ -2200,7 +2246,26 @@ export function prepareAssetRenderConfig(asset, payload = {}, state = {}) {
   if (String(asset.format ?? "").toLowerCase() === "vector") {
     return scaleVectorConfig(asset, config, state);
   }
+  if (String(asset.format ?? "").toLowerCase() === "tuyau_subpoint_glyphs") {
+    return subpointDisplayConfig(asset, config, state);
+  }
   return scaleVisualDeformationConfig(asset, config, state);
+}
+
+// How much of the sub-point field reaches the screen, decided from the viewer's
+// display mode rather than baked into the bundle: the scene carries every
+// measured point, and which of them is a drawing choice. `xray` matters because
+// the pipe the points sit in is opaque and hides every wall layer but the outer
+// one - so in the mode meant to surface the worst stations, depth testing is
+// what would throw them away.
+function subpointDisplayConfig(asset, config, state) {
+  const xray = subpointModeSpec(state).xray;
+  const legend = subpointLegend(config, Array.isArray(config.values) ? config.values.map(Number) : [], state);
+  return {
+    ...config,
+    xray,
+    value_threshold: xray ? subpointThresholdValue(subpointThreshold(state), legend?.range?.max) : null
+  };
 }
 
 function materialForAsset(asset, config, options = {}) {
@@ -2263,12 +2328,18 @@ function subpointLegend(config, values, state) {
     field: config.legend?.field ?? "VMIS",
     unit: config.legend?.unit ?? "Pa",
     range: fallbackRange,
-    colorMap: config.legend?.color_map ?? "turbo",
+    colorMap: config.legend?.color_map ?? "cividis",
     thresholds: config.legend?.thresholds ?? {}
   };
 }
 
 function colorForSubpointValue(value, legend, asset, config) {
+  // A station the solver returned no value for is not a cold one. It falls back
+  // to the asset's own colour instead of the bottom of the ramp, so an
+  // unconverged run reads as "no number here" rather than as zero stress.
+  if (!hasSubpointValue(value)) {
+    return colorForAsset(asset, config);
+  }
   const scalarColor = colorForScalarValue(Number(value), legend);
   return scalarColor ?? colorForAsset(asset, config);
 }

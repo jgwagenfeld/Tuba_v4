@@ -8,6 +8,9 @@ from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.tuyau import (
     CODE_ASTER_TUYAU_NCOU,
     CODE_ASTER_TUYAU_NSEC,
+    DISPLAY_GENERATRICE,
+    GENERATRICE_FALLBACK,
+    Generatrice,
     section_profile,
     subpoint_station,
 )
@@ -19,7 +22,20 @@ from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._contract import SceneContribution
-from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint, model_span
+from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint, glyph_radial_segments, model_span
+
+#: The sequential ramp every scalar legend in this contract names.
+#:
+#: The viewer owns the ramp, and it is cividis, not the turbo/viridis/magma that
+#: used to be written here: cividis rises monotonically in lightness, so ranking
+#: two values never depends on hue and the scale survives a greyscale print and a
+#: colour-blind reader. Those legends named ramps nothing ever read - the field
+#: had no consumer - so they described a picture the product never painted. The
+#: contract now names what is drawn. `tuba/plotting/` keeps its own caller-chosen
+#: cmaps; that is the export path, not this one.
+SCALAR_COLOR_MAP = "cividis"
+
+
 def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, Overlay]:
     object_id = f"object:result_state:{result_state.id}"
     payload = _compact_result_state_payload(result_state)
@@ -163,7 +179,7 @@ def _result_state_volume_stress_scene(
         "field": "FE VMIS (not code stress)",
         "unit": "Pa",
         "range": value_range,
-        "color_map": "turbo",
+        "color_map": SCALAR_COLOR_MAP,
         "thresholds": {},
     }
     asset = GeometryAsset(
@@ -245,7 +261,7 @@ def _result_state_volume_displacement_scene(
         "field": "displacement_magnitude",
         "unit": "m",
         "range": value_range,
-        "color_map": "viridis",
+        "color_map": SCALAR_COLOR_MAP,
         "thresholds": {},
     }
     object_id = f"object:solver_result:volume_displacement:{_safe_id(result_state.id)}"
@@ -451,7 +467,7 @@ def _result_state_stress_overlay(
                 "field": "FE VMIS (not code stress)",
                 "unit": "Pa",
                 "range": {"min": min(numeric_values), "max": max(numeric_values)},
-                "color_map": "turbo",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
             "hotspots": hotspots,
@@ -516,7 +532,7 @@ def _result_state_internal_forces_overlay(
                 "field": "Section Forces (EFGE_ELNO)",
                 "unit": "N",
                 "range": {"min": min_mag, "max": max_mag},
-                "color_map": "turbo",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
             "element_results": element_metadata,
@@ -592,7 +608,7 @@ def _result_state_displacement_overlay(
                 "field": "displacement_magnitude",
                 "unit": "m",
                 "range": {"min": min(numeric_values), "max": max(numeric_values)},
-                "color_map": "viridis",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
         },
@@ -669,7 +685,7 @@ def _result_state_reaction_overlays(
                         "field": f"{result_type}_magnitude",
                         "unit": unit,
                         "range": {"min": min(numeric_values), "max": max(numeric_values)},
-                        "color_map": "magma",
+                        "color_map": SCALAR_COLOR_MAP,
                         "thresholds": {},
                     },
                 },
@@ -774,7 +790,7 @@ def _result_state_volume_reaction_overlays(
                         "field": f"{result_type}_magnitude",
                         "unit": unit,
                         "range": {"min": min(magnitudes), "max": max(magnitudes)},
-                        "color_map": "magma",
+                        "color_map": SCALAR_COLOR_MAP,
                         "thresholds": {},
                     },
                     "derivation": "terminal resultant from Code_Aster nodal reactions",
@@ -841,11 +857,14 @@ def _result_state_tuyau_subpoint_scene(
     values: list[float] = []
     row_indices: list[int] = []
     element_ids: list[str] = []
+    node_ids: list[str | None] = []
+    analysis_element_ids: list[str] = []
     subpoint_indices: list[int | None] = []
     sector_indices: list[int | None] = []
     layer_indices: list[int | None] = []
     section_shapes: set[tuple[int, int]] = set()
     position_sources: set[str] = set()
+    generatrices: set[Generatrice] = set()
     for row_index, row, value, point in candidates:
         glyph_points = _tuyau_subpoint_glyph_points(row, point)
         if glyph_points is None:
@@ -866,6 +885,12 @@ def _result_state_tuyau_subpoint_scene(
         values.append(value)
         row_indices.append(row_index)
         element_ids.append(element_id)
+        # The node a sub-point belongs to. Without it the scene can only show the
+        # worst station across the whole run, which is not the same question as
+        # "what does the wall look like here".
+        node_id = _row_node_id(row)
+        node_ids.append(node_id)
+        analysis_element_ids.append(_row_analysis_element_id(row, element_id))
         subpoint_index = _as_int(row.get("subpoint_index"))
         nsec = _as_int(row.get("tuyau_nsec")) or CODE_ASTER_TUYAU_NSEC
         ncou = _as_int(row.get("tuyau_ncou")) or CODE_ASTER_TUYAU_NCOU
@@ -875,6 +900,7 @@ def _result_state_tuyau_subpoint_scene(
         sector_indices.append(None if station is None else station.sector_index)
         layer_indices.append(None if station is None else station.layer_index)
         position_sources.add(str(row.get("position_source", "centerline_from_sieq_elno")))
+        generatrices.add(_row_generatrice(row))
 
     if not starts:
         return [], [], None, diagnostics
@@ -885,8 +911,14 @@ def _result_state_tuyau_subpoint_scene(
     # Describe the sub-point grid only when every row agrees on it. A run that
     # mixed two TUYAU discretisations has no single rosette to draw, so the
     # viewer must omit the panel rather than pick one shape and imply it covers
-    # the rest.
-    profile = section_profile(*section_shapes.pop()) if len(section_shapes) == 1 else None
+    # the rest. The same applies to the generatrice: it is one vector for the
+    # whole study, and a panel that named sector 0 without saying which
+    # reference direction it measured from would be stating a convention as a
+    # solved angle.
+    profile = None
+    if len(section_shapes) == 1 and len(generatrices) == 1:
+        nsec, ncou = section_shapes.pop()
+        profile = section_profile(nsec, ncou, generatrice=generatrices.pop())
     peak = _tuyau_subpoint_peak(values, element_ids, subpoint_indices, sector_indices, layer_indices, profile)
     asset_bounds = _bounds_for_points([*starts, *ends], glyph_radius)
     object_metadata = {
@@ -910,13 +942,15 @@ def _result_state_tuyau_subpoint_scene(
             generation_config={
                 "source": "tuba.tuyau_subpoint_field",
                 "radius_m": glyph_radius,
-                "radial_segments": 8,
+                "radial_segments": glyph_radial_segments(),
                 "starts": starts,
                 "ends": ends,
                 "display_positions": display_positions,
                 "values": values,
                 "row_indices": row_indices,
                 "element_ids": element_ids,
+                "node_ids": node_ids,
+                "analysis_element_ids": analysis_element_ids,
                 "subpoint_indices": subpoint_indices,
                 "sector_indices": sector_indices,
                 "layer_indices": layer_indices,
@@ -929,7 +963,7 @@ def _result_state_tuyau_subpoint_scene(
                     "field": tuyau_legend_field,
                     "unit": "Pa",
                     "range": value_range,
-                    "color_map": "turbo",
+                    "color_map": SCALAR_COLOR_MAP,
                     "thresholds": {},
                 },
             },
@@ -976,7 +1010,7 @@ def _result_state_tuyau_subpoint_scene(
                 "field": tuyau_legend_field,
                 "unit": "Pa",
                 "range": value_range,
-                "color_map": "turbo",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
         },
@@ -1111,6 +1145,60 @@ def _tuyau_subpoint_glyph_radius(rows: list[dict[str, Any]]) -> float:
     if not candidates:
         return _GLYPH_RADIUS_FALLBACK_M
     return max(_GLYPH_RADIUS_MIN_M, min(min(candidates), _GLYPH_RADIUS_MAX_M))
+
+
+def _row_node_id(row: dict[str, Any]) -> str | None:
+    """The model node a sub-point row was solved at, if the row names one.
+
+    Kept as its own helper so the contract carries a consistent ``None`` for a
+    row that lost its node through the solver's label mapping, rather than an
+    empty string that would read as a node called "".
+    """
+    node_id = row.get("node_id")
+    if node_id is None:
+        return None
+    text = str(node_id).strip()
+    return text or None
+
+
+def _row_analysis_element_id(row: dict[str, Any], model_element_id: str) -> str:
+    """The mesh element a sub-point row was solved on.
+
+    A model element is not a place stress can be attributed to. A bend is meshed
+    into several segments and they share their end nodes, so one junction carries
+    one stress per segment - on the shipped review ``pipe_bend_0_n1`` is reported
+    at the same coordinates by ``pipe_bend_0_s0`` and ``pipe_bend_0_s1``, with
+    different stresses at the same sub-point. Those are not duplicate rows and
+    not a labelling fault: stress is recovered per element, so a shared junction
+    really does have two wall stresses. What is wrong is to present them as one
+    section, which is why the scene states the segment and not only the element
+    the engineer authored.
+    """
+    analysis_id = row.get("analysis_element_id")
+    if analysis_id is None:
+        return model_element_id
+    text = str(analysis_id).strip()
+    return text or model_element_id
+
+
+def _row_generatrice(row: dict[str, Any]) -> Generatrice:
+    """The reference direction one sub-point row was placed with.
+
+    A row parsed before the ``.comm`` was read back carries no generatrice, and
+    rows that disagree leave the field to the documented fallback - which the
+    panel then has to admit is a convention, not a solved angle.
+    """
+    record = row.get("generatrice")
+    if not isinstance(record, dict):
+        return Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
+    vector = record.get("vector")
+    source = str(record.get("source") or GENERATRICE_FALLBACK)
+    if not isinstance(vector, (list, tuple)) or len(vector) != 3:
+        return Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
+    try:
+        return Generatrice(tuple(float(part) for part in vector), source)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
 
 
 def _tuyau_subpoint_glyph_points(row: dict[str, Any], point: list[float]) -> list[list[float]] | None:

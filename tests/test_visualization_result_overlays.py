@@ -6,6 +6,21 @@ from tuba import Model
 from tuba.analysis import AnalysisMesh, MeshElementSource, MeshNodeSource, ResultState
 from tuba.refs import EntityRef
 from tuba.visualization import SceneRequest, build_visualization_scene
+from tuba.visualization.builders._helpers import glyph_radial_segments, sweep_radial_segments
+
+
+def _every_legend(node, found=None):
+    """Every ``color_map`` the contract states, wherever it is stated."""
+    found = [] if found is None else found
+    if isinstance(node, dict):
+        if "color_map" in node:
+            found.append(node["color_map"])
+        for value in node.values():
+            _every_legend(value, found)
+    elif isinstance(node, (list, tuple)):
+        for value in node:
+            _every_legend(value, found)
+    return found
 
 
 class TestVisualizationResultOverlays(unittest.TestCase):
@@ -29,13 +44,37 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertEqual(stress.data["legend"]["field"], "FE VMIS (not code stress)")
         self.assertEqual(stress.data["legend"]["unit"], "Pa")
         self.assertEqual(stress.data["legend"]["range"], {"min": 120.0e6, "max": 120.0e6})
-        self.assertEqual(stress.data["legend"]["color_map"], "turbo")
+        self.assertEqual(stress.data["legend"]["color_map"], "cividis")
         self.assertEqual(stress.data["legend"]["thresholds"], {})
         self.assertEqual(hotspot["object_id"], "object:element:pipe_0")
         self.assertEqual(hotspot["value"], 120.0e6)
         self.assertNotIn("utilization", hotspot)
         self.assertEqual(element_metadata["forces_n1"], [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         self.assertEqual(element_metadata["forces_n2"], [6.0, 5.0, 4.0, 3.0, 2.0, 1.0])
+
+    def test_every_scalar_legend_names_the_ramp_the_viewer_actually_paints(self):
+        # These legends used to name turbo, viridis and magma. Nothing read them:
+        # the viewer paints one perceptually-ordered ramp for every scalar field,
+        # so the contract described a picture the product never drew. A field that
+        # lies about the scale it is drawn on is worse than one that names none.
+        model, result_state = _model_and_result_state()
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state]))
+        named = _every_legend({"overlays": [o.to_dict() for o in scene.overlays],
+                               "assets": [a.to_dict() for a in scene.geometry_assets]})
+        self.assertGreater(len(named), 0, "the fixture states a legend at all")
+        self.assertEqual(set(named), {"cividis"})
+
+    def test_a_tube_asset_states_the_faceting_it_is_drawn_at(self):
+        # The sweep's radial resolution used to be a literal inside the renderer,
+        # so nothing in the contract could be checked against what appeared on
+        # screen. It is stated now, from the same budget the other display
+        # surface sweeps its section loops with.
+        model, result_state = _model_and_result_state()
+        scene = build_visualization_scene(SceneRequest(model, result_states=[result_state]))
+        tubes = [a for a in scene.geometry_assets if a.format == "tube"]
+        self.assertTrue(tubes, "the fixture has a pipe to sweep")
+        for asset in tubes:
+            self.assertEqual(asset.generation_config["radial_segments"], sweep_radial_segments())
 
     def test_result_state_preserves_unavailable_force_components_as_null(self):
         model, result_state = _model_and_result_state()
@@ -352,6 +391,24 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertLessEqual(radial(asset.generation_config["ends"][1]), 0.05)
         # Tick thickness comes from the wall, not a constant.
         self.assertAlmostEqual(asset.generation_config["radius_m"], 0.01 / 3.0)
+        # So does the tick's own faceting, so the renderer holds no literal.
+        self.assertEqual(asset.generation_config["radial_segments"], glyph_radial_segments())
+        # The node each row was solved at. Without it the viewer can only draw
+        # the worst station across the whole run, which is the envelope rather
+        # than the section at any one place.
+        self.assertEqual(len(asset.generation_config["node_ids"]), len(asset.generation_config["values"]))
+        self.assertTrue(all(node is None or isinstance(node, str) for node in asset.generation_config["node_ids"]))
+        self.assertTrue(any(node is not None for node in asset.generation_config["node_ids"]))
+        # The mesh element each row was solved on. A bend is meshed into segments
+        # that share their end nodes, and stress is recovered per element, so one
+        # junction carries one stress per segment. Naming only the authored
+        # element would merge those into one section.
+        analysis_ids = asset.generation_config["analysis_element_ids"]
+        self.assertEqual(len(analysis_ids), len(asset.generation_config["values"]))
+        self.assertTrue(all(isinstance(name, str) and name for name in analysis_ids))
+        # This fixture's rows name no analysis element, so it falls back to the
+        # authored element rather than inventing a segment.
+        self.assertEqual(set(analysis_ids), set(asset.generation_config["element_ids"]))
         self.assertIn("solver_result:tuyau_subpoints", subpoint.layer_ids)
         self.assertEqual(subpoint.name, "TUYAU FE VMIS (not code stress) Hot")
         self.assertEqual(subpoint.metadata["compliance_role"], "visualization_only_not_asme_code_stress")

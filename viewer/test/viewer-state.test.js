@@ -480,6 +480,40 @@ test("reduceViewerState handles setBodyOpacity action", () => {
   assert.equal(updated.bodyOpacity.geometry, 0.35);
 });
 
+test("reduceViewerState cycles and sets the sub-point display mode", () => {
+  const state = createViewerState(bundle());
+  assert.equal(state.subpointMode, undefined, "the default is applied when the mode is read, not stored");
+
+  const measured = reduceViewerState(state, { type: "cycleSubpointMode" });
+  assert.equal(measured.subpointMode, "measured");
+  const back = reduceViewerState(measured, { type: "setSubpointMode", mode: "peak" });
+  assert.equal(back.subpointMode, "peak");
+  assert.equal(reduceViewerState(state, { type: "setSubpointMode", mode: "peak" }), state, "already on");
+  assert.equal(reduceViewerState(state, { type: "setSubpointMode", mode: "xray-magic" }), state, "unknown refused");
+});
+
+test("reduceViewerState cycles the sub-point peak cut", () => {
+  const state = createViewerState(bundle());
+  const cut = reduceViewerState(state, { type: "cycleSubpointThreshold" });
+  assert.equal(cut.subpointThreshold, 0.9, "the default 80% steps up to 90%");
+  const wrapped = reduceViewerState(cut, { type: "cycleSubpointThreshold" });
+  assert.equal(wrapped.subpointThreshold, 0.95);
+});
+
+test("reduceViewerState pins and cycles the wall panel to a node", () => {
+  const state = createViewerState(bundle());
+  assert.equal(state.subpointNodeId, undefined, "the envelope is the default, applied when read");
+  const pinned = reduceViewerState(state, { type: "setSubpointNodeId", nodeId: "N14" });
+  assert.equal(pinned.subpointNodeId, "N14");
+  // Asking for the envelope while the envelope is up is a no-op, and clearing a
+  // pinned node is how the reader gets back to it.
+  assert.equal(reduceViewerState(state, { type: "setSubpointNodeId" }), state);
+  assert.equal(reduceViewerState(pinned, { type: "setSubpointNodeId" }).subpointNodeId, "*");
+  // A bundle with nothing to cycle leaves the state alone.
+  const legacy = reduceViewerState(state, { type: "cycleSubpointNodeId" });
+  assert.equal(legacy.subpointNodeId, undefined);
+});
+
 test("reduceViewerState handles setColorChannel action", () => {
   const state = createViewerState(bundle());
   const results = reduceViewerState(state, { type: "setColorChannel", colorChannel: "results" });

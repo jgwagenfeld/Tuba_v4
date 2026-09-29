@@ -3,7 +3,7 @@ from collections import Counter
 import numpy as np
 import pytest
 
-from tuba.geometry.section_mesh import section_loops, straight_section_surface_mesh
+from tuba.geometry.section_mesh import beam_local_frame, section_loops, straight_section_surface_mesh
 from tuba.model import BarSection, CableSection, IBeamSection, PipeSection, RectangularSection
 
 
@@ -91,3 +91,32 @@ def test_rejects_circular_profile_with_fewer_than_three_sides():
             (1.0, 0.0, 0.0),
             n_sides=2,
         )
+
+def test_the_two_display_surfaces_start_from_one_shared_beam_frame():
+    # The review bundle extrudes element sections with this frame and the
+    # quick-look path starts its parallel transport from it. They used to carry
+    # a copy each of the same construction, which agreed only by accident: an
+    # I-beam's web could end up oriented differently in a notebook than in the
+    # review bundle, and nothing would say so. A round pipe hides the difference,
+    # which is exactly why it needs a test.
+    from tuba.plotting import pipeline
+
+    for section in _sections():
+        if isinstance(section, PipeSection):
+            continue  # rotationally symmetric: its frame is unobservable
+        start, end = (0.0, 0.0, 0.0), (2.0, 0.4, 0.0)
+        local_x, local_y, local_z = beam_local_frame(start, end)
+
+        path = np.array([start, np.asarray(start) * 0.5 + np.asarray(end) * 0.5, end])
+        frames = pipeline._parallel_transport_frames(path)
+
+        assert np.allclose(frames[0][0], local_x)
+        assert np.allclose(frames[0][1], local_y)
+        assert np.allclose(frames[0][2], local_z)
+
+    # And the frame is right-handed with the section on the y-z plane, which is
+    # what "matching Code_Aster ANGL_VRIL" is supposed to mean.
+    local_x, local_y, local_z = beam_local_frame((0.0, 0.0, 0.0), (1.0, 0.5, 0.0))
+    assert np.allclose(np.cross(local_x, local_y), local_z)
+    for axis in (local_x, local_y, local_z):
+        assert np.isclose(np.linalg.norm(axis), 1.0)
