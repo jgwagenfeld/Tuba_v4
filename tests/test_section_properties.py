@@ -220,8 +220,8 @@ class TestSectionPropertiesSerialization(unittest.TestCase):
                 "iyz_m4",
                 "j_m4",
                 "j_is_exact",
-                "ry_m",
-                "rz_m",
+                "gyration_y_m",
+                "gyration_z_m",
                 "polar_moment_m4",
             },
         )

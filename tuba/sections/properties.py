@@ -75,13 +75,19 @@ class SectionProperties:
         return replace(self, kind=kind)
 
     @property
-    def ry_m(self) -> float:
-        """Radius of gyration about the Y axis. Zero area has no gyration."""
+    def gyration_y_m(self) -> float:
+        """Radius of gyration about the Y axis: ``sqrt(IY / A)``.
+
+        Named for what it is and deliberately *not* ``RY``. The catalog's ``RY``
+        is the extreme-fibre distance - H/2 on every I-profile in the table - and
+        two fields called ``ry_m`` meaning different things in the same product is
+        how a reader ends up checking a beam's shear lag against its depth.
+        """
         return math.sqrt(self.iy_m4 / self.area_m2) if self.area_m2 > 0.0 else 0.0
 
     @property
-    def rz_m(self) -> float:
-        """Radius of gyration about the Z axis."""
+    def gyration_z_m(self) -> float:
+        """Radius of gyration about the Z axis: ``sqrt(IZ / A)``."""
         return math.sqrt(self.iz_m4 / self.area_m2) if self.area_m2 > 0.0 else 0.0
 
     @property
@@ -99,8 +105,8 @@ class SectionProperties:
             "iyz_m4": self.iyz_m4,
             "j_m4": self.j_m4,
             "j_is_exact": self.j_is_exact,
-            "ry_m": self.ry_m,
-            "rz_m": self.rz_m,
+            "gyration_y_m": self.gyration_y_m,
+            "gyration_z_m": self.gyration_z_m,
             "polar_moment_m4": self.polar_moment_m4,
         }
 

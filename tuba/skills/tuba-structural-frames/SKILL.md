@@ -74,9 +74,13 @@ p.j_is_exact                              # False for an I-beam: J is a thin-wal
 
 A rolled I-profile is the exception to "Code_Aster works it out": it has no
 primitive, so `tuba/solver/aster_comm.py` writes it as `SECTION='GENERALE'`
-with fourteen values taken from `tuba/sections/data/IBeam.output`, an Autochar
-(Sillage) table committed once and not regenerable from a runnable Code_Aster
-install. `tuba/sections/data/README.md` records that provenance gap.
+with fourteen values taken from `tuba/sections/data/IBeam.output` - a
+`macr_cara_poutre` MacroCommand output committed once and not regenerable from a
+runnable install, since the command module ships without the runtime that
+registers it. `tuba/sections/data/README.md` records that, **and which of its
+columns do not mean what their names suggest** - `RY`/`RZ` are extreme-fibre
+distances rather than radii of gyration, and `JG` is not the handbook warping
+constant.
 
 The native kernel covers four of those fourteen - `A`, `IY`, `IZ`, `JX` - and
 agrees with the table to 0.04% or better across all 174 catalog profiles
@@ -84,11 +88,19 @@ agrees with the table to 0.04% or better across all 174 catalog profiles
 `JX` is the exception and stays one: an open section's Saint-Venant constant is
 `1/3 * sum(b t**3)` over the wall mid-lines, and the four root radii are not
 separate walls in that sum, so it is bounded at 45% and flagged `j_is_exact=False`
-rather than dressed up. The other ten - the shear areas, the shear centre, the
-warping constant and the warping inertias - still come only from the table.
+rather than dressed up.
 
-**These are derived geometry, never solver results.** A report or a UI that
-prints them must say so, because nothing in them came from a solve.
+Read `p.gyration_y_m` and `p.gyration_z_m` for radii of gyration. They are not
+called `RY`/`RZ` precisely because those names are taken: the catalog's `RY` is
+half the depth, and a `ry_m` that meant one thing in the catalog and another
+here is how a reader ends up checking a beam's shear lag against its depth.
+
+The other six - `AY`, `AZ`, `EY`, `EZ`, `JG`, `RT` - are not all reachable from
+the kernel, and the reason is in the data README rather than in the difficulty of
+the derivation. `EY`/`EZ` are exactly zero by double symmetry and can be stated
+as such. `JG` and `RT` have no oracle to test against, so they are not
+hand-rolled. Do not switch the solver onto the native values for anything the
+kernel cannot validate.
 
 ## Build structural frames on resolved nodes
 
