@@ -327,3 +327,48 @@ test("the probe stays silent when nothing colours the scene", () => {
 
   assert.equal(summary.sections.find((section) => section.title === "Probe"), undefined);
 });
+
+
+test("a prescribed displacement is reported with the penalty that governs it", () => {
+  // A prescribed movement compiles to a penalty spring, so the displacement on
+  // its own would read as though the solver held the value exactly - which is
+  // the one thing a penalty method does not do.
+  const state = fixtureState();
+  const config = {
+    support_id: "driven",
+    support_type: "rest",
+    node: "N3",
+    direction: [0, 0, 1],
+    dof_states: ["free", "fixed", "spring", "free", "free", "free"],
+    imposed_displacement: [0, 0, 0.004],
+    spring_stiffness: [1e6]
+  };
+  state.objects.push({
+    id: "object:support:driven",
+    kind: "support",
+    name: "Driven end",
+    geometry_asset_id: "geometry:support:driven",
+    metadata: config
+  });
+  state.geometryAssets.push({
+    id: "geometry:support:driven",
+    format: "point",
+    object_ids: ["object:support:driven"],
+    bounds: [0, 0, 3, 0, 0, 3],
+    generation_config: { source: "tuba.support", ...config }
+  });
+
+  const summary = getSelectionSummary(state, "object:support:driven");
+  const definition = summary.sections.find((section) => section.title === "Definition");
+  const rows = Object.fromEntries(definition.lines.map((row) => [row.label, row.value]));
+  assert.match(rows["Imposed displacement"], /4 mm/);
+  // 1e6 N per metre of prescribed travel, which is 1 kN per mm in the
+  // engineering system - not the 1000 kN a raw SI figure would print.
+  assert.match(rows["Prescribed by penalty spring"], /^1 kN \/ mm$/);
+});
+
+test("a support with no prescribed movement is given no penalty row", () => {
+  const summary = getSelectionSummary(fixtureState(), "object:element:pipe_0");
+  const labels = summary.sections.flatMap((section) => section.lines.map((row) => row.label));
+  assert.equal(labels.includes("Prescribed by penalty spring"), false);
+});

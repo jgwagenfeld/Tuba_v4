@@ -278,11 +278,18 @@ def _build_support_object(model: TubaModel, support) -> tuple[SceneObject, Geome
         if support.node in (element.n1, element.n2)
     ]
     # Source lines are script links, not restraint properties: object metadata only.
+    # Both records come from the one restraint() the DDL and the contact shoe read,
+    # so the glyph cannot claim a different restraint than the one compiled.
+    restraint = support.restraint()
     support_data = {
         "support_id": support.id,
         "support_type": support.type,
         # The solver's own restraint states, so the viewer renders what Code_Aster compiles.
-        "dof_states": list(support.restraint().states),
+        "dof_states": list(restraint.states),
+        # A prescribed displacement compiles to a penalty spring, not a hard
+        # constraint, and the stiffness is what says so. Without it a reader sees
+        # a prescribed 4 mm and has no way to know the support is a spring.
+        "spring_stiffness": [value for value in restraint.spring_stiffness if value != 0.0],
         **{
             key: value
             for key, value in asdict(support).items()

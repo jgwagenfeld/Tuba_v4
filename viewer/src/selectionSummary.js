@@ -154,7 +154,25 @@ function definitionSection(config, state, system) {
   if (positive(config.mass)) push("Mass", `${formatNumber(config.mass)} kg`);
 
   const imposed = componentsOf(config, "imposed_displacement");
-  if (imposed) push("Imposed displacement", imposed.map((value) => formatQuantity(value, "m", system)).join(", "));
+  if (imposed) {
+    push("Imposed displacement", imposed.map((value) => formatQuantity(value, "m", system)).join(", "));
+    // A prescribed movement is compiled as a penalty spring, not a hard
+    // constraint, so the number that governs it is the spring's stiffness.
+    // Without this row the displacement reads as though the solver held it
+    // exactly, which is the one thing a penalty method does not do.
+    const penalty = (Array.isArray(config.spring_stiffness) ? config.spring_stiffness : [])
+      .map(Number)
+      .filter((value) => Number.isFinite(value) && value !== 0);
+    if (penalty.length) {
+      // A stiffness is a force per unit travel. Both halves are converted to the
+      // reader's system and then divided, so the figure is per *one displayed
+      // unit* of travel: 1e6 N/m is 1 kN per mm, not the "1000 kN / 1000 mm" that
+      // printing the two converted halves independently produces.
+      const perDisplayMetre = toDisplay(penalty[0], "N", system) / (toDisplay(1, "m", system) || 1);
+      push("Prescribed by penalty spring",
+        `${formatNumber(perDisplayMetre)} ${displayUnit("N", system)} / ${displayUnit("m", system)}`);
+    }
+  }
 
   // Elements name their end nodes in metadata.nodes; older bundles spell them
   // n1/n2. This is the member the support sits on, not what it acts against -

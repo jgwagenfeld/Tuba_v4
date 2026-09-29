@@ -11,6 +11,7 @@ import { relatedSelectionIds, selectionRepresentative } from "./reviewSelection.
 import { deriveBundleSource } from "./bundleSource.js";
 import { elementInputSection, loadCaseDefinitions, renderLoadCaseInputs } from "./loadCaseInputs.js";
 import { contactObjectId, contactStageNav, renderContactReview } from "./contactReview.js";
+import { SUPPORT_PART_COLORS, SUPPORT_PART_LABELS, visibleSupportParts } from "./supportGlyphs.js";
 import {
   buildObjectTree,
   getIssueSummary,
@@ -1826,7 +1827,8 @@ function renderViewportLegend() {
   const visibleVectors = (currentState.objects ?? []).filter(
     (object) => visibleIds.has(object.id) && ["applied_load", "reaction_vector"].includes(object.kind)
   );
-  const hasKey = bodies.length > 0 || Boolean(loadCase) || visibleVectors.length > 0;
+  const hasKey = bodies.length > 0 || Boolean(loadCase) || visibleVectors.length > 0
+    || visibleSupportParts(currentState, visibleIds).length > 0;
   // Always-on, this key floated a seven-row panel over the scene and grew up
   // into the camera controls. It answers "what is that mark" once, so it is
   // asked for: the toggle stays, the panel opens on request.
@@ -1863,6 +1865,14 @@ function renderViewportLegend() {
     vectorKeys.set(key, { label, color: asset?.generation_config?.color });
   }
   for (const { label, color } of vectorKeys.values()) appendViewportKeyRow(label, color);
+  // Support glyphs are a second vocabulary - restraint, spring, prescribed
+  // movement - and the key said nothing about any of them, so a gold cone and an
+  // orange movement cone were marks with no name. Listed only when a support
+  // carrying that part is visible, so the key never advertises a colour that is
+  // not on screen.
+  for (const part of visibleSupportParts(currentState, visibleIds)) {
+    appendViewportKeyRow(SUPPORT_PART_LABELS[part], SUPPORT_PART_COLORS[part]);
+  }
   for (const body of bodies) {
     appendViewportKeyRow(
       `${body.label} — ${BODY_LEGEND_NOTE[body.id] ?? body.badge.text}`,

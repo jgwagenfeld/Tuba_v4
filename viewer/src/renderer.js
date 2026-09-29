@@ -1,4 +1,5 @@
 import { contactRecords, contactObjectId, contactForceMaxima, CONTACT_COLORS } from "./contactReview.js";
+import { SUPPORT_PART_COLORS } from "./supportGlyphs.js";
 import * as THREE from "three";
 import { selectionKey } from "./reviewSelection.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -1496,9 +1497,12 @@ function createSupportGlyph(asset, config, format, point, state) {
     (positiveNumber(config.radius_m) ?? 0) * 1.5,
     THREE.MathUtils.clamp(span * 0.018, 0.08, 0.3)
   );
-  const restraintMaterial = supportMaterial(0xdaa520);
-  const springMaterial = supportMaterial(0x2563eb);
-  const displacementMaterial = supportMaterial(0xf97316);
+  // One definition of the support glyph's vocabulary, shared with the viewport
+  // key: a colour changed here and not there used to leave the key naming a mark
+  // that was no longer on screen.
+  const restraintMaterial = supportMaterial(Number.parseInt(SUPPORT_PART_COLORS.restraint.slice(1), 16));
+  const springMaterial = supportMaterial(Number.parseInt(SUPPORT_PART_COLORS.spring.slice(1), 16));
+  const displacementMaterial = supportMaterial(Number.parseInt(SUPPORT_PART_COLORS.prescribed.slice(1), 16));
   const glyph = new THREE.Group();
   glyph.name = asset.id;
   glyph.position.copy(point);
