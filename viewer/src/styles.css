@@ -1401,15 +1401,49 @@ textarea,
   font-size: 0.66rem;
 }
 
-.averaging-note {
+.averaging-note,
+.reference-note,
+.envelope-note {
   margin: 0;
   color: var(--chrome-text-2);
   font-size: 0.75rem;
   line-height: 1.5;
 }
 
-.averaging-note[hidden] {
+.averaging-note[hidden],
+.reference-note[hidden],
+.envelope-note[hidden] {
   display: none;
+}
+
+/* The reference stress reads as a measurement of the same population as the
+   peak it moderates, so the lead-in and the values are set apart from the
+   closing sentence about what the number survives. */
+.reference-lead {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--chrome-text-3);
+}
+
+.reference-values {
+  display: block;
+  font-family: var(--font-mono);
+}
+
+.reference-basis {
+  display: block;
+  color: var(--chrome-text-3);
+  font-size: 0.7rem;
+}
+
+.hotspot-step {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
 }
 
 /* Scale controls sit in the filters drawer beside the thresholds they mirror:

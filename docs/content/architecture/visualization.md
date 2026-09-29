@@ -202,6 +202,67 @@ somewhere in the middle of it.
 selection, so the filtered set can scope the review tables as well as the list. Without
 that, the threshold and the report are two independent decisions about one question.
 
+## The envelope
+
+Every tool in the piping category has one and this viewer had none: AutoPIPE
+reviews an envelope of its code combinations, CAEPIPE takes the maximum across
+all cases at each node, and PrePoMax, SCIA and SOFiSTiK all carry an envelope
+result type. A reviewer with several load cases and a dropdown wants the worst of
+them, and stepping the dropdown by hand and remembering the answer is the one
+thing a dropdown cannot do.
+
+The envelope is **one more field in the one "colour by" selector**, which is what
+ADR 0006 requires — not a second ramp or a second surface. It appears only when
+the active load case published more than one result step, and it spans every
+step that load case published rather than a reviewer-selected subset.
+
+Two properties make it a review answer rather than a filter:
+
+- **It records which step won.** `winners` maps each object to the result state
+  that produced its value, and the hotspot list prints it beside the number. A
+  maximum with no provenance is a number the reviewer has to re-derive.
+- **It says it is derived.** An envelope is arithmetic over results the solver
+  produced, never a solver result, and it takes a `compliance_role` so the
+  disclaimer travels with it into the viewport legend, the status strip and the
+  field details.
+
+A tie is credited to the **earlier** step: a tie in a staged run usually means
+the increment added nothing, and naming the later step would credit it with a
+value it did not produce. Envelopes never span load cases — mixing cases is a
+combination, and the load-case algebra exists to keep that explicit.
+
+When the load case published several steps but only one carries the quantity, the
+field says **"Only one result step carried this quantity, so no maximum was taken
+across steps"** rather than presenting a single result as an envelope.
+
+## Reference stress
+
+The peak is not a number anyone can act on. In a linear analysis a stress
+singularity grows with every refinement — the same sharp corner gives 41.6, 48.6
+and 65.6 MPa on three meshes — and the folklore workaround of reading the next
+contour down makes the answer depend on the mesh.
+
+The reference stress is the same wall-point population asked a question that
+survives that: **the value a fixed fraction of the population exceeds.** It is
+offered for the sub-point field only, because that is the only field whose
+population reaches the viewer at all — the cell FE field's values are one number
+per element, already reduced to a maximum, so a percentile of them would be a
+percentile of maxima.
+
+Nearest-rank, with no interpolation: the population is a set of measured points,
+and inventing values between two of them is the same smoothing mistake as
+interpolating a piecewise-constant stress field into a continuous space.
+
+Three things it refuses:
+
+- **No extrapolation.** A payload carrying fewer sub-points than the bundle
+  declares is a **truncated population**, and the note says so with both counts.
+- **No peak as a criterion.** The percentile is for reading the result, and the
+  threshold filter next to it still works, so a reviewer can scope a review to
+  what the percentile allows rather than to one point.
+- **No claim of adequacy.** A reference stress below a limit is not a code check
+  and the note does not become one.
+
 ## True clipping
 
 The section box performs true clipping with six renderer clipping planes. A pipe crossing the box remains in the scene and only its interior fragment is drawn. The controls do not approximate sectioning by hiding whole objects whose bounds fall outside the box. Camera and section helpers remain visible so the cut can be understood and reset.

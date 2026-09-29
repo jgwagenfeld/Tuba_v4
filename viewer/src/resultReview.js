@@ -303,6 +303,98 @@ export function getHotspots(state) {
 //
 // Index is derived from the object id rather than stored, so the walk cannot
 // drift out of step with a list that re-filters as thresholds are moved.
+// The reference stress: the value a given fraction of the wall-point population
+// exceeds.
+//
+// This is the cheapest honest answer to the sharpest question in the product -
+// "is that 640 MPa at the shoe real, or a mesh artefact?" - and the FEA
+// literature converges on it. In a linear analysis a stress singularity grows
+// with every refinement, so the maximum is not a number anyone can act on, and
+// the folklore workaround (read the next contour down) makes the answer depend
+// on the mesh. COMSOL's percentile method is the principled replacement: define
+// a reference stress exceeded in a fixed fraction of a reference volume, and
+// accept the design if it is under the limit. It is reported to be insensitive
+// to notch radius and element type - the two things a peak is most sensitive to
+// - which is exactly what a peak is worst at.
+//
+// Only offered for the sub-point field, because that is the only one whose
+// population reaches the viewer at all. The cell FE field's values are one
+// number per element, already reduced to a maximum, so a percentile of them
+// would be a percentile of maxima and would say nothing about the peak problem
+// it is meant to solve.
+export const REFERENCE_STRESS_FRACTIONS = Object.freeze([0.01, 0.05]);
+
+export function getReferenceStress(state, fractions = REFERENCE_STRESS_FRACTIONS) {
+  const overlay = getSolverResultOverlays(state, "tuyau_subpoints")[0];
+  if (!overlay) {
+    return null;
+  }
+  const data = overlay.data ?? {};
+  const population = subpointPopulation(state, overlay);
+  if (population.length === 0) {
+    return null;
+  }
+  const sorted = [...population].sort((left, right) => left - right);
+  const declaredCount = Number(data.total_count ?? sorted.length);
+  return {
+    unit: data.unit ?? "Pa",
+    count: sorted.length,
+    // The bundle declares how many sub-points Code_Aster wrote. A payload that
+    // carries fewer is a truncated population, and a percentile of a truncated
+    // population is a percentile of an unknown selection - so the shortfall is
+    // reported rather than absorbed.
+    declaredCount: Number.isFinite(declaredCount) ? declaredCount : null,
+    truncated: Number.isFinite(declaredCount) && declaredCount > sorted.length,
+    max: sorted[sorted.length - 1],
+    min: sorted[0],
+    percentiles: fractions.map((fraction) => ({
+      fraction,
+      value: quantile(sorted, 1 - fraction)
+    }))
+  };
+}
+
+// Nearest-rank quantile on an ascending population. No interpolation: the
+// population is a set of measured points, not a distribution, and inventing
+// values between two of them is the same smoothing mistake as interpolating a
+// piecewise-constant stress field into a continuous space.
+function quantile(sorted, q) {
+  if (sorted.length === 0) return null;
+  const rank = Math.ceil(q * sorted.length);
+  const index = Math.min(Math.max(rank - 1, 0), sorted.length - 1);
+  return sorted[index];
+}
+
+// The sub-point values live in the per-asset geometry payload, not the overlay:
+// the manifest carries a reduced config (count, range, payload_uri) and the
+// full value array is fetched alongside it, because a tuyau subpoint asset
+// holds tens of thousands of glyphs and must not be inlined in scene.json.
+function subpointPopulation(state, overlay) {
+  const wantedStateId = overlay.data?.result_state_id ?? null;
+  const values = [];
+  for (const payload of state.geometryPayloads ?? []) {
+    const config = payload.generation_config ?? {};
+    if (!Array.isArray(config.values)) {
+      continue;
+    }
+    // Both sides carry a result state id, so a payload belonging to another
+    // step is not silently read as this one's population. A payload with no id
+    // at all is taken, because a legacy bundle that omitted it is still this
+    // bundle's only payload and refusing it would lose the number for nothing.
+    const payloadStateId = config.result_state_id ?? null;
+    if (wantedStateId && payloadStateId && payloadStateId !== wantedStateId) {
+      continue;
+    }
+    for (const value of config.values) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        values.push(numeric);
+      }
+    }
+  }
+  return values;
+}
+
 export function getFindings(state) {
   return getHotspots(state);
 }

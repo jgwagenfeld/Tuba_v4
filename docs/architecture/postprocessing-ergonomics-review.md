@@ -519,6 +519,41 @@ Two bugs the new tests caught before anything shipped, both worth recording:
 
 The measure tool was verified rather than rebuilt — see L7 above.
 
+### 8.2 Slice 3 — what shipped
+
+Also on `feat/postprocess-ergonomics`. Both viewer-side and additive: no schema
+change, no bundle regeneration, no new Python.
+
+| Lesson | Where | Note |
+|---|---|---|
+| L5 envelope | `viewer/src/envelope.js`, `coloring.js` `envelopeOption` / `getColoringValues` / `getColoringLegend`, `app.js` `renderEnvelopeNote` | One more field in the existing "colour by" selector, per ADR 0006. Records the governing result step per object and prints it on the hotspot row, which is what turns a maximum into an answer. Ties go to the **earlier** step. Carries a `compliance_role`, so the "derived, not a separate solve" disclaimer rides into all three existing places. |
+| L4 reference stress | `resultReview.js` `getReferenceStress`, `app.js` `renderReferenceNote` | 1% and 5% of the wall-point population, read from the per-asset geometry payload. Nearest-rank, no interpolation. Sub-point field only. |
+
+**A lesson repeated, and it is worth more than the feature.** While scoping L4 I
+concluded twice that the sub-point glyph body was not rendering in published
+bundles — first from a grep for `payload_uri` (the viewer keys off `asset.uri`),
+then from noticing the manifest carries only five keys. Both times I was wrong:
+`sceneLoader.js:readGeometryPayloads` fetches the per-asset payload in batches of
+16, `createViewerState` carries it through, and `renderer.js:2129` merges
+`payload.generation_config` over the reduced one. I was one edit away from
+"fixing" a bug that does not exist, and from reporting a false regression. The
+verification is the only reason it was caught. Two prior claims in this document
+came from partial greps; the third did not.
+
+Three more judgement calls worth recording, all of them cases where the honest
+answer was less impressive than the available one:
+
+- The envelope is **not offered** when there is no declared quantity to envelope.
+  It would have been one line shorter, and it would have offered a maximum of
+  nothing on a bundle whose result state could not be resolved.
+- `enveloped` is measured in **result steps that contributed**, not in overlays
+  matched. The first implementation counted overlays, which disagreed with the
+  option's own availability check: a load case can publish two steps and only one
+  can carry the quantity, and that is not an envelope.
+- A load case that published several steps where only one carries the quantity
+  now **says so in the field** rather than presenting a single result as a
+  maximum over steps.
+
 ---
 
 ## 9. Method notes and limits

@@ -56,6 +56,7 @@ import {
   getActiveComponent,
   getActiveField,
   getComplianceNotice,
+  getEnvelopeWinners,
   getFieldOptions,
   shouldShowComplianceNotice
 } from "./coloring.js";
@@ -70,6 +71,7 @@ import {
   getHotspots,
   getLoadCaseOptions,
   getResultStateOptions,
+  getReferenceStress,
   getScalarLegend,
   isContactReview,
   stepFinding,
@@ -152,6 +154,8 @@ const dom = {
   fieldDetails: document.querySelector("[data-field-details]"),
   fieldDescription: document.querySelector("[data-field-description]"),
   averagingNote: document.querySelector("[data-averaging-note]"),
+  referenceNote: document.querySelector("[data-reference-note]"),
+  envelopeNote: document.querySelector("[data-envelope-note]"),
   analysisDetails: document.querySelector("[data-analysis-details]"),
   analysisSummary: document.querySelector("[data-analysis-summary]"),
   resultShape: document.querySelector("[data-result-shape]"),
@@ -891,14 +895,9 @@ function renderColorBy() {
     dom.fieldDescription.textContent = field
       ? `Solver field: ${field.label || field.id}. Support: ${field.support || "unspecified"}.`
       : (legend?.field ?? "");
-    // What population the number is a maximum over, in the same panel as what
-    // the field is. Averaging is the display setting that changes the answer -
-    // Nastran's own documentation notes Simcenter and Femap compute a "nodal
-    // average" in different orders, so the same model gives different numbers -
-    // and neither of those tools puts it in front of the reader.
-    const basis = getAveragingBasis(currentState, legend);
-    dom.averagingNote.hidden = !basis;
-    dom.averagingNote.textContent = basis ? `Value basis: ${basis}.` : "";
+    renderAveragingNote(legend);
+    renderReferenceNote();
+    renderEnvelopeNote(legend);
     if (!legend) dom.colorLegend.append(metaLine("No result field to colour by."));
     return;
   }
@@ -1137,6 +1136,10 @@ function renderResultControls() {
   }
   const legend = getScalarLegend(currentState);
   const activeIndex = getFindingIndex(currentState);
+  // Which result step governed each element, when an envelope is colouring the
+  // scene. Without it the list says what the worst value was and not which load
+  // step produced it, which sends the reviewer back to the dropdown to find out.
+  const winners = getEnvelopeWinners(currentState);
   for (const [position, hotspot] of hotspots.entries()) {
     const button = document.createElement("button");
     button.type = "button";
@@ -1172,6 +1175,14 @@ function renderResultControls() {
       utilization.className = "hotspot-util";
       utilization.textContent = `u=${formatScale(hotspot.utilization)}`;
       button.append(utilization);
+    }
+    if (winners?.winners?.[hotspot.objectId]) {
+      const step = winners.resultStates.find((candidate) => candidate.id === winners.winners[hotspot.objectId]);
+      const governing = document.createElement("span");
+      governing.className = "hotspot-step";
+      governing.textContent = step?.label ?? winners.winners[hotspot.objectId];
+      governing.title = "The result step that produced this element's envelope value";
+      button.append(governing);
     }
     if (hotspot.objectId === currentState.activeFindingObjectId && activeIndex >= 0) {
       const position_ = document.createElement("span");
@@ -1507,6 +1518,73 @@ function renderDisplayStrip() {
 // answers "what does it mean". Keeping them apart is the ParaView split the
 // layer-structure design record adopted, and it is why nothing here selects a
 // field and nothing up there toggles a body.
+// What population the number is a maximum over, in the same panel as what the
+// field is. Averaging is the display setting that changes the answer - Nastran's
+// own documentation notes Simcenter and Femap compute a "nodal average" in
+// different orders, so the same model gives different numbers - and neither of
+// those tools puts it in front of the reader.
+function renderAveragingNote(legend) {
+  const basis = getAveragingBasis(currentState, legend);
+  dom.averagingNote.hidden = !basis;
+  dom.averagingNote.textContent = basis ? `Value basis: ${basis}.` : "";
+}
+
+// The reference stress, stated beside the maximum it moderates. The maximum is
+// a measured point and on its own is not a number anyone can act on, because a
+// linear analysis grows a singularity with every refinement. The percentile is
+// the same population asked a question that survives the mesh.
+function renderReferenceNote() {
+  dom.referenceNote.replaceChildren();
+  const reference = getReferenceStress(currentState);
+  dom.referenceNote.hidden = !reference;
+  if (!reference) return;
+  const system = getUnitSystem(currentState);
+
+  const lead = document.createElement("span");
+  lead.className = "reference-lead";
+  lead.textContent = "Reference stress:";
+  const parts = reference.percentiles.map((entry) =>
+    `${formatQuantity(entry.value, reference.unit, system)} exceeded in ${formatPercent(entry.fraction)} of wall points`
+  );
+  const list = document.createElement("span");
+  list.className = "reference-values";
+  list.textContent = `${parts.join(" · ")}. Peak ${formatQuantity(reference.max, reference.unit, system)} at a single point.`;
+  const basis = document.createElement("span");
+  basis.className = "reference-basis";
+  basis.textContent = reference.truncated
+    ? `Based on ${reference.count} of ${reference.declaredCount} sub-points Code_Aster wrote, so the population is incomplete.`
+    : "Unlike the peak, this is insensitive to mesh density and notch radius, so it can be compared across runs.";
+  dom.referenceNote.append(lead, list, basis);
+}
+
+// What the envelope is a maximum of, and where its values came from. Derived
+// arithmetic over solved results, so it says so - and it names the steps, which
+// is the difference between a maximum and an answer a reviewer can act on.
+function renderEnvelopeNote(legend) {
+  dom.envelopeNote.replaceChildren();
+  const envelope = legend?.envelope;
+  dom.envelopeNote.hidden = !envelope;
+  if (!envelope) return;
+  const parts = [];
+  if (envelope.sources?.length) {
+    parts.push(`Maximum over the result steps of ${envelope.sources.map((source) => source.label).join(", ")}`);
+  }
+  const text = document.createElement("span");
+  if (!envelope.enveloped) {
+    // The load case published several steps but only one carried this quantity,
+    // so nothing was actually maximised. Saying "envelope" anyway would be a
+    // claim the number does not support.
+    text.textContent = "Only one result step carried this quantity, so no maximum was taken across steps.";
+    dom.envelopeNote.append(text);
+    return;
+  }
+  if (envelope.resultStateIds?.length) {
+    parts.push(`${envelope.resultStateIds.length} result step${envelope.resultStateIds.length === 1 ? "" : "s"} combined`);
+  }
+  text.textContent = `${parts.join(" · ")}. Derived from the solved results, not a separate solve; the hotspot list names the step that governs each element.`;
+  dom.envelopeNote.append(text);
+}
+
 function renderBodyList() {
   dom.bodyList.replaceChildren();
   const bodies = getBodies(currentState);
