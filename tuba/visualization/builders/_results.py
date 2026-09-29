@@ -110,6 +110,15 @@ def _build_result_state_result_scene(
         forces_overlay = _result_state_internal_forces_overlay(model, result_state, diagnostics)
         if forces_overlay is not None:
             overlays.append(forces_overlay)
+        # ADR 0007. The user's own allowable schedule divided into the FE result.
+        # Only on the element path: a volume run's stress is a surface field on a
+        # different mesh, and a ratio that quietly changed denominator between
+        # fields would be the exact mislabel this decision refuses.
+        ratio_overlay = _result_state_user_reference_ratio_overlay(
+            model, result_state, _load_case_data(model, result_state), diagnostics
+        )
+        if ratio_overlay is not None:
+            overlays.append(ratio_overlay)
 
     if volume_overlay is not None:
         displacement_objects, displacement_assets, displacement_overlay = (
@@ -474,6 +483,256 @@ def _result_state_stress_overlay(
             "element_results": element_metadata,
         },
     )
+
+
+def _load_case_data(model: TubaModel, result_state: ResultState) -> dict[str, Any] | None:
+    """The authored load case behind a result state, as the shape the ratio reads.
+
+    The viewer receives a published load-case overlay; here the builder reads the
+    model directly, so the ratio and the overlay cannot disagree about what the
+    case temperature or its fields were.
+    """
+    load_case = model.operations.get(result_state.load_case) or model.load_cases.get(result_state.load_case)
+    if load_case is None:
+        return None
+    return {
+        "temperature_c": load_case.temperature,
+        "ref_temperature_c": load_case.ref_temperature,
+        "fields": [field.to_dict() for field in load_case.fields],
+    }
+
+
+def _result_state_user_reference_ratio_overlay(
+    model: TubaModel,
+    result_state: ResultState,
+    load_case_data: dict[str, Any] | None,
+    diagnostics: list[SceneDiagnostic],
+) -> Overlay | None:
+    """The user's own allowable stress schedule, divided into the FE result.
+
+    ADR 0007. This is one division by a number the user typed on their own
+    material. It performs no code equation, takes no code input, computes no
+    stress intensity factor, applies no stress reduction or flexibility factor,
+    and knows nothing about load combinations. It exists because every tool in
+    this category makes a stress plot readable by comparison, and a picture with
+    no denominator is a picture.
+
+    Four things it refuses, each of which is the reason it can be trusted:
+
+    - **No schedule, no ratio.** A material that declares no allowable is absent
+      from the field entirely rather than shown as zero or infinity.
+    - **No extrapolation.** A case temperature outside the schedule's span is
+      unavailable with the span named. Clamping to an endpoint is a quiet guess,
+      and a number outside the domain of the calculation is indistinguishable
+      from one the tool invented - which is how CAESAR II's allowable of 0 for a
+      B31.1 operating case generated a forum's worth of "is this a bug?" reports.
+    - **No spatial temperature.** When the case declares a temperature field the
+      uniform case temperature is not the metal temperature at the hot spot, and
+      evaluating the schedule there would understate the ratio exactly where it
+      matters most. Per-node temperatures exist in the solver path but do not
+      reach the bundle, so the honest answer today is unavailable.
+    - **No code claim.** The field's ``compliance_role`` names it a screening
+      ratio against a user-supplied schedule, and the viewer renders that wherever
+      the field is tinting the scene, in the viewport legend, the status strip and
+      the field details, without any of this being re-stated in the viewer.
+    """
+    schedule = _temperature_independent_reference(model, load_case_data, diagnostics, result_state)
+    if schedule is None:
+        return None
+    temperature_c, temperature_source = schedule
+    element_results = result_state.element_results or {}
+    values: dict[str, float] = {}
+    object_ids: list[str] = []
+    entity_refs: list[EntityRef] = []
+    denominators: dict[str, float] = {}
+    unavailable: dict[str, str] = {}
+
+    for elem in model.elements:
+        object_id = _object_id(EntityRef("element", elem.id))
+        stress = _as_float((element_results.get(elem.id) or {}).get("max_von_mises"))
+        if stress is None:
+            continue
+        allowable = _allowable_at(model, elem.material, temperature_c)
+        if allowable is None or allowable <= 0.0:
+            unavailable[object_id] = _unavailable_reason(model, elem.material, temperature_c)
+            continue
+        values[object_id] = stress / allowable
+        denominators[object_id] = allowable
+        object_ids.append(object_id)
+        entity_refs.append(EntityRef("element", elem.id))
+
+    if not values:
+        # Every element fell out. Said once, as a diagnostic, so the field's
+        # absence from the selector is explained rather than merely noticed.
+        diagnostics.append(
+            SceneDiagnostic(
+                severity="info",
+                code="user_reference_ratio.unavailable",
+                message=(
+                    "No element had both a finite FE von Mises value and an allowable "
+                    f"at {_format_celsius(temperature_c)}, so no user reference ratio was published."
+                ),
+                target=result_state.id,
+                source=result_state.id,
+            )
+        )
+        return None
+
+    numbers = list(values.values())
+    rated = {object_id for object_id in denominators}
+    materials = sorted(
+        {
+            elem.material
+            for elem in model.elements
+            if _object_id(EntityRef("element", elem.id)) in rated
+        }
+    )
+    return Overlay(
+        id=f"overlay:solver_result:user_reference_ratio:{result_state.id}",
+        kind="solver_result",
+        object_ids=object_ids,
+        entity_refs=entity_refs,
+        name=f"User reference ratio (not a code check) {result_state.load_case}",
+        data={
+            "result_type": "user_reference_ratio",
+            "result_state_id": result_state.id,
+            "study_id": result_state.study_id,
+            "mesh_id": result_state.mesh_id,
+            "load_case": result_state.load_case,
+            "field": "user_reference_ratio",
+            "unit": "1",
+            "values": values,
+            "compliance_role": "user_reference_ratio_not_a_code_check",
+            "range": {"min": min(numbers), "max": max(numbers)},
+            "legend": {
+                "field": "User reference ratio (not a code check)",
+                "unit": "1",
+                "range": {"min": min(numbers), "max": max(numbers)},
+                # cividis, because the viewer paints one perceptually-ordered
+                # ramp for every scalar field. Naming anything else would be this
+                # field describing a scale it is not drawn on - which is worse
+                # than naming none, and is what the scalar-legend contract test
+                # exists to catch.
+                "color_map": "cividis",
+                "thresholds": {},
+            },
+            "reference": {
+                "denominator": "Material.allowable_stress",
+                "denominator_source": "user_supplied_schedule",
+                "materials": materials,
+                "temperature_c": float(temperature_c),
+                "temperature_source": temperature_source,
+                "interpolation": "linear_between_bracketing_schedule_points",
+                "extrapolated": False,
+                "denominator_pa": denominators,
+                "unavailable": unavailable,
+            },
+        },
+    )
+
+
+def _temperature_independent_reference(
+    model: TubaModel,
+    load_case_data: dict[str, Any] | None,
+    diagnostics: list[SceneDiagnostic],
+    result_state: ResultState,
+) -> tuple[float, str] | None:
+    """The temperature to evaluate the schedule at, or None with the reason given.
+
+    Named for what it decides rather than what it reads: it is the gate, and the
+    gate is where the honesty lives.
+    """
+    if load_case_data is None:
+        load_case = model.operations.get(result_state.load_case) or model.load_cases.get(result_state.load_case)
+        if load_case is None:
+            return None
+        load_case_data = {"temperature_c": load_case.temperature, "fields": list(load_case.fields)}
+    fields = load_case_data.get("fields") or []
+    if any(_is_temperature_field(field) for field in fields):
+        # The honest answer today. Per-node temperatures exist in the solver path
+        # but do not reach the bundle, so the metal temperature at the governing
+        # element is not knowable here, and a uniform-temperature ratio would be
+        # wrong precisely where a reviewer would use it.
+        diagnostics.append(
+            SceneDiagnostic(
+                severity="info",
+                code="user_reference_ratio.spatial_temperature",
+                message=(
+                    "Load case declares a temperature field, so the uniform case temperature is not "
+                    "the metal temperature at the governing element. No user reference ratio was "
+                    "published for this case rather than evaluate the schedule at a temperature the "
+                    "hot spot does not have."
+                ),
+                target=result_state.load_case,
+                source=result_state.id,
+            )
+        )
+        return None
+    temperature = _as_float(load_case_data.get("temperature_c"))
+    if temperature is None:
+        return None
+    return float(temperature), "load_case_uniform_temperature_c"
+
+
+def _is_temperature_field(field: Any) -> bool:
+    """Whether an authored field varies the metal temperature.
+
+    Keys off ``quantity`` because that is the key an ``OperationField`` serialises
+    to. An earlier version looked for ``field`` and ``kind``, which an
+    ``OperationField`` never emits - so the guard did not fire, the ratio was
+    published, and it looked honestly evaluated while being wrong at the hot spot.
+    A guard that silently does nothing is worse than no guard, because it is
+    indistinguishable from the guard having done its job.
+    """
+    if not isinstance(field, dict):
+        return False
+    for key in ("quantity", "field", "kind"):
+        if "temperature" in str(field.get(key, "")).lower():
+            return True
+    return False
+
+
+def _allowable_at(model: TubaModel, material_name: str, temperature_c: float) -> float | None:
+    """Linear interpolation inside the schedule's span, or None outside it.
+
+    No interpolation between schedule points is a guess; extrapolating past either
+    end is a guess with a number attached, which is worse. Both are refused.
+    """
+    material = model.materials.get(material_name)
+    if material is None or not material.allowable_stress:
+        return None
+    schedule = sorted((float(temperature), float(stress)) for temperature, stress in material.allowable_stress.items())
+    if not schedule:
+        return None
+    if len(schedule) == 1:
+        return schedule[0][1] if abs(temperature_c - schedule[0][0]) <= 1e-9 else None
+    low, high = schedule[0][0], schedule[-1][0]
+    if temperature_c < low - 1e-9 or temperature_c > high + 1e-9:
+        return None
+    for (left_t, left_s), (right_t, right_s) in zip(schedule, schedule[1:]):
+        if left_t - 1e-9 <= temperature_c <= right_t + 1e-9:
+            if abs(right_t - left_t) <= 1e-12:
+                return min(left_s, right_s)
+            ratio = (temperature_c - left_t) / (right_t - left_t)
+            return left_s + (right_s - left_s) * ratio
+    return None
+
+
+def _unavailable_reason(model: TubaModel, material_name: str, temperature_c: float) -> str:
+    material = model.materials.get(material_name)
+    if material is None:
+        return f"element has no material ({material_name!r})"
+    if not material.allowable_stress:
+        return f"material {material_name!r} declares no allowable stress schedule"
+    span = sorted(float(temperature) for temperature in material.allowable_stress)
+    return (
+        f"case temperature {_format_celsius(temperature_c)} is outside the "
+        f"{_format_celsius(span[0])} to {_format_celsius(span[-1])} schedule for {material_name!r}"
+    )
+
+
+def _format_celsius(value: float) -> str:
+    return f"{float(value):.6g} C"
 
 
 def _result_state_internal_forces_overlay(

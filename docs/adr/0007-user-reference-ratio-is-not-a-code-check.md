@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # A user-supplied allowable may be shown as a screening ratio, never as a code check
@@ -24,7 +24,7 @@ The open points a reviewer should settle before this is accepted. Whether the ra
 
 ### Answers to the three open points
 
-Recorded here rather than left in review comments, so a later reader meets the reasoning and not just the conclusion. These are recommendations, not decisions; the record still reads `proposed` until a reviewer agrees.
+Recorded here rather than left in review comments, so a later reader meets the reasoning and not just the conclusion.
 
 **Absent, not offered.** A model whose material declares no schedule has nothing to divide by, and showing an empty field in the selector invites the reader to wonder what they forgot to type. The ratio is simply not in the list for that bundle, and the *materials* report table already shows the schedule as empty, which is where someone looking for it will look. This also means the feature's absence is self-explaining rather than silent.
 
@@ -32,4 +32,17 @@ Recorded here rather than left in review comments, so a later reader meets the r
 
 **Start with the element field anyway, and say why this is a compromise.** Every argument above favours `EFGE_ELNO`: a piping engineer reads stress ratios on member end forces, and the six components are already parsed per element end. Against that, an end-force ratio needs a stress class to mean anything — basic allowable versus 1.3 times basic versus the higher of the two and a code's expansion allowable — and the stress class *is* the code input this decision refuses. So the end-force route arrives at a code check by the back door, while the element von Mises route has no such dependency: it divides one FE number by one authored schedule and stops.
 
-That makes the element field the right first surface on the narrow ground that it needs nothing this decision forbids. It is not the surface an engineer would ultimately want, and the record should say so rather than let the first implementation imply it was the considered choice. The natural sequence is: element von Mises against the schedule now, because it is free and it teaches the interaction; and a stress class as a separate, later decision about a separate field, where the class itself is an authored input with its own report row and its own caveat.
+That makes the element field the right first surface on the narrow ground that it needs nothing this decision forbids. It is not the surface an engineer would ultimately want, and this record should say so rather than let the first implementation imply it was the considered choice. The natural sequence is: element von Mises against the schedule now, because it is free and it teaches the interaction; and a stress class as a separate, later decision about a separate field, where the class itself is an authored input with its own report row and its own caveat.
+
+### What was built, and what it refused
+
+Implemented on `feat/user-reference-ratio` as an ordinary `solver_result` overlay. It is not a special case in the viewer: `build_result_fields` catalogues whatever a solver overlay carries, so the ratio arrives as one more field in the existing colouring selector — which is what ADR 0006 requires — and its `compliance_role` puts the notice beside the number in the viewport legend, the status strip and the field details with no viewer code restating it. That is the whole argument for putting the disclaimer in the field rather than in a panel: **it travels.**
+
+Four refusals, each of which is the reason it can be trusted, and each of which a first implementation got wrong:
+
+- **No schedule, no ratio.** A material with no allowable is absent from the field entirely, never shown as zero or infinity.
+- **No extrapolation.** A case temperature outside the schedule's span is unavailable with the span named. Clamping to an endpoint is a quiet guess, and a number outside the domain of the calculation is indistinguishable from one the tool invented.
+- **No spatial temperature.** When the case declares a temperature field, no ratio is published at all. The first version of the guard looked for `field` and `kind` on the authored field, but an `OperationField` serialises to `quantity` — so the guard never fired, the ratio was published, and it looked honestly evaluated while being wrong at the hot spot. A guard that silently does nothing is worse than no guard, because it is indistinguishable from one that did its job.
+- **No volume runs.** A volume result's stress is a surface field on a different mesh, and a ratio that quietly changed denominator between fields would be exactly the mislabel this decision refuses.
+
+The denominator is published per element alongside the ratio, so a reader can divide it back out and recover the FE stress they started from.

@@ -362,6 +362,53 @@ comma count — a waiver reason is free text and will contain a comma, often a
 quote, and sometimes a line break typed into a comment box. A record that loses a
 column to unescaped text is worse than no record.
 
+## The user reference ratio
+
+**The element's FE von Mises divided by the allowable stress schedule the user
+entered on that element's material.** ADR 0007 governs it; `docs/adr/0007-user-reference-ratio-is-not-a-code-check.md`
+is the decision record.
+
+It exists because every tool in the piping category makes a stress plot readable
+by comparison, and a picture with no denominator is a picture. It is one
+division, and the number on the other side of it is a number the user typed.
+
+It is not a code check, and the interface never contains the words *allowable*,
+*utilization* or *compliance* in connection with it. The field's
+`compliance_role` places that notice beside the number in the viewport legend, the
+status strip and the field details with no viewer code restating it — which is the
+whole argument for putting the disclaimer in the field rather than in a panel:
+**it travels.**
+
+It is an ordinary `solver_result` overlay, so it needs no special case anywhere in
+the viewer: `build_result_fields` catalogues whatever an overlay carries, and the
+ratio arrives as one more field in the existing colouring selector, which is what
+ADR 0006 requires.
+
+Four refusals, each the reason it can be trusted:
+
+| | |
+| --- | --- |
+| **No schedule, no ratio** | A material with no allowable is absent from the field entirely, never shown as zero or infinity. The *materials* report table already shows the schedule as empty, which is where someone looking for it will look. |
+| **No extrapolation** | A case temperature outside the schedule's span is unavailable with the span named. Clamping to an endpoint is a quiet guess, and a number outside the domain of the calculation is indistinguishable from one the tool invented. |
+| **No spatial temperature** | When the case declares a temperature field, **no ratio is published at all** — see below. |
+| **No volume runs** | A volume result's stress is a surface field on a different mesh, and a ratio that quietly changed denominator between fields would be exactly the mislabel this refuses. |
+
+**On spatial temperature.** The uniform case temperature is not the metal
+temperature at the hot spot, and evaluating the schedule there would understate
+the ratio precisely where a reviewer would use it. Per-node temperatures exist in
+the solver path but do not reach the bundle, so the honest answer is unavailable
+rather than a number that is quietly wrong. This means a thermal-split case gets
+**no ratio** — the feature's absence is self-explaining, not silent.
+
+That refusal nearly shipped broken. The first guard looked for `field` and `kind`
+on an authored load field, but an `OperationField` serialises to `quantity` — so
+the guard never fired, the ratio was published, and it looked honestly evaluated
+while being wrong. A guard that silently does nothing is worse than no guard,
+because it is indistinguishable from one that did its job.
+
+The denominator is published **per element** alongside the ratio, so a reader can
+divide it back out and recover the FE stress they started from.
+
 ## True clipping
 
 The section box performs true clipping with six renderer clipping planes. A pipe crossing the box remains in the scene and only its interior fragment is drawn. The controls do not approximate sectioning by hiding whole objects whose bounds fall outside the box. Camera and section helpers remain visible so the cut can be understood and reset.

@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
@@ -20,6 +20,8 @@ import {
   shouldShowComplianceNotice,
   withCoherentColoring
 } from "../src/coloring.js";
+import { getAveragingBasis } from "../src/trustFacts.js";
+import { createViewerState } from "../src/sceneLoader.js";
 import { preserveViewerStateForReload } from "../src/viewerState.js";
 
 test("readable field names preserve the sampling distinction and unknown quantities", () => {
@@ -293,4 +295,81 @@ test("history field options and values follow the active result while retaining 
   state.activeResultStateId = "missing-state";
   assert.deepEqual(getFieldOptions(state), []);
   assert.deepEqual(getColoringValues(state), {});
+});
+
+test("the user reference ratio says it is a screening ratio, and says whose number it is", () => {
+  const state = createViewerState({
+    scene: {
+      schema_version: "visualization.scene.v1",
+      scene_id: "scene:ratio",
+      model_id: "model:ratio",
+      objects: [{ id: "object:pipe:a", kind: "pipe", name: "Run A", geometry_asset_id: "asset:a" }],
+      geometry_assets: [{ id: "asset:a", format: "tube", bounds: [0, 0, 0, 1, 0.1, 0.1], object_ids: ["object:pipe:a"], generation_config: {} }],
+      overlays: [
+        { id: "overlay:result_state:Hot", kind: "result_state", data: { id: "result_state:Hot", load_case: "Hot", solver_name: "code_aster" } },
+        {
+          id: "overlay:solver_result:user_reference_ratio:result_state:Hot",
+          kind: "solver_result",
+          object_ids: ["object:pipe:a"],
+          data: {
+            result_type: "user_reference_ratio",
+            result_state_id: "result_state:Hot",
+            load_case: "Hot",
+            field: "user_reference_ratio",
+            unit: "1",
+            values: { "object:pipe:a": 0.94 },
+            compliance_role: "user_reference_ratio_not_a_code_check",
+            range: { min: 0.1, max: 0.94 },
+            legend: {
+              field: "User reference ratio (not a code check)",
+              unit: "1",
+              range: { min: 0.1, max: 0.94 },
+              color_map: "turbo",
+              thresholds: {}
+            },
+            reference: {
+              denominator: "Material.allowable_stress",
+              denominator_source: "user_supplied_schedule",
+              materials: ["carbon"],
+              temperature_c: 85,
+              temperature_source: "load_case_uniform_temperature_c",
+              interpolation: "linear_between_bracketing_schedule_points",
+              extrapolated: false
+            }
+          }
+        }
+      ],
+      result_fields: [
+        {
+          id: "field:solver_result:user_reference_ratio:result_state:Hot",
+          label: "User reference ratio (not a code check)",
+          load_case: "Hot",
+          result_state_id: "result_state:Hot",
+          overlay_id: "overlay:solver_result:user_reference_ratio:result_state:Hot",
+          support: "cell",
+          components: ["magnitude"],
+          unit: "1",
+          range: [0.1, 0.94],
+          compliance_role: "user_reference_ratio_not_a_code_check"
+        }
+      ],
+      views: [],
+      diagnostics: []
+    }
+  });
+
+  // One field in the one selector, so the ratio is not a second channel.
+  const options = getFieldOptions(state);
+  assert.deepEqual(options.map((option) => option.id), ["field:solver_result:user_reference_ratio:result_state:Hot"]);
+
+  const notice = getComplianceNotice(state);
+  assert.match(notice, /not a code check/);
+  // It names whose number the denominator is, in both directions: the ratio
+  // neither implies an evaluation nor hides that the reviewer supplied it.
+  assert.match(notice, /user-entered allowable/);
+
+  const basis = getAveragingBasis(state, getColoringLegend(state));
+  assert.match(basis, /divided by the allowable stress schedule the user entered/);
+  assert.match(basis, /carbon/);
+  assert.match(basis, /85 C/);
 });

@@ -251,6 +251,13 @@ export function getComplianceNotice(state) {
   if (role === "derived_envelope_not_a_solver_result") {
     return "Envelope - the worst of the result steps, not a separate solve";
   }
+  if (role === "user_reference_ratio_not_a_code_check") {
+    // The denominator is the user's own typed schedule, and that is the whole
+    // claim. Naming the code this is not keeps the notice honest in both
+    // directions: it neither implies an evaluation nor hides that the reviewer
+    // supplied the number.
+    return "Ratio to a user-entered allowable - not a code check";
+  }
   return role.replace(/_/g, " ");
 }
 

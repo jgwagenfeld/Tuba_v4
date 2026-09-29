@@ -113,6 +113,15 @@ export function getAveragingBasis(state, legend) {
     : null;
   const overlay = legend?.overlay ?? null;
   const data = overlay?.data ?? {};
+  // The ratio's own builder states its derivation, and it is the most important
+  // statement in the product: the numerator is an element-end maximum and the
+  // denominator is a number somebody typed.
+  const reference = data.reference ?? null;
+  if (reference) {
+    return `element FE von Mises divided by the allowable stress schedule the user entered on `
+      + `${reference.materials?.join(", ") || "the element's material"} at `
+      + `${reference.temperature_c} C, interpolated between schedule points`;
+  }
   const stated = firstString(data.derivation, data.averaging);
   if (stated) {
     return stated;

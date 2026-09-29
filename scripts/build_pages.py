@@ -620,7 +620,14 @@ def _validate_engineering_result_fields(scene: dict[str, Any], *, volume: bool =
         expected["tuyau_subpoints"] = "solver_result"
     if families is not None:
         expected = {family: "solver_result" for family in families}
-    optional = {"internal_forces"} - set(expected)
+    # Both extras are genuinely optional rather than merely tolerated.
+    # `internal_forces` is absent when the solve published no per-end element
+    # forces. `user_reference_ratio` (ADR 0007) is absent unless the materials
+    # carry an allowable stress schedule and the load case has a uniform
+    # temperature - it is a screening ratio against a number the user typed, and
+    # it is deliberately withheld rather than approximated when either is
+    # missing. A bundle that has one and a bundle that does not are both valid.
+    optional = {"internal_forces", "user_reference_ratio"} - set(expected)
     if not isinstance(fields, list) or not len(expected) <= len(fields) <= len(expected) + len(optional):
         raise ValueError(f"Engineering-review bundles require {len(expected)} result fields, with optional internal forces.")
     overlays_by_id = {

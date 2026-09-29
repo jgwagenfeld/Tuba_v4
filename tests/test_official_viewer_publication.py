@@ -111,18 +111,27 @@ def test_pages_catalog_contains_the_validated_official_bundles(tmp_path: Path) -
     # be checking that a value which cannot exist does not exist.
 
     engineering = json.loads((tmp_path / "code-aster-review" / "scene.json").read_text(encoding="utf-8"))
-    assert len(engineering["result_fields"]) == 6
-    assert {
+    # Six required plus two genuinely optional. The ratio (ADR 0007) is present
+    # here because this example's materials carry an allowable schedule; a
+    # review whose materials do not carries six, not seven, and both are valid.
+    result_types = {
         next(overlay for overlay in engineering["overlays"] if overlay["id"] == field["overlay_id"])["data"]["result_type"]
         for field in engineering["result_fields"]
-    } == {"stress", "internal_forces", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"}
+    }
+    assert {"stress", "internal_forces", "displacement", "reaction_force", "reaction_moment", "tuyau_subpoints"} <= result_types
+    assert result_types <= {
+        "stress", "internal_forces", "displacement", "reaction_force", "reaction_moment",
+        "tuyau_subpoints", "user_reference_ratio",
+    }
+    assert len(engineering["result_fields"]) in {6, 7}
     assert {layer["category"] for layer in engineering["layers"]} == {
         "design", "analysis_mesh", "results", "annotations"
     }
     for bundle_id in ("autorouted-expansion-loop", "support-rack-review"):
         scene = json.loads((tmp_path / bundle_id / "scene.json").read_text(encoding="utf-8"))
         review = json.loads((tmp_path / bundle_id / "review.json").read_text(encoding="utf-8"))
-        assert len(scene["result_fields"]) == 6
+        # Six required, plus the ratio where the materials carry a schedule.
+        assert len(scene["result_fields"]) in {6, 7}
         assert review["analysis_status"] == "solved"
         assert "code_compliance" not in review["tables"]
 
