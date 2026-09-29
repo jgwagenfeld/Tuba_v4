@@ -15,6 +15,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tuba import Model
+from tuba.analysis import AnalysisStudy
 from tuba.analysis.buckling import BucklingMode, BucklingResult
 from tuba.analysis.provenance import build_solver_input_identity
 from tuba.analysis.results import ResultState
@@ -491,6 +492,130 @@ class TestBucklingScriptRoundTrip(unittest.TestCase):
         model, _ = _cantilever()
         rebuilt = self._round_trip(model)
         self.assertIsNone(rebuilt.operations["Ref"].buckling)
+
+
+class TestBucklingReporting(unittest.TestCase):
+    """The review bundle must carry the factors, not just the options that made them."""
+
+    def _state(self, buckling, *, study_id="analysis_study:Ref"):
+        return ResultState(
+            id="result_state:Ref",
+            study_id=study_id,
+            model_revision=0,
+            solver_name="Code_Aster",
+            load_case="Ref",
+            mesh_id=None,
+            node_displacements={},
+            node_reactions={},
+            element_results={},
+            buckling=buckling,
+        )
+
+    def _table(self, state):
+        from tuba.reporting.tables import build_buckling_table
+
+        study = AnalysisStudy(
+            id=state.study_id, model_revision=0, solver_name="Code_Aster",
+            load_case=state.load_case, work_dir=None, input_files={}, mesh_id="mesh:1",
+        )
+        return build_buckling_table({study.id: study}, [state])
+
+    def _modes(self, factors):
+        return BucklingResult(
+            modes=tuple(
+                BucklingMode(mode=i, critical_factor=f, raw_eigenvalue=-f)
+                for i, f in enumerate(factors, start=1)
+            ),
+            requested_modes=len(factors),
+        )
+
+    def test_one_row_per_mode(self):
+        table = self._table(self._state(self._modes([30.5, 29.2, 23.9])))
+        self.assertEqual(table.id, "buckling")
+        self.assertEqual([row["mode"] for row in table.rows], [1, 2, 3])
+        self.assertEqual(table.rows[0]["critical_factor"], 30.5)
+        self.assertEqual(table.rows[0]["load_case"], "Ref")
+
+    def test_flags_exactly_the_governing_mode(self):
+        table = self._table(self._state(self._modes([30.5, 29.2, 23.9])))
+        governing = [row for row in table.rows if row["governing"]]
+        self.assertEqual(len(governing), 1)
+        # Smallest factor, not the first row: the solver's order is not the ranking.
+        self.assertEqual(governing[0]["mode"], 3)
+        self.assertEqual(governing[0]["critical_factor"], 23.9)
+
+    def test_keeps_the_solvers_order_rather_than_resorting(self):
+        table = self._table(self._state(self._modes([30.5, 23.9, 29.2])))
+        self.assertEqual(
+            [row["critical_factor"] for row in table.rows], [30.5, 23.9, 29.2]
+        )
+
+    def test_keeps_the_raw_eigenvalue_beside_the_factor(self):
+        table = self._table(self._state(self._modes([23.9])))
+        # Code_Aster reports these negative; the table must show both so nobody has
+        # to take the sign flip on trust.
+        self.assertEqual(table.rows[0]["raw_eigenvalue"], -23.9)
+        self.assertEqual(table.rows[0]["critical_factor"], 23.9)
+
+    def test_states_the_caveat_in_the_title_and_columns(self):
+        table = self._table(self._state(self._modes([23.9])))
+        self.assertIn("not a design check", table.title)
+        described = {c.id: c for c in table.columns}
+        factor = described["critical_factor"].description.lower()
+        self.assertIn("reference load", factor)
+        self.assertIn("optimistic", factor)
+        self.assertIn("shape only", described["mode_shape_nodes"].description.lower())
+
+    def test_an_absent_analysis_gives_an_empty_table_not_an_error(self):
+        table = self._table(self._state(None))
+        self.assertEqual(table.rows, ())
+
+    def test_reports_a_shortfall_note(self):
+        buckling = BucklingResult(
+            modes=(BucklingMode(mode=1, critical_factor=2.0, raw_eigenvalue=-2.0),),
+            requested_modes=6,
+            notes=("solver returned 1 of 6 requested critical charges",),
+        )
+        table = self._table(self._state(buckling))
+        self.assertEqual(table.rows[0]["notes"], "solver returned 1 of 6 requested critical charges")
+        self.assertEqual(table.rows[0]["requested_modes"], 6)
+
+    def test_refuses_an_undeclared_study(self):
+        from tuba.reporting.model import EngineeringReviewError
+        from tuba.reporting.tables import build_buckling_table
+
+        with self.assertRaisesRegex(EngineeringReviewError, "undeclared study"):
+            build_buckling_table({}, [self._state(self._modes([2.0]))])
+
+    def test_reaches_the_package_through_build_result_tables(self):
+        from tuba.reporting.tables import build_result_tables
+
+        # build_result_tables validates study lineage, so exercise it with a study.
+        study = AnalysisStudy(
+            id="analysis_study:Ref", model_revision=0, solver_name="Code_Aster",
+            load_case="Ref", work_dir=None, input_files={}, mesh_id="mesh:1",
+        )
+        table_ids = [
+            table.id
+            for table in build_result_tables(
+                _cantilever()[0], [study], [], [self._state(self._modes([2.0]))],
+            )
+        ]
+        self.assertIn("buckling", table_ids)
+
+    def test_a_plain_study_omits_the_table_entirely(self):
+        from tuba.reporting.tables import build_buckling_table
+
+        table = build_buckling_table(
+            {
+                "analysis_study:Ref": AnalysisStudy(
+                    id="analysis_study:Ref", model_revision=0, solver_name="Code_Aster",
+                    load_case="Ref", work_dir=None, input_files={}, mesh_id="mesh:1",
+                )
+            },
+            [self._state(None)],
+        )
+        self.assertEqual(table.rows, ())
 
 
 class TestBucklingResultTypes(unittest.TestCase):

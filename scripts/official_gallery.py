@@ -256,6 +256,25 @@ OFFICIAL_GALLERIES = (
         ),
     ),
     _project_gallery(
+        # Dev-only for now. The evidence has to live in a registered project, and
+        # whether this becomes a public card is a product call, not a side effect
+        # of the feature landing.
+        "steel-portal-frame-review",
+        frozenset({"dev"}),
+        "engineering-review",
+        "steel-portal-frame",
+        title="Portal frame stability",
+        elements=("POU_D_T",),
+        question="How far is this frame from buckling, and where does it deflect?",
+        summary=(
+            "A seven-bay steel portal-frame industrial hall solved for gravity and wind in "
+            "Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. "
+            "The review shows displacements, reactions, member-end section forces, and the "
+            "critical load factors that say how far the frame is from a buckling mode. "
+            "Von Mises is absent by design: a pipe-free frame has no equivalent-stress field."
+        ),
+    ),
+    _project_gallery(
         "elements-supports-review",
         frozenset({"dev", "pages"}),
         "engineering-review",

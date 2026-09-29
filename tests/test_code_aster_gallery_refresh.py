@@ -56,6 +56,7 @@ def test_official_gallery_records_own_refresh_metadata():
     assert tuple(gallery.id for gallery in engineering) == (
         "autorouted-expansion-loop",
         "code-aster-review",
+        "steel-portal-frame-review",
         "elements-supports-review",
         "guyed-mast-review",
         "hydrogen-plant-layout",

@@ -477,10 +477,11 @@ def build_result_tables(
         build_displacements_table(study_by_id, states),
         build_reactions_table(model, study_by_id, states),
         build_element_forces_table(model, study_by_id, states),
-        build_fe_stress_table(study_by_id, states),
-        build_contacts_table(study_by_id, history),
-        build_contact_findings_table(history),
-    )
+          build_fe_stress_table(study_by_id, states),
+          build_buckling_table(study_by_id, states),
+          build_contacts_table(study_by_id, history),
+          build_contact_findings_table(history),
+      )
 
 
 def build_contacts_table(
@@ -608,6 +609,105 @@ def build_contact_findings_table(result_states: Iterable[ResultState]) -> Report
         columns=CONTACT_FINDING_COLUMNS,
         rows=tuple(rows),
     )
+
+def build_buckling_table(
+    studies_by_id: Mapping[str, AnalysisStudy],
+    result_states: Iterable[ResultState],
+) -> ReportTable:
+    """One row per buckling mode, in the solver's own order.
+
+    The order is deliberately not re-sorted by factor. The solver returns its
+    eigenvalue search sequence and a reader comparing two runs needs to see that
+    they came from the same search, not that someone re-ranked them. The mode that
+    governs is flagged instead, and that is the number a stability statement
+    quotes.
+    """
+    rows: list[dict[str, Any]] = []
+    for state in result_states:
+        buckling = state.buckling
+        if buckling is None or not buckling.modes:
+            continue
+        study = studies_by_id.get(state.study_id)
+        if study is None:
+            raise EngineeringReviewError(
+                f"Buckling results reference undeclared study {state.study_id!r}."
+            )
+        identity = _solver_identity(study, state)
+        governing = buckling.governing_mode()
+        governing_factor = buckling.governing_factor
+        for mode in buckling.modes:
+            rows.append(
+                {
+                    **identity,
+                    "mode": mode.mode,
+                    "critical_factor": mode.critical_factor,
+                    "governing": bool(governing is not None and mode.mode == governing.mode),
+                    "governing_factor": governing_factor,
+                    "raw_eigenvalue": mode.raw_eigenvalue,
+                    "mode_shape_nodes": len(mode.node_displacements),
+                    "methods": buckling.method,
+                    "requested_modes": buckling.requested_modes,
+                    "notes": "; ".join(buckling.notes) or None,
+                }
+            )
+    return ReportTable(
+        id="buckling",
+        title=(
+            "Linear buckling (critical load factor; a reference load, "
+            "not a design check)"
+        ),
+        source="result_state",
+        columns=SOLVER_COLUMNS
+        + (
+            ReportColumn("mode", "Mode", unit="-"),
+            ReportColumn(
+                "critical_factor",
+                "Critical load factor",
+                unit="x",
+                description=(
+                    "Reference load: the multiple of this load case's prestress at "
+                    "which the mode buckles. Linearised and imperfection-free, so "
+                    "it is an optimistic bound and not a member-adequacy verdict."
+                ),
+            ),
+            ReportColumn(
+                "governing",
+                "Governing",
+                unit="-",
+                description="True on the smallest factor: the first mode to buckle.",
+            ),
+            ReportColumn(
+                "governing_factor",
+                "Governing factor",
+                unit="x",
+                description="The smallest critical factor in this study.",
+            ),
+            ReportColumn(
+                "raw_eigenvalue",
+                "Raw eigenvalue",
+                unit="-",
+                description=(
+                    "As Code_Aster reports it. Negative by the sign convention of "
+                    "the K phi = -lambda Kg phi pencil; the factor is its magnitude."
+                ),
+            ),
+            ReportColumn(
+                "mode_shape_nodes",
+                "Mode shape nodes",
+                unit="-",
+                description=(
+                    "Nodes carrying this mode's shape. Mode shapes are "
+                    "dimensionless and arbitrary in scale: shape only, never a "
+                    "displacement."
+                ),
+            ),
+            ReportColumn("methods", "Eigensolver"),
+            ReportColumn("requested_modes", "Modes requested", unit="-"),
+            ReportColumn("notes", "Notes"),
+        ),
+        rows=tuple(rows),
+    )
+
 
 def _vector_magnitude(vector: Sequence[float]) -> float:
     """Delegates to the derivation's own helper, so the two cannot disagree."""
