@@ -446,7 +446,7 @@ governing value" affordance. Recommend a `summary` view that is explicitly one p
 a `diagnostics` band that states the identity/provenance facts the trust model already
 computes.
 
-### L10 — Expose the review state machine · *medium value, medium effort — the biggest unclaimed differentiator*
+### L10 — Expose the review state machine · **shipped** · *medium value, medium effort*
 
 **Evidence.** Gap G5 in the piping benchmark: **no tool in the category can mark anything
 under review, resolved, accepted, or waived.** AutoPIPE has node annotations (a label) and
@@ -454,17 +454,43 @@ an image gallery. Codeware has an auto-generated deficiency summary. CAEPIPE has
 block, which is a report section, not a workflow. Review state genuinely lives only in
 E3D/Tekla markup — tied to CAD objects, not to stress results.
 
-Tuba's scene contract already has `Issue` with `type, title, severity, status,
-entity_refs, view_id, created_by, created_at, comments, external_refs`
-(`scene.py:302`), and the contact review already *generates* findings with severities and
-narratives (`analysis/contact_findings.py:194`). **The data model is 80% built and the UI
-exposes none of it.**
+**The correction first, because this section was wrong about its own size.** It
+claimed the `Issue` model was 80% built and "the UI exposes none of it." The UI *did*
+expose a status select and a comment box (`app.js:appendIssueReviewActions`,
+dispatching `setIssueReviewStatus` / `setIssueReviewComment`). What was missing was
+narrower and sharper than "a surface":
 
-This is the one place Tuba can be categorically better than every commercial tool
-surveyed, and it is mostly a UI problem over data that already exists. Note that E3D and
-Tekla got there by *diffing two model versions*; Tuba has a cheaper and stronger hook —
-the `governing_location` on every result row, which is a precise, stable address for an
-issue.
+- **Attribution.** No author, no date. A disposition with neither is a shrug.
+- **History.** `status` overwrote, so "examined and then re-opened" — usually the
+  interesting part of a review — was unrecoverable.
+- **`accepted` and `waived` were absent**, and those are the two decisions a review
+  meeting is actually about.
+- **No export.** The dispositions died with the tab. *That* was the real gap: a
+  competitor can annotate a node; whether this product could hand you a record was
+  the open question.
+
+So `viewer/src/reviewRecord.js` adds a transition log, five statuses with `waived`
+**requiring a justification**, a self-declared reviewer, and a CSV/JSON export that
+leaves with the review. The existing reducer actions are routed through the new
+writer, so anything already dispatching them gets attribution and history too.
+
+Three refusals, each the reason it can be trusted. The author is **self-declared**
+and the record says so — a static bundle has no authentication, and implying a
+signed identity would be a claim the viewer cannot support. A waiver with a blank
+reason is **refused with state untouched** rather than writing a half-valid record.
+And an **untouched issue is not an `open` disposition**: conflating the two would
+overstate how much review has happened, so the tally reports `touched` separately.
+
+The CSV is tested with an RFC 4180 reader rather than a comma count — which is how
+the first version of that test was written, and it would have passed a file whose
+every column after the comment had shifted. A waiver reason is free text and will
+contain a comma, often a quote, and sometimes a line break.
+
+**Still open from this section:** joining dispositions to *result states*. The
+`governing_location` on every result row is a precise, stable address, and nothing
+yet raises a finding into a recordable disposition. That is the half of L10 the
+benchmark identified as unclaimed by the whole category, and it is the next thing
+worth doing.
 
 ---
 
@@ -508,12 +534,14 @@ Stealing the wrong thing from a competitor would be a regression against ADR 000
 | **2 — The decision** | L3 user reference ratio — **[ADR 0007](../adr/0007-user-reference-ratio-is-not-a-code-check.md)**, `proposed` | needs a material table in the scene |
 | **3 — Diagnostic depth** | L5 envelope, L4 reference stress, L9 report tiers | nothing for L4/L5; L3 for the report tiers |
 | **4 — Structural** | L8 station diagram plots | ~~a new plot surface~~ *(contactReview.js had one)* |
-| **5 — Differentiator** | L10 review state machine over the existing `Issue` model | independent; can start any time |
+| **5 — Differentiator** | L10 review state machine | **shipped**; raising a *result* into a disposition is still open |
 
-Slices 1, 3 and 4 shipped on `feat/postprocess-ergonomics`. Slice 5 is the only
-one left that changes what the product *is* rather than how it reads, and it is
-80% built — the `Issue` model and the review-status reducer actions already exist
-and no UI exposes them. L9's report tiers and L3 remain.
+Slices 1, 3, 4 and 5 shipped on `feat/postprocess-ergonomics`. What remains is
+L3 — the user reference ratio, behind ADR 0007, which needs a material table in
+the scene — L9's report tiers, and the one part of L10 the whole category is
+missing: raising a *finding* into a disposition, so that "this element at this
+station was reviewed and waived" is expressible against a result rather than only
+against a generated clash.
 
 **L10 is smaller than this document says.** `viewerState.js` already has
 `setIssueReviewStatus` and `setIssueReviewComment`, and the scene contract's

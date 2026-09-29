@@ -2,7 +2,8 @@ import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } f
 import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
-import {   fitSelection,
+import {
+  fitSelection,
   findingFitSpan,
   focusFinding,
   hideSelected,
@@ -10,6 +11,7 @@ import {   fitSelection,
   restoreVisibility,
   selectObject
 } from "./selection.js";
+import { recordDisposition } from "./reviewRecord.js";
 import {
   setColoringComponent,
   setColoringField,
@@ -134,27 +136,25 @@ export function reduceViewerState(state, action) {
     case "setVisualDeformationScale":
       return withVisibility(setVisualDeformationScale(state, action.scale));
     case "setIssueReviewStatus":
-      return {
-        ...state,
-        issueReviewState: {
-          ...(state.issueReviewState ?? {}),
-          [action.issueId]: {
-            ...(state.issueReviewState?.[action.issueId] ?? {}),
-            status: action.status
-          }
-        }
-      };
+      // Routed through the record so a status set from the old inspector path
+      // gets attribution and history too, rather than overwriting a bare field.
+      return recordDisposition(state, {
+        issueId: action.issueId,
+        status: action.status,
+        author: state.reviewerName ?? null,
+        at: action.at ?? null
+      });
     case "setIssueReviewComment":
-      return {
-        ...state,
-        issueReviewState: {
-          ...(state.issueReviewState ?? {}),
-          [action.issueId]: {
-            ...(state.issueReviewState?.[action.issueId] ?? {}),
-            comment: action.comment ?? ""
-          }
-        }
-      };
+      return recordDisposition(state, {
+        issueId: action.issueId,
+        comment: action.comment ?? "",
+        author: state.reviewerName ?? null,
+        at: action.at ?? null
+      });
+    case "recordDisposition":
+      return recordDisposition(state, { ...action, author: action.author ?? state.reviewerName ?? null });
+    case "setReviewerName":
+      return { ...state, reviewerName: String(action.name ?? "").trim() || null };
     default:
       return state;
   }

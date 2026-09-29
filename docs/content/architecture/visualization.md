@@ -311,6 +311,57 @@ from pure data. It is an inline plot in the review drawer, closed by default,
 opened from the inspector's **Plot this run** or the `d` shortcut. No run picker:
 the run is whatever the reviewer just clicked.
 
+## The review record
+
+**What the engineer decided, and who decided it.**
+
+No tool in the piping category can do this. AutoPIPE has node annotations — a
+label attached to a point — and an image gallery. CAEPIPE has a `QA Block`, which
+is a report section rather than a workflow. Codeware generates a deficiency summary
+nobody authored. Nothing in the benchmark can mark an item *under review*, *fixed*,
+*accepted* or *waived*, attach a reason, record who did it, or hand the result to
+anyone. E3D and Tekla get closest by diffing two model versions and marking
+changed/new/deleted — tied to CAD objects, not to stress results.
+
+What already existed here was a status select and a comment box on the active
+issue. **That is an opinion.** Three things turn it into a record:
+
+| | |
+| --- | --- |
+| **Attribution** | A disposition with no author and no date is a shrug. The reviewer name is remembered for the session. |
+| **History** | Overwriting `status` loses the fact that an item was examined and then re-opened, which is usually the interesting part. |
+| **A way out** | Dispositions that die with the tab answer no one's question. **The export is the deliverable; the checkbox is not.** |
+
+The statuses are `open · reviewing · resolved · accepted · waived`, and the list
+is ordered as a progression. `waived` **requires a justification**, and it is the
+only one that does: accepting a condition is a decision to live with it, and
+waiving one is a decision to ignore it. A waived clash is still a clash, and the
+reason is the only thing that survives review of the review.
+
+Two things it deliberately does not claim:
+
+- **The author is self-declared**, and the exported record says so
+  (`author_is_self_declared: true`). This is a static bundle with no
+  authentication; a record implying a signed identity would be claiming something
+  the viewer cannot support.
+- **A waiver with a blank reason is refused, and state is left untouched** rather
+  than writing a half-valid record. The refusal is stated where the reviewer is
+  already looking, not as a validator that appears after a save to undo.
+
+An **untouched issue is not an `open` disposition** — it is untriaged, and
+conflating the two would overstate how much review has happened. The tally reports
+`touched` separately for that reason.
+
+The disposition rides on the issue list row as a chip, because an untriaged issue
+and one someone waived look identical in a list of forty.
+
+**Export.** CSV for the review meeting, because a spreadsheet is what is already
+open in it; JSON beside it, carrying the transition history the spreadsheet cannot
+hold. The CSV is quoted per RFC 4180 and tested with a real reader rather than a
+comma count — a waiver reason is free text and will contain a comma, often a
+quote, and sometimes a line break typed into a comment box. A record that loses a
+column to unescaped text is worse than no record.
+
 ## True clipping
 
 The section box performs true clipping with six renderer clipping planes. A pipe crossing the box remains in the scene and only its interior fragment is drawn. The controls do not approximate sectioning by hiding whole objects whose bounds fall outside the box. Camera and section helpers remain visible so the cut can be understood and reset.

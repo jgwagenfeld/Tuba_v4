@@ -77,6 +77,15 @@ import {
   stepFinding,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
+import {
+  REVIEW_STATUSES,
+  dispositionFor,
+  dispositionRefusal,
+  dispositionTally,
+  reviewRecordCsv,
+  reviewStatus,
+  toReviewRecord
+} from "./reviewRecord.js";
 import { BAND_COUNT_CHOICES, bandEdges, isRangeOverridden, niceBounds } from "./legendScale.js";
 import {
   buildDiagram,
@@ -3191,6 +3200,20 @@ function issueRow(issue, { focusKey = null } = {}) {
     magnitude.title = "Overlap depth - the list is ordered worst first";
     button.append(magnitude);
   }
+  // The disposition rides on the row, so a reviewer can see what has already been
+  // decided without clicking into each issue. An untriaged issue and one someone
+  // waived look the same in a list of forty, and that is the whole failure this
+  // closes.
+  const disposition = dispositionFor(currentState, issue.id);
+  if (disposition) {
+    const chip = document.createElement("span");
+    chip.className = `issue-disposition-chip disposition-${disposition.status}`;
+    chip.textContent = reviewStatus(disposition.status)?.label ?? disposition.status;
+    chip.title = disposition.author
+      ? `${disposition.status} by ${disposition.author}${disposition.at ? ` on ${disposition.at.slice(0, 10)}` : ""}`
+      : disposition.status;
+    button.append(chip);
+  }
   button.addEventListener("click", () => {
     dispatch({ type: "focusIssue", issueId: issue.id });
     const marker = currentState.selectedObjectIds
@@ -3307,6 +3330,63 @@ function renderIssues() {
   for (const group of groups) {
     appendIssueGroup(group, (issue) => issueRow(issue, { focusKey: `issue:${issue.id}` }));
   }
+  dom.issueList.append(renderReviewRecordExport());
+}
+
+// The record has to be able to leave. Dispositions that die with the tab answer
+// no one's question, and a review meeting wants a spreadsheet rather than a
+// screenshot - so the export is CSV, and the JSON beside it carries the
+// transition history the spreadsheet cannot hold.
+function renderReviewRecordExport() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "review-record-export";
+  const tally = dispositionTally(currentState);
+  const summary = document.createElement("p");
+  summary.className = "review-record-summary";
+  if (tally.touched === 0) {
+    summary.textContent = "No dispositions recorded. Open an issue to record a decision.";
+    wrapper.append(summary);
+    return wrapper;
+  }
+  const parts = REVIEW_STATUSES
+    .filter((status) => tally[status.id] > 0)
+    .map((status) => `${tally[status.id]} ${status.label.toLowerCase()}`);
+  summary.textContent = `${parts.join(" · ")} of ${(currentState.issues ?? []).length} issues.`;
+  wrapper.append(summary);
+
+  if (!currentState.reviewerName) {
+    const prompt = document.createElement("p");
+    prompt.className = "review-record-author";
+    // Said plainly rather than implied: there is no authentication here, so the
+    // name in the record is a claim by the person typing it.
+    prompt.textContent = "No reviewer name set, so the exported record is unattributed.";
+    wrapper.append(prompt);
+  }
+
+  const csv = document.createElement("button");
+  csv.type = "button";
+  csv.className = "bar-button";
+  csv.dataset.focusKey = "review-record-csv";
+  csv.textContent = "Export record (CSV)";
+  csv.title = "One row per disposition, with the reviewer, the timestamp and the reason";
+  csv.addEventListener("click", () => {
+    const record = toReviewRecord(currentState, { at: new Date().toISOString() });
+    download(new Blob([reviewRecordCsv(record)], { type: "text/csv;charset=utf-8" }), "review-dispositions.csv");
+  });
+
+  const json = document.createElement("button");
+  json.type = "button";
+  json.className = "bar-button";
+  json.dataset.focusKey = "review-record-json";
+  json.textContent = "Export record (JSON)";
+  json.title = "The same record with the full transition history";
+  json.addEventListener("click", () => {
+    const record = toReviewRecord(currentState, { at: new Date().toISOString() });
+    download(new Blob([JSON.stringify(record, null, 2)], { type: "application/json;charset=utf-8" }), "review-record.json");
+  });
+
+  wrapper.append(csv, json);
+  return wrapper;
 }
 
 
@@ -3409,7 +3489,7 @@ function renderProperties() {
     dispatch({ type: "isolateSelection" });
     render();
   });
-  dom.propertyActions.append(fitButton, hideButton, isolateButton);
+  dom.propertyActions.append(fitButton, hideButton, isolateButton, appendRestoreViewAction());
   // Only on a member that belongs to a run of two or more, so the action is not
   // sitting on an inspector that cannot answer it.
   const diagramAction = runDiagramAction();
@@ -3454,7 +3534,7 @@ function renderProperties() {
   if (inputs) dom.properties.append(renderEvidenceSection(inputs));
   if (issueSummary) {
     dom.properties.append(renderPropertySection({ title: "Issue", rows: issueSummary }));
-    appendIssueReviewActions(issueSummary);
+    dom.properties.append(renderDispositionSection(issueSummary));
   }
   const contact = renderContactReview(currentState, dispatch, render, "selection", selectedObjectId);
   if (contact) dom.properties.append(contact);
@@ -3633,30 +3713,101 @@ function formatPropertyValue(value) {
   return String(value);
 }
 
+// The disposition controls, as a titled section so it reads as a decision rather
+// than as another field of the issue. `waived` is refused without a reason, and
+// the refusal is stated before the reviewer loses what they typed rather than as
+// a validator that appears after they hit save.
+function renderDispositionSection(issueSummary) {
+  const section = document.createElement("section");
+  section.className = "issue-disposition";
+  const heading = document.createElement("h3");
+  heading.textContent = "Disposition";
+  section.append(heading, ...appendIssueReviewActions(issueSummary));
+  return section;
+}
+
 function appendIssueReviewActions(issueSummary) {
+  const record = dispositionFor(currentState, issueSummary.id);
+  const currentStatus = record?.status ?? "open";
+
+  const reviewer = document.createElement("input");
+  reviewer.type = "text";
+  reviewer.className = "issue-reviewer";
+  reviewer.placeholder = "Reviewer name";
+  reviewer.value = currentState.reviewerName ?? "";
+  reviewer.setAttribute("aria-label", "Reviewer name (self-declared)");
+  reviewer.dataset.focusKey = "issue-reviewer";
+  reviewer.addEventListener("change", () => {
+    dispatch({ type: "setReviewerName", name: reviewer.value });
+    render();
+  });
+
   const status = document.createElement("select");
   status.setAttribute("aria-label", "Issue Status");
   status.dataset.focusKey = "issue-status";
-  for (const option of ["open", "reviewing", "resolved"]) {
+  for (const declaration of REVIEW_STATUSES) {
     const element = document.createElement("option");
-    element.value = option;
-    element.textContent = option;
-    element.selected = option === issueSummary.status;
+    element.value = declaration.id;
+    element.textContent = declaration.label;
+    element.title = declaration.description;
+    element.selected = declaration.id === currentStatus;
     status.append(element);
   }
-  status.addEventListener("change", () => {
-    dispatch({ type: "setIssueReviewStatus", issueId: issueSummary.id, status: status.value });
-    render();
-  });
 
   const comment = document.createElement("textarea");
   comment.setAttribute("aria-label", "Issue Comment");
   comment.dataset.focusKey = "issue-comment";
-  comment.value = issueSummary.comment ?? "";
-  comment.addEventListener("change", () => {
-    dispatch({ type: "setIssueReviewComment", issueId: issueSummary.id, comment: comment.value });
-  });
+  comment.placeholder = record?.status === "waived" || currentStatus === "waived"
+    ? "What is being waived, and why"
+    : "Note (optional)";
+  comment.value = record?.comment ?? "";
 
+  const refusal = document.createElement("p");
+  refusal.className = "issue-refusal";
+  refusal.setAttribute("role", "status");
+  refusal.hidden = true;
+
+  const commit = () => {
+    const reason = dispositionRefusal({ status: status.value, comment: comment.value });
+    refusal.hidden = !reason;
+    refusal.textContent = reason ?? "";
+    if (reason) {
+      return;
+    }
+    dispatch({
+      type: "recordDisposition",
+      issueId: issueSummary.id,
+      status: status.value,
+      comment: comment.value,
+      at: new Date().toISOString()
+    });
+    render();
+  };
+  status.addEventListener("change", commit);
+  comment.addEventListener("change", commit);
+
+  const actions = [reviewer, status, comment, refusal];
+  if (record && record.transitions.length > 0) {
+    const history = document.createElement("p");
+    history.className = "issue-history";
+    // The history is the point of keeping transitions rather than overwriting.
+    // "Examined, then re-opened" is the finding; the current status is not.
+    history.textContent = `${record.transitions.length} recorded change${record.transitions.length === 1 ? "" : "s"}`
+      + `, last by ${record.author ?? "an unnamed reviewer"}`;
+    if (record.at) {
+      history.textContent += ` on ${record.at.slice(0, 10)}`;
+    }
+    history.title = record.transitions
+      .map((transition) => `${transition.at ?? "?"} ${transition.status}${transition.comment ? ` — ${transition.comment}` : ""}`)
+      .join("\n");
+    actions.push(history);
+  }
+  return actions;
+}
+
+// Restoring the view is a lens action, not a decision about an issue, so it sits
+// with the other view actions rather than inside the disposition section.
+function appendRestoreViewAction() {
   const restoreButton = document.createElement("button");
   restoreButton.type = "button";
   restoreButton.textContent = "Restore view";
@@ -3665,8 +3816,7 @@ function appendIssueReviewActions(issueSummary) {
     dispatch({ type: "restoreVisibility" });
     render();
   });
-
-  dom.propertyActions.append(status, comment, restoreButton);
+  return restoreButton;
 }
 
 function renderCanvas() {
