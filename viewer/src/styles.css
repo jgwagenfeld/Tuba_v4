@@ -155,9 +155,22 @@ textarea,
   text-transform: uppercase;
 }
 
+/* `center`, not `baseline`. This is not cosmetic: the scene title is only a
+   flex item when the bundle picker is hidden, because app.js gives the h1
+   `visually-hidden` whenever the picker is the visible title. In that case -
+   one published bundle, or an embed - the h1 is the only thing naming the
+   review, and with `align-items: baseline` its own `overflow: hidden` made
+   flexbox fall back to the item's bottom margin edge for its baseline, so the
+   box collapsed to 1px and every line of it was clipped away. A flex item's
+   baseline participates in alignment only while it can paint, so an ellipsised
+   title and a baseline-aligned row are mutually exclusive.
+
+   The 1px h1 seen in a multi-bundle session is correct and deliberate: that is
+   what `.visually-hidden` is for, and the picker beside it is the visible
+   title. It is only the single-bundle case that was broken. */
 .app-identity {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.6rem;
   flex: 1 1 auto;
   min-width: 0;
@@ -1348,6 +1361,14 @@ textarea,
   bottom: 0.75rem;
   min-width: 15rem;
   max-width: min(22rem, 45%);
+  /* Above the camera row, deliberately. It is an opaque panel, and without a
+     z-index it painted over the controls it happened to overlap - measured 2 of
+     5 camera buttons unclickable at 900px and all 5 at 700px and below. The
+     overlap was not a collision of chance: `min-width: 15rem` beat
+     `max-width: 45%`, so on a narrow viewport the legend stayed 240px wide and
+     reached the camera row whatever the viewport was. Below 900px the legend
+     yields instead, and the camera row keeps its own corner. */
+  z-index: 2;
 }
 
 .viewport-legend[hidden],
@@ -1846,6 +1867,11 @@ body[data-rail-open="true"] .rail-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  /* Above the legend, which is the opaque panel the buttons were disappearing
+     under. Raised together with the legend so the stacking order is stated
+     rather than inherited: the camera row is a control and must be hit-testable
+     wherever it is drawn. */
+  z-index: 3;
 }
 
 /* Axis views and zoom are different actions and are no longer one run of
@@ -2437,7 +2463,25 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   /* The rail is an absolutely positioned overlay whose width resolved to 15rem
      at 390px - 62% of the phone, leaving a 150px viewport and a legend slab
      clipped mid-word. Below 520px it is a bottom sheet instead, capped at 45vh
-     so the scene is never fully displaced by a panel the reader can dismiss. */
+     so the scene is never fully displaced by a panel the reader can dismiss.
+
+     `--controls-width` has to be cleared as well as the rail's width. The
+     workspace pads itself by that token, and the token was still 240px at 390px
+     after the rail became a full-width sheet - so the sheet was full width and
+     the gutter beside the scene was too. Measured 150px of canvas in a 390px
+     phone, which is worse than the 62% rail this replaced: the rail at least
+     filled the space it took.
+
+     The selector repeats the rail-open rule's own specificity on purpose. A
+     bare `.viewer-workspace` here is 0,1,0 against
+     `body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace`'s
+     0,3,1, so the token kept its 240px no matter where the media query put it -
+     the first attempt at this fix changed nothing, and the measurement said so. */
+  body[data-rail-open="true"]:not([data-embed="true"]) .viewer-workspace,
+  .viewer-workspace {
+    --controls-width: 0px;
+  }
+
   .cockpit-rail {
     inset: auto 0 0 0;
     width: auto;
@@ -2465,8 +2509,9 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   .display-palette {
     left: auto;
     right: 0.75rem;
+    top: 3.5rem;
     max-width: calc(100% - 1.5rem);
-    max-height: calc(100% - 6rem);
+    max-height: calc(100% - 7rem);
   }
 
   .display-palette[open] {
@@ -2477,6 +2522,33 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
     right: 0.75rem;
     top: 3.1rem;
     max-width: calc(100% - 1.5rem);
+  }
+
+  /* The legend's own floor was the reason it reached the camera row. At 15rem it
+     is 240px, which on a 390px phone is 62% of the width and past
+     `max-width: 45%` - max-width cannot shrink a box below its min-width, so
+     every narrow viewport got the same 240px slab regardless. The legend gives
+     up its floor below 900px, and the camera row moves out from under it. */
+  .viewport-legend {
+    min-width: 0;
+    max-width: calc(100% - 1.5rem);
+    bottom: 0.75rem;
+  }
+
+  /* The camera row cannot stay at the bottom here. Below 520px the rail is a
+     bottom sheet taking up to 45vh, and the row sat underneath it: measured 6 of
+     6 camera buttons hit-testing to the rail's own controls - its load-case
+     select, its deformation slider, its utility buttons. A camera button that
+     looks live and is not is worse than no camera button, so the row moves to
+     the one band nothing else wants: the top-right, above the display palette. */
+  .camera-controls {
+    top: 0.75rem;
+    right: 0.75rem;
+    left: auto;
+    bottom: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100% - 4rem);
   }
 
   .camera-controls {
@@ -4163,4 +4235,44 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 .inspector .contact-review svg { width: 100%; }
 @media (max-width: 700px) {
   .review-findings { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------------------------------------------------------------------------
+   Narrow-viewport placement, last in the file on purpose.
+
+   The viewport's floating controls are placed by rules that live near the end of
+   this stylesheet - .display-palette is defined around line 3960, long after the
+   520px block above. A media query adds no specificity, so an override written
+   in the earlier block loses on source order no matter how specific it looks, and
+   the first attempt at fixing the phone camera row changed nothing measurable:
+   the display palette stayed at 0.75rem and kept painting over the buttons, and
+   all six of them still hit-tested to its <summary>.
+
+   So the phone placement is stated once, here, where it is last and therefore
+   last to be overridden.
+   --------------------------------------------------------------------------- */
+@media (max-width: 520px) {
+  /* The camera row owns the top-right band; the display disclosure steps below
+     it, and the rail toggle keeps the top-left. Nothing else wants that row. */
+  .display-palette {
+    top: 3.75rem;
+    right: 0.75rem;
+    left: auto;
+    max-width: calc(100% - 1.5rem);
+    max-height: calc(100% - 7rem);
+  }
+
+  .display-palette[open] {
+    width: auto;
+  }
+
+  .camera-controls {
+    top: 0.75rem;
+    right: 0.75rem;
+    left: auto;
+    bottom: auto;
+    max-width: calc(100% - 4rem);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 }

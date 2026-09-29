@@ -531,3 +531,30 @@ test("a studio opens a solved project on its results, not on the script", async 
   // studio no longer claims one here.
   assert.doesNotMatch(init, /activateTask/, "the studio does not claim a rail task");
 });
+
+// The gallery's group taxonomy claimed a card "cannot be filed under something it
+// is not". The claim walk ran over the table reversed, so `beams` tested before
+// `pipe` and any card declaring POU_D_T was claimed by beams even when it also
+// declared TUYAU_3M: a hydrogen plant layout, a rack bridge, a support rack and
+// a line-load study all shipped under a "Beams, bars and cables" label, and
+// because the largest group leads, that mis-filed group was what the landing
+// page opened on. This asserts the claim order, because the order is the rule.
+test("the gallery claims a card by its most specific modelisation", async () => {
+  const gallery = await readViewerFile("src/gallery.js");
+
+  // Claim order is declared, not inherited from the table's display order.
+  const declared = gallery.match(/CLAIM_ORDER = Object\.freeze\(\[([^\]]+)\]\)/);
+  assert.ok(declared, "the claim order must be declared explicitly");
+  const order = [...declared[1].matchAll(/"([a-z]+)"/g)].map((match) => match[1]);
+
+  assert.equal(
+    order[0],
+    "geometry",
+    "geometry-only is decided by the solver flag, so it claims first and an unsolved card is never filed as an analysis"
+  );
+  assert.ok(
+    order.indexOf("pipe") < order.indexOf("beams"),
+    "a card declaring both TUYAU_3M and POU_D_T is a piping review; beams claiming first mis-filed every one of them"
+  );
+  assert.equal(order.length, 4, "every declared group is claimed");
+});

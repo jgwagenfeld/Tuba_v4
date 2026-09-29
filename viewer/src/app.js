@@ -2361,8 +2361,16 @@ function renderObjects() {
 // aria-pressed: a listbox would replace those with options and cost the press
 // semantics, so the arrow handling is the affordance and the buttons stay
 // buttons.
+// The rows the object list navigates: authored objects and the group headers
+// that select them. Declared before the roving-tabindex pass that uses it.
+const LIST_ROWS = "button[data-object-id], .group-header";
+
 function applyRovingTabindex() {
-  const rows = dom.objectList.querySelectorAll("button[tabindex]");
+  // Every row, not `button[tabindex]`. Nothing set that attribute, so the
+  // previous selector matched zero elements and this was a no-op on every
+  // render: 0 of 211 rows, and 0 of 2149 on the hydrogen plant, carried a
+  // tabindex, so the list was as many tab stops as it has rows.
+  const rows = [...dom.objectList.querySelectorAll(LIST_ROWS)];
   const current = document.activeElement;
   const inList = current instanceof HTMLElement && dom.objectList.contains(current);
   const first = rows[0] ?? null;
@@ -2381,16 +2389,19 @@ function applyRovingTabindex() {
 // Arrow keys move within the list; Home and End go to its ends. Anything else
 // falls through, so typing in the search box above and Tab out of the list both
 // behave as they always did.
-const LIST_ROWS = "button[data-object-id], .group-header";
-
 function onObjectListKeydown(event) {
   if (event.defaultPrevented) return;
-  if (event.target !== event.currentTarget) return;
+  // A keydown from a row bubbles with target = the row and currentTarget = the
+  // list, so a guard demanding the two be identical can never be satisfied. Any
+  // key pressed anywhere inside the list is the list's to answer; the key test
+  // below is what decides whether we act.
+  if (!(event.target instanceof HTMLElement)) return;
+  if (!event.target.closest(LIST_ROWS)) return;
   const rows = [...event.currentTarget.querySelectorAll(LIST_ROWS)].filter(
     (row) => row.offsetParent !== null || row.getClientRects().length > 0
   );
   if (rows.length === 0) return;
-  const index = rows.indexOf(document.activeElement.closest(LIST_ROWS));
+  const index = rows.indexOf(event.target.closest(LIST_ROWS));
   const forward = event.key === "ArrowDown";
   const backward = event.key === "ArrowUp";
   const jump = {

@@ -380,12 +380,30 @@ const GROUPS = [
   }
 ];
 
+// Claim order, distinct from the display order above. See groupEntries.
+const CLAIM_ORDER = Object.freeze(["geometry", "solids", "pipe", "beams"]);
+
 export function groupEntries(entries) {
   const claimed = new Set();
   const groups = [];
-  // "Geometry only" is decided by the solver flag, so it is evaluated first and
-  // a card that would also match a subject group is not counted in both.
-  for (const group of [...GROUPS].reverse()) {
+  // The order cards are CLAIMED in is not the order they are DISPLAYED in, and
+  // conflating the two is what put a hydrogen plant layout on a shelf labelled
+  // "Beams, bars and cables": the walk used to run over the table reversed, so
+  // `beams` tested before `pipe` and any card declaring POU_D_T was claimed by
+  // beams even when it also declared TUYAU_3M. Four of the eight leading cards
+  // were piping reviews under the wrong name.
+  //
+  // Claim order, most decisive first:
+  //   geometry - decided by the solver flag, not by an element name, so a card
+  //              it claims can never also sit in a subject group;
+  //   solids   - "3D" is the most specific thing a card can declare;
+  //   pipe     - a pipe review is a piping product's core case and wins a tie
+  //              against a beam, which is almost always also on the model as
+  //              rack steel;
+  //   beams    - last, so it takes what the others did not.
+  for (const id of CLAIM_ORDER) {
+    const group = GROUPS.find((candidate) => candidate.id === id);
+    if (!group) continue;
     const members = entries.filter((entry) => !claimed.has(entry.id) && group.test(entry));
     if (members.length === 0) continue;
     for (const member of members) claimed.add(member.id);
