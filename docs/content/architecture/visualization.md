@@ -87,7 +87,7 @@ The rail is one scrollable column of sections, not a set of tabs. Nothing swaps,
 | Section | Holds |
 | --- | --- |
 | Colour by | The colouring channel: a model property or a solver field |
-| Result refinements | Case, component, deformation, thresholds, vectors and hotspots |
+| Result refinements | Case, component, deformation, thresholds, legend scale, vectors and hotspots |
 | Bodies / Overlays / All layers | What is drawn |
 | Issues | Diagnostics and issue-focused geometry |
 
@@ -97,7 +97,7 @@ The review's tables live in the generated report that the header links to.
 
 The coloring channel is load case × result field × component. The pinned **Colour by** control chooses which channel tints the scene: a model property (role, section, material, group, insulation) or a solver field. Because it is pinned above the layer list, the choice does not depend on where you are reading. A scalar field exposes only `magnitude`; vector fields expose their available components plus `magnitude`. Selecting a load case keeps the result field and geometry state coherent with that case. Field selection changes coloring and its legend, not layer ownership.
 
-The result refinements control the chosen field: load case, component, thresholds, vector scales and hotspots. The legend and compliance caveat remain visible in the viewport whenever the results channel owns the colours. The legend and scene use the same color function.
+The result refinements control the chosen field: load case, component, thresholds, legend scale, vector scales and hotspots. The legend and compliance caveat remain visible in the viewport whenever the results channel owns the colours. The legend and scene use the same color function.
 
 There are two deformation settings:
 
@@ -131,6 +131,236 @@ peak, and bend-chord deviation. Conversion follows two rules:
 
 The `numeric()` guard displays missing values as empty, preventing JavaScript's
 `Number(null)` conversion from displaying them as zero.
+
+## Legend scale
+
+The colour ramp reads the field's own range by default and is continuous. A reviewer
+can band it and type its bounds, in **Filters & vectors** in the results rail.
+
+Two constraints keep this from becoming the thing this review of the competitors
+criticised:
+
+- **Bands are a control, never a constant.** AutoPIPE's six hard-coded bands are the
+  most-cited complaint in the piping category, and the reason is not that six is the
+  wrong number — it is that 0.15 and 0.25 got different colours while 0.85 and 0.95 got
+  the same one, spending resolution where nothing happens and taking it away from
+  where acceptance limits live.
+- **Bounds round.** A step is the *nearest* 1/1.5/2/2.5/3/4/5/6/8/10 × 10ⁿ value, and
+  the top edge extends to a whole band so a value is never quietly clipped. Rounding
+  *up* was the first implementation and it was wrong twice over: a request for 6 bands
+  never yielded 6, and `0.105` snapped to `0.15`.
+
+The band count follows the reviewer between fields; the bounds do not, because a limit
+typed for 0–500 MPa is meaningless against a millimetre-scale displacement.
+
+Every colour in the product — the 3D tint, the hotspot swatch, the legend gradient and
+its tick labels — resolves through one `rampRatio`, so the picture and the bar beside
+it cannot describe different scales. The legend restates the scale it is reading, and
+marks it "(set by you)" once overridden, so a screenshot carries its own range.
+
+## Trust facts
+
+Two facts a reviewer should never have to go looking for, both stated at the weight
+they deserve and both **evidenced, never verdicts**.
+
+**Reaction and load consistency**, in the status strip's Analysis disclosure beside the
+mesh check. The reactions are summed against the **authored nodal loads only**, with
+the applied forces carried to the same origin for the moment balance — summing nodal
+moments alone would leave the moment arm out and call the result a residual.
+
+Self-weight, pressure, line loads and authored fields are assembled inside Code_Aster
+and never reach the bundle, so they are **named as excluded** rather than silently
+dropped. A small residual the reader can account for is useful; the same residual with
+no explanation is the failure mode this exists to prevent — AutoPIPE zeroes the ASME NB
+eq-10 ratio when eq 12/13 govern, omits KHK L2 bends from the plot, and CAESAR II
+reports an allowable of 0 for B31.1 operating cases. Nothing in this product reports
+pass or fail, because there is no code in the number.
+
+**Value basis**, in the rail's Field details: what population the field's number is a
+maximum over. Averaging is the display setting that changes the answer — Nastran's own
+documentation notes Simcenter averages components before forming von Mises while Femap
+does the reverse, so the same model gives different numbers in the two tools — and
+neither puts it in front of the reader. The cell stress field states that it is an
+element-end maximum; a sub-point field states what was measured and that the wall
+between points is interpolated.
+
+## Walking the findings
+
+`n` and `N` step through the findings the scalar field is colouring, worst first:
+select, frame the spot, fill the inspector, and report "7 of 40" on the active row.
+The keys live in the shared `SHORTCUTS` table, so they inherit the modifier and
+typing-target guards and are listed in the `?` overlay.
+
+`n` rather than `Tab`, deliberately: `Tab` is focus traversal, and a review shortcut in
+its way costs more than the walk saves. The walk indexes by object id rather than by
+position, so moving a threshold cannot strand it on a finding that no longer exists. The
+camera is clamped to a window about the selection's centre, because fitting a
+twenty-metre straight run whole puts the camera outside the model with the hot spot
+somewhere in the middle of it.
+
+**Select *n* findings** in the filters drawer turns the current thresholds into a
+selection, so the filtered set can scope the review tables as well as the list. Without
+that, the threshold and the report are two independent decisions about one question.
+
+## The envelope
+
+Every tool in the piping category has one and this viewer had none: AutoPIPE
+reviews an envelope of its code combinations, CAEPIPE takes the maximum across
+all cases at each node, and PrePoMax, SCIA and SOFiSTiK all carry an envelope
+result type. A reviewer with several load cases and a dropdown wants the worst of
+them, and stepping the dropdown by hand and remembering the answer is the one
+thing a dropdown cannot do.
+
+The envelope is **one more field in the one "colour by" selector**, which is what
+ADR 0006 requires — not a second ramp or a second surface. It appears only when
+the active load case published more than one result step, and it spans every
+step that load case published rather than a reviewer-selected subset.
+
+Two properties make it a review answer rather than a filter:
+
+- **It records which step won.** `winners` maps each object to the result state
+  that produced its value, and the hotspot list prints it beside the number. A
+  maximum with no provenance is a number the reviewer has to re-derive.
+- **It says it is derived.** An envelope is arithmetic over results the solver
+  produced, never a solver result, and it takes a `compliance_role` so the
+  disclaimer travels with it into the viewport legend, the status strip and the
+  field details.
+
+A tie is credited to the **earlier** step: a tie in a staged run usually means
+the increment added nothing, and naming the later step would credit it with a
+value it did not produce. Envelopes never span load cases — mixing cases is a
+combination, and the load-case algebra exists to keep that explicit.
+
+When the load case published several steps but only one carries the quantity, the
+field says **"Only one result step carried this quantity, so no maximum was taken
+across steps"** rather than presenting a single result as an envelope.
+
+## Reference stress
+
+The peak is not a number anyone can act on. In a linear analysis a stress
+singularity grows with every refinement — the same sharp corner gives 41.6, 48.6
+and 65.6 MPa on three meshes — and the folklore workaround of reading the next
+contour down makes the answer depend on the mesh.
+
+The reference stress is the same wall-point population asked a question that
+survives that: **the value a fixed fraction of the population exceeds.** It is
+offered for the sub-point field only, because that is the only field whose
+population reaches the viewer at all — the cell FE field's values are one number
+per element, already reduced to a maximum, so a percentile of them would be a
+percentile of maxima.
+
+Nearest-rank, with no interpolation: the population is a set of measured points,
+and inventing values between two of them is the same smoothing mistake as
+interpolating a piecewise-constant stress field into a continuous space.
+
+Three things it refuses:
+
+- **No extrapolation.** A payload carrying fewer sub-points than the bundle
+  declares is a **truncated population**, and the note says so with both counts.
+- **No peak as a criterion.** The percentile is for reading the result, and the
+  threshold filter next to it still works, so a reviewer can scope a review to
+  what the percentile allows rather than to one point.
+- **No claim of adequacy.** A reference stress below a limit is not a code check
+  and the note does not become one.
+
+## The station diagram
+
+**Where along a run does it go bad?** A contour says an element is hot, and an
+element can be a metre of straight pipe. A station diagram says the moment peaks
+four metres from the anchor and falls to nothing at the bend, which is the
+sentence an engineer has to write before they can size anything.
+
+This is the plot the piping category does not have and the FEA category cannot do
+without. AutoPIPE, CAESAR II, CAEPIPE and PASS/START-PROF all review in 3D and in
+tables and have **no path or station plot at all**. ANSYS, Abaqus, COMSOL, SALOME
+and Code_Aster's own `POST_RELEVE_T` treat the X–Y diagram as primary. SALOME's
+curve mode is the closest precedent: one path, every result step overlaid.
+
+It needs no new data:
+
+| Requirement | Where it already is |
+| --- | --- |
+| Station along the run | `generation_config.points` on each element's geometry asset — two points for a straight member, sixteen for a bend |
+| Which members form a run | `metadata.nodes` on the element object, walked as a graph |
+| An ordinate at each end | `element_results[...].forces_n1` / `forces_n2`, six components in Code_Aster's `EFGE_ELNO` order |
+
+A **bend contributes its arc, not the chord** between its nodes. A 90° bend on a
+0.3 m radius is 0.47 m of pipe, not 0.42 m, and using the chord would
+systematically understate every station downstream of the first bend. The sampled
+centreline is the authority.
+
+Four things it refuses:
+
+- **A single member is not a run.** Two is the smallest that can show a peak
+  between its ends, and one pair of ordinates is not a diagram.
+- **A standing-in object is not a member.** A tee whose display geometry is an
+  idealised joined wall would put a fabricated ordinate on a real station axis.
+- **A half diagram is not a diagram.** A component is offered only where both
+  ends of every member carry it, because a plot that stops where the far end runs
+  out reads as the load vanishing.
+- **No interpolation across a gap.** A member with no end forces is left as a gap
+  and counted, because drawing through it would assert a load path the solve
+  never reported.
+
+The value axis always **spans zero**, because all six components are signed and a
+diagram without a zero line cannot tell a reversal from a rise.
+
+The SVG is emitted as a string from pure data, so the shape of the diagram is
+testable without a canvas — the same reason the report layer emits CSV and HTML
+from pure data. It is an inline plot in the review drawer, closed by default,
+opened from the inspector's **Plot this run** or the `d` shortcut. No run picker:
+the run is whatever the reviewer just clicked.
+
+## The review record
+
+**What the engineer decided, and who decided it.**
+
+No tool in the piping category can do this. AutoPIPE has node annotations — a
+label attached to a point — and an image gallery. CAEPIPE has a `QA Block`, which
+is a report section rather than a workflow. Codeware generates a deficiency summary
+nobody authored. Nothing in the benchmark can mark an item *under review*, *fixed*,
+*accepted* or *waived*, attach a reason, record who did it, or hand the result to
+anyone. E3D and Tekla get closest by diffing two model versions and marking
+changed/new/deleted — tied to CAD objects, not to stress results.
+
+What already existed here was a status select and a comment box on the active
+issue. **That is an opinion.** Three things turn it into a record:
+
+| | |
+| --- | --- |
+| **Attribution** | A disposition with no author and no date is a shrug. The reviewer name is remembered for the session. |
+| **History** | Overwriting `status` loses the fact that an item was examined and then re-opened, which is usually the interesting part. |
+| **A way out** | Dispositions that die with the tab answer no one's question. **The export is the deliverable; the checkbox is not.** |
+
+The statuses are `open · reviewing · resolved · accepted · waived`, and the list
+is ordered as a progression. `waived` **requires a justification**, and it is the
+only one that does: accepting a condition is a decision to live with it, and
+waiving one is a decision to ignore it. A waived clash is still a clash, and the
+reason is the only thing that survives review of the review.
+
+Two things it deliberately does not claim:
+
+- **The author is self-declared**, and the exported record says so
+  (`author_is_self_declared: true`). This is a static bundle with no
+  authentication; a record implying a signed identity would be claiming something
+  the viewer cannot support.
+- **A waiver with a blank reason is refused, and state is left untouched** rather
+  than writing a half-valid record. The refusal is stated where the reviewer is
+  already looking, not as a validator that appears after a save to undo.
+
+An **untouched issue is not an `open` disposition** — it is untriaged, and
+conflating the two would overstate how much review has happened. The tally reports
+`touched` separately for that reason.
+
+The disposition rides on the issue list row as a chip, because an untriaged issue
+and one someone waived look identical in a list of forty.
+
+**Export.** CSV for the review meeting, because a spreadsheet is what is already
+open in it; JSON beside it, carrying the transition history the spreadsheet cannot
+hold. The CSV is quoted per RFC 4180 and tested with a real reader rather than a
+comma count — a waiver reason is free text and will contain a comma, often a
+quote, and sometimes a line break typed into a comment box. A record that loses a
+column to unescaped text is worse than no record.
 
 ## True clipping
 

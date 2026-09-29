@@ -272,9 +272,19 @@ test("history field options and values follow the active result while retaining 
     { support: "node", components: ["DX", "DY", "DZ", "magnitude"] }));
   let state = { objects: [], layers: {}, resultStates: states, overlays: [...states, ...overlays], resultFields, geometryStates: [], activeResultStateId: "state-0", activeLoadCase: "Cold" };
   state = setColoringComponent(setColoringField(state, "field:0:reaction_force"), "DZ");
-  assert.equal(getFieldOptions(state).length, 2);
+  // Two result steps for one load case, so the envelope is a third field in the
+  // one selector - not a second channel beside it.
+  assert.deepEqual(getFieldOptions(state).map((option) => option.id), [
+    "field:0:displacement",
+    "field:0:reaction_force",
+    "field:envelope"
+  ]);
   state = reduceViewerState(state, { type: "setActiveResultState", resultStateId: "state-1" });
-  assert.deepEqual(getFieldOptions(state).map((option) => option.id), ["field:1:displacement", "field:1:reaction_force"]);
+  assert.deepEqual(getFieldOptions(state).map((option) => option.id), [
+    "field:1:displacement",
+    "field:1:reaction_force",
+    "field:envelope"
+  ]);
   assert.equal(getActiveField(state).id, "field:1:reaction_force");
   assert.equal(state.coloring.fieldId, "field:1:reaction_force");
   assert.equal(getActiveComponent(state), "DZ");

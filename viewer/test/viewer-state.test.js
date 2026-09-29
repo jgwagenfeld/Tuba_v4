@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createViewerState, setLayerVisibility } from "../src/sceneLoader.js";
@@ -290,8 +290,8 @@ test("viewer reducer stores local issue review status comment and restores visib
   );
   const restored = reduceViewerState(reviewed, { type: "restoreVisibility" });
 
-  assert.equal(reviewed.issueReviewState["issue:clash"].status, "resolved");
-  assert.equal(reviewed.issueReviewState["issue:clash"].comment, "Checked");
+  assert.equal(reviewed.reviewDispositions["issue:clash"].status, "resolved");
+  assert.equal(reviewed.reviewDispositions["issue:clash"].comment, "Checked");
   assert.deepEqual(restored.hiddenObjectIds, []);
   assert.deepEqual(restored.isolatedObjectIds, []);
   assert.equal(restored.sectionBox, undefined);
@@ -387,7 +387,7 @@ test("full scene reload adopts the new coherent result pair when the old load ca
   const previous = {
     ...createViewerState(bundle()),
     camera: { mode: "orbit", target: [4, 5, 6], distance: 9 },
-    issueReviewState: { "issue:kept": { status: "resolved", comment: "Checked" } },
+    reviewDispositions: { "issue:kept": { status: "resolved", comment: "Checked" } },
     review: { schema_version: "engineering_review.v1", analysis_status: "solved", tables: {} },
     reviewDiagnostics: [{ code: "review:kept" }]
   };
@@ -406,7 +406,7 @@ test("full scene reload adopts the new coherent result pair when the old load ca
   assert.equal(preserved.activeResultStateId, "result_state:Cold");
   assert.equal(preserved.activeLoadCase, "Cold");
   assert.deepEqual(preserved.camera, previous.camera);
-  assert.deepEqual(preserved.issueReviewState, previous.issueReviewState);
+  assert.deepEqual(preserved.reviewDispositions, previous.reviewDispositions);
   assert.equal(preserved.review, nextState.review);
 });
 

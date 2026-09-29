@@ -32,8 +32,8 @@
         "url": "https://jgwagenfeld.github.io/Tuba_v4/"
       }
     </script>
-    <script type="module" crossorigin src="./assets/index-C7Hpsew8.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DR4l13LS.css">
+    <script type="module" crossorigin src="./assets/index-CRG_epNb.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-ChhmjXGj.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -171,6 +171,9 @@
                 <details class="field-details" data-field-details hidden>
                   <summary>Field details</summary>
                   <div data-field-description></div>
+                  <p class="averaging-note" data-averaging-note hidden></p>
+                  <p class="reference-note" data-reference-note hidden></p>
+                  <p class="envelope-note" data-envelope-note hidden></p>
                   <p class="projection-note" data-projection-note></p>
                 </details>
                 <div class="result-controls" data-result-shape></div>
@@ -266,6 +269,16 @@
               <summary>Support reactions</summary>
               <div class="contact-table-scroll" role="region" aria-label="Support reactions" tabindex="0" data-reaction-table></div>
             </details>
+            <!-- The station diagram lives with the tables rather than in the
+                 rail, for the same reason the contact chart does: it is a
+                 reading of a result the scene is already showing, and a rail
+                 section would compete with the controls for a column the rail
+                 does not have. Closed by default - it is a question asked once
+                 per run, not a standing view. -->
+            <details class="run-diagram" data-run-diagram hidden>
+              <summary data-run-diagram-summary>Run diagram</summary>
+              <div class="run-diagram-body" data-run-diagram-body></div>
+            </details>
             <div class="review-findings">
               <section data-hotspot-list></section>
               <section data-issue-tools-home>
@@ -310,6 +323,7 @@
           <summary data-analysis-summary>Mesh detail</summary>
           <div class="analysis-details-content">
             <section class="mesh-check" aria-label="Mesh discretisation check" data-discretisation-check></section>
+            <section class="balance-check" aria-label="Reaction and load consistency" data-balance-check></section>
           </div>
         </details>
         <span class="strip-fact strip-selection" data-selection-fact hidden></span>

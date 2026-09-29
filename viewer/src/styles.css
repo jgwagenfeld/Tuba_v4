@@ -313,7 +313,8 @@ textarea,
   box-shadow: 0 0.25rem 1rem rgb(0 0 0 / 25%);
 }
 
-.analysis-details-content .mesh-check {
+.analysis-details-content .mesh-check,
+.analysis-details-content .balance-check {
   flex-wrap: wrap;
 }
 
@@ -1403,6 +1404,360 @@ textarea,
   color: #8b96a2;
   font-family: var(--font-mono);
   font-size: 0.66rem;
+}
+
+/* Banded, the ramp is a set of flat regions rather than a gradient, and every
+   boundary carries a label. AutoPIPE's hard-coded six bands are the most-cited
+   complaint in the piping category, and a legend that cannot say where its own
+   boundaries are is how the complaint is answered badly rather than not at all. */
+.legend-ramp[data-legend-bands]:not([data-legend-bands="0"]) {
+  /* A hairline between bands, so a boundary is visible even where two adjacent
+     cividis stops happen to land close together. */
+  box-shadow: inset 0 0 0 1px rgb(17 24 39 / 18%);
+}
+
+.legend-scale {
+  color: #8b96a2;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+.averaging-note,
+.reference-note,
+.envelope-note {
+  margin: 0;
+  color: var(--chrome-text-2);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.averaging-note[hidden],
+.reference-note[hidden],
+.envelope-note[hidden] {
+  display: none;
+}
+
+/* The reference stress reads as a measurement of the same population as the
+   peak it moderates, so the lead-in and the values are set apart from the
+   closing sentence about what the number survives. */
+.reference-lead {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--chrome-text-3);
+}
+
+.reference-values {
+  display: block;
+  font-family: var(--font-mono);
+}
+
+.reference-basis {
+  display: block;
+  color: var(--chrome-text-3);
+  font-size: 0.7rem;
+}
+
+/* The station diagram. In the review drawer, closed by default, beside the
+   contact chart which is the other inline plot in this product. */
+.run-diagram {
+  border-top: 1px solid var(--graphite-line);
+}
+
+.run-diagram > summary {
+  cursor: pointer;
+  color: var(--chrome-text-2);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 0.35rem 0;
+}
+
+.run-diagram[open] > summary {
+  color: var(--chrome-text);
+}
+
+.run-diagram-body {
+  display: grid;
+  gap: 0.4rem;
+  padding-bottom: 0.5rem;
+}
+
+.diagram-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.diagram-component-active {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.diagram-chart {
+  /* The SVG carries its own viewBox and stretches; the height is the aspect the
+     station axis needs to be readable, not a decorative one. */
+  width: 100%;
+  min-height: 11rem;
+  background: var(--graphite-raised);
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.3rem;
+  padding: 0.25rem;
+}
+
+/* The disposition is a decision about an issue, not another field of it, so it
+   gets a titled section rather than joining the property table. */
+/* A finding's disposition, on the hotspot row. "unreviewed" is shown in the same
+   slot as a recorded status so a triaged finding and an untouched one cannot
+   both read as a plain row - the difference is what the list exists to show. */
+.hotspot-disposition {
+  margin-left: auto;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-text-3);
+  white-space: nowrap;
+}
+
+.hotspot-disposition.disposition-resolved,
+.hotspot-disposition.disposition-accepted {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.hotspot-disposition.disposition-waived {
+  border-color: var(--warning-on-dark);
+  color: var(--warning-on-dark);
+}
+
+.issue-disposition {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--graphite-line);
+}
+
+.issue-disposition h3 {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chrome-text-3);
+}
+
+.issue-reviewer,
+.issue-disposition textarea,
+.issue-disposition select {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.issue-disposition textarea {
+  min-height: 3.2rem;
+  resize: vertical;
+}
+
+/* A refusal is the only thing here that stops the reviewer, so it is the only
+   thing styled as a warning - and it sits where the reviewer is already looking
+   rather than after a save they have to undo. */
+.issue-refusal {
+  margin: 0;
+  color: var(--warning-on-dark);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.issue-refusal[hidden] {
+  display: none;
+}
+
+.issue-history {
+  margin: 0;
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+/* The disposition chip on a list row, so a triaged issue and an untouched one
+   cannot both read as a plain row in a list of forty. */
+.issue-disposition-chip {
+  margin-left: auto;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chrome-text-2);
+  white-space: nowrap;
+}
+
+.disposition-resolved,
+.disposition-accepted {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* A waiver is the status that overrides something, so it is the one that gets
+   the warning weight rather than the accent. */
+.disposition-waived {
+  border-color: var(--warning-on-dark);
+  color: var(--warning-on-dark);
+}
+
+.review-record-export {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: start;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--graphite-line);
+}
+
+.review-record-summary,
+.review-record-author {
+  margin: 0;
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.review-record-author {
+  color: var(--warning-on-dark);
+}
+
+.station-diagram {
+  display: block;
+  width: 100%;
+  height: 11rem;
+}
+
+.diagram-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+/* The zero line is what makes a signed component readable: without it a
+   reversal looks like a rise. Kept lighter than the data line so it reads as
+   reference, not as a second series. */
+.diagram-zero {
+  stroke: var(--chrome-text-3);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.diagram-grid {
+  stroke: var(--graphite-line);
+  stroke-width: 1;
+}
+
+.diagram-ordinate {
+  fill: var(--accent);
+  stroke: var(--graphite-raised);
+  stroke-width: 1;
+}
+
+.diagram-tick,
+.diagram-axis {
+  fill: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.diagram-facts {
+  margin: 0;
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.diagram-gap {
+  color: var(--warning-on-dark);
+}
+
+.hotspot-step {
+  color: var(--chrome-text-3);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+/* Scale controls sit in the filters drawer beside the thresholds they mirror:
+   the drawer is folded by default and the cut-off is restated in its summary,
+   so nothing about the reading of the ramp depends on opening this. */
+.scale-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+}
+
+.scale-band-label,
+.scale-bound-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--chrome-text-2);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.scale-bound-label input {
+  width: 4.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.scale-actions {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.select-findings {
+  align-self: flex-start;
+}
+
+.balance-check {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.balance-check[hidden] {
+  display: none;
+}
+
+/* The row the finding walk is standing on. The shared focus token rather than a
+   one-off colour, so the active finding reads as the same affordance as keyboard
+   focus everywhere else in the viewer. */
+.hotspot-active {
+  outline: 1px solid var(--focus-on-dark);
+  outline-offset: -1px;
+}
+
+.hotspot-position {
+  color: var(--chrome-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
 }
 
 /* The caveat stays in the legend as well as the strip. It is duplicated, not

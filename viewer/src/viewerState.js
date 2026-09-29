@@ -1,8 +1,17 @@
-import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
+﻿import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } from "./sceneLoader.js";
 import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
-import { fitSelection, hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
+import {
+  fitSelection,
+  findingFitSpan,
+  focusFinding,
+  hideSelected,
+  isolateSelection,
+  restoreVisibility,
+  selectObject
+} from "./selection.js";
+import { recordDisposition } from "./reviewRecord.js";
 import {
   setColoringComponent,
   setColoringField,
@@ -11,9 +20,13 @@ import {
 } from "./coloring.js";
 import {
   coherentResultContext,
+  setActiveFinding,
   setActiveGeometryState,
   setActiveLoadCase,
   setActiveResultState,
+  setLegendBands,
+  setLegendRange,
+  resetLegendScale,
   setResultThreshold,
   setResultVectorScale,
   setUtilizationThreshold,
@@ -34,7 +47,7 @@ export function reduceViewerState(state, action) {
     case "isolateSelection":
       return isolateSelection(state);
     case "fitSelection":
-      return fitSelection(state);
+      return fitSelection(state, { maxSpan: action.maxSpan });
     case "restoreVisibility":
       return restoreVisibility(state);
     case "applySectionBox":
@@ -100,6 +113,20 @@ export function reduceViewerState(state, action) {
       return setResultThreshold(state, action.threshold);
     case "setUtilizationThreshold":
       return setUtilizationThreshold(state, action.threshold);
+    case "setLegendBands":
+      return setLegendBands(state, action.bands, action.scaleKey);
+    case "setLegendRange":
+      return setLegendRange(state, action.range, action.scaleKey);
+    case "resetLegendScale":
+      return resetLegendScale(state, action.scaleKey);
+    case "setActiveFinding":
+      return setActiveFinding(state, action.objectId);
+    case "focusFinding":
+      return focusFinding(state, action.objectId);
+    case "setRunDiagramRun":
+      return { ...state, runDiagramRunId: action.runId ?? null };
+    case "setRunDiagramComponent":
+      return { ...state, runDiagramComponent: action.component ?? null };
     case "setDisplacementVectorScale":
       return setResultVectorScale(state, "displacement", action.scale);
     case "setReactionVectorScale":
@@ -109,27 +136,25 @@ export function reduceViewerState(state, action) {
     case "setVisualDeformationScale":
       return withVisibility(setVisualDeformationScale(state, action.scale));
     case "setIssueReviewStatus":
-      return {
-        ...state,
-        issueReviewState: {
-          ...(state.issueReviewState ?? {}),
-          [action.issueId]: {
-            ...(state.issueReviewState?.[action.issueId] ?? {}),
-            status: action.status
-          }
-        }
-      };
+      // Routed through the record so a status set from the old inspector path
+      // gets attribution and history too, rather than overwriting a bare field.
+      return recordDisposition(state, {
+        issueId: action.issueId,
+        status: action.status,
+        author: state.reviewerName ?? null,
+        at: action.at ?? null
+      });
     case "setIssueReviewComment":
-      return {
-        ...state,
-        issueReviewState: {
-          ...(state.issueReviewState ?? {}),
-          [action.issueId]: {
-            ...(state.issueReviewState?.[action.issueId] ?? {}),
-            comment: action.comment ?? ""
-          }
-        }
-      };
+      return recordDisposition(state, {
+        issueId: action.issueId,
+        comment: action.comment ?? "",
+        author: state.reviewerName ?? null,
+        at: action.at ?? null
+      });
+    case "recordDisposition":
+      return recordDisposition(state, { ...action, author: action.author ?? state.reviewerName ?? null });
+    case "setReviewerName":
+      return { ...state, reviewerName: String(action.name ?? "").trim() || null };
     default:
       return state;
   }
@@ -174,7 +199,7 @@ export function preserveViewerStateForReload(previousState, nextState, { reviewD
     resultThreshold: previousState.resultThreshold ?? nextState.resultThreshold,
     resultVectorScales: previousState.resultVectorScales ?? nextState.resultVectorScales,
     utilizationThreshold: previousState.utilizationThreshold ?? nextState.utilizationThreshold,
-    issueReviewState: previousState.issueReviewState ?? nextState.issueReviewState,
+    reviewDispositions: previousState.reviewDispositions ?? nextState.reviewDispositions,
     visualDeformationScale: previousState.visualDeformationScale ?? nextState.visualDeformationScale,
     bodyOpacity: previousState.bodyOpacity ?? nextState.bodyOpacity,
     referenceGridVisible: previousState.referenceGridVisible ?? nextState.referenceGridVisible,

@@ -5,6 +5,14 @@
 // field yields one legend yields one colour map - the viewer never picks a
 // field by guessing which overlay happens to carry numbers.
 
+import {
+  ENVELOPE_FIELD_ID,
+  buildEnvelope,
+  envelopeAvailable,
+  envelopeResultStates,
+  isEnvelopeField
+} from "./envelope.js";
+
 const AXES = ["loadCase", "fieldId", "component"];
 
 export function getResultFields(state) {
@@ -22,7 +30,7 @@ export function getLoadCaseOptionsFromFields(state) {
 }
 
 export function getFieldOptions(state, loadCase = getActiveLoadCase(state)) {
-  return fieldsForActiveResult(state)
+  const options = fieldsForActiveResult(state)
     .filter((field) => !loadCase || !field.load_case || field.load_case === loadCase)
     .map((field) => ({
       id: field.id,
@@ -31,6 +39,52 @@ export function getFieldOptions(state, loadCase = getActiveLoadCase(state)) {
       components: field.components ?? ["magnitude"],
       field
     }));
+  const envelope = envelopeOption(state, loadCase);
+  return envelope ? [...options, envelope] : options;
+}
+
+// The envelope is one more field in the one selector ADR 0006 requires, not a
+// second channel beside it. It appears only when the active load case published
+// more than one result step, because a "maximum of one result" is a single
+// result wearing an envelope's label.
+function envelopeOption(state, loadCase) {
+  if (!envelopeAvailable(state)) {
+    return null;
+  }
+  const steps = envelopeResultStates(state).length;
+  const sources = fieldsForActiveResult(state)
+    .filter((field) => !loadCase || !field.load_case || field.load_case === loadCase)
+    .map((field) => ({ field: field.id, label: fieldLabel(field), unit: field.unit }));
+  // An envelope with no declared quantity to take the maximum of is not a field
+  // anybody can read, so it is not offered. This is also what keeps a bundle
+  // whose active result state cannot be resolved - the catalogue empty, the
+  // load case still holding two steps - from offering an envelope over nothing.
+  if (sources.length === 0) {
+    return null;
+  }
+  return {
+    id: ENVELOPE_FIELD_ID,
+    label: `Envelope — worst of ${steps} result steps`,
+    support: "envelope",
+    components: ["magnitude"],
+    envelope: true,
+    field: {
+      id: ENVELOPE_FIELD_ID,
+      label: "Envelope",
+      support: "envelope",
+      components: ["magnitude"],
+      load_case: loadCase ?? null,
+      unit: sources[0]?.unit ?? "",
+      // Set on the field as well as the legend: the compliance notice reads the
+      // field, and a derived maximum that skipped the disclaimer because the
+      // disclaimer was attached one layer over would be the worst kind of bug
+      // this product has.
+      compliance_role: "derived_envelope_not_a_solver_result",
+      // Which declared quantities this maximum is taken over, so the legend can
+      // say what was enveloped instead of leaving the reviewer to infer it.
+      envelope_source: sources
+    }
+  };
 }
 
 export function getActiveLoadCase(state) {
@@ -40,6 +94,13 @@ export function getActiveLoadCase(state) {
 export function getActiveField(state) {
   const fields = fieldsForActiveResult(state);
   const requested = getResultFields(state).find((field) => field.id === state.coloring?.fieldId);
+  const envelope = envelopeOption(state, getActiveLoadCase(state));
+  if (state.coloring?.fieldId === ENVELOPE_FIELD_ID) {
+    // The envelope disappears when the load case narrows to a single result
+    // step. Falling through to the catalogue rather than yielding null is what
+    // keeps a load-case switch from blanking the whole colouring channel.
+    return envelope ?? fields.find((field) => field.load_case === getActiveLoadCase(state)) ?? fields[0] ?? null;
+  }
   const byId = fields.find((field) => field.id === requested?.id);
   if (byId) return byId;
   if (requested) {
@@ -130,6 +191,24 @@ export function createColoringState(state) {
 export function getColoringLegend(state) {
   const field = getActiveField(state);
   if (!field) return null;
+  if (isEnvelopeField(field)) {
+    const envelope = buildEnvelope(state, envelopeQuantity(state, field), getActiveComponent(state), scalarFor);
+    if (!envelope.range) return null;
+    return {
+      fieldId: field.id,
+      field: "Envelope",
+      component: envelope.component,
+      support: "envelope",
+      unit: field.unit ?? "",
+      loadCase: field.load_case ?? null,
+      range: envelope.range,
+      // Derived arithmetic over solved results, and the disclaimer has to say so
+      // in the same breath as the number, exactly as the FE-stress field does.
+      complianceRole: "derived_envelope_not_a_solver_result",
+      envelope: { ...envelope, sources: field.envelope_source ?? [], resultStates: envelopeResultStates(state) },
+      overlay: null
+    };
+  }
   const overlay = (state.overlays ?? []).find((candidate) => candidate.id === field.overlay_id);
   // A declared range describes the field's own scalar. For a multi-component
   // field the displayed scalar depends on the chosen component, so the range
@@ -169,6 +248,9 @@ export function getComplianceNotice(state) {
   if (role === "visualization_only_not_asme_code_stress") {
     return "FE stress - not ASME code stress";
   }
+  if (role === "derived_envelope_not_a_solver_result") {
+    return "Envelope - the worst of the result steps, not a separate solve";
+  }
   return role.replace(/_/g, " ");
 }
 
@@ -185,6 +267,9 @@ export function shouldShowComplianceNotice(state, categories) {
 export function getColoringValues(state) {
   const field = getActiveField(state);
   if (!field) return {};
+  if (isEnvelopeField(field)) {
+    return buildEnvelope(state, envelopeQuantity(state, field), getActiveComponent(state), scalarFor).values;
+  }
   const overlay = (state.overlays ?? []).find((candidate) => candidate.id === field.overlay_id);
   const values = overlay?.data?.values ?? {};
   const component = getActiveComponent(state);
@@ -196,6 +281,32 @@ export function getColoringValues(state) {
     }
   }
   return resolved;
+}
+
+// Which result states produced each object's envelope value. The hotspot list
+// reads this to name the governing step beside the number, which is the
+// difference between a maximum and an answer.
+export function getEnvelopeWinners(state) {
+  const field = getActiveField(state);
+  if (!isEnvelopeField(field)) {
+    return null;
+  }
+  const envelope = buildEnvelope(state, envelopeQuantity(state, field), getActiveComponent(state), scalarFor);
+  return { ...envelope, resultStates: envelopeResultStates(state) };
+}
+
+// The envelope option is synthetic and carries no overlay_id, so the declared
+// quantity it envelopes is taken from the catalogue entry it was built over -
+// the first field of the same load case, which is the one the reviewer was
+// looking at a moment before they chose the envelope.
+function envelopeQuantity(state, field) {
+  const loadCase = field.load_case ?? getActiveLoadCase(state);
+  const catalogue = fieldsForActiveResult(state)
+    .filter((candidate) => !loadCase || !candidate.load_case || candidate.load_case === loadCase);
+  return catalogue.find((candidate) => candidate.support === "cell")
+    ?? catalogue.find((candidate) => candidate.support !== "node")
+    ?? catalogue[0]
+    ?? null;
 }
 
 const COMPONENT_INDEX = {
