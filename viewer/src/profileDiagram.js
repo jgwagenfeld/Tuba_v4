@@ -328,7 +328,7 @@ export function profilePropertyRows(profile, format) {
       // difference is up to 40% on a light rolled section.
       value: properties.j_is_exact
         ? format(properties.j_m4, "m4")
-        : `${format(properties.j_m4, "m4")} · thin-wall estimate`
+        : `${format(properties.j_m4, "m4")} · ${profile.kind === "rectangular" && !profile.thickness_y_m && !profile.thickness_z_m ? "estimate" : "thin-wall estimate"}`
     },
     { label: "Polar moment", value: format(properties.polar_moment_m4, "m4") }
   ];

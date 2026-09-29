@@ -207,6 +207,16 @@ test("an exact torsion constant is not labelled an estimate", () => {
   assert.doesNotMatch(rows.find((row) => row.label === "Torsion J").value, /estimate/);
 });
 
+test("solid rectangle torsion is not described as a thin-wall calculation", () => {
+  const rows = profilePropertyRows(
+    { kind: "rectangular", thickness_y_m: 0, thickness_z_m: 0, properties: { j_m4: 1e-6, j_is_exact: false } },
+    String
+  );
+  const torsion = rows.find(row => row.label === "Torsion J").value;
+  assert.match(torsion, /estimate/);
+  assert.doesNotMatch(torsion, /thin-wall/);
+});
+
 test("a section whose properties could not be computed says so instead of vanishing", () => {
   const rows = profilePropertyRows(
     { kind: "rectangular", properties: { error: "hollow on one axis and solid on the other" } },

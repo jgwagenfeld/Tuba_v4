@@ -24,8 +24,9 @@ then rotated by an unknown amount relative to the ones Code_Aster computed.
 
 from __future__ import annotations
 
+import ast
 import math
-import re
+from textwrap import dedent
 from dataclasses import dataclass
 
 #: Through-thickness layers Tuba requests from Code_Aster.
@@ -43,10 +44,6 @@ DISPLAY_GENERATRICE: tuple[float, float, float] = (0.0, 0.0, 1.0)
 GENERATRICE_SOLVED = "code_aster_gene_tuyau"
 GENERATRICE_FALLBACK = "display_generatrice_fallback"
 
-_CARA_GENE_TUYAU = re.compile(r"CARA\s*=\s*'GENE_TUYAU'")
-_VALE_TRIPLET = re.compile(r"VALE\s*=\s*\(\s*([^,()]+),\s*([^,()]+),\s*([^,()]+)\s*\)")
-
-
 def read_gene_tuyau(comm_text: str) -> tuple[float, float, float] | None:
     """The ``GENE_TUYAU`` orientation Code_Aster was given, or ``None``.
 
@@ -55,21 +52,23 @@ def read_gene_tuyau(comm_text: str) -> tuple[float, float, float] | None:
     a malformed triplet, or a vector that is not a direction - the caller then
     falls back to :data:`DISPLAY_GENERATRICE` and records that it did.
     """
-    match = _CARA_GENE_TUYAU.search(comm_text)
-    if match is None:
-        return None
-    vale = _VALE_TRIPLET.search(comm_text, match.end())
-    if vale is None:
-        return None
     try:
-        vector = tuple(float(group) for group in vale.groups())
-    except ValueError:
+        tree = ast.parse(dedent(comm_text))
+    except SyntaxError:
         return None
-    if not all(math.isfinite(component) for component in vector):
-        return None
-    if math.hypot(*vector) <= 1.0e-12:
-        return None
-    return vector  # type: ignore[return-value]
+    for call in ast.walk(tree):
+        if not isinstance(call, ast.Call):
+            continue
+        keywords = {item.arg: item.value for item in call.keywords}
+        try:
+            if ast.literal_eval(keywords.get("CARA")) != "GENE_TUYAU":
+                continue
+            vector = tuple(float(value) for value in ast.literal_eval(keywords.get("VALE")))
+        except (ValueError, TypeError):
+            continue
+        if len(vector) == 3 and all(math.isfinite(component) for component in vector) and math.hypot(*vector) > 1.0e-12:
+            return vector
+    return None
 
 
 @dataclass(frozen=True)
@@ -146,6 +145,8 @@ def subpoint_station(
     if nsec < 1 or ncou < 1:
         return None
     stride = sectors_per_layer(nsec)
+    if subpoint_index > stride * layers_through_wall(ncou):
+        return None
     zero_based = subpoint_index - 1
     sector_index = zero_based % stride
     layer_index = zero_based // stride

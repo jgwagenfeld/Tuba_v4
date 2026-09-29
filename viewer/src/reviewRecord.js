@@ -97,11 +97,11 @@ export function findingSubjectId(finding, { fieldId = null, component = null, re
 }
 
 function encodeComponent(value) {
-  return String(value).replaceAll(SUBJECT_SEPARATOR, ENCODED_SEPARATOR);
+  return String(value).replaceAll("%", "%25").replaceAll(SUBJECT_SEPARATOR, ENCODED_SEPARATOR);
 }
 
 function decodeComponent(value) {
-  return String(value).replaceAll(ENCODED_SEPARATOR, SUBJECT_SEPARATOR);
+  return String(value).replaceAll(ENCODED_SEPARATOR, SUBJECT_SEPARATOR).replaceAll("%25", "%");
 }
 
 // The address is what travels with the disposition into the record. It is the
@@ -340,7 +340,8 @@ function csvCell(value) {
   if (Array.isArray(value) || (value && typeof value === "object")) {
     return csvCell(JSON.stringify(value));
   }
-  const text = String(value);
+  const raw = String(value);
+  const text = typeof value === "string" && /^(\s*[=+\-@]|[\t\r\n])/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 

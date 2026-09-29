@@ -346,6 +346,24 @@ test("a colon inside any coordinate is encoded, so the id parses back exactly", 
   assert.equal(parsed.object_id, "object:element:pipe:long:branch:1");
 });
 
+test("literal percent escapes cannot collide with encoded subject separators", () => {
+  const context = { fieldId: "field%3Astress", component: "N", resultStateId: "case%3AHot" };
+  const id = findingSubjectId({ objectId: "object%3Apipe" }, context);
+  const parsed = parseFindingSubjectId(id);
+  assert.equal(parsed.field, context.fieldId);
+  assert.equal(parsed.result_state_id, context.resultStateId);
+  assert.equal(parsed.object_id, "object%3Apipe");
+  assert.notEqual(id, findingSubjectId({ objectId: "object:pipe" }, { ...context, fieldId: "field:stress", resultStateId: "case:Hot" }));
+});
+
+test("review CSV keeps free text from becoming spreadsheet formulas", () => {
+  for (const text of ["=1+1", "+1+1", "-1+1", "@SUM(1)", "  =1+1", "\t=1+1"]) {
+    const rows = csvFields(reviewRecordCsv({ dispositions: [{ comment: text }] }));
+    const column = rows[0].indexOf("comment");
+    assert.equal(rows[1][column], `'${text}`);
+  }
+});
+
 test("only the coordinates round-trip, never the value that was judged", () => {
   // A record that reconstructed the value from the id would report a number the
   // reviewer never saw. The coordinates identify what was examined; the value is

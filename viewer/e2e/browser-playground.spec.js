@@ -1,14 +1,16 @@
 import { test, expect } from "@playwright/test";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import { resolve } from "node:path";
 
 test("gallery scripts build in the browser or explicitly require a native package", async ({ page, request }) => {
   test.setTimeout(300_000);
   await page.goto("/viewer/");
   const catalog = await (await request.get("/viewer/bundles.json")).json();
-  const index = await (await request.get("/viewer/index.html")).text();
-  const script = /src="([^\"]+\.js)"/.exec(index)[1];
-  const app = await (await request.get(`/viewer/${script.replace(/^\.\//, "")}`)).text();
-  const workerFile = /browserPython\.worker-[\w-]+\.js/.exec(app)[0];
+  const siteRoot = resolve(process.env.TUBA_PAGES_SITE_ROOT?.trim() || "../.build/pages-check");
+  const workers = (await readdir(resolve(siteRoot, "viewer/assets")))
+    .filter(name => /^browserPython\.worker-[\w-]+\.js$/.test(name));
+  expect(workers).toHaveLength(1);
+  const [workerFile] = workers;
   for (const entry of catalog) {
     const code = await (await request.get(`/viewer/${entry.id}/source.py`)).text();
     const result = await page.evaluate(({ code, workerFile }) => new Promise((resolve, reject) => {

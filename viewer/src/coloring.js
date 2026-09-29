@@ -327,13 +327,17 @@ const COMPONENT_INDEX = {
 export function scalarFor(value, component) {
   if (Array.isArray(value)) {
     const index = COMPONENT_INDEX[component];
-    if (index !== undefined && index < value.length) return Number(value[index]);
+    if (index !== undefined) return numericScalar(value[index]);
     if (component === "magnitude" || !component) {
-      return Math.hypot(...value.slice(0, Math.min(3, value.length)).map(Number));
+      return value.length ? Math.hypot(...value.slice(0, 3).map(numericScalar)) : NaN;
     }
-    return Number(value[0]);
+    return numericScalar(value[0]);
   }
-  return Number(value);
+  return numericScalar(value);
+}
+
+function numericScalar(value) {
+  return typeof value === "number" || (typeof value === "string" && value.trim()) ? Number(value) : NaN;
 }
 
 function rangeOf(values) {

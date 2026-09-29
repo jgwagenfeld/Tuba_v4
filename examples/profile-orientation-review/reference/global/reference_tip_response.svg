@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="742" height="514" viewBox="0 0 742 514" font-family='ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif'>
-<rect width="742" height="514" fill="#ffffff" />
+<svg xmlns="http://www.w3.org/2000/svg" width="742" height="532" viewBox="0 0 742 532" font-family='ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif'>
+<rect width="742" height="532" fill="#ffffff" />
 <text x="78" y="28" font-size="16" font-weight="600" fill="#111827">Tip deflection against rolled section orientation</text>
 <text x="78" y="46" font-size="11.5" fill="#4b5563">Code_Aster 'global' case, the same 500 N tip force at every roll. The spread is section orientation alone. Worst difference from beam theory: 1.83e-10 m.</text>
 <line x1="78" y1="380.71" x2="718" y2="380.71" stroke="#e5e7eb" stroke-width="1" />

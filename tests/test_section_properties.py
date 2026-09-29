@@ -131,18 +131,47 @@ class TestSectionPropertiesClosedForms(unittest.TestCase):
         self.assertAlmostEqual(properties.area_m2, math.pi * 0.09**2, places=12)
         self.assertAlmostEqual(properties.j_m4, math.pi * 0.09**4 / 2.0, places=18)
 
-    def test_a_closed_box_torsion_is_bredt_exact(self):
+    def test_a_closed_box_torsion_is_the_bredt_thin_wall_estimate(self):
         model = Model("box")
         model.add_rectangular_section(
             "RHS", height_y=0.2, height_z=0.1, thickness_y=0.01, thickness_z=0.01
         )
         properties = properties_for_section(model.sections["RHS"])
-        self.assertTrue(properties.j_is_exact)
+        self.assertFalse(properties.j_is_exact)
         # Uniform wall: J = 4 A_m**2 t / p_m, over the full median perimeter.
         median_y, median_z, wall = 0.095, 0.045, 0.01
         enclosed = 4.0 * median_y * median_z
         perimeter = 4.0 * (median_y + median_z)
-        self.assertAlmostEqual(properties.j_m4, enclosed**2 * wall / perimeter, places=15)
+        self.assertAlmostEqual(properties.j_m4, 4.0 * enclosed**2 * wall / perimeter, places=15)
+
+    def test_solid_rectangle_torsion_matches_the_saint_venant_series(self):
+        # Code_Aster R3.08.03, section 3.4: J scales with the SHORT side cubed.
+        for long_side, short_side in ((0.1, 0.1), (0.2, 0.1), (0.2, 0.01)):
+            series = sum(
+                math.tanh(n * math.pi * long_side / (2.0 * short_side)) / n**5
+                for n in range(1, 400, 2)
+            )
+            expected = long_side * short_side**3 / 3.0 * (
+                1.0 - 192.0 * short_side / (math.pi**5 * long_side) * series
+            )
+            for height_y, height_z in ((long_side, short_side), (short_side, long_side)):
+                with self.subTest(height_y=height_y, height_z=height_z):
+                    model = Model("torsion")
+                    section = model.add_rectangular_section("solid", height_y=height_y, height_z=height_z)
+                    self.assertAlmostEqual(properties_for_section(section).j_m4 / expected, 1.0, delta=0.005)
+
+    def test_a_bar_with_a_full_radius_wall_keeps_its_solid_semantics(self):
+        for wall in (0.09, 0.1):
+            model = Model("solid-bar")
+            section = model.add_bar_section("Round", OD=0.18, WT=wall)
+            self.assertAlmostEqual(properties_for_section(section).area_m2, section.area)
+
+    def test_a_short_thick_web_still_has_valid_geometry(self):
+        from tuba.model import IBeamSection
+
+        section = IBeamSection("short", "custom", {"H": 0.05, "B": 0.2, "Tw": 0.04, "Tf": 0.01})
+        properties = properties_for_section(section)
+        self.assertAlmostEqual(properties.area_m2, 2 * 0.2 * 0.01 + 0.03 * 0.04)
 
     def test_a_box_void_is_subtracted_not_added(self):
         model = Model("void")
@@ -166,6 +195,15 @@ class TestSectionPropertiesClosedForms(unittest.TestCase):
 
 class TestSectionPropertiesRefusals(unittest.TestCase):
     """Dimensions that do not describe a solid are refused, with the reason."""
+
+    def test_non_finite_and_negative_dimensions_are_refused(self):
+        from tuba.model import RectangularSection
+
+        for bad in (float("nan"), float("inf"), -0.2, 0.0):
+            with self.subTest(height=bad), self.assertRaises(ValueError):
+                properties_for_section(RectangularSection("bad", bad, 0.1))
+        with self.assertRaises(ValueError):
+            properties_for_section(RectangularSection("bad", 0.2, 0.1, -0.01, -0.01))
 
     def test_a_bore_wider_than_the_pipe_is_refused(self):
         model = Model("bad-pipe")

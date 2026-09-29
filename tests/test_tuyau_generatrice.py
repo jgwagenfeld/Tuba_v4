@@ -22,6 +22,7 @@ from tuba.analysis.tuyau import (
     Generatrice,
     read_gene_tuyau,
     solve_generatrice,
+    subpoint_station,
 )
 from tuba.solver.parse_tables import read_work_dir_generatrice, tuyau_cross_section_axes
 
@@ -41,6 +42,18 @@ SINGLE_LINE = "_F(GROUP_NO='G1',CARA='GENE_TUYAU',VALE=(0.0, 0.0, 1.0)),"
 def test_the_read_back_finds_the_orientation_in_either_layout():
     assert read_gene_tuyau(MULTILINE) == (1.0, 1.0, 1.0)
     assert read_gene_tuyau(SINGLE_LINE) == (0.0, 0.0, 1.0)
+
+
+def test_orientation_is_read_only_from_its_own_factor_and_not_comments():
+    assert read_gene_tuyau('_F(CARA="GENE_TUYAU", VALE=(1, -2, 3))') == (1.0, -2.0, 3.0)
+    assert read_gene_tuyau("_F(CARA='GENE_TUYAU'), _F(CARA='VECT_Y', VALE=(1, 2, 3))") is None
+    assert read_gene_tuyau("# _F(CARA='GENE_TUYAU', VALE=(1, 2, 3))\nFIN()") is None
+
+
+def test_subpoint_indices_cannot_leave_the_requested_wall_grid():
+    last = (2 * 16 + 1) * (2 * 3 + 1)
+    assert subpoint_station(last).radius_fraction == 1.0
+    assert subpoint_station(last + 1) is None
 
 
 def test_a_shipped_study_solves_to_the_orientation_its_comm_declares():

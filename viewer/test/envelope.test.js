@@ -120,6 +120,19 @@ test("non-finite values never enter an envelope", () => {
   assert.equal(envelope.winners["object:a"], "result_state:Hot");
 });
 
+test("missing values and unavailable vector components cannot become solved zeros", () => {
+  for (const value of [null, undefined, "", " ", false, [], [null, 0, 0]]) {
+    assert.ok(Number.isNaN(scalarFor(value, "magnitude")), String(value));
+  }
+  assert.ok(Number.isNaN(scalarFor([1, 2, 3], "DRX")));
+  const broken = state();
+  for (const overlay of broken.overlays.filter(overlay => overlay.data.values)) {
+    overlay.data.values["object:a"] = null;
+  }
+  assert.equal(buildEnvelope(broken, stressField).values["object:a"], undefined);
+  assert.equal(buildEnvelope(broken, stressField, "magnitude", scalarFor).values["object:a"], undefined);
+});
+
 test("a vector component is enveloped as the component, not the magnitude", () => {
   const vectorState = state({ quantities: ["displacement"] });
   for (const overlay of vectorState.overlays) {

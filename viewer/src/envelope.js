@@ -77,7 +77,9 @@ export function buildEnvelope(state, field, component = "magnitude", readScalar 
     const data = overlay.data ?? {};
     const stateId = data.result_state_id ?? null;
     for (const [objectId, raw] of Object.entries(data.values ?? {})) {
-      const scalar = readScalar ? readScalar(raw, component) : Number(Array.isArray(raw) ? raw[0] : raw);
+      const value = Array.isArray(raw) ? raw[0] : raw;
+      const scalar = readScalar ? readScalar(raw, component)
+        : typeof value === "number" || (typeof value === "string" && value.trim()) ? Number(value) : NaN;
       if (!Number.isFinite(scalar)) {
         continue;
       }

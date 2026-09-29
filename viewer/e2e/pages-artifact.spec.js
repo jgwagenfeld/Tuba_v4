@@ -28,7 +28,8 @@ test("review keeps technical details optional and stress fields distinguishable"
   await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
   await expect(page.locator("[data-color-legend]")).toBeEmpty();
   await expect(page.locator("[data-field-description]")).toBeHidden();
-  await expect(page.locator("[data-solver-fact]")).toBeHidden();
+  await expect(page.locator("[data-solver-fact]")).toBeVisible();
+  await expect(page.locator("[data-solver-fact]")).toContainText("Code_Aster");
   await expect(page.locator("[data-discretisation-check]")).toBeHidden();
   await expect(page.locator("[data-scene-title]")).toHaveClass("visually-hidden");
   const fields = page.getByRole("combobox", { name: "Colour the scene by" });
@@ -210,7 +211,9 @@ test("left controls toggle reserves space beside the viewport", async ({ page })
     await toggle.click();
     const show = page.getByRole("button", { name: "Show controls", exact: true });
     await expect(rail).toBeHidden();
-    expect((await show.boundingBox()).x).toBeLessThan(2);
+    const showBox = await show.boundingBox();
+    expect(showBox.x).toBeGreaterThanOrEqual(3); // Leave space for its focus ring.
+    expect(showBox.x + showBox.width).toBeLessThan(width);
     await show.focus();
     await page.keyboard.press("Enter");
     await expect(rail).toBeVisible();
@@ -227,6 +230,14 @@ test("assembled Pages gallery scrolls to the final review", async ({ page }) => 
   expect(published).toBeGreaterThan(1);
   await expect(cards).toHaveCount(published);
   expect(await page.evaluate(() => getComputedStyle(document.body).overflowY)).toBe("auto");
+
+  // Exploratory reviews are grouped under a disclosure; reveal them before
+  // testing that the final card can be reached by scrolling.
+  for (const group of await page.locator(".gallery-group-details").all()) {
+    if (!(await group.evaluate(details => details.open))) {
+      await group.locator(":scope > summary").click();
+    }
+  }
 
   await page.mouse.wheel(0, 800);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);

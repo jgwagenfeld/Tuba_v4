@@ -178,7 +178,7 @@ def _ibeam_outline(dimensions: dict[str, float], segments: int = ARC_SEGMENTS) -
     half_width = width / 2.0
     half_web = web / 2.0
     flange_underside = half_depth - flange
-    if flange_underside <= half_web + radius:
+    if flange_underside <= radius:
         raise ValueError(
             f"An I-beam with H={height}, Tf={flange} leaves no web between the "
             f"flanges once the R={radius} root radii are added."
@@ -266,11 +266,15 @@ def _outline_loops(section, *, segments: int = ARC_SEGMENTS) -> tuple[list[list[
     if kind in ("pipe", "bar", "cable"):
         raise ValueError("Circular sections use their closed forms, not an outline.")
     if kind == "rectangular":
+        if min(dimensions["height_y"], dimensions["height_z"]) <= 0.0:
+            raise ValueError("A rectangular section needs positive height_y and height_z.")
         half_y = float(dimensions["height_y"]) / 2.0
         half_z = float(dimensions["height_z"]) / 2.0
         outer = [(-half_y, -half_z), (-half_y, half_z), (half_y, half_z), (half_y, -half_z)]
         wall_y = float(dimensions["thickness_y"])
         wall_z = float(dimensions["thickness_z"])
+        if min(wall_y, wall_z) < 0.0:
+            raise ValueError("Rectangular wall thicknesses cannot be negative.")
         solid_y, solid_z = wall_y <= 0.0, wall_z <= 0.0
         if solid_y != solid_z:
             raise ValueError(
@@ -333,9 +337,8 @@ def _annulus(outer_radius: float, inner_radius: float) -> SectionProperties:
 def _rectangular_torsion(half_y: float, half_z: float, wall_y: float, wall_z: float) -> tuple[float, bool]:
     """Saint-Venant torsion constant of a rectangle or a box.
 
-    A closed box is Bredt-exact. A solid rectangle has no elementary closed form,
-    so it uses Saint-Venant's own series for a rectangular bar, which converges
-    slowly for a slender section and is flagged inexact.
+    A closed box uses Bredt's thin-wall approximation. A solid rectangle uses
+    the polynomial approximation to Saint-Venant's series. Both are inexact.
     """
     if wall_y > 0.0 and wall_z > 0.0:
         # Bredt: J = 4 A_m**2 / closed(ds/t), with the median line between the
@@ -345,7 +348,7 @@ def _rectangular_torsion(half_y: float, half_z: float, wall_y: float, wall_z: fl
         median_z = half_z - 0.5 * wall_z
         enclosed = 4.0 * median_y * median_z
         integral = 4.0 * median_y / wall_z + 4.0 * median_z / wall_y
-        return enclosed**2 / integral, True
+        return 4.0 * enclosed**2 / integral, False
     # Solid rectangle, Saint-Venant's series for b >= t.
     long_side, short_side = max(half_y, half_z), min(half_y, half_z)
     if short_side <= 0.0:
@@ -353,7 +356,7 @@ def _rectangular_torsion(half_y: float, half_z: float, wall_y: float, wall_z: fl
     width = 2.0 * short_side
     depth = 2.0 * long_side
     ratio = short_side / long_side
-    return (width * depth**3) / 3.0 * (1.0 - 0.630 * ratio + 0.052 * ratio**5), False
+    return (depth * width**3) / 3.0 * (1.0 - 0.630 * ratio + 0.052 * ratio**5), False
 
 
 def _ibeam_torsion(dimensions: dict[str, float]) -> float:
@@ -385,6 +388,9 @@ def properties_for_section(section) -> SectionProperties:
     dimensions = profile.dimensions
     kind = profile.kind
 
+    if any(not math.isfinite(float(value)) for value in dimensions.values()):
+        raise ValueError("Section dimensions must be finite.")
+
     if kind == "pipe":
         return _annulus(
             float(dimensions["OD"]) / 2.0,
@@ -393,11 +399,9 @@ def properties_for_section(section) -> SectionProperties:
     if kind == "bar":
         outer = float(dimensions["OD"]) / 2.0
         wall = float(dimensions["WT"])
-        if wall >= outer:
-            raise ValueError(
-                f"A hollow bar needs a wall thinner than its outer radius, got WT={wall} on OD={dimensions['OD']}."
-            )
-        bore = 0.0 if wall <= 0.0 else outer - wall
+        if wall < 0.0:
+            raise ValueError("A bar wall thickness cannot be negative.")
+        bore = 0.0 if wall == 0.0 or wall >= outer else outer - wall
         return _annulus(outer, bore)._with_kind("bar")
     if kind == "cable":
         return _annulus(float(dimensions["radius"]), 0.0)._with_kind("cable")

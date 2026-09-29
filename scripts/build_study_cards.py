@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -46,7 +45,16 @@ REFERENCE = "reference"
 def project_roots(examples_dir: Path, requested: list[str] | None) -> tuple[Path, ...]:
     """Return the example folders to process, optionally narrowed to *requested* names."""
     if requested:
-        return tuple(examples_dir / name for name in requested)
+        projects = []
+        for name in requested:
+            path = Path(name)
+            if path.parts and path.parts[0] == examples_dir.name:
+                path = Path(*path.parts[1:])
+            project = examples_dir / path
+            if not (project / MODEL_SCRIPT).is_file():
+                raise StudyCardError(f"{project} holds no {MODEL_SCRIPT}; expected an example project.")
+            projects.append(project)
+        return tuple(projects)
     if not examples_dir.is_dir():
         return ()
     return tuple(
@@ -145,7 +153,12 @@ def main(argv: list[str] | None = None) -> int:
 
     examples_dir = REPOSITORY_ROOT / EXAMPLES
     problems: list[str] = []
-    for project_root in project_roots(examples_dir, args.examples):
+    try:
+        projects = project_roots(examples_dir, args.examples)
+    except StudyCardError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    for project_root in projects:
         try:
             problems.extend(process(project_root, write=not args.check, check=args.check))
         except (StudyCardError, OSError, ValueError) as exc:

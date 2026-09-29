@@ -314,8 +314,39 @@ class TestReferenceFigure:
 
         assert compare_series(solved, reference, rtol=0.02)["within_tolerance"] is False
 
+    def test_a_nonzero_value_disagrees_with_a_zero_reference(self):
+        solved = FigureSeries("Solved", ((0.0, 1.0),))
+        reference = FigureSeries("Reference", ((0.0, 0.0),), "reference")
+        report = compare_series(solved, reference)
+        assert report["within_tolerance"] is False
+        assert report["worst_relative"] == float("inf")
+        assert compare_series(reference, reference)["within_tolerance"] is True
+
+    @pytest.mark.parametrize("rtol", [-0.1, float("nan"), float("inf")])
+    def test_comparison_refuses_invalid_tolerance(self, rtol):
+        series = FigureSeries("Solved", ((0.0, 0.0),))
+        with pytest.raises(ReferenceFigureError, match="tolerance"):
+            compare_series(series, series, rtol=rtol)
+
+    def test_the_canvas_contains_every_legend_row_and_the_note(self):
+        import xml.etree.ElementTree as ET
+
+        series = [FigureSeries(str(index), ((0.0, 0.0), (1.0, 1.0))) for index in range(5)]
+        svg = ET.fromstring(render_reference_figure(series, title="t", xlabel="x", ylabel="y", note="a <note> & b"))
+        texts = list(svg.iter("{http://www.w3.org/2000/svg}text"))
+        assert any(text.text == "a <note> & b" for text in texts)
+        assert all(float(text.attrib["y"]) + 12 < float(svg.attrib["height"]) for text in texts)
+
 
 class TestCommittedReferenceArtifacts:
+
+    def test_driver_accepts_its_documented_example_path_and_rejects_missing_projects(self):
+        from scripts.build_study_cards import project_roots
+
+        assert project_roots(EXAMPLES, ["examples/profile-orientation-review"]) == (PROFILE.parents[1],)
+        assert project_roots(EXAMPLES, ["profile-orientation-review"]) == (PROFILE.parents[1],)
+        with pytest.raises(StudyCardError, match="model.py"):
+            project_roots(EXAMPLES, ["does-not-exist"])
     def test_the_profile_example_commits_a_card_and_both_figures(self):
         reference = PROFILE.parents[1] / "reference" / "global"
 

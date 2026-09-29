@@ -23,6 +23,8 @@
 // A single selected element is a degenerate run, and is refused. One ordinate
 // pair is not a diagram, and offering it would be a plot that cannot show a peak.
 
+import { scalarFor } from "./coloring.js";
+
 export const DIAGRAM_COMPONENTS = Object.freeze([
   { id: "N", label: "N — axial force", unit: "N", index: 0 },
   { id: "VY", label: "VY — shear, local y", unit: "N", index: 1 },
@@ -136,21 +138,22 @@ export function stationAxis(state, run) {
   const elementStartStations = {};
   const elementEndStations = {};
   let station = 0;
+  let previousNode = null;
   for (const [index, elementId] of run.elementIds.entries()) {
     const element = (state.objects ?? []).find((candidate) => candidate.id === elementId);
-    const polyline = centrelineOf(state, element);
+    const rawPolyline = centrelineOf(state, element);
+    const [n1, n2] = element?.metadata?.nodes ?? [];
+    const next = (state.objects ?? []).find(candidate => candidate.id === run.elementIds[index + 1]);
+    const reversed = index === 0 ? Boolean(next?.metadata?.nodes?.includes(n1)) : previousNode === n2;
+    const polyline = reversed && rawPolyline ? [...rawPolyline].reverse() : rawPolyline;
     if (!polyline || polyline.length < 2) {
       return null;
     }
-    if (index > 0) {
-      // The chain shares a node, so the run's polyline is continuous; carrying
-      // station across the join is what makes the axis monotonic.
-      station = stations[stations.length - 1] ?? 0;
-      points.pop();
+    if (index > 0 && previousNode !== n1 && previousNode !== n2) {
+      return null;
     }
-    // The first point of this element's polyline sits at its n1 end, so its
-    // station is both the run's running total and this element's n1 station.
-    elementStartStations[elementId] = stations.length;
+    previousNode = reversed ? n1 : n2;
+    const startIndex = stations.length;
     for (const [step, point] of polyline.entries()) {
       if (step > 0) {
         station += distance(points[points.length - 1], point);
@@ -158,10 +161,10 @@ export function stationAxis(state, run) {
       points.push(point);
       stations.push(station);
     }
-    // The last point sits at the n2 end. This is not start+1: a bend carries
-    // sixteen segments and its n2 end is sixteen stations on, so the ordinate
-    // has to come from where the element actually ended.
-    elementEndStations[elementId] = stations.length - 1;
+    // A bend carries every sampled station between its two physical ends.
+    // Keep the n1/n2 addresses even when the run traverses this member backwards.
+    elementStartStations[elementId] = reversed ? stations.length - 1 : startIndex;
+    elementEndStations[elementId] = reversed ? startIndex : stations.length - 1;
   }
   return {
     stations,
@@ -195,6 +198,7 @@ export function buildDiagram(state, run, componentId, overlay = null) {
   const elementResults = source?.data?.element_results ?? {};
   const points = [];
   let missing = 0;
+  let breakBefore = false;
   for (const elementId of run.elementIds) {
     const entry = elementResults[elementId];
     // The scene publishes one six-component vector per element end, in the
@@ -205,22 +209,30 @@ export function buildDiagram(state, run, componentId, overlay = null) {
     const second = entry?.forces_n2;
     if (!Array.isArray(first) || !Array.isArray(second)) {
       missing += 1;
+      breakBefore = true;
       continue;
     }
-    const n1 = Number(first[component.index]);
-    const n2 = Number(second[component.index]);
+    const n1 = scalarFor(first, component.id);
+    const n2 = scalarFor(second, component.id);
     if (!Number.isFinite(n1) || !Number.isFinite(n2)) {
       missing += 1;
+      breakBefore = true;
       continue;
     }
     const start = axis.elementStartStations?.[elementId];
     const end = axis.elementEndStations?.[elementId];
     if (start === undefined || end === undefined) {
       missing += 1;
+      breakBefore = true;
       continue;
     }
-    points.push({ station: axis.stations[start], value: n1, elementId, end: "n1" });
-    points.push({ station: axis.stations[end], value: n2, elementId, end: "n2" });
+    const ends = [
+      { station: axis.stations[start], value: n1, elementId, end: "n1" },
+      { station: axis.stations[end], value: n2, elementId, end: "n2" }
+    ].sort((left, right) => left.station - right.station);
+    if (breakBefore) ends[0].breakBefore = true;
+    points.push(...ends);
+    breakBefore = false;
   }
   if (points.length < 2) {
     return null;
@@ -253,7 +265,9 @@ export function diagramComponentsFor(state, run) {
       // missing would produce a plot that stops half way along the run and looks
       // like the load vanishes there.
       const entry = overlay.data?.element_results?.[elementId];
-      if (Array.isArray(entry?.forces_n1) && Array.isArray(entry?.forces_n2)) {
+      if (Array.isArray(entry?.forces_n1) && Array.isArray(entry?.forces_n2)
+          && Number.isFinite(scalarFor(entry.forces_n1, component.id))
+          && Number.isFinite(scalarFor(entry.forces_n2, component.id))) {
         present.add(component.id);
       }
     }
@@ -294,7 +308,7 @@ export function diagramSvg(diagram, options = {}) {
   const y = (units) => padding.top + (1 - (units - value.min) / valueSpan) * plotHeight;
 
   const path = diagram.points
-    .map((point, index) => `${index === 0 ? "M" : "L"}${x(point.station).toFixed(2)} ${y(point.value).toFixed(2)}`)
+    .map((point, index) => `${index === 0 || point.breakBefore ? "M" : "L"}${x(point.station).toFixed(2)} ${y(point.value).toFixed(2)}`)
     .join(" ");
 
   const ticks = valueTicks(value.min, value.max);

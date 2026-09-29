@@ -137,6 +137,21 @@ test("stations accumulate along the run and advance within every member", () => 
     );
   }
   assert.deepEqual(axis.stations, [0, 2, 2, 4, 4, 6]);
+  assert.equal(axis.points.length, axis.stations.length);
+});
+
+test("a backwards-authored member keeps its physical end forces at the right station", () => {
+  const state = chain({ elements: 3 });
+  state.objects[1].metadata.nodes.reverse();
+  state.geometryAssets[1].generation_config.points.reverse();
+  state.overlays[0].data.element_results["object:pipe:1"] = {
+    forces_n1: [40, 0, 0, 0, 0, 0], forces_n2: [20, 0, 0, 0, 0, 0]
+  };
+  const run = findRuns(state)[0];
+  const axis = stationAxis(state, run);
+  assert.deepEqual(axis.points.map(point => point[0]), [0, 2, 2, 4, 4, 6]);
+  const member = buildDiagram(state, run, "N").points.filter(point => point.elementId === "object:pipe:1");
+  assert.deepEqual(member.map(point => [point.station, point.value, point.end]), [[2, 20, "n2"], [4, 40, "n1"]]);
 });
 
 test("a bend contributes its arc, not the chord between its nodes", () => {
@@ -188,6 +203,17 @@ test("a member missing its far end yields no diagram and offers no component", (
   assert.deepEqual(diagramComponentsFor(state, run), []);
 });
 
+test("missing force components are absent instead of becoming zero or another component", () => {
+  const state = chain({ elements: 2 });
+  for (const entry of Object.values(state.overlays[0].data.element_results)) {
+    entry.forces_n1 = [null];
+    entry.forces_n2 = [null];
+  }
+  const run = findRuns(state)[0];
+  assert.equal(buildDiagram(state, run, "N"), null);
+  assert.deepEqual(diagramComponentsFor(state, run), []);
+});
+
 test("members with no end forces are counted, not silently dropped", () => {
   const state = chain({ elements: 3 });
   delete state.overlays[0].data.element_results["object:pipe:1"];
@@ -196,6 +222,7 @@ test("members with no end forces are counted, not silently dropped", () => {
   // The two members that do have values still plot, and the gap is a real gap
   // in the diagram rather than an interpolation across unknown ground.
   assert.equal(diagram.points.length, 4);
+  assert.equal((diagramSvg(diagram).match(/M\d/g) ?? []).length, 2, "missing forces must leave a gap");
 });
 
 test("an unknown component, or a run with no geometry, yields nothing", () => {

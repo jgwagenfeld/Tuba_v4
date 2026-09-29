@@ -89,6 +89,8 @@ def compare_series(
     invent a number. Returns the point count, the worst absolute and relative
     difference, and whether the worst relative difference is inside *rtol*.
     """
+    if not math.isfinite(rtol) or rtol < 0.0:
+        raise ReferenceFigureError("Relative tolerance must be finite and non-negative.")
     solved_x = [x for x, _ in solved.points]
     reference_x = [x for x, _ in reference.points]
     if solved_x != reference_x:
@@ -99,7 +101,8 @@ def compare_series(
     deltas = [abs(y_solved - y_reference) for (_, y_solved), (_, y_reference) in zip(solved.points, reference.points)]
     worst_absolute = max(deltas)
     worst_relative = max(
-        (abs(y_solved - y_reference) / abs(y_reference) if y_reference else 0.0)
+        (abs(y_solved - y_reference) / abs(y_reference) if y_reference
+         else 0.0 if y_solved == 0.0 else math.inf)
         for (_, y_solved), (_, y_reference) in zip(solved.points, reference.points)
     )
     return {
@@ -219,6 +222,7 @@ def render_reference_figure(
     y_span = y_high - y_low
     x0 = _MARGIN_LEFT
     y0 = _MARGIN_TOP
+    canvas_height = max(_CANVAS_HEIGHT, y0 + _PLOT_HEIGHT + 62 + 16 * len(series) + (24 if note else 0) + 16)
 
     def to_x(value: float) -> float:
         return x0 + _PLOT_WIDTH * ((value - x_low) / x_span)
@@ -228,9 +232,9 @@ def render_reference_figure(
 
     parts: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{_CANVAS_WIDTH}" '
-        f'height="{_CANVAS_HEIGHT}" viewBox="0 0 {_CANVAS_WIDTH} {_CANVAS_HEIGHT}" '
+        f'height="{canvas_height}" viewBox="0 0 {_CANVAS_WIDTH} {canvas_height}" '
         f'font-family=\'{_FONT}\'>',
-        f'<rect width="{_CANVAS_WIDTH}" height="{_CANVAS_HEIGHT}" fill="#ffffff" />',
+        f'<rect width="{_CANVAS_WIDTH}" height="{canvas_height}" fill="#ffffff" />',
         f'<text x="{x0}" y="28" font-size="16" font-weight="600" fill="#111827">{escape(title)}</text>',
     ]
     if subtitle:
@@ -295,6 +299,11 @@ def render_reference_figure(
         parts.append(
             f'<text x="{x0 + 32}" y="{row_y}" font-size="11.5" fill="#374151">'
             f'{escape(item.label)}</text>'
+        )
+    if note:
+        parts.append(
+            f'<text x="{x0}" y="{legend_y + len(series) * 16 + 18}" font-size="11" '
+            f'fill="#4b5563">{escape(note)}</text>'
         )
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
