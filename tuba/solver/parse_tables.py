@@ -22,6 +22,8 @@ from tuba.analysis.tuyau import (
     CODE_ASTER_TUYAU_NCOU,
     CODE_ASTER_TUYAU_NSEC,
     DISPLAY_GENERATRICE,
+    Generatrice,
+    solve_generatrice,
     subpoint_station,
 )
 from tuba.model import Element, PipeSection, TubaModel
@@ -35,6 +37,21 @@ logger = logging.getLogger(__name__)
 _CODE_ASTER_TUYAU_NCOU = CODE_ASTER_TUYAU_NCOU
 _CODE_ASTER_TUYAU_NSEC = CODE_ASTER_TUYAU_NSEC
 _TUBA_GENE_TUYAU = np.array(DISPLAY_GENERATRICE, dtype=float)
+
+
+def read_work_dir_generatrice(work_dir: Path) -> Generatrice:
+    """The ``GENE_TUYAU`` this study was solved with, read back from its ``.comm``.
+
+    Falls back to the display convention when the file is missing or states no
+    orientation, and the caller records which it got. Reading it rather than
+    assuming it is the difference between sector 0 meaning what the solver meant
+    and sector 0 meaning what Tuba drew.
+    """
+    try:
+        comm = (work_dir / "study.comm").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return Generatrice(DISPLAY_GENERATRICE, "display_generatrice_fallback")
+    return solve_generatrice(comm)
 
 
 # Result parsing
@@ -550,6 +567,9 @@ def parse_sieq_table(
     rows = parse_result_table(work_dir / "study_sieq.csv", instant=instant)
     element_lookup = result_element_lookup(model, work_dir)
     analysis_tangents = read_analysis_element_tangents(work_dir)
+    # Read once, for the whole table: every sub-point in the study shares one
+    # generatrice, because Code_Aster takes one orientation for the whole run.
+    generatrice = read_work_dir_generatrice(work_dir)
 
     for row in rows:
         raw_eid = row.get("MAILLE", "").strip()
@@ -596,6 +616,7 @@ def parse_sieq_table(
                 centerline_position=centerline_position,
                 tangent=tangent,
                 subpoint_index=subpoint_index,
+                generatrice=generatrice,
             )
             inner_radius_m: float | None = None
             outer_radius_m: float | None = None
@@ -626,6 +647,7 @@ def parse_sieq_table(
                     ),
                     "tuyau_ncou": _CODE_ASTER_TUYAU_NCOU,
                     "tuyau_nsec": _CODE_ASTER_TUYAU_NSEC,
+                    "generatrice": generatrice.to_dict(),
                 }
             )
 
@@ -683,13 +705,14 @@ def tuyau_subpoint_display_position(
     centerline_position: list[float] | None,
     tangent: np.ndarray | None,
     subpoint_index: int | str,
+    generatrice: Generatrice | None = None,
 ) -> list[float] | None:
     if centerline_position is None or tangent is None or not isinstance(subpoint_index, int):
         return None
     section = model.sections.get(element.section)
     if not isinstance(section, PipeSection):
         return None
-    y_axis, z_axis = tuyau_cross_section_axes(tangent)
+    y_axis, z_axis = tuyau_cross_section_axes(tangent, generatrice=generatrice)
     y_offset, z_offset = code_aster_tuyau_fibre_offset(
         subpoint_index,
         r_ext=section.OD / 2.0,
@@ -716,16 +739,30 @@ def code_aster_tuyau_fibre_offset(
     z_offset = -radius * math.sin(station.angle_rad)
     return y_offset, z_offset
 
-def tuyau_cross_section_axes(tangent: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def tuyau_cross_section_axes(
+    tangent: np.ndarray,
+    generatrice: Generatrice | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """The section's y and z axes, built the way Code_Aster builds them.
+
+    ``y`` is the generatrice projected perpendicular to the element direction -
+    the direction sector 0 is measured from - and ``z`` completes the frame. This
+    is the construction in ``tuba/plotting/pipeline.py`` and in the Code_Aster
+    manual, so the glyphs, the PyVista mesh and the solver's own numbering all
+    agree. Which generatrice that is depends on the study: pass the one read
+    back from the ``.comm``, and pass ``None`` only to take the fallback.
+    """
     x_axis = np.asarray(tangent, dtype=float)
     x_axis = x_axis / np.linalg.norm(x_axis)
-    y_axis = _TUBA_GENE_TUYAU - float(np.dot(_TUBA_GENE_TUYAU, x_axis)) * x_axis
-    if float(np.linalg.norm(y_axis)) <= 1.0e-12:
-        fallback = np.array([0.0, 1.0, 0.0], dtype=float)
-        y_axis = fallback - float(np.dot(fallback, x_axis)) * x_axis
-    if float(np.linalg.norm(y_axis)) <= 1.0e-12:
-        fallback = np.array([1.0, 0.0, 0.0], dtype=float)
-        y_axis = fallback - float(np.dot(fallback, x_axis)) * x_axis
+    reference = generatrice.vector if generatrice is not None else DISPLAY_GENERATRICE
+    y_axis = np.asarray(reference, dtype=float) - float(np.dot(reference, x_axis)) * x_axis
+    for fallback in ((0.0, 1.0, 0.0), (1.0, 0.0, 0.0)):
+        if float(np.linalg.norm(y_axis)) > 1.0e-12:
+            break
+        # A vertical run makes the reference parallel to the element, so the
+        # projection collapses and the frame has to come from somewhere else.
+        candidate = np.asarray(fallback, dtype=float)
+        y_axis = candidate - float(np.dot(candidate, x_axis)) * x_axis
     y_axis = y_axis / np.linalg.norm(y_axis)
     z_axis = np.cross(x_axis, y_axis)
     z_axis = z_axis / np.linalg.norm(z_axis)

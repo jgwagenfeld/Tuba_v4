@@ -1,7 +1,16 @@
 import math
 
+import pytest
+
 from tuba import Model
 from tuba.analysis.results import ResultState
+from tuba.visualization.builders._helpers import (
+    GLYPH_RADIAL_SEGMENT_RANGE,
+    SWEEP_FACET_TOLERANCE,
+    SWEEP_RADIAL_SEGMENT_RANGE,
+    glyph_radial_segments,
+    sweep_radial_segments,
+)
 from tuba.visualization.builders._results import (
     _result_state_reaction_overlays,
     _tuyau_subpoint_glyph_points,
@@ -69,3 +78,46 @@ def test_tuyau_glyph_radius_tracks_the_wall_instead_of_a_constant():
 
     # Rows without section dimensions keep the legacy thickness.
     assert _tuyau_subpoint_glyph_radius([{"centerline_position": [0, 0, 0]}]) == 0.006
+
+
+def test_sweep_faceting_follows_a_stated_budget_not_a_literal():
+    # The count a sweep is drawn at used to be a literal in the renderer, which
+    # meant nothing in the contract could be checked against what appeared on
+    # screen. It is derived from the faceting budget instead, so tightening the
+    # budget has to move the count.
+    assert sweep_radial_segments() == 16
+    assert sweep_radial_segments(0.01) > sweep_radial_segments(0.02) > sweep_radial_segments(0.05)
+
+    # A 16-gon sags 1.9% of its own radius, which is the budget it is solved for.
+    sag = 1.0 - math.cos(math.pi / sweep_radial_segments())
+    assert sag < SWEEP_FACET_TOLERANCE
+
+    low, high = SWEEP_RADIAL_SEGMENT_RANGE
+    assert low <= sweep_radial_segments(1e-6) <= high, "a tight budget clamps rather than exploding"
+    assert low <= sweep_radial_segments(0.999) <= high, "a loose one clamps too"
+
+
+def test_a_facet_tolerance_outside_the_unit_interval_is_refused():
+    for bad in (0.0, 1.0, -0.5, 1.5):
+        with pytest.raises(ValueError, match=r"Facet tolerance must be in \(0, 1\)"):
+            sweep_radial_segments(bad)
+
+
+def test_sub_point_ticks_get_their_own_cheaper_circle():
+    # A tick is read at a glance, not shaded, so it must not cost more than the
+    # run it marks - the glyph batch is the largest triangle count in a scene.
+    assert glyph_radial_segments() == 8
+    low, high = GLYPH_RADIAL_SEGMENT_RANGE
+    assert low <= glyph_radial_segments() <= high
+    assert glyph_radial_segments() < sweep_radial_segments()
+
+
+def test_both_display_surfaces_facet_a_section_identically():
+    # `tuba/plotting/pipeline.py` sweeps its section loops with n_sides=16. The
+    # two surfaces draw the same section, so they have to agree on how round it
+    # is; a drift here is a review bundle and a notebook disagreeing about the
+    # geometry of the same pipe.
+    from tuba.plotting import pipeline
+
+    default_sides = pipeline._get_profile_2d_loops.__defaults__[0]
+    assert default_sides == sweep_radial_segments()

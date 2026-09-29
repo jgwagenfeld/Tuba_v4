@@ -15,7 +15,7 @@ from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._contract import SceneBuildOptions, SceneContribution
-from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields
+from tuba.visualization.builders._helpers import _asset_id, _bounds_for_points, _element_kind, _element_points, _groups_for_element, _ifc_source_for_ref, _node_coords, _object_id, _obstacle_bounds, _script_line_fields, sweep_radial_segments
 
 
 _PROFILE_DIMENSION_KEYS = {
@@ -126,6 +126,9 @@ def _build_element_object(
         "entity_ref": str(entity_ref),
         "points": points,
         "radius_m": radius,
+        # The sweep is faceted to a stated budget, in the contract, rather than
+        # to a literal in the renderer. See `_helpers.sweep_radial_segments`.
+        "radial_segments": sweep_radial_segments(),
     }
     inner_diameter = profile.get("inner_diameter_m")
     if elem.type.startswith("pipe") and inner_diameter is not None:

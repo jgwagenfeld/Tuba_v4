@@ -9,16 +9,24 @@ import {
   bodyOpacityForObjectIds,
   createBodyOpacityState,
   cycleBodyOpacity,
+  cycleSubpointMode,
+  cycleSubpointThreshold,
   cycleVectorScale,
   getBodies,
   getOverlays,
   getDiscretisationCheck,
   getMeshIdentity,
   getSectionProfile,
+  getSubpointDrawnCount,
   getSubpointPeak,
   getSubpointStations,
+  hasSubpointValue,
   setBodyVisibility,
   setOverlayVisibility,
+  setSubpointMode,
+  subpointMode,
+  subpointPassesThreshold,
+  subpointValueCutoff,
   withDefaultBodyOpacity
 } from "../src/bodies.js";
 
@@ -48,7 +56,7 @@ const SECTION_PROFILE = {
   sectors: 33,
   layers: 7,
   subpoints_per_node: 231,
-  display_generatrice: [0, 0, 1]
+  generatrice: { vector: [1, 1, 1], source: "code_aster_gene_tuyau", solved: true }
 };
 
 function sceneState(overrides = {}) {
@@ -225,10 +233,21 @@ test("geometry metrics report the tally and the section it was authored with", (
 });
 
 test("a truncated sub-point field says so rather than reading as full coverage", () => {
-  const bodies = getBodies(sceneState());
+  // Measured mode is the one that shows the bundle's own count, so the point of
+  // the line is the bundle's truncation and not the display cut.
+  const bodies = getBodies(sceneState({ subpointMode: "measured" }));
   assert.equal(bodies[2].metrics[0], "33 sectors × 7 layers · NSEC 16 · NCOU 3");
   assert.equal(bodies[2].metrics[1], "2 of 5 points drawn");
 });
+
+test("the default sub-point body reports its own cut, not the bundle's", () => {
+  // Opened without a mode, the field is thinned - so the metric that used to
+  // quote the bundle's rendered count now has to quote what the screen shows.
+  const bodies = getBodies(sceneState());
+  assert.equal(bodies[2].metrics[1], "top 80% · 1 of 5 points drawn");
+  assert.equal(bodies[2].metrics[2], "drawn through the wall");
+});
+
 
 test("deformed metrics report the peak and flag the display scale", () => {
   const bodies = getBodies(sceneState());
@@ -485,4 +504,92 @@ test("cycleVectorScale walks the steps and wraps", () => {
   // A scale set by the slider that is not one of the steps starts the cycle
   // over rather than sticking.
   assert.equal(cycleVectorScale(1.75), VECTOR_SCALE_STEPS[0]);
+});
+
+// --- how the sub-point field is drawn ---------------------------------------
+
+test("the sub-point field opens in peak mode, and the mode cycles both ways", () => {
+  const state = sceneState();
+  assert.equal(subpointMode(state), "peak");
+
+  const measured = cycleSubpointMode(state);
+  assert.equal(subpointMode(measured), "measured");
+  assert.equal(subpointMode(cycleSubpointMode(measured)), "peak", "wraps back to the first mode");
+  assert.equal(subpointMode(setSubpointMode(state, "nonsense")), "peak", "an unknown mode is refused");
+  assert.equal(setSubpointMode(state, "peak"), state, "setting the mode already on changes nothing");
+});
+
+test("measured mode thins nothing, so it has no cutoff and quotes the scene's own count", () => {
+  const state = sceneState({ subpointMode: "measured" });
+  assert.equal(subpointValueCutoff(state), null);
+  assert.equal(getSubpointDrawnCount(state), null);
+  const body = getBodies(state).find((candidate) => candidate.id === "subpoints");
+  // The bundle reported 2 rendered of 5 total; that is what measured mode shows.
+  assert.ok(body.metrics.some((metric) => metric.includes("2 of 5 points drawn")));
+  assert.ok(!body.metrics.some((metric) => metric.includes("drawn through the wall")));
+});
+
+test("peak mode quotes the cut it drew, and says the marks are through the wall", () => {
+  // The fixture's two values are 4.2e7 and 2.015e8 against a 2.015e8 range top.
+  const state = sceneState({ subpointMode: "peak", subpointThreshold: 0.8 });
+  assert.equal(subpointValueCutoff(state), 2.015e8 * 0.8);
+  assert.equal(getSubpointDrawnCount(state), 1);
+
+  const metrics = getBodies(state).find((candidate) => candidate.id === "subpoints").metrics;
+  assert.ok(metrics.some((metric) => metric.includes("top 80%")));
+  assert.ok(metrics.some((metric) => metric.includes("1 of 5 points drawn")));
+  assert.ok(metrics.some((metric) => metric === "drawn through the wall"));
+});
+
+test("a looser peak cut admits more of the same field", () => {
+  const drawn = (threshold) => getSubpointDrawnCount(sceneState({ subpointMode: "peak", subpointThreshold: threshold }));
+  assert.equal(drawn(0.9), 1);
+  assert.equal(drawn(0.5), 1, "4.2e7 is still under half of 2.015e8");
+  assert.equal(drawn(0.1), 2);
+});
+
+test("the peak threshold cycles up the steps and wraps", () => {
+  let state = sceneState({ subpointThreshold: 0.5 });
+  state = cycleSubpointThreshold(state);
+  assert.equal(state.subpointThreshold, 0.65);
+  state = cycleSubpointThreshold(state);
+  assert.equal(state.subpointThreshold, 0.8);
+  assert.equal(cycleSubpointThreshold({ subpointThreshold: 0.95 }).subpointThreshold, 0.5, "wraps");
+  // A cut typed in from outside the steps climbs to the next one above it rather
+  // than jumping somewhere arbitrary.
+  assert.equal(cycleSubpointThreshold({ subpointThreshold: 0.7 }).subpointThreshold, 0.8);
+});
+
+test("a sub-point with no value is never read as a low one", () => {
+  assert.equal(hasSubpointValue(0), true, "zero is a value");
+  assert.equal(hasSubpointValue(null), false);
+  assert.equal(hasSubpointValue(undefined), false);
+  assert.equal(hasSubpointValue(""), false);
+  assert.equal(hasSubpointValue("n/a"), false);
+
+  // Number(null) is 0, so an absent value read naively is the coldest mark on
+  // the ramp and the first a threshold throws away. It is missing, not low.
+  assert.equal(subpointPassesThreshold(null, 1e8), true);
+  assert.equal(subpointPassesThreshold(undefined, 1e8), true);
+  assert.equal(subpointPassesThreshold(4.2e7, 1e8), false);
+  assert.equal(subpointPassesThreshold(1.2e8, 1e8), true);
+  assert.equal(subpointPassesThreshold(4.2e7, null), true, "no cutoff draws everything");
+});
+
+test("the drawn count reads the payload file, where a real bundle keeps its values", () => {
+  // The scene entry carries only a pointer, exactly as `write_scene_bundle`
+  // writes it, so counting off the manifest alone would find nothing.
+  const state = sceneState({ subpointMode: "peak", subpointThreshold: 0.1 });
+  assert.equal(state.geometryAssets[0].generation_config.values, undefined);
+  assert.equal(getSubpointDrawnCount(state), 2);
+});
+
+test("an unknown peak cut draws everything rather than nothing", () => {
+  // No legend and no range anywhere: there is no cutoff to apply, so nothing is
+  // hidden behind a threshold the scene never stated.
+  const state = sceneState({ subpointMode: "peak", subpointThreshold: 0.8 });
+  delete state.overlays[0].data.section_profile;
+  state.geometryPayloads[0].generation_config = { sector_indices: [2], layer_indices: [0], values: [4.2e7] };
+  const bare = { ...state, overlays: state.overlays.filter((overlay) => overlay.data?.result_type !== "tuyau_subpoints") };
+  assert.equal(subpointValueCutoff(bare), null);
 });

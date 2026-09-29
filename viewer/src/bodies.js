@@ -454,6 +454,146 @@ function meshMetrics(state) {
   return parts.length > 0 ? [parts.join(" · ")] : [];
 }
 
+// --- how the sub-point field is drawn ---------------------------------------
+//
+// A TUYAU element is 1D: its stress is recovered at 33 circumferential
+// stations across 7 layers through the wall, not on a surface. Drawing all 231
+// of those per node as ticks inside an opaque pipe is the honest picture and a
+// useless one - the pipe hides every layer but the outer one, and the rest
+// accumulate into an even grey band that ranks nothing.
+//
+// So there are two ways to draw it, and the scene carries every point either
+// way. Which points reach the screen is a display decision, made here, and it is
+// always reported in the body metrics - a field that silently drops points reads
+// as complete coverage.
+//
+//   measured  every point, depth-tested, at its wall position. Complete, and
+//             honest about the occlusion.
+//   peak      only points in the top of the colour range, drawn through the pipe
+//             (x-ray). Fewer marks, so the ones that survive are readable, and
+//             legible through the wall - which is the whole point, because the
+//             worst stations are often in the bore.
+
+export const SUBPOINT_MODES = Object.freeze([
+  { id: "peak", label: "Peak", xray: true, description: "Top of the range, drawn through the wall." },
+  { id: "measured", label: "Measured", xray: false, description: "Every sub-point, at the wall, complete." }
+]);
+
+// What fraction of the colour range has to be exceeded before a point is drawn in
+// peak mode. These are the cuts a reviewer actually asks for, not a continuous
+// slider: each one is a sentence ("the worst fifth").
+export const SUBPOINT_THRESHOLD_STEPS = Object.freeze([0.5, 0.65, 0.8, 0.9, 0.95]);
+export const DEFAULT_SUBPOINT_THRESHOLD = 0.8;
+export const DEFAULT_SUBPOINT_MODE = "peak";
+
+export function subpointMode(state) {
+  const id = String(state.subpointMode ?? DEFAULT_SUBPOINT_MODE);
+  return SUBPOINT_MODES.some((mode) => mode.id === id) ? id : DEFAULT_SUBPOINT_MODE;
+}
+
+export function subpointModeSpec(state) {
+  return SUBPOINT_MODES.find((mode) => mode.id === subpointMode(state)) ?? SUBPOINT_MODES[0];
+}
+
+export function subpointThreshold(state) {
+  const stored = Number(state.subpointThreshold);
+  if (!Number.isFinite(stored)) return DEFAULT_SUBPOINT_THRESHOLD;
+  return Math.min(Math.max(stored, 0), 1);
+}
+
+export function setSubpointMode(state, modeId) {
+  const id = String(modeId);
+  if (!SUBPOINT_MODES.some((mode) => mode.id === id)) return state;
+  if (id === subpointMode(state)) return state;
+  return { ...state, subpointMode: id };
+}
+
+export function cycleSubpointMode(state) {
+  const index = SUBPOINT_MODES.findIndex((mode) => mode.id === subpointMode(state));
+  return setSubpointMode(state, SUBPOINT_MODES[(index + 1) % SUBPOINT_MODES.length].id);
+}
+
+export function cycleSubpointThreshold(state) {
+  const current = subpointThreshold(state);
+  const index = SUBPOINT_THRESHOLD_STEPS.findIndex((step) => Math.abs(step - current) < 1e-9);
+  // Start from the nearest step above the current value when the stored one is
+  // not on a step, so the first click moves up rather than jumping somewhere.
+  const next = index >= 0
+    ? SUBPOINT_THRESHOLD_STEPS[(index + 1) % SUBPOINT_THRESHOLD_STEPS.length]
+    : SUBPOINT_THRESHOLD_STEPS.find((step) => step > current + 1e-9) ?? SUBPOINT_THRESHOLD_STEPS[0];
+  return { ...state, subpointThreshold: next };
+}
+
+// The one definition of "does this point get drawn", shared with the renderer so
+// the count the metrics report is the count that reaches the screen.
+export function subpointPassesThreshold(value, threshold) {
+  if (threshold === null || !Number.isFinite(threshold)) return true;
+  // A point with no value is not a low point. It is missing, and it is kept:
+  // dropping it would quietly thin the field in exactly the runs that failed to
+  // converge. Note the explicit null check - `Number(null)` is 0, so an absent
+  // value read naively becomes the coldest mark on the ramp and the one a
+  // threshold throws away first.
+  if (value === null || value === undefined || value === "") return true;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return true;
+  return numeric >= threshold;
+}
+
+// Whether a sub-point carries a value at all, for the same reason: it is not a
+// zero, and it must not be painted as one.
+export function hasSubpointValue(value) {
+  if (value === null || value === undefined || value === "") return false;
+  return Number.isFinite(Number(value));
+}
+
+export function subpointThresholdValue(fraction, rangeMax) {
+  if (!Number.isFinite(fraction) || !Number.isFinite(rangeMax)) return null;
+  return Number(rangeMax) * Math.min(Math.max(fraction, 0), 1);
+}
+
+// The top of the range the field is coloured against, resolved the way
+// `subpointLegend` resolves it in the renderer - the overlay's legend, then the
+// asset's own range, then the values themselves. Resolving it differently on
+// this side would let the body quote a count the screen does not show.
+function subpointRangeMax(state) {
+  const legendMax = Number(getSubpointLegend(state)?.range?.max);
+  if (Number.isFinite(legendMax)) return legendMax;
+  const config = subpointFieldConfig(state);
+  const configMax = Number(config?.range?.max ?? config?.legend?.range?.max);
+  if (Number.isFinite(configMax)) return configMax;
+  const values = (config?.values ?? []).filter(hasSubpointValue).map(Number);
+  return values.length > 0 ? Math.max(...values) : null;
+}
+
+export function subpointValueCutoff(state) {
+  if (subpointModeSpec(state).xray !== true) return null;
+  return subpointThresholdValue(subpointThreshold(state), subpointRangeMax(state));
+}
+
+// The sub-point field's bulk config, merged the way the renderer merges it: a
+// sub-point asset's arrays live in their own payload file and the scene entry
+// keeps only a pointer, so reading the manifest alone finds no values at all.
+function subpointFieldConfig(state) {
+  const overlay = getSubpointOverlay(state);
+  const asset = (state.geometryAssets ?? []).find((candidate) =>
+    (candidate.object_ids ?? []).some((id) => (overlay?.object_ids ?? []).includes(id))
+  ) ?? (state.geometryAssets ?? []).find((candidate) => candidate.format === "tuyau_subpoint_glyphs");
+  if (!asset) return null;
+  const payload = (state.geometryPayloads ?? []).find((candidate) => candidate.asset_id === asset.id);
+  return { ...(payload?.generation_config ?? {}), ...(asset.generation_config ?? {}) };
+}
+
+// How many of the scene's sub-points this mode actually draws, so the body can
+// say "N of M" instead of the bundle's own rendered_count, which counts the
+// points the scene carries and not the ones on screen.
+export function getSubpointDrawnCount(state) {
+  const cutoff = subpointValueCutoff(state);
+  if (cutoff === null) return null;
+  const values = subpointFieldConfig(state)?.values;
+  if (!Array.isArray(values)) return null;
+  return values.reduce((count, value) => count + (subpointPassesThreshold(value, cutoff) ? 1 : 0), 0);
+}
+
 function subpointMetrics(state) {
   const overlay = getSubpointOverlay(state);
   if (!overlay) return [];
@@ -463,16 +603,22 @@ function subpointMetrics(state) {
   if (profile) {
     metrics.push(`${profile.sectors} sectors × ${profile.layers} layers · NSEC ${profile.nsec} · NCOU ${profile.ncou}`);
   }
-  const rendered = Number(data.rendered_count);
   const total = Number(data.total_count);
-  if (Number.isFinite(rendered)) {
-    // Say so when the scene drew fewer than it read: a silently truncated field
-    // reads as complete coverage.
+  const cutoff = subpointValueCutoff(state);
+  const drawn = cutoff === null ? Number(data.rendered_count) : getSubpointDrawnCount(state);
+  const mode = subpointModeSpec(state);
+  if (Number.isFinite(drawn)) {
+    // Say so when fewer points reach the screen than the scene read: a silently
+    // thinned field reads as complete coverage.
+    const prefix = cutoff === null ? "" : `top ${Math.round(subpointThreshold(state) * 100)}% · `;
     metrics.push(
-      Number.isFinite(total) && total > rendered
-        ? `${rendered} of ${total} points drawn`
-        : `${rendered} points`
+      Number.isFinite(total) && total > drawn
+        ? `${prefix}${drawn} of ${total} points drawn`
+        : `${prefix}${drawn} points`
     );
+  }
+  if (mode.xray) {
+    metrics.push("drawn through the wall");
   }
   return metrics;
 }

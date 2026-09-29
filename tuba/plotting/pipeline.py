@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 
 from tuba.geometry.profiles import profile_for_section
-from tuba.geometry.section_mesh import section_loops, straight_section_surface_mesh
+from tuba.geometry.section_mesh import beam_local_frame, section_loops, straight_section_surface_mesh
 
 if TYPE_CHECKING:
     from tuba.model import TubaModel
@@ -540,6 +540,52 @@ def _map_element_surface_data(mesh, model, elem, results, station_fractions):
     return mesh
 
 
+def _parallel_transport_frames(path: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """Frames along a path, transported rather than recomputed per point.
+
+    The first frame is the shared beam frame for the element's own direction, so
+    this path and the review bundle's element meshes start from one construction.
+    After that the frame is rotated along the path by the smallest rotation
+    carrying the previous tangent onto the next, which is what keeps a section
+    from twisting as it turns: a frame rebuilt from the tangent alone would
+    pick a fresh reference direction at every point.
+    """
+    frames = [beam_local_frame(path[0], path[1], twist_angle_deg=0.0)]
+    for i in range(1, len(path)):
+        if i < len(path) - 1:
+            tangent = path[i + 1] - path[i - 1]
+        else:
+            tangent = path[i] - path[i - 1]
+        norm = np.linalg.norm(tangent)
+        if norm > 1e-9:
+            tangent = tangent / norm
+        else:
+            tangent = frames[-1][0]
+
+        lx_prev, ly_prev, lz_prev = frames[-1]
+        rot_axis = np.cross(lx_prev, tangent)
+        rot_norm = np.linalg.norm(rot_axis)
+        if rot_norm > 1e-9:
+            rot_axis = rot_axis / rot_norm
+            theta = np.arccos(np.clip(np.dot(lx_prev, tangent), -1.0, 1.0))
+            cos_t = np.cos(theta)
+            sin_t = np.sin(theta)
+            # Rodrigues' rotation of the previous y about the axis between the
+            # two tangents, so the section is carried rather than rebuilt.
+            ly = (
+                ly_prev * cos_t
+                + np.cross(rot_axis, ly_prev) * sin_t
+                + rot_axis * np.dot(rot_axis, ly_prev) * (1.0 - cos_t)
+            )
+            ly = ly / np.linalg.norm(ly)
+            lz = np.cross(tangent, ly)
+            lz = lz / np.linalg.norm(lz)
+        else:
+            ly, lz = ly_prev, lz_prev
+        frames.append((tangent, ly, lz))
+    return frames
+
+
 def _get_element_3d_mesh(
     model: "TubaModel",
     elem: "Element",
@@ -577,73 +623,12 @@ def _get_element_3d_mesh(
     loop_offsets = np.cumsum([0] + loop_sizes[:-1]).tolist()
     M = sum(loop_sizes)
     
-    # 3. Generate parallel transport frames (lx, ly, lz) along the path
-    # Tangent at start
-    t0 = path[1] - path[0]
-    t0_norm = np.linalg.norm(t0)
-    if t0_norm > 1e-9:
-        t0 = t0 / t0_norm
-    else:
-        t0 = np.array([1.0, 0.0, 0.0])
-        
-    lx = t0
-    # Base local coordinate frame calculation matching Code_Aster
-    V = np.array([0.0, 0.0, 1.0])
-    cross = np.cross(V, lx)
-    norm_cross = np.linalg.norm(cross)
-    if norm_cross > 1e-9:
-        ly = cross / norm_cross
-    else:
-        V_fallback = np.array([0.0, 1.0, 0.0])
-        cross = np.cross(V_fallback, lx)
-        ly = cross / np.linalg.norm(cross)
-    lz = np.cross(lx, ly)
-        
-    # Apply twist angle
-    twist_deg = getattr(elem, "twist_angle", 0.0)
-    if twist_deg != 0.0:
-        theta = np.radians(twist_deg)
-        cos_t = np.cos(theta)
-        sin_t = np.sin(theta)
-        ly_new = ly * cos_t + lz * sin_t
-        lz_new = lz * cos_t - ly * sin_t
-        ly, lz = ly_new, lz_new
-        
-    frames = [(lx, ly, lz)]
-    
-    # Propagate frames using parallel transport
-    for i in range(1, N):
-        if i < N - 1:
-            ti = path[i+1] - path[i-1]
-        else:
-            ti = path[i] - path[i-1]
-        norm_ti = np.linalg.norm(ti)
-        if norm_ti > 1e-9:
-            ti /= norm_ti
-        else:
-            ti = frames[-1][0]
-            
-        lx_prev, ly_prev, lz_prev = frames[-1]
-        rot_axis = np.cross(lx_prev, ti)
-        rot_norm = np.linalg.norm(rot_axis)
-        if rot_norm > 1e-9:
-            rot_axis /= rot_norm
-            dot = np.clip(np.dot(lx_prev, ti), -1.0, 1.0)
-            theta = np.arccos(dot)
-            cos_t = np.cos(theta)
-            sin_t = np.sin(theta)
-            
-            # Rodrigues' rotation
-            ly_curr = ly_prev * cos_t + np.cross(rot_axis, ly_prev) * sin_t + rot_axis * np.dot(rot_axis, ly_prev) * (1.0 - cos_t)
-            ly_curr /= np.linalg.norm(ly_curr)
-            lz_curr = np.cross(ti, ly_curr)
-            lz_curr /= np.linalg.norm(lz_curr)
-        else:
-            ly_curr = ly_prev
-            lz_curr = lz_prev
-            
-        frames.append((ti, ly_curr, lz_curr))
-        
+    # 3. Frames along the path. The starting frame comes from the shared beam
+    # frame, so this surface and the review bundle's element meshes agree about
+    # which way a section's web or generatrice points instead of each carrying
+    # their own copy of the construction.
+    frames = _parallel_transport_frames(path)
+
     # 4. Generate 3D points
     points_3d = []
     for j in range(N):

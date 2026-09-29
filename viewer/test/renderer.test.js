@@ -646,8 +646,8 @@ test("scene graph reports invalid assets without throwing", () => {
   assert.match(graph.diagnostics[0].message, /at least two points/);
 });
 
-test("scene graph renders TUYAU sub-points as one instanced glyph batch", () => {
-  const graph = createThreeSceneGraph({
+function tuyauSubpointState(overrides = {}) {
+  return {
     bounds: [0, 0, 0, 1, 1, 1],
     geometryAssets: [
       {
@@ -677,8 +677,13 @@ test("scene graph renders TUYAU sub-points as one instanced glyph batch", () => 
         }
       }
     ],
-    visibleObjectIds: ["object:tuyau"]
-  });
+    visibleObjectIds: ["object:tuyau"],
+    ...overrides
+  };
+}
+
+test("scene graph renders TUYAU sub-points as one instanced glyph batch", () => {
+  const graph = createThreeSceneGraph(tuyauSubpointState({ subpointMode: "measured" }));
 
   assert.equal(graph.diagnostics.length, 0);
   assert.equal(graph.renderedObjectCount, 1);
@@ -687,6 +692,64 @@ test("scene graph renders TUYAU sub-points as one instanced glyph batch", () => 
   assert.equal(mesh.count, 2);
   assert.equal(mesh.material.vertexColors, false);
   assert.equal(mesh.instanceColor.count, 2);
+});
+
+// The pipe a sub-point sits in is opaque and hides every wall layer but the
+// outer one, so the mode meant to surface the worst stations has to ignore
+// depth - otherwise the bore and mid-wall points it exists to show are the ones
+// thrown away. Peak mode therefore draws fewer marks, through the pipe.
+test("peak mode thins the sub-point batch to the top of the range and x-rays it", () => {
+  const graph = createThreeSceneGraph(tuyauSubpointState({ subpointMode: "peak", subpointThreshold: 0.8 }));
+  const mesh = graph.objectsByObjectId.get("object:tuyau");
+
+  assert.equal(mesh.count, 1);
+  assert.equal(mesh.userData.subpointDrawnCount, 1);
+  assert.equal(mesh.material.depthTest, false);
+  assert.equal(mesh.material.depthWrite, false);
+  assert.ok(mesh.renderOrder > 0);
+
+  // The mark that survived is the high one, coloured exactly as the un-thinned
+  // batch colours it - thinning must not quietly restyle the survivors.
+  const full = createThreeSceneGraph(tuyauSubpointState({ subpointMode: "measured" }));
+  const unthinned = full.objectsByObjectId.get("object:tuyau");
+  assert.equal(mesh.instanceColor.getX(0), unthinned.instanceColor.getX(1));
+  assert.equal(mesh.instanceColor.getY(0), unthinned.instanceColor.getY(1));
+  assert.equal(mesh.instanceColor.getZ(0), unthinned.instanceColor.getZ(1));
+});
+
+test("measured mode keeps every sub-point and depth-tests them into the pipe", () => {
+  const graph = createThreeSceneGraph(tuyauSubpointState({ subpointMode: "measured" }));
+  const mesh = graph.objectsByObjectId.get("object:tuyau");
+
+  assert.equal(mesh.count, 2);
+  assert.equal(mesh.material.depthTest, true);
+  assert.equal(mesh.material.depthWrite, true);
+  assert.equal(mesh.renderOrder, 0);
+});
+
+test("a lower sub-point threshold admits more of the field", () => {
+  const strict = createThreeSceneGraph(tuyauSubpointState({ subpointMode: "peak", subpointThreshold: 0.9 }));
+  const loose = createThreeSceneGraph(tuyauSubpointState({ subpointMode: "peak", subpointThreshold: 0.5 }));
+
+  assert.equal(strict.objectsByObjectId.get("object:tuyau").count, 1);
+  assert.equal(loose.objectsByObjectId.get("object:tuyau").count, 2);
+});
+
+test("a sub-point with no value is kept, never read as a low one", () => {
+  const state = tuyauSubpointState({ subpointMode: "peak", subpointThreshold: 0.8 });
+  state.geometryAssets[0].generation_config.values = [84000000, null];
+  const graph = createThreeSceneGraph(state);
+
+  assert.equal(graph.objectsByObjectId.get("object:tuyau").count, 2);
+});
+
+test("sub-point glyph faceting comes from the bundle, not a renderer literal", () => {
+  const state = tuyauSubpointState({ subpointMode: "measured" });
+  state.geometryAssets[0].generation_config.radial_segments = 12;
+  const graph = createThreeSceneGraph(state);
+
+  const geometry = graph.objectsByObjectId.get("object:tuyau").geometry;
+  assert.equal(geometry.parameters.radialSegments, 12);
 });
 
 test("fitCameraToBounds targets scene center and computes a usable distance", () => {

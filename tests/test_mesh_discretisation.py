@@ -13,6 +13,8 @@ from tuba.analysis.mesh_quality import (
 from tuba.analysis.tuyau import (
     CODE_ASTER_TUYAU_NCOU,
     CODE_ASTER_TUYAU_NSEC,
+    GENERATRICE_SOLVED,
+    Generatrice,
     layers_through_wall,
     section_profile,
     sectors_per_layer,
@@ -178,7 +180,20 @@ class TestTuyauSubpointIndexing(unittest.TestCase):
         self.assertEqual(layers_through_wall(3), 7)
         profile = section_profile(16, 3)
         self.assertEqual(profile["subpoints_per_node"], 33 * 7)
-        self.assertEqual(profile["display_generatrice"], [0.0, 0.0, 1.0])
+
+    def test_the_profile_reports_which_generatrice_it_measured_from(self):
+        # The panel names sector 0, so it has to say what sector 0 is measured
+        # from, and whether that is the direction the solver was given. A
+        # profile with no generatrice block would let the viewer keep printing
+        # the fallback as though it were a solved angle.
+        fallback = section_profile(16, 3)
+        self.assertEqual(fallback["generatrice"]["vector"], [0.0, 0.0, 1.0])
+        self.assertFalse(fallback["generatrice"]["solved"])
+        self.assertEqual(fallback["generatrice"]["source"], "display_generatrice_fallback")
+
+        solved = section_profile(16, 3, generatrice=Generatrice((1.0, 1.0, 1.0), GENERATRICE_SOLVED))
+        self.assertEqual(solved["generatrice"]["vector"], [1.0, 1.0, 1.0])
+        self.assertTrue(solved["generatrice"]["solved"])
 
     def test_first_subpoint_sits_on_the_generatrice_at_the_bore(self):
         station = subpoint_station(1, nsec=16, ncou=3)

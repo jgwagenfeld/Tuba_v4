@@ -834,6 +834,7 @@ textarea,
   font-family: var(--font-mono);
   font-size: 0.66rem;
   padding: 0.1rem 0.3rem;
+  white-space: nowrap;
 }
 
 .body-opacity:hover,
@@ -956,6 +957,16 @@ textarea,
 
 .section-facts .section-peak {
   color: var(--warning-on-dark);
+}
+
+/* An angle that is a convention rather than a solved value. The peak line uses
+   the same warning colour but this one is a different kind of caution: nothing
+   is wrong with the number, it just does not mean the solver's angle. */
+.section-facts .section-facts-caution {
+  color: var(--warning-on-dark);
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+  cursor: help;
 }
 
 /* The list a reviewer works down, so it is a list: one dense line each, the

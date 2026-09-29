@@ -29,6 +29,8 @@ import {
 } from "./renderer.js";
 import {
   OPACITY_STEPS,
+  SUBPOINT_MODES,
+  SUBPOINT_THRESHOLD_STEPS,
   VECTOR_SCALE_STEPS,
   cycleVectorScale,
   getBodies,
@@ -38,6 +40,8 @@ import {
   getSubpointLegend,
   getSubpointPeak,
   getSubpointStations,
+  subpointModeSpec,
+  subpointThreshold,
   withDefaultBodyOpacity
 } from "./bodies.js";
 
@@ -1284,6 +1288,11 @@ function bodyRow(body) {
   badge.textContent = body.badge.text;
 
   head.append(toggle, badge);
+  if (body.id === "subpoints") {
+    for (const chip of [subpointModeChip(), subpointThresholdChip()]) {
+      if (chip) head.append(chip);
+    }
+  }
   if (body.supportsOpacity) {
     head.append(opacityChip(body));
   }
@@ -1428,6 +1437,57 @@ function opacityChip(body) {
   return button;
 }
 
+// Which of the two ways the sub-point field is drawn belongs on the row that
+// draws it, next to the checkbox that turns it on. Peak thins the field to the
+// top of the range and looks through the pipe; Measured is every sub-point at
+// the wall, complete and partly hidden.
+function subpointModeChip() {
+  const spec = subpointModeSpec(currentState);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "body-scale";
+  button.dataset.subpointMode = spec.id;
+  button.dataset.focusKey = `subpoint-mode:${spec.id}`;
+  button.textContent = spec.label;
+  button.title = spec.description;
+  button.setAttribute(
+    "aria-label",
+    `Sub-point field ${spec.label}. ${spec.description}. Switches to ${SUBPOINT_MODES
+      .filter((mode) => mode.id !== spec.id)
+      .map((mode) => mode.label)
+      .join(", ")}.`
+  );
+  button.addEventListener("click", () => {
+    dispatch({ type: "cycleSubpointMode" });
+    render();
+  });
+  return button;
+}
+
+// The cut a peak mark has to clear. Absent in Measured mode, where nothing is
+// thinned and a threshold would describe nothing that happens on screen.
+function subpointThresholdChip() {
+  if (!subpointModeSpec(currentState).xray) {
+    return null;
+  }
+  const percent = Math.round(subpointThreshold(currentState) * 100);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "body-scale";
+  button.dataset.subpointThreshold = String(percent);
+  button.dataset.focusKey = `subpoint-threshold:${percent}`;
+  button.textContent = `top ${percent}%`;
+  button.setAttribute(
+    "aria-label",
+    `Sub-point peak cut ${percent}%, cycles through ${SUBPOINT_THRESHOLD_STEPS.map((step) => `${Math.round(step * 100)}%`).join(", ")}`
+  );
+  button.addEventListener("click", () => {
+    dispatch({ type: "cycleSubpointThreshold" });
+    render();
+  });
+  return button;
+}
+
 // Why the sub-points land where they do. Shown only when the scene actually
 // carries projected sub-points, because otherwise it explains nothing on screen.
 function renderProjectionNote() {
@@ -1486,9 +1546,26 @@ function renderSectionProfile() {
     line.classList.add("section-peak");
     facts.append(line);
   }
-  const generatrice = profile.display_generatrice;
-  if (Array.isArray(generatrice)) {
-    facts.append(metaLine(`sector 0 on (${generatrice.join(", ")})`));
+  // Sector 0 is only meaningful once you know what it is measured from. A
+  // solved generatrice is the direction Code_Aster was given; a fallback is
+  // Tuba's own display convention, and the angles on this panel are then
+  // rotated by an unknown amount relative to the solver's. Saying so is the
+  // difference between a sector number and a claim.
+  const generatrice = profile.generatrice;
+  if (generatrice && Array.isArray(generatrice.vector)) {
+    const solved = generatrice.solved === true;
+    const line = metaLine(
+      `sector 0 on (${generatrice.vector.map((value) => Number(value).toFixed(2)).join(", ")}) · ${
+        solved ? "solved GENE_TUYAU" : "display convention"
+      }`
+    );
+    if (!solved) {
+      line.classList.add("section-facts-caution");
+      line.title =
+        "The study's .comm carried no GENE_TUYAU, so these angles are drawn from Tuba's " +
+        "fallback direction. They are not the angles Code_Aster numbered from.";
+    }
+    facts.append(line);
   }
   body.append(facts);
   dom.sectionProfile.append(body);

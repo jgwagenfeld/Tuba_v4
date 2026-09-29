@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 from typing import Iterable
+import math
 import numpy as np
 from tuba.model import Element
 from tuba.model import TubaModel
@@ -168,6 +169,46 @@ def _numeric_triplet(value: Any) -> list[float] | None:
     if not all(np.isfinite(triplet)):
         return None
     return triplet
+
+#: How much of its own radius the chord of a display sweep may cut off, as a
+#: fraction, before the section stops reading as round. A 16-gon sits at 1.9%.
+SWEEP_FACET_TOLERANCE = 0.02
+#: Sub-point ticks are far smaller than the run they mark, so they buy their
+#: circle more cheaply - a tick is read at a glance, not shaded, and at 8 the
+#: batch is a quarter cheaper than at 10 for no difference on screen.
+GLYPH_FACET_TOLERANCE = 0.08
+#: A sweep is drawn to be read, not measured, so the derived count is clamped
+#: instead of being carried to a precision nobody can see.
+SWEEP_RADIAL_SEGMENT_RANGE = (12, 48)
+GLYPH_RADIAL_SEGMENT_RANGE = (6, 12)
+
+
+def sweep_radial_segments(
+    tolerance: float = SWEEP_FACET_TOLERANCE,
+    bounds: tuple[int, int] = SWEEP_RADIAL_SEGMENT_RANGE,
+) -> int:
+    """Radial segments a round display sweep needs in order to read as round.
+
+    An n-gon standing in for a circle of radius r sags ``r * (1 - cos(pi / n))``,
+    so the facet budget inverts to ``n >= pi / acos(1 - tolerance)``. Note the
+    budget is *relative*: it picks a count once, for every pipe, because the
+    faceting a reviewer can see scales with the pipe. What size does change is
+    the absolute error - a DN600 drawn at 16 facets is off by a millimetre,
+    which is nothing, while a DN20 is off by thirty microns, which is also
+    nothing. Deriving it from the section instead of typing a literal into the
+    renderer is what keeps the two display surfaces in step: this lands on 16,
+    the same count ``tuba/plotting/pipeline.py`` sweeps its section loops with.
+    """
+    if not 0.0 < tolerance < 1.0:
+        raise ValueError(f"Facet tolerance must be in (0, 1); got {tolerance!r}.")
+    count = int(math.ceil(math.pi / math.acos(1.0 - tolerance)))
+    low, high = bounds
+    return max(low, min(count, high))
+
+
+def glyph_radial_segments() -> int:
+    """Radial segments for a sub-point tick, under the tick's own budget."""
+    return sweep_radial_segments(GLYPH_FACET_TOLERANCE, GLYPH_RADIAL_SEGMENT_RANGE)
 def _bounds_for_points(points: Iterable[Iterable[float]], padding: float) -> list[float]:
     arr = np.array(list(points), dtype=float)
     mins = arr.min(axis=0) - padding

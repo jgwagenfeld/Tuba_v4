@@ -8,6 +8,9 @@ from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.tuyau import (
     CODE_ASTER_TUYAU_NCOU,
     CODE_ASTER_TUYAU_NSEC,
+    DISPLAY_GENERATRICE,
+    GENERATRICE_FALLBACK,
+    Generatrice,
     section_profile,
     subpoint_station,
 )
@@ -19,7 +22,20 @@ from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.builders._contract import SceneContribution
-from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint, model_span
+from tuba.visualization.builders._helpers import _as_float, _as_int, _bounds_for_points, _coerce_point, _dedupe, _node_coords, _numeric_triplet, _object_id, _object_ids_for_node, _safe_id, _vector_endpoint, glyph_radial_segments, model_span
+
+#: The sequential ramp every scalar legend in this contract names.
+#:
+#: The viewer owns the ramp, and it is cividis, not the turbo/viridis/magma that
+#: used to be written here: cividis rises monotonically in lightness, so ranking
+#: two values never depends on hue and the scale survives a greyscale print and a
+#: colour-blind reader. Those legends named ramps nothing ever read - the field
+#: had no consumer - so they described a picture the product never painted. The
+#: contract now names what is drawn. `tuba/plotting/` keeps its own caller-chosen
+#: cmaps; that is the export path, not this one.
+SCALAR_COLOR_MAP = "cividis"
+
+
 def _build_result_state_record(result_state: ResultState) -> tuple[SceneObject, Overlay]:
     object_id = f"object:result_state:{result_state.id}"
     payload = _compact_result_state_payload(result_state)
@@ -163,7 +179,7 @@ def _result_state_volume_stress_scene(
         "field": "FE VMIS (not code stress)",
         "unit": "Pa",
         "range": value_range,
-        "color_map": "turbo",
+        "color_map": SCALAR_COLOR_MAP,
         "thresholds": {},
     }
     asset = GeometryAsset(
@@ -245,7 +261,7 @@ def _result_state_volume_displacement_scene(
         "field": "displacement_magnitude",
         "unit": "m",
         "range": value_range,
-        "color_map": "viridis",
+        "color_map": SCALAR_COLOR_MAP,
         "thresholds": {},
     }
     object_id = f"object:solver_result:volume_displacement:{_safe_id(result_state.id)}"
@@ -451,7 +467,7 @@ def _result_state_stress_overlay(
                 "field": "FE VMIS (not code stress)",
                 "unit": "Pa",
                 "range": {"min": min(numeric_values), "max": max(numeric_values)},
-                "color_map": "turbo",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
             "hotspots": hotspots,
@@ -516,7 +532,7 @@ def _result_state_internal_forces_overlay(
                 "field": "Section Forces (EFGE_ELNO)",
                 "unit": "N",
                 "range": {"min": min_mag, "max": max_mag},
-                "color_map": "turbo",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
             "element_results": element_metadata,
@@ -592,7 +608,7 @@ def _result_state_displacement_overlay(
                 "field": "displacement_magnitude",
                 "unit": "m",
                 "range": {"min": min(numeric_values), "max": max(numeric_values)},
-                "color_map": "viridis",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
         },
@@ -669,7 +685,7 @@ def _result_state_reaction_overlays(
                         "field": f"{result_type}_magnitude",
                         "unit": unit,
                         "range": {"min": min(numeric_values), "max": max(numeric_values)},
-                        "color_map": "magma",
+                        "color_map": SCALAR_COLOR_MAP,
                         "thresholds": {},
                     },
                 },
@@ -774,7 +790,7 @@ def _result_state_volume_reaction_overlays(
                         "field": f"{result_type}_magnitude",
                         "unit": unit,
                         "range": {"min": min(magnitudes), "max": max(magnitudes)},
-                        "color_map": "magma",
+                        "color_map": SCALAR_COLOR_MAP,
                         "thresholds": {},
                     },
                     "derivation": "terminal resultant from Code_Aster nodal reactions",
@@ -846,6 +862,7 @@ def _result_state_tuyau_subpoint_scene(
     layer_indices: list[int | None] = []
     section_shapes: set[tuple[int, int]] = set()
     position_sources: set[str] = set()
+    generatrices: set[Generatrice] = set()
     for row_index, row, value, point in candidates:
         glyph_points = _tuyau_subpoint_glyph_points(row, point)
         if glyph_points is None:
@@ -875,6 +892,7 @@ def _result_state_tuyau_subpoint_scene(
         sector_indices.append(None if station is None else station.sector_index)
         layer_indices.append(None if station is None else station.layer_index)
         position_sources.add(str(row.get("position_source", "centerline_from_sieq_elno")))
+        generatrices.add(_row_generatrice(row))
 
     if not starts:
         return [], [], None, diagnostics
@@ -885,8 +903,14 @@ def _result_state_tuyau_subpoint_scene(
     # Describe the sub-point grid only when every row agrees on it. A run that
     # mixed two TUYAU discretisations has no single rosette to draw, so the
     # viewer must omit the panel rather than pick one shape and imply it covers
-    # the rest.
-    profile = section_profile(*section_shapes.pop()) if len(section_shapes) == 1 else None
+    # the rest. The same applies to the generatrice: it is one vector for the
+    # whole study, and a panel that named sector 0 without saying which
+    # reference direction it measured from would be stating a convention as a
+    # solved angle.
+    profile = None
+    if len(section_shapes) == 1 and len(generatrices) == 1:
+        nsec, ncou = section_shapes.pop()
+        profile = section_profile(nsec, ncou, generatrice=generatrices.pop())
     peak = _tuyau_subpoint_peak(values, element_ids, subpoint_indices, sector_indices, layer_indices, profile)
     asset_bounds = _bounds_for_points([*starts, *ends], glyph_radius)
     object_metadata = {
@@ -910,7 +934,7 @@ def _result_state_tuyau_subpoint_scene(
             generation_config={
                 "source": "tuba.tuyau_subpoint_field",
                 "radius_m": glyph_radius,
-                "radial_segments": 8,
+                "radial_segments": glyph_radial_segments(),
                 "starts": starts,
                 "ends": ends,
                 "display_positions": display_positions,
@@ -929,7 +953,7 @@ def _result_state_tuyau_subpoint_scene(
                     "field": tuyau_legend_field,
                     "unit": "Pa",
                     "range": value_range,
-                    "color_map": "turbo",
+                    "color_map": SCALAR_COLOR_MAP,
                     "thresholds": {},
                 },
             },
@@ -976,7 +1000,7 @@ def _result_state_tuyau_subpoint_scene(
                 "field": tuyau_legend_field,
                 "unit": "Pa",
                 "range": value_range,
-                "color_map": "turbo",
+                "color_map": SCALAR_COLOR_MAP,
                 "thresholds": {},
             },
         },
@@ -1111,6 +1135,26 @@ def _tuyau_subpoint_glyph_radius(rows: list[dict[str, Any]]) -> float:
     if not candidates:
         return _GLYPH_RADIUS_FALLBACK_M
     return max(_GLYPH_RADIUS_MIN_M, min(min(candidates), _GLYPH_RADIUS_MAX_M))
+
+
+def _row_generatrice(row: dict[str, Any]) -> Generatrice:
+    """The reference direction one sub-point row was placed with.
+
+    A row parsed before the ``.comm`` was read back carries no generatrice, and
+    rows that disagree leave the field to the documented fallback - which the
+    panel then has to admit is a convention, not a solved angle.
+    """
+    record = row.get("generatrice")
+    if not isinstance(record, dict):
+        return Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
+    vector = record.get("vector")
+    source = str(record.get("source") or GENERATRICE_FALLBACK)
+    if not isinstance(vector, (list, tuple)) or len(vector) != 3:
+        return Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
+    try:
+        return Generatrice(tuple(float(part) for part in vector), source)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return Generatrice(DISPLAY_GENERATRICE, GENERATRICE_FALLBACK)
 
 
 def _tuyau_subpoint_glyph_points(row: dict[str, Any], point: list[float]) -> list[list[float]] | None:
