@@ -78,6 +78,13 @@ import {
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
 import { BAND_COUNT_CHOICES, bandEdges, isRangeOverridden, niceBounds } from "./legendScale.js";
+import {
+  buildDiagram,
+  diagramComponentsFor,
+  diagramSvg,
+  findRuns,
+  runForElement
+} from "./stationDiagram.js";
 import { getAveragingBasis, getReactionConsistency, isBalanced } from "./trustFacts.js";
 import {
   UNIT_SYSTEMS,
@@ -129,6 +136,9 @@ const dom = {
   contactTable: document.querySelector("[data-contact-table]"),
   contactDisplay: document.querySelector("[data-contact-display]"),
   reactionTable: document.querySelector("[data-reaction-table]"),
+  runDiagram: document.querySelector("[data-run-diagram]"),
+  runDiagramSummary: document.querySelector("[data-run-diagram-summary]"),
+  runDiagramBody: document.querySelector("[data-run-diagram-body]"),
   objectsSection: document.querySelector("[data-objects-section]"),
   findTally: document.querySelector("[data-find-tally]"),
   findScope: document.querySelector("[data-find-scope]"),
@@ -1039,6 +1049,7 @@ function renderResultControls() {
     if (panel) host.append(panel);
   }
   renderReactionTable();
+  renderRunDiagram();
   dom.reviewTally.textContent = reviewTallyLabel();
   const loadCases = getLoadCaseOptions(currentState);
   const resultStates = getResultStateOptions(currentState);
@@ -1583,6 +1594,156 @@ function renderEnvelopeNote(legend) {
   }
   text.textContent = `${parts.join(" · ")}. Derived from the solved results, not a separate solve; the hotspot list names the step that governs each element.`;
   dom.envelopeNote.append(text);
+}
+
+// The station diagram: one component, one run, against distance along it.
+//
+// The plot the piping category does not have. Every tool in the benchmark
+// reviews in 3D and in tables, while ANSYS, Abaqus, COMSOL, SALOME and
+// Code_Aster's own POST_RELEVE_T all treat the X-Y diagram as primary. What it
+// answers that a contour cannot: a contour says an element is hot, and an
+// element can be a metre of straight pipe.
+//
+// Opened from the inspector, so the run is whatever the reviewer just clicked
+// and there is no run picker to learn. The component is offered only where both
+// ends of every member carry it, and the value axis always spans zero, because
+// every one of these six components is signed and a diagram without a zero line
+// cannot tell a reversal from a rise.
+function renderRunDiagram() {
+  const disclosure = dom.runDiagram;
+  if (!disclosure) return;
+  const run = runDiagramRun();
+  const components = run ? diagramComponentsFor(currentState, run) : [];
+  // With no run selected, or a bundle that publishes no end forces, the panel
+  // disappears rather than sitting there empty.
+  disclosure.hidden = !run || components.length === 0;
+  if (disclosure.hidden) return;
+
+  const active = currentState.runDiagramComponent;
+  const component = components.find((candidate) => candidate.id === active) ?? components[0];
+  const diagram = buildDiagram(currentState, run, component.id);
+  dom.runDiagramSummary.textContent = diagram
+    ? `${component.id} along ${run.label}`
+    : "Run diagram";
+
+  const body = dom.runDiagramBody;
+  body.replaceChildren();
+  if (!diagram) {
+    body.append(metaLine("This run publishes no end forces for the selected component."));
+    return;
+  }
+
+  if (components.length > 1) {
+    const picker = document.createElement("div");
+    picker.className = "diagram-components";
+    picker.setAttribute("role", "group");
+    picker.setAttribute("aria-label", "Diagram component");
+    for (const candidate of components) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `bar-button${candidate.id === component.id ? " diagram-component-active" : ""}`;
+      button.dataset.focusKey = `diagram:${candidate.id}`;
+      button.textContent = candidate.id;
+      button.title = `${candidate.label} — ${candidate.unit}`;
+      button.setAttribute("aria-pressed", String(candidate.id === component.id));
+      button.addEventListener("click", () => {
+        dispatch({ type: "setRunDiagramComponent", component: candidate.id });
+        render();
+      });
+      picker.append(button);
+    }
+    body.append(picker);
+  }
+
+  const chart = document.createElement("div");
+  chart.className = "diagram-chart";
+  // The SVG is emitted as a string from pure data, so the shape of the diagram
+  // is testable without a canvas and the report layer can reuse it.
+  chart.innerHTML = diagramSvg(diagram, { width: 720, height: 220 });
+  body.append(chart);
+
+  const facts = document.createElement("p");
+  facts.className = "diagram-facts";
+  const system = getUnitSystem(currentState);
+  const peak = diagram.points.reduce((worst, point) => (Math.abs(point.value) > Math.abs(worst.value) ? point : worst));
+  facts.textContent =
+    `${diagram.points.length} ordinates over ${formatQuantity(diagram.extent.station.max, "m", system)} of run. `
+    + `Peak ${formatQuantity(Math.abs(peak.value), diagram.unit, system)} at ${formatQuantity(peak.station, "m", system)}, `
+    + `${peak.elementId} ${peak.end}.`;
+  // A member with no end forces is a hole in the diagram, and interpolating
+  // across it would draw a load path the solve never reported.
+  if (diagram.missing > 0) {
+    const gap = document.createElement("span");
+    gap.className = "diagram-gap";
+    gap.textContent = ` ${diagram.missing} member${diagram.missing === 1 ? "" : "s"} carried no end forces and ${diagram.missing === 1 ? "is" : "are"} left as a gap.`;
+    facts.append(gap);
+  }
+  body.append(facts);
+}
+
+function runDiagramRun() {
+  const wanted = currentState.runDiagramRunId;
+  if (wanted) {
+    const found = findRuns(currentState).find((run) => run.id === wanted);
+    if (found) return found;
+  }
+  // Falls back to the run under the current selection, so clicking a member and
+  // pressing the shortcut does the obvious thing without a picker.
+  const selected = currentState.selectedObjectIds ?? [];
+  for (const objectId of selected) {
+    const run = runForElement(currentState, objectId);
+    if (run) return run;
+  }
+  return null;
+}
+
+// Offered only when the selected member belongs to a run, so the action is not
+// on an inspector that cannot answer it.
+function runDiagramAction() {
+  const run = selectedRunDiagramRun();
+  if (!run) {
+    return null;
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "bar-button";
+  button.dataset.focusKey = "run-diagram";
+  button.dataset.runDiagramRun = run.id;
+  button.textContent = "Plot this run";
+  button.title = `Station diagram along ${run.label}`;
+  button.addEventListener("click", () => {
+    dispatch({ type: "setRunDiagramRun", runId: run.id });
+    openRunDiagram();
+  });
+  return button;
+}
+
+function selectedRunDiagramRun() {
+  for (const objectId of currentState.selectedObjectIds ?? []) {
+    const run = runForElement(currentState, objectId);
+    if (run) return run;
+  }
+  return null;
+}
+
+function openRunDiagram() {
+  if (!dom.runDiagram || dom.runDiagram.hidden) return;
+  dom.runDiagram.open = true;
+  dom.runDiagram.scrollIntoView({ block: "nearest" });
+}
+
+// The keyboard route to the same place as the inspector's button: select a
+// member, press d. Re-derives the run from the selection rather than trusting a
+// remembered id, so a shortcut pressed after the selection moved plots the run
+// the reviewer is actually looking at.
+function openSelectedRunDiagram() {
+  const run = selectedRunDiagramRun();
+  if (!run) return;
+  if (currentState.runDiagramRunId !== run.id) {
+    dispatch({ type: "setRunDiagramRun", runId: run.id });
+  }
+  render();
+  openRunDiagram();
 }
 
 function renderBodyList() {
@@ -3249,6 +3410,12 @@ function renderProperties() {
     render();
   });
   dom.propertyActions.append(fitButton, hideButton, isolateButton);
+  // Only on a member that belongs to a run of two or more, so the action is not
+  // sitting on an inspector that cannot answer it.
+  const diagramAction = runDiagramAction();
+  if (diagramAction) {
+    dom.propertyActions.append(diagramAction);
+  }
   const clearButton = document.createElement("button");
   clearButton.type = "button";
   clearButton.textContent = "Clear selection";
@@ -5035,6 +5202,7 @@ const SHORTCUTS = [
   ["]", "Next issue", () => stepIssue(1), () => !dom.issueList.hidden],
   ["N", "Previous finding", () => stepFindingBy(-1), () => getFindings(currentState).length > 0],
   ["n", "Next finding", () => stepFindingBy(1), () => getFindings(currentState).length > 0],
+  ["d", "Plot the selected run", () => openSelectedRunDiagram(), () => Boolean(selectedRunDiagramRun())],
   ["F", "Fit the whole scene", () => dom.resetView.click(), () => !dom.resetView.hidden],
   ["?", "Show this list", () => toggleShortcutOverlay(true), () => true]
 ];

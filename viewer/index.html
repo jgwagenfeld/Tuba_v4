@@ -268,6 +268,16 @@
               <summary>Support reactions</summary>
               <div class="contact-table-scroll" role="region" aria-label="Support reactions" tabindex="0" data-reaction-table></div>
             </details>
+            <!-- The station diagram lives with the tables rather than in the
+                 rail, for the same reason the contact chart does: it is a
+                 reading of a result the scene is already showing, and a rail
+                 section would compete with the controls for a column the rail
+                 does not have. Closed by default - it is a question asked once
+                 per run, not a standing view. -->
+            <details class="run-diagram" data-run-diagram hidden>
+              <summary data-run-diagram-summary>Run diagram</summary>
+              <div class="run-diagram-body" data-run-diagram-body></div>
+            </details>
             <div class="review-findings">
               <section data-hotspot-list></section>
               <section data-issue-tools-home>

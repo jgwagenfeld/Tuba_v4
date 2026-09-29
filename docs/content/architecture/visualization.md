@@ -263,6 +263,54 @@ Three things it refuses:
 - **No claim of adequacy.** A reference stress below a limit is not a code check
   and the note does not become one.
 
+## The station diagram
+
+**Where along a run does it go bad?** A contour says an element is hot, and an
+element can be a metre of straight pipe. A station diagram says the moment peaks
+four metres from the anchor and falls to nothing at the bend, which is the
+sentence an engineer has to write before they can size anything.
+
+This is the plot the piping category does not have and the FEA category cannot do
+without. AutoPIPE, CAESAR II, CAEPIPE and PASS/START-PROF all review in 3D and in
+tables and have **no path or station plot at all**. ANSYS, Abaqus, COMSOL, SALOME
+and Code_Aster's own `POST_RELEVE_T` treat the X–Y diagram as primary. SALOME's
+curve mode is the closest precedent: one path, every result step overlaid.
+
+It needs no new data:
+
+| Requirement | Where it already is |
+| --- | --- |
+| Station along the run | `generation_config.points` on each element's geometry asset — two points for a straight member, sixteen for a bend |
+| Which members form a run | `metadata.nodes` on the element object, walked as a graph |
+| An ordinate at each end | `element_results[...].forces_n1` / `forces_n2`, six components in Code_Aster's `EFGE_ELNO` order |
+
+A **bend contributes its arc, not the chord** between its nodes. A 90° bend on a
+0.3 m radius is 0.47 m of pipe, not 0.42 m, and using the chord would
+systematically understate every station downstream of the first bend. The sampled
+centreline is the authority.
+
+Four things it refuses:
+
+- **A single member is not a run.** Two is the smallest that can show a peak
+  between its ends, and one pair of ordinates is not a diagram.
+- **A standing-in object is not a member.** A tee whose display geometry is an
+  idealised joined wall would put a fabricated ordinate on a real station axis.
+- **A half diagram is not a diagram.** A component is offered only where both
+  ends of every member carry it, because a plot that stops where the far end runs
+  out reads as the load vanishing.
+- **No interpolation across a gap.** A member with no end forces is left as a gap
+  and counted, because drawing through it would assert a load path the solve
+  never reported.
+
+The value axis always **spans zero**, because all six components are signed and a
+diagram without a zero line cannot tell a reversal from a rise.
+
+The SVG is emitted as a string from pure data, so the shape of the diagram is
+testable without a canvas — the same reason the report layer emits CSV and HTML
+from pure data. It is an inline plot in the review drawer, closed by default,
+opened from the inspector's **Plot this run** or the `d` shortcut. No run picker:
+the run is whatever the reviewer just clicked.
+
 ## True clipping
 
 The section box performs true clipping with six renderer clipping planes. A pipe crossing the box remains in the scene and only its interior fragment is drawn. The controls do not approximate sectioning by hiding whole objects whose bounds fall outside the box. Camera and section helpers remain visible so the cut can be understood and reset.

@@ -395,22 +395,42 @@ than one that is true, because it displaces work that was actually needed.
 The two parts of this section that are still open are the banding half, which is L2, and
 the uncovered-population question behind L4.
 
-### L8 — Path / station diagram plots · *medium value, high effort — the one real structural gap*
+### L8 — Path / station diagram plots · **shipped** · *medium value, high effort*
 
 **Evidence.** ANSYS, Abaqus, COMSOL, SALOME, Code_Aster `POST_RELEVE_T` and
-`MACR_LIGN_COUPE` all have it; so does SOFiSTiK's `Result Cut Line`. Tuba has none, on
-either path. The piping benchmark has none either — the piping category reviews in 3D and
-in tables and nowhere else.
+`MACR_LIGN_COUPE` all have it; SOFiSTiK's `Result Cut Line` is the same idea. Tuba
+had none, on either path — and neither had the piping benchmark. For piping the
+natural path plot is **along a run**: one component against station, which answers
+"where along this run does it go bad" — a question no 3D contour can.
 
-For piping the natural path plot is **along a run**: displacement, and one stress
-component, against station, with every load case overlaid on one plot (SALOME's curve mode
-does exactly this). That is a genuinely unclaimed position between the two categories,
-and it is the plot that answers "where along this run does it go bad" — which no 3D
-contour can.
+The review recorded this as "effort is real: a station coordinate system per run,
+result interpolation along it, and a plot surface in the viewer that does not
+exist yet." **Two of those three turned out not to be true**, and that is why it
+shipped in a session rather than a slice:
 
-Effort is real: a station coordinate system per run, result interpolation along it, and a
-plot surface in the viewer that does not exist yet. Recommend it as its own slice, not
-folded into anything above.
+- There is no station system to build. Each element's geometry asset already
+  carries its **sampled centreline** as `generation_config.points`, so arc length
+  is the polyline's own length — and a bend contributes its true arc rather than
+  the chord between its nodes.
+- There is no interpolation to do. The stress overlay's `element_results` already
+  holds a value at **both ends** of every element, which is what a structural
+  diagram *is*.
+
+Only the plot surface was new, and `contactReview.js` had already established
+inline SVG as this product's chart technology. So the whole thing is
+`viewer/src/stationDiagram.js` and a drawer panel.
+
+Four refusals, each of which cost a line and each of which is the reason it can
+be trusted: a single member is not a run; a tee standing in for a joined wall is
+not a member; a component is offered only where both ends carry it, because a plot
+that stops where the far end runs out reads as the load vanishing; and a member
+with no end forces is a counted gap, not an interpolation.
+
+**The pattern across all three slices: verify the cost before quoting it.** The
+measure tool was already shipped (L7). The sub-point payload was already fetched
+(twice). The station axis and the end ordinates already existed. Every "effort is
+real" in this document was an estimate made from a partial read, and three of them
+were wrong.
 
 ### L9 — Brief / Summary / Detailed report tiers · *medium value, low effort*
 
@@ -484,14 +504,21 @@ Stealing the wrong thing from a competitor would be a regression against ADR 000
 
 | Slice | Lessons | Depends on |
 |---|---|---|
-| **1 — Cheap legibility** | L2 bands + legend bounds, L6 finding walk + threshold→selection, L1 reaction-consistency + value-basis facts, ~~L7~~ *(shipped)* | nothing; all additive |
-| **2 — The decision** | L3 user reference ratio | ADR; blocks the useful half of L2 and L6 |
-| **3 — Diagnostic depth** | L5 envelope, L4 percentile, L9 report tiers | L3 only for the report tiers |
-| **4 — Structural** | L8 station diagram plots | new plot surface |
+| **1 — Cheap legibility** | L2 bands + legend bounds, L6 finding walk + threshold→selection, L1 reaction-consistency + value-basis facts, ~~L7~~ *(already shipped)* | nothing; all additive |
+| **2 — The decision** | L3 user reference ratio — **[ADR 0007](../adr/0007-user-reference-ratio-is-not-a-code-check.md)**, `proposed` | needs a material table in the scene |
+| **3 — Diagnostic depth** | L5 envelope, L4 reference stress, L9 report tiers | nothing for L4/L5; L3 for the report tiers |
+| **4 — Structural** | L8 station diagram plots | ~~a new plot surface~~ *(contactReview.js had one)* |
 | **5 — Differentiator** | L10 review state machine over the existing `Issue` model | independent; can start any time |
 
-Slice 1 is roughly a week of viewer work and buys most of the perceived quality. Slice 5
-is the only one that changes what the product *is* rather than how it reads.
+Slices 1, 3 and 4 shipped on `feat/postprocess-ergonomics`. Slice 5 is the only
+one left that changes what the product *is* rather than how it reads, and it is
+80% built — the `Issue` model and the review-status reducer actions already exist
+and no UI exposes them. L9's report tiers and L3 remain.
+
+**L10 is smaller than this document says.** `viewerState.js` already has
+`setIssueReviewStatus` and `setIssueReviewComment`, and the scene contract's
+`Issue` already carries `status`, `created_by`, `created_at` and `comments`. What
+is missing is a surface, not a data model.
 
 ### 8.1 Slice 1 — what shipped
 

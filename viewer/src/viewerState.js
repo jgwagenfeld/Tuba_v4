@@ -121,6 +121,10 @@ export function reduceViewerState(state, action) {
       return setActiveFinding(state, action.objectId);
     case "focusFinding":
       return focusFinding(state, action.objectId);
+    case "setRunDiagramRun":
+      return { ...state, runDiagramRunId: action.runId ?? null };
+    case "setRunDiagramComponent":
+      return { ...state, runDiagramComponent: action.component ?? null };
     case "setDisplacementVectorScale":
       return setResultVectorScale(state, "displacement", action.scale);
     case "setReactionVectorScale":
