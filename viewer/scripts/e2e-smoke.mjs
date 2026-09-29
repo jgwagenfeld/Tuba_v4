@@ -176,7 +176,7 @@ const scenarios = {
       const accessibility = await new AxeBuilder({ page }).include("[data-display-palette]").analyze();
       assert.deepEqual(accessibility.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })), []);
       await page.screenshot({ path: "../.build/display-palette.png" });
-      await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
+      await page.getByRole("button", { name: /^Reset 3D view\b/ }).click();
       assert.equal(await palette.evaluate(el => el.open), false, "outside click dismisses the palette");
       assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
     }
@@ -268,14 +268,16 @@ const scenarios = {
       await page.locator('[data-rail-tool="section"]').click();
       const baseline = await framebufferFingerprint(canvas);
       const baselineSnapshot = await framebufferSnapshot(canvas);
-      const positiveZ = page.getByRole("button", { name: "+Z", exact: true });
+      // The camera controls show a glyph and name the view they set, so the
+      // accessible name is "Look down +Z" rather than the glyph on its own.
+      const positiveZ = page.getByRole("button", { name: "Look down +Z", exact: true });
       await positiveZ.focus();
       await page.keyboard.press("Enter");
       await page.waitForFunction(() => {
         const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
         return Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && z < -0.99;
       });
-      await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
+      await page.getByRole("button", { name: /^Reset 3D view\b/ }).click();
       await page.waitForFunction(() => {
         const [x, y, z] = (document.querySelector("[data-canvas]")?.dataset.cameraDirection ?? "").split(",").map(Number);
         return x < -0.6 && y > 0.6 && z < -0.4 && z > -0.5;
@@ -1155,7 +1157,7 @@ const scenarios = {
       assert.match(warnings, /visualization\.code_aster_artifacts\.rmed_read_failed/);
       assert.match(warnings, /Unable to synchronously open object/);
 
-      const positiveZ = page.getByRole("button", { name: "+Z", exact: true });
+      const positiveZ = page.getByRole("button", { name: "Look down +Z", exact: true });
       await positiveZ.focus();
       await page.keyboard.press("Enter");
       await page.waitForFunction(() => {

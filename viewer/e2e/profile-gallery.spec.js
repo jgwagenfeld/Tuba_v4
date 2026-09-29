@@ -11,7 +11,7 @@ test("profile comparison keeps labels and solved local frames through deformatio
   const rendered = () => page.evaluate(() => window.__tubaViewer.lastRender.objectIds);
   expect(await rendered()).toEqual(expect.arrayContaining(labels));
   await expect(page.locator("[data-task-rail]")).toBeVisible();
-  await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
+  await page.getByRole("button", { name: /^Reset 3D view\b/ }).click();
   const canvas = page.locator("[data-canvas]");
   const slider = page.getByRole("slider", { name: "Visual deformation scale (display only)", exact: true });
   await slider.focus();

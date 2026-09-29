@@ -300,7 +300,7 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
   await page.locator("[data-rail-toggle]").click();
   for (const [name, viewport] of Object.entries(VIEWPORTS)) {
     await page.setViewportSize(viewport);
-    await page.getByRole("button", { name: "Reset 3D view", exact: true }).click();
+    await page.getByRole("button", { name: /^Reset 3D view\b/ }).click();
     await page.waitForFunction(() => {
       const canvas = document.querySelector("[data-canvas]");
       const gl = canvas?.getContext("webgl2") || canvas?.getContext("webgl");
