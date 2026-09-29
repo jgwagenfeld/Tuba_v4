@@ -1018,6 +1018,7 @@ const scenarios = {
             "imported_component_mixed_demo",
             "line-load-studio",
             "load-case-preparation",
+            "multipipe-rack",
             "native-friction-review",
             "pipe-tee-volume-review",
             "profile-orientation-review",

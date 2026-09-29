@@ -35,7 +35,7 @@ Open a review without installing Tuba. Choose **Build**, edit `model.py`, and **
 <tr><td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png" width="250" alt="Load-case preparation in the Tuba viewer"></a><br><b>Load-case preparation</b><br>How do sustained, thermal, occasional and pressure loads change the same pipe?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png" width="250" alt="Portal frame stability review in the Tuba viewer"></a><br><b>Portal frame stability</b><br>How far is this frame from buckling, and where does it deflect?</td>
 <td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/braced-rack-thermal-split.png" width="250" alt="Braced rack split review in the Tuba viewer"></a><br><b>Braced rack split</b><br>Where does one hot line's growth go on a rack that is growing too?</td></tr>
-</table>
+<tr><td><a href="https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack"><img src="https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png" width="250" alt="Multipipe rack review in the Tuba viewer"></a><br><b>Multipipe rack</b><br>How do three lines at different temperatures load one shared rack?</td></tr></table>
 
 ## Example
 

@@ -1,0 +1,63 @@
+{
+  "artifacts": {
+    "study.comm": {
+      "sha256": "e4d6bbed5927bd7b1d340edcb9dbfbb5bd2a75ae6974625c1387ca7fec793707",
+      "size_bytes": 37291
+    },
+    "study.export": {
+      "sha256": "49d368425faa339a664f1dacc92642b87adda7ad2162732f326f065f054e3a18",
+      "size_bytes": 377
+    },
+    "study.mail": {
+      "sha256": "7e8464e0ecc17f1edf9264e4238beb95670afcacaeaedf828256733822e8312c",
+      "size_bytes": 49927
+    },
+    "study.mess": {
+      "sha256": "06c06fca931f3de92846ea39584aaa24d50aa55e6025991772753583758bb438",
+      "size_bytes": 211624
+    },
+    "study.rmed": {
+      "sha256": "5fb256179bd7d8e5dac1694a263aed64c0aa6ae853431f6512f712a1032d4403",
+      "size_bytes": 1081653
+    },
+    "study_contact.json": {
+      "sha256": "b381841c7f10b3474f5b6147d9d2519f03227aa3da8db1fe45149dd82940ff18",
+      "size_bytes": 2472
+    },
+    "study_depl.csv": {
+      "sha256": "e441686f96c57decf8d0825494f1bfcf33234e443cdb4c8fcdcc72ed156164e8",
+      "size_bytes": 112110
+    },
+    "study_effo.csv": {
+      "sha256": "4145fa766461fcdedcaf9160d75014c9728f85dc9c93b731b1e60b82c968e291",
+      "size_bytes": 243418
+    },
+    "study_manifest.json": {
+      "sha256": "e488fd80bfba32b4b16f2b4e1f4a7af2cd18fca5ebdefbef941284d82fbaedad",
+      "size_bytes": 254931
+    },
+    "study_reac.csv": {
+      "sha256": "d6e0bc430aedc7398f66e864f67ba328b48241eeccd0dcba7c2de4128b82d590",
+      "size_bytes": 112110
+    },
+    "study_sieq.csv": {
+      "sha256": "682e220b14880672c6552715c816b818d31aedb1a08c33ce9fee35563b2bd8c7",
+      "size_bytes": 1946196
+    },
+    "study_tuba_fem.json": {
+      "sha256": "d370cee1cd313ceb1cbcdff7908293200a87006164fda59e177986d76606b21f",
+      "size_bytes": 38068
+    }
+  },
+  "execution_method": "wsl",
+  "schema_version": "tuba.code_aster_execution.v1",
+  "solved_at": "2026-09-29T21:56:46.510070Z",
+  "solver_input_identity": {
+    "compiler_id": "tuba.code_aster.v2",
+    "fingerprint": "dd6396ce8b2407b89dc6d9f2d8be24e7dd4a0b1d8f27657d2109bf0ec6f68fda",
+    "load_case": "Operating",
+    "schema_id": "tuba.model.v4"
+  },
+  "solver_name": "Code_Aster",
+  "solver_version": "18.0.12"
+}

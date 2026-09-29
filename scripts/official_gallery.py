@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Callable
+from typing import Any
 
 from tuba.project import STUDY_SCRIPT, load_project
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -366,6 +366,21 @@ OFFICIAL_GALLERIES = (
             "Two restrained pipe lines solved in four states: Sustained, OperatingHot, Occasional and PressureOnly. "
             "Compare Code_Aster results and export signed expansion differences for user-owned checks; "
             "no standard or utilization verdict is assigned."
+        ),
+    ),
+    _project_gallery(
+        "multipipe-rack",
+        frozenset({"dev", "pages"}),
+        "engineering-review",
+        "multipipe-rack",
+        title="Multipipe rack",
+        elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
+        question="How do three lines at different temperatures load one shared rack?",
+        summary=(
+            "Three DN100, DN150 and DN200 lines share a four-bay steel rack. "
+            "Each has a mid-run fixed shoe and sliding friction shoes, with temperatures "
+            "of 100, 200 and 300 C and pressures of 1, 2 and 3 MPa. Code_Aster results "
+            "show pipe-wall stress, displacement and the combined support load path."
         ),
     ),
     _project_gallery(

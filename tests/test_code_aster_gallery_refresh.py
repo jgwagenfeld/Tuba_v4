@@ -62,6 +62,7 @@ def test_official_gallery_records_own_refresh_metadata():
         "hydrogen-plant-layout",
         "line-load-studio",
         "load-case-preparation",
+        "multipipe-rack",
         "native-friction-review",
         "pipe-tee-volume-review",
         "profile-orientation-review",

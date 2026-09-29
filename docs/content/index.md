@@ -70,6 +70,10 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
     **Braced rack split** — Where does one hot line's growth go on a rack that is growing too?
 
+-   [![Multipipe rack review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack)
+
+    **Multipipe rack** — How do three lines at different temperatures load one shared rack?
+
 </div>
 
 ## Start here

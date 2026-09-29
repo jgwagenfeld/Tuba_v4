@@ -143,6 +143,16 @@ A DN250 line on a four-bay braced steel rack, anchored once at mid-run. One pipe
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split) &middot; Evidence: **Results** (1 load case)
 
+## Multipipe rack
+
+[![Multipipe rack review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack)
+
+Three DN100, DN150 and DN200 lines share a four-bay steel rack. Each has a mid-run fixed shoe and sliding friction shoes, with temperatures of 100, 200 and 300 C and pressures of 1, 2 and 3 MPa. Code_Aster results show pipe-wall stress, displacement and the combined support load path.
+
+The crossbeams are split at each lane, so all three lines transfer their loads into the same frame. This example uses fixed column feet and a rigid moment frame; it does not evaluate wind, foundations or piping-code compliance.
+
+[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack) &middot; Evidence: **Results** (1 load case)
+
 ## Local examples
 
 Run an example with:
