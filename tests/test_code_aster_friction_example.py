@@ -18,7 +18,7 @@ from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
 class NativePipingFrictionExample(unittest.TestCase):
     def test_combined_model_has_disconnected_translated_identical_copies(self):
         model = build_friction_comparison_model()
-        self.assertEqual(LOAD_PATH, ["Cold", "Hot", "Cold", "Lift", "Cold"])
+        self.assertEqual(LOAD_PATH, ["Cold", "Hot", "Cold", "Lift", "Reseat"])
         self.assertEqual([support.id for support in model.supports],
                          ["NF_anchor", "NF_S1", "NF_S2", "F_anchor", "F_S1", "F_S2"])
         self.assertEqual([support.friction_coefficient for support in model.supports if support.type == "rest"],
@@ -38,7 +38,7 @@ class NativePipingFrictionExample(unittest.TestCase):
 class NativePipingExampleSolve(unittest.TestCase):
     def test_one_attested_run_contains_both_contact_histories(self):
         model = build_friction_comparison_model()
-        artifacts = Path("examples/native-friction-review/evidence/Cold")
+        artifacts = Path("examples/native-friction-review/evidence/Reseat")
         run = (import_code_aster_artifacts(model=model, work_dir=artifacts)
                if (artifacts / "study_execution.json").is_file()
                else model.solve(pipe_modelization="POU_D_T", load_path=LOAD_PATH, load_step=0.1,

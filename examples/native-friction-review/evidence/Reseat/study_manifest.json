@@ -4108,7 +4108,7 @@
         "F_pipe_4_s7"
       ]
     },
-    "id": "analysis_mesh:Cold",
+    "id": "analysis_mesh:Reseat",
     "model_revision": 0,
     "modelisations": {
       "AllPipes": "POU_D_T",
@@ -7775,14 +7775,14 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f99039167fb067a52a9bc54f3117b8b624bede3a5b95352617f7dfe573b760bd",
-      "load_case": "Cold",
+      "fingerprint": "0a106f592e9b973bb6bc99bfc6c9cfc655ac2807304964a032b286b293454208",
+      "load_case": "Reseat",
       "schema_id": "tuba.model.v4"
     },
     "solver_name": "Code_Aster"
   },
   "study": {
-    "id": "analysis_study:Cold",
+    "id": "analysis_study:Reseat",
     "input_files": {
       "comm": "study.comm",
       "export": "study.export",
@@ -7790,8 +7790,8 @@
       "manifest": "study_manifest.json",
       "sidecar": "study_tuba_fem.json"
     },
-    "load_case": "Cold",
-    "mesh_id": "analysis_mesh:Cold",
+    "load_case": "Reseat",
+    "mesh_id": "analysis_mesh:Reseat",
     "metadata": {
       "compiler_inputs": {
         "bend_segments": 32,
@@ -7806,7 +7806,7 @@
           "Hot",
           "Cold",
           "Lift",
-          "Cold"
+          "Reseat"
         ],
         "load_path_inputs": {
           "Cold": {
@@ -7964,6 +7964,58 @@
             ],
             "ref_temperature": 20.0,
             "temperature": 20.0
+          },
+          "Reseat": {
+            "gravity": true,
+            "internal_pressure": 0.0,
+            "nodal_forces": [
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N1"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N4"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N7"
+              },
+              {
+                "components": [
+                  0.0,
+                  0.0,
+                  -10000.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "node": "N10"
+              }
+            ],
+            "ref_temperature": 20.0,
+            "temperature": 20.0
           }
         },
         "load_step": 0.1,
@@ -7975,8 +8027,8 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f99039167fb067a52a9bc54f3117b8b624bede3a5b95352617f7dfe573b760bd",
-      "load_case": "Cold",
+      "fingerprint": "0a106f592e9b973bb6bc99bfc6c9cfc655ac2807304964a032b286b293454208",
+      "load_case": "Reseat",
       "schema_id": "tuba.model.v4"
     },
     "solver_name": "Code_Aster"

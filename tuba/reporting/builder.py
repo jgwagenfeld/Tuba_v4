@@ -62,6 +62,15 @@ def build_engineering_review(
         study_records = tuple(run.study for run in run_records)
         mesh_records = tuple(run.analysis_mesh for run in run_records if run.analysis_mesh is not None)
         state_records = tuple(run.result_state for run in run_records)
+        # The contact tables describe the whole load path, not the instant the
+        # package is anchored to. Provenance stays at one state per run on
+        # purpose - the Pages gate requires exactly one result_state record - so
+        # the history travels beside it rather than in it.
+        history_records = tuple(
+            state for run in run_records for state in (run.result_states or (run.result_state,))
+        )
+    else:
+        history_records = state_records
     _validate_lineage(
         model,
         study_records,
@@ -80,6 +89,7 @@ def build_engineering_review(
                 model,
                 study_records,
                 state_records,
+                contact_states=history_records,
             )
         )
     tables.append(

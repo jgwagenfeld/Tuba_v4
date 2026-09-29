@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timezone
 from typing import Any
 from tuba.analysis.mesh import AnalysisMesh
+from tuba.analysis.contact_findings import build_contact_findings
 from tuba.analysis.results import ResultState
 from tuba.analysis.provenance import (
     require_matching_solver_input_identities,
@@ -261,6 +262,12 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
     layers, layer_diagnostics = build_layer_registry(objects, overlays, analysis_mesh_records)
     diagnostics.extend(layer_diagnostics)
 
+    # The story a contact run tells, derived once here so the Studio, the review
+    # package and any other reader agree. Emitted for any scene with a contact
+    # history, not only a review that declared a focus: a multibay rack that
+    # merely rests on shoes should still be able to say what they did.
+    contact_findings = build_contact_findings(result_state_records)
+
     scene = VisualizationScene(
         scene_id=resolved_scene_id,
         model_id=model_id or getattr(model, "project_name", "tuba_model"),
@@ -279,6 +286,7 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
         extra={
             **_scene_provenance_extra(result_state_records, analysis_mesh_records, ifc_context),
             **({"review_focus": review_focus} if review_focus else {}),
+            **({"contact_findings": contact_findings} if contact_findings else {}),
         },
     )
     scene.validate()

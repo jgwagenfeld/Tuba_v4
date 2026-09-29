@@ -3,6 +3,12 @@
 Friction is set per support. There are two copies so that one Code_Aster run can show
 the same pipe with mu = 0 and mu = 0.3 side by side; each copy links to the line that
 adds it.
+
+The load path is a heat/cool/lift/reseat cycle: Cold seats the shoes, Hot drives the
+pipe axially onto its friction cone, the next Cold reverses that drag, Lift takes S2
+off the surface, and Reseat puts it back. Reseat is the final stage, and a load path's
+final stage is the name the study and its evidence folder are filed under, so it is
+named for what the run ends by demonstrating rather than left as a second "Cold".
 """
 
 from tuba import Model
@@ -11,7 +17,7 @@ from tuba.model import BendGeometry
 model = Model("Native piping friction comparison")
 model.add_material("steel", E=2e11, nu=0.3, rho=7850.0, alpha=1.2e-5)
 model.add_pipe_section("pipe", OD=0.1143, WT=0.006)
-for name, temperature in [("Cold", 20.0), ("Hot", 120.0), ("Lift", 20.0)]:
+for name, temperature in [("Cold", 20.0), ("Hot", 120.0), ("Lift", 20.0), ("Reseat", 20.0)]:
     model.define_load_case(name, gravity=True, pressure=0.0, temperature=temperature, ref_temperature=20.0)
 
 
@@ -29,7 +35,7 @@ def add_copy(prefix: str, y_offset: float, mu: float) -> None:
     for name, node in [("S1", nodes[1]), ("S2", nodes[4])]:
         model.add_support(node=node, type="rest", id=f"{prefix}_{name}", direction=[0.0, 0.0, 1.0], friction_coefficient=mu,
                           normal_stiffness=1e10, tangential_stiffness=1e8)
-    for name in ("Cold", "Hot", "Lift"):
+    for name in ("Cold", "Hot", "Lift", "Reseat"):
         case = model.load_cases[name]
         case.add_nodal_force(nodes[1], force=[0.0, 0.0, -10000.0])
         case.add_nodal_force(nodes[4], force=[0.0, 0.0, 600.0 if name == "Lift" else -10000.0])

@@ -75,14 +75,14 @@ def test_every_operation_gets_its_own_folder(tmp_path):
     # attestations; every example model declares one load case, so they come from two examples.
     runs = {
         "Operating": _run(tmp_path, "support-rack-review", "Operating"),
-        "Cold": _run(tmp_path, "native-friction-review", "Cold"),
+        "Reseat": _run(tmp_path, "native-friction-review", "Reseat"),
     }
     bundle = tmp_path / "bundle"
 
     staged = stage_runs(runs, bundle)
 
-    assert sorted(path.name for path in (bundle / "artifacts").iterdir()) == ["Cold", "Operating"]
-    for case in ("Operating", "Cold"):
+    assert sorted(path.name for path in (bundle / "artifacts").iterdir()) == ["Operating", "Reseat"]
+    for case in ("Operating", "Reseat"):
         assert staged[case].result_state.files["mess"] == f"artifacts/{case}/study.mess"
 
 
@@ -217,7 +217,7 @@ def test_a_hash_in_the_review_is_not_read(tmp_path):
 def test_two_operations_read_back_as_two_runs(tmp_path):
     # Two attested load cases, so two examples; a review names one model, so each run's
     # review is written in turn and their provenance records are combined into the bundle's.
-    sources = (("support-rack-review", "Operating"), ("native-friction-review", "Cold"))
+    sources = (("support-rack-review", "Operating"), ("native-friction-review", "Reseat"))
     runs = {operation: _run(tmp_path, example, operation) for example, operation in sources}
     root = tmp_path / "bundle"
     staged = stage_runs(runs, root)
@@ -236,4 +236,4 @@ def test_two_operations_read_back_as_two_runs(tmp_path):
             combined["provenance"] = list(combined["provenance"]) + list(document["provenance"])
     (root / "review.json").write_text(json.dumps(combined, indent=2), encoding="utf-8")
 
-    assert [run.operation for run in read_staged_runs(root)] == ["Cold", "Operating"]
+    assert [run.operation for run in read_staged_runs(root)] == ["Operating", "Reseat"]

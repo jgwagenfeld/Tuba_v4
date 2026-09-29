@@ -595,13 +595,18 @@ def test_declared_analysis_nodes_are_traceable_report_locations(
 
 def test_solver_result_tables_are_traceable_and_explicit(solved_review):
     assert solved_review.analysis_status == "solved"
-    assert tuple(solved_review.tables_by_id)[-7:] == (
+    # Contact tables ride with the other result tables rather than the model
+    # ones: they read the solver's result states, so they carry the same solver
+    # identity columns as everything below and belong under Results.
+    assert tuple(solved_review.tables_by_id)[-9:] == (
         "studies",
         "result_summary",
         "displacements",
         "reactions",
         "element_forces",
         "fe_stress",
+        "contacts",
+        "contact_findings",
         "diagnostics",
     )
 
@@ -623,6 +628,36 @@ def test_solver_result_tables_are_traceable_and_explicit(solved_review):
                 "result_state_id": "result:hot",
                 "load_case": "Hot",
             }
+
+    # contact_findings is derived from the run as a whole rather than from one
+    # state, so it identifies its run and each finding's own state instead of
+    # inheriting a single result_state_id for every row.
+    findings = solved_review.table("contact_findings")
+    assert findings.rows == ()
+    assert {column.id for column in findings.columns} >= {
+        "kind",
+        "severity",
+        "support_ids",
+        "stage_label",
+        "run_id",
+        "result_state_id",
+    }
+
+
+def test_contact_tables_describe_the_whole_load_path(solved_review):
+    """A contact table pinned to the final state would hide the sequence."""
+    contacts = solved_review.table("contacts")
+    assert contacts.source == "result_state"
+    assert contacts.rows == ()
+    assert [column.id for column in contacts.columns][:4] == [
+        "solver_name",
+        "study_id",
+        "result_state_id",
+        "load_case",
+    ]
+    assert "pseudo_time" in {column.id for column in contacts.columns}
+    assert "friction_limit" in {column.id for column in contacts.columns}
+    assert "utilization" in {column.id for column in contacts.columns}
 
 
 def test_result_rows_use_six_dofs_magnitudes_and_both_element_ends(solved_review):

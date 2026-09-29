@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
+from tuba.analysis.contact_findings import build_contact_findings, contact_samples
 from tuba.analysis.results import ResultState
 from tuba.analysis.study import AnalysisStudy
 from tuba.model import (
@@ -36,6 +37,22 @@ SOLVER_COLUMNS = (
 )
 
 FE_STRESS_BASIS = "FE Von Mises (not piping-code stress)"
+
+CONTACT_FINDING_COLUMNS = (
+    ReportColumn("kind", "Finding"),
+    ReportColumn("severity", "Severity"),
+    ReportColumn("support_ids", "Shoes"),
+    ReportColumn("stage_label", "First stage"),
+    ReportColumn("final_stage_label", "Last stage"),
+    ReportColumn("stage_indices", "Stages"),
+    ReportColumn("spans_stages", "Spans stages"),
+    ReportColumn("pseudo_time", "Pseudo-time"),
+    ReportColumn("run_id", "Run ID"),
+    ReportColumn("load_case", "Load case"),
+    ReportColumn("result_state_id", "Result state ID"),
+    ReportColumn("values", "Values"),
+    ReportColumn("note", "Meaning"),
+)
 
 
 def build_project_summary_table(
@@ -430,8 +447,15 @@ def build_result_tables(
     model: TubaModel,
     studies: Iterable[AnalysisStudy],
     result_states: Iterable[ResultState],
+    contact_states: Iterable[ResultState] | None = None,
 ) -> tuple[ReportTable, ...]:
-    """Build Code_Aster-derived tables after the caller validates lineage."""
+    """Build Code_Aster-derived tables after the caller validates lineage.
+
+    ``contact_states`` defaults to ``result_states``. A load-path run passes its
+    full converged history here so the contact tables can describe the sequence,
+    while every other table - and the package's provenance - stays anchored to
+    the single final state the review is written about.
+    """
     study_by_id = {study.id: study for study in studies}
     states = tuple(sorted(result_states, key=lambda record: (record.load_case, record.id)))
     for state in states:
@@ -439,6 +463,7 @@ def build_result_tables(
             raise EngineeringReviewError(
                 f"Result state {state.id!r} does not reference a supplied study."
             )
+    history = tuple(contact_states) if contact_states is not None else states
     return (
         build_result_summary_table(
             model,
@@ -449,7 +474,132 @@ def build_result_tables(
         build_reactions_table(model, study_by_id, states),
         build_element_forces_table(model, study_by_id, states),
         build_fe_stress_table(study_by_id, states),
+        build_contacts_table(study_by_id, history),
+        build_contact_findings_table(history),
     )
+
+
+def build_contacts_table(
+    studies_by_id: Mapping[str, AnalysisStudy],
+    result_states: Iterable[ResultState],
+) -> ReportTable:
+    """Every solved shoe at every converged increment, in solved order.
+
+    The other result tables describe the instant a bundle opens on, which is the
+    end of the load path. A contact table pinned to that instant would report
+    every shoe as it finally sits and hide the slip, lift-off and reseat that
+    explain how it got there - so this one carries the whole history, ordered by
+    pseudo-time rather than by result-state id, because the ids of a load path
+    sort lexicographically and put step 10 before step 2.
+    """
+    rows: list[dict[str, Any]] = []
+    for support_id, samples in contact_samples(result_states).items():
+        for sample in samples:
+            contact = sample.contact
+            rows.append(
+                {
+                    **_solver_identity(studies_by_id[sample.state.study_id], sample.state),
+                    "stage_index": sample.stage,
+                    "stage_label": sample.label,
+                    "pseudo_time": sample.pseudo_time,
+                    "support_id": support_id,
+                    "node_id": contact.node_id,
+                    "status": contact.status,
+                    "status_source": contact.status_source,
+                    "normal_force": contact.normal_force,
+                    "tangential_force": list(contact.tangential_force),
+                    "tangential_force_magnitude": _vector_magnitude(contact.tangential_force),
+                    "friction_limit": contact.friction_limit,
+                    "utilization": contact.utilization,
+                    "gap": contact.gap,
+                    "slip": list(contact.slip),
+                    "slip_magnitude": _vector_magnitude(contact.slip),
+                    "relative_displacement": list(contact.relative_displacement),
+                }
+            )
+    rows.sort(
+        key=lambda row: (
+            row["pseudo_time"],
+            row["support_id"],
+            str(row["result_state_id"]),
+        )
+    )
+    return ReportTable(
+        id="contacts",
+        title="Contact results (every converged increment)",
+        source="result_state",
+        columns=SOLVER_COLUMNS
+        + (
+            ReportColumn("stage_index", "Stage"),
+            ReportColumn("stage_label", "Load path stage"),
+            ReportColumn("pseudo_time", "Pseudo-time"),
+            ReportColumn("support_id", "Support"),
+            ReportColumn("node_id", "Node"),
+            ReportColumn("status", "Contact state"),
+            ReportColumn("status_source", "State source"),
+            ReportColumn("normal_force", "Normal force N", unit="N"),
+            ReportColumn("tangential_force", "Tangential force"),
+            ReportColumn("tangential_force_magnitude", "|Ft|", unit="N"),
+            ReportColumn("friction_limit", "Friction limit μN", unit="N"),
+            ReportColumn("utilization", "Cone usage"),
+            ReportColumn("gap", "Gap", unit="m"),
+            ReportColumn("slip", "Slip"),
+            ReportColumn("slip_magnitude", "|Slip|", unit="m"),
+            ReportColumn("relative_displacement", "Relative displacement"),
+        ),
+        rows=tuple(rows),
+    )
+
+
+def build_contact_findings_table(result_states: Iterable[ResultState]) -> ReportTable:
+    """The load-path story, one row per derived finding.
+
+    A contact history is a sequence and a table of instants makes a reader
+    reconstruct the sequence by hand. This is the sequence, already derived: what
+    each shoe did, over which stages, with the numbers behind it. Severity is
+    published as the word itself rather than a colour, so a printed copy sorts
+    the same way the Studio does.
+    """
+    block = build_contact_findings(result_states)
+    if block is None:
+        return ReportTable(
+            id="contact_findings",
+            title="Contact findings",
+            source="result_state",
+            columns=CONTACT_FINDING_COLUMNS,
+            rows=(),
+        )
+    rows: list[dict[str, Any]] = []
+    for run in block["runs"]:
+        for finding in run["findings"]:
+            rows.append(
+                {
+                    "run_id": run["run_id"],
+                    "load_case": run["load_case"],
+                    "kind": finding["kind"],
+                    "severity": finding["severity"],
+                    "support_ids": list(finding["support_ids"]),
+                    "stage_label": finding["stage_label"],
+                    "final_stage_label": finding["final_stage_label"],
+                    "stage_indices": list(finding["stage_indices"]),
+                    "spans_stages": finding["spans_stages"],
+                    "pseudo_time": finding["pseudo_time"],
+                    "result_state_id": finding["result_state_id"],
+                    "values": dict(finding["values"]),
+                    "note": finding["note"],
+                }
+            )
+    return ReportTable(
+        id="contact_findings",
+        title="Contact findings",
+        source="result_state",
+        columns=CONTACT_FINDING_COLUMNS,
+        rows=tuple(rows),
+    )
+
+
+def _vector_magnitude(vector: Sequence[float]) -> float:
+    return math.sqrt(sum(float(value) ** 2 for value in vector))
 
 
 def build_displacements_table(

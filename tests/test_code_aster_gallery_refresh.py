@@ -85,10 +85,10 @@ def test_contact_gallery_refresh_preserves_beam_history_options(tmp_path, monkey
     class Solver:
         def __init__(self, **options):
             assert options == {"work_dir": tmp_path, "pipe_modelization": "POU_D_T",
-                               "load_path": ["Cold", "Hot", "Cold", "Lift", "Cold"], "load_step": 0.1}
+                               "load_path": ["Cold", "Hot", "Cold", "Lift", "Reseat"], "load_step": 0.1}
 
         def export_analysis_study(self, model, load_case, output):
-            assert load_case == "Cold" and output == tmp_path
+            assert load_case == "Reseat" and output == tmp_path
             assert [s.friction_coefficient for s in model.supports if s.type == "rest"] == [0.0, 0.0, 0.3, 0.3]
             raise StopAfterExport
 
