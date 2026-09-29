@@ -2864,6 +2864,7 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
   .app-header {
     min-height: 3.25rem;
     padding-inline: 0.7rem;
+    column-gap: 0.3rem;
   }
 
   .header-actions {

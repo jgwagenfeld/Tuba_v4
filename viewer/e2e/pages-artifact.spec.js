@@ -345,6 +345,7 @@ test("assembled Pages viewer is accessible and visually stable", async ({ page }
 test("no two header controls overprint each other at any committed width", async ({ page }) => {
   await page.goto("/viewer/?bundle=code-aster-review", { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-runtime-status]")).toHaveText("Ready");
+  await page.evaluate(() => document.fonts.ready);
 
   for (const [name, viewport] of Object.entries(VIEWPORTS)) {
     await page.setViewportSize(viewport);
@@ -367,6 +368,11 @@ test("no two header controls overprint each other at any committed width", async
           return { selector, rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height } };
         });
       const found = [];
+      const wordmark = boxes.find(box => box.selector === ".wordmark");
+      const identity = document.querySelector(".app-identity").getBoundingClientRect();
+      if (wordmark && wordmark.rect.x + wordmark.rect.w > identity.right + 1) {
+        found.push(".wordmark clipped by .app-identity");
+      }
       for (let a = 0; a < boxes.length; a += 1) {
         for (let b = a + 1; b < boxes.length; b += 1) {
           const one = boxes[a].rect;
