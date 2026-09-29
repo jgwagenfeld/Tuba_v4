@@ -194,7 +194,10 @@ def test_printable_html_has_fixed_section_order_csv_links_and_escaped_content(
     )
     html = output.index_path.read_text(encoding="utf-8")
 
-    positions = [html.index(f">{heading}<") for heading in (
+    # Matched as headings rather than as any ">word<": the summary sheet above
+    # the detail carries "Diagnostics" as a term of its own, and a first-match
+    # search for the bare word found that one instead of the section heading.
+    positions = [html.index(f"<h2>{heading}</h2>") for heading in (
         "Summary",
         "Model",
         "Load Cases",
@@ -202,6 +205,11 @@ def test_printable_html_has_fixed_section_order_csv_links_and_escaped_content(
         "Diagnostics",
     )]
     assert positions == sorted(positions)
+    # The one-page tier comes before all of them, and is bounded to one printed
+    # page so the detail is reached by turning a page.
+    sheet = html.index("<h2>Summary sheet</h2>")
+    assert sheet < positions[0]
+    assert "break-after: page" in html
     assert 'href="reports/line_list.csv"' in html
     assert 'href="reports/unsafe.csv"' in html
     assert "Review &lt;draft&gt; &amp; evidence" in html

@@ -277,6 +277,15 @@ def _render_html(
         "h1, h2, h3 { break-after: avoid; line-height: 1.25; }",
         ".meta { color: #44505f; margin: 0 0 .35rem; }",
         ".units { color: #44505f; font-size: .85rem; margin: 0 0 1.75rem; }",
+        # The summary sheet, on screen. It prints to exactly one page; here it is
+        # a bordered block at the top that the detail below is reached by
+        # scrolling past, which is the same tiering with a different gesture.
+        ".summary-sheet { border: 1px solid #d7dde4; border-radius: .35rem; padding: 1rem 1.15rem; margin: 0 0 1.75rem; }",
+        ".summary-sheet h2 { margin-top: 0; }",
+        ".summary-sheet .units { margin-bottom: .75rem; }",
+        ".summary-facts { display: grid; grid-template-columns: 11rem 1fr; gap: .1rem .75rem; margin: 0; }",
+        ".summary-facts dt { font-weight: 650; }",
+        ".summary-facts dd { margin: 0; }",
         ".back { margin: 2.5rem 0 0; font-size: .9rem; }",
         ".back a { text-decoration: underline; text-underline-offset: .15em; }",
         # Shared with the viewer and the docs site: the warning and focus values
@@ -345,6 +354,10 @@ def _render_html(
         "  table { font-size: 7.5pt; }",
         "  tr { break-inside: avoid; }",
         "  thead { display: table-header-group; }",
+        # The tier is defined by its size, so the size is enforced rather than
+        # hoped for: the sheet is followed by a page break in print, and a
+        # one-line definition list keeps it on one page on screen.
+        "  .summary-sheet-page { break-after: page; }",
         "}",
         "</style>",
         "</head>",
@@ -360,6 +373,13 @@ def _render_html(
     ]
 
     reports = manifest["reports"]
+    # The summary sheet comes first and is bounded to one printed page, so the
+    # detail below it is reached by turning a page rather than by scrolling past
+    # it. In print the page break is what makes the tier real; on screen the rule
+    # is the same idea with a border.
+    content.append('<div class="summary-sheet-page">')
+    content.extend(_summary_sheet(review))
+    content.append("</div>")
     for section_title in _SECTION_TITLES:
         content.append(f"<section><h2>{section_title}</h2>")
         section_tables = sections[section_title]
@@ -386,6 +406,122 @@ def _render_html(
         )
     )
     return "\n".join(content)
+
+
+def _summary_sheet(review: EngineeringReviewPackage) -> list[str]:
+    """The one-page tier: what was analysed, by what, and what came back.
+
+    SCIA, CSI and MIDAS all print three levels - brief, summary, detailed - and
+    the middle one is defined by a size, not by content: it "fits no more than a
+    half of an A4 page and shows all important results of the check". That is the
+    useful discipline here, because a thirteen-table report with no tier above it
+    answers none of the three questions a reviewer opens a review to ask: what is
+    this, was it actually solved, and where is the worst number.
+
+    Everything on this page is already computed by the review model - identity,
+    provenance, governing locations, diagnostic counts. Nothing is summarised by
+    averaging, and nothing is added, because a one-page sheet is exactly where a
+    fabricated aggregate would go unnoticed.
+
+    The FE stress row carries its basis in the text. `result_summary` already
+    publishes `result_basis` per row, and a sheet that printed "64.2" beside
+    "Von Mises" with no basis would be the one page of this document a reader
+    could mistake for a code check.
+    """
+    rows = _summary_rows(review)
+    content = [
+        '<section class="summary-sheet" aria-label="One-page summary">',
+        "<h2>Summary sheet</h2>",
+        '<p class="units">Everything on this page is stated as the review holds it. '
+        "No quantity here is a code check, a utilization or a pass/fail verdict: "
+        "Tuba performs no standards evaluation, and the stress values below are "
+        "finite-element output.</p>",
+        '<dl class="summary-facts">',
+    ]
+    for label, value in rows:
+        content.append(f"<dt>{escape(label)}</dt><dd>{escape(value)}</dd>")
+    content.extend(("</dl>", "</section>"))
+    return content
+
+
+def _summary_rows(review: EngineeringReviewPackage) -> list[tuple[str, str]]:
+    by_id = {table.id: table for table in review.tables}
+    rows: list[tuple[str, str]] = [
+        ("Project", review.project_name or "unnamed"),
+        ("Design standard", review.model_standard or "none declared"),
+        ("Model revision", str(review.model_revision)),
+        ("Analysis status", review.analysis_status),
+        ("Published", review.created_at),
+    ]
+
+    studies = by_id.get("studies")
+    if studies is not None and studies.rows:
+        solvers = sorted(
+            {
+                str(row.get("solver_name"))
+                for row in studies.rows
+                if row.get("solver_name")
+            }
+        )
+        rows.append(("Solver", ", ".join(solvers) or "not stated"))
+        rows.append(("Studies", str(len(studies.rows))))
+
+    provenance = review.provenance
+    if provenance:
+        # Only result states carry the trust bar. The builder refuses to publish a
+        # review at all unless every result state has a verified attestation
+        # (builder.py), and a study record is an input reference rather than
+        # evidence of a solve - so counting both kinds together would report a
+        # study as an unverified result and send a reader looking for a
+        # problem that is not there.
+        results = [record for record in provenance if record.kind == "result_state"]
+        if results:
+            verified = sum(
+                1
+                for record in results
+                if record.metadata.get("result_trust") == "verified"
+                and isinstance(record.metadata.get("solve_attestation"), dict)
+            )
+            # The one fact on this page that decides whether the rest is worth
+            # reading. A review that reports eleven significant figures from an
+            # unverified solve is the failure this sheet exists to make
+            # impossible to miss.
+            rows.append((
+                "Evidence",
+                f"{verified} of {len(results)} result "
+                f"{'record' if len(results) == 1 else 'records'} verified"
+                + ("" if verified == len(results) else " - see Diagnostics"),
+            ))
+
+    result_summary = by_id.get("result_summary")
+    for row in (result_summary.rows if result_summary is not None else ()):
+        quantity = str(row.get("result_type", "")).replace("_", " ")
+        value = row.get("maximum_value")
+        unit = str(row.get("unit", "") or "")
+        basis = str(row.get("result_basis", "") or "")
+        location = str(row.get("governing_location", "") or row.get("governing_entity_ref", "") or "")
+        text = "unavailable" if value is None else f"{_display_number(value)} {unit}".strip()
+        if basis:
+            text += f" - {basis}"
+        if location:
+            text += f" - at {location}"
+        rows.append((quantity or "result", text))
+
+    diagnostics = by_id.get("diagnostics")
+    if diagnostics is not None and diagnostics.rows:
+        severities: dict[str, int] = {}
+        for row in diagnostics.rows:
+            severity = str(row.get("severity", "info")).lower()
+            severities[severity] = severities.get(severity, 0) + 1
+        rows.append(("Diagnostics", ", ".join(f"{count} {name}" for name, count in sorted(severities.items()))))
+    elif review.diagnostics:
+        severities = {}
+        for diagnostic in review.diagnostics:
+            severities[diagnostic.severity] = severities.get(diagnostic.severity, 0) + 1
+        rows.append(("Diagnostics", ", ".join(f"{count} {name}" for name, count in sorted(severities.items()))))
+    else:
+        rows.append(("Diagnostics", "none recorded"))
+    return rows
 
 
 def _units_note(review: EngineeringReviewPackage) -> str:
