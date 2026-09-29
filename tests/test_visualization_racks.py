@@ -89,6 +89,21 @@ class TestVisualizationRacks(unittest.TestCase):
         self.assertEqual(len(load_overlay.data["grounded_loads"]), 1)
         self.assertIsNone(load_overlay.data["grounded_loads"][0]["force_n"])
 
+    def test_zero_load_path_glyphs_are_omitted_without_losing_report_data(self):
+        for attached, multiple, force in ((True, False, 0.0), (False, False, 0.0), (True, True, -500.0)):
+            with self.subTest(attached=attached, multiple=multiple):
+                model, support = self._rack_model(attach_support=attached)
+                if multiple:
+                    model.add_support(node=support.node, type="rest", attached_to=support.attached_to)
+                node = support.attached_to if attached else support.node
+                report = analyze_load_paths(model, node_reactions={node: (0.0, 0.0, force)})
+                scene = build_visualization_scene(SceneRequest(model, load_path_report=report))
+                scene.validate()
+                self.assertFalse(any(obj.kind == "load_path_vector" for obj in scene.objects))
+                overlay = next(item for item in scene.overlays if item.kind == "load_path")
+                self.assertEqual(overlay.data, report.to_dict())
+                self.assertIn(f"object:support:{support.id}", overlay.object_ids)
+
     def test_row_bays_emit_a_rack_assembly_overlay_each(self):
         model = Model(project_name="RowRackReview")
         model.add_material("Steel", E=2.0e11, nu=0.3)

@@ -380,6 +380,17 @@ def _build_load_path_scene(
         assets.append(vector_asset)
         load_object_ids.append(vector_object.id)
 
+    # Match result glyphs: omit collapsed arrows, retain the complete report.
+    drawable_assets = {
+        asset.id for asset in assets
+        if float(np.linalg.norm(np.subtract(
+            asset.generation_config["end"], asset.generation_config["start"]))) > 1e-12
+    }
+    omitted_objects = {obj.id for obj in objects if obj.geometry_asset_id not in drawable_assets}
+    objects = [obj for obj in objects if obj.id not in omitted_objects]
+    assets = [asset for asset in assets if asset.id in drawable_assets]
+    load_object_ids = [object_id for object_id in load_object_ids if object_id not in omitted_objects]
+
     load_overlays: list[Overlay] = []
     if report.associations or report.rack_loads or report.grounded_loads:
         load_overlays.append(
