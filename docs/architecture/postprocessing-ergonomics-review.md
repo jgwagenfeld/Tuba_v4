@@ -321,6 +321,18 @@ is built on. The mitigation is that the denominator is never hidden and never na
 `allowable` in the UI — it is `user reference`, and the caveat rides with it in the same
 three places the existing one does.
 
+**This is now written up as [ADR 0007](../adr/0007-user-reference-ratio-is-not-a-code-check.md),
+`status: proposed`.** Two things it settled that the sketch above did not:
+
+- The **scene never carries the allowable schedule.** It reaches the `materials` report
+  table and the model script and nothing else, so this is a schema addition, not a UI
+  change. That is the real cost, and it is why this is a decision rather than a commit.
+- The ratio is **unavailable when the load case declares a temperature field**, because
+  the uniform `temperature_c` is then not the metal temperature at the hot spot. Per-node
+  temperatures exist in the solver path but do not reach the bundle, so the honest answer
+  today is unavailable — which means the flagship thermal-split example is one of the
+  cases that would *not* get a ratio.
+
 **This is a scope question, not a research question. It should be an ADR, not a
 commitment.**
 
