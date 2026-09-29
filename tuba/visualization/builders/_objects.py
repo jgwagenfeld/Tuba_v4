@@ -10,6 +10,7 @@ from tuba.geometry.section_mesh import straight_section_surface_mesh
 from tuba.physical import element_quantities
 from tuba.physical import physical_properties_for_element
 from tuba.refs import EntityRef
+from tuba.sections import properties_for_section
 from tuba.visualization.scene import GeometryAsset
 from tuba.visualization.scene import Overlay
 from tuba.visualization.scene import SceneDiagnostic
@@ -26,6 +27,7 @@ _PROFILE_DIMENSION_KEYS = {
     "B": "width_m",
     "Tw": "web_thickness_m",
     "Tf": "flange_thickness_m",
+    "R": "root_radius_m",
     "radius": "radius_m",
     "pretension": "pretension_n",
     "height_y": "height_y_m",
@@ -34,7 +36,20 @@ _PROFILE_DIMENSION_KEYS = {
     "thickness_z": "thickness_z_m",
 }
 def _profile_metadata(model: TubaModel, elem: Element) -> dict[str, Any]:
-    profile = profile_for_section(model.sections[elem.section])
+    """The section's shape, plus the properties computed from that shape.
+
+    ``properties`` is the native section-property block from
+    :mod:`tuba.sections.properties` - area, both second moments and the torsion
+    constant - so a surface can draw and state a section without a solver. It is
+    derived geometry, not an evaluation, and it says so in the key name.
+
+    A section whose dimensions do not describe a solid reports that here instead
+    of vanishing: a properties panel with no numbers and no reason is worse than
+    one that says why, and the geometry is still drawn from ``dimensions`` either
+    way.
+    """
+    section = model.sections[elem.section]
+    profile = profile_for_section(section)
     data: dict[str, Any] = {
         "section": elem.section,
         "kind": profile.kind,
@@ -43,6 +58,10 @@ def _profile_metadata(model: TubaModel, elem: Element) -> dict[str, Any]:
     }
     for key, value in profile.dimensions.items():
         data[_PROFILE_DIMENSION_KEYS.get(key, key)] = value
+    try:
+        data["properties"] = properties_for_section(section).as_dict()
+    except ValueError as exc:
+        data["properties"] = {"error": str(exc)}
     return data
 def _build_element_object(
     model: TubaModel,

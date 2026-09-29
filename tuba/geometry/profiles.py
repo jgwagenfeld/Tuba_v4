@@ -72,6 +72,11 @@ def profile_for_section(section) -> SectionProfile:
                 "B": b,
                 "Tw": float(section.properties.get("Tw", 0.0)),
                 "Tf": float(section.properties.get("Tf", 0.0)),
+                # The root radius is what separates a rolled section from three
+                # rectangles, so it travels with the profile: a section outline
+                # and a section-property integral both need it, and reading it
+                # from the catalog again in each of them is how they drift apart.
+                "R": float(section.properties.get("R", 0.0)),
             },
             source=section,
         )

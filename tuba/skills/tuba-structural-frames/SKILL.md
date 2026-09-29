@@ -59,6 +59,37 @@ print(state.node_reactions)                            # real
 print(run.results.element_results[first].max_von_mises)  # None: not computed
 ```
 
+## Where a section's numbers come from
+
+`properties_for_section` computes a section's area, both second moments, its
+torsion constant and its radii of gyration from the section's own geometry - no
+catalog lookup, no solver:
+
+```python
+from tuba.sections import properties_for_section
+p = properties_for_section(model.sections["Column_HE300B"])
+p.area_m2, p.iy_m4, p.iz_m4, p.j_m4      # IY is about Y, so IZ is the depthwise one
+p.j_is_exact                              # False for an I-beam: J is a thin-wall estimate
+```
+
+A rolled I-profile is the exception to "Code_Aster works it out": it has no
+primitive, so `tuba/solver/aster_comm.py` writes it as `SECTION='GENERALE'`
+with fourteen values taken from `tuba/sections/data/IBeam.output`, an Autochar
+(Sillage) table committed once and not regenerable from a runnable Code_Aster
+install. `tuba/sections/data/README.md` records that provenance gap.
+
+The native kernel covers four of those fourteen - `A`, `IY`, `IZ`, `JX` - and
+agrees with the table to 0.04% or better across all 174 catalog profiles
+(`tests/test_section_properties.py` sweeps the whole catalog, it does not sample).
+`JX` is the exception and stays one: an open section's Saint-Venant constant is
+`1/3 * sum(b t**3)` over the wall mid-lines, and the four root radii are not
+separate walls in that sum, so it is bounded at 45% and flagged `j_is_exact=False`
+rather than dressed up. The other ten - the shear areas, the shear centre, the
+warping constant and the warping inertias - still come only from the table.
+
+**These are derived geometry, never solver results.** A report or a UI that
+prints them must say so, because nothing in them came from a solve.
+
 ## Build structural frames on resolved nodes
 
 The fluent builder is a *piping* cursor: `run()` and `beam()` each mint a fresh
