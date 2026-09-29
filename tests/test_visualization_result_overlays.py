@@ -393,6 +393,22 @@ class TestVisualizationResultOverlays(unittest.TestCase):
         self.assertAlmostEqual(asset.generation_config["radius_m"], 0.01 / 3.0)
         # So does the tick's own faceting, so the renderer holds no literal.
         self.assertEqual(asset.generation_config["radial_segments"], glyph_radial_segments())
+        # The node each row was solved at. Without it the viewer can only draw
+        # the worst station across the whole run, which is the envelope rather
+        # than the section at any one place.
+        self.assertEqual(len(asset.generation_config["node_ids"]), len(asset.generation_config["values"]))
+        self.assertTrue(all(node is None or isinstance(node, str) for node in asset.generation_config["node_ids"]))
+        self.assertTrue(any(node is not None for node in asset.generation_config["node_ids"]))
+        # The mesh element each row was solved on. A bend is meshed into segments
+        # that share their end nodes, and stress is recovered per element, so one
+        # junction carries one stress per segment. Naming only the authored
+        # element would merge those into one section.
+        analysis_ids = asset.generation_config["analysis_element_ids"]
+        self.assertEqual(len(analysis_ids), len(asset.generation_config["values"]))
+        self.assertTrue(all(isinstance(name, str) and name for name in analysis_ids))
+        # This fixture's rows name no analysis element, so it falls back to the
+        # authored element rather than inventing a segment.
+        self.assertEqual(set(analysis_ids), set(asset.generation_config["element_ids"]))
         self.assertIn("solver_result:tuyau_subpoints", subpoint.layer_ids)
         self.assertEqual(subpoint.name, "TUYAU FE VMIS (not code stress) Hot")
         self.assertEqual(subpoint.metadata["compliance_role"], "visualization_only_not_asme_code_stress")

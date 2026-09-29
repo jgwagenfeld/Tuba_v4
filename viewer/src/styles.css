@@ -926,6 +926,27 @@ textarea,
   flex: 1 1 100%;
 }
 
+/* Which node's section the rosette is showing. A select, not a cycling chip:
+   a real run has 105 nodes, and a chip would make the reader walk one click at
+   a time to reach the one they can see is hot. The options carry each node's
+   own peak, so the ranking is visible before the choice is made. */
+.section-node-select {
+  width: 100%;
+  margin-bottom: 0.2rem;
+  border: 1px solid var(--graphite-line);
+  border-radius: 0.2rem;
+  background: var(--graphite-highlight);
+  color: #dfe6e8;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  padding: 0.15rem 0.25rem;
+  cursor: pointer;
+}
+
+.section-node-select:hover {
+  background: #36434c;
+}
+
 .rosette-wall {
   fill: none;
   stroke: var(--graphite-line);

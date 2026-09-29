@@ -857,6 +857,8 @@ def _result_state_tuyau_subpoint_scene(
     values: list[float] = []
     row_indices: list[int] = []
     element_ids: list[str] = []
+    node_ids: list[str | None] = []
+    analysis_element_ids: list[str] = []
     subpoint_indices: list[int | None] = []
     sector_indices: list[int | None] = []
     layer_indices: list[int | None] = []
@@ -883,6 +885,12 @@ def _result_state_tuyau_subpoint_scene(
         values.append(value)
         row_indices.append(row_index)
         element_ids.append(element_id)
+        # The node a sub-point belongs to. Without it the scene can only show the
+        # worst station across the whole run, which is not the same question as
+        # "what does the wall look like here".
+        node_id = _row_node_id(row)
+        node_ids.append(node_id)
+        analysis_element_ids.append(_row_analysis_element_id(row, element_id))
         subpoint_index = _as_int(row.get("subpoint_index"))
         nsec = _as_int(row.get("tuyau_nsec")) or CODE_ASTER_TUYAU_NSEC
         ncou = _as_int(row.get("tuyau_ncou")) or CODE_ASTER_TUYAU_NCOU
@@ -941,6 +949,8 @@ def _result_state_tuyau_subpoint_scene(
                 "values": values,
                 "row_indices": row_indices,
                 "element_ids": element_ids,
+                "node_ids": node_ids,
+                "analysis_element_ids": analysis_element_ids,
                 "subpoint_indices": subpoint_indices,
                 "sector_indices": sector_indices,
                 "layer_indices": layer_indices,
@@ -1135,6 +1145,40 @@ def _tuyau_subpoint_glyph_radius(rows: list[dict[str, Any]]) -> float:
     if not candidates:
         return _GLYPH_RADIUS_FALLBACK_M
     return max(_GLYPH_RADIUS_MIN_M, min(min(candidates), _GLYPH_RADIUS_MAX_M))
+
+
+def _row_node_id(row: dict[str, Any]) -> str | None:
+    """The model node a sub-point row was solved at, if the row names one.
+
+    Kept as its own helper so the contract carries a consistent ``None`` for a
+    row that lost its node through the solver's label mapping, rather than an
+    empty string that would read as a node called "".
+    """
+    node_id = row.get("node_id")
+    if node_id is None:
+        return None
+    text = str(node_id).strip()
+    return text or None
+
+
+def _row_analysis_element_id(row: dict[str, Any], model_element_id: str) -> str:
+    """The mesh element a sub-point row was solved on.
+
+    A model element is not a place stress can be attributed to. A bend is meshed
+    into several segments and they share their end nodes, so one junction carries
+    one stress per segment - on the shipped review ``pipe_bend_0_n1`` is reported
+    at the same coordinates by ``pipe_bend_0_s0`` and ``pipe_bend_0_s1``, with
+    different stresses at the same sub-point. Those are not duplicate rows and
+    not a labelling fault: stress is recovered per element, so a shared junction
+    really does have two wall stresses. What is wrong is to present them as one
+    section, which is why the scene states the segment and not only the element
+    the engineer authored.
+    """
+    analysis_id = row.get("analysis_element_id")
+    if analysis_id is None:
+        return model_element_id
+    text = str(analysis_id).strip()
+    return text or model_element_id
 
 
 def _row_generatrice(row: dict[str, Any]) -> Generatrice:

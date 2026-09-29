@@ -3,6 +3,9 @@ import test from "node:test";
 
 import {
   OPACITY_STEPS,
+  ambiguousSubpointNodeKeys,
+  SUBPOINT_NODE_ANY,
+  UNLABELLED_NODE,
   bodyIdForLayerId,
   VECTOR_SCALE_STEPS,
   bodyOpacity,
@@ -10,6 +13,7 @@ import {
   createBodyOpacityState,
   cycleBodyOpacity,
   cycleSubpointMode,
+  cycleSubpointNodeId,
   cycleSubpointThreshold,
   cycleVectorScale,
   getBodies,
@@ -17,14 +21,23 @@ import {
   getDiscretisationCheck,
   getMeshIdentity,
   getSectionProfile,
+  getSelectableSubpointNodes,
   getSubpointDrawnCount,
+  getSubpointNodes,
   getSubpointPeak,
+  getSubpointSelectionPeak,
   getSubpointStations,
+  getSubpointStationsForSelection,
   hasSubpointValue,
   setBodyVisibility,
   setOverlayVisibility,
   setSubpointMode,
+  setSubpointNodeId,
   subpointMode,
+  subpointNodeKey,
+  subpointNodeLabel,
+  subpointNodeBase,
+  subpointNodeId,
   subpointPassesThreshold,
   subpointValueCutoff,
   withDefaultBodyOpacity
@@ -593,3 +606,207 @@ test("an unknown peak cut draws everything rather than nothing", () => {
   const bare = { ...state, overlays: state.overlays.filter((overlay) => overlay.data?.result_type !== "tuyau_subpoints") };
   assert.equal(subpointValueCutoff(bare), null);
 });
+
+// --- choosing which node's section the wall panel shows --------------------
+
+// Two nodes, two elements, four stations. N1 sits on the outer wall and is cold;
+// N2 sits on the bore and is hot. The envelope, N1 and N2 are three different
+// pictures, which is the whole reason the choice exists.
+function nodeFieldState(overrides = {}) {
+  const state = sceneState();
+  state.geometryAssets[0].generation_config = {
+    source: "tuba.tuyau_subpoint_field",
+    payload_uri: "geometry/subpoints.json"
+  };
+  state.geometryPayloads[0].generation_config = {
+    sector_indices: [0, 4, 0, 4],
+    layer_indices: [6, 6, 0, 0],
+    node_ids: ["N1", "N1", "N2", "N2"],
+    element_ids: ["E-1", "E-1", "E-2", "E-2"],
+    values: [10e6, 30e6, 250e6, 12e6]
+  };
+  state.overlays[0].data.rendered_count = 4;
+  state.overlays[0].data.total_count = 4;
+  return { ...state, ...overrides };
+}
+
+test("the wall panel opens on the envelope, which is what it showed before the choice", () => {
+  assert.equal(subpointNodeId(nodeFieldState()), SUBPOINT_NODE_ANY);
+  const stations = getSubpointStationsForSelection(nodeFieldState());
+  assert.equal(stations.length, 4, "every station, from every node");
+});
+
+test("pinning the panel to a node narrows the grid to that node's section", () => {
+  const state = setSubpointNodeId(nodeFieldState(), "E-2::N2");
+  const stations = getSubpointStationsForSelection(state);
+  assert.equal(stations.length, 2);
+  assert.deepEqual(
+    stations.map((station) => `${station.sectorIndex}:${station.layerIndex}`),
+    ["0:0", "4:0"],
+    "both of N2's stations are on the bore"
+  );
+  // N2 is hot on the bore and N1 is cold on the OD, so the envelope's worst
+  // station and N2's worst station are the same number by coincidence of this
+  // fixture - what differs is everything else the two grids show.
+  assert.equal(getSubpointSelectionPeak(state).value, 250e6);
+  // N1's peak is 30 MPa, and pinning to N1 must not still claim 250.
+  assert.equal(getSubpointSelectionPeak(setSubpointNodeId(nodeFieldState(), "E-1::N1")).value, 30e6);
+});
+
+
+test("the headline peak follows the selection rather than the study", () => {
+  // The un-pinned peak is the study's worst station, from the overlay.
+  assert.equal(getSubpointPeak(nodeFieldState()).value, 2.015e8);
+  assert.equal(getSubpointSelectionPeak(nodeFieldState()).value, 250e6);
+  // A pinned panel describes one node, so a headline that stayed at the study
+  // peak would be a number beside a section it did not come from.
+  assert.equal(getSubpointSelectionPeak(setSubpointNodeId(nodeFieldState(), "E-1::N1")).value, 30e6);
+});
+
+test("the node list is ranked by each section's own peak, worst first", () => {
+  const nodes = getSubpointNodes(nodeFieldState());
+  assert.deepEqual(nodes.map((node) => node.key), ["E-2::N2", "E-1::N1"]);
+  assert.equal(nodes[0].max, 250e6);
+  assert.equal(nodes[0].count, 2);
+  assert.equal(nodes[1].max, 30e6);
+});
+
+// A junction is one node shared by every element meeting there, so a node label
+// is not a key. On the shipped review 34 of 71 labels carry 462 rows rather than
+// 231 - "N1" is both pipe_bend_0's and pipe_str_0's - and grouping on the node
+// alone silently merged two elements into one "section".
+test("a node shared by two elements is two sections, not one", () => {
+  const state = nodeFieldState();
+  state.geometryPayloads[0].generation_config = {
+    // N1 on both E-1 and E-2, each with its own 231 stations at its own stress.
+    sector_indices: [0, 0, 0, 0],
+    layer_indices: [0, 0, 0, 0],
+    node_ids: ["N1", "N1", "N1", "N1"],
+    element_ids: ["E-1", "E-1", "E-2", "E-2"],
+    values: [10e6, 20e6, 300e6, 400e6]
+  };
+  const nodes = getSubpointNodes(state);
+  assert.equal(nodes.length, 2, "one section per element, not one per node label");
+  assert.deepEqual(nodes.map((node) => node.key), ["E-2::N1", "E-1::N1"]);
+  // Pinned to the bend, the panel must not report the straight's 400 MPa.
+  assert.equal(getSubpointSelectionPeak(setSubpointNodeId(state, "E-1::N1")).value, 20e6);
+  assert.equal(getSubpointSelectionPeak(setSubpointNodeId(state, "E-2::N1")).value, 400e6);
+  // And a bare node label matches nothing, rather than quietly matching both.
+  assert.equal(getSubpointStationsForSelection(setSubpointNodeId(state, "N1")).length, 0);
+});
+
+// A bend is meshed into segments that share their end nodes, and stress is
+// recovered per element, so one junction carries one stress per segment. On the
+// shipped review pipe_bend_0_n1 is reported at the same coordinates by
+// pipe_bend_0_s0 and pipe_bend_0_s1, with different values. Those are not
+// duplicate rows and not a labelling fault - but keyed on the authored element
+// and the node they merge into one section, reporting the per-station maximum of
+// both as a single picture.
+test("one junction on two segments is two sections, not one", () => {
+  const state = nodeFieldState();
+  state.geometryPayloads[0].generation_config = {
+    sector_indices: [0, 0, 0, 0],
+    layer_indices: [0, 0, 0, 0],
+    node_ids: ["n1", "n1", "n1", "n1"],
+    // The authored element is the same for both; only the segment differs.
+    element_ids: ["bend", "bend", "bend", "bend"],
+    analysis_element_ids: ["bend_s0", "bend_s0", "bend_s1", "bend_s1"],
+    values: [100e6, 200e6, 300e6, 400e6]
+  };
+  const nodes = getSubpointNodes(state);
+  assert.deepEqual(nodes.map((node) => node.key), ["bend_s1::n1", "bend_s0::n1"]);
+  assert.equal(getSubpointSelectionPeak(setSubpointNodeId(state, "bend_s0::n1")).value, 200e6);
+  assert.equal(getSubpointSelectionPeak(setSubpointNodeId(state, "bend_s1::n1")).value, 400e6);
+  // Both are named, and the segment is what tells them apart - the authored
+  // element and node are the same for the two.
+  const bases = subpointNodeBase(state);
+  const ambiguous = ambiguousSubpointNodeKeys(state);
+  assert.deepEqual([...ambiguous], ["bend::n1"]);
+  assert.equal(subpointNodeLabel("bend_s0::n1", { bases, ambiguous }), "n1 · bend · s0");
+  assert.equal(subpointNodeLabel("bend_s1::n1", { bases, ambiguous }), "n1 · bend · s1");
+});
+
+test("a segment is not named when the junction is not shared", () => {
+  // The segment is a mesh artefact. Where only one segment reports a junction,
+  // showing "s0" would be noise in a list of 105.
+  const state = nodeFieldState();
+  state.geometryPayloads[0].generation_config = {
+    sector_indices: [0, 4],
+    layer_indices: [0, 0],
+    node_ids: ["n1", "n2"],
+    element_ids: ["bend", "bend"],
+    analysis_element_ids: ["bend_s0", "bend_s0"],
+    values: [10e6, 20e6]
+  };
+  const bases = subpointNodeBase(state);
+  const ambiguous = ambiguousSubpointNodeKeys(state);
+  assert.equal(ambiguous.size, 0);
+  assert.equal(subpointNodeLabel("bend_s0::n1", { bases, ambiguous }), "n1 · bend");
+});
+
+test("a section key is labelled with its node and its element", () => {
+  assert.equal(subpointNodeLabel("E-2::N2"), "N2 · E-2");
+  assert.equal(subpointNodeLabel(subpointNodeKey("E-2", null)), "E-2 · (no node)");
+  assert.equal(subpointNodeLabel(subpointNodeKey(undefined, "N3")), "N3");
+});
+
+
+test("rows that lost their node group under one bucket rather than vanishing", () => {
+  // A row that came back without a node is how a label-mapping gap shows up.
+  // Dropping it would quietly shrink the very field the panel reports a count of.
+  const state = nodeFieldState();
+  state.geometryPayloads[0].generation_config.node_ids = ["N1", "N1", null, null];
+  const nodes = getSubpointNodes(state);
+  assert.deepEqual(nodes.map((node) => node.key), ["E-2::(no node)", "E-1::N1"], "worst first");
+  assert.equal(nodes[0].max, 250e6);
+  // And the unlabelled group is inspectable, so its section is reachable.
+  const pinned = getSubpointStationsForSelection(setSubpointNodeId(state, subpointNodeKey("E-2", null)));
+  assert.equal(pinned.length, 2);
+});
+
+
+test("a bundle written before the rows carried a node still draws a grid", () => {
+  // The scene fixture without node_ids is exactly this case: the rosette falls
+  // back to the envelope rather than going blank, so an old review still reads.
+  // Every row lands in the unlabelled bucket - reported, because that is the
+  // truth about the rows - but nothing is selectable, because "worst anywhere"
+  // and "(no node)" would be the same picture under two names.
+  const nodes = getSubpointNodes(sceneState());
+  assert.equal(nodes.length, 1);
+  assert.equal(nodes[0].key, subpointNodeKey(undefined, undefined), "no element and no node label");
+  assert.equal(getSelectableSubpointNodes(sceneState()).length, 0, "so no selector is offered");
+  assert.equal(getSubpointStationsForSelection(sceneState()).length, 2);
+  // Pinning something the bundle cannot answer leaves the envelope rather than
+  // showing an empty section.
+  assert.equal(getSubpointStationsForSelection(setSubpointNodeId(sceneState(), "E-9::N9")).length, 2);
+});
+
+test("cycling the section walks the envelope, then worst-first, and round", () => {
+  let state = nodeFieldState();
+  state = cycleSubpointNodeId(state);
+  assert.equal(subpointNodeId(state), "E-2::N2", "the worst section comes first after the envelope");
+  state = cycleSubpointNodeId(state);
+  assert.equal(subpointNodeId(state), "E-1::N1");
+  assert.equal(subpointNodeId(cycleSubpointNodeId(state)), SUBPOINT_NODE_ANY, "wraps");
+  // Nothing selectable, so nothing to cycle through.
+  const legacy = sceneState();
+  assert.equal(cycleSubpointNodeId(legacy), legacy);
+});
+
+test("setting the section already shown changes nothing", () => {
+  const state = nodeFieldState();
+  assert.equal(setSubpointNodeId(state, SUBPOINT_NODE_ANY), state);
+  const pinned = setSubpointNodeId(state, "E-2::N2");
+  assert.equal(setSubpointNodeId(pinned, "E-2::N2"), pinned);
+});
+
+test("the body row says which section the panel is showing", () => {
+  const metrics = (state) => getBodies(state).find((body) => body.id === "subpoints").metrics;
+  assert.ok(metrics(nodeFieldState({ subpointMode: "measured" })).includes("wall panel: worst station across the run"));
+  assert.ok(metrics(nodeFieldState({ subpointMode: "measured", subpointNodeId: "E-2::N2" })).includes("wall panel: N2 · E-2"));
+  assert.ok(
+    metrics(nodeFieldState({ subpointMode: "measured", subpointNodeId: "E-9::N9" })).includes("wall panel: N9 · E-9 has no sub-points"),
+    "pinned to a section with no rows, it must not claim to be the run-wide worst"
+  );
+});
+

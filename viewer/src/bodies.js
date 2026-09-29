@@ -570,9 +570,56 @@ export function subpointValueCutoff(state) {
   return subpointThresholdValue(subpointThreshold(state), subpointRangeMax(state));
 }
 
-// The sub-point field's bulk config, merged the way the renderer merges it: a
-// sub-point asset's arrays live in their own payload file and the scene entry
-// keeps only a pointer, so reading the manifest alone finds no values at all.
+// Which element node's sub-point grid the wall panel is showing.
+//
+// The rosette used to take the worst station across the whole run, per sector
+// and layer. That is a real answer, and it is the envelope rather than the
+// section - a reader asking "is this bore or OD at node N14" got the worst case
+// from somewhere else entirely and nothing said so. So the envelope stays the
+// default (it is the safer read, and changing the default silently would
+// change what every existing review says) and the reader can pin the panel to
+// one node when they need the section itself.
+//
+// The choice is reported in the panel either way, because a grid drawn from
+// somewhere unnamed is a grid whose provenance is guesswork.
+
+export const SUBPOINT_NODE_ANY = "*";
+
+export function subpointNodeId(state) {
+  const id = state.subpointNodeId;
+  return id === SUBPOINT_NODE_ANY || id === undefined || id === null ? SUBPOINT_NODE_ANY : String(id);
+}
+
+export function setSubpointNodeId(state, nodeId) {
+  const next = nodeId === undefined || nodeId === null ? SUBPOINT_NODE_ANY : String(nodeId);
+  if (next === subpointNodeId(state)) return state;
+  return { ...state, subpointNodeId: next };
+}
+
+// The nodes worth offering a choice between.
+//
+// A group with no node label is kept out: a bundle whose rows carry no node has
+// one section, the envelope, and nothing to choose between it and itself.
+// Reporting it is honest - getSubpointNodes still does - but a selector with a
+// single "(no node)" entry beside "worst anywhere" is a control that cannot do
+// anything.
+export function getSelectableSubpointNodes(state) {
+  const bases = subpointNodeBase(state);
+  return getSubpointNodes(state).filter((node) => {
+    const base = bases.get(node.key) ?? node.key;
+    return !base.endsWith(`${SUBPOINT_KEY_SEPARATOR}${UNLABELLED_NODE}`) && base !== UNLABELLED_NODE;
+  });
+}
+
+export function cycleSubpointNodeId(state) {
+  const order = [SUBPOINT_NODE_ANY, ...getSelectableSubpointNodes(state).map((node) => node.key)];
+  if (order.length < 2) return state;
+  // The node list is worst-first, so this walks the global envelope, the worst
+  // node, the next worst, and round.
+  const current = order.indexOf(subpointNodeId(state));
+  return setSubpointNodeId(state, order[(current + 1) % order.length]);
+}
+
 function subpointFieldConfig(state) {
   const overlay = getSubpointOverlay(state);
   const asset = (state.geometryAssets ?? []).find((candidate) =>
@@ -581,6 +628,167 @@ function subpointFieldConfig(state) {
   if (!asset) return null;
   const payload = (state.geometryPayloads ?? []).find((candidate) => candidate.asset_id === asset.id);
   return { ...(payload?.generation_config ?? {}), ...(asset.generation_config ?? {}) };
+}
+
+// Every node the study solved sub-points at, worst first.
+//
+// Ranked by each node's own peak so the reader can see where the wall is hot
+// before choosing to look at it, rather than scrolling a list of identifiers.
+// A node that kept its elements but lost its label is still listed - dropped
+// rows are how a mapping gap shows up.
+export function getSubpointNodes(state) {
+  const config = subpointFieldConfig(state);
+  const values = config?.values;
+  if (!Array.isArray(values)) return [];
+  const nodeIds = Array.isArray(config.node_ids) ? config.node_ids : [];
+  const analysisIds = Array.isArray(config.analysis_element_ids) ? config.analysis_element_ids : [];
+  const peaks = new Map();
+  for (let index = 0; index < values.length; index += 1) {
+    if (!hasSubpointValue(values[index])) continue;
+    const key = subpointNodeKey(
+      analysisIds[index] ?? config.element_ids?.[index],
+      nodeIds[index]
+    );
+    const existing = peaks.get(key);
+    const value = Number(values[index]);
+    if (!existing) {
+      peaks.set(key, { key, max: value, count: 1 });
+      continue;
+    }
+    existing.count += 1;
+    if (value > existing.max) existing.max = value;
+  }
+  return [...peaks.values()].sort((a, b) => b.max - a.max);
+}
+
+// The key a sub-point row with no node label groups under. Not an empty string:
+// an empty identifier is what a node called "" would look like.
+export const UNLABELLED_NODE = "(no node)";
+
+// The key one sub-point row groups under: the mesh element, and the node.
+//
+// Neither the authored element nor the node is a place stress can be attributed
+// to. A junction is one node shared by every element meeting there, so "N1" is
+// both pipe_bend_0's and pipe_str_0's. And a bend is meshed into segments that
+// share their end nodes: on the shipped review pipe_bend_0_n1 is reported at the
+// same coordinates by pipe_bend_0_s0 and pipe_bend_0_s1, with different
+// stresses at the same sub-point. Those are not duplicate rows - stress is
+// recovered per element, so a shared junction really does have two wall
+// stresses. Grouping on the authored element and the node therefore merged two
+// sections and reported the per-station maximum of both as one picture.
+export const SUBPOINT_KEY_SEPARATOR = "::";
+
+export function subpointNodeKey(analysisElementId, nodeId) {
+  const node = nodeId === undefined || nodeId === null || nodeId === "" ? UNLABELLED_NODE : String(nodeId);
+  const element = analysisElementId === undefined || analysisElementId === null || analysisElementId === ""
+    ? ""
+    : String(analysisElementId);
+  return element ? `${element}${SUBPOINT_KEY_SEPARATOR}${node}` : node;
+}
+
+// The authored element and node behind a section, which is how a reviewer names
+// it. A segment id is a mesh artefact, so it stays out of the base and only
+// appears where two segments share that base and something has to tell them
+// apart.
+export function subpointNodeBase(state) {
+  const config = subpointFieldConfig(state);
+  const values = config?.values;
+  const bases = new Map();
+  if (!Array.isArray(values)) return bases;
+  const analysisIds = Array.isArray(config?.analysis_element_ids) ? config.analysis_element_ids : [];
+  const elementIds = Array.isArray(config?.element_ids) ? config.element_ids : [];
+  const nodeIds = Array.isArray(config?.node_ids) ? config.node_ids : [];
+  for (let index = 0; index < values.length; index += 1) {
+    const key = subpointNodeKey(analysisIds[index], nodeIds[index]);
+    if (bases.has(key)) continue;
+    const node = nodeIds[index] === undefined || nodeIds[index] === null || nodeIds[index] === ""
+      ? UNLABELLED_NODE
+      : String(nodeIds[index]);
+    const element = elementIds[index] === undefined || elementIds[index] === null || elementIds[index] === ""
+      ? ""
+      : String(elementIds[index]);
+    bases.set(key, element ? `${element}${SUBPOINT_KEY_SEPARATOR}${node}` : node);
+  }
+  return bases;
+}
+
+// What to call a key in the list and the metrics: the node, the authored
+// element, and - only where one junction carries more than one segment, so the
+// many sections that need no disambiguation are not all suffixed - which one.
+export function subpointNodeLabel(key, { bases = new Map(), ambiguous = new Set() } = {}) {
+  const base = bases.get(key) ?? key;
+  const at = base.indexOf(SUBPOINT_KEY_SEPARATOR);
+  const node = at < 0 ? base : base.slice(at + SUBPOINT_KEY_SEPARATOR.length);
+  const element = at < 0 ? "" : base.slice(0, at);
+  // An unlabelled node is a gap in the solver's label mapping, so it is named
+  // rather than quietly reduced to the element it sits on.
+  const head = node === UNLABELLED_NODE
+    ? (element ? `${element} · ${node}` : node)
+    : (element ? `${node} · ${element}` : node);
+  if (!ambiguous.has(base)) return head;
+  // Strip the authored element off the segment id: pipe_bend_0_s0 -> s0.
+  const atSegment = key.indexOf(SUBPOINT_KEY_SEPARATOR);
+  const segment = atSegment < 0 ? key : key.slice(0, atSegment);
+  const suffix = element && segment.startsWith(`${element}_`) ? segment.slice(element.length + 1) : segment;
+  return `${head} · ${suffix}`;
+}
+
+// The authored element+node pairs that more than one segment reports, so the
+// labels can say which segment a section belongs to.
+export function ambiguousSubpointNodeKeys(state) {
+  const bases = subpointNodeBase(state);
+  const seen = new Set();
+  const ambiguous = new Set();
+  for (const [key, base] of bases) {
+    if (seen.has(base)) ambiguous.add(base);
+    else seen.add(base);
+    void key;
+  }
+  return ambiguous;
+}
+
+// The stations the rosette should draw, given the current node selection.
+//
+// Walks the rows rather than filtering getSubpointStations' output: that helper
+// skips rows whose sector or layer is unusable, so its length and the payload's
+// indices cannot be lined up to filter by position.
+export function getSubpointStationsForSelection(state) {
+  const config = subpointFieldConfig(state);
+  const values = config?.values;
+  const sectors = config?.sector_indices;
+  const layers = config?.layer_indices;
+  const nodeIds = config?.node_ids;
+  if (!Array.isArray(values) || !Array.isArray(sectors) || !Array.isArray(layers) || !Array.isArray(nodeIds)) {
+    // A bundle written before the rows carried a node. Its grid is the envelope,
+    // which is what the panel showed then, so the default answer is unchanged.
+    return getSubpointStations(state);
+  }
+  const selected = subpointNodeId(state);
+  const out = [];
+  const analysisIds = Array.isArray(config.analysis_element_ids) ? config.analysis_element_ids : [];
+  for (let index = 0; index < values.length; index += 1) {
+    if (selected !== SUBPOINT_NODE_ANY &&
+        subpointNodeKey(analysisIds[index] ?? config.element_ids?.[index], nodeIds[index]) !== selected) continue;
+    if (!Number.isFinite(Number(sectors[index])) || !Number.isFinite(Number(layers[index]))) continue;
+    out.push({
+      sectorIndex: Number(sectors[index]),
+      layerIndex: Number(layers[index]),
+      value: Number(values[index])
+    });
+  }
+  return out;
+}
+
+// The peak of whatever the panel is currently showing, so the headline number
+// under the rosette always describes the grid above it. A panel that reads
+// "peak 427 MPa" beside a section from a different node is worse than no number.
+export function getSubpointSelectionPeak(state) {
+  let peak = null;
+  for (const station of getSubpointStationsForSelection(state)) {
+    if (!Number.isFinite(station.value)) continue;
+    if (!peak || station.value > peak.value) peak = station;
+  }
+  return peak;
 }
 
 // How many of the scene's sub-points this mode actually draws, so the body can
@@ -619,6 +827,24 @@ function subpointMetrics(state) {
   }
   if (mode.xray) {
     metrics.push("drawn through the wall");
+  }
+  // Say which section the wall panel is showing. The rosette is the worst
+  // station across the run by default, which is not the same picture as one
+  // node's grid, and a reader who has pinned it to a node needs to be able to
+  // tell from the body row which they are looking at.
+  const selected = subpointNodeId(state);
+  const stations = getSubpointStationsForSelection(state);
+  const bases = subpointNodeBase(state);
+  const label = subpointNodeLabel(selected, { bases, ambiguous: ambiguousSubpointNodeKeys(state) });
+  if (selected === SUBPOINT_NODE_ANY) {
+    metrics.push("wall panel: worst station across the run");
+  } else if (stations.length === 0) {
+    // Pinned to a section the field says nothing about. Falling through to the
+    // envelope line here would have the panel claiming to be the run-wide worst
+    // while the selector above it says otherwise.
+    metrics.push(`wall panel: ${label} has no sub-points`);
+  } else {
+    metrics.push(`wall panel: ${label}`);
   }
   return metrics;
 }

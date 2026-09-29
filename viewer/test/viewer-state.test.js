@@ -500,6 +500,20 @@ test("reduceViewerState cycles the sub-point peak cut", () => {
   assert.equal(wrapped.subpointThreshold, 0.95);
 });
 
+test("reduceViewerState pins and cycles the wall panel to a node", () => {
+  const state = createViewerState(bundle());
+  assert.equal(state.subpointNodeId, undefined, "the envelope is the default, applied when read");
+  const pinned = reduceViewerState(state, { type: "setSubpointNodeId", nodeId: "N14" });
+  assert.equal(pinned.subpointNodeId, "N14");
+  // Asking for the envelope while the envelope is up is a no-op, and clearing a
+  // pinned node is how the reader gets back to it.
+  assert.equal(reduceViewerState(state, { type: "setSubpointNodeId" }), state);
+  assert.equal(reduceViewerState(pinned, { type: "setSubpointNodeId" }).subpointNodeId, "*");
+  // A bundle with nothing to cycle leaves the state alone.
+  const legacy = reduceViewerState(state, { type: "cycleSubpointNodeId" });
+  assert.equal(legacy.subpointNodeId, undefined);
+});
+
 test("reduceViewerState handles setColorChannel action", () => {
   const state = createViewerState(bundle());
   const results = reduceViewerState(state, { type: "setColorChannel", colorChannel: "results" });

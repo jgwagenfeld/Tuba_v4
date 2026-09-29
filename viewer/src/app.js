@@ -30,17 +30,24 @@ import {
 import {
   OPACITY_STEPS,
   SUBPOINT_MODES,
+  SUBPOINT_NODE_ANY,
   SUBPOINT_THRESHOLD_STEPS,
   VECTOR_SCALE_STEPS,
   cycleVectorScale,
+  ambiguousSubpointNodeKeys,
   getBodies,
   getDiscretisationCheck,
   getOverlays,
   getSectionProfile,
+  getSelectableSubpointNodes,
   getSubpointLegend,
   getSubpointPeak,
-  getSubpointStations,
+  getSubpointSelectionPeak,
+  getSubpointStationsForSelection,
   subpointModeSpec,
+  subpointNodeBase,
+  subpointNodeId,
+  subpointNodeLabel,
   subpointThreshold,
   withDefaultBodyOpacity
 } from "./bodies.js";
@@ -1534,15 +1541,32 @@ function renderSectionProfile() {
 
   const facts = document.createElement("div");
   facts.className = "section-facts";
+  const nodes = getSelectableSubpointNodes(currentState);
+  // One option per named node the study solved at, worst first, so the reader
+  // can see where the wall is hot before choosing to look at it. 105 entries on
+  // a real run, which is why this is a list and not a cycling chip. A bundle
+  // whose rows carry no node has nothing to choose between and gets no list.
+  if (nodes.length > 0) {
+    facts.append(subpointNodeSelect(nodes));
+  }
   facts.append(
     metaLine(`NSEC ${profile.nsec} × NCOU ${profile.ncou}`),
     metaLine(`${profile.sectors} sectors × ${profile.layers} layers = ${profile.subpoints_per_node} per node`)
   );
-  const peak = getSubpointPeak(currentState);
+  // The headline follows the selection. A "peak" beside a section drawn from a
+  // different node is worse than no number at all, so when the panel is pinned
+  // this is that node's peak and says so.
+  const pinned = subpointNodeId(currentState) !== SUBPOINT_NODE_ANY;
+  const peak = pinned ? getSubpointSelectionPeak(currentState) : getSubpointPeak(currentState);
   if (peak) {
     const unit = getSubpointLegend(currentState)?.unit ?? peak.unit ?? "";
     const magnitude = formatQuantity(peak.value, unit, getUnitSystem(currentState));
-    const line = metaLine(`peak ${magnitude}${peak.location ? ` · ${peak.location}` : ""}`.trim());
+    const where = peak.location
+      ? ` · ${peak.location}`
+      : pinned && peak.sectorIndex !== undefined
+        ? ` · sector ${peak.sectorIndex}, ${peak.layerIndex === 0 ? "bore" : `layer ${peak.layerIndex}`}`
+        : "";
+    const line = metaLine(`${pinned ? "node peak" : "peak"} ${magnitude}${where}`.trim());
     line.classList.add("section-peak");
     facts.append(line);
   }
@@ -1571,6 +1595,40 @@ function renderSectionProfile() {
   dom.sectionProfile.append(body);
 }
 
+// Which node's section the rosette is showing. Default is the envelope - the
+// worst station anywhere in the run - because that is the safer read and it is
+// what the panel showed before the choice existed; a reader who needs the
+// section itself pins a node here.
+function subpointNodeSelect(nodes) {
+  const select = document.createElement("select");
+  select.className = "section-node-select";
+  select.dataset.subpointNode = "true";
+  select.dataset.focusKey = "subpoint-node:select";
+  select.setAttribute("aria-label", "Element node whose sub-point section is shown");
+
+  const any = document.createElement("option");
+  any.value = SUBPOINT_NODE_ANY;
+  any.textContent = "Worst anywhere in the run";
+  select.append(any);
+
+  const legend = getSubpointLegend(currentState);
+  const system = getUnitSystem(currentState);
+  const bases = subpointNodeBase(currentState);
+  const ambiguous = ambiguousSubpointNodeKeys(currentState);
+  for (const node of nodes) {
+    const option = document.createElement("option");
+    option.value = node.key;
+    option.textContent = `${subpointNodeLabel(node.key, { bases, ambiguous })} · ${formatQuantity(node.max, legend?.unit ?? "Pa", system)}`;
+    select.append(option);
+  }
+  select.value = subpointNodeId(currentState);
+  select.addEventListener("change", () => {
+    dispatch({ type: "setSubpointNodeId", nodeId: select.value });
+    render();
+  });
+  return select;
+}
+
 // Large enough that all 2·NSEC circumferential stations across 2·NCOU+1 wall
 // layers stay individually visible rather than smearing into a ring.
 const ROSETTE_SIZE = 118;
@@ -1579,6 +1637,8 @@ const ROSETTE_MEASURED_RADIUS = 2.4;
 
 function sectionRosette(profile) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const pinned = subpointNodeId(currentState) !== SUBPOINT_NODE_ANY;
+  const scope = pinned ? ` at ${subpointNodeLabel(subpointNodeId(currentState), { bases: subpointNodeBase(currentState), ambiguous: ambiguousSubpointNodeKeys(currentState) })}` : " across the run";
   svg.setAttribute("viewBox", `0 0 ${ROSETTE_SIZE} ${ROSETTE_SIZE}`);
   svg.setAttribute("width", String(ROSETTE_SIZE));
   svg.setAttribute("height", String(ROSETTE_SIZE));
@@ -1586,7 +1646,7 @@ function sectionRosette(profile) {
   svg.setAttribute("role", "img");
   svg.setAttribute(
     "aria-label",
-    `Pipe section: ${profile.sectors} circumferential sub-point stations across ${profile.layers} wall layers`
+    `Pipe section: ${profile.sectors} circumferential sub-point stations across ${profile.layers} wall layers${scope}`
   );
 
   const centre = ROSETTE_SIZE / 2;
@@ -1603,7 +1663,7 @@ function sectionRosette(profile) {
 
   const legend = getSubpointLegend(currentState);
   const byStation = new Map();
-  for (const station of getSubpointStations(currentState)) {
+  for (const station of getSubpointStationsForSelection(currentState)) {
     const key = `${station.sectorIndex}:${station.layerIndex}`;
     const previous = byStation.get(key);
     if (!previous || station.value > previous.value) byStation.set(key, station);
