@@ -934,23 +934,25 @@ const scenarios = {
         "the landing gallery must offer every published review"
       );
 
-      // Every card leads with the question it answers and keeps its evidence
-      // badge visible; a blank card is the failure this page exists to prevent.
+      // Every card leads with its question and declares its solve facts.
       const rendered = await cards.evaluateAll((nodes) =>
         nodes.map((node) => ({
           bundle: node.dataset.galleryCard,
           question: node.querySelector(".gallery-card-question")?.textContent ?? "",
-          evidence: node.querySelector("[data-gallery-evidence]")?.textContent ?? "",
+          facts: node.querySelector("[data-gallery-facts]")?.textContent ?? "",
           image: node.querySelector(".gallery-card-image")?.getAttribute("src") ?? ""
         }))
       );
       for (const card of rendered) {
         assert.ok(card.question.endsWith("?"), `card ${card.bundle} must ask a question: ${card.question}`);
-        assert.ok(card.evidence.length > 0, `card ${card.bundle} must state its evidence`);
+        assert.ok(card.facts.length > 0, `card ${card.bundle} must state its solve facts`);
+        assert.equal(/Model only.*not solved/i.test(card.facts),
+          published.find(entry => entry.id === card.bundle)?.solved === false,
+          `card ${card.bundle} must declare whether it was solved`);
         assert.equal(card.image, `gallery/${card.bundle}.png`);
       }
       assert.ok(
-        rendered.some((card) => /no results/i.test(card.evidence)),
+        rendered.some((card) => /not solved/i.test(card.facts)),
         "an unsolved review must say so on its card"
       );
 
@@ -1003,8 +1005,9 @@ const scenarios = {
       await page.locator("[data-gallery-link]").click();
       const cards = page.locator("[data-gallery-card]");
       await cards.first().waitFor({ state: "visible" });
+      // The registry owns membership; subject groups own display order.
       assert.deepEqual(
-        await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.galleryCard)),
+        await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.galleryCard).sort()),
         [
             "autorouted-expansion-loop",
             "braced-rack-thermal-split",
@@ -1033,7 +1036,10 @@ const scenarios = {
         ["TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR", "DIS_T"]
       );
 
-      await page.locator('[data-gallery-card="imported_component_mixed_demo"]').click();
+      const importedCard = page.locator('[data-gallery-card="imported_component_mixed_demo"]');
+      await page.locator(".gallery-group-details").filter({ has: importedCard })
+        .locator(":scope > summary").click();
+      await importedCard.click();
       await page.waitForFunction(
         () => window.__tubaViewer?.state?.sceneId === "scene:imported_component_mixed_system"
       );
@@ -1100,6 +1106,7 @@ const scenarios = {
           { label: "Group", value: "model:group" },
           { label: "Insulation", value: "model:insulation" },
           { label: "Von Mises stress (elements)", value: "field:solver_result:stress:result_state:Operating" },
+          { label: "User reference ratio (not a code check) (elements)", value: "field:solver_result:user_reference_ratio:result_state:Operating" },
           { label: "Displacement", value: "field:solver_result:displacement:result_state:Operating" },
           { label: "Reaction force", value: "field:solver_result:reaction_force:result_state:Operating" },
           { label: "Reaction moment", value: "field:solver_result:reaction_moment:result_state:Operating" },
@@ -1568,7 +1575,6 @@ try {
     url.searchParams.set(name, value);
   }
   await page.goto(url.toString(), { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => /Ready/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
   if (selected.canvasFree) {
     // The gallery is a navigation surface: it never builds a viewport, so the
     // canvas and WebGL gates below have nothing to wait for.
@@ -1577,6 +1583,7 @@ try {
     await shutdown();
     process.exit(0);
   }
+  await page.waitForFunction(() => /Ready/.test(document.querySelector("[data-runtime-status]")?.textContent ?? ""));
   await page.waitForFunction(() => document.querySelector("[data-canvas]")?.dataset.renderer === "three");
   await page.waitForFunction(
     (minimumObjects) => Number(document.querySelector("[data-canvas]")?.dataset.renderedObjects ?? 0) >= minimumObjects,
