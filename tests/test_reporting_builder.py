@@ -598,13 +598,14 @@ def test_solver_result_tables_are_traceable_and_explicit(solved_review):
     # Contact tables ride with the other result tables rather than the model
     # ones: they read the solver's result states, so they carry the same solver
     # identity columns as everything below and belong under Results.
-    assert tuple(solved_review.tables_by_id)[-9:] == (
+    assert tuple(solved_review.tables_by_id)[-10:] == (
         "studies",
         "result_summary",
         "displacements",
         "reactions",
         "element_forces",
         "fe_stress",
+        "buckling",
         "contacts",
         "contact_findings",
         "diagnostics",
@@ -616,6 +617,7 @@ def test_solver_result_tables_are_traceable_and_explicit(solved_review):
         "reactions",
         "element_forces",
         "fe_stress",
+        "buckling",
         "diagnostics",
     ):
         for row in solved_review.table(table_id).rows:

@@ -114,6 +114,7 @@ notebooks/advanced_piping_rack.ifc
 /viewer/public/hydrogen-plant-layout/
 /viewer/public/line-load-studio/
 /viewer/public/rack_bridge_demo/
+/viewer/public/steel-portal-frame-review/
 
 # Vite build scratch output
 /.tmp/
