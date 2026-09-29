@@ -1,5 +1,6 @@
 import { getColoringLegend, getColoringValues } from "./coloring.js";
 import { colorChannelOf } from "./workflowState.js";
+import { bandCountOrZero, rampRatio, withScale } from "./legendScale.js";
 
 export function formatPseudoTime(value) {
   return Number.isFinite(value) ? String(Number(value.toPrecision(8))) : "unavailable";
@@ -176,6 +177,19 @@ export function getActiveScalarOverlay(state) {
   );
 }
 
+// The scale the user has set for the field the legend is describing. Kept per
+// field rather than globally: comparing a stress plot against a displacement
+// plot on one shared scale is how a range ends up meaningless for both, and the
+// override a reviewer types for 0-500 MPa has no business following them to a
+// millimetre-scale displacement field.
+export function getLegendScale(state, legend) {
+  const key = legend?.fieldId ?? legend?.overlay?.id ?? null;
+  return {
+    bands: state.legendBands ?? 0,
+    rangeOverride: key ? state.legendRanges?.[key] ?? null : null
+  };
+}
+
 export function getScalarLegend(state) {
   // One legend at a time: the scalar legend belongs to the results channel. On
   // the model channel the model's own legend (or the base role colour) governs.
@@ -184,14 +198,14 @@ export function getScalarLegend(state) {
   if ((state.resultFields ?? []).length > 0) {
     const legend = getColoringLegend(state);
     return legend
-      ? {
-          ...legend,
-          colorMap: legend.overlay?.data?.legend?.color_map ?? "turbo",
-          thresholds: {
-            stress_min: numberOrNull(state.resultThreshold),
-            utilization_min: numberOrNull(state.utilizationThreshold)
-          }
-        }
+      ? withScale(
+          {
+            ...legend,
+            colorMap: legend.overlay?.data?.legend?.color_map ?? "turbo",
+            ...scaleThresholds(state)
+          },
+          getLegendScale(state, legend)
+        )
       : null;
   }
   const overlay = getActiveScalarOverlay(state);
@@ -204,17 +218,26 @@ export function getScalarLegend(state) {
     min: Math.min(...values),
     max: Math.max(...values)
   };
+  return withScale(
+    {
+      field: data.legend?.field ?? data.field ?? data.result_type ?? overlay.name ?? overlay.id,
+      unit: data.legend?.unit ?? data.unit ?? "",
+      range,
+      colorMap: data.legend?.color_map ?? "turbo",
+      ...scaleThresholds(state),
+      declaredThresholds: data.legend?.thresholds ?? {},
+      overlay
+    },
+    getLegendScale(state, { overlay })
+  );
+}
+
+function scaleThresholds(state) {
   return {
-    field: data.legend?.field ?? data.field ?? data.result_type ?? overlay.name ?? overlay.id,
-    unit: data.legend?.unit ?? data.unit ?? "",
-    range,
-    colorMap: data.legend?.color_map ?? "turbo",
     thresholds: {
-      ...(data.legend?.thresholds ?? {}),
       stress_min: numberOrNull(state.resultThreshold),
       utilization_min: numberOrNull(state.utilizationThreshold)
-    },
-    overlay
+    }
   };
 }
 
@@ -272,6 +295,37 @@ export function getHotspots(state) {
     .sort((left, right) => right.value - left.value);
 }
 
+// The walk a reviewer actually performs. AutoPIPE puts the crosshairs on the
+// maximum ratio and steps to the next stressed point with the cursor keys;
+// CAEPIPE cycles result items on Tab. Both are keyboard-first walks over a
+// worst-first list, and neither has an equivalent here - the hotspot list could
+// be clicked through but nothing moved the camera or reported "3 of 47".
+//
+// Index is derived from the object id rather than stored, so the walk cannot
+// drift out of step with a list that re-filters as thresholds are moved.
+export function getFindings(state) {
+  return getHotspots(state);
+}
+
+export function getFindingIndex(state) {
+  return getFindings(state).findIndex((finding) => finding.objectId === state.activeFindingObjectId);
+}
+
+export function stepFinding(state, direction) {
+  const findings = getFindings(state);
+  if (findings.length === 0) {
+    return null;
+  }
+  const current = getFindingIndex(state);
+  if (current === -1) {
+    return findings[direction > 0 ? 0 : findings.length - 1];
+  }
+  // Circular, as CAEPIPE's item cycling is: a review that stops at the end is a
+  // review that has to be re-entered from the top to confirm nothing was missed.
+  const next = (current + direction + findings.length) % findings.length;
+  return findings[next];
+}
+
 export function getObjectScalarColor(state, objectIds, valueIds = []) {
   // Only the results channel tints by a scalar. On the model channel the model
   // colour - or the base role colour - governs, so this yields.
@@ -314,9 +368,10 @@ export function colorForScalarValue(value, legend) {
   if (!legend || !Number.isFinite(value)) {
     return null;
   }
-  const min = Number(legend.range?.min ?? value);
-  const max = Number(legend.range?.max ?? value);
-  const ratio = clamp((value - min) / Math.max(max - min, 1e-12), 0, 1);
+  // The ratio comes from legendScale, which is also what draws the legend
+  // gradient and places its ticks. A second copy of the min/max arithmetic here
+  // is how the 3D tint and the bar beside it end up describing different scales.
+  const ratio = rampRatio(value, legend);
   const span = ratio * (SCALAR_RAMP.length - 1);
   const index = Math.min(Math.floor(span), SCALAR_RAMP.length - 2);
   return interpolateHex(SCALAR_RAMP[index], SCALAR_RAMP[index + 1], span - index);
@@ -393,6 +448,55 @@ export function setResultThreshold(state, threshold) {
 
 export function setUtilizationThreshold(state, threshold) {
   return { ...state, utilizationThreshold: Math.max(Number(threshold) || 0, 0) };
+}
+
+// The field the scale belongs to. Null when there is no legend to scale, which
+// is the model channel and a contact review - in both the scale would have
+// nothing to describe, so the actions stay no-ops rather than storing an
+// override nobody can see or clear.
+export function legendScaleKey(state) {
+  const legend = getScalarLegend(state);
+  return legend?.fieldId ?? legend?.overlay?.id ?? null;
+}
+
+// The band count is a display preference and follows the reviewer between
+// fields; only the range is per-field, because a bound typed for 0-500 MPa is
+// meaningless against a millimetre-scale displacement.
+export function setLegendBands(state, bands) {
+  if (!legendScaleKey(state)) {
+    return state;
+  }
+  return { ...state, legendBands: bandCountOrZero(bands) };
+}
+
+export function setLegendRange(state, range) {
+  const key = legendScaleKey(state);
+  if (!key) {
+    return state;
+  }
+  const ranges = { ...(state.legendRanges ?? {}) };
+  const min = Number(range?.min);
+  const max = Number(range?.max);
+  if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+    ranges[key] = { min, max };
+  } else {
+    delete ranges[key];
+  }
+  return { ...state, legendRanges: ranges };
+}
+
+export function resetLegendScale(state) {
+  const key = legendScaleKey(state);
+  if (!key) {
+    return state;
+  }
+  const ranges = { ...(state.legendRanges ?? {}) };
+  delete ranges[key];
+  return { ...state, legendBands: 0, legendRanges: ranges };
+}
+
+export function setActiveFinding(state, objectId) {
+  return { ...state, activeFindingObjectId: objectId ?? null };
 }
 
 export function setResultVectorScale(state, vectorType, scale) {

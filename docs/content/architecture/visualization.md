@@ -87,7 +87,7 @@ The rail is one scrollable column of sections, not a set of tabs. Nothing swaps,
 | Section | Holds |
 | --- | --- |
 | Colour by | The colouring channel: a model property or a solver field |
-| Result refinements | Case, component, deformation, thresholds, vectors and hotspots |
+| Result refinements | Case, component, deformation, thresholds, legend scale, vectors and hotspots |
 | Bodies / Overlays / All layers | What is drawn |
 | Issues | Diagnostics and issue-focused geometry |
 
@@ -97,7 +97,7 @@ The review's tables live in the generated report that the header links to.
 
 The coloring channel is load case × result field × component. The pinned **Colour by** control chooses which channel tints the scene: a model property (role, section, material, group, insulation) or a solver field. Because it is pinned above the layer list, the choice does not depend on where you are reading. A scalar field exposes only `magnitude`; vector fields expose their available components plus `magnitude`. Selecting a load case keeps the result field and geometry state coherent with that case. Field selection changes coloring and its legend, not layer ownership.
 
-The result refinements control the chosen field: load case, component, thresholds, vector scales and hotspots. The legend and compliance caveat remain visible in the viewport whenever the results channel owns the colours. The legend and scene use the same color function.
+The result refinements control the chosen field: load case, component, thresholds, legend scale, vector scales and hotspots. The legend and compliance caveat remain visible in the viewport whenever the results channel owns the colours. The legend and scene use the same color function.
 
 There are two deformation settings:
 
@@ -131,6 +131,76 @@ peak, and bend-chord deviation. Conversion follows two rules:
 
 The `numeric()` guard displays missing values as empty, preventing JavaScript's
 `Number(null)` conversion from displaying them as zero.
+
+## Legend scale
+
+The colour ramp reads the field's own range by default and is continuous. A reviewer
+can band it and type its bounds, in **Filters & vectors** in the results rail.
+
+Two constraints keep this from becoming the thing this review of the competitors
+criticised:
+
+- **Bands are a control, never a constant.** AutoPIPE's six hard-coded bands are the
+  most-cited complaint in the piping category, and the reason is not that six is the
+  wrong number — it is that 0.15 and 0.25 got different colours while 0.85 and 0.95 got
+  the same one, spending resolution where nothing happens and taking it away from
+  where acceptance limits live.
+- **Bounds round.** A step is the *nearest* 1/1.5/2/2.5/3/4/5/6/8/10 × 10ⁿ value, and
+  the top edge extends to a whole band so a value is never quietly clipped. Rounding
+  *up* was the first implementation and it was wrong twice over: a request for 6 bands
+  never yielded 6, and `0.105` snapped to `0.15`.
+
+The band count follows the reviewer between fields; the bounds do not, because a limit
+typed for 0–500 MPa is meaningless against a millimetre-scale displacement.
+
+Every colour in the product — the 3D tint, the hotspot swatch, the legend gradient and
+its tick labels — resolves through one `rampRatio`, so the picture and the bar beside
+it cannot describe different scales. The legend restates the scale it is reading, and
+marks it "(set by you)" once overridden, so a screenshot carries its own range.
+
+## Trust facts
+
+Two facts a reviewer should never have to go looking for, both stated at the weight
+they deserve and both **evidenced, never verdicts**.
+
+**Reaction and load consistency**, in the status strip's Analysis disclosure beside the
+mesh check. The reactions are summed against the **authored nodal loads only**, with
+the applied forces carried to the same origin for the moment balance — summing nodal
+moments alone would leave the moment arm out and call the result a residual.
+
+Self-weight, pressure, line loads and authored fields are assembled inside Code_Aster
+and never reach the bundle, so they are **named as excluded** rather than silently
+dropped. A small residual the reader can account for is useful; the same residual with
+no explanation is the failure mode this exists to prevent — AutoPIPE zeroes the ASME NB
+eq-10 ratio when eq 12/13 govern, omits KHK L2 bends from the plot, and CAESAR II
+reports an allowable of 0 for B31.1 operating cases. Nothing in this product reports
+pass or fail, because there is no code in the number.
+
+**Value basis**, in the rail's Field details: what population the field's number is a
+maximum over. Averaging is the display setting that changes the answer — Nastran's own
+documentation notes Simcenter averages components before forming von Mises while Femap
+does the reverse, so the same model gives different numbers in the two tools — and
+neither puts it in front of the reader. The cell stress field states that it is an
+element-end maximum; a sub-point field states what was measured and that the wall
+between points is interpolated.
+
+## Walking the findings
+
+`n` and `N` step through the findings the scalar field is colouring, worst first:
+select, frame the spot, fill the inspector, and report "7 of 40" on the active row.
+The keys live in the shared `SHORTCUTS` table, so they inherit the modifier and
+typing-target guards and are listed in the `?` overlay.
+
+`n` rather than `Tab`, deliberately: `Tab` is focus traversal, and a review shortcut in
+its way costs more than the walk saves. The walk indexes by object id rather than by
+position, so moving a threshold cannot strand it on a finding that no longer exists. The
+camera is clamped to a window about the selection's centre, because fitting a
+twenty-metre straight run whole puts the camera outside the model with the hot spot
+somewhere in the middle of it.
+
+**Select *n* findings** in the filters drawer turns the current thresholds into a
+selection, so the filtered set can scope the review tables as well as the list. Without
+that, the threshold and the report are two independent decisions about one question.
 
 ## True clipping
 

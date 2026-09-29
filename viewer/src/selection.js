@@ -98,7 +98,13 @@ export function getPropertySections(state, objectId) {
   ].filter((section) => Object.keys(section.rows).length > 0);
 }
 
-export function fitSelection(state) {
+// `maxSpan` clamps how far the camera pulls back. Fitting a selection to its
+// full bounds is right for "show me this support" and wrong for "take me to the
+// hot spot": a straight pipe element can be tens of metres long, so fitting it
+// lands the camera outside the model with the offending millimetre somewhere in
+// the middle. The clamp keeps the target at the selection's centre and caps the
+// framed volume, which is what a finding walk needs.
+export function fitSelection(state, options = {}) {
   const visible = new Set(state.visibleObjectIds ?? state.objects.map(o => o.id));
   const related = relatedSelectionIds(state, state.selectedObjectIds ?? []);
   const drawn = related.filter(id => visible.has(id));
@@ -116,7 +122,8 @@ export function fitSelection(state) {
   if (bounds.length === 0) {
     return state;
   }
-  const merged = mergeBounds(bounds);
+  const fitted = clampBoundsToSpan(mergeBounds(bounds), Number(options.maxSpan));
+  const merged = fitted ?? mergeBounds(bounds);
   const target = [
     (merged[0] + merged[3]) / 2,
     (merged[1] + merged[4]) / 2,
@@ -133,6 +140,53 @@ export function fitSelection(state) {
       fitRequest: { id: fitRequestId, bounds: merged }
     }
   };
+}
+
+// Shrinks an axis-aligned box about its own centre until no side exceeds
+// `maxSpan`. A box already inside the limit is returned untouched rather than
+// rebuilt, so a normal "fit selection" is bit-identical to what it was.
+function clampBoundsToSpan(bounds, maxSpan) {
+  if (!Number.isFinite(maxSpan) || maxSpan <= 0) {
+    return null;
+  }
+  const center = [0, 1, 2].map((axis) => (bounds[axis] + bounds[axis + 3]) / 2);
+  const clamped = [...center, ...center];
+  let changed = false;
+  for (let axis = 0; axis < 3; axis += 1) {
+    const size = bounds[axis + 3] - bounds[axis];
+    if (size > maxSpan) {
+      clamped[axis] = center[axis] - maxSpan / 2;
+      clamped[axis + 3] = center[axis] + maxSpan / 2;
+      changed = true;
+    }
+  }
+  return changed ? clamped : null;
+}
+
+// How close the camera should come when it is walking findings rather than
+// framing a selection. A share of the scene diagonal, so the same fraction of
+// the model is framed whether it is a bench or a plant, with a floor so a small
+// scene does not put the lens inside the pipe it is pointing at.
+export function findingFitSpan(state, fraction = 0.15, floor = 0.5) {
+  const bounds = state.bounds;
+  if (!Array.isArray(bounds) || bounds.length !== 6) {
+    return null;
+  }
+  const diagonal = Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]);
+  if (!Number.isFinite(diagonal) || diagonal <= 0) {
+    return null;
+  }
+  return Math.max(diagonal * fraction, floor);
+}
+
+// Selecting and framing in one transition. Two dispatches would render twice and
+// leave the camera pointing at wherever the previous selection was for a frame.
+export function focusFinding(state, objectId) {
+  const selected = selectObject(state, objectId);
+  if (selected === state) {
+    return state;
+  }
+  return fitSelection(selected, { maxSpan: findingFitSpan(state) });
 }
 
 function withVisibility(state) {

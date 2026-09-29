@@ -62,15 +62,21 @@ import {
 import { MODEL_COLOR_MODES, getModelColoring } from "./modelColoring.js";
 import {
   colorForScalarValue,
+  getActiveLoadCase,
   getActiveLoadCaseDefinition,
+  getFindingIndex,
+  getFindings,
   getGeometryStateOptions,
   getHotspots,
   getLoadCaseOptions,
   getResultStateOptions,
   getScalarLegend,
   isContactReview,
+  stepFinding,
   getVisualDeformationDisplayScale
 } from "./resultReview.js";
+import { BAND_COUNT_CHOICES, bandEdges, isRangeOverridden, niceBounds } from "./legendScale.js";
+import { getAveragingBasis, getReactionConsistency, isBalanced } from "./trustFacts.js";
 import {
   UNIT_SYSTEMS,
   displayUnit,
@@ -134,6 +140,7 @@ const dom = {
   projectionNote: document.querySelector("[data-projection-note]"),
   sectionProfile: document.querySelector("[data-section-profile]"),
   discretisationCheck: document.querySelector("[data-discretisation-check]"),
+  balanceCheck: document.querySelector("[data-balance-check]"),
   viewportLegend: document.querySelector("[data-viewport-legend]"),
   bodyLegend: document.querySelector("[data-body-legend]"),
   bodyLegendToggle: document.querySelector("[data-body-legend-toggle]"),
@@ -144,6 +151,7 @@ const dom = {
   resultControls: document.querySelector("[data-result-controls]"),
   fieldDetails: document.querySelector("[data-field-details]"),
   fieldDescription: document.querySelector("[data-field-description]"),
+  averagingNote: document.querySelector("[data-averaging-note]"),
   analysisDetails: document.querySelector("[data-analysis-details]"),
   analysisSummary: document.querySelector("[data-analysis-summary]"),
   resultShape: document.querySelector("[data-result-shape]"),
@@ -662,10 +670,12 @@ function renderStatusStrip() {
   renderSolverFact();
   renderApplicabilityFact();
   renderDiscretisationCheck();
-  // The mesh check is the only diagnostic left in the strip, and it alone
-  // decides whether the disclosure is worth opening. Solver provenance and the
-  // code-applicability caveat are permanent facts now, not popover contents.
-  dom.analysisDetails.hidden = dom.discretisationCheck.hidden;
+  renderBalanceCheck();
+  // The disclosure is worth opening for the mesh check or for the balance, and
+  // for nothing else. Both describe how the numbers on screen were produced;
+  // neither is a verdict, so neither joins the permanent line, which is kept
+  // for facts about the session rather than diagnostics about the solve.
+  dom.analysisDetails.hidden = dom.discretisationCheck.hidden && dom.balanceCheck.hidden;
   renderSelectionFact();
   dom.stripUnits.replaceChildren(...(currentState.embed ? [] : [unitSystemChip()]));
 }
@@ -881,6 +891,14 @@ function renderColorBy() {
     dom.fieldDescription.textContent = field
       ? `Solver field: ${field.label || field.id}. Support: ${field.support || "unspecified"}.`
       : (legend?.field ?? "");
+    // What population the number is a maximum over, in the same panel as what
+    // the field is. Averaging is the display setting that changes the answer -
+    // Nastran's own documentation notes Simcenter and Femap compute a "nodal
+    // average" in different orders, so the same model gives different numbers -
+    // and neither of those tools puts it in front of the reader.
+    const basis = getAveragingBasis(currentState, legend);
+    dom.averagingNote.hidden = !basis;
+    dom.averagingNote.textContent = basis ? `Value basis: ${basis}.` : "";
     if (!legend) dom.colorLegend.append(metaLine("No result field to colour by."));
     return;
   }
@@ -1118,10 +1136,19 @@ function renderResultControls() {
     return;
   }
   const legend = getScalarLegend(currentState);
-  for (const hotspot of hotspots) {
+  const activeIndex = getFindingIndex(currentState);
+  for (const [position, hotspot] of hotspots.entries()) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "hotspot-row";
+    // The walk reports where it is. A worst-first list of forty without a
+    // position is a list; with "7 of 40" it is a review, because the reviewer
+    // can tell whether they are nearly done.
+    if (hotspot.objectId === currentState.activeFindingObjectId) {
+      button.classList.add("hotspot-active");
+      button.setAttribute("aria-current", "true");
+    }
+    button.dataset.hotspotIndex = String(position);
     button.dataset.focusKey = `hotspot:${hotspot.elementId ?? ""}:${hotspot.rowIndex ?? ""}:${hotspot.subpointIndex ?? ""}`;
     const identity = hotspot.elementId
       ? ` ${hotspot.elementId} row ${hotspot.rowIndex ?? "?"} subpoint ${hotspot.subpointIndex ?? "?"}`
@@ -1146,9 +1173,15 @@ function renderResultControls() {
       utilization.textContent = `u=${formatScale(hotspot.utilization)}`;
       button.append(utilization);
     }
+    if (hotspot.objectId === currentState.activeFindingObjectId && activeIndex >= 0) {
+      const position_ = document.createElement("span");
+      position_.className = "hotspot-position";
+      position_.textContent = `${activeIndex + 1}/${hotspots.length}`;
+      button.append(position_);
+    }
     button.addEventListener("click", () => {
       selectedObjectId = hotspot.objectId;
-      dispatch({ type: "selectObject", objectId: hotspot.objectId });
+      dispatch({ type: "focusFinding", objectId: hotspot.objectId });
       render();
     });
     dom.hotspotList.append(button);
@@ -1187,14 +1220,20 @@ function filtersDrawer() {
   state.textContent = vectorScaleSummary();
   summary.append(state);
 
+  // append() stringifies a null child into a literal "null" text node, and both
+  // of these controls are absent whenever there is no scalar legend to scale or
+  // nothing left above the threshold.
   drawer.append(
-    summary,
-    thresholdControl(),
-    numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
-      dispatch({ type: "setUtilizationThreshold", threshold: value });
-      render();
-    }),
-    rangeControl(
+    ...[
+      summary,
+      scaleControls(),
+      thresholdControl(),
+      numericControl("Utilization threshold", currentState.utilizationThreshold ?? "", "0.05", (value) => {
+        dispatch({ type: "setUtilizationThreshold", threshold: value });
+        render();
+      }),
+      selectFindingsControl(),
+      rangeControl(
       `Displacement vector scale ${formatScale(currentState.resultVectorScales?.displacement ?? 1)}x`,
       currentState.resultVectorScales?.displacement ?? 1,
       0,
@@ -1232,6 +1271,7 @@ function filtersDrawer() {
       },
       "Reaction vector scale"
     )
+    ].filter(Boolean)
   );
   return drawer;
 }
@@ -1271,6 +1311,146 @@ function thresholdControl() {
 
 // One megapascal, the granularity an engineer nudges a stress cut-off by.
 const STORED_THRESHOLD_STEP_PA = 1e6;
+
+// Band count and typed bounds. AutoPIPE's six hard-coded bands are the
+// most-cited complaint in this category, and the reason is not that six is the
+// wrong number: it is that 0.15 and 0.25 got different colours while 0.85 and
+// 0.95 got the same one - resolution spent where nothing happens and taken away
+// from where acceptance limits live. So the count is a control, and the default
+// stays continuous so nobody's existing reading of a bundle changes under them.
+function scaleControls() {
+  const legend = getScalarLegend(currentState);
+  if (!legend) {
+    return null;
+  }
+  const group = document.createElement("div");
+  group.className = "scale-controls";
+
+  const bands = document.createElement("label");
+  bands.className = "scale-band-label";
+  bands.textContent = "Bands";
+  const select = document.createElement("select");
+  select.dataset.focusKey = "legend-bands";
+  select.setAttribute("aria-label", "Colour band count");
+  for (const count of BAND_COUNT_CHOICES) {
+    const option = document.createElement("option");
+    option.value = String(count);
+    option.textContent = count === 0 ? "continuous" : String(count);
+    option.selected = Number(currentState.legendBands ?? 0) === count;
+    select.append(option);
+  }
+  select.addEventListener("change", () => {
+    dispatch({ type: "setLegendBands", bands: Number(select.value) });
+    render();
+  });
+  bands.append(select);
+  group.append(bands);
+
+  const system = getUnitSystem(currentState);
+  const unit = legend.unit ?? "";
+  const overridden = isRangeOverridden(legend);
+  const min = Number(legend.range?.min ?? 0);
+  const max = Number(legend.range?.max ?? 0);
+
+  // Bounds are typed in display units and stored in the field's own, exactly
+  // as the threshold is: a max read in MPa and compared against pascals would
+  // silently clip the whole field.
+  for (const [bound, value] of [["min", min], ["max", max]]) {
+    const field = document.createElement("label");
+    field.className = "scale-bound-label";
+    field.textContent = bound === "min" ? "From" : "To";
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "any";
+    input.value = String(roundForInput(isConvertible(unit) ? toDisplay(value, unit, system) : value));
+    input.dataset.focusKey = `legend-range-${bound}`;
+    input.setAttribute("aria-label", `Legend ${bound}`);
+    input.addEventListener("change", () => {
+      const next = { min, max, [bound]: Number(input.value) };
+      dispatch({
+        type: "setLegendRange",
+        range: {
+          min: isConvertible(unit) ? toStored(next.min, unit, system) : next.min,
+          max: isConvertible(unit) ? toStored(next.max, unit, system) : next.max
+        }
+      });
+      render();
+    });
+    field.append(input);
+    group.append(field);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "scale-actions";
+  // "Nice" rounds both ends so the band increments are round too, which is the
+  // difference between a legend reading 0/50/100/150 and one reading 0/6.7/13.3.
+  const nice = document.createElement("button");
+  nice.type = "button";
+  nice.className = "bar-button";
+  nice.dataset.focusKey = "legend-nice";
+  nice.textContent = "Round bounds";
+  nice.title = "Snap both ends to round numbers so the band increments are round";
+  nice.addEventListener("click", () => {
+    const snapped = niceBounds(min, max, Number(currentState.legendBands ?? 0));
+    dispatch({
+      type: "setLegendRange",
+      range: {
+        min: isConvertible(unit) ? toStored(snapped.min, unit, system) : snapped.min,
+        max: isConvertible(unit) ? toStored(snapped.max, unit, system) : snapped.max
+      }
+    });
+    render();
+  });
+  actions.append(nice);
+  if (overridden || Number(currentState.legendBands ?? 0) > 0) {
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "bar-button";
+    reset.dataset.focusKey = "legend-reset";
+    reset.textContent = "Reset";
+    reset.title = "Return the ramp to the field's own range, continuously scaled";
+    reset.addEventListener("click", () => {
+      dispatch({ type: "resetLegendScale" });
+      render();
+    });
+    actions.append(reset);
+  }
+  group.append(actions);
+  return group;
+}
+
+function roundForInput(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  // Keeps a typed bound readable: toDisplay of 5.7e7 in MPa is 57.0000000001
+  // in some paths, and a number input pre-filled with float noise invites the
+  // reader to distrust the other numbers on screen.
+  return Number(value.toPrecision(6));
+}
+
+// AutoPIPE turns a result filter into a selection, so the filtered set can then
+// scope a report as well as a list. Without that the threshold and the report
+// are two independent decisions about the same question.
+function selectFindingsControl() {
+  const findings = getFindings(currentState);
+  if (findings.length === 0) {
+    return null;
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "bar-button select-findings";
+  button.dataset.focusKey = "select-findings";
+  button.textContent = `Select ${findings.length} finding${findings.length === 1 ? "" : "s"}`;
+  button.title = "Select every finding the current thresholds leave, so the review tables can be scoped to them";
+  button.addEventListener("click", () => {
+    selectedObjectId = findings[0].objectId;
+    dispatch({ type: "selectObjects", objectIds: findings.map((finding) => finding.objectId) });
+    dispatch({ type: "setActiveFinding", objectId: findings[0].objectId });
+    render();
+  });
+  return button;
+}
 
 function renderHeader() {
   // A studio's live build bundle has no review to name it: show the model, not the scene id.
@@ -1656,8 +1836,6 @@ function sectionRosette(profile) {
 function renderDiscretisationCheck() {
   dom.discretisationCheck.replaceChildren();
   const check = getDiscretisationCheck(currentState);
-  dom.analysisSummary.textContent = check && !check.within_tolerance ? "Mesh detail · warning" : "Mesh detail";
-  dom.analysisSummary.classList.toggle("mesh-warning", Boolean(check && !check.within_tolerance));
   dom.discretisationCheck.hidden = !check;
   if (!check) return;
 
@@ -1683,6 +1861,100 @@ function renderDiscretisationCheck() {
     note.textContent = `worst of ${check.bend_count}: ${worst.source_element_id}`;
     dom.discretisationCheck.append(note);
   }
+}
+
+// Do the reactions balance the loads? Nothing in the piping category can answer
+// this - Femap needs a free-body tool, PrePoMax needs a nodal history request
+// with `Totals = Only` - and the complaint it answers is the one on Eng-Tips:
+// "I can take just about any piping system and code it so that it passes or
+// fails." This is evidence, not a verdict, and it says which terms it summed.
+//
+// The omitted terms are printed, not buried in a tooltip. A small residual
+// explained by "self-weight excluded" is a number an engineer can reason about;
+// the same residual with no explanation is the silent-omission failure this
+// whole review is about.
+function renderBalanceCheck() {
+  dom.balanceCheck.replaceChildren();
+  const balance = currentBalance();
+  dom.balanceCheck.hidden = !balance;
+  renderAnalysisSummary();
+  if (!balance) return;
+  const system = getUnitSystem(currentState);
+
+  const label = document.createElement("span");
+  label.className = "check-label";
+  label.textContent = "Balance";
+
+  const forceBalanced = isBalanced(balance.forceResidualRatio, balance.tolerance);
+  const momentBalanced = isBalanced(balance.momentResidualRatio, balance.tolerance);
+  const balanced = forceBalanced && momentBalanced;
+  const value = document.createElement("span");
+  value.className = "check-value";
+  value.textContent = [
+    `Σ reaction ${formatQuantity(balance.reactionForce[2], "N", system)} Z`,
+    `residual ${formatQuantity(balance.forceResidual, "N", system)}`
+  ].join(" · ");
+
+  const badge = document.createElement("span");
+  badge.className = `check-badge ${balanced ? "check-ok" : "check-warn"}`;
+  // The verdict states what was compared, because a number that reads "balanced"
+  // against three of the five load terms is not a balance.
+  badge.textContent = balanced
+    ? "closes over the terms present"
+    : `residual ${formatPercent(Math.max(balance.forceResidualRatio ?? 0, balance.momentResidualRatio ?? 0))} of summed terms`;
+
+  const terms = document.createElement("span");
+  terms.className = "check-worst";
+  terms.textContent = balance.complete
+    ? `summed: ${balance.included.join(", ")}`
+    : `summed: ${balance.included.join(", ")} · not summed: ${balance.omitted.join(", ")}`;
+
+  dom.balanceCheck.append(label, value, badge, terms);
+  dom.balanceCheck.title =
+    "Global equilibrium over the load terms this bundle carries. Code_Aster assembles "
+    + "self-weight, pressure and line loads internally, so those are named as excluded "
+    + "rather than silently dropped. This is a consistency check on the solve, not a code check.";
+}
+
+function currentBalance() {
+  return getReactionConsistency(currentState, activeReactionOverlays());
+}
+
+function activeReactionOverlays() {
+  const activeResultStateId = currentState.activeResultStateId ?? null;
+  const loadCase = getActiveLoadCase(currentState);
+  const pick = (resultType) =>
+    (currentState.overlays ?? []).find((overlay) => {
+      const data = overlay.data ?? {};
+      if (data.result_type !== resultType) return false;
+      if (activeResultStateId && data.result_state_id && data.result_state_id !== activeResultStateId) return false;
+      if (loadCase && data.load_case && data.load_case !== loadCase) return false;
+      return true;
+    })?.data ?? null;
+  return {
+    reactionForce: pick("reaction_force")?.values ?? null,
+    reactionMoment: pick("reaction_moment")?.values ?? null,
+    loadCase,
+    loadCaseDefinition: getActiveLoadCaseDefinition(currentState)
+  };
+}
+
+// The disclosure summary names whichever diagnostic the reviewer most needs to
+// open. Out of tolerance wins over the mesh check because a balance that does
+// not close is a question about the solve, whereas mesh detail is a question
+// about the answer.
+function renderAnalysisSummary() {
+  const check = getDiscretisationCheck(currentState);
+  const balance = currentBalance();
+  const forceBalanced = isBalanced(balance?.forceResidualRatio, balance?.tolerance ?? 0);
+  const momentBalanced = isBalanced(balance?.momentResidualRatio, balance?.tolerance ?? 0);
+  if (balance && !(forceBalanced && momentBalanced)) {
+    dom.analysisSummary.textContent = "Mesh & balance · warning";
+    dom.analysisSummary.classList.add("mesh-warning");
+    return;
+  }
+  dom.analysisSummary.textContent = check && !check.within_tolerance ? "Mesh detail · warning" : "Mesh detail";
+  dom.analysisSummary.classList.toggle("mesh-warning", Boolean(check && !check.within_tolerance));
 }
 
 // The coloring channel: one field, one component, one scale, plus the display
@@ -1792,19 +2064,10 @@ function renderViewportLegend() {
     const ramp = document.createElement("div");
     ramp.className = "legend-ramp";
     ramp.dataset.legendRamp = "";
+    ramp.dataset.legendBands = String(legend.bands ?? 0);
     ramp.style.background = scalarRampGradient(legend);
 
-    const ticks = document.createElement("div");
-    ticks.className = "legend-ticks";
-    const min = Number(legend.range?.min ?? 0);
-    const max = Number(legend.range?.max ?? 0);
-    // Ticks carry the number only; the heading states the unit once.
-    for (const value of [min, (min + max) / 2, max]) {
-      const tick = document.createElement("span");
-      tick.textContent = formatValue(value, legend.unit, system);
-      ticks.append(tick);
-    }
-    dom.viewportLegend.append(heading, ramp, ticks);
+    dom.viewportLegend.append(heading, ramp, ...legendTicks(legend), scaleReadout(legend));
     renderComplianceNotice();
   }
 
@@ -1860,6 +2123,57 @@ function renderViewportLegend() {
   }
 }
 
+// Ticks carry the number only; the heading states the unit once. Banded, every
+// edge is labelled - the boundary is the thing a reviewer is reading, and an
+// unlabelled edge is a boundary they have to interpolate - while a continuous
+// ramp keeps the three it always had. The middle is dropped past eight bands,
+// where the labels would collide and the edges stop being separable by eye.
+function legendTicks(legend) {
+  const system = getUnitSystem(currentState);
+  const edges = bandEdges(legend);
+  const values = edges.length <= 9
+    ? edges
+    : [edges[0], ...edges.filter((_edge, index) => index > 0 && index < edges.length - 1 && index % 2 === 0), edges[edges.length - 1]];
+  const ticks = document.createElement("div");
+  ticks.className = "legend-ticks";
+  ticks.dataset.legendTicks = "";
+  for (const value of values) {
+    const tick = document.createElement("span");
+    tick.textContent = formatValue(value, legend.unit, system);
+    ticks.append(tick);
+  }
+  return [ticks];
+}
+
+// The scale the ramp is actually reading, stated even when it is the field's own
+// range. Simcenter makes the reader choose `Specified` over `Auto` for exactly
+// this reason, and the CATI advice is to type round bounds so the band
+// increments come out round rather than at 6.7. Once a reviewer has set a
+// scale, "which numbers am I looking at" has to be answerable from the legend
+// itself - the alternative is a screenshot that does not say.
+function scaleReadout(legend) {
+  const system = getUnitSystem(currentState);
+  const overridden = isRangeOverridden(legend);
+  const banded = Number(legend.bands) > 0;
+  if (!overridden && !banded) {
+    return [];
+  }
+  const row = document.createElement("div");
+  row.className = "legend-scale";
+  row.dataset.legendScale = "";
+  const min = Number(legend.range?.min ?? 0);
+  const max = Number(legend.range?.max ?? 0);
+  const parts = [`${formatValue(min, legend.unit, system)} – ${formatValue(max, legend.unit, system)}`];
+  if (banded) {
+    parts.push(`${legend.bands} bands`);
+  }
+  row.textContent = parts.join(" · ");
+  if (overridden) {
+    row.append(" (set by you)");
+  }
+  return [row];
+}
+
 function appendViewportKeyRow(label, color = null, swatchClass = "") {
   const row = document.createElement("div");
   row.className = "body-legend-row";
@@ -1886,7 +2200,17 @@ const BODY_LEGEND_NOTE = Object.freeze({
 
 // Sampled from the function that actually tints the scene, so the bar cannot
 // drift from the colours on screen.
+//
+// Banded, the stops are doubled at each edge: a linear gradient between two
+// colours is smooth across the stop, so a single stop per band renders a
+// gradient and the boundaries disappear - which is the entire reason to ask for
+// bands. Repeating the stop makes the transition instantaneous, so what the
+// viewer sees is the same set of flat regions the model is painted with.
 function scalarRampGradient(legend) {
+  const bands = Number(legend?.bands ?? 0);
+  if (bands > 0) {
+    return bandedRampGradient(legend);
+  }
   const min = Number(legend.range?.min ?? 0);
   const max = Number(legend.range?.max ?? 1);
   const stops = [];
@@ -1898,6 +2222,31 @@ function scalarRampGradient(legend) {
     stops.push(`${hexColor(colour)} ${(ratio * 100).toFixed(0)}%`);
   }
   return stops.length > 1 ? `linear-gradient(90deg, ${stops.join(", ")})` : "none";
+}
+
+function bandedRampGradient(legend) {
+  const bandCount = Number(legend.bands);
+  const stops = [];
+  for (let index = 0; index < bandCount; index += 1) {
+    // The colour a band is painted with, straight from the tint function, at
+    // that band's own rank. Sampling the band centre instead would put every
+    // band inside the middle of the cividis ramp and four bands would come out
+    // near-identical.
+    const colour = colorForScalarValue(bandColorValue(legend, index), legend);
+    if (colour === null) continue;
+    const from = ((index / bandCount) * 100).toFixed(2);
+    const to = (((index + 1) / bandCount) * 100).toFixed(2);
+    stops.push(`${hexColor(colour)} ${from}%`, `${hexColor(colour)} ${to}%`);
+  }
+  return stops.length > 1 ? `linear-gradient(90deg, ${stops.join(", ")})` : "none";
+}
+
+// A value guaranteed to land inside band `index`, whatever the band edges are.
+function bandColorValue(legend, index) {
+  const edges = bandEdges(legend);
+  const low = edges[Math.min(index, edges.length - 2)] ?? 0;
+  const high = edges[Math.min(index + 1, edges.length - 1)] ?? low + 1;
+  return (low + high) / 2;
 }
 
 // Called only from renderViewportLegend, and unconditional there on purpose:
@@ -4606,6 +4955,8 @@ const SHORTCUTS = [
   ["/", "Find an object", () => { dom.searchInput.focus(); dom.searchInput.select(); }, () => !dom.searchInput.hidden],
   ["[", "Previous issue", () => stepIssue(-1), () => !dom.issueList.hidden],
   ["]", "Next issue", () => stepIssue(1), () => !dom.issueList.hidden],
+  ["N", "Previous finding", () => stepFindingBy(-1), () => getFindings(currentState).length > 0],
+  ["n", "Next finding", () => stepFindingBy(1), () => getFindings(currentState).length > 0],
   ["F", "Fit the whole scene", () => dom.resetView.click(), () => !dom.resetView.hidden],
   ["?", "Show this list", () => toggleShortcutOverlay(true), () => true]
 ];
@@ -4647,6 +4998,22 @@ function stepIssue(direction) {
   if (rows.length === 0) return;
   const index = rows.findIndex((row) => row === document.activeElement);
   rows[(index + direction + rows.length) % rows.length].click();
+}
+
+// n and N walk the findings the scalar field is colouring the scene, worst
+// first: select, frame the spot, and fill the inspector. This is the review loop
+// the incumbents have and this viewer did not - AutoPIPE puts the crosshairs on
+// the maximum and steps to the next stressed point with the cursor keys, and
+// CAEPIPE cycles result items on Tab. n rather than Tab, because Tab is focus
+// traversal and a review shortcut in its way costs more than it saves. The
+// position in the walk is reported on the active row, so "7 of 40" tells the
+// reviewer whether they are nearly done.
+function stepFindingBy(direction) {
+  const finding = stepFinding(currentState, direction);
+  if (!finding) return;
+  selectedObjectId = finding.objectId;
+  dispatch({ type: "focusFinding", objectId: finding.objectId });
+  render();
 }
 
 let shortcutOverlay = null;

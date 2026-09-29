@@ -2,7 +2,14 @@ import { applyStageVisibilityPreset, getVisibleObjectIds, setLayerVisibility } f
 import { cycleBodyOpacity, setBodyOpacity, setBodyVisibility, setOverlayVisibility, withDefaultBodyOpacity } from "./bodies.js";
 import { setUnitSystem } from "./units.js";
 import { applySectionBox, focusIssue, restoreViewState } from "./controls.js";
-import { fitSelection, hideSelected, isolateSelection, restoreVisibility, selectObject } from "./selection.js";
+import {   fitSelection,
+  findingFitSpan,
+  focusFinding,
+  hideSelected,
+  isolateSelection,
+  restoreVisibility,
+  selectObject
+} from "./selection.js";
 import {
   setColoringComponent,
   setColoringField,
@@ -11,9 +18,13 @@ import {
 } from "./coloring.js";
 import {
   coherentResultContext,
+  setActiveFinding,
   setActiveGeometryState,
   setActiveLoadCase,
   setActiveResultState,
+  setLegendBands,
+  setLegendRange,
+  resetLegendScale,
   setResultThreshold,
   setResultVectorScale,
   setUtilizationThreshold,
@@ -34,7 +45,7 @@ export function reduceViewerState(state, action) {
     case "isolateSelection":
       return isolateSelection(state);
     case "fitSelection":
-      return fitSelection(state);
+      return fitSelection(state, { maxSpan: action.maxSpan });
     case "restoreVisibility":
       return restoreVisibility(state);
     case "applySectionBox":
@@ -100,6 +111,16 @@ export function reduceViewerState(state, action) {
       return setResultThreshold(state, action.threshold);
     case "setUtilizationThreshold":
       return setUtilizationThreshold(state, action.threshold);
+    case "setLegendBands":
+      return setLegendBands(state, action.bands, action.scaleKey);
+    case "setLegendRange":
+      return setLegendRange(state, action.range, action.scaleKey);
+    case "resetLegendScale":
+      return resetLegendScale(state, action.scaleKey);
+    case "setActiveFinding":
+      return setActiveFinding(state, action.objectId);
+    case "focusFinding":
+      return focusFinding(state, action.objectId);
     case "setDisplacementVectorScale":
       return setResultVectorScale(state, "displacement", action.scale);
     case "setReactionVectorScale":
