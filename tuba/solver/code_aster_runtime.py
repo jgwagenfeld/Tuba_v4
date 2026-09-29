@@ -31,6 +31,12 @@ ATTESTED_CODE_ASTER_FILES = (
     "study_tuba_fem.json", "study.mess", "study.rmed", "study_depl.csv",
     "study_effo.csv", "study_reac.csv", "study_sieq.csv",
 )
+#: Extra artifacts a load case compiled with ``buckling=`` also produces. Keyed
+#: off ``compiler_inputs`` exactly as ``contact_law`` is, so a buckling study keeps
+#: the ordinary beam compiler id and still gets its own artifact inventory.
+BUCKLING_ATTESTED_CODE_ASTER_FILES = (
+    "study_buckling.json", "study_buckling_modes.csv",
+)
 VOLUME_ATTESTED_CODE_ASTER_FILES = (
     "study.comm", "study.med", "study.export", "study_manifest.json",
     "study_tuba_fem.json", "study.mess", "study.rmed", "study_depl.csv",
@@ -353,6 +359,20 @@ def expected_code_aster_artifact_files(
         files = VOLUME_ATTESTED_CODE_ASTER_FILES + (("study_effo.csv",) if mixed_analysis else ()) + (
             ("study_sigm.csv",) if study_metadata.get("tensor_stress_exported", True) else ()
         )
+    if "buckling" in compiler_inputs:
+        if volume_analysis:
+            raise ValueError(
+                "Buckling analysis is a 1D beam-study capability; a volume study declares no "
+                "buckling compiler input, and accepting one would attest artifacts that no "
+                "export produces."
+            )
+        buckling = compiler_inputs["buckling"]
+        if not isinstance(buckling, Mapping) or not buckling:
+            raise ValueError("Code_Aster buckling compiler_inputs metadata must be a nonempty object.")
+        if not buckling.get("mode_shapes", True):
+            files = files + ("study_buckling.json",)
+        else:
+            files = files + BUCKLING_ATTESTED_CODE_ASTER_FILES
     return files + contact_files
 
 

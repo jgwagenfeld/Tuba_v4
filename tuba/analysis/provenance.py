@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from tuba.canonical import canonical_digest
+from tuba.model import resolve_buckling_options
 
 
 MODEL_SCHEMA_ID = "tuba.model.v4"
@@ -96,6 +97,16 @@ def build_solver_input_identity(
             "ref_temperature": float(resolved_case.ref_temperature),
             "fields": [field.to_dict() for field in resolved_case.fields],
             "nodal_forces": [force.to_dict() for force in resolved_case.nodal_forces],
+            # Buckling is part of what the case asks for, not a compiler
+            # implementation detail, so it is hashed here as well as in
+            # compiler_inputs. In compiler_inputs alone it would be invisible to
+            # any caller that builds an identity without the contract, and two
+            # genuinely different studies could share a fingerprint.
+            **(
+                {"buckling": resolve_buckling_options(resolved_case.buckling).to_dict()}
+                if resolved_case.buckling is not None
+                else {}
+            ),
         },
     }
     if compiler_inputs is not None:

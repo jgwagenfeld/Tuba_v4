@@ -13,6 +13,7 @@ nav = [
     { "Setup" = "setup.md" },
     { "Tutorial" = "tutorial.md" },
     { "Modeling" = "modeling.md" },
+    { "Structural frames" = "structural-frames.md" },
     { "Workflow" = "workflow.md" },
     { "Autorouting" = "autorouting.md" },
     { "Examples" = "examples.md" },

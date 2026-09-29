@@ -273,7 +273,9 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True, prologue:
             f"model.define_load_case({_literal(name)}, gravity={_literal(case.gravity)}, "
             f"pressure={_literal(case.internal_pressure)}, temperature={_literal(case.temperature)}, "
             f"ref_temperature={_literal(case.ref_temperature)}"
-            + (f", fields={_literal(data['load_cases'][name]['fields'])}" if case.fields else "") + ")"
+            + (f", fields={_literal(data['load_cases'][name]['fields'])}" if case.fields else "")
+            + (f", buckling={_literal(_buckling_payload(case))}" if case.buckling is not None else "")
+            + ")"
         )
         for force in case.nodal_forces:
             lines.append(
@@ -286,7 +288,9 @@ def generate_model_script(model: TubaModel, *, pipe_runs: bool = True, prologue:
             f"model.define_operation({_literal(name)}, gravity={_literal(operation.gravity)}, "
             f"pressure={_literal(operation.internal_pressure)}, temperature={_literal(operation.temperature)}, "
             f"ref_temperature={_literal(operation.ref_temperature)}, metadata={_literal(operation.metadata)}, "
-            f"fields={_literal(data['operations'][name]['fields'])})"
+            f"fields={_literal(data['operations'][name]['fields'])}"
+            + (f", buckling={_literal(_buckling_payload(operation))}" if operation.buckling is not None else "")
+            + ")"
         )
         for force in operation.nodal_forces:
             lines.append(
@@ -421,6 +425,18 @@ def _check_rewritable(target: Path, last_text: str | None) -> None:
         raise AuthoredModelScript(f"{target} is an authored model script, which tools never rewrite.")
     if current != last_text:
         raise ModelScriptChanged(f"{target} changed since it was last read or written, so this change was not saved.")
+
+
+def _buckling_payload(case: Any) -> dict[str, Any]:
+    """The buckling options of a load case as the dict a generated script passes.
+
+    Emitted as a literal dict rather than a ``BucklingOptions(...)`` call so a
+    generated script needs no new import, and so it round-trips through
+    ``define_operation``'s own coercion.
+    """
+    from tuba.model import resolve_buckling_options
+
+    return resolve_buckling_options(case.buckling).to_dict()
 
 
 def _section_line(name: str, section: Any) -> str:

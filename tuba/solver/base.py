@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from tuba.analysis.buckling import BucklingResult
+
 
 # ---------------------------------------------------------------------------
 # Result containers
@@ -124,6 +126,12 @@ class FEAResults:
 
     contact_results: dict[str, ContactResult] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    #: Linear buckling eigenproblem solved on this load case's own prestress, when
+    #: the case was declared with ``buckling=``. Absent otherwise; never a stand-in.
+    buckling: BucklingResult | None = None
+    #: Files the buckling results were read from, so a persistent record can name
+    #: the artifacts a reviewer must be able to reopen.
+    buckling_artifacts: Dict[str, Path] = field(default_factory=dict)
 
     # ------------------------------------------------------------------
     # Accessors

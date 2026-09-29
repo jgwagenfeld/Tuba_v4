@@ -560,6 +560,89 @@ class NodalForce:
         return cls.from_force(node=data["node"], force=list(data["force"]), moment=data.get("moment"))
 
 
+@dataclass(frozen=True)
+class BucklingOptions:
+    """Request a linear buckling eigenvalue analysis on a load case's own prestress.
+
+    The load case still solves as an ordinary static study; this adds a
+    linearised buckling eigenproblem on the geometric stiffness built from that
+    solution, so one solve answers both "how does it deflect" and "how close is it
+    to buckling". Code_Aster reaches this through
+    ``CALC_MODES(TYPE_RESU='MODE_FLAMB')``.
+
+    A critical factor is a *reference load*, not a design verdict: it is a
+    linearised perfect-frame figure with no initial imperfection, and a real column
+    buckles at a fraction of it. Read it as the first step of a buckling check, not
+    the last.
+
+    ``stop_on_error`` is False by default on purpose. Code_Aster's default
+    a-posteriori modal tolerance is 1e-6, which a real frame frequently cannot
+    meet even though the factors are accurate to 1e-12; leaving the check on makes
+    the run raise ``ALGELINE5_15`` *after* computing usable factors.
+    """
+
+    n_modes: int = 6
+    modal_subspace: int = 12
+    method: str = "TRI_DIAG"
+    rigid_modes: str = "NON"
+    stop_on_error: bool = False
+    mode_shapes: bool = True
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.n_modes, int) or isinstance(self.n_modes, bool) or self.n_modes < 1:
+            raise ValueError(
+                f"buckling n_modes must be a positive integer, got {self.n_modes!r}."
+            )
+        if not isinstance(self.modal_subspace, int) or isinstance(self.modal_subspace, bool) or self.modal_subspace < 1:
+            raise ValueError(
+                f"buckling modal_subspace must be a positive integer, got {self.modal_subspace!r}."
+            )
+        if self.method not in {"TRI_DIAG", "SORENSEN", "JACOBI"}:
+            raise ValueError(
+                f"buckling method must be TRI_DIAG, SORENSEN or JACOBI, got {self.method!r}."
+            )
+        if self.rigid_modes not in {"OUI", "NON"}:
+            raise ValueError(
+                f"buckling rigid_modes must be OUI or NON, got {self.rigid_modes!r}."
+            )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "n_modes": int(self.n_modes),
+            "modal_subspace": int(self.modal_subspace),
+            "method": str(self.method),
+            "rigid_modes": str(self.rigid_modes),
+            "stop_on_error": bool(self.stop_on_error),
+            "mode_shapes": bool(self.mode_shapes),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BucklingOptions":
+        return cls(
+            n_modes=int(data["n_modes"]),
+            modal_subspace=int(data.get("modal_subspace", 12)),
+            method=str(data.get("method", "TRI_DIAG")),
+            rigid_modes=str(data.get("rigid_modes", "NON")),
+            stop_on_error=bool(data.get("stop_on_error", False)),
+            mode_shapes=bool(data.get("mode_shapes", True)),
+        )
+
+
+def resolve_buckling_options(
+    buckling: Optional[BucklingOptions | Dict[str, Any]],
+) -> Optional[BucklingOptions]:
+    """Accept a BucklingOptions, a plain dict, or nothing; refuse a non-mapping otherwise."""
+    if buckling is None:
+        return None
+    if isinstance(buckling, BucklingOptions):
+        return buckling
+    if isinstance(buckling, dict):
+        return BucklingOptions.from_dict(buckling)
+    raise ValueError(
+        f"buckling must be a BucklingOptions, a dict, or None, got {type(buckling).__name__}."
+    )
+
+
 @dataclass
 class LoadCase:
     """Operating load case definition."""
@@ -571,6 +654,7 @@ class LoadCase:
     ref_temperature: float = 20.0  # [°C]
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
+    buckling: Optional[BucklingOptions] = None
     source_line: Optional[int] = script_line_field()
     source_call_line: Optional[int] = script_line_field()
 
@@ -598,6 +682,7 @@ class Operation:
     metadata: Dict[str, Any] = field(default_factory=dict)
     fields: List[OperationField] = field(default_factory=list)
     nodal_forces: List[NodalForce] = field(default_factory=list)
+    buckling: Optional[BucklingOptions] = None
     source_line: Optional[int] = script_line_field()
     source_call_line: Optional[int] = script_line_field()
 
@@ -610,6 +695,7 @@ class Operation:
             ref_temperature=self.ref_temperature,
             fields=list(self.fields),
             nodal_forces=list(self.nodal_forces),
+            buckling=self.buckling,
         )
 
     def add_nodal_force(
@@ -1124,6 +1210,7 @@ class TubaModel:
         temperature: float = 20.0,
         ref_temperature: float = 20.0,
         fields: Optional[List[Dict[str, Any] | OperationField]] = None,
+        buckling: Optional[BucklingOptions | Dict[str, Any]] = None,
     ) -> LoadCase:
         if name in self.operations:
             raise ValueError(
@@ -1136,6 +1223,7 @@ class TubaModel:
             internal_pressure=pressure,
             temperature=temperature,
             ref_temperature=ref_temperature,
+            buckling=resolve_buckling_options(buckling),
         )
         lc.fields = [record if isinstance(record, OperationField) else _make_operation_field(**record)
                      for record in fields or []]
@@ -1152,6 +1240,7 @@ class TubaModel:
         ref_temperature: float = 20.0,
         metadata: Optional[Dict[str, Any]] = None,
         fields: Optional[List[Dict[str, Any] | OperationField]] = None,
+        buckling: Optional[BucklingOptions | Dict[str, Any]] = None,
     ) -> Operation:
         if name in self.load_cases:
             raise ValueError(
@@ -1165,6 +1254,7 @@ class TubaModel:
             temperature=temperature,
             ref_temperature=ref_temperature,
             metadata=dict(metadata or {}),
+            buckling=resolve_buckling_options(buckling),
         )
         op.source_line, op.source_call_line = script_lines()
         op.fields = [record if isinstance(record, OperationField) else _make_operation_field(**record)
@@ -1505,7 +1595,8 @@ class TubaModel:
                     "ref_temperature": lc.ref_temperature,
                     **({"fields": [record.to_dict() for record in lc.fields]} if lc.fields else {}),
                     **({"nodal_forces": [force.to_dict() for force in lc.nodal_forces]} if lc.nodal_forces else {}),
-                }
+                    **({"buckling": resolve_buckling_options(lc.buckling).to_dict()} if lc.buckling is not None else {}),
+                   }
                 for name, lc in self.load_cases.items()
             },
             "operations": {
@@ -1517,7 +1608,8 @@ class TubaModel:
                     "metadata": op.metadata,
                     "fields": [field_record.to_dict() for field_record in op.fields],
                     **({"nodal_forces": [force.to_dict() for force in op.nodal_forces]} if op.nodal_forces else {}),
-                }
+                    **({"buckling": resolve_buckling_options(op.buckling).to_dict()} if op.buckling is not None else {}),
+                   }
                 for name, op in self.operations.items()
             },
             "obstacles": copy.deepcopy(self.obstacles),
@@ -1646,6 +1738,7 @@ class TubaModel:
                 temperature=lc.get("temperature", 20.0),
                 ref_temperature=lc.get("ref_temperature", 20.0),
                 fields=lc.get("fields", []),
+                buckling=lc.get("buckling"),
             )
             for force_data in lc.get("nodal_forces", []):
                 load_case.nodal_forces.append(NodalForce.from_dict(force_data))
@@ -1659,6 +1752,7 @@ class TubaModel:
                 ref_temperature=op.get("ref_temperature", 20.0),
                 metadata=op.get("metadata", {}),
                 fields=op.get("fields", []),
+                buckling=op.get("buckling"),
             )
             for force_data in op.get("nodal_forces", []):
                 operation.nodal_forces.append(NodalForce.from_dict(force_data))

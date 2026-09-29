@@ -329,7 +329,7 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
         )
         self._write_mail(model, mail_path, name_map=solver_name_map)
         self._write_comm(model, load_case, comm_path, name_map=solver_name_map)
-        self._write_export(wdir)
+        self._write_export(wdir, buckling=load_case.buckling is not None)
 
         study = AnalysisStudy(
             id=f"analysis_study:{load_case_name}",
@@ -508,11 +508,13 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
     # Export file generation
     # ==================================================================
 
-    def _write_export(self, work_dir: Path) -> None:
+    def _write_export(self, work_dir: Path, *, buckling: bool = False) -> None:
         """Generate the ``.export`` file mapping logical units to files.
 
         The export file tells ``as_run`` where to find the mesh, command
-        file, and where to write outputs.
+        file, and where to write outputs. ``run_aster`` copies results out only for
+        the units named here, so a unit the comm writes but the export omits is
+        silently lost with the temporary directory.
         """
         lines = [
             "P actions make_etude",
@@ -535,6 +537,16 @@ class CodeAsterSolver(_CommWriterMixin, _MeshWriterMixin):
             "F sieq study_sieq.csv R 41",
             "F libr study_contact.json R 42",
         ]
+        if buckling:
+            from tuba.solver.aster_buckling import (
+                BUCKLING_FACTORS_UNIT,
+                BUCKLING_MODES_UNIT,
+            )
+
+            lines += [
+                f"F modes study_buckling_modes.csv R {BUCKLING_MODES_UNIT}",
+                f"F crit study_buckling.json R {BUCKLING_FACTORS_UNIT}",
+            ]
 
         export_path = work_dir / "study.export"
         write_artifact_text(export_path, "\n".join(lines))

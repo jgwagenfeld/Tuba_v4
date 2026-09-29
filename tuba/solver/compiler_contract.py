@@ -18,7 +18,7 @@ from tuba.analysis.provenance import (
     MIXED_CODE_ASTER_COMPILER_ID,
     VOLUME_CODE_ASTER_COMPILER_ID,
 )
-from tuba.model import Element, LoadCase, TubaModel
+from tuba.model import Element, LoadCase, TubaModel, resolve_buckling_options
 from tuba.solver.modelisation import PipeModelization, needs_discrete_element
 
 
@@ -140,6 +140,23 @@ def beam_contract(
             model_dict = model.to_dict()
             all_cases = {**model_dict.get("load_cases", {}), **model_dict.get("operations", {})}
             inputs["load_path_inputs"] = {name: all_cases[name] for name in names}
+    if load_case.buckling is not None:
+        if contact_specs:
+            # The geometric stiffness is built from a single SIEF_ELGA of a
+            # linear run; a contact history is a field over increments, and
+            # picking one increment would silently report a partial prestress.
+            raise ValueError(
+                f"Operation {load_case_name!r}: buckling analysis is unsupported on native contact "
+                "studies; the geometric stiffness would be built from one increment of a contact "
+                "history and read as a partial prestress."
+            )
+        # Resolved through the one coercion point so a dict assigned onto an
+        # existing operation after declaration behaves like one passed to
+        # define_operation, instead of failing later with an AttributeError.
+        inputs = dict(
+            inputs or {},
+            buckling=resolve_buckling_options(load_case.buckling).to_dict(),
+        )
     return CompilerContract(
         compiler_id=CODE_ASTER_COMPILER_ID,
         compiler_inputs=inputs,

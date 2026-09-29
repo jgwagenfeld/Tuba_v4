@@ -1,0 +1,2322 @@
+setting '--memory' value to 3686.40 MB (keyword RESERVE_MEMOIRE)
+copying '/mnt/d/Gitprojects/Tuba_v4/examples/steel-portal-frame/.tuba/staging/Wind/study.mail' to 'fort.20'...
+Ouverture en écriture du fichier ./vola.1
+
+<INFO> Démarrage de l'exécution.
+
+                       -- CODE_ASTER -- VERSION : DÉVELOPPEMENT (unstable) --                       
+                               Version 18.0.12 modifiée le 03/04/2026                               
+                                    révision n/a - branche 'n/a'                                    
+                                     Copyright EDF 1991 - 2026                                      
+                                                                                                    
+                              Exécution du : Tue Sep 29 11:25:41 2026                               
+                                Nom de la machine : DESKTOP-QH6C3T8                                 
+                                        Architecture : 64bit                                        
+                                    Type de processeur : x86_64                                     
+      Système d'exploitation : Linux-5.15.153.1-microsoft-standard-WSL2-x86_64-with-glibc2.39       
+                                  Langue des messages : C (UTF-8)                                   
+                                     Version de Python : 3.14.6                                     
+                                      Version de NumPy : 2.4.6                                      
+                                     Parallélisme MPI : inactif                                     
+                                    Parallélisme OpenMP : actif                                     
+                              Nombre de processus OpenMP utilisés : 1                               
+                                Version de la librairie HDF5 : 2.1.0                                
+                                Version de la librairie MED : 4.2.0                                 
+                               Version de la librairie MFront : 5.1.0                               
+                               Version de la librairie MUMPS : 5.8.2                                
+                                  Librairie PETSc : non disponible                                  
+                              Version de la librairie SCOTCH : 7.0.11                               
+
+starting the execution...
+Valeur initiale du temps CPU maximum =   86400 secondes
+  Valeur du temps CPU maximum passé aux commandes =   77760 secondes
+  Réserve CPU prévue = 8640 secondes
+
+Ouverture en écriture du fichier ./glob.1
+
+Ouverture en écriture du fichier ./vola.1
+
+Ouverture en lecture du fichier /home/jan/miniforge3/envs/tuba-code-aster/lib/elem.1
+
+Nom de la base                          :  ELEMBASE
+     Créée avec la version                   :  18.00.12
+     Nombre d'enregistrements utilisés       :  49
+     Nombre d'enregistrements maximum        :  512
+     Nombre d'enregistrements par fichier    :  512
+     Longueur d'enregistrement (octets)      :  819200
+     Nombre d'identificateurs utilisés       :  123
+     Taille maximum du répertoire            :  300
+     Pourcentage d'utilisation du répertoire :  41 %
+
+Ouverture en lecture du fichier /home/jan/miniforge3/envs/tuba-code-aster/lib/elem.1
+
+Nom de la base                          :  ELEMBASE
+     Nombre d'enregistrements utilisés       :  49
+     Nombre d'enregistrements maximum        :  512
+     Nombre d'enregistrements par fichier    :  512
+     Longueur d'enregistrement (octets)      :  819200
+     Nombre total d'accès en lecture         :  67
+     Volume des accès en lecture             :         52.34 Mo.
+     Nombre total d'accès en écriture        :  0
+     Volume des accès en écriture            :          0.00 Mo.
+     Nombre d'identificateurs utilisés       :  123
+     Taille maximum du répertoire            :  300
+     Pourcentage d'utilisation du répertoire :  41 %
+
+Relecture des catalogues des éléments faite.
+
+Fin de lecture (durée  0.047249  s.) 
+
+                      Mémoire limite pour l'allocation dynamique : 4198.46 Mo                       
+                         ajouté à l'initialisation du processus : 562.12 Mo                         
+                               Limite cible du processus : 4760.58 Mo                               
+                         Taille limite des fichiers d'échange : 2048.00 Go                          
+/tmp/run_aster_q6gkqx4w/study.comm.changed.py:13: DeprecationWarning: This feature is obsolete, 'PAR_LOT' has been removed.
+  DEBUT(PAR_LOT='NON');
+# Mémoire (Mo) :   562.12 /   553.06 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0001   user+syst:        0.04s (syst:        0.39s, elaps:        0.42s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt16
+# ----------------------------------------------------------------------------------------------
+# Commande #0002 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 16
+MAIL0 = LIRE_MAILLAGE(FORMAT='ASTER',
+                      INFO=1,
+                      UNITE=20,
+                      VERI_MAIL=_F(APLAT=0.001,
+                                   VERIF='OUI'))
+
+Vérification du maillage.
+
+
+------------ MAILLAGE 00000001 - IMPRESSIONS NIVEAU  1 ------------
+
+MA-29-SEPT-2026 11:25:41                                                        
+
+NOMBRE DE NOEUDS                         210
+
+NOMBRE DE MAILLES                        559
+                              SEG2                  559
+
+NOMBRE DE GROUPES DE NOEUDS               15
+
+NOMBRE DE GROUPES DE MAILLES             569
+
+--------------------------------------------------------------------------------
+
+# Résultat commande #0002 (LIRE_MAILLAGE): MAIL0 ('<00000001>') de type <Mesh>
+# Mémoire (Mo) :   562.12 /   553.96 /   212.13 /   185.37 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0002   user+syst:        0.05s (syst:        0.04s, elaps:        0.08s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt22
+# ----------------------------------------------------------------------------------------------
+# Commande #0003 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 22
+MODELE = AFFE_MODELE(AFFE=_F(GROUP_MA='G_TUBE',
+                             MODELISATION='POU_D_T',
+                             PHENOMENE='MECANIQUE'),
+                     DISTRIBUTION=_F(METHODE='SOUS_DOMAINE',
+                                     PARTITIONNEUR='METIS'),
+                     INFO=1,
+                     MAILLAGE=MAIL0,
+                     VERI_FORMULATION_IFS='OUI',
+                     VERI_JACOBIEN='OUI',
+                     VERI_NORM_IFS='OUI',
+                     VERI_PLAN='OUI')
+
+Sur les 559 mailles du maillage 00000001, on a demandé l'affectation de 559, on a pu en affecter
+559.
+Modélisation     Formulation      Type maille  Élément fini     Nombre
+POU_D_T          _                SEG2         MECA_POU_D_T     559
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
+# Résultat commande #0003 (AFFE_MODELE): MODELE ('<00000002>') de type <Model>
+# Mémoire (Mo) :   682.90 /   682.90 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0003   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt34
+# ----------------------------------------------------------------------------------------------
+# Commande #0004 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 34
+MAT_S355 = DEFI_MATERIAU(ELAS=_F(ALPHA=1.2e-05,
+                                 B_ENDOGE=0.0,
+                                 COEF_AMOR=1.0,
+                                 E=210000000000.0,
+                                 K_DESSIC=0.0,
+                                 NU=0.3,
+                                 RHO=7850.0),
+                         INFO=1)
+
+# Résultat commande #0004 (DEFI_MATERIAU): MAT_S355 ('<00000003>') de type <Material>
+# Mémoire (Mo) :   683.03 /   683.03 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0004   user+syst:        0.07s (syst:        0.00s, elaps:        0.08s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt44
+# ----------------------------------------------------------------------------------------------
+# Commande #0005 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 44
+CHMAT = AFFE_MATERIAU(AFFE=_F(MATER=MAT_S355,
+                              TOUT='OUI'),
+                      INFO=1,
+                      MAILLAGE=MAIL0)
+
+# Résultat commande #0005 (AFFE_MATERIAU): CHMAT ('<00000004>') de type <MaterialField>
+# Mémoire (Mo) :   683.03 /   683.03 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0005   user+syst:        0.09s (syst:        0.00s, elaps:        0.08s)
+# ----------------------------------------------------------------------------------------------
+Only the first 500 occurrences are checked.
+
+.. _stg1_txt55
+# ----------------------------------------------------------------------------------------------
+# Commande #0006 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 55
+CARA = AFFE_CARA_ELEM(INFO=1,
+                      MODELE=MODELE,
+                      ORIENTATION=(_F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC0BAB0A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6DDBF8D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GDB3043D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G81AD5CF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD22B955',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4D603D7',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G12C04EE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G672E30F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G85C676C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1E0CCC9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G083DC94',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF46F78D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAAD28AC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G312CDBB',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G48BD15D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE0F5FC5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6802FA0',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0950ECB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2696F84',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB7D53FB',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G420BD51',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3EC029F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2686566',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G839DC20',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA321053',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G902251C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF311924',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD002EA8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G32C1182',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G540E5A8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G03B733D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G031C4AF',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9ADA5B6',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8FD22DD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5D92AA3',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBEF3876',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5AFD230',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9ACDBB7',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9AAA359',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1B3E362',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBEA1464',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G388DEC8',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB1D591F',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE6D6CC1',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5A8CEF5',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G55957B7',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G405C0DB',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3A966DC',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF8AB35B',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB0F0C63',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G76C15B9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE634769',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8452E9C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2584A28',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD484606',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD1EDCAA',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2E6BC8F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G239B07D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G952B8D3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5933BB8',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G516F20C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0D3D5D3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G285FFB3',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0907005',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8B5019F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G887E19A',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4F1307D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0AA2EA9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2522AB1',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7A4B768',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6866BFA',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G24609D3',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G849B9EE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE54353C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE391165',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G85E0AB9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G984ACEF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G21731E9',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8E539F6',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G518DBC1',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G430C823',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3D1CF8A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF76324D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCB68738',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA8B1A6A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7CF85B0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB55DC93',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB366618',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G02B1207',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1E9CD41',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7FE19E7',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA808A3A',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBCB32AF',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE6C0750',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD8BFE17',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4B9DC3D',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFA30D87',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6B1B401',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G098E7E3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7DEC0E5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBE571A8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF1264EB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4E63296',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0E2C4C3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1CA8CC5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7B01D9D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF616F05',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA6D2068',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G80DE7AB',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G16CCA5B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBB4C433',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G49B7276',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G73393AD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9CD691E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GDC4DAC1',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB81B3BF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G74771D6',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAD5FB8B',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE8EB0AE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4A80C1E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA815DFC',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G65C6B08',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1C2158F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G029A69B',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE0E7EE0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G56B11AF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF8498BE',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0EA62BE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G898EF16',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G44C4405',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEB564B3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6D77EFA',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G37ACD6C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G794E9F0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8D07BDC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2E1ABAD',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G55245FC',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2265448',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1E48FC0',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6CF87C5',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBF66071',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5D3ED38',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF3DCC44',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBDB782D',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9A0F8C0',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD8F7336',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5B6A736',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0A8C646',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA7832D4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9C37A60',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6412FBB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G522873F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBF13F2A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA37C2E5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD1685FA',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCFB0C45',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G705F136',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAE7BDD6',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G02131FD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G03165FF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G12CA5E8',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G11CA469',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G320EFAB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G266E283',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5D0D388',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF604310',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7E336B7',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2B14956',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G06B87D5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4C95AC0',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA9A35D2',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE975FFF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5E7CD7C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G48E0F99',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5F8A13F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4B821BD',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD3491C8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAF8127C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GDBF064D',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCA5C129',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBA2010D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6D7C348',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G43CC36B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G216BC15',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBB8A4E3',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8217AC2',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G36D8BBB',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G12BACD4',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF4173C4',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0449B53',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G54586B0',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G70D2AE2',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6EBF7CA',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1B59685',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G07626E7',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G34177A4',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G80CF442',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G80877A3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4CA236A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8E93461',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5310049',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G43E5F71',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFC721E3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB93EB2B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G55C1B5F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEDB0168',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1470ED5',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2621A56',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G18C1043',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD43D1BA',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5DF9471',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD3AD4A8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7F15811',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G69C164E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G10338E1',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB112545',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA3A7C34',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5F5637A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G62B956E',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9A5D6E9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBD7BD67',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0764E1C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3F373CD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7AD104D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GECD9767',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G804A360',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB273CF5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G12B0972',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3D73363',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1DB33C8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G885A30C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4F171BD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2B85280',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GECF72F7',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8D55EE5',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBC7FE1B',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G708B68C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4153129',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCE9787F',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8B89BC0',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEF01777',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEC71E43',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G725C3B1',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB16895C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GED9AFC6',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8140378',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G90064BC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G595B71E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6422F86',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6719554',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5062732',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBE659BF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0D5B76E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1E9B2DC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G62BFE19',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G674C520',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC5F3FCD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GECE6CC0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8BC0CC5',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G236D68C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G433F460',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3CE7410',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G421239F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2287E3A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA7C7D53',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8F824D9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5220794',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAEEC6ED',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G00C6DC7',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G52C00EC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA6F0CE4',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA8F7887',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G97C13D5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G303A8A4',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G00CE3A1',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3FAD06F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCFE9469',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6F3B5B6',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8DF834A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFDD2790',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB4AAB15',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G94750AE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3DDDA82',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2F49325',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBB61281',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1E9403C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC3AAF22',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1858CD2',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5DA7207',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD56A5B1',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2AF616E',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G90195DD',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G655F923',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G41E4AF6',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA6289A0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBE89FAE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8B258F1',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G45EE97F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5F7F592',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2C06276',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G65D403B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF512364',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G69173E2',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD4B64B8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEBB0CEE',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD5642E0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5D23879',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G346E2E0',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G92654C7',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7BAA421',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G58D6889',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G41A367C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G662A7FD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9173842',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1DB02B2',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE6CD295',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2C8D07B',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF34753E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF424E5E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEA5694D',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G61B60A9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBFD0082',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G81B73CB',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G05C4DA8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6745235',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC8CA40F',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF357AA0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G31A1836',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G835DDD2',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4368F4C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G45DE7D2',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0368728',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G03903E2',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9221A6B',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD564AF2',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8365650',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3932DCE',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFFAE87C',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD7001A5',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF7F3E5F',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G08A01E7',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3564256',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAD1092E',
+                                      VALE=0.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8940BE4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA2B3A45',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFC7281C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2FFC52E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G480984C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4D57303',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9048DDC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEED9EFC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G496239D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1A862BB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9390149',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GDC4AAA2',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G57D2E8D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G250DD48',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA76CBB4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G66DBCEA',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GECFE7F8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9B4F761',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC54CDEB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0355127',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3B1907A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE1ACB46',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5448B03',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEAAFD45',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G899DA5B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G22B83E7',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC2E4CD3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFF31097',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6A46AEC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G35D6571',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3D66A5C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2642B6B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G371DB4A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G867D1A4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4D391F7',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G168EF9D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G13C78E6',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G076CBDF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5DBB538',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6B4CAF4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8442DB1',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8EE7D80',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G98CCA58',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G78D73B3',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4C4265C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD97AF5B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G723D663',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD937900',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBD3BE65',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAE16109',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD66961D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD12D129',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5A72D32',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD82354E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G80340A5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF0DB8A4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8F34EEE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC0E207E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD23F911',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0E5CB25',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCDE8ED4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBB31295',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9AB2621',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7CD5268',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G980FE78',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA5283F5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GDC72734',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G13473EA',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3848F7E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAA24088',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD39B7AE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB7FFA4F',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0035529',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE0CB3F7',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCA6BC74',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9F4330A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GAFB9727',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G95EAECF',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G0E3FB2E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G539C142',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5060289',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEB46DD4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF781DEC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1DC5ADE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7FA35B5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCCA867A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF973CB4',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G70B1A70',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE029446',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GED29836',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFD2A5AC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC1152C8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7769F22',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCE1E388',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2E877F0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G915A85D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GC4AF4BB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF127BAB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4C7EA28',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G84FFCC0',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G8B79258',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB2596FD',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G89A4E16',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G84BBEDE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G08B039D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G94FE764',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD2C0A96',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE48392B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2F345A8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6D56807',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCEFFB6B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GE711B25',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G543DBF6',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G307103C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7C1B4B2',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB3CB676',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G79162CE',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCBC952E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5BA62F5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G7055937',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF01885A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G512045B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G94360F9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G130C673',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G09DE544',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G31B72D9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G2BB825B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5FAD4EC',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3FE22F1',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3C82982',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G915F138',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GCF7987D',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6E67AE6',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4086D1B',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G32BBB78',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G18C64AA',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G9578C37',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GB3C6E2A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GEC5AAC5',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA863F2E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GFB33A24',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GDA482EB',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G05E5F50',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G3E71914',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GA3E0BE1',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6C9EA82',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G304A41E',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G6B129E2',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G66A38F8',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G5686C1A',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G757E475',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G4A2742C',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GBFF72E9',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G1A261B7',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GD27A051',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='GF053859',
+                                      VALE=90.0),
+                                   _F(CARA='ANGL_VRIL',
+                                      GROUP_MA='G882AD87',
+                                      VALE=90.0), ...),
+                      POUTRE=(_F(CARA=('R', 'EP'),
+                                 GROUP_MA='G91024C7',
+                                 MODI_METRIQUE='NON',
+                                 SECTION='CERCLE',
+                                 TUYAU_NCOU=3,
+                                 TUYAU_NSEC=16,
+                                 VALE=(0.04, 0.006),
+                                 VARI_SECT='CONSTANT'),
+                              _F(CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+                                 GROUP_MA='G388B724',
+                                 SECTION='GENERALE',
+                                 VALE=(0.00284887561, 1.42371346e-06, 1.94352192e-05, 2.597886, 1.793889, 3.3e-08, -8e-09, 6.77988057e-08, 0.0127471754, -1.0736e-14, -1.5308e-14, 0.1, 0.05, 0.012580936),
+                                 VARI_SECT='CONSTANT'),
+                              _F(CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+                                 GROUP_MA='GC17CB0B',
+                                 SECTION='GENERALE',
+                                 VALE=(0.00391217102, 2.83639352e-06, 3.89223018e-05, 2.66869, 1.770676, 6.7e-08, -2.2e-08, 1.26184795e-07, 0.0366830227, -4.461e-15, -6.962e-15, 0.12, 0.06, 0.014874786),
+                                 VARI_SECT='CONSTANT'),
+                              _F(CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+                                 GROUP_MA='G48D8DD7',
+                                 SECTION='GENERALE',
+                                 VALE=(0.0149095589, 8.56288446e-05, 0.00025168306, 4.621391, 1.450902, -9e-09, -1.7e-08, 1.86094035e-06, 1.65099974, -1.59869e-13, -2.25706e-13, 0.15, 0.15, 0.027858255),
+                                 VARI_SECT='CONSTANT'),
+                              _F(CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+                                 GROUP_MA='GA726339',
+                                 SECTION='GENERALE',
+                                 VALE=(0.00200949294, 6.8316034e-07, 8.69467166e-06, 2.58673, 1.795203, -1.3e-08, -2e-08, 3.49110397e-08, 0.00388907881, 3.171e-15, 2.793e-15, 0.08, 0.041, 0.010510549),
+                                 VARI_SECT='CONSTANT'),
+                              _F(CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+                                 GROUP_MA='G1D70B9F',
+                                 SECTION='GENERALE',
+                                 VALE=(0.00132130316, 2.7668948e-07, 3.17827103e-06, 2.590885, 1.776402, 4.2e-08, -6e-09, 1.66981995e-08, 0.000872055894, 1.722e-15, 1.477e-15, 0.06, 0.032, 0.008758475),
+                                 VARI_SECT='CONSTANT'),
+                              _F(CARA=('A', 'IY', 'IZ', 'AY', 'AZ', 'EY', 'EZ', 'JX', 'JG', 'IYR2', 'IZR2', 'RY', 'RZ', 'RT'),
+                                 GROUP_MA='G45812B9',
+                                 SECTION='GENERALE',
+                                 VALE=(0.00132130316, 2.7668948e-07, 3.17827103e-06, 2.590885, 1.776402, 4.2e-08, -6e-09, 1.66981995e-08, 0.000872055894, 1.722e-15, 1.477e-15, 0.06, 0.032, 0.008758475),
+                                 VARI_SECT='CONSTANT'),
+                              _F(CARA=('HY', 'HZ', 'EPY', 'EPZ'),
+                                 GROUP_MA='G6D477C8',
+                                 SECTION='RECTANGLE',
+                                 VALE=(0.06, 0.06, 0.004, 0.004),
+                                 VARI_SECT='CONSTANT')))
+
+
+     LE MODELE 00000002 CONTIENT : 
+                                      559 ELEMENT(S) POUTRE          
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.00      0.00      0.00
+# Résultat commande #0006 (AFFE_CARA_ELEM): CARA ('<00000005>') de type <ElementaryCharacteristics>
+# Dépend de :
+# - MODELE ('<00000002>') de type <Model>
+# Mémoire (Mo) :   685.38 /   684.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0006   user+syst:        1.48s (syst:        0.00s, elaps:        1.48s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2907
+# ----------------------------------------------------------------------------------------------
+# Commande #0007 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2907
+BC_0 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N22'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0007 (AFFE_CHAR_MECA): BC_0 ('<00000006>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0007   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2915
+# ----------------------------------------------------------------------------------------------
+# Commande #0008 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2915
+BC_1 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N26'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0008 (AFFE_CHAR_MECA): BC_1 ('<00000007>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0008   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2923
+# ----------------------------------------------------------------------------------------------
+# Commande #0009 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2923
+BC_2 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N52'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0009 (AFFE_CHAR_MECA): BC_2 ('<00000008>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0009   user+syst:        0.02s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2931
+# ----------------------------------------------------------------------------------------------
+# Commande #0010 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2931
+BC_3 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N56'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0010 (AFFE_CHAR_MECA): BC_3 ('<00000009>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0010   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2939
+# ----------------------------------------------------------------------------------------------
+# Commande #0011 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2939
+BC_4 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N82'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0011 (AFFE_CHAR_MECA): BC_4 ('<0000000a>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0011   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2947
+# ----------------------------------------------------------------------------------------------
+# Commande #0012 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2947
+BC_5 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N86'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0012 (AFFE_CHAR_MECA): BC_5 ('<0000000b>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.73 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0012   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2955
+# ----------------------------------------------------------------------------------------------
+# Commande #0013 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2955
+BC_6 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N112'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0013 (AFFE_CHAR_MECA): BC_6 ('<0000000c>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.86 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0013   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2963
+# ----------------------------------------------------------------------------------------------
+# Commande #0014 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2963
+BC_7 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N116'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0014 (AFFE_CHAR_MECA): BC_7 ('<0000000d>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   684.86 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0014   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2971
+# ----------------------------------------------------------------------------------------------
+# Commande #0015 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2971
+BC_8 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N142'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0015 (AFFE_CHAR_MECA): BC_8 ('<0000000e>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   685.12 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0015   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2979
+# ----------------------------------------------------------------------------------------------
+# Commande #0016 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2979
+BC_9 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                  GROUP_NO='GN_N146'),
+                      DOUBLE_LAGRANGE='OUI',
+                      INFO=1,
+                      MODELE=MODELE,
+                      SYNTAXE='NON',
+                      VERI_AFFE='OUI',
+                      VERI_NORM='OUI')
+
+# Résultat commande #0016 (AFFE_CHAR_MECA): BC_9 ('<0000000f>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   685.12 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0016   user+syst:        0.02s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2987
+# ----------------------------------------------------------------------------------------------
+# Commande #0017 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2987
+BC_10 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                   GROUP_NO='GN_N172'),
+                       DOUBLE_LAGRANGE='OUI',
+                       INFO=1,
+                       MODELE=MODELE,
+                       SYNTAXE='NON',
+                       VERI_AFFE='OUI',
+                       VERI_NORM='OUI')
+
+# Résultat commande #0017 (AFFE_CHAR_MECA): BC_10 ('<00000010>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.38 /   685.12 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0017   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt2995
+# ----------------------------------------------------------------------------------------------
+# Commande #0018 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 2995
+BC_11 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                   GROUP_NO='GN_N176'),
+                       DOUBLE_LAGRANGE='OUI',
+                       INFO=1,
+                       MODELE=MODELE,
+                       SYNTAXE='NON',
+                       VERI_AFFE='OUI',
+                       VERI_NORM='OUI')
+
+# Résultat commande #0018 (AFFE_CHAR_MECA): BC_11 ('<00000011>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.55 /   685.38 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0018   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3003
+# ----------------------------------------------------------------------------------------------
+# Commande #0019 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3003
+BC_12 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                   GROUP_NO='GN_N202'),
+                       DOUBLE_LAGRANGE='OUI',
+                       INFO=1,
+                       MODELE=MODELE,
+                       SYNTAXE='NON',
+                       VERI_AFFE='OUI',
+                       VERI_NORM='OUI')
+
+# Résultat commande #0019 (AFFE_CHAR_MECA): BC_12 ('<00000012>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.55 /   685.38 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0019   user+syst:        0.02s (syst:        0.00s, elaps:        0.02s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3011
+# ----------------------------------------------------------------------------------------------
+# Commande #0020 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3011
+BC_13 = AFFE_CHAR_MECA(DDL_IMPO=_F(BLOCAGE=('DEPLACEMENT', 'ROTATION'),
+                                   GROUP_NO='GN_N206'),
+                       DOUBLE_LAGRANGE='OUI',
+                       INFO=1,
+                       MODELE=MODELE,
+                       SYNTAXE='NON',
+                       VERI_AFFE='OUI',
+                       VERI_NORM='OUI')
+
+# Résultat commande #0020 (AFFE_CHAR_MECA): BC_13 ('<00000013>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.62 /   685.38 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0020   user+syst:        0.02s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3020
+# ----------------------------------------------------------------------------------------------
+# Commande #0021 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3020
+LINELOAD = AFFE_CHAR_MECA(DOUBLE_LAGRANGE='OUI',
+                          FORCE_POUTRE=_F(FX=1500.0,
+                                          FY=0.0,
+                                          FZ=0.0,
+                                          GROUP_MA=('G8940BE4', 'GA2B3A45', 'GFC7281C', 'G2FFC52E', 'G480984C', 'G4D57303', 'G9048DDC', 'GEED9EFC', 'G496239D', 'G1A862BB', 'G9390149', 'GDC4AAA2', 'G57D2E8D', 'G250DD48', 'GA76CBB4', 'G66DBCEA', 'GECFE7F8', 'G9B4F761', 'GC54CDEB', 'G0355127', 'G3B1907A', 'GE1ACB46', 'G5448B03', 'GEAAFD45', 'G899DA5B', 'G22B83E7', 'GC2E4CD3', 'GFF31097', 'G6A46AEC', 'G35D6571', 'G3D66A5C', 'G2642B6B', 'G371DB4A', 'G867D1A4', 'G4D391F7', 'G168EF9D', 'G13C78E6', 'G076CBDF', 'G5DBB538', 'G6B4CAF4', 'G8442DB1', 'G8EE7D80', 'G98CCA58', 'G78D73B3', 'G4C4265C', 'GD97AF5B', 'G723D663', 'GD937900', 'GBD3BE65', 'GAE16109', 'GD66961D', 'GD12D129', 'G5A72D32', 'GD82354E', 'G80340A5', 'GF0DB8A4', 'G8F34EEE', 'GC0E207E', 'GD23F911', 'G0E5CB25', 'GCDE8ED4', 'GBB31295', 'G9AB2621', 'G7CD5268', 'G980FE78', 'GA5283F5', 'G6E67AE6', 'G4086D1B', 'G32BBB78', 'G18C64AA', 'G9578C37', 'GB3C6E2A', 'GEC5AAC5', 'GA863F2E', 'GFB33A24', 'GDA482EB', 'G05E5F50', 'G3E71914', 'GA3E0BE1', 'G6C9EA82', 'G304A41E', 'G6B129E2', 'G66A38F8', 'G5686C1A', 'G757E475', 'G4A2742C', 'GBFF72E9', 'G1A261B7', 'GD27A051', 'GF053859', 'G882AD87', 'GA41629E', 'G599E5B3', 'G018945C', 'GA144D28', 'G8EF9245', 'GB902F61', 'GEF0D0CF', 'GEC3353E', 'G2B69294', 'GD5DE0A4', 'GE03DF94'),
+                                          TYPE_CHARGE='FORCE'),
+                          INFO=1,
+                          MODELE=MODELE,
+                          SYNTAXE='NON',
+                          VERI_AFFE='OUI',
+                          VERI_NORM='OUI')
+
+# Résultat commande #0021 (AFFE_CHAR_MECA): LINELOAD ('<00000014>') de type <MechanicalLoadReal>
+# Mémoire (Mo) :   685.66 /   685.64 /   212.13 /   200.18 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0021   user+syst:        0.04s (syst:        0.01s, elaps:        0.04s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3033
+# ----------------------------------------------------------------------------------------------
+# Commande #0022 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3033
+RESU = MECA_STATIQUE(CARA_ELEM=CARA,
+                     CHAM_MATER=CHMAT,
+                     EXCIT=(_F(CHARGE=BC_0,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_1,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_2,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_3,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_4,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_5,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_6,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_7,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_8,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_9,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_10,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_11,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_12,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=BC_13,
+                               TYPE_CHARGE='FIXE_CSTE'),
+                            _F(CHARGE=LINELOAD,
+                               TYPE_CHARGE='FIXE_CSTE')),
+                     INFO=1,
+                     INST=0.0,
+                     MODELE=MODELE,
+                     OPTION='SIEF_ELGA',
+                     SOLVEUR=_F(ACCELERATION='AUTO',
+                                ELIM_LAGR='LAGR2',
+                                GESTION_MEMOIRE='AUTO',
+                                LOW_RANK_SEUIL=0.0,
+                                MATR_DISTRIBUEE='NON',
+                                METHODE='MUMPS',
+                                NB_RHS=1,
+                                NPREC=8,
+                                PCENT_PIVOT=35,
+                                POSTTRAITEMENTS='AUTO',
+                                PRETRAITEMENTS='AUTO',
+                                REDUCTION_MPI=0,
+                                RENUM='AUTO',
+                                RESI_RELA=1e-06,
+                                STOP_SINGULIER='OUI',
+                                TYPE_RESOL='AUTO'))
+
+Le système linéaire à résoudre a 1428 degrés de liberté:
+   - 1260 sont des degrés de liberté physiques
+     (ils sont portés par 210 noeuds du maillage)
+   - 168 sont les couples de paramètres de Lagrange associés
+     aux 84 relations linéaires dualisées.
+La matrice est de taille 1428 équations.
+  Elle contient 25794 termes non nuls si elle est symétrique et 50160 termes non nuls si elle n'est
+pas symétrique.
+  Soit un taux de remplissage de   2.460 %.
+Champ stocké <DEPL> à l'instant  0.000000000000e+00 pour le numéro d'ordre 1
+Champ stocké <SIEF_ELGA> à l'instant  0.000000000000e+00 pour le numéro d'ordre 1
+# Résultat commande #0022 (MECA_STATIQUE): RESU ('<00000015>') de type <ElasticResult>
+# Mémoire (Mo) :   692.05 /   686.42 /   212.13 /   201.44 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0022   user+syst:        0.50s (syst:        0.03s, elaps:        0.53s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt183
+# ----------------------------------------------------------------------------------------------
+# Commande #0023 de /home/jan/miniforge3/envs/tuba-code-aster/lib/python3
+14/site-packages/code_aster/Supervis/ExecuteCommand.py, ligne 183
+CALC_CHAMP(CONTRAINTE=('EFGE_ELNO', 'SIEF_ELNO'),
+           CRITERE='RELATIF',
+           FORCE='REAC_NODA',
+           INFO=1,
+           PARALLELISME_TEMPS='NON',
+           PRECISION=1e-06,
+           RESULTAT=RESU,
+           reuse=RESU)
+
+Le système linéaire à résoudre a 1428 degrés de liberté:
+   - 1260 sont des degrés de liberté physiques
+     (ils sont portés par 210 noeuds du maillage)
+   - 168 sont les couples de paramètres de Lagrange associés
+     aux 84 relations linéaires dualisées.
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.08      0.05      0.09
+#3      Dechargement de la memoire sur disque             CPU (USER+SYST/SYST/ELAPS):      0.11      0.11      0.13
+# Résultat commande #0023 (CALC_CHAMP): RESU ('<00000015>') de type <ElasticResult>
+# Mémoire (Mo) :   692.05 /   685.12 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0023   user+syst:        0.08s (syst:        0.19s, elaps:        0.29s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3065
+# ----------------------------------------------------------------------------------------------
+# Commande #0024 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3065
+IMPR_RESU(FICHIER_UNIQUE='NON',
+          FORMAT='MED',
+          INFO=1,
+          PROC0='OUI',
+          RESU=_F(IMPR_NOM_VARI='OUI',
+                  INFO_MAILLAGE='NON',
+                  NOM_CHAM=('DEPL', 'EFGE_ELNO', 'REAC_NODA'),
+                  NOM_CHAM_MED=('RESU____DEPL', 'RESU____EFGE_ELNO', 'RESU____REAC_NODA'),
+                  RESULTAT=RESU),
+          UNITE=80,
+          VERSION_MED='3.3.1')
+
+Création du fichier au format MED 3.3.1.
+
+# Mémoire (Mo) :   692.47 /   691.97 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0024   user+syst:        0.32s (syst:        0.08s, elaps:        0.38s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3075
+# ----------------------------------------------------------------------------------------------
+# Commande #0025 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3075
+TAB_EFFO = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
+                              INTITULE='RESU',
+                              NOM_CHAM='EFGE_ELNO',
+                              NOM_CMP=('N', 'VY', 'VZ', 'MT', 'MFY', 'MFZ'),
+                              PRECISION=1e-06,
+                              RESULTAT=RESU,
+                              TOUT='OUI'),
+                      TYPE_TABLE='TABLE')
+
+# Résultat commande #0025 (CREA_TABLE): TAB_EFFO ('<00000058>') de type <Table>
+# Mémoire (Mo) :   692.47 /   692.07 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0025   user+syst:        0.04s (syst:        0.00s, elaps:        0.05s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3084
+# ----------------------------------------------------------------------------------------------
+# Commande #0026 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3084
+IMPR_TABLE(COMMENTAIRE='#',
+           COMM_PARA='',
+           DEBUT_LIGNE='',
+           FIN_LIGNE='\n',
+           FIN_TABLE='',
+           FORMAT='TABLEAU',
+           FORMAT_R='1PE24.16',
+           IMPR_FONCTION='NON',
+           INFO=1,
+           SEPARATEUR=',',
+           TABLE=TAB_EFFO,
+           UNITE=38)
+
+# Mémoire (Mo) :   695.12 /   694.34 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0026   user+syst:        0.15s (syst:        0.04s, elaps:        0.19s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3093
+# ----------------------------------------------------------------------------------------------
+# Commande #0027 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3093
+TAB_DEPL = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
+                              INTITULE='RESU',
+                              NOM_CHAM='DEPL',
+                              NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+                              PRECISION=1e-06,
+                              RESULTAT=RESU,
+                              TOUT='OUI'),
+                      TYPE_TABLE='TABLE')
+
+# Résultat commande #0027 (CREA_TABLE): TAB_DEPL ('<00000059>') de type <Table>
+# Mémoire (Mo) :   695.12 /   694.34 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0027   user+syst:        0.01s (syst:        0.00s, elaps:        0.01s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3102
+# ----------------------------------------------------------------------------------------------
+# Commande #0028 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3102
+IMPR_TABLE(COMMENTAIRE='#',
+           COMM_PARA='',
+           DEBUT_LIGNE='',
+           FIN_LIGNE='\n',
+           FIN_TABLE='',
+           FORMAT='TABLEAU',
+           FORMAT_R='1PE24.16',
+           IMPR_FONCTION='NON',
+           INFO=1,
+           SEPARATEUR=',',
+           TABLE=TAB_DEPL,
+           UNITE=39)
+
+# Mémoire (Mo) :   695.12 /   694.34 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0028   user+syst:        0.13s (syst:        0.00s, elaps:        0.12s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3111
+# ----------------------------------------------------------------------------------------------
+# Commande #0029 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3111
+TAB_REAC = CREA_TABLE(RESU=_F(CRITERE='RELATIF',
+                              INTITULE='RESU',
+                              NOM_CHAM='REAC_NODA',
+                              NOM_CMP=('DX', 'DY', 'DZ', 'DRX', 'DRY', 'DRZ'),
+                              PRECISION=1e-06,
+                              RESULTAT=RESU,
+                              TOUT='OUI'),
+                      TYPE_TABLE='TABLE')
+
+# Résultat commande #0029 (CREA_TABLE): TAB_REAC ('<0000005a>') de type <Table>
+# Mémoire (Mo) :   695.12 /   694.34 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0029   user+syst:        0.01s (syst:        0.00s, elaps:        0.02s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt3120
+# ----------------------------------------------------------------------------------------------
+# Commande #0030 de /tmp/run_aster_q6gkqx4w/study.comm.changed.py, ligne 3120
+IMPR_TABLE(COMMENTAIRE='#',
+           COMM_PARA='',
+           DEBUT_LIGNE='',
+           FIN_LIGNE='\n',
+           FIN_TABLE='',
+           FORMAT='TABLEAU',
+           FORMAT_R='1PE24.16',
+           IMPR_FONCTION='NON',
+           INFO=1,
+           SEPARATEUR=',',
+           TABLE=TAB_REAC,
+           UNITE=40)
+
+# Mémoire (Mo) :   695.12 /   694.34 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0030   user+syst:        0.14s (syst:        0.00s, elaps:        0.15s)
+# ----------------------------------------------------------------------------------------------
+
+.. _stg1_txt76
+# ----------------------------------------------------------------------------------------------
+# Commande #0031 de
+/home/jan/miniforge3/envs/tuba-code-aster/lib/python3.14/site-packages/code_aster/CodeCommands/fin
+py, ligne 76
+FIN(INFO_RESU='NON',
+    RETASSAGE='NON')
+
+No database in results, objects not saved on processor #0
+
+ ╔════════════════════════════════════════════════════════════════════════════════════════════════╗
+ ║ <I> <CATAMESS_89>                                                                              ║
+ ║                                                                                                ║
+ ║ Liste des alarmes émises lors de l'exécution du calcul.                                        ║
+ ║                                                                                                ║
+ ║     Les alarmes que vous avez choisies d'ignorer sont précédées de (*).                        ║
+ ║     Nombre d'occurrences pour chacune des alarmes :                                            ║
+ ║            aucune alarme                                                                       ║
+ ╚════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+<I> <FIN> ARRET NORMAL DANS "FIN" PAR APPEL A "JEFINI".
+  
+ <I> <FIN> MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :                     201.62 Mo
+ <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     212.13 Mo
+ <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     695.12 Mo
+  
+ <I>       FERMETURE DES BASES EFFECTUEE
+  
+   STATISTIQUES CONCERNANT L'ALLOCATION DYNAMIQUE :
+     TAILLE CUMULEE MAXIMUM            :                  212  Mo.
+     TAILLE CUMULEE LIBEREE            :                   68  Mo.
+     NOMBRE TOTAL D'ALLOCATIONS        :                77350
+     NOMBRE TOTAL DE LIBERATIONS       :                75638
+     APPELS AU MECANISME DE LIBERATION :                    1
+     TAILLE MEMOIRE CUMULEE RECUPEREE  :                   34  Mo.
+     VOLUME DES LECTURES               :                    0  Mo.
+     VOLUME DES ECRITURES              :                   39  Mo.
+  
+   MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :     201.62 Mo
+     - IMPOSE DE NOMBREUX ACCES DISQUE
+     - RALENTIT LA VITESSE D'EXECUTION
+   MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     212.13 Mo
+     - LIMITE LES ACCES DISQUE
+     - AMELIORE LA VITESSE D'EXECUTION
+   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     695.12 Mo
+     - COMPREND LA MEMOIRE CONSOMMEE PAR  JEVEUX, 
+       LE SUPERVISEUR PYTHON, LES LIBRAIRIES EXTERNES
+  
+ <I>       FIN D'EXECUTION LE : MA-29-SEPT-2026 11:25:45
+INFO './glob.1' deleted
+Deleting './glob.2': No such file or directory
+INFO './vola.1' deleted
+Deleting './vola.2': No such file or directory
+
+ ********************************************************************************
+ * COMMAND                  :       USER :     SYSTEM :   USER+SYS :    ELAPSED *
+ ********************************************************************************
+ * DEBUT                    :       0.04 :       0.39 :       0.43 :       0.42 *
+ * LIRE_MAILLAGE            :       0.05 :       0.04 :       0.09 :       0.08 *
+ * AFFE_MODELE              :       0.01 :       0.00 :       0.01 :       0.01 *
+ * DEFI_MATERIAU            :       0.07 :       0.00 :       0.07 :       0.08 *
+ * AFFE_MATERIAU            :       0.09 :       0.00 :       0.09 :       0.08 *
+ * AFFE_CARA_ELEM           :       1.48 :       0.00 :       1.48 :       1.48 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.02 *
+ * AFFE_CHAR_MECA           :       0.01 :       0.00 :       0.01 :       0.02 *
+ * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.02 *
+ * AFFE_CHAR_MECA           :       0.02 :       0.00 :       0.02 :       0.01 *
+ * AFFE_CHAR_MECA           :       0.04 :       0.01 :       0.05 :       0.04 *
+ * MECA_STATIQUE            :       0.50 :       0.03 :       0.53 :       0.53 *
+ * CALC_CHAMP               :       0.08 :       0.19 :       0.27 :       0.29 *
+ * IMPR_RESU                :       0.32 :       0.08 :       0.40 :       0.38 *
+ * CREA_TABLE               :       0.04 :       0.00 :       0.04 :       0.05 *
+ * IMPR_TABLE               :       0.15 :       0.04 :       0.19 :       0.19 *
+ * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.01 *
+ * IMPR_TABLE               :       0.13 :       0.00 :       0.13 :       0.12 *
+ * CREA_TABLE               :       0.01 :       0.00 :       0.01 :       0.02 *
+ * IMPR_TABLE               :       0.14 :       0.00 :       0.14 :       0.15 *
+ * FIN                      :       0.08 :       0.00 :       0.08 :       0.08 *
+ *  . sdveri                :       0.00 :       0.00 :       0.00 :       0.00 *
+ *  . check syntax          :       1.36 :       0.01 :       1.37 :       1.43 *
+ *  . fortran               :       0.87 :       0.67 :       1.54 :       1.51 *
+ *  . cleanup               :       0.64 :       0.02 :       0.66 :       0.64 *
+ ********************************************************************************
+ * TOTAL_JOB                :       3.56 :       0.78 :       4.34 :       4.37 *
+ ********************************************************************************
+
+# Mémoire (Mo) :   695.12 /   694.34 /   212.13 /   201.62 (VmPeak / VmSize / Optimum / Minimum)
+# Fin commande #0031   user+syst:        0.08s (syst:        0.00s, elaps:        0.08s)
+# ----------------------------------------------------------------------------------------------
+
+EXECUTION_CODE_ASTER_EXIT_659=0
+
+
+
+------------------------------------------------------------
+--- DIAGNOSTIC JOB : OK
+------------------------------------------------------------
+

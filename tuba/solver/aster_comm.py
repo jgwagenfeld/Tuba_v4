@@ -12,6 +12,7 @@ from typing import Callable, Dict, List, Optional
 
 import numpy as np
 from tuba.physical import _fluid_density_by_element, _physical_properties_for_element
+from tuba.solver.aster_buckling import write_buckling_analysis
 from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
 from tuba.solver.code_aster_runtime import write_artifact_text
 
@@ -23,6 +24,7 @@ from tuba.model import (
     PipeSection,
     RectangularSection,
     TubaModel,
+    resolve_buckling_options,
 )
 from tuba.solver.modelisation import (
     discrete_support_group,
@@ -1012,6 +1014,21 @@ class _CommWriterMixin:
         # ==============================================================
         # FIN
         # ==============================================================
+        if load_case.buckling is not None:
+            # Must precede FIN(): FIN closes the jeveux memory manager and any
+            # command after it fails with "memory manager is not started".
+            if is_nonlinear:
+                raise ValueError(
+                    f"Operation {load_case.name!r}: buckling analysis is unsupported on a "
+                    "nonlinear solve (contact or cable). The geometric stiffness is built from "
+                    "a single SIEF_ELGA of a linear run, so on a nonlinear history it would "
+                    "read one increment as if it were the whole prestress."
+                )
+            write_buckling_analysis(
+                w,
+                resolve_buckling_options(load_case.buckling),
+                boundary_conditions=list(active_bcs),
+            )
         if contacts:
             write_contact_tables(w, contacts, map_name, instant=None if native_path else 1.0)
         w("FIN();")

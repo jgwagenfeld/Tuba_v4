@@ -16,6 +16,13 @@ export-only output, hand-derived numbers, or proxy values as solver results. If
 Code_Aster is unavailable, stop with the runtime blocker instead of substituting
 anything.
 
+**Pipe-free structural models are a different contract.** Portal frames, roof
+trusses, racks and other beam/bar assemblies go through the same workflow but
+carry traps of their own: `bar` elements have no rotational stiffness and can make
+the frame's matrix singular, and a model with no pipe elements gets displacements
+and reactions but no von Mises stress. Load the `tuba-structural-frames` skill
+before building or debugging one.
+
 ## Author Python, not node dumps
 
 `model.py` is engineering code. Write procedural, parametric Python: constants,
@@ -129,6 +136,9 @@ Sandbox-scale studies pass `scene_modifier=_add_labels` to
   `examples/code_aster_artifact_review.py`. Keep that structure.
 - `python -m tuba.cli_studio <project-folder>` opens the live studio;
   `python -m tuba.project <project-folder> --output <dir>` builds the review.
+- `python -m tuba.skills --list` shows the shipped skills;
+  `--name tuba-structural-frames --target <skills-folder>` installs the
+  structural one.
 - `python -m tuba.mcp.server` exposes inspection, `check_clashes`, units, and
   `solve_model` to agents. Use it to inspect and verify, not to unroll geometry.
 - Two display paths, never mixed in one study: `tuba.plotting` (PyVista quick

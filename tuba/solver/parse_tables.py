@@ -13,7 +13,7 @@ import json
 import logging
 import math
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Mapping, Optional
 
 import numpy as np
 
@@ -196,6 +196,34 @@ def parse_results(
             element_label_map,
             instant=instant,
         )
+    if "buckling" in inputs:
+        from tuba.solver.parse_buckling import parse_buckling
+
+        buckling_inputs = inputs["buckling"]
+        if not isinstance(buckling_inputs, Mapping):
+            raise RuntimeError(
+                f"Code_Aster study {work_dir} records non-object buckling compiler inputs "
+                f"{buckling_inputs!r}."
+            )
+        from tuba.solver.parse_buckling import (
+            BUCKLING_FACTORS_FILE,
+            BUCKLING_MODES_FILE,
+            parse_buckling,
+        )
+
+        results.buckling = parse_buckling(
+            work_dir,
+            node_label_map,
+            requested_modes=int(buckling_inputs.get("n_modes", 0)),
+            method=str(buckling_inputs.get("method", "TRI_DIAG")),
+        )
+        for key, filename in (
+            ("buckling_factors", BUCKLING_FACTORS_FILE),
+            ("buckling_modes", BUCKLING_MODES_FILE),
+        ):
+            path = Path(work_dir) / filename
+            if path.exists():
+                results.buckling_artifacts[key] = path
 
     return results
 

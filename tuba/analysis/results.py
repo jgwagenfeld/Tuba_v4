@@ -10,6 +10,7 @@ import numpy as np
 
 from tuba.solver.base import ContactResult, ElementResult, FEAResults, NodeResult
 from tuba.solver.compiler_contract import compiler_id_for
+from tuba.analysis.buckling import BucklingResult
 from tuba.analysis.mesh import AnalysisMesh
 from tuba.analysis.study import AnalysisStudy
 from tuba.analysis.provenance import (
@@ -37,6 +38,9 @@ class ResultState:
     metadata: dict[str, Any] = field(default_factory=dict)
     solver_input_identity: SolverInputIdentity | None = None
     contact_results: dict[str, ContactResult] = field(default_factory=dict)
+    #: Linear buckling eigenproblem solved on this load case's own prestress. None
+    #: when the case did not ask for one, which is not the same as "did not buckle".
+    buckling: "BucklingResult | None" = None
 
     def __post_init__(self) -> None:
         _require_nonempty(self.id, "ResultState id")
@@ -69,6 +73,11 @@ class ResultState:
         object.__setattr__(self, "contact_results", contacts)
         object.__setattr__(self, "files", dict(self.files))
         object.__setattr__(self, "metadata", dict(self.metadata))
+        if self.buckling is not None and not isinstance(self.buckling, BucklingResult):
+            raise ValueError(
+                "ResultState buckling must be a BucklingResult or None, got "
+                f"{type(self.buckling).__name__}."
+            )
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -87,6 +96,8 @@ class ResultState:
         }
         if self.solver_input_identity is not None:
             data["solver_input_identity"] = self.solver_input_identity.to_dict()
+        if self.buckling is not None:
+            data["buckling"] = self.buckling.to_dict()
         return data
 
     @classmethod
@@ -107,6 +118,11 @@ class ResultState:
             solver_input_identity=(
                 SolverInputIdentity.from_dict(data["solver_input_identity"])
                 if data.get("solver_input_identity") is not None
+                else None
+            ),
+            buckling=(
+                BucklingResult.from_dict(data["buckling"])
+                if data.get("buckling") is not None
                 else None
             ),
         )
@@ -190,6 +206,12 @@ def result_state_from_fea_results(
     files: dict[str, str] = {}
     if results.result_file is not None:
         files["result"] = str(results.result_file)
+    # The buckling artifacts are named in the result state so the staging and
+    # evidence chain can find them; an attested study that declares buckling but
+    # does not map these files is incomplete, and the chain must say so rather
+    # than publish a review whose stability numbers are missing.
+    if results.buckling is not None:
+        files.update({key: str(value) for key, value in results.buckling_artifacts.items()})
 
     metadata: dict[str, Any] = dict(results.metadata)
     if compiler_inputs is not None:
@@ -226,6 +248,7 @@ def result_state_from_fea_results(
         contact_results=results.contact_results,
         files=files,
         metadata=metadata,
+        buckling=results.buckling,
         solver_input_identity=(
             study.solver_input_identity
             or (analysis_mesh.solver_input_identity if analysis_mesh is not None else None)
@@ -299,6 +322,11 @@ def fea_results_from_result_state(*, model: Any, result_state: ResultState) -> F
     results = FEAResults(solver_name=result_state.solver_name, load_case=result_state.load_case)
     results._model = model
     results.contact_results.update(result_state.contact_results)
+    results.buckling = result_state.buckling
+    results.buckling_artifacts.update(
+        {key: Path(value) for key, value in result_state.files.items()
+         if key in ("buckling_factors", "buckling_modes")}
+    )
     results.metadata.update(result_state.metadata)
     if "result" in result_state.files:
         results.result_file = Path(result_state.files["result"])

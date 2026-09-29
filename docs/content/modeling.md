@@ -303,6 +303,25 @@ Generated edits can be validated as `ModelPatch` payloads and applied through
 `ModelTransaction`, so a rejected edit rolls back rather than half-applying.
 See [`agent_model_workflow.md`](https://github.com/jgwagenfeld/Tuba_v4/blob/main/docs/agent_model_workflow.md).
 
+## Structural frames
+
+The same `beam`, `bar` and `cable` elements also model a pure structural frame —
+a portal frame, a roof truss, a braced rack — with no pipe elements anywhere. Two
+behaviours differ from a piping model:
+
+- A model with no pipe elements gets **no von Mises stress**. Tuba requests
+  Code_Aster's `SIEQ` field only for pipe models, so `max_von_mises` is `None` on
+  every member. Displacements and reactions are unaffected.
+- `bar` elements are pin-jointed truss members with no rotational stiffness.
+  Mixing them into a truss web alongside beam chords can leave the stiffness
+  matrix singular, and Code_Aster names a translational degree of freedom that
+  actually has stiffness.
+
+See [Structural frames](structural-frames.md) for the element semantics, the
+bracing a real frame needs, cross-section orientation, the linear buckling
+analysis a load case can request with `buckling=`, and how to diagnose a failing
+structural solve.
+
 ## IFC and external interop
 
 Tuba exports pipe runs as IFC pipe systems while keeping `TubaModel` as the
