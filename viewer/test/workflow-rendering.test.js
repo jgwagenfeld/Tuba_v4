@@ -558,3 +558,64 @@ test("the gallery claims a card by its most specific modelisation", async () => 
   );
   assert.equal(order.length, 4, "every declared group is claimed");
 });
+// A previous round reported roving tabindex and arrow-key navigation as done.
+// Both were dead code and both were reported as working. The roving pass
+// selected `button[tabindex]`, an attribute no row ever set, so it matched zero
+// elements and the function was a no-op: every row was its own tab stop, measured
+// 0 of 211 rows carrying a tabindex and 17 tab stops to cross the list. The
+// keydown handler required the event target to be the listener itself, which a
+// keydown bubbling from a row never is, so arrow keys never moved focus.
+//
+// Both were invisible to the suite because nothing asserted them, and a source
+// reading cannot tell working code from a no-op. So this asserts the shape AND
+// the render path calls it, and the runtime measurement lives in
+// viewer/e2e, where a real Tab keypress can be counted.
+test("the object list declares one tab stop and wires the arrow keys", async () => {
+  const app = await readViewerFile("src/app.js");
+
+  // The roving pass must select the list's own rows. Selecting by an attribute
+  // nothing sets is the bug: it matches zero elements and the function is a
+  // no-op on every render.
+  assert.doesNotMatch(
+    app,
+    /querySelectorAll\("button\[tabindex\]"\)/,
+    "no row sets a tabindex attribute, so selecting by it matches nothing"
+  );
+  assert.match(
+    app,
+    /dom\.objectList\.querySelectorAll\(LIST_ROWS\)/,
+    "the roving pass must select the list's own rows"
+  );
+
+  // A keydown from a row bubbles: target is the row, currentTarget is the list.
+  // Requiring them to be identical can never be satisfied.
+  assert.doesNotMatch(
+    app,
+    /event\.target !== event\.currentTarget/,
+    "a bubbled keydown from a row would be rejected by this guard"
+  );
+  assert.match(app, /function rowIsReachable\(/);
+  assert.match(app, /function navigableRows\(/);
+
+  // The reachability test has to be the collapsed-disclosure walk, not
+  // offsetParent or getClientRects. A button inside a closed <details> - which
+  // is where every solver-generated object lives - still reports an offsetParent
+  // and a client rect in Chromium, so the obvious visibility test passes 201
+  // unfocusable rows, arrow keys step onto one, and focus() fails silently.
+  assert.doesNotMatch(
+    app,
+    /offsetParent !== null \|\| row\.getClientRects\(\)\.length > 0/,
+    "rows in a collapsed details still report rects, so this filters nothing"
+  );
+  assert.match(app, /node\.tagName === "DETAILS" && !node\.open/);
+  assert.match(app, /event\.target\.closest\(LIST_ROWS\)/);
+
+  // And it has to be called on every render, or it is not in effect at all.
+  assert.match(
+    app,
+    /dom\.objectList\.addEventListener\("keydown", onObjectListKeydown\)/
+  );
+  assert.match(app, /applyRovingTabindex\(\);/);
+  assert.match(app, /for \(const row of rows\) row\.tabIndex = -1/);
+  assert.match(app, /rows\[next\]\.tabIndex = 0/);
+});

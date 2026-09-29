@@ -2365,12 +2365,36 @@ function renderObjects() {
 // that select them. Declared before the roving-tabindex pass that uses it.
 const LIST_ROWS = "button[data-object-id], .group-header";
 
+// Is this row something a reader can actually reach?
+//
+// Not `offsetParent` or `getClientRects()`. A button inside a collapsed
+// <details> - which is where every solver-generated object now lives - still
+// reports an offsetParent and a client rect in Chromium, so the obvious
+// visibility test passes 201 unfocusable rows. Arrow keys then step onto one,
+// `focus()` does nothing without throwing, and the list looks like it is
+// swallowing every key. A row is reachable when every <details> above it is
+// open; that is the whole test.
+function rowIsReachable(row) {
+  for (let node = row; node && node !== dom.objectList; node = node.parentElement) {
+    if (node.tagName === "DETAILS" && !node.open) return false;
+  }
+  return true;
+}
+
+function navigableRows() {
+  return [...dom.objectList.querySelectorAll(LIST_ROWS)].filter(rowIsReachable);
+}
+
 function applyRovingTabindex() {
   // Every row, not `button[tabindex]`. Nothing set that attribute, so the
   // previous selector matched zero elements and this was a no-op on every
   // render: 0 of 211 rows, and 0 of 2149 on the hydrogen plant, carried a
   // tabindex, so the list was as many tab stops as it has rows.
-  const rows = [...dom.objectList.querySelectorAll(LIST_ROWS)];
+  //
+  // Only reachable rows are roved. The single tab stop has to be a row a reader
+  // can land on; if the first row in the DOM is inside a collapsed disclosure,
+  // tabbing into the list would arrive somewhere that cannot be shown.
+  const rows = navigableRows();
   const current = document.activeElement;
   const inList = current instanceof HTMLElement && dom.objectList.contains(current);
   const first = rows[0] ?? null;
@@ -2380,7 +2404,7 @@ function applyRovingTabindex() {
   // Coming back from elsewhere keeps the last row the reader was on, rather than
   // throwing them to the top of a 300-row list.
   const remembered = dom.objectList.querySelector(`[data-object-id="${CSS.escape(current?.dataset?.objectId ?? "")}"]`);
-  if (remembered instanceof HTMLElement) {
+  if (remembered instanceof HTMLElement && rowIsReachable(remembered)) {
     first.tabIndex = -1;
     remembered.tabIndex = 0;
   }
@@ -2397,9 +2421,7 @@ function onObjectListKeydown(event) {
   // below is what decides whether we act.
   if (!(event.target instanceof HTMLElement)) return;
   if (!event.target.closest(LIST_ROWS)) return;
-  const rows = [...event.currentTarget.querySelectorAll(LIST_ROWS)].filter(
-    (row) => row.offsetParent !== null || row.getClientRects().length > 0
-  );
+  const rows = navigableRows();
   if (rows.length === 0) return;
   const index = rows.indexOf(event.target.closest(LIST_ROWS));
   const forward = event.key === "ArrowDown";
