@@ -484,6 +484,8 @@ def _reversal_findings(history: list[ContactSample]) -> list[dict[str, Any]]:
                 {
                     "tangential_force_n": peak.tangential,
                     "previous_tangential_force_n": reversed_from[peak.stage],
+                    "friction_limit_n": peak.contact.friction_limit,
+                    "utilization": peak.contact.utilization,
                 },
                 "The tangential force reversed direction, so the shoe is now being dragged the other way.",
             )

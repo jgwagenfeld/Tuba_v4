@@ -315,6 +315,21 @@ test("the panel says what the shoes did, before it shows the numbers", () => {
     assert.match(dom.text(lines[1]), /S2 lifted clear at Lift/);
     assert.match(dom.text(lines[1]), /clear by 3\.75 mm/);
     assert.match(dom.text(lines[2]), /S2 reseated at Cold/);
+    // A finding that publishes a force but no cone must not name one. "against a
+    // unavailable cone" is what a reader saw before.
+    const noCone = {
+      ...state.contactFindings.runs[0].findings[0],
+      kind: "force_reversal",
+      severity: "info",
+      spans_stages: false,
+      final_stage_label: "Cold",
+      values: { tangential_force_n: 1500 }
+    };
+    state.contactFindings.runs[0].findings = [noCone];
+    const text = dom.text(renderContactReview(state, noop, noop, "table"));
+    assert.match(text, /1\.5 kN tangential\./);
+    assert.doesNotMatch(text, /unavailable cone/);
+    assert.doesNotMatch(text, /a unavailable/);
   } finally {
     dom.restore();
   }

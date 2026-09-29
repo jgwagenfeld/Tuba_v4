@@ -157,6 +157,9 @@ class ContactFindingsDerivation(unittest.TestCase):
         self.assertEqual(reversals[0]["stage_indices"], [2])
         self.assertAlmostEqual(reversals[0]["values"]["previous_tangential_force_n"], 2_000.0)
         self.assertAlmostEqual(reversals[0]["values"]["tangential_force_n"], 1_500.0)
+        # The cone has to travel with the sentence that quotes the force beside
+        # it, or the reader is told what the force was "against" with no cone.
+        self.assertAlmostEqual(reversals[0]["values"]["friction_limit_n"], 3_000.0)
         self.assertEqual(reversals[0]["severity"], "info")
 
     def test_lift_off_and_reseat_are_reported_for_a_frictionless_shoe_too(self) -> None:

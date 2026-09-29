@@ -99,7 +99,12 @@ function findingSentence(finding, system) {
   const values = finding.values ?? {};
   const detail = [];
   if (Number.isFinite(values.tangential_force_n)) {
-    detail.push(`${qty(values.tangential_force_n, "N")} tangential against a ${qty(values.friction_limit_n, "N")} cone`);
+    // Only name the cone when the finding published one. A reversal carries no
+    // limit, and "against a unavailable cone" is worse than saying nothing.
+    const cone = Number.isFinite(values.friction_limit_n)
+      ? ` against a ${qty(values.friction_limit_n, "N")} cone`
+      : "";
+    detail.push(`${qty(values.tangential_force_n, "N")} tangential${cone}`);
   }
   if (Number.isFinite(values.slip_m) && values.slip_m > 0) {
     detail.push(`${qty(values.slip_m, "m")} slip`);
