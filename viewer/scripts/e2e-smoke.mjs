@@ -971,6 +971,8 @@ const scenarios = {
       assert.ok(published.length > 0, "the published catalog must not be empty");
       assert.equal(published.find(entry => entry.id === "support-rack-review")?.downloads?.ifc,
         "downloads/support-rack-review.ifc", "Pages must install IFC support and publish the rack IFC");
+      assert.equal(published.find(entry => entry.id === "multipipe-rack")?.downloads?.ifc,
+        "downloads/multipipe-rack.ifc", "Pages must also publish the multipipe rack IFC");
       for (const entry of published) {
         assert.equal(entry.downloads?.project, `downloads/${entry.id}.zip`);
         for (const [kind, uri] of Object.entries(entry.downloads)) {
@@ -1127,6 +1129,7 @@ const scenarios = {
         ["code-aster-review", "scene:code_aster_artifact_review"],
         ["autorouted-expansion-loop", "scene:autorouted_expansion_loop"],
         ["support-rack-review", "scene:support_rack_review"],
+        ["multipipe-rack", "scene:multipipe_rack"],
         ["code-aster-review", "scene:code_aster_artifact_review"]
       ]) {
         await page.locator("[data-gallery-link]").click();
@@ -1595,7 +1598,7 @@ const scenarios = {
     }
   }
 };
-scenarios["pages-number-display"] = { ...scenarios["number-display"], path: "/viewer/" };
+scenarios["pages-number-display"] = { ...scenarios["number-display"], path: "/viewer/", bundle: "code-aster-review" };
 const selected = scenarios[scenario];
 
 if (!selected) {

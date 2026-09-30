@@ -98,7 +98,7 @@ def test_ci_and_release_workflows_cover_local_release_gates():
     assert 'python-version: ["3.11", "3.12", "3.13", "3.14"]' in ci
     assert "uv sync --group docs --extra course --extra dev --locked" in ci
     python_steps = ci_jobs["python"]["steps"]
-    assert any(step.get("uses") == "actions/setup-node@v4" for step in python_steps)
+    assert any(step.get("uses") == "actions/setup-node@v7" for step in python_steps)
     assert any(step.get("run") == "npm ci" and step.get("working-directory") == "viewer" for step in python_steps)
     assert "uv run python -m pytest" in ci
     assert "uv run python -m pytest" in release
@@ -122,7 +122,7 @@ def test_windows_ifc_job_fails_closed_on_the_locked_runtime():
 
     assert job["runs-on"] == "windows-latest"
     assert any(
-        step.get("uses") == "astral-sh/setup-uv@v6"
+        step.get("uses") == "astral-sh/setup-uv@v10.2.0"
         and step.get("with", {}).get("python-version") == "3.14"
         for step in job["steps"]
     )
@@ -174,7 +174,7 @@ def test_self_hosted_solver_jobs_refresh_every_engineering_gallery_before_pages_
         steps = job["steps"]
         commands = [step["run"] for step in steps if "run" in step]
 
-        assert any(step.get("uses") == "actions/setup-node@v4" for step in steps)
+        assert any(step.get("uses") == "actions/setup-node@v7" for step in steps)
         assert "uv sync --group docs --extra dev --extra code-aster-rmed --extra ifc --locked" in commands
         assert any(
             step.get("run") == "npm ci" and step.get("working-directory") == "viewer"
@@ -240,21 +240,21 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
         for step in steps
     )
     assert any(
-        step.get("uses") == "astral-sh/setup-uv@v6"
+        step.get("uses") == "astral-sh/setup-uv@v10.2.0"
         and step.get("with", {}).get("python-version") == "3.14"
         for step in steps
     )
     assert any(
-        step.get("uses") == "actions/setup-node@v4"
-        and step.get("with", {}).get("node-version") == 22
+        step.get("uses") == "actions/setup-node@v7"
+        and step.get("with", {}).get("node-version") == 24
         for step in steps
     )
 
     setup_uv = _only_step_index(
-        steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v6"
+        steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v10.2.0"
     )
     setup_node = _only_step_index(
-        steps, lambda step: step.get("uses") == "actions/setup-node@v4"
+        steps, lambda step: step.get("uses") == "actions/setup-node@v7"
     )
     sync = _only_step_index(
         steps,
@@ -283,17 +283,18 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
         steps, lambda step: step.get("run", "").startswith("npm run e2e:pages")
     )
     configure = _only_step_index(
-        steps, lambda step: step.get("uses") == "actions/configure-pages@v5"
+        steps, lambda step: step.get("uses") == "actions/configure-pages@v6"
     )
     upload = _only_step_index(
-        steps, lambda step: step.get("uses") == "actions/upload-pages-artifact@v3"
+        steps, lambda step: step.get("uses") == "actions/upload-pages-artifact@v5"
     )
+    assert steps[upload]["with"]["include-hidden-files"] is True  # Preserve .nojekyll.
     # Re-recording the visual baselines is a maintenance dispatch: it runs the
     # same check with --update-snapshots and publishes the images for committing,
     # because only this runner renders them.
     snapshots = _only_step_index(
         steps,
-        lambda step: step.get("uses") == "actions/upload-artifact@v4"
+        lambda step: step.get("uses") == "actions/upload-artifact@v7"
         and step.get("with", {}).get("name") == "pages-snapshots-linux",
     )
 
@@ -357,10 +358,10 @@ def test_ci_gates_current_docs_viewer_and_assembled_pages():
     build = "uv run python scripts/build_pages.py pages --output .build/pages-check"
     assert assembled.count(build) == 1
     setup_uv = _only_step_index(
-        assembled_steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v6"
+        assembled_steps, lambda step: step.get("uses") == "astral-sh/setup-uv@v10.2.0"
     )
     setup_node = _only_step_index(
-        assembled_steps, lambda step: step.get("uses") == "actions/setup-node@v4"
+        assembled_steps, lambda step: step.get("uses") == "actions/setup-node@v7"
     )
     sync = _only_step_index(
         assembled_steps,

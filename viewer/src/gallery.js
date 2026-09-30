@@ -354,7 +354,7 @@ const GROUPS = [
   },
   {
     id: "beams",
-    label: "Beams, bars and cables",
+    label: "Structures, beams and cables",
     note: "Line and beam studies, including tension-only members.",
     test: (entry) => entry.elements?.some((element) => ["POU_D_T", "BARRE", "CABLE"].includes(element))
   },
