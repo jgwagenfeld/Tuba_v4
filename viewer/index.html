@@ -40,6 +40,7 @@
     <main class="gallery" data-gallery hidden></main>
     <main class="app-shell" data-embed="false">
       <header class="app-header" data-app-header>
+        <div class="header-leading">
         <div class="app-identity">
           <!-- The same product mark the landing masthead draws. A scene is a
                view of Tuba, not a different product, so the name stays. -->
@@ -70,11 +71,12 @@
           <button type="button" data-mode="build" aria-pressed="false" aria-controls="model-script">Build</button>
           <button type="button" data-mode="review" aria-pressed="false" aria-controls="review-controls">Review</button>
         </div>
+        </div>
+        <button type="button" class="solve-button" data-solve hidden>Solve</button>
         <!-- Actions only. The verdict and the runtime line moved to the status
              strip along the bottom, so the header is identity plus the three
              things you can do from it. -->
         <div class="header-actions">
-          <button type="button" class="solve-button" data-solve hidden>Solve</button>
           <button type="button" data-exchange-open aria-haspopup="dialog" title="Download project files or exchange IFC geometry">Exchange</button>
           <a href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>

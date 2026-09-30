@@ -17,7 +17,7 @@ import { contactRecords } from "./contactReview.js";
 import { getActiveResultState, getScalarLegend, getScalarValues } from "./resultReview.js";
 import { getPropertySections } from "./selection.js";
 import { DOF_AXES, supportDofStates } from "./supports.js";
-import { displayUnit, formatNumber, formatQuantity, getUnitSystem, toDisplay } from "./units.js";
+import { displayUnit, formatNumber, formatQuantity, formatUtilization, getUnitSystem, toDisplay } from "./units.js";
 
 const SUPPORT_TITLES = Object.freeze({
   anchor: "Anchor",
@@ -281,7 +281,7 @@ function probeSection(state, obj, system) {
   }
   const utilization = Number(legend.overlay?.data?.utilization_values?.[obj.id]);
   if (Number.isFinite(utilization)) {
-    lines.push({ kind: "row", label: "Utilisation", value: formatNumber(utilization) });
+    lines.push({ kind: "row", label: "Utilisation", value: formatUtilization(utilization) });
   }
   // A pre-catalogue legend carries no load case of its own; its overlay does.
   const loadCase = legend.loadCase ?? legend.overlay?.data?.load_case;
@@ -302,7 +302,7 @@ function contactSection(state, obj, system) {
     { kind: "row", label: "|Ft|", value: formatQuantity(magnitude(entry.tangential_force), "N", system) },
     ...(entry.utilization === null
       ? []
-      : [{ kind: "row", label: "Utilisation", value: formatNumber(entry.utilization) }]),
+      : [{ kind: "row", label: "Utilisation", value: formatUtilization(entry.utilization) }]),
     { kind: "row", label: "Slip", value: formatQuantity(magnitude(entry.slip), "m", system) }
   ];
   return { section: { title: "Contact", lines }, badge: entry.status };
@@ -349,10 +349,10 @@ function loadSection(obj) {
   if (metadata.vector_kind === "line_load") {
     lines.push({ kind: "row", label: "Kind", value: "Distributed line load" });
     if (metadata.value_npm != null) {
-      lines.push({ kind: "row", label: "Intensity", value: `${metadata.value_npm} N/m` });
+      lines.push({ kind: "row", label: "Intensity", value: `${formatNumber(metadata.value_npm)} N/m` });
     }
     if (metadata.direction) {
-      lines.push({ kind: "row", label: "Direction", value: `[${metadata.direction.join(", ")}]` });
+      lines.push({ kind: "row", label: "Direction", value: `[${metadata.direction.map((value) => formatNumber(value)).join(", ")}]` });
     }
     if (metadata.element_id) {
       lines.push({ kind: "row", label: "Element", value: metadata.element_id });

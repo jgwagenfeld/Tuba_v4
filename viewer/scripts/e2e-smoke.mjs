@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { createServer, preview } from "vite";
+import { formatPropertyValue } from "../src/units.js";
 
 const viewerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scenario = process.argv[2] ?? "smoke";
@@ -123,6 +124,59 @@ async function framebufferSnapshot(canvas) {
 }
 
 const scenarios = {
+  "number-display": {
+    bundle: "/code-aster-review",
+    minimumObjects: 1,
+    beforeNavigate(page) {
+      captureUnexpectedBrowserEvents(page);
+      page.setDefaultNavigationTimeout(60_000);
+    },
+    async run(page) {
+      await openReviewControls(page);
+      const reading = await page.evaluate(() => {
+        const state = window.__tubaViewer.state;
+        const stress = state.overlays.find((overlay) => overlay.data?.result_type === "stress");
+        const [objectId, value] = Object.entries(stress.data.values).find(([_id, value]) => String(value).length > 10);
+        const forces = state.overlays.find((overlay) => overlay.data?.result_type === "internal_forces").data.values[objectId];
+        return { objectId, value, forces, source: state.resultStates[0].data.solver_name };
+      });
+      assert.match(reading.source, /code_aster/i);
+      await page.locator("[data-objects-section] > summary").click();
+      await page.getByRole("searchbox", { name: "Search objects" }).fill(reading.objectId);
+      await page.locator(`[data-object-id="${reading.objectId}"]`).click();
+      const properties = page.locator("[data-properties]");
+      const scalar = properties.getByTitle(String(reading.value), { exact: true }).first();
+      assert.equal(await scalar.textContent(), formatPropertyValue(reading.value));
+      assert.notEqual(await scalar.textContent(), String(reading.value));
+      const vector = properties.getByTitle(JSON.stringify(reading.forces), { exact: true }).first();
+      assert.equal(await vector.textContent(), formatPropertyValue(reading.forces));
+
+      const colour = page.getByRole("combobox", { name: "Colour the scene by" });
+      const field = await colour.locator('optgroup[label="Results"] option').first().getAttribute("value");
+      await colour.selectOption(field);
+      await page.locator("[data-result-filters] > summary").click();
+      await page.getByLabel("Legend min", { exact: true }).fill("100");
+      await page.getByLabel("Legend min", { exact: true }).dispatchEvent("change");
+      await page.getByLabel("Legend max", { exact: true }).fill("100.002");
+      await page.getByLabel("Legend max", { exact: true }).dispatchEvent("change");
+      assert.deepEqual(await page.locator("[data-legend-ticks] span").allTextContents(), ["100", "100.002"]);
+      assert.match(await page.locator("[data-legend-scale]").textContent(), /100 – 100\.002/);
+      await page.getByLabel("Legend min", { exact: true }).fill("100.0001");
+      await page.getByLabel("Legend min", { exact: true }).dispatchEvent("change");
+      await page.getByLabel("Legend max", { exact: true }).fill("100.0002");
+      await page.getByLabel("Legend max", { exact: true }).dispatchEvent("change");
+      assert.equal(await page.getByLabel("Legend min", { exact: true }).inputValue(), "100.0001");
+      assert.equal(await page.getByLabel("Legend max", { exact: true }).inputValue(), "100.0002");
+      assert.deepEqual(await page.locator("[data-legend-ticks] span").allTextContents(), ["100.0001", "100.0002"]);
+      await page.locator("[data-unit-system]").click();
+      assert.deepEqual(await page.locator("[data-legend-ticks] span").allTextContents(), ["1.000001e+8", "1.000002e+8"]);
+      await page.locator("[data-unit-system]").click();
+      await page.getByRole("button", { name: "Round bounds", exact: true }).click();
+      assert.deepEqual(await page.locator("[data-legend-ticks] span").allTextContents(), ["100.0001", "100.0002"]);
+      assert.equal(await page.evaluate(({ objectId }) => window.__tubaViewer.state.overlays.find((overlay) => overlay.data?.result_type === "stress").data.values[objectId], reading), reading.value);
+      assert.deepEqual(page.__tubaUnexpectedBrowserEvents, []);
+    }
+  },
   "display-palette": {
     bundle: "code-aster-review",
     minimumObjects: 1,
@@ -1523,6 +1577,7 @@ const scenarios = {
     }
   }
 };
+scenarios["pages-number-display"] = { ...scenarios["number-display"], path: "/viewer/" };
 const selected = scenarios[scenario];
 
 if (!selected) {

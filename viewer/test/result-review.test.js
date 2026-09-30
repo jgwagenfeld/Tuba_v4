@@ -3,11 +3,13 @@ import test from "node:test";
 
 import {
   colorForScalarValue,
+  formatPseudoTime,
   getActiveLoadCaseDefinition,
   getGeometryStateOptions,
   getHotspots,
   getLoadCaseOptions,
   getObjectScalarColor,
+  getResultStateOptions,
   getScalarLegend,
   getScalarValues,
   getSolverResultOverlays,
@@ -20,6 +22,15 @@ import {
   setVisualDeformationScale
 } from "../src/resultReview.js";
 import { createViewerState } from "../src/sceneLoader.js";
+
+test("result increments use compact times while keeping close states distinguishable", () => {
+  assert.equal(formatPseudoTime(0.123456789), "0.1235");
+  assert.equal(formatPseudoTime(NaN), "unavailable");
+  const state = { resultStates: [100, 100.001, 100.002].map((time, index) => ({
+    id: `state:${index}`, data: { metadata: { stage_label: "Hot", pseudo_time: time } }
+  })) };
+  assert.deepEqual(getResultStateOptions(state).map((option) => option.label), ["Hot / 100", "Hot / 100.001", "Hot / 100.002"]);
+});
 
 function resultState() {
   return createViewerState({

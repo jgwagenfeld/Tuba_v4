@@ -114,8 +114,12 @@ import {
   UNIT_SYSTEMS,
   displayUnit,
   formatElapsed,
+  formatNumber,
+  formatNumberSeries,
+  formatPropertyValue,
   formatQuantity,
-  formatValue,
+  formatUtilization,
+  formatValueSeries,
   getUnitSystem,
   isConvertible,
   nextUnitSystem,
@@ -1061,7 +1065,7 @@ function renderReactionTable() {
           });
           cell.append(button);
         }
-      } else cell.textContent = unit ? formatQuantity(row[key], unit, getUnitSystem(currentState)) || "unavailable" : row[key];
+      } else cell.textContent = unit ? formatQuantity(row[key], unit, getUnitSystem(currentState)) || "unavailable" : formatPropertyValue(row[key], key);
     }
   }
   dom.reactionTable.append(table);
@@ -1225,7 +1229,7 @@ function renderResultControls() {
     if (hotspot.utilization !== null) {
       const utilization = document.createElement("span");
       utilization.className = "hotspot-util";
-      utilization.textContent = `u=${formatScale(hotspot.utilization)}`;
+      utilization.textContent = `u=${formatUtilization(hotspot.utilization)}`;
       button.append(utilization);
     }
     if (winners?.winners?.[hotspot.objectId]) {
@@ -1425,12 +1429,13 @@ function scaleControls() {
   const system = getUnitSystem(currentState);
   const unit = legend.unit ?? "";
   const overridden = isRangeOverridden(legend);
-  const min = Number(legend.range?.min ?? 0);
-  const max = Number(legend.range?.max ?? 0);
+  const min = toDisplay(legend.range?.min ?? 0, unit, system);
+  const max = toDisplay(legend.range?.max ?? 0, unit, system);
 
   // Bounds are typed in display units and stored in the field's own, exactly
   // as the threshold is: a max read in MPa and compared against pascals would
   // silently clip the whole field.
+  const labels = formatNumberSeries([min, max]);
   for (const [bound, value] of [["min", min], ["max", max]]) {
     const field = document.createElement("label");
     field.className = "scale-bound-label";
@@ -1438,7 +1443,8 @@ function scaleControls() {
     const input = document.createElement("input");
     input.type = "number";
     input.step = "any";
-    input.value = String(roundForInput(isConvertible(unit) ? toDisplay(value, unit, system) : value));
+    input.value = labels[bound === "min" ? 0 : 1];
+    input.title = String(value);
     input.dataset.focusKey = `legend-range-${bound}`;
     input.setAttribute("aria-label", `Legend ${bound}`);
     input.addEventListener("change", () => {
@@ -1493,16 +1499,6 @@ function scaleControls() {
   }
   group.append(actions);
   return group;
-}
-
-function roundForInput(value) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  // Keeps a typed bound readable: toDisplay of 5.7e7 in MPa is 57.0000000001
-  // in some paths, and a number input pre-filled with float noise invites the
-  // reader to distrust the other numbers on screen.
-  return Number(value.toPrecision(6));
 }
 
 // AutoPIPE turns a result filter into a selection, so the filtered set can then
@@ -2534,7 +2530,7 @@ function renderViewportLegend() {
     ramp.dataset.legendBands = String(legend.bands ?? 0);
     ramp.style.background = scalarRampGradient(legend);
 
-    dom.viewportLegend.append(heading, ramp, ...legendTicks(legend), scaleReadout(legend));
+    dom.viewportLegend.append(heading, ramp, ...legendTicks(legend), ...scaleReadout(legend));
     renderComplianceNotice();
   }
 
@@ -2613,9 +2609,11 @@ function legendTicks(legend) {
   const ticks = document.createElement("div");
   ticks.className = "legend-ticks";
   ticks.dataset.legendTicks = "";
-  for (const value of values) {
+  const labels = formatValueSeries(values, legend.unit, system);
+  for (const [index, value] of values.entries()) {
     const tick = document.createElement("span");
-    tick.textContent = formatValue(value, legend.unit, system);
+    tick.textContent = labels[index];
+    tick.title = `${toDisplay(value, legend.unit, system)} ${displayUnit(legend.unit, system)}`.trim();
     ticks.append(tick);
   }
   return [ticks];
@@ -2639,7 +2637,8 @@ function scaleReadout(legend) {
   row.dataset.legendScale = "";
   const min = Number(legend.range?.min ?? 0);
   const max = Number(legend.range?.max ?? 0);
-  const parts = [`${formatValue(min, legend.unit, system)} – ${formatValue(max, legend.unit, system)}`];
+  const [low, high] = formatValueSeries([min, max], legend.unit, system);
+  const parts = [`${low} – ${high}`];
   if (banded) {
     parts.push(`${legend.bands} bands`);
   }
@@ -3968,7 +3967,8 @@ function renderEvidenceSection(section) {
     label.scope = "row";
     label.textContent = line.label;
     const cell = document.createElement("td");
-    cell.textContent = formatPropertyValue(line.value);
+    cell.textContent = formatPropertyValue(line.value, line.label);
+    cell.title = typeof line.value === "object" ? JSON.stringify(line.value) : String(line.value);
     const chip = scriptLineChip(line.sourceLine);
     if (chip) cell.append(chip);
     row.append(label, cell);
@@ -4012,7 +4012,8 @@ function renderPropertySection(section) {
     label.scope = "row";
     label.textContent = key;
     const cell = document.createElement("td");
-    cell.textContent = formatPropertyValue(value);
+    cell.textContent = formatPropertyValue(value, key);
+    cell.title = typeof value === "object" ? JSON.stringify(value) : String(value);
     row.append(label, cell);
     body.append(row);
   }
@@ -4021,22 +4022,15 @@ function renderPropertySection(section) {
   return wrapper;
 }
 
-function formatPropertyValue(value) {
-  if (Array.isArray(value) || (value && typeof value === "object")) {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-
 // A section property in the units structural engineers quote them in. m2 and m4
 // are the scene contract's SI values, but 8.6e7 mm4 is not a number anyone
 // checks against a section table, and cm2/cm4 is how a rolled section's
 // properties are printed on the table and in the catalog.
 function formatProfileQuantity(value, unit) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "not computed";
-  if (unit === "m2") return `${(value * 1e4).toFixed(1)} cm²`;
-  if (unit === "m4") return `${(value * 1e8).toFixed(1)} cm⁴`;
-  return String(value);
+  if (unit === "m2") return `${formatNumber(value * 1e4)} cm²`;
+  if (unit === "m4") return `${formatNumber(value * 1e8)} cm⁴`;
+  return formatNumber(value);
 }
 
 // The disposition controls, as a titled section so it reads as a decision rather
@@ -4077,7 +4071,7 @@ function describeAddress(address) {
   const system = getUnitSystem(currentState);
   const magnitude = formatQuantity(address.value, address.unit ?? "", system);
   const utilization = Number.isFinite(Number(address.utilization))
-    ? ` · u=${formatScale(address.utilization)}`
+    ? ` · u=${formatUtilization(address.utilization)}`
     : "";
   return `${line}: ${magnitude}${utilization}`;
 }

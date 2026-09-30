@@ -7,8 +7,12 @@ import {
   displayUnit,
   formatElapsed,
   formatNumber,
+  formatNumberSeries,
+  formatPropertyValue,
   formatQuantity,
+  formatUtilization,
   formatValue,
+  formatValueSeries,
   getUnitSystem,
   isConvertible,
   nextUnitSystem,
@@ -47,7 +51,7 @@ test("stored SI restates as engineering units", () => {
 
 test("SI base leaves stored values exactly as the scene holds them", () => {
   assert.equal(formatQuantity(0.1143, "m", "si"), "0.1143 m");
-  assert.equal(formatQuantity(1.6075e8, "Pa", "si"), "1.61e+8 Pa");
+  assert.equal(formatQuantity(1.6075e8, "Pa", "si"), "1.608e+8 Pa");
   assert.equal(toDisplay(1.6075e8, "Pa", "si"), 1.6075e8);
 });
 
@@ -93,8 +97,51 @@ test("four significant figures keeps engineering quantities readable", () => {
   assert.equal(formatNumber(57), "57");
   assert.equal(formatNumber(0), "0");
   // Beyond the readable band, exponential rather than a wall of digits.
-  assert.equal(formatNumber(1.6075e8), "1.61e+8");
-  assert.equal(formatNumber(1e-5), "1.00e-5");
+  assert.equal(formatNumber(1.6075e8), "1.608e+8");
+  assert.equal(formatNumber(1e-5), "1e-5");
+});
+
+test("display precision follows magnitude without erasing tiny results", () => {
+  assert.equal(formatNumber(12.345678901), "12.35");
+  assert.equal(formatNumber(0.0000123456789), "1.235e-5");
+  assert.equal(formatNumber(-0), "0");
+  for (const value of [Number.MIN_VALUE, -Number.MIN_VALUE, 1e-200, -1e200, Number.MAX_VALUE]) {
+    assert.notEqual(formatNumber(value), "0");
+    assert.doesNotMatch(formatNumber(value), /NaN|Infinity/);
+  }
+});
+
+test("compared values gain precision only when rounded labels would coincide", () => {
+  assert.deepEqual(formatNumberSeries([0, 25, 50, 75, 100]), ["0", "25", "50", "75", "100"]);
+  assert.deepEqual(formatValueSeries([100000000, 100001000, 100002000], "Pa"), ["100", "100.001", "100.002"]);
+  for (const values of [[999999, 1000000], [1e-12, 1.00001e-12], [-100.001, -100, -99.999]]) {
+    assert.equal(new Set(formatNumberSeries(values).map(Number)).size, values.length);
+  }
+  assert.deepEqual(formatNumberSeries([1, 1, null, NaN]), ["1", "1", "", ""]);
+});
+
+test("inspector scalar, vector and nested result values are compact without changing the source", () => {
+  const values = { displacement: [0.123456789, -0.0000123456789, 0], row_index: 123456, label: "node:123456789", valid: true };
+  const original = JSON.stringify(values);
+  assert.equal(formatPropertyValue(values), '{"displacement": [0.1235, -1.235e-5, 0], "row_index": 123456, "label": "node:123456789", "valid": true}');
+  assert.equal(JSON.stringify(values), original);
+  assert.equal(formatPropertyValue(12.3456789), "12.35");
+  assert.equal(formatPropertyValue("12.3456789"), "12.3456789");
+  assert.equal(formatPropertyValue(1234567890, "stress"), "1.235e+9");
+  assert.equal(formatPropertyValue(1234567890, "element_count"), "1234567890");
+  assert.equal(formatPropertyValue([1234567890], "node_ids"), "[1234567890]");
+  assert.equal(formatPropertyValue(Infinity), "unavailable");
+});
+
+test("rounding never hides which side of the utilization limit a result occupies", () => {
+  assert.equal(formatUtilization(0.99996), "<1");
+  assert.equal(formatUtilization(1.00004), ">1");
+  assert.equal(formatUtilization(1), "1");
+  assert.equal(formatUtilization(1.234567), "1.235");
+  assert.equal(formatPropertyValue(1.00004, "Utilisation"), ">1");
+  assert.equal(formatPropertyValue({ utilization: 1.00004 }), '{"utilization": >1}');
+  assert.equal(formatPropertyValue([1.00004], "utilization_values"), "[>1]");
+  assert.equal(formatPropertyValue({ pipe1: 1.00004 }, "utilization_values"), '{"pipe1": >1}');
 });
 
 test("body metrics follow the unit chip", () => {

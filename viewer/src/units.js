@@ -106,6 +106,46 @@ export function formatValue(value, unit, systemId = DEFAULT_UNIT_SYSTEM) {
   return formatNumber(toDisplay(value, unit, systemId));
 }
 
+/** Compared labels share precision, increased only when distinct values collide. */
+export function formatValueSeries(values, unit, systemId = DEFAULT_UNIT_SYSTEM) {
+  return formatNumberSeries(values.map((value) => toDisplay(value, unit, systemId)));
+}
+
+export function formatNumberSeries(values) {
+  const numbers = values.map(numeric);
+  const distinct = new Set(numbers.filter(Number.isFinite)).size;
+  for (let precision = 4; precision <= 17; precision += 1) {
+    const labels = numbers.map((value) => formatNumber(value, precision));
+    if (new Set(labels.filter(Boolean).map(Number)).size === distinct) return labels;
+  }
+  return numbers.map((value) => Number.isFinite(value) ? String(value) : "");
+}
+
+/** A rounded ratio must still say which side of the limit it lies on. */
+export function formatUtilization(value) {
+  const number = numeric(value);
+  const label = formatNumber(number);
+  return number !== 1 && Number(label) === 1 ? `${number > 1 ? ">" : "<"}1` : label;
+}
+
+/** Inspector text only; numeric strings, identifiers and counts stay exact. */
+export function formatPropertyValue(value, key = "") {
+  if (typeof value === "number") {
+    if (/utili[sz]ation/i.test(key)) return formatUtilization(value) || "unavailable";
+    if (Number.isInteger(value) && /(?:^|_)(?:id|ids|index|indices|count|counts|line|rank)$/.test(key)) return String(value);
+    return formatNumber(value) || "unavailable";
+  }
+  if (Array.isArray(value)) return `[${value.map((item) => propertyItem(item, key)).join(", ")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value).map(([childKey, item]) => `${JSON.stringify(childKey)}: ${propertyItem(item, `${key}_${childKey}`)}`).join(", ")}}`;
+  }
+  return String(value);
+}
+
+function propertyItem(value, key) {
+  return typeof value === "string" ? JSON.stringify(value) : formatPropertyValue(value, key);
+}
+
 // Elapsed wall time, for the header clock that runs while Code_Aster does.
 // m:ss below an hour and h:mm:ss above it, because a solve that has passed an
 // hour is a different fact from one that has passed nine minutes and the
@@ -121,14 +161,17 @@ export function formatElapsed(milliseconds) {
   return `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`;
 }
 
-// Four significant figures. Enough to keep 114.3 mm and 0.006020 m from
-// collapsing to the same precision, few enough that a legend tick stays short.
-// Exponential only where a plain decimal would be unreadable.
-export function formatNumber(value) {
+// Four significant figures by default; compared labels can request more.
+// Exponential only where a plain decimal would be unreadable. Tiny nonzero
+// solver values stay nonzero: display formatting cannot infer solver accuracy.
+export function formatNumber(value, precision = 4) {
   const number = numeric(value);
   if (!Number.isFinite(number)) return "";
   if (number === 0) return "0";
   const absolute = Math.abs(number);
-  if (absolute >= 1e6 || absolute < 1e-4) return number.toExponential(2);
-  return String(Number(number.toPrecision(4)));
+  if (absolute >= 1e6 || absolute < 1e-4) {
+    const [mantissa, exponent] = number.toExponential(precision - 1).split("e");
+    return `${Number(mantissa)}e${exponent}`;
+  }
+  return String(Number(number.toPrecision(precision)));
 }

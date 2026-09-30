@@ -1,9 +1,10 @@
 import { getColoringLegend, getColoringValues } from "./coloring.js";
 import { colorChannelOf } from "./workflowState.js";
 import { bandCountOrZero, rampRatio, withScale } from "./legendScale.js";
+import { formatNumber, formatNumberSeries } from "./units.js";
 
 export function formatPseudoTime(value) {
-  return Number.isFinite(value) ? String(Number(value.toPrecision(8))) : "unavailable";
+  return Number.isFinite(value) ? formatNumber(value) : "unavailable";
 }
 
 export function getLoadCaseOptions(state) {
@@ -24,11 +25,16 @@ export function getLoadCaseOptions(state) {
 }
 
 export function getResultStateOptions(state) {
-  return (state.resultStates ?? []).map((overlay) => {
+  const resultStates = state.resultStates ?? [];
+  const times = formatNumberSeries(resultStates.map((overlay) => {
+    const time = overlay.data?.metadata?.pseudo_time;
+    return Number.isFinite(time) ? time : NaN;
+  }));
+  return resultStates.map((overlay, index) => {
     const data = overlay.data ?? {};
     return {
       id: data.id ?? overlay.id,
-      label: data.metadata?.stage_label ? `${data.metadata.stage_label} / ${formatPseudoTime(data.metadata.pseudo_time)}` : overlay.name || data.load_case || data.id || overlay.id,
+      label: data.metadata?.stage_label ? `${data.metadata.stage_label} / ${times[index] || "unavailable"}` : overlay.name || data.load_case || data.id || overlay.id,
       loadCase: data.load_case ?? null,
       stageIndex: Number.isFinite(data.metadata?.stage_index) ? data.metadata.stage_index : null,
       stageLabel: data.metadata?.stage_label ?? null,
@@ -144,7 +150,7 @@ export function geometryStateLabel(overlay) {
   const label = data.state_type === "operating" && data.purpose === "engineering"
     ? "actual deformation"
     : data.state_type === "deformed" || data.purpose === "visualization"
-      ? `${scale > 1 ? "exaggerated" : "displayed"} deformation${Number.isFinite(scale) && scale > 0 ? ` (${scale}×)` : ""}`
+      ? `${scale > 1 ? "exaggerated" : "displayed"} deformation${Number.isFinite(scale) && scale > 0 ? ` (${formatNumber(scale)}×)` : ""}`
       : data.state_type === "cold" ? "reference geometry" :
         (data.state_type ?? overlay.name ?? "geometry").replaceAll("_", " ");
   return data.load_case ? `${data.load_case} — ${label}` : label[0].toUpperCase() + label.slice(1);
