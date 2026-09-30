@@ -1,4 +1,6 @@
-const e=`https://cdn.jsdelivr.net/pyodide/v0.27.7/full/`;let t;self.onmessage=async({data:{code:n,runtimeUrl:r}})=>{try{if(!t){self.postMessage({status:`Loading Python (first update)…`});let{loadPyodide:n}=await import(`${e}pyodide.mjs`);t=await n({indexURL:e,stdout(){},stderr(){}}),await t.loadPackage([`numpy`,`jsonschema`]),self.postMessage({status:`Loading Tuba…`});let i=await fetch(r,{cache:`no-cache`});if(!i.ok)throw Error(`Could not load Tuba (${i.status}). Reload and try again.`);t.unpackArchive(await i.arrayBuffer(),`zip`,{extractDir:`/home/pyodide`})}self.postMessage({status:`Building geometry…`});let i=t.toPy({_browser_code:n});try{let e=t.runPython(`
+const e=`https://cdn.jsdelivr.net/pyodide/v0.27.7/full/`;let t;self.onmessage=async({data:{code:n,runtimeUrl:r}})=>{try{if(!t){self.postMessage({status:`Loading Python (first update)…`});let{loadPyodide:n}=await import(
+/* @vite-ignore */
+`${e}pyodide.mjs`);t=await n({indexURL:e,stdout(){},stderr(){}}),await t.loadPackage([`numpy`,`jsonschema`]),self.postMessage({status:`Loading Tuba…`});let i=await fetch(r,{cache:`no-cache`});if(!i.ok)throw Error(`Could not load Tuba (${i.status}). Reload and try again.`);t.unpackArchive(await i.arrayBuffer(),`zip`,{extractDir:`/home/pyodide`})}self.postMessage({status:`Building geometry…`});let i=t.toPy({_browser_code:n});try{let e=t.runPython(`
 import json, sys, os
 from pathlib import Path
 from tempfile import TemporaryDirectory
