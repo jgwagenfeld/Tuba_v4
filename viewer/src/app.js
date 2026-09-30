@@ -5518,16 +5518,21 @@ function scriptLineChip(line) {
 
 const openProfileLibrary = initProfileLibrary(dom.profileLibrary, {
   load: async () => {
-    const code = !studio.available && sourceView.preview ? sourceView.preview.code : studio.ranCode;
+    const preview = !studio.available && isBuildMode() ? sourceView.preview : null;
+    const scene = preview?.bundle.scene ?? currentBundle?.scene;
+    let code = preview?.code ?? studio.ranCode;
     const generation = profileSourceGeneration;
     profileSourceCode = null;
     const catalog = await loadProfileCatalog();
-    // Project definitions belong to the complete last model run, including
-    // unassigned sections. They cannot be inferred from rendered members.
-    const used = studio.available
-      ? (await fetchStudioJson("/api/profiles"))?.used
-      : (sourceView.preview?.bundle.scene ?? currentBundle?.scene)?.sections;
-    if (studio.available && !Array.isArray(used)) throw new Error("The model's section definitions are unavailable.");
+    // The displayed scene owns its sections, including unassigned definitions.
+    // A solved review must not borrow sections or source lines from a newer draft.
+    const used = studio.available && isBuildMode()
+      ? (await fetchStudioJson("/api/profiles"))?.used : scene?.sections;
+    if (studio.available && isBuildMode() && !Array.isArray(used)) throw new Error("The model's section definitions are unavailable.");
+    if (studio.available && !isBuildMode()) {
+      const source = !studio.reviewStale && deriveBundleSource(scene, currentBundle?.review);
+      code = source ? await fetchBundleText(currentBundleUrl, source.scriptUri).catch(() => null) : null;
+    }
     if (generation === profileSourceGeneration) profileSourceCode = code;
     return { ...catalog, used };
   },
@@ -5557,8 +5562,8 @@ const openProfileLibrary = initProfileLibrary(dom.profileLibrary, {
 dom.profilesOpen.addEventListener("click", () => void openProfileLibrary());
 
 function profileSourceCurrent() {
-  const code = !studio.available && sourceView.preview ? sourceView.preview.code : studio.ranCode;
-  return (studio.available || sourceView.available) && profileSourceCode === code && dom.codeText.value === code && !studio.error;
+  return (studio.available || sourceView.available) && typeof profileSourceCode === "string"
+    && dom.codeText.value === profileSourceCode && !studio.error;
 }
 
 for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {

@@ -20,8 +20,8 @@ profiles requires no Studio API. In Build, the dialog inserts a section
 definition into the existing Python editor; Python remains the authored model.
 
 Each scene includes a complete `sections` snapshot, including definitions with
-no assigned members. Studio refreshes project definitions from its native model
-run; Gallery uses the published snapshot or its latest browser geometry preview.
+no assigned members. Build uses the latest native model run or browser geometry
+preview; Review uses its displayed Code_Aster scene's snapshot in both hosts.
 Source links apply only while the editor matches that snapshot. An external
 Studio reload closes the dialog so reopened links use the refreshed definitions.
 

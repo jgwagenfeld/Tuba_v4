@@ -126,6 +126,43 @@ class TestStudioServer(unittest.TestCase):
         )
         self.assertEqual(json.loads(exported.stdout), catalog)
 
+    def test_profile_catalog_is_platform_stable(self):
+        import math
+        from unittest.mock import patch
+
+        from tuba import Model
+        from tuba.visualization.builders._objects import _section_profile_metadata
+        from tuba.visualization.profile_catalog import model_sections, profile_catalog
+
+        catalog = profile_catalog()
+        for row in catalog["catalog"]:
+            self.assertEqual(row["profile"]["properties"]["centroid"], [0.0, 0.0])
+
+        def shifted(value):
+            if isinstance(value, float) and value != 0.0:
+                return math.nextafter(value, math.inf)
+            if isinstance(value, dict):
+                return {key: shifted(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [shifted(item) for item in value]
+            return value
+
+        def platform_roundoff(section):
+            profile = _section_profile_metadata(section)
+            profile["properties"] = shifted(profile["properties"])
+            profile["properties"]["centroid"] = [1e-17, -1e-17]
+            return profile
+
+        model = Model("RawSectionSnapshot")
+        model.add_pipe_section("AuthoredPipe", OD=0.1143, WT=0.00602)
+        raw_area = _section_profile_metadata(model.sections["AuthoredPipe"])["properties"]["area_m2"]
+        with patch("tuba.visualization.builders._objects._section_profile_metadata", side_effect=platform_roundoff):
+            self.assertEqual(profile_catalog(), catalog)
+            # Authored scenes retain full precision and their own computed centroid.
+            snapshot = model_sections(model)[0]["profile"]["properties"]
+            self.assertEqual(snapshot["centroid"], [1e-17, -1e-17])
+            self.assertEqual(snapshot["area_m2"], math.nextafter(raw_area, math.inf))
+
     def _start_studio(self, root: Path, script: str = _SMALL_SCRIPT, **kwargs):
         from tuba.visualization.preview.server import ProjectStudioServer
 

@@ -68,6 +68,12 @@ jobs:
         working-directory: viewer
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.14"
+      # The production catalogue is generated from Tuba's Python section tables.
+      - run: uv sync --locked --no-default-groups
+        working-directory: .
       - uses: actions/setup-node@v7
         with:
           node-version: 24

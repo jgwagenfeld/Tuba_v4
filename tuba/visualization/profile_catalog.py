@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from tuba.canonical import platform_stable
 from tuba.model import IBeamSection, PipeSection, TubaModel
 from tuba.sections import SectionCatalog
 
@@ -29,9 +30,16 @@ def profile_catalog() -> dict[str, Any]:
                         "profile": _section_profile_metadata(section),
                         "source": "ASME B36.10 — InfraBuild pipe chart (October 2022, page 3). Nominal dimensions in mm; manufacturing tolerances and corrosion allowance are excluded.",
                         "source_url": "https://www.infrabuild.com/wp-content/uploads/sites/8/2019/05/IBSC_Pipe-Fittings-Data-Charts_A4_Oct22_24pp.pdf"})
-    return {"ok": True, "catalog": catalog,
-            "source": "Tuba bundled IBeam.input / IBeam.output",
-            "source_note": "Imported profile tables; original geometry source and Code_Aster version are not recorded."}
+    # Bundled pipes and I-beams are symmetric about both section axes. Their
+    # centroid is exactly zero; polygon integration can leave platform-specific
+    # round-off. Canonical precision also stabilizes the other derived values.
+    for row in catalog:
+        properties = row["profile"]["properties"]
+        if "centroid" in properties:
+            properties["centroid"] = [0.0, 0.0]
+    return platform_stable({"ok": True, "catalog": catalog,
+                            "source": "Tuba bundled IBeam.input / IBeam.output",
+                            "source_note": "Imported profile tables; original geometry source and Code_Aster version are not recorded."})
 
 
 def model_sections(model: TubaModel | None) -> list[dict[str, Any]]:
