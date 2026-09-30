@@ -14,7 +14,7 @@ Source folder: `evidence/Operating`
 | Mesh size | 57 nodes, 36 elements |
 | Solver | Code_Aster 18.0.12 |
 | Execution | python_bridge |
-| Solved at | 2026-09-30T13:34:52.007958Z |
+| Solved at | 2026-09-30T13:43:46.894362Z |
 | Evidence | **verified** — the attestation is intact and the run was verified. |
 
 ## Code_Aster commands in the generated .comm
@@ -63,14 +63,14 @@ A unit the command file writes but the export omits is silently lost with the ru
 | `study.comm` | 9.0 kB | `7c1d55b7db2a236e…` |
 | `study.export` | 377 B | `49d368425faa339a…` |
 | `study.mail` | 7.2 kB | `733835882f248f56…` |
-| `study.mess` | 78.1 kB | `f5521cf2a0baf72d…` |
-| `study.rmed` | 1.24 MB | `7d7bd6c4b1c5324c…` |
+| `study.mess` | 78.1 kB | `6bee4831d0f6c40a…` |
+| `study.rmed` | 1.24 MB | `c8e7705ab142e304…` |
 | `study_contact.json` | 205 B | `9efd5c90ffda2cd4…` |
-| `study_depl.csv` | 18.6 kB | `f0b5d911a3a5dfe6…` |
-| `study_effo.csv` | 32.6 kB | `9bfddb1b14173eb2…` |
+| `study_depl.csv` | 18.6 kB | `38119e2e7c8e7aeb…` |
+| `study_effo.csv` | 32.6 kB | `99626876efa5bca6…` |
 | `study_manifest.json` | 52.6 kB | `dc4afd5c906b143f…` |
-| `study_reac.csv` | 18.6 kB | `9ca50b21c4f85035…` |
-| `study_sieq.csv` | 2.94 MB | `a379c977abe02c38…` |
+| `study_reac.csv` | 18.6 kB | `423b02a470a980d6…` |
+| `study_sieq.csv` | 2.94 MB | `98cea3061daaa488…` |
 | `study_tuba_fem.json` | 5.0 kB | `445693e59a057375…` |
 
 These hashes are what the solve attested. The evidence verdict above is taken by re-checking them against the files on disk.

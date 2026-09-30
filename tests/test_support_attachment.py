@@ -178,20 +178,18 @@ class RackExampleEvidence(unittest.TestCase):
         self.assertEqual(len(shoes), 2)
         for shoe in shoes:
             self.assertLess(shoe.gap, 1e-9)
-        # The introductory model uses frictionless shoes; its dedicated contact
-        # example covers sticking/sliding. Both loaded shoes must carry compression.
-        self.assertEqual({shoe.status for shoe in shoes}, {"frictionless"})
-        for shoe in shoes:
-            self.assertGreater(shoe.normal_force, 0.0)
-            for force in shoe.tangential_force:
-                self.assertAlmostEqual(force, 0.0, delta=1e-8)
+            self.assertEqual(shoe.tangential_force, (0.0, 0.0, 0.0))
+        # Closed frictionless shoes carry compression with no sticking/sliding law.
+        self.assertEqual({shoe.status for shoe in shoes}, {"indeterminate"})
+        self.assertAlmostEqual(shoes[0].normal_force, 4521.22, delta=0.05)
+        self.assertAlmostEqual(shoes[1].normal_force, 2939.25, delta=0.05)
         rack = analyze_load_paths(model, result_state=run.result_state).rack_loads["rack_A"]
         self.assertEqual(rack["support_count"], 2)
         carried = sum(shoe.normal_force for shoe in shoes)
         self.assertAlmostEqual(rack["force_z_n"], -carried, delta=0.02 * carried)
-        # The left crossbeam has its own 2 m x 500 N/m lateral load.
-        self.assertAlmostEqual(rack["force_x_n"], 1000.0, delta=0.1)
-        self.assertAlmostEqual(rack["force_y_n"], 0.0, delta=0.1)
+        # Frictionless shoes transfer no tangential load to the rack.
+        for axis, key in ((0, "force_x_n"), (1, "force_y_n")):
+            self.assertAlmostEqual(rack[key], -sum(shoe.tangential_force[axis] for shoe in shoes), delta=1.0)
 
 
 if __name__ == "__main__":

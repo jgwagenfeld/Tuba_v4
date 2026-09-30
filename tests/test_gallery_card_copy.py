@@ -3,8 +3,8 @@
 ``scripts/official_gallery.py`` already refuses at import to build a card whose
 question does not end in ``?`` or whose summary is under ten words, because a
 gallery that cannot say what question it answers has no business being
-published. That guard stops at the registry, and three other surfaces quote the
-same twelve cards by hand: the docs home page, the Examples page and the README.
+published. The docs home page and README quote its featured cards by hand;
+the Examples page carries every published card.
 
 Nothing held them in step. ``tests/test_static_site_docs.py`` checks that each
 bundle URL and thumbnail appears, and that ``examples.md`` carries each title
@@ -18,7 +18,7 @@ These tests make the registry the single owner: a card's copy may be edited in
 ``official_gallery.py``, and the hand-written surfaces have to follow.
 
 The Examples page is deliberately exempt from the question rule. It leads each
-block with the title as an ``##`` heading and states the evidence badge in
+block with the title as a Markdown heading and states the evidence badge in
 prose; it has never carried the questions, and that is a layout choice rather
 than drift. What it may not do is contradict the registry, which is what
 ``test_examples_page_quotes_no_stale_question`` pins.
@@ -39,6 +39,7 @@ if str(ROOT) not in sys.path:
 from scripts.official_gallery import OFFICIAL_GALLERIES  # noqa: E402
 
 PUBLISHED = [gallery for gallery in OFFICIAL_GALLERIES if "pages" in gallery.audiences]
+FEATURED = [gallery for gallery in PUBLISHED if gallery.featured_order is not None]
 
 INDEX = ROOT / "docs" / "content" / "index.md"
 EXAMPLES = ROOT / "docs" / "content" / "examples.md"
@@ -51,9 +52,10 @@ QUESTION_SURFACES = (INDEX, README)
 def test_there_are_published_galleries_to_check() -> None:
     """A registry that published nothing would make every test below vacuous."""
     assert len(PUBLISHED) >= 12
+    assert FEATURED
 
 
-@pytest.mark.parametrize("gallery", PUBLISHED, ids=lambda g: g.id)
+@pytest.mark.parametrize("gallery", FEATURED, ids=lambda g: g.id)
 @pytest.mark.parametrize("path", QUESTION_SURFACES, ids=lambda p: p.name)
 def test_card_question_matches_the_registry(path: Path, gallery) -> None:
     text = path.read_text(encoding="utf-8")
@@ -64,8 +66,12 @@ def test_card_question_matches_the_registry(path: Path, gallery) -> None:
     )
 
 
-@pytest.mark.parametrize("gallery", PUBLISHED, ids=lambda g: g.id)
-@pytest.mark.parametrize("path", QUESTION_SURFACES + (EXAMPLES,), ids=lambda p: p.name)
+@pytest.mark.parametrize(
+    "path,gallery",
+    [(path, gallery) for path in QUESTION_SURFACES + (EXAMPLES,)
+     for gallery in (PUBLISHED if path == EXAMPLES else FEATURED)],
+    ids=lambda value: value.name if isinstance(value, Path) else value.id,
+)
 def test_card_title_matches_the_registry(path: Path, gallery) -> None:
     assert gallery.title in path.read_text(encoding="utf-8"), (
         f"{path.name} does not carry {gallery.id}'s title {gallery.title!r}"
