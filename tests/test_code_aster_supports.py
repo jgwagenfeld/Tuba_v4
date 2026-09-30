@@ -132,7 +132,10 @@ def test_rack_shoe_slides_with_coulomb_friction_under_pressure():
         slide = run.results.node_results[rack_node].displacement[0] - run.results.node_results[pipe_node].displacement[0]
         assert abs(slide) == pytest.approx(3.83e-3, rel=0.02)
         assert contact.gap < 1e-9
-        assert contact.relative_displacement[0] == pytest.approx(-slide)
+        frame = run.results.node_results[rack_node].displacement
+        offset = model.nodes[pipe_node].coords - model.nodes[rack_node].coords
+        relative = run.results.node_results[pipe_node].displacement[:3] - frame[:3] - np.cross(frame[3:6], offset)
+        np.testing.assert_allclose(contact.relative_displacement, relative, atol=1e-12, rtol=0)
 
 
 def test_attached_anchor_between_coincident_nodes_matches_a_shared_node():
@@ -195,3 +198,9 @@ def test_offset_attachments_balance_force_and_moment(tmp_path, kind, native_path
                         for node, values in reactions.items()), np.zeros(3))
     np.testing.assert_allclose(total_force, -force, atol=5e-5, rtol=0)
     np.testing.assert_allclose(total_moment, -np.cross(model.nodes[shoe].coords, force), atol=5e-5, rtol=0)
+    if kind == "rest":
+        frame = np.asarray(run.result_state.node_displacements[top])
+        offset = model.nodes[shoe].coords - model.nodes[top].coords
+        relative = np.asarray(run.result_state.node_displacements[shoe][:3]) - frame[:3] - np.cross(frame[3:6], offset)
+        np.testing.assert_allclose(run.result_state.contact_results["eccentric"].relative_displacement,
+                                   relative, atol=1e-12, rtol=0)

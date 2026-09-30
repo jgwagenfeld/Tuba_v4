@@ -157,7 +157,7 @@ def test_examples_page_quotes_no_stale_question(gallery) -> None:
 
 def _example_block(text: str, title: str) -> str:
     """The Examples-page section for *title*, up to the next heading."""
-    start = text.index(f"## {title}")
-    rest = text[start + 1 :]
-    end = rest.find("\n## ")
-    return rest if end == -1 else rest[:end]
+    heading = re.search(rf"^(#+) {re.escape(title)}$", text, re.MULTILINE)
+    assert heading is not None, f"Missing example heading: {title}"
+    rest = text[heading.end():]
+    return re.split(rf"^#{{1,{len(heading[1])}}} ", rest, maxsplit=1, flags=re.MULTILINE)[0]

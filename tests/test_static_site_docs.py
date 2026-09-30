@@ -93,7 +93,7 @@ class TestStaticSiteDocs(unittest.TestCase):
             "modeling.md": ["Cross-sections", "Local coordinate systems", "Schemas and serialized models", "How errors work"],
             "workflow.md": ["model.pipe", "export_analysis_study", "write_scene_bundle"],
             "autorouting.md": ["# Autorouting", "SolverAcceptanceCriteria", "Current limitations"],
-            "examples.md": ["Local examples", "Evidence:", "Autorouting example outputs"],
+            "examples.md": ["Local examples", "Code_Aster results", "Autorouting example outputs"],
             "developer.md": ["Module map", "Solver file map", "How to extend autorouting", "CONTRIBUTING.md"],
         }
 
@@ -182,9 +182,9 @@ class TestStaticSiteDocs(unittest.TestCase):
     def test_readme_and_home_lead_into_the_review_gallery(self):
         """First contact is the browser, so both front pages show the gallery.
 
-        Every published review appears as its Pages-built thumbnail linking
-        into the review, so a reader sees what Tuba does before any prose.
-        Derived from the registry: a new gallery cannot miss the front pages.
+        The featured learning path has thumbnails linking into each review.
+        The full catalog remains reachable through the gallery and Examples.
+        Derive the learning path from the registry so its cards cannot drift.
         """
         from scripts.official_gallery import OFFICIAL_GALLERIES
 
@@ -198,7 +198,7 @@ class TestStaticSiteDocs(unittest.TestCase):
         for page, text in (("README.md", readme), ("index.md", home)):
             self.assertIn("Tuba_v4/viewer/", text, f"{page} must link the review gallery")
             for gallery in OFFICIAL_GALLERIES:
-                if "pages" not in gallery.audiences:
+                if "pages" not in gallery.audiences or gallery.featured_order is None:
                     continue
                 self.assertIn(f"viewer/?bundle={gallery.id}", text, f"{page} does not link {gallery.id!r}")
                 self.assertIn(f"viewer/{gallery.thumbnail}", text, f"{page} does not show {gallery.id!r}")
@@ -270,7 +270,7 @@ class TestStaticSiteDocs(unittest.TestCase):
         # behind the registry while only the ids above were guarded here, so
         # pin it to the registry too.
         chips = catalog.split("data-gallery-elements", 1)[1].split("[", 1)[1].split("]", 1)[0]
-        card = next(g for g in OFFICIAL_GALLERIES if g.id == "elements-supports-review")
+        card = next(g for g in OFFICIAL_GALLERIES if g.id == "support-rack-review")
         self.assertEqual(re.findall(r'"([^"]+)"', chips), list(card.elements))
 
     def test_gitignore_covers_every_generated_viewer_bundle(self):

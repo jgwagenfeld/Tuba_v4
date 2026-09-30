@@ -49,8 +49,13 @@ def test_solved_rack_carries_the_total_weight_and_hotter_lines_expand_more():
     assert np.isclose(reaction[2], weight, rtol=1e-5)
     assert np.allclose(reaction[:2], 0.0, atol=0.1)
     assert len(state.contact_results) == 12
-    assert all(c.status == "sliding" and c.status_source == "solver"
-               for c in state.contact_results.values())
+    assert {c.status for c in state.contact_results.values()} == {"sticking", "sliding"}
+    for contact in state.contact_results.values():
+        assert contact.status_source == "solver"
+        if contact.status == "sliding":
+            assert np.isclose(np.linalg.norm(contact.tangential_force), 0.3 * contact.normal_force, rtol=1e-3)
+        else:
+            assert np.allclose(contact.slip, 0.0, atol=1e-9)
     expansion = []
     for nodes in ns["station_nodes"].values():
         left, right = (state.node_displacements[node][0] for node in (nodes[0], nodes[-1]))
