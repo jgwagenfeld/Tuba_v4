@@ -2877,6 +2877,10 @@ body[data-embed="true"] .viewer-workspace:has(.inspector[hidden]) {
 
   .header-actions {
     gap: 0.2rem;
+    order: 4;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .header-actions > a,
@@ -4595,6 +4599,10 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 }
 
 @media (max-width: 520px) {
+  .app-header:has(> .solve-button:not([hidden])) .header-actions {
+    grid-area: 3 / 1 / auto / -1;
+  }
+
   .app-header:has(> .solve-button:not([hidden])) .mode-switch button {
     font-size: 0.62rem;
     padding-inline: 0.4rem;
