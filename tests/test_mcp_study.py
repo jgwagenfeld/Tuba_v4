@@ -11,7 +11,9 @@ import pytest
 
 from tuba.mcp.server import (
     configure_load_case,
+    export_python_script,
     init_session,
+    inspect_model,
 )
 from tuba.project import load_project
 from tuba.project.study import STUDY_MARKER
@@ -26,6 +28,12 @@ def test_managed_study_reviews_every_case_without_repository_imports(tmp_path, m
     source = Path(__file__).resolve().parents[1] / "examples" / example
     settings = load_project(source).load_settings()
     shutil.copyfile(source / "model.py", tmp_path / "model.py")
+    session = init_session(file_path=str(tmp_path / "model.py"), load_existing=True)
+    assert session["study"]["load_cases"] == list(settings.operations)
+    assert set(inspect_model()["load_cases"]) == set(settings.operations)
+    decks = export_python_script(str(tmp_path / "exported.py"))["code_aster_inputs"]
+    assert set(decks) == set(settings.operations)
+    assert all("comm" in files and "error" not in files for files in decks.values())
     script = study_scaffold('Portable "study"', list(settings.operations))
     script = script.replace("SOLVER_OPTIONS: dict = {}", f"SOLVER_OPTIONS = {settings.solver_options!r}")
     (tmp_path / "study.py").write_text(script, encoding="utf-8")

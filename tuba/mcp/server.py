@@ -121,7 +121,7 @@ def _ensure_study_file(model: TubaModel) -> Dict[str, Any]:
     return ensure_study_file(
         _ACTIVE_PATH.parent / "study.py",
         project_name=model.project_name,
-        cases=list(model.load_cases),
+        cases=[*model.load_cases, *model.operations],
     )
 
 
@@ -986,7 +986,7 @@ def inspect_model() -> Dict[str, Any]:
                 "gravity": lc.gravity,
                 "nodal_forces_count": len(lc.nodal_forces),
             }
-            for name, lc in model.load_cases.items()
+            for name, lc in {**model.load_cases, **model.operations}.items()
         },
         "materials": list(model.materials.keys()),
         "sections": list(model.sections.keys()),
@@ -1085,11 +1085,12 @@ def solve_model(
         }
 
     try:
-        run = model.solve(load_case=load_case)
+        case_name, _ = model.resolve_load_case(load_case)
+        run = model.solve(load_case=case_name)
         return {
             "status": "success",
             "run_id": getattr(run, "run_id", "run_completed"),
-            "load_case": load_case or (list(model.load_cases.keys())[0] if model.load_cases else "default"),
+            "load_case": case_name,
             "results_available": True,
             "message": "Code_Aster evaluation completed successfully.",
         }
@@ -1126,7 +1127,7 @@ def export_python_script(output_path: str = "generated_pipeline.py") -> Dict[str
     from tuba.solver.aster import CodeAsterSolver
 
     decks: Dict[str, Any] = {}
-    for lc_name in model.load_cases:
+    for lc_name in [*model.load_cases, *model.operations]:
         # ponytail: punctuation becomes "_", so names differing only in punctuation share a folder
         folder = target.parent / "code_aster" / "".join(ch if ch.isalnum() or ch in "_-" else "_" for ch in lc_name)
         try:
