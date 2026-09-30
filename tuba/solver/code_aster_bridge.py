@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 def run_export(export_path: Path, workdir: Path | None = None) -> int:
@@ -16,12 +17,12 @@ def run_export(export_path: Path, workdir: Path | None = None) -> int:
         print(f"Code_Aster export file not found: {export_path}", file=sys.stderr)
         return 2
     try:
-        return _run_export_with_python_api(export_path, root)
+        return _run_export_with_python_api(export_path)
     except ImportError:
         return _run_export_with_cli(export_path, root)
 
 
-def _run_export_with_python_api(export_path: Path, workdir: Path) -> int:
+def _run_export_with_python_api(export_path: Path) -> int:
     # Conda puts run_aster in site-packages; its relative root misses the prefix.
     prefix = Path(os.environ.get("RUNASTER_ROOT", sys.prefix))
     if any((prefix / "share" / "aster" / name).is_file() for name in ("config.yaml", "config.json")):
@@ -40,7 +41,13 @@ def _run_export_with_python_api(export_path: Path, workdir: Path) -> int:
     export = Export(filename=str(export_path), check=True)
     # The default fort.6 output is copied to the export's required study.mess.
     runner = RunAster.factory(export, tee=True)
-    status = runner.execute(str(workdir))
+    original_cwd = Path.cwd()
+    # Reusing fort.80 makes a repeated solve append duplicate MED fields.
+    with TemporaryDirectory(prefix="tuba-code-aster-") as scratch:
+        try:
+            status = runner.execute(scratch)
+        finally:
+            os.chdir(original_cwd)
     if status is None:
         return 0
     return int(getattr(status, "exitcode", status))

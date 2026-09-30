@@ -155,10 +155,11 @@ The crossbeams are split at each lane, so all three lines transfer their loads i
 
 ## Local examples
 
-Run an example with:
+After [Setup](setup.md), run a listed script from the checkout root in the
+activated environment, replacing `<name>` with its filename without `.py`:
 
-```powershell
-.\.venv\Scripts\python.exe examples\<name>.py
+```bash
+python -m examples.<name>
 ```
 
 Tuba-owned benchmark and review outputs default to `.build/`. When no Tuba
@@ -257,9 +258,9 @@ for selectors, units and unsupported combinations.
 
 ## Autorouting example outputs
 
-```powershell
-.\.venv\Scripts\python.exe examples\autoroute_single_pipe.py
-.\.venv\Scripts\python.exe examples\autoroute_expansion_loop.py
+```bash
+python -m examples.autoroute_single_pipe
+python -m examples.autoroute_expansion_loop
 ```
 
 Default outputs under `.build/routing_reports/` can include `route_report.md`, `route_result.json`, and candidate `study.*` files. Reports explain candidate geometry and scoring. Study handoff files alone are not solver evidence.
@@ -270,8 +271,8 @@ See [Autorouting](autorouting.md) for the request fields, grid behavior, solver-
 
 After [Setup](setup.md) succeeds, open:
 
-```powershell
-.\.venv\Scripts\jupyter.exe lab notebooks\04_visualization_gallery.ipynb
+```bash
+jupyter lab notebooks/04_visualization_gallery.ipynb
 ```
 
 Examples that display stress, reaction, displacement, compliance, or operating-state results must either execute Code_Aster or load real preserved Code_Aster artifacts.

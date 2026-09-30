@@ -136,7 +136,15 @@ Autorouting produces candidates for review. Engineering acceptance still require
 
 ## Reviewable web scene
 
-Build one semantic scene, write a portable bundle, and optionally place that scene alongside an engineering review package.
+Pass a `SceneRequest` containing the model and verified `analysis_runs` to build
+one semantic scene, write a portable bundle, and optionally place that scene
+alongside an engineering review package. A request with only a model produces a
+geometry preview.
+
+::: tuba.visualization.SceneRequest
+    options:
+      show_source: false
+      members_order: source
 
 ::: tuba.visualization.build_visualization_scene
     options:

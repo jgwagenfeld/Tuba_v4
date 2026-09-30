@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 
 from tuba import Model
+from tuba.solver.aster import CodeAsterSolver
 
 
 @unittest.skipUnless(
@@ -45,6 +46,19 @@ class TestCodeAsterRealSmoke(unittest.TestCase):
             self.assertTrue((root / "study_effo.csv").exists())
             self.assertTrue((root / "study_reac.csv").exists())
             self.assertTrue((root / "study_sieq.csv").exists())
+
+            repeated = CodeAsterSolver(
+                work_dir=tmpdir,
+                exec_method=os.environ.get("TUBA_CODE_ASTER_EXEC_METHOD", "auto"),
+            ).solve_exported_study(model, run.study, force=True)
+            np.testing.assert_allclose(
+                repeated.results.node_results[n1].displacement,
+                results.node_results[n1].displacement,
+                rtol=1e-10,
+                atol=1e-14,
+            )
+            self.assertGreater((root / "study.mess").stat().st_size, 0)
+            self.assertFalse(any(root.glob("fort.*")))
 
         self.assertEqual(results.solver_name, "Code_Aster")
         self.assertEqual(results.load_case, "Operating")

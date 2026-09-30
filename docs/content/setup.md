@@ -27,8 +27,9 @@ On native Linux x86_64, start below.
 
 ### Install Miniforge
 
-Skip the Miniforge download if it is already installed. Ubuntu also needs the
-graphics libraries used by Gmsh and the notebook renderer:
+If Miniforge is already installed, skip its download and installer commands and
+source your existing installation. Ubuntu also needs the graphics libraries used
+by Gmsh and the notebook renderer:
 
 ```bash
 sudo apt-get update
@@ -59,6 +60,11 @@ notebooks, IFC exchange and MCP support. It selects Tuba's Python bridge on
 activation; Code_Aster still executes in a separate process. NumPy is pinned
 to 2.4.6 to satisfy the solver's NumPy <2.5 requirement and preserve model
 fingerprints. The viewer is already packaged with Tuba.
+
+Conda installs the solver's native libraries and executables alongside Python.
+uv can install compiled Python wheels, but it cannot install Code_Aster's conda
+package. This recipe supplies both Tuba and the solver in one environment; no
+additional `.venv` is needed.
 
 The doctor must report `python_bridge: ready`. If it reports `blocked`, stop
 and fix the reported dependency before solving or displaying new results.
@@ -135,16 +141,14 @@ Install it in a separate conda environment and let conda select its Python and
 compiled dependencies:
 
 ```bash
-conda create -y -n tuba-code-aster -c conda-forge code-aster
+conda create -y -n tuba-code-aster -c conda-forge "code-aster=18.0.12=*nompi*"
 ```
 
 Run this in Linux (Ubuntu WSL on Windows) after installing Miniforge as described
-below. This is the command used for the verified installation: Code_Aster 18.0.12
-with Python 3.14.6. Tuba's Python 3.11-3.14 support range applies to Tuba's own
-environment, not to this external solver environment.
+above. This selects the tested non-MPI Code_Aster 18.0.12 build; conda chooses
+its compatible Python and compiled dependencies. Tuba's Python 3.11-3.14 support
+range applies to Tuba's own environment, not to this external solver environment.
 
-A fresh installation may select a newer solver. To request the tested solver
-version, replace `code-aster` with `code-aster=18.0.12`; do not add a Python pin.
 Run the doctor and real solver smoke test below after installing or updating.
 
 ## Windows: install Code_Aster in WSL2 Ubuntu
@@ -176,7 +180,7 @@ Install the solver and expose a stable `run_aster` wrapper. If the
 @'
 set -euo pipefail
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda create -y -n tuba-code-aster -c conda-forge code-aster
+conda create -y -n tuba-code-aster -c conda-forge "code-aster=18.0.12=*nompi*"
 mkdir -p "$HOME/bin"
 cat > "$HOME/bin/run_aster" <<'SH'
 #!/usr/bin/env bash
@@ -226,7 +230,7 @@ $env:TUBA_RUN_CODE_ASTER_INTEGRATION = "1"
 
 `OK` proves that Tuba exported a study, executed Code_Aster, read the displacement, internal-force, reaction, and stress tables, and returned a verified `AnalysisRun`.
 
-## Native Linux x86_64
+## Native Linux x86_64: separate developer environments
 
 Keep Tuba in its virtual environment and Code_Aster in a separate conda environment:
 
@@ -240,21 +244,16 @@ curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
   https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash /tmp/Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
 source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda create -y -n tuba-code-aster -c conda-forge code-aster
+conda create -y -n tuba-code-aster -c conda-forge "code-aster=18.0.12=*nompi*"
 
-mkdir -p "$HOME/bin"
-cat > "$HOME/bin/run_aster" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-exec "$HOME/miniforge3/envs/tuba-code-aster/bin/run_aster" "$@"
-SH
-chmod +x "$HOME/bin/run_aster"
-export PATH="$HOME/bin:$PATH"
-run_aster --version
-python -m tuba.solver.code_aster_doctor --check --exec-method command
+export TUBA_CODE_ASTER_EXEC_METHOD=python_bridge
+export TUBA_CODE_ASTER_PYTHON="$HOME/miniforge3/envs/tuba-code-aster/bin/python"
+python -m tuba.solver.code_aster_doctor --check
 ```
 
-The doctor must report `command: ready` before a production solve.
+The doctor must report `python_bridge: ready` before a production solve.
+Set these variables again when starting a new developer shell. The Windows
+alternative uses WSL to reach the Linux runtime instead.
 
 ## Environment-variable reference
 

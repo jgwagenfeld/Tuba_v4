@@ -22,12 +22,18 @@ the evaluation below still requires Code_Aster. See [browser editing](setup.md#t
 
 ## Prerequisites
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install ".[course]"
-.\.venv\Scripts\python.exe -m tuba.solver.code_aster_doctor --check
+Complete [Setup](setup.md), then run these commands from the Linux checkout:
+
+```bash
+conda activate tuba
+python -m tuba.solver.code_aster_doctor --check
 ```
 
-If the doctor is blocked, stop after export inspection or load an existing solved artifact directory. See [Setup](setup.md).
+The shared environment already contains the required dependencies. For the
+Windows developer alternative, activate its `.venv` instead. The Python examples
+use the runtime selected during setup.
+
+If the doctor is blocked, stop after export inspection or load an existing solved artifact directory.
 
 ## Build, solve, and publish the review bundle
 
@@ -36,7 +42,7 @@ from pathlib import Path
 
 from tuba import Model
 from tuba.solver.aster import CodeAsterSolver
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 
 work_dir = Path("runs/first_pipe_operating")
 
@@ -71,20 +77,21 @@ model.define_load_case(
 )
 model.validate()
 
-solver = CodeAsterSolver(
-    work_dir=str(work_dir),
-    exec_method="wsl",
-    wsl_distro="Ubuntu",
-)
+solver = CodeAsterSolver(work_dir=str(work_dir))
 study = solver.export_analysis_study(model, "Operating", work_dir)
 run = solver.solve_exported_study(model, study)
 
 scene = build_visualization_scene(
-    model,
-    analysis_meshes=[run.analysis_mesh] if run.analysis_mesh is not None else [],
-    result_states=[run.result_state],
+    SceneRequest(model=model, analysis_runs=[run], include_analysis_mesh=True)
 )
 write_scene_bundle(scene, work_dir / "review_scene")
+```
+
+Save the code as `first_pipe.py` in the checkout, then run and display it:
+
+```bash
+python first_pipe.py
+tuba-viewer runs/first_pipe_operating/review_scene --open
 ```
 
 This is the model in both figures above and in the linked review scene below. The staged `CodeAsterSolver` path keeps export, execution, and import independently inspectable. `model.solve()` is the shorter convenience when that separation is not needed.
@@ -140,10 +147,10 @@ from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
 run = load_or_run_code_aster_results(
     model,
     "Operating",
-    "examples/code-aster-review/evidence/Operating",
+    work_dir,
     run_solver=True,
-    exec_method="wsl",
-    wsl_distro="Ubuntu",
+    exec_method=solver.exec_method,
+    wsl_distro=solver.wsl_distro,
 )
 results = run.results
 ```
@@ -162,17 +169,15 @@ teach better - several by hand-copying a gallery model and reading that
 gallery's own evidence, so one geometry change had to be chased through three
 copies. Two remain, because nothing else in the repository runs what they run.
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install ".[course]"
-```
+The shared environment includes the notebook dependencies.
 
 | Notebook | What it runs that nothing else does |
 | --- | --- |
 | `04_visualization_gallery.ipynb` | PLY, glTF, Blender-script and standalone-HTML export of a solved result |
 | `07_bim_data_exchange.ipynb` | An IFC4 export, an `ifcopenshell` inspection, and a re-import back into a `TubaModel` |
 
-```powershell
-.\.venv\Scripts\jupyter.exe lab notebooks\04_visualization_gallery.ipynb
+```bash
+jupyter lab notebooks/04_visualization_gallery.ipynb
 ```
 
 Both load committed Code_Aster artifacts by default and solve nothing unless

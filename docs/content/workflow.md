@@ -21,6 +21,9 @@ Tuba model -> Code_Aster solve -> imported artifacts -> processed result review
 
 `solve_exported_study(...)` performs execution and verified import while preserving the inspectable export boundary. `model.solve()` is the convenience path; both return `AnalysisRun`.
 
+Activate the environment described in [Setup](setup.md) before running this
+example. The solver uses that environment's configured runtime.
+
 ```python
 from pathlib import Path
 
@@ -47,11 +50,7 @@ model.define_operation(
 )
 model.validate()
 
-solver = CodeAsterSolver(
-    work_dir="runs/demo_hot",
-    exec_method="wsl",
-    wsl_distro="Ubuntu",
-)
+solver = CodeAsterSolver(work_dir="runs/demo_hot")
 study = solver.export_analysis_study(model, "Hot", Path("runs/demo_hot"))
 run = solver.solve_exported_study(model, study)
 ```
@@ -67,8 +66,7 @@ from tuba.reporting import build_engineering_review, write_engineering_review
 
 review = build_engineering_review(
     model,
-    studies=[run.study],
-    result_states=[run.result_state],
+    analysis_runs=[run],
 )
 write_engineering_review(review, "runs/demo_hot/review")
 ```
@@ -96,12 +94,10 @@ run.results.plot_deformed_stress(
 `tuba/visualization/` and `viewer/` are the shareable review path. Python writes the JSON scene and engineering-review contracts; Three.js renders them without performing engineering calculations.
 
 ```python
-from tuba.visualization import build_visualization_scene, write_scene_bundle
+from tuba.visualization import SceneRequest, build_visualization_scene, write_scene_bundle
 
 scene = build_visualization_scene(
-    model,
-    analysis_meshes=[run.analysis_mesh] if run.analysis_mesh is not None else [],
-    result_states=[run.result_state],
+    SceneRequest(model=model, analysis_runs=[run], include_analysis_mesh=True)
 )
 write_scene_bundle(scene, "runs/demo_hot/review_scene")
 ```
@@ -177,8 +173,8 @@ Model geometry and attributes such as insulation can be used for physical
 envelopes, geometric clash checks, quantity take-off, route cost, load-path
 reports, rules, and BOM export without running Code_Aster.
 
-```powershell
-.\.venv\Scripts\python.exe examples\future_ready_semantic_workflow.py
+```bash
+python -m examples.future_ready_semantic_workflow
 ```
 
 These outputs describe the model; operating-state checks require imported

@@ -31,7 +31,11 @@ class TestCodeAsterBridge(unittest.TestCase):
                 return cls()
 
             def execute(self, workdir):
-                calls["workdir"] = workdir
+                scratch = Path(workdir)
+                calls.setdefault("workdirs", []).append(scratch)
+                calls.setdefault("scratch_contents", []).append(tuple(scratch.iterdir()))
+                os.chdir(scratch)
+                (scratch / "fort.80").write_text("scratch result", encoding="utf-8")
                 return types.SimpleNamespace(exitcode=0)
 
         fake_run_aster = types.ModuleType("run_aster")
@@ -44,6 +48,9 @@ class TestCodeAsterBridge(unittest.TestCase):
             root = Path(tmpdir)
             export_file = root / "study.export"
             export_file.write_text("", encoding="utf-8")
+            stale_scratch = root / "fort.80"
+            stale_scratch.write_text("previous scratch", encoding="utf-8")
+            original_cwd = Path.cwd()
             config = root / "share" / "aster" / "config.json"
             config.parent.mkdir(parents=True)
             config.write_text("{}", encoding="utf-8")
@@ -61,6 +68,10 @@ class TestCodeAsterBridge(unittest.TestCase):
                 ),
             ):
                 exitcode = code_aster_bridge.run_export(export_file, root)
+                self.assertEqual(code_aster_bridge.run_export(export_file, root), 0)
+                self.assertEqual(Path.cwd(), original_cwd)
+                self.assertEqual(stale_scratch.read_text(encoding="utf-8"), "previous scratch")
+                self.assertTrue(all(not path.exists() for path in calls["workdirs"]))
 
         self.assertEqual(exitcode, 0)
         self.assertEqual(calls["runtime_root"], str(root))
@@ -70,7 +81,9 @@ class TestCodeAsterBridge(unittest.TestCase):
         self.assertTrue(calls["export_check"])
         self.assertTrue(calls["factory_tee"])
         self.assertIsNone(calls["factory_output"])
-        self.assertEqual(calls["workdir"], str(root.resolve()))
+        self.assertEqual(calls["scratch_contents"], [(), ()])
+        self.assertNotEqual(*calls["workdirs"])
+        self.assertTrue(all(not path.is_relative_to(root.resolve()) for path in calls["workdirs"]))
 
     def test_run_export_falls_back_to_run_aster_cli(self):
         with TemporaryDirectory() as tmpdir:

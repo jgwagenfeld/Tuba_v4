@@ -181,7 +181,12 @@ from tuba.routing.report import write_route_report
 write_route_report(result, "routing_reports/P-100", model=model)
 ```
 
-Use `show_route_scene(...)` for the existing PyVista quick-look path, or `build_visualization_scene(..., route_results=[result])` plus `write_scene_bundle(...)` for the browser path. Choose one visualization path per example.
+Use `show_route_scene(...)` for the existing PyVista quick-look path, or
+`build_visualization_scene(SceneRequest(model=model, route_results=[result]))`
+plus `write_scene_bundle(...)` for the browser path. Import `SceneRequest` from
+`tuba.visualization`. A route preview contains geometry; add verified
+`analysis_runs` to the request to display Code_Aster results. Choose one
+visualization path per example.
 
 ## Troubleshooting
 
