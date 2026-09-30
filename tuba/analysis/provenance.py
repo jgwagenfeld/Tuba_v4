@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -132,6 +134,14 @@ def build_solver_input_identity(
     )
 
 
+def attached_support_coupling(model: Any) -> str | None:
+    """The compiler semantics required by a noncoincident attached support."""
+    if any(s.attached_to is not None and math.dist(model.nodes[s.node].coords, model.nodes[s.attached_to].coords) > 0
+           for s in model.supports):
+        return "rotation_offset"
+    return None
+
+
 def validate_solver_input_identity(
     model: Any,
     identity: SolverInputIdentity | None,
@@ -154,6 +164,9 @@ def validate_solver_input_identity(
             f"{context} solver input identity compiler {identity.compiler_id!r} does not "
             f"match expected compiler {expected_compiler_id!r}."
         )
+    if expected_compiler_id == CODE_ASTER_COMPILER_ID and (coupling := attached_support_coupling(model)):
+        if (compiler_inputs or {}).get("attached_support_coupling") != coupling:
+            raise ValueError(f"{context} predates rotation coupling for offset supports; re-solve the model with Code_Aster.")
     current = build_solver_input_identity(
         model,
         expected_load_case,

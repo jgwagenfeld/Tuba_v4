@@ -2,8 +2,8 @@
   "attested_artifacts": [
     {
       "name": "study.comm",
-      "sha256": "86d0db13c7c281105ac48af08ac0e1109aab40e1faeb2a5e533ac676270b575d",
-      "size_bytes": 14416
+      "sha256": "ac98ca23188db3a3d654dc53ac94bdb628e68e2b26ed93c02ac60aad4fc76063",
+      "size_bytes": 14536
     },
     {
       "name": "study.export",
@@ -17,12 +17,12 @@
     },
     {
       "name": "study.mess",
-      "sha256": "dbfef0f401abd91e2256181ee54509bc1feb7f4a94d6f13c3b6068661d3d20fd",
-      "size_bytes": 98769
+      "sha256": "8c1889c6e09eac218a87286f456b9e551d6e410c25d79c0a85d682b6bb19d8a9",
+      "size_bytes": 99131
     },
     {
       "name": "study.rmed",
-      "sha256": "dcc1fb8d84e623babe86b2d671951c3d9ea390964c9198816805904baaba3668",
+      "sha256": "488df85ca93663bfbc11f97c4ece9f3bb49731b6dcfae096b955267f3cc03954",
       "size_bytes": 444736
     },
     {
@@ -32,32 +32,32 @@
     },
     {
       "name": "study_depl.csv",
-      "sha256": "f5294ddd6e04d016d6278202e61eb6fa05845910a5fa975b6612f27374892a49",
+      "sha256": "3a388d3e7f4fe17a7e02b72255ceaf1407a6c9372bd5d87b91387f4881a0a679",
       "size_bytes": 31176
     },
     {
       "name": "study_effo.csv",
-      "sha256": "b60ec0bf0189d80b66806d72ac91d647cba7a78330e6e2007349e64e09e453c1",
+      "sha256": "ded5441c5e496a4450c69489d37e1ccf24f50fc3ed996c317f8792b9d8c67301",
       "size_bytes": 66150
     },
     {
       "name": "study_manifest.json",
-      "sha256": "c13a54ab3fc3449ef3eacc0bff515e8d3cbecd8e26d2ae90bc3be9ea5b6c2e75",
-      "size_bytes": 71592
+      "sha256": "60729cf46789c1da3b1608116fb25f92241f242e62d763c13dee743a72c56296",
+      "size_bytes": 71648
     },
     {
       "name": "study_reac.csv",
-      "sha256": "d66206bc81edd3cbae9c32501216ee4e5cc3ec9b14dc02eb230c582b3ac879cc",
+      "sha256": "0f6c16887c257c9094b002d72087c5018a8782597e703ba822071e4122f59b5b",
       "size_bytes": 31176
     },
     {
       "name": "study_sieq.csv",
-      "sha256": "c7c912369adaa4f71eb35aea49d9cd8ebcb4529d4f7ac9842773968bd89b0730",
+      "sha256": "18aaa878165eb5cb36ad198221876c6205545c2a43e37bc68c899445dfedb996",
       "size_bytes": 811062
     },
     {
       "name": "study_tuba_fem.json",
-      "sha256": "c0f288635ed542257adf9c474dd14485147cccd6c8c07c62ad7bc1bd51503014",
+      "sha256": "8f60b09d945a4e015140d19ee280cfd2c867220e33f9a6b530134a1d0f29430c",
       "size_bytes": 11065
     }
   ],
@@ -210,14 +210,14 @@
   "source": "evidence/Operating",
   "study": {
     "element_count": 88,
-    "execution_method": "wsl",
+    "execution_method": "python_bridge",
     "id": "analysis_study:Operating",
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "model_revision": 0,
     "node_count": 94,
     "project_name": "SupportRackReview",
-    "solved_at": "2026-09-30T11:51:27.598475Z",
+    "solved_at": "2026-09-30T13:40:25.140284Z",
     "solver_name": "Code_Aster",
     "solver_version": "18.0.12"
   }

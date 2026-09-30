@@ -14,6 +14,7 @@ import math
 from typing import Any
 
 from tuba.analysis.provenance import (
+    attached_support_coupling,
     CODE_ASTER_COMPILER_ID,
     MIXED_CODE_ASTER_COMPILER_ID,
     VOLUME_CODE_ASTER_COMPILER_ID,
@@ -118,6 +119,8 @@ def beam_contract(
         # CREA_POI1 once named its node with NOEUD and put these supports on the wrong node;
         # evidence solved before GROUP_NO lacks this input, so it reads stale.
         inputs = dict(inputs or {}, discrete_support_nodes="GROUP_NO")
+    if coupling := attached_support_coupling(model):
+        inputs = dict(inputs or {}, attached_support_coupling=coupling)
     contact_specs = shoes(model, pipe_modelization)
     if contact_specs:
         reject_fluid_contents(load_case, "native contact studies")

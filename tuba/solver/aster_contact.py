@@ -75,9 +75,9 @@ def validate_path(model, load_case, load_path):
     if any(s.type == "spring" or s.mass > 0 for s in model.supports):
         raise ValueError("Native shoes with discrete springs or support masses are not yet qualified.")
     names = tuple(load_path) if load_path is not None else (load_case.name,)
-    if not names or any(not isinstance(name, str) or name not in model.load_cases for name in names):
+    if not names or any(not isinstance(name, str) or (name not in model.load_cases and name not in model.operations) for name in names):
         raise ValueError('load_path must contain existing load-case names.')
-    cases = [model.load_cases[name] for name in names]
+    cases = [model.resolve_load_case(name)[1] for name in names]
     reference = cases[0].ref_temperature
     if not np.isfinite(reference):
         raise ValueError("Load-path reference temperature must be finite.")
@@ -93,24 +93,36 @@ def validate_path(model, load_case, load_path):
     return names, cases
 
 
-def write_tie(w, name, helper, attached_to, dofs, map_name):
-    """Write load `name`: helper node group `helper` moves with model node `attached_to` on each of `dofs`.
+def attachment_equations(model, support, helper, dofs, map_name):
+    """Tie at the physical attachment point, including its rigid-rotation offset."""
+    helper, other = map_name(helper), map_name(f"GN_{support.attached_to}")
+    dx, dy, dz = map(float, model.nodes[support.node].coords - model.nodes[support.attached_to].coords)
+    # Contact/spring helpers have a fictitious 1 m separation. The lever arm is
+    # between the authored nodes, so displacement = translation + rotation x offset.
+    rotations = {"DX": (0., -dz, dy), "DY": (dz, 0., -dx), "DZ": (-dy, dx, 0.)}
+    for dof in dofs:
+        groups, degrees, coefficients = [helper, other], [dof, dof], [1., -1.]
+        for rotation, coefficient in zip(("DRX", "DRY", "DRZ"), rotations.get(dof, ())):
+            if coefficient:
+                groups.append(other)
+                degrees.append(rotation)
+                coefficients.append(coefficient)
+        yield f"_F(GROUP_NO={tuple(groups)!r},DDL={tuple(degrees)!r},COEF_MULT={tuple(coefficients)!r},COEF_IMPO=0.)"
 
-    Both names are raw Tuba names; they are mapped here.
-    """
-    helper, other = map_name(helper), map_name(f'GN_{attached_to}')
-    ties = ','.join(f"_F(GROUP_NO=('{helper}','{other}'),DDL=('{dof}','{dof}'),COEF_MULT=(1.,-1.),COEF_IMPO=0.)"
-                    for dof in dofs)
+
+def write_tie(w, name, helper, support, dofs, map_name, model):
+    """Write one attachment load with its force and moment coupling."""
+    ties = ','.join(attachment_equations(model, support, helper, dofs, map_name))
     w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=({ties}))")
 
 
-def write_shoe_anchor(w, index, spec, map_name):
+def write_shoe_anchor(w, index, spec, map_name, model):
     """Hold a shoe's helper node: fixed in space, or tied to the node its rest is attached to."""
     name = f'GROUND{index}'
     if spec.support.attached_to is None:
         w(f"{name} = AFFE_CHAR_MECA(MODELE=MODELE, DDL_IMPO=_F(GROUP_NO='{map_name(spec.ground)}',DX=0.,DY=0.,DZ=0.))")
     else:
-        write_tie(w, name, spec.ground, spec.support.attached_to, ('DX', 'DY', 'DZ'), map_name)
+        write_tie(w, name, spec.ground, spec.support, ('DX', 'DY', 'DZ'), map_name, model)
     return name
 
 
@@ -127,7 +139,7 @@ def write_contact_solve(w, model, load_case, load_path, specs, map_name, affe_en
     w("GRAVITY = AFFE_CHAR_MECA(MODELE=MODELE, PESANTEUR=_F(GRAVITE=9.81,DIRECTION=(0.,0.,-1.)))")
     entries = [f'_F(CHARGE={bc})' for bc in active_bcs] + ['_F(CHARGE=GRAVITY,FONC_MULT=GRAMP)']
     for i, spec in enumerate(specs):
-        entries.append(f'_F(CHARGE={write_shoe_anchor(w, i, spec, map_name)})')
+        entries.append(f'_F(CHARGE={write_shoe_anchor(w, i, spec, map_name, model)})')
     node_ids = sorted({force.node for case in cases for force in case.nodal_forces})
     for ni, node_id in enumerate(node_ids):
         for component, key in enumerate(('FX','FY','FZ','MX','MY','MZ')):

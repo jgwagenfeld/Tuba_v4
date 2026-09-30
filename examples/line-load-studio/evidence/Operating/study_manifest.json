@@ -2366,7 +2366,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "857ae742b0236e44131652d5cf2d57d0abd935a96ffb998e6f75597f4edefb68",
+      "fingerprint": "956841dd7a421005cdd594ed509d7b96d93c80a2743a0445a8b068ec85b5fb7d",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -2385,6 +2385,7 @@
     "mesh_id": "analysis_mesh:Operating",
     "metadata": {
       "compiler_inputs": {
+        "attached_support_coupling": "rotation_offset",
         "contact_law": "DIS_CHOC",
         "contact_stiffness_defaults": [
           10000000000.0,
@@ -2403,7 +2404,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "857ae742b0236e44131652d5cf2d57d0abd935a96ffb998e6f75597f4edefb68",
+      "fingerprint": "956841dd7a421005cdd594ed509d7b96d93c80a2743a0445a8b068ec85b5fb7d",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

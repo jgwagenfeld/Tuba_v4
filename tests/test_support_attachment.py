@@ -116,16 +116,28 @@ class AttachedExport(unittest.TestCase):
         model, tip, other = attached_model("anchor")
         comm, mail = export(model)
         for dof in ("DX", "DY", "DZ", "DRX", "DRY", "DRZ"):
-            self.assertIn(
-                f"_F(GROUP_NO=('GN_{tip}', 'GN_{other}'), DDL=('{dof}', '{dof}'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),",
-                comm,
-            )
+            self.assertIn(f"DDL=('{dof}', '{dof}'", comm)
+        self.assertIn("DDL=('DX', 'DX', 'DRY'),COEF_MULT=(1.0, -1.0, -0.25)", comm)
+        self.assertIn("DDL=('DY', 'DY', 'DRX'),COEF_MULT=(1.0, -1.0, 0.25)", comm)
+        inputs = CodeAsterSolver().analysis_study_inputs(model, "Hot").compiler_inputs
+        self.assertEqual(inputs["attached_support_coupling"], "rotation_offset")
         self.assertIn(f"GROUP_NO NOM=GN_{other}", mail)
+
+    def test_offset_evidence_requires_rotation_coupling_marker(self):
+        from tuba.analysis.provenance import CODE_ASTER_COMPILER_ID, build_solver_input_identity, validate_solver_input_identity
+
+        model, _tip, _other = attached_model("anchor")
+        old_inputs = dict(CodeAsterSolver().analysis_study_inputs(model, "Hot").compiler_inputs)
+        old_inputs.pop("attached_support_coupling")
+        old_identity = build_solver_input_identity(model, "Hot", compiler_inputs=old_inputs)
+        with self.assertRaisesRegex(ValueError, "re-solve the model"):
+            validate_solver_input_identity(model, old_identity, context="Old study", expected_load_case="Hot",
+                                           expected_compiler_id=CODE_ASTER_COMPILER_ID, compiler_inputs=old_inputs)
 
     def test_attached_guide_ties_only_its_direction(self):
         model, _tip, _other = attached_model("guide", direction=[0.0, 1.0, 0.0])
         comm, _mail = export(model)
-        self.assertIn("DDL=('DY', 'DY')", comm)
+        self.assertIn("DDL=('DY', 'DY', 'DRX'),COEF_MULT=(1.0, -1.0, 0.25)", comm)
         self.assertNotIn("DDL=('DX', 'DX')", comm)
         self.assertNotIn("DDL=('DZ', 'DZ')", comm)
 
@@ -133,7 +145,7 @@ class AttachedExport(unittest.TestCase):
         model, _tip, other = attached_model("rest", friction_coefficient=0.3)
         comm, _mail = export(model)
         self.assertIn("GROUND0 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(", comm)
-        self.assertIn(f"'GN_{other}'),DDL=('DZ','DZ')", comm)
+        self.assertIn(f"'GN_{other}'),DDL=('DZ', 'DZ')", comm)
         self.assertNotIn("DDL_IMPO=_F(GROUP_NO='GROUND_", comm)
 
     def test_attached_spring_is_a_helper_seg2_tied_to_the_attached_node(self):
@@ -143,7 +155,7 @@ class AttachedExport(unittest.TestCase):
         self.assertNotIn("CREA_POI1", comm)
         self.assertIn("MODELISATION='DIS_TR'", comm)
         self.assertIn("SPRING0 = AFFE_CHAR_MECA(MODELE=MODELE, LIAISON_DDL=(", comm)
-        self.assertIn(f"'GN_{other}'),DDL=('DRZ','DRZ')", comm)
+        self.assertIn(f"'GN_{other}'),DDL=('DRZ', 'DRZ')", comm)
         self.assertIn("    AFFE_VARC=_F(\n        GROUP_MA=('AllPipes', 'G_TUBE'),\n", comm)
         self.assertIn(f" SPRING_2 SPRHLP_2 {tip}", mail)
         # The helper sits 1 m below the tip at (6, 0, 0), and its tie is applied as a load.
@@ -166,16 +178,16 @@ class RackExampleEvidence(unittest.TestCase):
         self.assertEqual(len(shoes), 2)
         for shoe in shoes:
             self.assertLess(shoe.gap, 1e-9)
-        # Read from the committed evidence: the left shoe sticks under 2439.16 N,
-        # the right one slides under 1340.15 N. The grounded outlet rest is open.
-        self.assertEqual({shoe.status for shoe in shoes}, {"sticking", "sliding"})
-        self.assertAlmostEqual(shoes[0].normal_force, 2439.16, delta=0.05)
-        self.assertAlmostEqual(shoes[1].normal_force, 1340.15, delta=0.05)
+            self.assertEqual(shoe.tangential_force, (0.0, 0.0, 0.0))
+        # Closed frictionless shoes carry compression with no sticking/sliding law.
+        self.assertEqual({shoe.status for shoe in shoes}, {"indeterminate"})
+        self.assertAlmostEqual(shoes[0].normal_force, 4521.22, delta=0.05)
+        self.assertAlmostEqual(shoes[1].normal_force, 2939.25, delta=0.05)
         rack = analyze_load_paths(model, result_state=run.result_state).rack_loads["rack_A"]
         self.assertEqual(rack["support_count"], 2)
         carried = sum(shoe.normal_force for shoe in shoes)
         self.assertAlmostEqual(rack["force_z_n"], -carried, delta=0.02 * carried)
-        # The rack also takes the shoes' friction; a converged solve balances it to well under 1 N.
+        # Frictionless shoes transfer no tangential load to the rack.
         for axis, key in ((0, "force_x_n"), (1, "force_y_n")):
             self.assertAlmostEqual(rack[key], -sum(shoe.tangential_force[axis] for shoe in shoes), delta=1.0)
 

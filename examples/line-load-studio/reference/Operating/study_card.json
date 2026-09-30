@@ -2,8 +2,8 @@
   "attested_artifacts": [
     {
       "name": "study.comm",
-      "sha256": "1c2d7dc72ba84260b0a4d9380ea97f84b3cceb824e01c437ab4e16a059ec9de2",
-      "size_bytes": 9173
+      "sha256": "7c1d55b7db2a236eaea6376feea80f86fa8a3fd87b8129c7ff692bfa51f8276a",
+      "size_bytes": 9263
     },
     {
       "name": "study.export",
@@ -17,47 +17,47 @@
     },
     {
       "name": "study.mess",
-      "sha256": "d47c46d8da727e6b4d51698c926952ef11a76f1779f219e207bf9c8f5d358571",
-      "size_bytes": 80851
+      "sha256": "6bee4831d0f6c40a88b03a165545db8f0d2003f4299445a8fbb0d6190dafea02",
+      "size_bytes": 79977
     },
     {
       "name": "study.rmed",
-      "sha256": "5c447ed55e37da8af49f9232e9d58f33c411614981bc7fa475a7feff51b59966",
+      "sha256": "c8e7705ab142e3048d2a807980aca19eae3fb37f1c4bcc5df629d89a19b5b2e8",
       "size_bytes": 1296364
     },
     {
       "name": "study_contact.json",
-      "sha256": "ef7cedbd8c855e047e3361d3ab181275ab061b4f738605676265b176cb98c94e",
-      "size_bytes": 202
+      "sha256": "9efd5c90ffda2cd40e83e944892e47930808346d6b307e2913210462890350e2",
+      "size_bytes": 205
     },
     {
       "name": "study_depl.csv",
-      "sha256": "e9e2cc831d229df1611d83601080e7a05144d136ab0ff576d84c170f28a95b0a",
+      "sha256": "38119e2e7c8e7aeb73dfb89a64340dd7fa57cbb59c7b8bfa1903c0d5179cae62",
       "size_bytes": 19003
     },
     {
       "name": "study_effo.csv",
-      "sha256": "9032833e85ab088b2ca06b643335870c1c27d0d6b51a99a10e8e00e5e6b09f88",
+      "sha256": "99626876efa5bca68393d6abd468f53074836abfd171d75a4d80971f02b111fa",
       "size_bytes": 33390
     },
     {
       "name": "study_manifest.json",
-      "sha256": "6804f5671ccb03a54a17905920a0d57553ec99ccd3196320032ecf98ca0112ec",
-      "size_bytes": 53790
+      "sha256": "dc4afd5c906b143f625ea3266787a87044119d616ce3fd4dd8b34c56452129b2",
+      "size_bytes": 53846
     },
     {
       "name": "study_reac.csv",
-      "sha256": "504510ec3acb998dc8127ab011c610dc368f57e712712100dadf6a91b4735dcb",
+      "sha256": "423b02a470a980d6cd0477d608b3190124b07cd070875eeb3c057e44d392bd99",
       "size_bytes": 19003
     },
     {
       "name": "study_sieq.csv",
-      "sha256": "1744be453aba672c701f98fc83e6b14f8bdf56c132b782d480541bf64fe6a488",
+      "sha256": "98cea3061daaa4888c095e088e03f18cbf43f38b647a75789d8fb2448422d46c",
       "size_bytes": 3081330
     },
     {
       "name": "study_tuba_fem.json",
-      "sha256": "cf0023edbd99d6afe16f18787dc9d7afd4404203f6d52106c8bbc7a94793778c",
+      "sha256": "445693e59a057375f21954a8d43d938d6ae1a3579e83620fede7083ab8b5eba5",
       "size_bytes": 5150
     }
   ],
@@ -210,14 +210,14 @@
   "source": "evidence/Operating",
   "study": {
     "element_count": 36,
-    "execution_method": "wsl",
+    "execution_method": "python_bridge",
     "id": "analysis_study:Operating",
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "model_revision": 0,
     "node_count": 57,
     "project_name": "LineLoadStudioProject",
-    "solved_at": "2026-09-19T11:11:28.140699Z",
+    "solved_at": "2026-09-30T13:43:46.894362Z",
     "solver_name": "Code_Aster",
     "solver_version": "18.0.12"
   }

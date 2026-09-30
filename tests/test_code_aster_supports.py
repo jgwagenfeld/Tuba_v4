@@ -159,3 +159,39 @@ def test_attached_spring_moves_by_force_over_stiffness():
         relative = run.results.node_results[rack_node].displacement[2] - run.results.node_results[pipe_node].displacement[2]
         assert abs(force) == pytest.approx(2629.4, rel=0.02)
         assert relative == pytest.approx(abs(force) / 1.0e7, rel=0.01)
+
+
+@pytest.mark.parametrize(("kind", "native_path"), [
+    ("anchor", False), ("spring", False), ("rest", False), ("rest", True),
+])
+def test_offset_attachments_balance_force_and_moment(tmp_path, kind, native_path):
+    """An eccentric attachment must transfer its lever-arm moment as well as force."""
+    model = Model("OffsetAttachment")
+    model.add_material("Steel", E=2.1e11, nu=0.3, rho=7850.0)
+    model.add_pipe_section("DN100", OD=0.1143, WT=0.006)
+    model.add_rectangular_section("Frame", height_y=0.1, height_z=0.1, thickness_y=0.01, thickness_z=0.01)
+    base = model.add_node((0.0, 0.0, 0.0))
+    top = model.add_node((0.0, 0.0, 2.0))
+    left = model.add_node((-0.5, 0.4, 2.25))
+    shoe = model.add_node((0.5, 0.4, 2.25))
+    right = model.add_node((1.5, 0.4, 2.25))
+    model.add_element(id="post", type="beam", n1=base, n2=top, section="Frame", material="Steel")
+    for name, start, end in (("left_pipe", left, shoe), ("right_pipe", shoe, right)):
+        model.add_element(id=name, type="pipe_straight", n1=start, n2=end, section="DN100", material="Steel")
+    for node in (base, left, right):
+        model.add_support(node, "anchor")
+    options = {"stiffness_matrix": [1e8] * 6} if kind == "spring" else {}
+    if kind == "rest":
+        options["friction_coefficient"] = 0.3
+    model.add_support(shoe, kind, attached_to=top, id="eccentric", **options)
+    force = np.array((100.0, 150.0, -1000.0))
+    model.define_operation("Load", gravity=False).add_nodal_force(node=shoe, force=force.tolist())
+    run = model.solve(None if native_path else "Load", work_dir=str(tmp_path), force=True, pipe_modelization="POU_D_T",
+                      **({"load_path": ("Load",)} if native_path else {}))
+    reactions = {node: np.asarray(run.result_state.node_reactions[node], dtype=float) for node in (base, left, right)}
+    assert all(np.isfinite(values).all() for values in reactions.values())
+    total_force = sum((values[:3] for values in reactions.values()), np.zeros(3))
+    total_moment = sum((np.cross(model.nodes[node].coords, values[:3]) + values[3:6]
+                        for node, values in reactions.items()), np.zeros(3))
+    np.testing.assert_allclose(total_force, -force, atol=5e-5, rtol=0)
+    np.testing.assert_allclose(total_moment, -np.cross(model.nodes[shoe].coords, force), atol=5e-5, rtol=0)
