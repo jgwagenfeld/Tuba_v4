@@ -327,33 +327,9 @@ class ProjectStudioServer(PreviewServer):
         }
 
     def profile_library(self) -> dict[str, Any]:
-        from tuba.model import IBeamSection, PipeSection
-        from tuba.sections import SectionCatalog
-        from tuba.visualization.builders._objects import _section_profile_metadata
+        from tuba.visualization.profile_catalog import model_sections, profile_catalog
 
-        catalog = []
-        sections = SectionCatalog.default()
-        for row in sections.list_ibeam_profiles():
-            family = re.sub(r"\d.*", "", row.name)
-            if family == "HE":
-                family += row.name[-1]
-            section = IBeamSection(row.name, row.name, dict(row.properties))
-            catalog.append({"name": row.name, "family": family,
-                            "profile": _section_profile_metadata(section)})
-        for row in sections.list_pipe_profiles():
-            section = PipeSection(row.name, row.OD, row.WT)
-            catalog.append({"name": row.name, "family": "Pipe", "dn": row.dn,
-                            "nps": row.nps, "schedule": row.schedule,
-                            "profile": _section_profile_metadata(section),
-                            "source": "ASME B36.10 — InfraBuild pipe chart (October 2022, page 3). Nominal dimensions in mm; manufacturing tolerances and corrosion allowance are excluded.",
-                            "source_url": "https://www.infrabuild.com/wp-content/uploads/sites/8/2019/05/IBSC_Pipe-Fittings-Data-Charts_A4_Oct22_24pp.pdf"})
-        model = self.model
-        used = [{"name": section.name, "profile_name": getattr(section, "profile_name", None),
-                 "source_line": section.source_line, "profile": _section_profile_metadata(section)}
-                for section in (model.sections.values() if model is not None else ())]
-        return {"ok": True, "catalog": catalog, "used": used,
-                "source": "Tuba bundled IBeam.input / IBeam.output",
-                "source_note": "Imported profile tables; original geometry source and Code_Aster version are not recorded."}
+        return {**profile_catalog(), "used": model_sections(self.model)}
 
     @property
     def _ifc_root(self) -> Path:

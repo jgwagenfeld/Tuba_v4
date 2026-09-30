@@ -20,6 +20,7 @@ try {
   const open = page.locator("[data-profiles-open]");
   const drawer = page.locator("[data-profile-library]");
   await expect(open).toBeVisible();
+  await expect(editor).toHaveValue(/with model\.pipe/);
   const original = await editor.inputValue();
   const at = original.indexOf("with model.pipe");
   assert.ok(at > 0, "Disposable project needs a procedural pipe definition.");

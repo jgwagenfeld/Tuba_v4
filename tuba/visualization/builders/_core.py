@@ -20,6 +20,7 @@ from tuba.visualization.scene import SceneDiagnostic
 from tuba.visualization.scene import SceneObject
 from tuba.visualization.scene import ViewState
 from tuba.visualization.scene import VisualizationScene
+from tuba.visualization.profile_catalog import model_sections
 from tuba.visualization.builders._contract import SceneBuildOptions, SceneRequest, SceneContribution
 from tuba.visualization.builders._helpers import _default_scene_id, _normalize_ifc_guid_map
 from tuba.visualization.builders._objects import _build_element_object, _build_obstacle_object, _build_support_link_object, _build_support_object
@@ -284,6 +285,7 @@ def build_visualization_scene(request: SceneRequest) -> VisualizationScene:
         views=views,
         diagnostics=diagnostics,
         extra={
+            "sections": model_sections(model),
             **_scene_provenance_extra(result_state_records, analysis_mesh_records, ifc_context),
             **({"review_focus": review_focus} if review_focus else {}),
             **({"contact_findings": contact_findings} if contact_findings else {}),

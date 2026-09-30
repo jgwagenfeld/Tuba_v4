@@ -32,8 +32,8 @@
         "url": "https://jgwagenfeld.github.io/Tuba_v4/"
       }
     </script>
-    <script type="module" crossorigin src="./assets/index-DtfT2g0I.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BiE5Grjk.css">
+    <script type="module" crossorigin src="./assets/index-Dkq_6grV.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Cyg6muI-.css">
   </head>
   <body>
     <!-- The landing gallery. Rendered instead of the review shell when no
@@ -57,9 +57,8 @@
             <div data-viewer-identity></div>
           </details>
         </div>
-        <!-- Build writes the model, Review reads what the solver made of it.
-             Only a studio server can run model.py, so a static bundle never
-             shows the switch.
+        <!-- Build edits Python and previews geometry; Review reads the solver
+             evidence. The same stages serve browser drafts and local projects.
 
              These are the two stages, and their labels are their ids. Review
              was briefly labelled "Results", which collided with the Results
@@ -78,6 +77,7 @@
              strip along the bottom, so the header is identity plus the three
              things you can do from it. -->
         <div class="header-actions">
+          <button type="button" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library">Profiles</button>
           <button type="button" data-exchange-open aria-haspopup="dialog" title="Download project files or exchange IFC geometry">Exchange</button>
           <a href="./" data-gallery-link hidden>Gallery</a>
           <a class="report-link" data-report-link>Report</a>
@@ -110,7 +110,6 @@
               </svg>
               Mesh
             </button>
-            <button type="button" class="code-profiles" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library" hidden>Profiles</button>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
             <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
               <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M1 1l7 4-7 4z" fill="currentColor" /></svg>
@@ -390,7 +389,7 @@
         <h2 id="profile-library-title">Profiles</h2>
         <button type="button" data-profiles-close aria-label="Close profiles">Close</button>
       </div>
-      <p class="exchange-note">Choose a section and insert its definition into model.py. Run updates geometry; Solve evaluates the model with Code_Aster.</p>
+      <p class="exchange-note" data-profiles-intro>Browse section dimensions and derived properties.</p>
       <div class="profile-library-tabs" role="group" aria-label="Profile collections">
         <button type="button" data-profiles-tab="catalog" aria-pressed="true">Profile catalog</button>
         <button type="button" data-profiles-tab="used" aria-pressed="false">Used in this model</button>

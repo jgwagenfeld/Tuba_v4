@@ -103,6 +103,16 @@ function shootMissingThumbnails() {
 }
 
 function bundleManifest() {
+  let profiles;
+  function profilePayload() {
+    if (profiles !== undefined) return profiles;
+    const run = spawnSync(python, [join(REPO_ROOT, "scripts", "build_profile_catalog.py")], {
+      cwd: REPO_ROOT, encoding: "utf8", timeout: 30_000
+    });
+    if (run.status !== 0) throw new Error(`Profile catalog build failed: ${run.error?.message ?? run.stderr}`);
+    profiles = run.stdout;
+    return profiles;
+  }
   // An id with no catalog entry (a scratch bundle, a fixture) stays a plain
   // string: normalizeCatalog turns that into a title-only card.
   const payload = () => {
@@ -115,6 +125,11 @@ function bundleManifest() {
       return html.replace(/\r\n/g, "\n");
     },
     configureServer(server) {
+      const profileCatalog = profilePayload();
+      server.middlewares.use("/profiles.json", (_request, response) => {
+        response.setHeader("content-type", "application/json");
+        response.end(profileCatalog);
+      });
       server.middlewares.use("/bundles.json", (_request, response) => {
         response.setHeader("content-type", "application/json");
         response.end(payload());
@@ -142,6 +157,7 @@ function bundleManifest() {
     },
     generateBundle() {
       this.emitFile({ type: "asset", fileName: "bundles.json", source: "[]" });
+      this.emitFile({ type: "asset", fileName: "profiles.json", source: profilePayload() });
       this.emitFile({
         type: "asset",
         fileName: "favicon.svg",

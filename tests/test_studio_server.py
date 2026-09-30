@@ -81,6 +81,12 @@ class TestStudioServer(unittest.TestCase):
         self.assertEqual(server.script_path.read_text(encoding="utf-8"), _BUILDER_SCRIPT)
 
     def test_profile_library_uses_catalog_and_all_authored_sections(self):
+        import subprocess
+        import sys
+
+        from tuba.visualization import VisualizationScene
+        from tuba.visualization.profile_catalog import model_sections, profile_catalog
+
         root = Path(self.enterContext(TemporaryDirectory()))
         script = _SMALL_SCRIPT + '\nmodel.add_ibeam_section("UnusedBeam", profile_name="IPE160")\n'
         server = self._start_studio(root, script=script)
@@ -105,6 +111,20 @@ class TestStudioServer(unittest.TestCase):
         self.assertEqual(used["UnusedBeam"]["source_line"], len(script.splitlines()))
         self.assertEqual(used["DN100"]["profile"]["kind"], "pipe")
         self.assertNotIn("solver_results", payload)
+        catalog = profile_catalog()
+        self.assertEqual(set(catalog), {"ok", "catalog", "source", "source_note"})
+        self.assertEqual(payload, {**catalog, "used": model_sections(server.model)})
+        scene = VisualizationScene.from_dict(json.loads(
+            (server.out_dir / "build" / "scene.json").read_text(encoding="utf-8")
+        ))
+        scene.validate()
+        self.assertEqual(scene.to_dict()["sections"], payload["used"])
+        self.assertEqual(VisualizationScene.from_dict(scene.to_dict()).to_dict(), scene.to_dict())
+        exported = subprocess.run(
+            [sys.executable, Path(__file__).resolve().parents[1] / "scripts" / "build_profile_catalog.py"],
+            check=True, capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(json.loads(exported.stdout), catalog)
 
     def _start_studio(self, root: Path, script: str = _SMALL_SCRIPT, **kwargs):
         from tuba.visualization.preview.server import ProjectStudioServer

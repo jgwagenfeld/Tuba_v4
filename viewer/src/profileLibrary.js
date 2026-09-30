@@ -1,4 +1,13 @@
-import { profileDiagram, profilePropertyRows } from "./profileDiagram.js";
+import { formatProfileQuantity, profileDiagram, profilePropertyRows } from "./profileDiagram.js";
+
+export async function loadProfileCatalog(fetcher = fetch) {
+  const response = await fetcher("./profiles.json", { cache: "no-store" });
+  const data = await response.json();
+  if (!response.ok || !data.ok || !Array.isArray(data.catalog)) {
+    throw new Error(data.error || "The profile catalog is unavailable.");
+  }
+  return data;
+}
 
 function familyOf(row) { return row.family ?? row.profile.kind; }
 function heightOf(profile) {
@@ -34,7 +43,10 @@ export function profileInsertion(code, position, definition) {
   return { offset, text: `${indent}${definition}\n` };
 }
 
-export function initProfileLibrary(dialog, { format, sourceCurrent, reveal, insert }) {
+export function initProfileLibrary(dialog, {
+  load = loadProfileCatalog, format = formatProfileQuantity,
+  canInsert = () => false, sourceCurrent = () => false, reveal, insert
+} = {}) {
   const find = name => dialog.querySelector(`[data-profiles-${name}]`);
   const search = find("search"), family = find("family");
   const min = find("min"), max = find("max"), list = find("list");
@@ -77,13 +89,14 @@ export function initProfileLibrary(dialog, { format, sourceCurrent, reveal, inse
       link.href = row.source_url; link.target = "_blank"; link.rel = "noopener noreferrer";
       link.textContent = "Dimension table"; source.append(" ", link);
     }
-    form.hidden = tab !== "catalog";
+    form.hidden = tab !== "catalog" || !canInsert();
     revealButton.hidden = tab !== "used";
     revealButton.disabled = !Number.isInteger(row.source_line) || !sourceCurrent();
     find("definition-note").textContent = tab === "used"
       ? !sourceCurrent() ? "Sections reflect the last successful run. Run model.py to refresh definitions and line links."
         : !Number.isInteger(row.source_line) ? "This section has no recorded model.py line." : `Defined at model.py:${row.source_line}`
-      : "Inserts at the start of the current line. Assign the section to members in Python.";
+      : canInsert() ? "Inserts at the start of the current line. Assign the section to members in Python."
+        : "Open a model in Build to insert this section into Python.";
     if (tab === "catalog") {
       let name = row.name;
       let suffix = 2;
@@ -130,7 +143,7 @@ export function initProfileLibrary(dialog, { format, sourceCurrent, reveal, inse
   sectionName.addEventListener("input", updateCode);
   form.addEventListener("submit", event => {
     event.preventDefault();
-    if (!selected || !form.reportValidity()) return;
+    if (!selected || !canInsert() || !form.reportValidity()) return;
     const definition = profileDefinition(selected, sectionName.value);
     dialog.close();
     insert(definition);
@@ -149,11 +162,17 @@ export function initProfileLibrary(dialog, { format, sourceCurrent, reveal, inse
     if (!dialog.open) dialog.showModal();
     search.focus();
     try {
-      const response = await fetch("/api/profiles", { cache: "no-store" });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok || !Array.isArray(payload.catalog) || !Array.isArray(payload.used)) throw new Error(payload.error || "Studio did not return a profile catalog.");
-      data = payload;
-      selectTab(section ? "used" : "catalog", section);
+      const payload = await load();
+      if (!payload.ok || !Array.isArray(payload.catalog) || (payload.used !== undefined && !Array.isArray(payload.used))) {
+        throw new Error("The profile library returned invalid section data.");
+      }
+      data = { ...payload, used: payload.used ?? [] };
+      const hasModel = Array.isArray(payload.used);
+      dialog.querySelector('[data-profiles-tab="used"]').hidden = !hasModel;
+      find("intro").textContent = canInsert()
+        ? "Choose a section and insert its definition into model.py. Update geometry previews the model; engineering results require a Code_Aster solve."
+        : "Browse section dimensions and derived properties. Open a model in Build to insert a definition into Python.";
+      selectTab(section && hasModel ? "used" : "catalog", section);
     } catch (error) {
       status.textContent = `Profiles unavailable: ${error.message}`;
     }

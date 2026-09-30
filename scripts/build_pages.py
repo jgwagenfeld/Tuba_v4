@@ -46,6 +46,7 @@ _PAGES_REQUIRED_FILES = frozenset(
         "overview.html",
         "viewer/index.html",
         "viewer/bundles.json",
+        "viewer/profiles.json",
         "viewer/tuba-browser.zip",
         "viewer/licenses/font-notices.txt",
         "viewer/licenses/OFL-1.1.txt",

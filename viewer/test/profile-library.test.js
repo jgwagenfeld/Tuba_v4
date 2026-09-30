@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { filterProfiles, profileDefinition, profileInsertion } from "../src/profileLibrary.js";
+import { filterProfiles, loadProfileCatalog, profileDefinition, profileInsertion } from "../src/profileLibrary.js";
+
+test("profile catalog loads the shared asset and rejects unavailable or invalid data", async () => {
+  const payload = { ok: true, catalog: [] };
+  assert.equal(await loadProfileCatalog(async (url, options) => {
+    assert.equal(url, "./profiles.json");
+    assert.equal(options.cache, "no-store");
+    return { ok: true, json: async () => payload };
+  }), payload);
+  for (const data of [{ ok: false, error: "Catalog missing" }, { ok: true, catalog: {} }]) {
+    await assert.rejects(loadProfileCatalog(async () => ({ ok: true, json: async () => data })), /Catalog missing|unavailable/);
+  }
+  await assert.rejects(loadProfileCatalog(async () => ({ ok: false, json: async () => payload })), /unavailable/);
+});
 
 test("profile search, Python quoting, and cursor insertion preserve authored code", () => {
   const rows = [

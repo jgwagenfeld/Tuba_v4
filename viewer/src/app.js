@@ -129,8 +129,8 @@ import {
 import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js";
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { distance, getPropertySections } from "./selection.js";
-import { profileDiagram, profilePropertyRows } from "./profileDiagram.js";
-import { initProfileLibrary, profileInsertion } from "./profileLibrary.js";
+import { formatProfileQuantity, profileDiagram, profilePropertyRows } from "./profileDiagram.js";
+import { initProfileLibrary, loadProfileCatalog, profileInsertion } from "./profileLibrary.js";
 import { browserSceneBundle, runBrowserModel } from "./browserPreview.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { download, initExchange, renderPublishedDownloads } from "./exchange.js";
@@ -362,6 +362,8 @@ const sourceView = {
 const bundleDrafts = new Map();
 let browserJob = null;
 let browserProgress = "";
+let profileSourceCode = null;
+let profileSourceGeneration = 0;
 
 function bundleSourceEdited() {
   return !studio.available && sourceView.available && dom.codeText.value !== studio.ranCode;
@@ -3925,7 +3927,7 @@ function renderEvidenceSection(section) {
   wrapper.className = "property-section";
   const heading = document.createElement("h3");
   heading.textContent = section.title;
-  if (section.id === "profile" && studio.available && section.profile) {
+  if (section.id === "profile" && section.profile) {
     const browse = document.createElement("button");
     browse.type = "button";
     browse.className = "script-line-chip";
@@ -4034,17 +4036,6 @@ function renderPropertySection(section) {
   table.append(body);
   wrapper.append(heading, table);
   return wrapper;
-}
-
-// A section property in the units structural engineers quote them in. m2 and m4
-// are the scene contract's SI values, but 8.6e7 mm4 is not a number anyone
-// checks against a section table, and cm2/cm4 is how a rolled section's
-// properties are printed on the table and in the catalog.
-function formatProfileQuantity(value, unit) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "not computed";
-  if (unit === "m2") return `${formatNumber(value * 1e4)} cm²`;
-  if (unit === "m4") return `${formatNumber(value * 1e8)} cm⁴`;
-  return formatNumber(value);
 }
 
 // The disposition controls, as a titled section so it reads as a decision rather
@@ -4466,6 +4457,11 @@ async function handleLivePreviewEvent(raw) {
     return;
   }
   // model.py was saved from another editor and failed to run.
+  if (message.type === "script_error" || message.type === "scene_reloaded") {
+    profileSourceGeneration++;
+    profileSourceCode = null;
+    dom.profileLibrary.close();
+  }
   if (message.type === "script_error") {
     if (studio.available) showScriptError(message);
     return;
@@ -4862,7 +4858,7 @@ function renderMode() {
   }
   dom.codePane.hidden = !view.scriptVisible;
   dom.codeText.readOnly = !(studio.available || sourceView.available);
-  dom.profilesOpen.hidden = !studio.available;
+  dom.profilesOpen.hidden = currentState.embed;
   renderCodeTabs();
   renderCodeMeshToggle();
   renderSolveControls();
@@ -5521,11 +5517,25 @@ function scriptLineChip(line) {
 }
 
 const openProfileLibrary = initProfileLibrary(dom.profileLibrary, {
-  format: formatProfileQuantity,
-  sourceCurrent: () => dom.codeText.value === studio.ranCode,
-  reveal: (line) => {
-    if (dom.codeText.value !== studio.ranCode) return;
-    if (!isBuildMode()) dispatch({ type: "setStage", stage: "build" });
+  load: async () => {
+    const code = !studio.available && sourceView.preview ? sourceView.preview.code : studio.ranCode;
+    const generation = profileSourceGeneration;
+    profileSourceCode = null;
+    const catalog = await loadProfileCatalog();
+    // Project definitions belong to the complete last model run, including
+    // unassigned sections. They cannot be inferred from rendered members.
+    const used = studio.available
+      ? (await fetchStudioJson("/api/profiles"))?.used
+      : (sourceView.preview?.bundle.scene ?? currentBundle?.scene)?.sections;
+    if (studio.available && !Array.isArray(used)) throw new Error("The model's section definitions are unavailable.");
+    if (generation === profileSourceGeneration) profileSourceCode = code;
+    return { ...catalog, used };
+  },
+  canInsert: () => isBuildMode() && (studio.available || sourceView.available) && !dom.codeText.readOnly,
+  sourceCurrent: profileSourceCurrent,
+  reveal: async (line) => {
+    if (!profileSourceCurrent()) return;
+    if (!isBuildMode()) await setMode("build");
     showCodeTab(null);
     render();
     revealLineInScript(line);
@@ -5545,6 +5555,11 @@ const openProfileLibrary = initProfileLibrary(dom.profileLibrary, {
   }
 });
 dom.profilesOpen.addEventListener("click", () => void openProfileLibrary());
+
+function profileSourceCurrent() {
+  const code = !studio.available && sourceView.preview ? sourceView.preview.code : studio.ranCode;
+  return (studio.available || sourceView.available) && profileSourceCode === code && dom.codeText.value === code && !studio.error;
+}
 
 for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
   button.addEventListener("click", () => void setMode(button.dataset.mode));

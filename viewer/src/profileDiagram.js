@@ -17,6 +17,15 @@
 // on-screen axes never have to be inferred - and the properties printed beside
 // the drawing carry the Y/Z names that the loop frame uses.
 
+import { formatNumber } from "./units.js";
+
+export function formatProfileQuantity(value, unit) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "not computed";
+  if (unit === "m2") return `${formatNumber(value * 1e4)} cm²`;
+  if (unit === "m4") return `${formatNumber(value * 1e8)} cm⁴`;
+  return formatNumber(value);
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const SIZE = 168;
 const PAD = 28;

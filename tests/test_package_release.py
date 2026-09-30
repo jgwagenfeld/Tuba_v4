@@ -212,6 +212,7 @@ def test_viewer_production_build_synchronizes_the_python_package():
         "favicon.svg",
         "index.html",
         "licenses",
+        "profiles.json",
         "tuba-browser.zip",
     }
     source_licenses = ROOT / "viewer" / "public" / "licenses"
@@ -225,6 +226,11 @@ def test_viewer_production_build_synchronizes_the_python_package():
         if path.is_file()
     }
     assert json.loads((package_root / "bundles.json").read_text(encoding="utf-8")) == []
+    profiles = subprocess.run(
+        [sys.executable, ROOT / "scripts" / "build_profile_catalog.py"],
+        cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8",
+    )
+    assert json.loads((package_root / "profiles.json").read_text(encoding="utf-8")) == json.loads(profiles.stdout)
 
 
 def test_distribution_declares_viewer_console_script():
@@ -310,6 +316,7 @@ def test_built_wheel_launcher_serves_exact_packaged_assets(tmp_path):
             if name.startswith("tuba/visualization/_viewer/")
         }
         assert json.loads(archive.read("tuba/visualization/_viewer/bundles.json")) == []
+        assert json.loads(archive.read("tuba/visualization/_viewer/profiles.json"))["ok"] is True
     expected = {
         path.relative_to(ROOT / "tuba" / "visualization" / "_viewer").as_posix()
         for path in (ROOT / "tuba" / "visualization" / "_viewer").rglob("*")

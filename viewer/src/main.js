@@ -66,6 +66,20 @@ async function bootGalleryOrStudio() {
     gallery.hidden = false;
     if (showGallery) renderGallery(gallery, catalog);
     else renderGalleryUnavailable(gallery, catalogError);
+    const profiles = document.createElement("button");
+    profiles.type = "button";
+    profiles.textContent = "Profiles";
+    profiles.className = "gallery-profiles";
+    profiles.dataset.profilesOpen = "";
+    profiles.setAttribute("aria-haspopup", "dialog");
+    profiles.setAttribute("aria-controls", "profile-library");
+    gallery.querySelector(".gallery-masthead").append(profiles);
+    let openProfiles;
+    profiles.addEventListener("click", async () => {
+      const { initProfileLibrary } = await import("./profileLibrary.js");
+      openProfiles ??= initProfileLibrary(document.querySelector("[data-profile-library]"));
+      await openProfiles();
+    });
     return;
   }
 

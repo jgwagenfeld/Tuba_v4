@@ -11,6 +11,25 @@ Tuba has exactly two visualization paths. Both can display processed Code_Aster 
 
 A geometry-only scene may be used for model review when it is visibly labelled as having no solver results. Stress, displacement, reaction, compliance, or operating-state claims require imported Code_Aster artifacts.
 
+## Shared Gallery and Studio workspace
+
+Gallery and Studio use the same viewer and Profiles dialog. The standard
+catalogue comes from Python's `SectionCatalog`, exported by
+`scripts/build_profile_catalog.py` into the packaged `profiles.json`. Browsing
+profiles requires no Studio API. In Build, the dialog inserts a section
+definition into the existing Python editor; Python remains the authored model.
+
+Each scene includes a complete `sections` snapshot, including definitions with
+no assigned members. Studio refreshes project definitions from its native model
+run; Gallery uses the published snapshot or its latest browser geometry preview.
+Source links apply only while the editor matches that snapshot. An external
+Studio reload closes the dialog so reopened links use the refreshed definitions.
+
+The runtime determines saving and execution: Studio saves and runs `model.py`
+locally, while Gallery previews geometry in browser Python and downloads edits.
+Browser previews contain no solver results. Review retains the published
+Code_Aster evidence, and changed models require a new Code_Aster solve.
+
 ## Web-scene contract
 
 `VisualizationScene` is the renderer-independent boundary. It carries scene objects, geometry assets, explicit layers, result fields, overlays, issues, review records, diagnostics, and saved view state. Ordinary geometry is stored directly in the manifest; only dense stress glyphs use separate payload files. Asset hashes cover the full geometry in either form, and older bundles with individual payload files remain readable. The Three.js viewer renders that contract rather than reconstructing engineering meaning from filenames.

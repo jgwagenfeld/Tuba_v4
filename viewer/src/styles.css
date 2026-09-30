@@ -222,7 +222,8 @@ textarea,
    used to carry its own colour, size and underline-on-hover underneath it,
    which made one of the three actions read as a different kind of control. */
 .header-actions > a,
-.header-actions > button {
+.header-actions > button,
+.gallery-profiles {
   width: auto;
   border: 1px solid var(--graphite-line);
   border-radius: 0.15rem;
@@ -235,13 +236,15 @@ textarea,
 }
 
 .header-actions > a:hover,
-.header-actions > button:hover {
+.header-actions > button:hover,
+.gallery-profiles:hover {
   border-color: var(--focus-on-dark);
   color: var(--chrome-text);
 }
 
 .header-actions > a:focus-visible,
-.header-actions > button:focus-visible {
+.header-actions > button:focus-visible,
+.gallery-profiles:focus-visible {
   outline-color: var(--focus-on-dark);
 }
 
@@ -3067,6 +3070,8 @@ body[data-view="gallery"] {
   margin: 0 auto 1.25rem;
 }
 
+.gallery-profiles { margin-left: auto; }
+
 .gallery-tagline {
   color: var(--chrome-text-3);
   font-family: var(--font-mono);
@@ -4843,7 +4848,7 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 }
 
 
-/* Studio profile drawer: native dialog owns focus, Escape and the backdrop. */
+/* Shared profile drawer: native dialog owns focus, Escape and the backdrop. */
 .profile-library {
   width: min(48rem, calc(100vw - 2rem));
   height: calc(100dvh - 2rem);
@@ -4861,7 +4866,6 @@ body[data-studio="false"] .code-mesh-toggle { margin-left: 0.5rem; }
 .profile-library-preview h3 { margin-top: 0; }
 .profile-library-preview .property-table { width: 100%; }
 .profile-library-code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
-.code-pane .code-profiles { width: auto; margin: .3rem 0; color: var(--chrome-text); background: var(--sidebar-control); border: 1px solid var(--graphite-line); font-size: .75rem; }
 @media (max-width: 600px) {
   .profile-library-content { grid-template-columns: minmax(0, 1fr); }
   .profile-library-list { max-height: 25dvh; }
