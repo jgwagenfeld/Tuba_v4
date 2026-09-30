@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import builtins
+import json
+import shutil
 
 import pytest
 
@@ -12,6 +15,36 @@ from tuba.mcp.server import (
 )
 from tuba.project import load_project
 from tuba.project.study import STUDY_MARKER
+
+
+@pytest.mark.parametrize("example", ["code-aster-review", "load-case-preparation"])
+def test_managed_study_reviews_every_case_without_repository_imports(tmp_path, monkeypatch, example):
+    from tuba.analysis.staged_run import read_staged_runs
+    from tuba.project.evidence import study_artifact_dir
+    from tuba.project.study import study_scaffold
+
+    source = Path(__file__).resolve().parents[1] / "examples" / example
+    settings = load_project(source).load_settings()
+    shutil.copyfile(source / "model.py", tmp_path / "model.py")
+    script = study_scaffold('Portable "study"', list(settings.operations))
+    script = script.replace("SOLVER_OPTIONS: dict = {}", f"SOLVER_OPTIONS = {settings.solver_options!r}")
+    (tmp_path / "study.py").write_text(script, encoding="utf-8")
+    original_import = builtins.__import__
+
+    def installed_import(name, *args, **kwargs):
+        if name == "examples" or name.startswith("examples."):
+            raise ModuleNotFoundError("examples is not included in the installed Tuba package")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", installed_import)
+    project = load_project(tmp_path)
+    study = project.load_study()
+    root = study.build_review(project.run_model(), tmp_path / "review",
+                              artifact_dir=study_artifact_dir(source, settings.operations))
+    scene = json.loads((root / "scene.json").read_text(encoding="utf-8"))
+    assert {run.operation for run in read_staged_runs(root)} == set(settings.operations)
+    assert {obj["metadata"]["load_case"] for obj in scene["objects"] if obj["kind"] == "result_state"} == set(settings.operations)
+    assert (root / "source.py").read_bytes() == (tmp_path / "model.py").read_bytes()
 
 
 def test_init_scaffolds_a_managed_study_and_reports_the_studio(tmp_path: Path):
@@ -50,11 +83,11 @@ def test_sync_preserves_hand_edits_to_a_managed_study(tmp_path: Path):
 
     study_file = model_file.parent / "study.py"
     text = study_file.read_text(encoding="utf-8")
-    study_file.write_text(text.replace('title="Study Demo review",', 'title="Study Demo review",\n        include_load_paths=True,'), encoding="utf-8")
+    study_file.write_text(text.replace("title='Study Demo review',", "title='Hand-edited review',"), encoding="utf-8")
 
     configure_load_case(name="Operating", internal_pressure_mpa=1.5, temperature_celsius=180.0)
     synced = study_file.read_text(encoding="utf-8")
-    assert "include_load_paths=True," in synced  # the hand edit survived
+    assert "title='Hand-edited review'," in synced  # the hand edit survived
     assert "LOAD_CASES = ('Operating',)" in synced
 
 

@@ -127,6 +127,47 @@ def cases_literal(cases: list[str]) -> str:
     return f"({inner}{',' if len(cases) == 1 else ''})"
 
 
+def build_study_review(namespace, output, *, scene_id, title, artifact_dir=None, force=False) -> Path:
+    """Review every operation of a managed study using installed Tuba code and attested evidence."""
+    from tuba.analysis import create_operating_geometry_state, create_visual_deformed_geometry_state
+    from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
+    from tuba.analysis.staged_run import stage_runs
+    from tuba.project import load_project
+    from tuba.project.solve import solve_project
+    from tuba.reporting import build_engineering_review
+    from tuba.visualization import SceneRequest, build_visualization_scene, write_engineering_review_with_scene
+
+    project = load_project(Path(namespace["__file__"]).parent)
+    operations = project.load_settings().operations
+    if not operations:
+        raise ValueError("study.py defines no LOAD_CASES: add the load case to solve.")
+    model = namespace["model"]
+    runs = (
+        solve_project(project, namespace, force=force).runs
+        if artifact_dir is None else {
+            case: import_code_aster_artifacts(
+                model=model, work_dir=Path(artifact_dir) / case if len(operations) > 1 else Path(artifact_dir)
+            ) for case in operations
+        }
+    )
+    for run in runs.values():
+        run.validate_for_publication(model)
+    root = Path(output).resolve() / "review_scene"
+    runs = stage_runs(runs, root)
+    records = list(runs.values())
+    states = [state for run in records for state in (
+        create_operating_geometry_state(model=model, result_state=run.result_state),
+        create_visual_deformed_geometry_state(model=model, result_state=run.result_state, visual_scale=40.0),
+    )]
+    solved_at = records[0].result_state.metadata["solve_attestation"]["solved_at"]
+    scene = build_visualization_scene(SceneRequest(
+        model, analysis_runs=records, geometry_states=states, scene_id=scene_id, created_at=solved_at,
+    ))
+    review = build_engineering_review(model, analysis_runs=records, package_id=f"review:{project.name}", created_at=solved_at)
+    write_engineering_review_with_scene(review, root, scene=scene, title=title, source=namespace["__file__"])
+    return root
+
+
 def study_scaffold(project_name: str, cases: list[str]) -> str:
     """The managed study.py: solves each of *cases* with Code_Aster for studio review."""
     slug = _slug(project_name)
@@ -136,13 +177,10 @@ def study_scaffold(project_name: str, cases: list[str]) -> str:
             "",
             "LOAD_CASES is synced from model.py's load cases while this marker is present, so the",
             "studio's .comm tabs and Solve stay available. Edit build_review freely, or delete the",
-            "marker line to take full ownership (the server then leaves this file alone). Run the",
-            "studio from the repository root so the examples import below resolves.",
+            "marker line to take full ownership (the server then leaves this file alone).",
             '"""',
             "",
-            "from pathlib import Path",
-            "",
-            "from examples.code_aster_artifact_review import run_example, solve_or_import",
+            "from tuba.project.study import build_study_review",
             "",
             f"LOAD_CASES = {cases_literal(cases)}",
             "SOLVER_OPTIONS: dict = {}",
@@ -151,20 +189,14 @@ def study_scaffold(project_name: str, cases: list[str]) -> str:
             "",
             "def build_review(namespace, output, *, artifact_dir=None, force=False):",
             '    """Solve the study cases with Code_Aster and publish the engineering review."""',
-            '    if not LOAD_CASES:',
-            '        raise ValueError("study.py defines no LOAD_CASES: add the load case to solve (e.g. LOAD_CASES = (\\"Operating\\",)).")',
-            '    model = namespace["model"]',
-            "    run = None if artifact_dir is not None else solve_or_import(model, LOAD_CASES[0], Path(output) / \"solver\", solver_options=SOLVER_OPTIONS)",
-            "    summary = run_example(",
+            "    return build_study_review(",
+            "        namespace,",
             "        output,",
             "        artifact_dir=artifact_dir,",
-            "        run=run,",
-            "        model=model,",
+            "        force=force,",
             f'        scene_id="scene:{slug}",',
-            f'        title="{project_name} review",',
-            '        source=namespace["__file__"],',
+            f"        title={project_name + ' review'!r},",
             "    )",
-            '    return Path(summary["bundle_root"])',
             "",
         ]
     )
