@@ -1,463 +1,157 @@
-> Historical review: the built-in piping-standard evaluator and SIF helpers
-> described below have since been removed. See [the retirement note](b31j-compliance-migration.md).
-
-# Tuba v4 Library Architecture Review
-
-Status: current-code review, refreshed 2026-07-07.
-
-This is the canonical architecture guide for the current library. It explains
-the live module boundaries, the end-to-end Code_Aster workflow, the shipped
-features, and the missing pieces. It deliberately separates implemented code
-from roadmap documents.
-
-## Verdict
-
-The high-level architecture is sound enough to keep:
-
-```text
-TubaModel
-  -> validation
-  -> Code_Aster study export
-  -> Code_Aster execution
-  -> imported result artifacts
-  -> AnalysisRun (AnalysisStudy + AnalysisMesh + ResultState + FEAResults)
-  -> renderer-independent engineering review package
-  -> PyVista quick-look or web review bundle
-```
-
-There is no need for a broad rewrite. The useful boundaries already exist:
-`TubaModel` owns the pipe-native engineering model, `CodeAsterSolver` owns the
-solver adapter, `ResultState` owns traceable imported results, and `AnalysisRun`
-links the complete evaluation. The two
-visualization paths are intentionally separate.
-
-The major issues are narrower:
-
-| Priority | Issue | Why it matters | Current answer |
-|---|---|---|---|
-| P0 | Real Code_Aster runtime proof is external to normal CI. | Exported `.comm`, `.mail`, and `.export` files are not engineering results. | Keep failing loudly when runtime/artifacts are missing; run the integration gate with `TUBA_RUN_CODE_ASTER_INTEGRATION=1` on a configured machine. |
-| P1 | Roadmap docs can look like shipped API. | Engineers may call unimplemented DSL or assume export-only examples are solved. | Keep this doc and `README.md` as current-code docs; keep roadmap docs explicitly labeled. |
-| P1 | `_write_comm(...)` is still large. | New loads can easily be patched in the wrong place. | Keep command ordering there, but put reusable load compilation in small helpers like `tuba/solver/aster_loads.py`. |
-| P1 | Some engineering domains are partial. | Wind, seismic, B31J tee/branch, and mixed STEP workflows can be overclaimed. | Document the supported slice and fail unsupported cases before solver export. |
-
-## Existing Documentation
-
-Read these first before changing architecture:
-
-| Document | Current role |
-|---|---|
-| `README.md` | Product contract, setup, notebook entrypoint, autorouting summary. |
-| `AGENTS.md` | Non-negotiable workflow rules: model, Code_Aster solve, processed result display. |
-| `docs/content/setup.md` | Windows/WSL Code_Aster setup and runtime doctor flow. |
-| `docs/architecture/library-architecture-review.md` | This current-code architecture guide. |
-| `docs/architecture/user-facing-piping-dsl-and-agent-ops.md` | Roadmap for cleaner DSL and agent operations. Some basics are shipped; higher-level verbs remain roadmap. |
-| `docs/architecture/expansion-aware-autorouting.md` | Current expansion-aware routing decision and limits. |
-| `docs/architecture/step-mixed-code-aster.md` | Mixed STEP/Code_Aster export warning. Export is not completed evaluation. |
-| `docs/architecture/b31j-compliance-migration.md` | Compliance status and blocked B31J work. |
-
-Historical root-level `*_design.md`, `*_specification.md`, and
-`*_strategy.md` files are not the best source for current behavior.
-
-## Core Modules
-
-| Module | Main interface | What it owns |
-|---|---|---|
-| `tuba.model` | `TubaModel` / `Model` | Materials, sections, nodes, elements, supports, load cases, operations, fields, obstacles, groups, attributes, placements, CAD/mixed records. |
-| `tuba.builder` | `PipingBuilder` through `model.pipe(...)` | Cursor-based route authoring: starts, runs, bends, supports, beams, bars, cables. |
-| `tuba.validation` | `model.validate()` / `validate_model(model)` | Structural invariants before export. |
-| `tuba.solver.aster` | `CodeAsterSolver` | Study export, runtime execution, result parsing. |
-| `tuba.solver.aster_mesh` | `_write_mail(...)` | Code_Aster `.mail` generation and `AnalysisMesh` provenance. |
-| `tuba.solver.aster_comm` | `_write_comm(...)` | Code_Aster command-file orchestration in solver execution order. |
-| `tuba.solver.aster_loads` | load-block helpers | Pressure, temperature, wind, and line-load operation-field compilation. |
-| `tuba.solver.code_aster_runtime` | runtime discovery/execution | WSL, command runner, Python bridge, and Docker fallback command construction. |
-| `tuba.analysis.*` | `AnalysisRun`, `AnalysisStudy`, `AnalysisMesh`, `ResultState`, artifact import helpers | Traceability from Tuba model to solver files and parsed outputs. |
-| `tuba.solver.base` | `FEAResults` | Solver-neutral result container and plotting convenience methods. |
-| `tuba.reporting` | `build_engineering_review(...)`, `write_engineering_review(...)` | Renderer-independent review tables, solver lineage, manifest, CSV, JSON, and printable HTML. It does not run Code_Aster. |
-| `tuba.plotting` | `results.plot_*()` | PyVista quick-look, notebook rendering, PLY/glTF export. |
-| `tuba.visualization` | `build_visualization_scene(...)`, `write_scene_bundle(...)` | JSON scene contract for the Three.js viewer and review bundles. |
-| `tuba.routing` | `GridRouter`, `NetworkRouter`, `AutoroutingAgent`, `SolverLoopScorer` | Route candidates, route reports, optional solver export/scoring. |
-| `tuba.compliance` | `ASMEB313Evaluator` | Implemented ASME B31.3 / safe B31J-compatible checks. |
-| `tuba.external` | IFC exchange adapters | Exchange adapters, not internal model authority. |
-
-## How The Library Works
-
-### 1. Author A Pipe-Native Model
-
-The top-level facade contains only `Model`, `Operation`, and `AnalysisRun`; extension types are imported from their owning modules.
-
-```python
-from tuba import Model
-
-model = Model(project_name="Demo")
-model.add_material("Steel", E=210e9, nu=0.3, rho=7850, alpha=12e-6)
-model.add_pipe_section("DN100", OD=0.1143, WT=0.00602)
-
-with model.pipe(section="DN100", material="Steel", route="P-100") as b:
-    b.start([0.0, 0.0, 0.0], support="anchor")
-    b.run(2.0)
-    b.bend_to([2.0, 1.0, 0.0], radius=0.8, plane_normal=[0.0, 0.0, 1.0])
-    b.run(2.0)
-    b.end(support="anchor")
-```
-
-Shipped builder methods include `start`, `run`, `bend`, `bend_to`,
-`bend_in_plane`, `bend_by_orientation`, `add_support`, `spring`,
-`run_element`, `beam`, `bar`, `cable`, `end`, and `set_direction`.
-
-Route and station metadata are stored on generated pipe elements. Stored
-`BendGeometry` records make bend meshing, analysis-mesh lineage, visualization,
-and compliance hooks use model facts instead of re-inferring geometry later.
-
-### 2. Define Operating Loads
-
-`Operation` is the higher-level operating scenario. It converts back to the
-low-level `LoadCase` record that the Code_Aster writer consumes.
-
-```python
-hot = model.define_operation(
-    "Hot",
-    gravity=True,
-    pressure=1.6e6,
-    temperature=180.0,
-    ref_temperature=20.0,
-)
-
-hot.add_field(
-    "temperature",
-    140.0,
-    route_id="P-100",
-    station_start=0.0,
-    station_end=1.5,
-)
-
-model.validate()
-```
-
-Supported operation-field quantities are `pressure`, `temperature`, `wind`, and
-`line_load`. The Code_Aster writer supports uniform fields for all four
-quantities. It also supports `profile="linear"` for temperature fields scoped by
-route/station, exported as per-element midpoint temperature assignments through
-`CREA_CHAMP`. Non-uniform pressure, non-uniform wind, and piecewise profiles
-still fail validation before export.
-Temperature fields can also be scoped to nodes (`node_ids`). The writer then
-gives every solver node of each touched element a `GROUP_NO` value in the same
-`CREA_CHAMP`, interpolated along the element, including generated bend,
-subdivision and `TUYAU_3M` midside nodes. `tuba.sampling` writes such fields,
-and per-element pressure, wind and line-load fields, from CFD clouds, Python
-functions and route tables.
-A line load (`line_load`, newtons per metre along one global direction) loads
-pipe and beam elements in full through a plain `FORCE_POUTRE` under `TUYAU_3M`
-and `POU_D_T`; pipe-volume and native-contact studies refuse it.
-Wind fields load pipe and beam elements. Beam-modelled elements use
-`FORCE_POUTRE(TYPE_CHARGE='VENT')`. Code_Aster refuses `VENT` on `TUYAU_3M`
-elements, so there Tuba applies VENT's cross-flow rule itself and writes a plain
-`FORCE_POUTRE`: a constant on a straight pipe, a function of X, Y, Z on a bend.
-
-### 3. Export And Run Code_Aster
-
-Use `CodeAsterSolver` for the explicit solver path:
-
-```python
-from pathlib import Path
-from tuba.solver.aster import CodeAsterSolver
-
-solver = CodeAsterSolver(
-    work_dir="runs/demo_hot",
-    exec_method="wsl",
-    wsl_distro="Ubuntu",
-)
-
-study = solver.export_analysis_study(model, "Hot", Path("runs/demo_hot"))
-run = solver.solve_exported_study(model, study)
-results = run.results
-```
-
-`export_analysis_study(...)` writes:
-
-- `study.mail`
-- `study.comm`
-- `study.export`
-- `study_manifest.json`
-- `study_tuba_fem.json`
-
-The manifest and sidecar are not decoration. They map shortened Code_Aster
-names and generated analysis-mesh entities back to stable Tuba references.
-
-`model.solve(operation="Hot", exec_method="wsl",
-wsl_distro="Ubuntu")` dispatches to the same backend, but the explicit solver
-object is clearer for architecture and debugging.
-
-### 4. Load Notebook Results Safely
-
-Notebook result cells should use the shared helper instead of hand-building
-`FEAResults`:
-
-```python
-from tuba.analysis.code_aster_notebook import load_or_run_code_aster_results
-
-run = load_or_run_code_aster_results(
-    model,
-    "Hot",
-    "notebooks/code_aster_results/stress_analysis_operating",
-    run_solver=True,
-    exec_method="wsl",
-    wsl_distro="Ubuntu",
-)
-
-results = run.results
-```
-
-If `run_solver=False`, the directory must already contain real Code_Aster
-result tables. If tables are missing, the helper stops before displaying solver
-results.
-
-For artifact review without running Code_Aster:
-
-```python
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
-
-artifact = import_code_aster_artifacts(
-    model=model,
-    work_dir="notebooks/code_aster_results/stress_analysis_operating",
-)
-
-results = artifact.results
-```
-
-Only use this for directories that already contain real Code_Aster artifacts.
-
-### 5. Build The Engineering Review
-
-Reporting is function-first and renderer-independent:
-
-```python
-from tuba.reporting import build_engineering_review, write_engineering_review
-
-review = build_engineering_review(
-    model,
-    studies=[artifact.study],
-    result_states=[artifact.result_state],
-)
-output = write_engineering_review(review, "runs/demo_hot/review")
-```
-
-These functions validate and serialize supplied records; they do not export a
-study or run Code_Aster. FE stress retains the exact result basis `FE Von Mises
-(not piping-code stress)`. A piping-code compliance table is emitted only from
-an explicit compliance report. Solver FE stress and scene utilization are not
-piping-code compliance.
-
-### 6. Display Results Through One Of Two Paths
-
-There are exactly two result-display paths.
-
-#### PyVista Quick-Look
-
-`FEAResults` exposes notebook/interactive helpers:
-
-```python
-results.plot_deformed_stress(deform_scale=40.0, jupyter_backend="html")
-```
-
-This path lives under `tuba.plotting`. Use it for quick notebook inspection and
-PLY/glTF/Blender export. It must still receive real Code_Aster-backed results
-when displaying stress, displacement, reactions, or compliance-relevant output.
-When `results.result_file` points to the solved `.rmed`, the quick-look reads
-that artifact directly instead of rebuilding display data from the model.
-
-#### Web Review Bundle
-
-The reviewable web scene path is:
-
-```python
-from tuba.analysis.code_aster_artifacts import import_code_aster_artifacts
-from tuba.visualization import (
-    build_visualization_scene,
-    write_engineering_review_with_scene,
-    write_scene_bundle,
-)
-
-artifact = import_code_aster_artifacts(
-    model=model,
-    work_dir=study.work_dir,
-    study=study,
-)
-
-scene = build_visualization_scene(
-    model,
-    analysis_meshes=[artifact.analysis_mesh] if artifact.analysis_mesh is not None else [],
-    result_states=[artifact.result_state],
-)
-
-bundle = write_scene_bundle(scene, "runs/demo_hot/review_scene")
-
-# Optional: add the authoritative report files while retaining that scene layout.
-review_output = write_engineering_review_with_scene(
-    review,
-    "runs/demo_hot/engineering_review_scene",
-    scene=scene,
-)
-```
-
-The `viewer/` Three.js app renders that bundle. Use this path for shareable
-review, object maps, route alternatives, issues, overlays, deformed states, and
-static review reports.
-
-`write_engineering_review_with_scene(...)` is an adapter around this same web
-review path, not a solver and not a third display system. Scene-only bundles
-without `review.json` remain supported.
-
-Do not add a third display path.
-
-## Code_Aster Command Map
-
-`tuba/solver/aster_comm.py` writes the current `.comm` file. The table below is
-the technical basis for the generated commands. The linked HTML pages mirror
-the Code_Aster U4 command manuals; the mirror also links back to Code_Aster PDF
-docs. Code_Aster's U0.00.01 manual explains that U4 documents are user guides
-for commands such as `DEFI_MATERIAU`.
-
-| Tuba generation point | Code_Aster command | Why Tuba uses it | Manual |
-|---|---|---|---|
-| Mesh read | `LIRE_MAILLAGE(FORMAT='ASTER')` | Reads generated `study.mail`. Mixed studies use MED. | [U4.21.01 LIRE_MAILLAGE](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.21.01.html) |
-| Discrete spring/mass support mesh | `CREA_MAILLAGE(CREA_POI1=...)` | Adds point elements for discrete springs and masses. | [U4.23.02 CREA_MAILLAGE](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.23.02.html) |
-| Mechanical model assignment | `AFFE_MODELE` | Assigns `TUYAU_3M`, `POU_D_T`, `BARRE`, `CABLE`, and `DIS_TR`. | [U4.41.01 AFFE_MODELE](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.41.01.html) |
-| Material definition | `DEFI_MATERIAU` | Defines elastic material parameters and cable material data. | [U4.43.01 DEFI_MATERIAU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.43.01.html) |
-| Material assignment | `AFFE_MATERIAU` | Assigns materials and thermal reference variables to mesh groups. | [U4.43.03 AFFE_MATERIAU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.43.03.html) |
-| Element characteristics | `AFFE_CARA_ELEM` | Defines pipe, bend, beam, bar, cable, spring/mass, and `GENE_TUYAU` orientation data. | [U4.42.01 AFFE_CARA_ELEM](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.42.01.html) |
-| Supports, gravity, pressure, wind, line loads, mixed couplings | `AFFE_CHAR_MECA`, `AFFE_CHAR_MECA_F` | Writes `DDL_IMPO`, `PESANTEUR`, `FORCE_TUYAU`, beam-modeled wind through `FORCE_POUTRE(TYPE_CHARGE='VENT')`, `TUYAU_3M` wind through a plain `FORCE_POUTRE` carrying the same cross-flow rule, line loads through a plain `FORCE_POUTRE`, and `LIAISON_ELEM`. | [U4.44.01 AFFE_CHAR_MECA](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.01.html) |
-| Thermal expansion fields | `CREA_CHAMP` | Creates temperature fields for uniform, route/station-linear and node-scoped thermal expansion: `GROUP_MA` rows per element, then `GROUP_NO` rows per solver node. | [U4.72.04 CREA_CHAMP](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.72.04.html) |
-| Nonlinear thermal evolution | `CREA_RESU` | Creates thermal result evolution used by nonlinear cases. | [U4.44.12 CREA_RESU](https://www-mdp.eng.cam.ac.uk/web/CD/engapps/aster_docs/UDocs-HTML/U44412g1/U44412g1.pdf.html) |
-| Rest/contact time list | `DEFI_LIST_REEL`, `DEFI_LIST_INST` | Defines the simple nonlinear solve increments. | [U4.34.01 DEFI_LIST_REEL](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.01.html), [U4.34.03 DEFI_LIST_INST](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.34.03.html) |
-| Unilateral rests | `DEFI_CONTACT(FORMULATION='LIAISON_UNIL')` | Models unilateral rest/lift-off behavior when support conditions are nonlinear. | [U4.44.11 DEFI_CONTACT](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.44.11.html) |
-| Linear static solve | `MECA_STATIQUE` | Solves linear static mechanical cases. | [U4.51.01 MECA_STATIQUE](https://www-mdp.eng.cam.ac.uk/web/CD/engapps/aster_docs/UDocs-HTML/U45101i1/U45101i1.pdf.html) |
-| Nonlinear static solve | `STAT_NON_LINE` | Solves rest/friction/contact nonlinear cases. | [U4.51.03 STAT_NON_LINE](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.51.03.html) |
-| Derived fields | `CALC_CHAMP` | Computes stresses, element forces, equivalent stress, and nodal forces. | [U4.81.04 CALC_CHAMP](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.81.04.html) |
-| MED result file | `IMPR_RESU(FORMAT='MED')` | Writes `study.rmed` for visualization and artifact review. | [U4.91.01 IMPR_RESU](https://biba1632.gitlab.io/code-aster-manuals/docs/user/u4.91.01.html) |
-| Parseable CSV tables | `CREA_TABLE`, `IMPR_TABLE` | Writes `study_depl.csv`, `study_effo.csv`, `study_reac.csv`, and `study_sieq.csv`. | [U4.91.03 IMPR_TABLE](https://www-mdp.eng.cam.ac.uk/web/CD/engapps/aster_docs/UDocs-HTML/U49103e/U49103e.pdf.html) |
-| Runtime execution | `run_aster` / `.export` | Executes studies from Code_Aster export files. | [run_aster package](https://codeaster.readthedocs.io/en/latest/devguide/run_aster/run_aster.html) |
-
-Wind follows the element's modelization. Code_Aster U4.44.01 documents
-`FORCE_POUTRE(TYPE_CHARGE='VENT')` for beam modelizations; Tuba emits
-`AFFE_CHAR_MECA_F` with constant `FORMULE` concepts for those wind components.
-`TUYAU_3M` elements accept a plain `FORCE_POUTRE` but refuse `VENT`
-(`<EXCEPTION> <PIPE1_44>`), so Tuba applies VENT's rule itself in a separate
-`WIND_TUY` load: only the part of the wind across the pipe axis, scaled once
-more by the sine of the angle between wind and axis. That is a constant on
-straight pipes and a `FORMULE` of X, Y, Z along bends.
-`tests/test_code_aster_line_loads.py` solves both against POU_D_T `VENT` on an
-oblique straight and an elbow. Line loads use a plain `FORCE_POUTRE` in their
-own `LINELOAD` load. Within one `AFFE_CHAR_MECA`, Code_Aster keeps only the last
-`FORCE_POUTRE` occurrence on an element, so each element gets one row and each
-kind of load its own concept. No `FORCE_NODALE` shortcut is used for either.
-Equivalent-stress (`SIEQ_ELNO`) output is emitted only for studies with pipe
-elements; pure beam/bar/cable studies return displacement, element-force, and
-reaction artifacts without inventing a Von Mises stress table.
-
-When adding solver features, update this table in the same change as the
-writer. That keeps Tuba's command generation tied to Code_Aster documentation
-instead of local memory.
-
-## Shipped Feature Inventory
-
-### Modeling
-
-- Pipe-native `TubaModel` source model.
-- Materials with elastic, density, thermal expansion, and allowable stress data.
-- Pipe, bar, cable, rectangular, and I-beam sections.
-- Nodes, elements, supports, load cases, operations, operation fields, obstacles,
-  groups, attributes, insulation specs, placement frames, and mixed-analysis
-  records.
-- Cursor builder for pipe routes, stored 3D bends, beams, bars, and cables.
-- Route/station metadata on generated pipe elements.
-- JSON serialization and JSON-schema validation. New model records use the
-  stable `tuba.model.v4` schema identifier independently of the Python package
-  version; the loader remains compatible with existing `4.0.0` records.
-- Model validation for references, sections, groups, placements, attributes,
-  operation fields, route/station metadata, bend geometry, and mixed records.
-
-### Code_Aster
-
-- 1D pipe/beam/bar/cable Code_Aster export.
-- `TUYAU_3M` pipe modelization.
-- Bend meshing from stored `BendGeometry`, with generated analysis nodes and
-  sidecar lineage.
-- Local uniform pressure and temperature fields compiled into Code_Aster mesh
-  groups.
-- Node temperatures compiled into per-solver-node `GROUP_NO` values,
-  interpolated along each touched element; `tuba.sampling` builds fields from
-  CFD clouds, Python functions and route tables.
-- Line loads compiled into a plain `FORCE_POUTRE` on pipe and beam elements
-  under `TUYAU_3M` and `POU_D_T`.
-- Wind fields compiled by modelization: `FORCE_POUTRE(TYPE_CHARGE='VENT')` on
-  beam-modelled elements and a plain `FORCE_POUTRE` with VENT's cross-flow rule
-  on `TUYAU_3M` pipes and bends; no `FORCE_NODALE` shortcut.
-- `.mail`, `.comm`, `.export`, `study_manifest.json`, and
-  `study_tuba_fem.json` generation.
-- Runtime discovery/execution through WSL, command runner, Python bridge, or
-  Docker fallback.
-- CSV and optional RMED artifact parsing into `FEAResults`.
-- `SIEQ_ELNO` stress tables are generated only for pipe-containing studies;
-  beam-only studies keep real displacement, force, and reaction results without
-  fabricated stress output.
-- Notebook helper that loads real artifacts or runs Code_Aster when configured.
-- Mixed STEP/pipe study export for the first pipe-to-solid-port slice.
-
-### Results And Review
-
-- `FEAResults` for displacements, reactions, element forces, stresses, and
-  plotting.
-- `AnalysisStudy`, `AnalysisMesh`, and `ResultState` provenance records.
-- Cold, operating, and visual deformed geometry states.
-- Physical deformed envelopes for clash checks and review.
-- PyVista notebook/quick-look plotting.
-- Web-scene bundle export for the Three.js viewer.
-- Static reports, scene diffs, issue overlays, route review overlays, BCF
-  exchange, and viewer smoke tests.
-
-### Routing And Engineering Helpers
-
-- Deterministic 3D grid A* routing.
-- Network routing with conflict repair.
-- Expansion-aware U-loop candidate generation.
-- Route cost model and route reports.
-- Solver-loop export/scoring for selected candidates, including imported
-  displacement, reaction, and operating-clearance gates when real results exist.
-- Physical quantities, insulation/wind metadata, load-path reports, rule checks,
-  Trimesh clash checks, and IFC export/import.
-- ASME B31.3 evaluator with the implemented safe B31J-compatible subset.
-
-## Current Gaps
-
-| Gap | Status | Next useful action |
-|---|---|---|
-| Real runtime proof | The library supports runtime discovery, but a fresh production solve requires a configured Code_Aster runner. | Run `python -m tuba.solver.code_aster_doctor --check`, then `TUBA_RUN_CODE_ASTER_INTEGRATION=1` integration tests on a solver machine. |
-| Linear/piecewise operation fields | Uniform fields are supported; linear temperature by route/station is exported as per-element midpoint values. Pressure, wind, and piecewise profiles still fail before export. | Add one end-to-end writer slice per remaining profile shape, with result import and notebook proof. |
-| Distributed loads on volume and mixed studies | 1D pipes and beams take wind and line loads under `TUYAU_3M` and `POU_D_T`. Pipe-volume studies refuse both, and the STEP mixed exporter writes no loads at all. | Apply wind and line loads to the 3D outer skin (`FORCE_FACE` on `G_OUTER_*`), checked against the 1D total reaction. |
-| Seismic loads | Not implemented. Code_Aster has dedicated seismic commands, but Tuba does not yet have the model, writer, parser, or routing/compliance slice. | Add as a full vertical slice: model field, command writer, artifact import, compliance/routing use. |
-| B31J tee/branch factors | Blocked by source-data rights. | Use licensed ASME B31J text or authorized user-provided tables. Do not infer coefficients from secondary sources. |
-| Mixed STEP solve/import/display | Mixed export exists for the first pipe-to-solid-port slice. | Prove real mixed solve, import artifacts, and display results through the same review paths. |
-| `_write_comm(...)` size | Command ordering is correct but concentrated. | Move only repeated load/support compilation to helpers. Do not create a generic solver DSL until duplication forces it. |
-
-## What Not To Do
-
-- Do not present `.comm`, `.mail`, or `.export` generation as a completed
-  engineering evaluation.
-- Do not display stress, displacement, reaction, compliance, or operating-state
-  clash results from mock or hand-built values in user-facing workflows.
-- Do not add a third visualization surface.
-- Do not expand roadmap DSL examples into current-code docs unless the methods
-  exist on `TubaModel` or `PipingBuilder`.
-
-## Recommended Next Architecture Work
-
-1. Prove the real Code_Aster runtime on the target machine with the doctor and
-   integration smoke.
-2. Pick one missing load/profile at a time and implement it end to end:
-   model record, validation, Code_Aster command, result artifact, review output.
-3. Keep `_write_comm(...)` as the Code_Aster command-order owner, but continue
-   extracting repeated load compilers into small helpers.
-4. Treat mixed STEP as export/handoff until real solve/import/display is proven.
-
-The current architecture mostly needs runtime proof and disciplined feature
-slices, not a new framework.
+# Tuba v4 library architecture and capability scope
+
+Reviewed 2026-09-30 on the cleanup branch based on `ac00d69`. This page replaces the July
+inventory, which described several APIs and standards helpers that have since
+been retired. The public manual owns current usage; the links below lead there.
+
+## Production workflow
+
+1. Author a procedural Python model and its study configuration.
+2. Validate the model and the selected solver inputs.
+3. Export the study and run Code_Aster as an external process.
+4. Import and validate the solver artifacts and their lineage.
+5. Review or report those processed results through an existing display path.
+
+Exported input files alone are an incomplete handoff. Stress, displacement,
+reactions and operating-state results require imported Code_Aster evidence.
+Missing runtime or evidence must remain an explicit blocker.
+
+## Current references and owners
+
+| Topic | Current reference | Implementation |
+| --- | --- | --- |
+| Architecture and ownership | [Current architecture](../content/architecture/index.md) | `tuba/model.py`, `tuba/builder.py` |
+| Authoring inputs and limits | [Modeling](../content/modeling.md) | `tuba/validation.py`, `tuba/verify.py` |
+| Solve, import and review | [Workflow](../content/workflow.md) | `tuba/solver/`, `tuba/project/`, `tuba/analysis/` |
+| Public Python API | [Public API](../content/reference/public-api.md) | The owning Python modules |
+| Reports and display contracts | [Visualization](../content/architecture/visualization.md) | `tuba/reporting/`, `tuba/plotting/`, `tuba/visualization/`, `viewer/` |
+| Native friction evidence | [Qualification and limits](../content/engineering/native-friction-qualification.md) | `tuba/solver/aster_contact.py`, `tuba/solver/contact_results.py` |
+| Planned engineering packages | [Reliability and V2 parity](../superpowers/plans/2026-09-26-library-reliability-and-v2-parity.md) | Packages B-J remain separately scoped |
+| Standards policy | [Piping standards checks: retired](b31j-compliance-migration.md) | No built-in B31 evaluator |
+
+Python remains the engineering authoring language. Studio and MCP inspect,
+verify and solve the authored project; authored scripts retain their procedural
+structure. Construction units support reusable composition.
+
+Keep both result-display paths: PyVista quick-look/export in `tuba/plotting/`,
+and reviewable web scenes in `tuba/visualization/` plus `viewer/`. Notebook
+HTML and Blender exporters have live callers and remain supported. A second
+frontend implementation or a generic solver framework would add maintenance
+without closing the engineering gaps below.
+
+## Supported slices and explicit limits
+
+- Linear 1D piping supports operation-specific contents, with separate metal,
+  insulation and contents mass. Pressure uses `TUYAU_3M`; `POU_D_T` pressure
+  and tee/branch flexibility remain unsupported.
+- Native point-shoe contact histories support the qualified uniform-temperature,
+  gravity and nodal-force slice. Pressure, contents and operation fields remain
+  blocked on that history path.
+- Native straight/bend/tee volume studies have mechanical reference cases.
+  Thermal loading, wind, line loads, insulation and contents are rejected by
+  the volume exporter.
+- Imported STEP components support geometry, mesh and diagnostic mixed export.
+  Their exported study remains explicitly blocked from production execution.
+- The web viewer already provides attributable result-step envelopes within a
+  load case. Signed governing component results across compatible cases remain
+  planned.
+- Built-in ASME B31 evaluators and B31J/Appendix D factor helpers are retired.
+  Users own the applicable standards, checks and acceptance criteria.
+
+## Cleanup completed in this review
+
+Repository searches covered tracked Python, viewer source, tests, notebooks,
+examples, documentation, public exports and subprocess entry points.
+
+- Removed the superseded single-sample friction classifier; the active
+  classifier reads the complete contact history.
+- Removed three unused viewer exports and unused local-axis/route-HTML helpers.
+- Removed unused imports and the plotting-only I-beam dimension wrapper.
+  IFC now reads the same section dimensions from `tuba.geometry.profiles`.
+- Replaced this obsolete feature inventory and corrected the routing scope
+  record. Historical implementation plans remain as qualification history.
+- Retained CLI/subprocess solver helpers, artifact parsing, notebook exports,
+  both visualization paths and tolerant bundle readers.
+
+These changes do not implement new solver physics or qualify new formulations.
+Undocumented deep imports of removed helpers are outside the retained facade.
+
+## Findings to address before expanding features
+
+The two high-priority correctness findings have been fixed. Routing acceptance
+requires a true evaluator verdict and finite, present enforced evidence; missing
+support reactions cannot hide behind another valid reaction. Plotting preserves
+unavailable result fields as `NaN`; exports that require complete fields reject
+incomplete evidence before writing. Raw RMED plots retain annotated helper-node
+stress gaps. Genuine solver zero values remain available. PLY exports now write
+their computed stress colors into the file.
+
+| Priority | Finding | Evidence and next action |
+| --- | --- | --- |
+| Medium | Several routing inputs are exposed without enforcement. | Nozzle, displacement and operating-clearance acceptance limits; slope, waypoints and named zones; some cost weights and thermal preferences are not consumed. Reject unsupported requests or explicitly report the checked scope. |
+| Medium | Resolved local temperatures do not reach every result consumer. | The PyVista surface mapper publishes case-default `TEMP`; web reference ratios explicitly refuse spatial temperature fields. Carry the resolved engineering field into the existing review contract. |
+| Medium | Study eligibility is not fully inspectable before export. | Some volume restrictions are checked after creating the output directory. Move those checks into the existing pure study-input/compiler owner. |
+
+The remaining findings are recorded for follow-up. Synthetic regression cases
+establish acceptance and availability behavior; numerical qualification requires
+real Code_Aster evidence.
+
+## Next engineering features
+
+These are already tracked in the reliability plan, rather than newly discovered
+requirements. Prioritize completing the existing workflow:
+
+1. Temperature-dependent material stiffness and expansion (Package B).
+2. Filled, pressurized friction histories and heated native solids (F and E).
+3. Qualified imported STEP solves, artifact import and result display (G).
+4. Signed cross-case governing results with operation/increment lineage (H).
+5. Concentric reducers, automated convergence studies and traceable catalogs
+   (C, I and J).
+
+Each package needs independent references and real Code_Aster
+solve/import/review evidence. Operation-specific contents and required numerical
+qualification gates are already shipped.
+
+Modal/seismic analysis, fatigue, bellows, specialized valve/flange models,
+eccentric reducers and partially filled contents remain separate product
+decisions. Their absence does not authorize expansion of a cleanup change.
+
+## Cleanup verification
+
+The cleanup branch incorporates the subsequent onboarding and bridge fix
+`ac00d69`. Validation covered:
+
+- 97 focused Python tests passed, with 16 subtests passed and two opt-in skips.
+- 47 plotting, IFC, documentation and browser-runtime tests passed in a separate
+  environment synchronized to `uv.lock`. Three generated-HTML checks skipped
+  because a strict documentation-site build was not part of this change.
+- The complete viewer unit suite and production build passed.
+- Release checks rebuilt identical viewer assets from a clean Git snapshot and
+  verified that an installed wheel serves its exact packaged assets.
+- Two real WSL Code_Aster tests passed without skips: a loaded pipe smoke and an
+  independent cantilever displacement/reaction reference. Their JUnit evidence
+  is retained locally at `.build/cleanup/real-code-aster.xml`.
+
+The full Python suite and full solver-reference qualification were not rerun.
+The shared developer environment lost dependency files during validation; the
+affected checks passed in the isolated environment. Its cause was not established,
+and this cleanup did not repair the shared environment.
+
+The follow-up correctness checks used the same isolated locked environment:
+
+- Routing regressions passed, including failed verdicts, invalid limits,
+  non-finite values, partial support coverage, genuine zeros and rescoring.
+- Plotting availability, scenes, reactions, RMED and notebook-backend checks
+  covered missing fields, unknown spans, member-local stress, annotated RMED
+  gaps and PLY color readback.
+- 22 documentation checks passed; three generated-HTML checks skipped.
+- Three browser-runtime/package checks passed, including the production build.
+  After the final PLY fix, the shipped browser ZIP was refreshed and compared
+  byte-for-byte with the runtime generated from the final Python source.
+- Both real WSL Code_Aster smoke/reference tests passed without skips; evidence
+  is retained at `.build/correctness/real-code-aster.xml`.
+- A separate attested loaded-pipe solve verified line, surface and RMED mapping,
+  rendered stress and deformed-stress PNGs, and exported Blender/PLY results.
+  Removing records from a copy preserved missing-data masks and blocked
+  incomplete exports. Its raw artifacts and readback evidence remain under
+  `.build/correctness/`.

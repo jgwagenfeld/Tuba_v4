@@ -141,8 +141,6 @@ const OVERLAY_SPECS = Object.freeze([
   }
 ]);
 
-export const OVERLAY_ORDER = Object.freeze(OVERLAY_SPECS.map((spec) => spec.id));
-
 // The steps the scale chip cycles. Inside the 0-5 range the vector sliders
 // already used, so a chip and a slider can never disagree about what is legal.
 export const VECTOR_SCALE_STEPS = Object.freeze([0.5, 1, 2, 5]);

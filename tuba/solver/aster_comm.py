@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import math
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 
 import numpy as np
 from tuba.physical import _fluid_density_by_element, _physical_properties_for_element

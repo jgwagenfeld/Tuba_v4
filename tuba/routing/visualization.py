@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Iterable
 
 import numpy as np
@@ -109,31 +108,6 @@ def show_route_scene(
         off_screen=False,
     )
     return plotter.show(jupyter_backend=jupyter_backend)
-
-
-def export_route_scene_html(
-    model: TubaModel,
-    path: str | Path,
-    *,
-    request: PipeRouteRequest | None = None,
-    result: PipeRouteResult | None = None,
-    candidates: Iterable[PipeRouteCandidate] | None = None,
-) -> Path:
-    """Export the interactive route scene to a standalone HTML file."""
-    plotter = build_route_plotter(
-        model,
-        request=request,
-        result=result,
-        candidates=candidates,
-        off_screen=True,
-    )
-    try:
-        out = Path(path)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        plotter.export_html(str(out))
-        return out
-    finally:
-        plotter.close()
 
 
 def _add_obstacles(plotter: "pv.Plotter", model: TubaModel) -> None:

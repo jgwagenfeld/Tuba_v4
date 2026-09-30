@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import copy
+import math
 from dataclasses import dataclass
+from numbers import Real
 from pathlib import Path
 from typing import Any, Callable
 
@@ -131,9 +133,9 @@ def _attach_solver_result_metadata(
     if evaluator is not None:
         report = evaluator.evaluate(model, results)
         candidate.metadata["compliance"] = {
-            "overall_pass": report.overall_pass,
-            "worst_sustained_ratio": report.worst_sustained_ratio,
-            "worst_expansion_ratio": report.worst_expansion_ratio,
+            "overall_pass": getattr(report, "overall_pass", None),
+            "worst_sustained_ratio": getattr(report, "worst_sustained_ratio", None),
+            "worst_expansion_ratio": getattr(report, "worst_expansion_ratio", None),
             "results_count": len(report.results),
         }
     candidate.metadata["reactions"] = {
@@ -141,6 +143,12 @@ def _attach_solver_result_metadata(
         for node_id, node in results.node_results.items()
         if node.reaction_force is not None
     }
+    support_nodes = {support.node for support in model.supports} | {
+        support.attached_to for support in model.supports if support.attached_to is not None
+    }
+    for node_id in sorted(support_nodes):
+        # Missing support evidence must not hide behind another node's real reaction.
+        candidate.metadata["reactions"].setdefault(node_id, None)
     candidate.metadata["displacements"] = {
         node_id: _vector_to_list(node.displacement)
         for node_id, node in results.node_results.items()
@@ -158,16 +166,33 @@ def _attach_solver_acceptance(candidate: PipeRouteCandidate, criteria) -> None:
     failed: list[str] = []
     if compliance.get("overall_pass") is None:
         failed.append("compliance_unavailable")
-    elif compliance.get("worst_expansion_ratio", 0.0) > criteria.max_expansion_ratio:
-        failed.append("expansion_ratio")
-    if compliance.get("overall_pass") is not None and compliance.get("worst_sustained_ratio", 0.0) > criteria.max_sustained_ratio:
-        failed.append("sustained_ratio")
+    elif compliance.get("overall_pass") is not True:
+        failed.append("compliance_failed")
+    for check in ("expansion_ratio", "sustained_ratio"):
+        value = compliance.get(f"worst_{check}")
+        limit = getattr(criteria, f"max_{check}", None)
+        if not _finite_number(limit) or limit < 0:
+            failed.append(f"{check}_invalid_limit")
+        if not _finite_number(value) or value < 0:
+            failed.append(f"{check}_unavailable")
+        elif _finite_number(limit) and value > limit:
+            failed.append(check)
 
-    max_reaction = 0.0
-    for vector in candidate.metadata.get("reactions", {}).values():
-        force = vector[:3]
-        max_reaction = max(max_reaction, float(sum(component * component for component in force) ** 0.5))
-    if max_reaction > criteria.max_anchor_reaction_n:
+    max_reaction = None
+    try:
+        forces = [vector[:3] for vector in candidate.metadata.get("reactions", {}).values()]
+        if forces and all(len(force) == 3 and all(_finite_number(value) for value in force) for force in forces):
+            magnitude = max(math.hypot(*force) for force in forces)
+            if math.isfinite(magnitude):
+                max_reaction = magnitude
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        pass  # Malformed force evidence remains unavailable.
+    limit = getattr(criteria, "max_anchor_reaction_n", None)
+    if not _finite_number(limit) or limit < 0:
+        failed.append("anchor_reaction_invalid_limit")
+    if max_reaction is None:
+        failed.append("anchor_reaction_unavailable")
+    elif _finite_number(limit) and max_reaction > limit:
         failed.append("anchor_reaction")
 
     candidate.metadata["solver_acceptance"] = {
@@ -179,6 +204,15 @@ def _attach_solver_acceptance(candidate: PipeRouteCandidate, criteria) -> None:
         setattr(candidate, _SOLVER_ACCEPTANCE_RESTORE_VALID_ATTR, candidate.is_valid)
         candidate.is_valid = False
         candidate.diagnostics.append(f"{_SOLVER_ACCEPTANCE_DIAGNOSTIC_PREFIX} " + ", ".join(failed))
+
+
+def _finite_number(value) -> bool:
+    if not isinstance(value, Real) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except (OverflowError, TypeError, ValueError):
+        return False
 
 
 def _reset_solver_result_metadata(candidate: PipeRouteCandidate) -> None:

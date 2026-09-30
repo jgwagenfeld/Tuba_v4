@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from tuba.geometry.profiles import profile_for_section
 from tuba.geometry.section_mesh import beam_local_frame, section_loops, straight_section_surface_mesh
 
 if TYPE_CHECKING:
@@ -256,6 +255,77 @@ def _get_bend_points(model: "TubaModel", elem: "Element", n_segments: int = 16) 
     return sample_bend_geometry(p1, elem.bend_geometry, n_segments=n_segments)
 
 
+def _node_result_vector(results, node_id, quantity):
+    record = results.node_results.get(node_id)
+    try:
+        vector = np.asarray(getattr(record, quantity, None), dtype=float)
+    except (TypeError, ValueError):
+        return np.full(3, np.nan)
+    if vector.ndim != 1 or len(vector) < 3 or not np.isfinite(vector[:3]).all():
+        return np.full(3, np.nan)
+    return vector[:3]
+
+
+def _element_von_mises(results, element):
+    record = results.element_results.get(element.id)
+    try:
+        values = np.asarray([
+            getattr(record, "von_mises_n1", np.nan),
+            getattr(record, "von_mises_n2", np.nan),
+        ], dtype=float)
+    except (TypeError, ValueError):
+        return np.full(2, np.nan)
+    return np.where(np.isfinite(values), values, np.nan)
+
+
+def _nodal_von_mises(model, results):
+    """Average incident endpoint stresses only when every value is available."""
+    values = {node_id: [] for node_id in model.nodes}
+    for element in model.elements:
+        stresses = _element_von_mises(results, element)
+        values[element.n1].append(stresses[0])
+        values[element.n2].append(stresses[1])
+    return {
+        node_id: float(np.mean(stresses)) if stresses and np.isfinite(stresses).all() else np.nan
+        for node_id, stresses in values.items()
+    }
+
+
+def _interpolate_endpoints(values, fractions, *, interpolate=True):
+    """Keep known endpoints; an unavailable endpoint leaves the span unavailable."""
+    values = np.asarray(values, dtype=float)
+    fractions = np.asarray(fractions, dtype=float)
+    mapped = np.full((len(fractions), *values.shape[1:]), np.nan)
+    if interpolate:
+        weights = fractions.reshape((-1,) + (1,) * (values.ndim - 1))
+        mapped = (1 - weights) * values[0] + weights * values[1]
+    mapped[fractions == 0] = values[0]
+    mapped[fractions == 1] = values[1]
+    return mapped
+
+
+def _require_result_field(mesh, field, *, complete=False):
+    if field not in mesh.point_data:
+        raise ValueError(f"Solver result field {field} is unavailable.")
+    values = np.asarray(mesh.point_data[field], dtype=float)
+    if field in {"DEPL", "FORC_NODA"}:
+        if values.ndim != 2 or values.shape[1] < 3:
+            raise ValueError(f"Solver result field {field} requires XYZ vectors.")
+        values = values[:, :3]
+        finite = np.isfinite(values).all(axis=1)
+    else:
+        finite = np.isfinite(values)
+    if not finite.any() or (complete and not finite.all()):
+        raise ValueError(f"Solver result field {field} has missing or non-finite values.")
+    values = values.copy()
+    values[~finite] = np.nan
+    mesh.point_data[field] = values
+    if field in {"DEPL", "FORC_NODA"}:
+        magnitude_field = "DEPL_magnitude" if field == "DEPL" else "FORC_magnitude"
+        mesh.point_data[magnitude_field] = np.linalg.norm(values, axis=1)
+    return values
+
+
 def build_mesh_from_model(
     model: "TubaModel",
     results: Optional["FEAResults"] = None,
@@ -283,25 +353,11 @@ def build_mesh_from_model(
     forc_list = []
     
     if results is not None:
+        stress_by_node = _nodal_von_mises(model, results)
         for nid in node_ids:
-            nr = results.node_results.get(nid)
-            disp_list.append(nr.displacement[:3] if nr is not None else np.zeros(3))
-            
-            # Average Von Mises for this node
-            v_val = 0.0
-            v_cnt = 0
-            for elem in model.elements:
-                er = results.element_results.get(elem.id)
-                if er is not None:
-                    if elem.n1 == nid:
-                        v_val += er.von_mises_n1
-                        v_cnt += 1
-                    elif elem.n2 == nid:
-                        v_val += er.von_mises_n2
-                        v_cnt += 1
-            vmis_list.append(v_val / max(v_cnt, 1))
-            
-            forc_list.append(nr.reaction_force[:3] if (nr is not None and nr.reaction_force is not None) else np.zeros(3))
+            disp_list.append(_node_result_vector(results, nid, "displacement"))
+            vmis_list.append(stress_by_node[nid])
+            forc_list.append(_node_result_vector(results, nid, "reaction_force"))
 
     all_edges = []
     
@@ -319,19 +375,14 @@ def build_mesh_from_model(
                 # Interpolate results for intermediate points
                 if results is not None:
                     t = i / n_segs
-                    nr1 = results.node_results.get(elem.n1)
-                    nr2 = results.node_results.get(elem.n2)
-                    d1 = nr1.displacement[:3] if nr1 is not None else np.zeros(3)
-                    d2 = nr2.displacement[:3] if nr2 is not None else np.zeros(3)
-                    disp_list.append(d1 + t * (d2 - d1))
-                    
-                    er = results.element_results.get(elem.id)
-                    if er is not None:
-                        vmis_list.append(er.von_mises_n1 + t * (er.von_mises_n2 - er.von_mises_n1))
-                    else:
-                        vmis_list.append(0.0)
-                        
-                    forc_list.append(np.zeros(3))
+                    displacement = [
+                        _node_result_vector(results, node_id, "displacement")
+                        for node_id in (elem.n1, elem.n2)
+                    ]
+                    disp_list.append(_interpolate_endpoints(displacement, [t])[0])
+                    vmis_list.append(_interpolate_endpoints(_element_von_mises(results, elem), [t])[0])
+                    # Reactions exist at solver nodes, not invented bend stations.
+                    forc_list.append(np.full(3, np.nan))
                     
             pts_idxs.append(node_idx[elem.n2])
             
@@ -425,12 +476,6 @@ def build_mesh_from_model(
 # ---------------------------------------------------------------------------
 
 
-def get_ibeam_dimensions(sec) -> tuple[float, float, float, float]:
-    """Retrieve H, B, Tw, Tf (in meters) for an IBeamSection."""
-    dimensions = profile_for_section(sec).dimensions
-    return tuple(float(dimensions[key]) for key in ("H", "B", "Tw", "Tf"))
-
-
 def _get_profile_2d_loops(sec, n_sides: int = 16) -> list[np.ndarray]:
     """Return section profile loops; inner loops are holes."""
     return [np.asarray(loop, dtype=float) for loop in section_loops(sec, n_sides=n_sides)]
@@ -504,24 +549,12 @@ def _triangulate_profile_polygon(poly: np.ndarray) -> list[tuple[int, int, int]]
 def _map_element_surface_data(mesh, model, elem, results, station_fractions):
     """Attach endpoint-interpolated solver data to an already-built surface."""
     if results is not None:
-        displacement = [np.zeros(3), np.zeros(3)]
-        reaction = [np.zeros(3), np.zeros(3)]
-        von_mises = [0.0, 0.0]
-        for index, node_id in enumerate((elem.n1, elem.n2)):
-            node_result = results.node_results.get(node_id)
-            if node_result is not None:
-                displacement[index] = node_result.displacement[:3]
-                if node_result.reaction_force is not None:
-                    reaction[index] = node_result.reaction_force[:3]
-        element_result = results.element_results.get(elem.id)
-        if element_result is not None:
-            von_mises = [element_result.von_mises_n1, element_result.von_mises_n2]
-
-        fractions = np.asarray(station_fractions, dtype=float)[:, None]
-        mesh.point_data["DEPL"] = displacement[0] + fractions * (displacement[1] - displacement[0])
+        displacement = [_node_result_vector(results, node_id, "displacement") for node_id in (elem.n1, elem.n2)]
+        reaction = [_node_result_vector(results, node_id, "reaction_force") for node_id in (elem.n1, elem.n2)]
+        mesh.point_data["DEPL"] = _interpolate_endpoints(displacement, station_fractions)
         mesh.point_data["DEPL_magnitude"] = np.linalg.norm(mesh.point_data["DEPL"], axis=1)
-        mesh.point_data["VMIS"] = von_mises[0] + fractions[:, 0] * (von_mises[1] - von_mises[0])
-        mesh.point_data["FORC_NODA"] = reaction[0] + fractions * (reaction[1] - reaction[0])
+        mesh.point_data["VMIS"] = _interpolate_endpoints(_element_von_mises(results, elem), station_fractions)
+        mesh.point_data["FORC_NODA"] = _interpolate_endpoints(reaction, station_fractions, interpolate=False)
         mesh.point_data["FORC_magnitude"] = np.linalg.norm(mesh.point_data["FORC_NODA"], axis=1)
 
     if results is not None and results.load_case is not None:
@@ -712,6 +745,7 @@ def build_3d_mesh_from_model(
         
     merged = meshes[0]
     if len(meshes) > 1:
-        merged = merged.merge(meshes[1:])
+        # Keep element-local stresses distinct, including unavailable neighbors.
+        merged = merged.merge(meshes[1:], merge_points=results is None)
         
     return merged
