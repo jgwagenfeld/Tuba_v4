@@ -96,9 +96,9 @@ test("a section with no usable dimension draws nothing", () => {
 
 test("a solid bar has no bore and a hollow one does", () => {
   withDom(({ nodes }) => {
-    assert.equal(nodes(profileDiagram(BAR), "circle").length, 1, "a solid bar is one circle");
+    assert.equal(nodes(nodes(profileDiagram(BAR), "g")[0], "circle").length, 1, "a solid bar is one circle");
     assert.equal(
-      nodes(profileDiagram({ ...BAR, wall_thickness_m: 0.006 }), "circle").length,
+      nodes(nodes(profileDiagram({ ...BAR, wall_thickness_m: 0.006 }), "g")[0], "circle").length,
       2,
       "a hollow bar is a circle and a bore"
     );
@@ -107,8 +107,31 @@ test("a solid bar has no bore and a hollow one does", () => {
 
 test("a pipe with no bore left is drawn as a solid circle, not a zero-radius one", () => {
   withDom(({ nodes }) => {
-    const drawn = nodes(profileDiagram({ kind: "pipe", outer_diameter_m: 0.05, wall_thickness_m: 0.05 }), "circle");
+    const svg = profileDiagram({ kind: "pipe", outer_diameter_m: 0.05, wall_thickness_m: 0.05 });
+    const drawn = nodes(nodes(svg, "g")[0], "circle");
     assert.equal(drawn.length, 1, "a pipe whose wall equals its diameter has no bore to draw");
+  });
+});
+
+test("section hatching covers material, excludes bores, and uses distinct SVG references", () => {
+  withDom(({ nodes }) => {
+    const ids = new Set();
+    for (const profile of [PIPE, BAR, CABLE, BOX, IBEAM]) {
+      const svg = profileDiagram(profile);
+      const mask = nodes(svg, "mask")[0];
+      const pattern = nodes(svg, "pattern")[0];
+      const fill = svg.children.find(node => node.getAttribute("mask"));
+      assert.equal(fill.getAttribute("mask"), `url(#${mask.getAttribute("id")})`);
+      assert.equal(fill.getAttribute("fill"), `url(#${pattern.getAttribute("id")})`);
+      assert.equal(pattern.getAttribute("patternTransform"), "rotate(45)");
+      assert.ok(!ids.has(mask.getAttribute("id")), "each diagram needs its own material mask");
+      ids.add(mask.getAttribute("id"));
+      assert.match(mask.children[0].getAttribute("style"), /fill: white/);
+      const bores = mask.children.filter(node => node.getAttribute("class") === "profile-bore");
+      assert.equal(bores.length, ["pipe", "rectangular"].includes(profile.kind) ? 1 : 0);
+      for (const bore of bores) assert.match(bore.getAttribute("style"), /fill: black/);
+      assert.ok(svg.children.indexOf(fill) < svg.children.indexOf(nodes(svg, "g")[0]), "outlines and centre lines stay above the hatching");
+    }
   });
 });
 

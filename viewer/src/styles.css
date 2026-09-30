@@ -1094,6 +1094,11 @@ textarea,
   stroke-linejoin: round;
 }
 
+.profile-diagram .profile-hatch {
+  stroke: var(--chrome-text-2, #9aa7ad);
+  stroke-width: 0.8;
+}
+
 .profile-diagram .profile-bore {
   fill: none;
   stroke: var(--chrome-text-2, #9aa7ad);

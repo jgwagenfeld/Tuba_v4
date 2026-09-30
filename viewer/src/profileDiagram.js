@@ -21,6 +21,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const SIZE = 168;
 const PAD = 28;
 const DIA = "Ø";
+let diagramId = 0;
 
 //: Root-radius arcs are drawn this finely. A rolled section's fillet is a detail,
 //: not the section, and 12 segments keeps its chord error near a hundredth of the
@@ -291,6 +292,22 @@ export function profileDiagram(profile) {
   const group = el("g", {});
   const outline = DRAWERS[kind](group, profile, frame);
   if (!outline) return null;
+  const materialId = `profile-material-${++diagramId}`;
+  const defs = el("defs", {});
+  const pattern = el("pattern", {
+    id: `${materialId}-hatch`, width: 6, height: 6,
+    patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)"
+  });
+  pattern.append(line(0, 0, 0, 6, "profile-hatch"));
+  const mask = el("mask", { id: materialId, maskUnits: "userSpaceOnUse", x: 0, y: 0, width: SIZE, height: SIZE });
+  const materialOutline = DRAWERS[kind](mask, profile, frame);
+  if (kind === "ibeam") mask.append(pathFrom(materialOutline));
+  // Reuse the section geometry to hatch material while leaving bores transparent.
+  for (const shape of mask.children) {
+    shape.setAttribute("style", `fill: ${shape.getAttribute("class") === "profile-bore" ? "black" : "white"}; stroke: none`);
+  }
+  defs.append(pattern, mask);
+  svg.append(defs, el("rect", { width: SIZE, height: SIZE, fill: `url(#${materialId}-hatch)`, mask: `url(#${materialId})` }));
   for (const rule of centreLines(outline)) group.append(rule);
   if (kind === "ibeam") group.append(pathFrom(outline));
   svg.append(group);
