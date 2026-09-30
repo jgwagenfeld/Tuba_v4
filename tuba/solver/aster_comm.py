@@ -13,7 +13,7 @@ from typing import Callable, Dict, List
 import numpy as np
 from tuba.physical import _fluid_density_by_element, _physical_properties_for_element
 from tuba.solver.aster_buckling import write_buckling_analysis
-from tuba.solver.aster_contact import shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
+from tuba.solver.aster_contact import attachment_equations, shoes, write_contact_solve, write_contact_tables, write_shoe_anchor, write_tie
 from tuba.solver.code_aster_runtime import write_artifact_text
 
 from tuba.model import (
@@ -597,12 +597,11 @@ class _CommWriterMixin:
                 dofs = _held_dofs(sup)
                 if not dofs:
                     continue
-                other = map_name(f"GN_{sup.attached_to}")
                 w(f"{char_name} = AFFE_CHAR_MECA(")
                 w("    MODELE=MODELE,")
                 w("    LIAISON_DDL=(")
-                for dof in dofs:
-                    w(f"        _F(GROUP_NO=('{grp_name}', '{other}'), DDL=('{dof}', '{dof}'), COEF_MULT=(1.0, -1.0), COEF_IMPO=0.0),")
+                for equation in attachment_equations(model, sup, f"GN_{sup.node}", dofs, map_name):
+                    w(f"        {equation},")
                 w("    ),")
                 if sup.node in pipe_nodes_with_warping:
                     w("    DDL_IMPO=_F(")
@@ -688,10 +687,10 @@ class _CommWriterMixin:
 
         if not native_path:
             for index, contact in enumerate(contacts):
-                active_bcs.append(write_shoe_anchor(w, index, contact, map_name))
+                active_bcs.append(write_shoe_anchor(w, index, contact, map_name, model))
         for index, link in enumerate(links):
-            write_tie(w, f"SPRING{index}", link.helper, link.support.attached_to,
-                      ("DX", "DY", "DZ", "DRX", "DRY", "DRZ"), map_name)
+            write_tie(w, f"SPRING{index}", link.helper, link.support,
+                      ("DX", "DY", "DZ", "DRX", "DRY", "DRZ"), map_name, model)
             active_bcs.append(f"SPRING{index}")
 
         if native_path:
