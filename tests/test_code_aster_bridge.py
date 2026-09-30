@@ -18,6 +18,7 @@ class TestCodeAsterBridge(unittest.TestCase):
             def __init__(self, filename=None, check=True):
                 calls["runtime_root"] = os.environ.get("RUNASTER_ROOT")
                 calls["elements_dir"] = os.environ.get("ASTER_ELEMENTSDIR")
+                calls["python_path"] = os.environ.get("PATH", "").split(os.pathsep)[0]
                 calls["export_filename"] = filename
                 calls["export_check"] = check
 
@@ -48,6 +49,7 @@ class TestCodeAsterBridge(unittest.TestCase):
             config.write_text("{}", encoding="utf-8")
             with (
                 patch("tuba.solver.code_aster_bridge.sys.prefix", str(root)),
+                patch("tuba.solver.code_aster_bridge.sys.executable", str(root / "bin" / "python")),
                 patch.dict(os.environ, {}, clear=True),
                 patch.dict(
                     sys.modules,
@@ -63,6 +65,7 @@ class TestCodeAsterBridge(unittest.TestCase):
         self.assertEqual(exitcode, 0)
         self.assertEqual(calls["runtime_root"], str(root))
         self.assertEqual(calls["elements_dir"], str(root / "lib"))
+        self.assertEqual(calls["python_path"], str(root / "bin"))
         self.assertEqual(calls["export_filename"], str(export_file.resolve()))
         self.assertTrue(calls["export_check"])
         self.assertTrue(calls["factory_tee"])

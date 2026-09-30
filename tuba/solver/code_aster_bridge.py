@@ -26,6 +26,7 @@ def _run_export_with_python_api(export_path: Path, workdir: Path) -> int:
     prefix = Path(os.environ.get("RUNASTER_ROOT", sys.prefix))
     if any((prefix / "share" / "aster" / name).is_file() for name in ("config.yaml", "config.json")):
         os.environ.setdefault("RUNASTER_ROOT", str(prefix))
+        os.environ["PATH"] = str(Path(sys.executable).parent) + os.pathsep + os.environ.get("PATH", os.defpath)
         for name, relative in {
             "ASTER_LIBDIR": "lib",
             "ASTER_ELEMENTSDIR": "lib",
