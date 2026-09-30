@@ -111,7 +111,7 @@ test("cards are grouped by what the review actually solved", () => {
   );
 });
 
-test("the largest group leads, so the page opens on what most of the set is", () => {
+test("without a featured path, the largest solved group leads", () => {
   const catalog = [
     { id: "a", elements: ["TUYAU_3M"], solved: true },
     { id: "b", elements: ["TUYAU_3M"], solved: true },
@@ -122,6 +122,28 @@ test("the largest group leads, so the page opens on what most of the set is", ()
 
   assert.equal(groups[0].id, "pipe");
   assert.equal(groups[0].members.length, 3);
+});
+
+test("the featured learning path appears once in catalog order and geometry stays separate", () => {
+  const catalog = [
+    { id: "support", solved: true, elements: ["TUYAU_3M"], featured_order: 2 },
+    { id: "bends", solved: true, elements: ["TUYAU_3M"], featured_order: 0 },
+    { id: "loads", solved: true, elements: ["TUYAU_3M"], featured_order: 1 },
+    { id: "advanced", solved: true, elements: ["POU_D_T"] },
+    { id: "geometry", solved: false, elements: ["3D"], featured_order: 0 },
+    { id: "unknown", featured_order: 0 },
+    { id: "string-rank", solved: true, featured_order: "1" },
+    { id: "negative-rank", solved: true, featured_order: -1 },
+    { id: "fractional-rank", solved: true, featured_order: 0.5 }
+  ];
+  const groups = groupEntries(normalizeCatalog(catalog));
+
+  assert.equal(groups[0].label, "Start here");
+  assert.deepEqual(groups[0].members.map((entry) => entry.id), ["bends", "loads", "support"]);
+  assert.deepEqual(groups.at(-1).members.map((entry) => entry.id), ["geometry"]);
+  const ids = groups.flatMap((group) => group.members.map((entry) => entry.id));
+  assert.deepEqual(ids.toSorted(), catalog.map((entry) => entry.id).toSorted(),
+    "featured cards must not also appear in subject groups or hide unranked cards");
 });
 
 test("a card with no declared elements still appears", () => {

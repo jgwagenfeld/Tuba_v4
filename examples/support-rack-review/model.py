@@ -1,7 +1,16 @@
-"""A DN100 line resting on friction shoes on a steel I-beam rack bay, analysed together with the rack."""
+"""Distributed and concentrated loads on one pipe and its frictionless rack shoes.
+
+The attached shoes carry vertical load but slide freely in-plane (mu = 0).
+Friction and its load history belong to the separate nonlinear friction example.
+"""
 
 from tuba import Model
 from tuba.assemblies import assemble
+
+PIPE_LOAD_N_M = 350.0
+CROSSBEAM_LOAD_N_M = 500.0
+POINT_FORCE_N = 3500.0
+POINT_MOMENT_N_M = 500.0
 
 model = Model("SupportRackReview")
 model.add_material(
@@ -50,13 +59,17 @@ with model.pipe(section="DN100", material="Steel", route="P-100") as pipe:
     pipe.run(1.0)                     # approach node (-1.0, 0.0, 3.25)
     pipe.add_support("guide", direction=[0.0, 1.0, 0.0])
     pipe.run(1.0)                     # on the rack's left beam (0.0, 0.0, 3.25)
-    pipe.add_support("rest", attached_to=mid_left, friction_coefficient=0.3)
-    pipe.run(4.0)                     # on the rack's right beam (4.0, 0.0, 3.25)
-    pipe.add_support("rest", attached_to=mid_right, friction_coefficient=0.3)
+    pipe.add_support("rest", attached_to=mid_left, friction_coefficient=0.0)
+    pipe.run(2.0)                     # unsupported span midpoint (2.0, 0.0, 3.25)
+    loaded_pipe_node = pipe.last_node_id
+    pipe.run(2.0)                     # on the rack's right beam (4.0, 0.0, 3.25)
+    pipe.add_support("rest", attached_to=mid_right, friction_coefficient=0.0)
     pipe.run(2.0)                     # outlet node (6.0, 0.0, 3.25)
     pipe.end(support="rest")
 
-# Operating condition with thermal expansion, pressure, and distributed line load:
+# Gravity is deliberately disabled: the pipe line load stands in for its downward
+# weight, while the rack's weight is omitted. Combining gravity and FORCE_POUTRE
+# on a beam prevents Code_Aster from calculating the requested REAC_NODA field.
 op = model.define_operation(
     "Operating",
     gravity=False,
@@ -66,8 +79,26 @@ op = model.define_operation(
 )
 op.add_field(
     "line_load",
-    value=350.0,
+    value=PIPE_LOAD_N_M,
     direction=[0.0, 0.0, -1.0],
     route_id="P-100",
+)
+# The left crossbeam is split at the shoe attachment. Target both connected
+# halves explicitly; the other rack members do not receive this lateral load.
+loaded_crossbeam = [
+    element.id for element in model.elements
+    if element.id in rack["elements"] and element.type == "beam"
+    and element.section == "RackCrossIPE" and mid_left in (element.n1, element.n2)
+]
+op.add_field(
+    "line_load",
+    value=CROSSBEAM_LOAD_N_M,
+    direction=[1.0, 0.0, 0.0],
+    element_ids=loaded_crossbeam,
+)
+op.add_nodal_force(
+    loaded_pipe_node,
+    force=[0.0, 0.0, -POINT_FORCE_N],
+    moment=[0.0, POINT_MOMENT_N_M, 0.0],
 )
 model.validate()

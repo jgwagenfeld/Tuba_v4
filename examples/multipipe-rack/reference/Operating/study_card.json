@@ -2,8 +2,8 @@
   "attested_artifacts": [
     {
       "name": "study.comm",
-      "sha256": "e4d6bbed5927bd7b1d340edcb9dbfbb5bd2a75ae6974625c1387ca7fec793707",
-      "size_bytes": 37291
+      "sha256": "aa464f5b0771c551be65a7debaa71e5758d910f9684c252a86b26cc1a39f6f23",
+      "size_bytes": 38544
     },
     {
       "name": "study.export",
@@ -17,47 +17,47 @@
     },
     {
       "name": "study.mess",
-      "sha256": "06c06fca931f3de92846ea39584aaa24d50aa55e6025991772753583758bb438",
-      "size_bytes": 211624
+      "sha256": "d6becacd3ae5d20a5be6138a3c6a4e4ce13e3324e97f7bcb1a2369a9820fe7af",
+      "size_bytes": 213699
     },
     {
       "name": "study.rmed",
-      "sha256": "5fb256179bd7d8e5dac1694a263aed64c0aa6ae853431f6512f712a1032d4403",
+      "sha256": "7fec3cff603cd2899829bf2a5df91184350e8447e21e997bcf968bf0bf9150d3",
       "size_bytes": 1081653
     },
     {
       "name": "study_contact.json",
-      "sha256": "b381841c7f10b3474f5b6147d9d2519f03227aa3da8db1fe45149dd82940ff18",
-      "size_bytes": 2472
+      "sha256": "993960a1fb791342a01b747ba318f8df6db65de6354df485e3e51e41b402a54c",
+      "size_bytes": 2322
     },
     {
       "name": "study_depl.csv",
-      "sha256": "e441686f96c57decf8d0825494f1bfcf33234e443cdb4c8fcdcc72ed156164e8",
+      "sha256": "dd6faa63bd44cf0c287e72cb2acbb5869b3b5b7e2622584eb4f4aaf4a017c3dc",
       "size_bytes": 112110
     },
     {
       "name": "study_effo.csv",
-      "sha256": "4145fa766461fcdedcaf9160d75014c9728f85dc9c93b731b1e60b82c968e291",
+      "sha256": "3d3da1b1aeb9809c1882bca6120bfe7fbe75270d800d3836a3f1db6f92a9b967",
       "size_bytes": 243418
     },
     {
       "name": "study_manifest.json",
-      "sha256": "e488fd80bfba32b4b16f2b4e1f4a7af2cd18fca5ebdefbef941284d82fbaedad",
-      "size_bytes": 254931
+      "sha256": "0331fb3298d3b2c9cfbfd055fdf6d3939580c8ea3c85aa21a2d0bcaa5709e76d",
+      "size_bytes": 254987
     },
     {
       "name": "study_reac.csv",
-      "sha256": "d6e0bc430aedc7398f66e864f67ba328b48241eeccd0dcba7c2de4128b82d590",
+      "sha256": "43ef10b50e0de04737972d81e86ed74ef9d7809c00e09ca866c08e22140a2094",
       "size_bytes": 112110
     },
     {
       "name": "study_sieq.csv",
-      "sha256": "682e220b14880672c6552715c816b818d31aedb1a08c33ce9fee35563b2bd8c7",
+      "sha256": "3cdede2f4ffd7fe5140fc92a9dd33e1c4e964a44b6a21f334159170a98dfc9f6",
       "size_bytes": 1946196
     },
     {
       "name": "study_tuba_fem.json",
-      "sha256": "d370cee1cd313ceb1cbcdff7908293200a87006164fda59e177986d76606b21f",
+      "sha256": "40f23bda95489bf766c7f2788fb4ef8957b056644a73ba00c8478faf7ce23fbc",
       "size_bytes": 38068
     }
   ],
@@ -210,14 +210,14 @@
   "source": "evidence/Operating",
   "study": {
     "element_count": 328,
-    "execution_method": "wsl",
+    "execution_method": "python_bridge",
     "id": "analysis_study:Operating",
     "load_case": "Operating",
     "mesh_id": "analysis_mesh:Operating",
     "model_revision": 0,
     "node_count": 340,
     "project_name": "MultipipeRack",
-    "solved_at": "2026-09-29T21:56:46.510070Z",
+    "solved_at": "2026-09-30T13:35:21.707567Z",
     "solver_name": "Code_Aster",
     "solver_version": "18.0.12"
   }

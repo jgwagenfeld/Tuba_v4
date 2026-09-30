@@ -28,7 +28,6 @@ REQUIRED = {
     "viewer/licenses/font-notices.txt",
     "viewer/licenses/OFL-1.1.txt",
     "viewer/code-aster-review/scene.json",
-    "viewer/elements-supports-review/scene.json",
     "viewer/imported_component_mixed_demo/scene.json",
     "viewer/load-case-preparation/scene.json",
     "viewer/native-friction-review/scene.json",
@@ -90,7 +89,22 @@ def test_public_gallery_keeps_the_unsolved_tee_as_a_dev_diagnostic():
     }
 
     assert "gmsh-tee-mesh-review" not in pages
+    assert {"elements-supports-review", "line-load-studio", "rack_bridge_demo"}.isdisjoint(pages)
     assert "pipe-tee-volume-review" in pages
+    assert "support-rack-review" in pages
+
+
+def test_public_gallery_has_eight_solved_introductory_examples_in_reading_order():
+    records = import_module("scripts.official_gallery").OFFICIAL_GALLERIES
+    featured = sorted((record for record in records if record.featured_order is not None),
+                      key=lambda record: record.featured_order)
+    assert [record.id for record in featured] == [
+        "code-aster-review", "load-case-preparation", "support-rack-review",
+        "autorouted-expansion-loop", "native-friction-review", "multipipe-rack",
+        "profile-orientation-review", "pipe-tee-volume-review",
+    ]
+    assert [record.to_catalog_entry()["featured_order"] for record in featured] == list(range(1, 9))
+    assert all(record.solved and "pages" in record.audiences for record in featured)
 
 
 def test_contact_gallery_rejects_a_missing_shoe_increment():

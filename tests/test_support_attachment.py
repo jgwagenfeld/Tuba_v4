@@ -178,18 +178,20 @@ class RackExampleEvidence(unittest.TestCase):
         self.assertEqual(len(shoes), 2)
         for shoe in shoes:
             self.assertLess(shoe.gap, 1e-9)
-        # Read from the committed evidence: the left shoe sticks under 2439.16 N,
-        # the right one slides under 1340.15 N. The grounded outlet rest is open.
-        self.assertEqual({shoe.status for shoe in shoes}, {"sticking", "sliding"})
-        self.assertAlmostEqual(shoes[0].normal_force, 2439.16, delta=0.05)
-        self.assertAlmostEqual(shoes[1].normal_force, 1340.15, delta=0.05)
+        # The introductory model uses frictionless shoes; its dedicated contact
+        # example covers sticking/sliding. Both loaded shoes must carry compression.
+        self.assertEqual({shoe.status for shoe in shoes}, {"frictionless"})
+        for shoe in shoes:
+            self.assertGreater(shoe.normal_force, 0.0)
+            for force in shoe.tangential_force:
+                self.assertAlmostEqual(force, 0.0, delta=1e-8)
         rack = analyze_load_paths(model, result_state=run.result_state).rack_loads["rack_A"]
         self.assertEqual(rack["support_count"], 2)
         carried = sum(shoe.normal_force for shoe in shoes)
         self.assertAlmostEqual(rack["force_z_n"], -carried, delta=0.02 * carried)
-        # The rack also takes the shoes' friction; a converged solve balances it to well under 1 N.
-        for axis, key in ((0, "force_x_n"), (1, "force_y_n")):
-            self.assertAlmostEqual(rack[key], -sum(shoe.tangential_force[axis] for shoe in shoes), delta=1.0)
+        # The left crossbeam has its own 2 m x 500 N/m lateral load.
+        self.assertAlmostEqual(rack["force_x_n"], 1000.0, delta=0.1)
+        self.assertAlmostEqual(rack["force_y_n"], 0.0, delta=0.1)
 
 
 if __name__ == "__main__":

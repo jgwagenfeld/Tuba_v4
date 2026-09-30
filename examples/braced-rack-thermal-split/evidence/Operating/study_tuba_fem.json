@@ -2129,7 +2129,7 @@
   "schema_version": 1,
   "solver_input_identity": {
     "compiler_id": "tuba.code_aster.v2",
-    "fingerprint": "fc4a0a5ffdc5642adde2b9eedf75a930a3cdce9e0539a9c8f05c467740758ae2",
+    "fingerprint": "6506511f1490f37c21c3cf7b16dcd63c4c32c8fb57ba8de85315b53f054e0a35",
     "load_case": "Operating",
     "schema_id": "tuba.model.v4"
   },

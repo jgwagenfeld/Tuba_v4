@@ -971,6 +971,8 @@ const scenarios = {
       assert.ok(published.length > 0, "the published catalog must not be empty");
       assert.equal(published.find(entry => entry.id === "support-rack-review")?.downloads?.ifc,
         "downloads/support-rack-review.ifc", "Pages must install IFC support and publish the rack IFC");
+      assert.equal(published.find(entry => entry.id === "multipipe-rack")?.downloads?.ifc,
+        "downloads/multipipe-rack.ifc", "Pages must also publish the multipipe rack IFC");
       for (const entry of published) {
         assert.equal(entry.downloads?.project, `downloads/${entry.id}.zip`);
         for (const [kind, uri] of Object.entries(entry.downloads)) {
@@ -987,6 +989,27 @@ const scenarios = {
         published.length,
         "the landing gallery must offer every published review"
       );
+
+      assert.equal(await page.locator("[data-gallery-group]").first()
+        .getAttribute("data-gallery-group"), "featured");
+      assert.deepEqual(await page.locator('[data-gallery-group="featured"] [data-gallery-card]')
+        .evaluateAll((nodes) => nodes.map((node) => node.dataset.galleryCard)), [
+        "code-aster-review",
+        "load-case-preparation",
+        "support-rack-review",
+        "autorouted-expansion-loop",
+        "native-friction-review",
+        "multipipe-rack",
+        "profile-orientation-review",
+        "pipe-tee-volume-review"
+      ]);
+      for (const entry of published.filter((entry) => entry.solved === true)) {
+        assert.ok(await page.locator(`[data-gallery-card="${entry.id}"]`).isVisible(),
+          `solved review ${entry.id} must be visible without opening a group`);
+      }
+      assert.equal(await page.locator('[data-gallery-group]:not([data-gallery-group="geometry"]) details')
+        .count(), 0, "solved groups must not have a disclosure");
+      assert.equal(await page.locator('[data-gallery-group="geometry"] details').count(), 1);
 
       // Every card leads with its question and declares its solve facts.
       const rendered = await cards.evaluateAll((nodes) =>
@@ -1059,24 +1082,21 @@ const scenarios = {
       await page.locator("[data-gallery-link]").click();
       const cards = page.locator("[data-gallery-card]");
       await cards.first().waitFor({ state: "visible" });
-      // The registry owns membership; subject groups own display order.
+      // The registry owns membership; its learning path leads the subject groups.
       assert.deepEqual(
         await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.galleryCard).sort()),
         [
             "autorouted-expansion-loop",
             "braced-rack-thermal-split",
             "code-aster-review",
-            "elements-supports-review",
             "guyed-mast-review",
             "hydrogen-plant-layout",
             "imported_component_mixed_demo",
-            "line-load-studio",
             "load-case-preparation",
             "multipipe-rack",
             "native-friction-review",
             "pipe-tee-volume-review",
             "profile-orientation-review",
-            "rack_bridge_demo",
             "steel-portal-frame-review",
             "support-rack-review"
           ]
@@ -1086,9 +1106,9 @@ const scenarios = {
       // can silently stop rendering and every card still looks complete.
       assert.deepEqual(
         await page
-          .locator('[data-gallery-card="elements-supports-review"] [data-gallery-elements] li')
+          .locator('[data-gallery-card="support-rack-review"] [data-gallery-elements] li')
           .allTextContents(),
-        ["TUYAU_3M", "POU_D_T", "BARRE", "CABLE", "DIS_TR", "DIS_T"]
+        ["TUYAU_3M", "POU_D_T", "DIS_T"]
       );
 
       const importedCard = page.locator('[data-gallery-card="imported_component_mixed_demo"]');
@@ -1109,6 +1129,7 @@ const scenarios = {
         ["code-aster-review", "scene:code_aster_artifact_review"],
         ["autorouted-expansion-loop", "scene:autorouted_expansion_loop"],
         ["support-rack-review", "scene:support_rack_review"],
+        ["multipipe-rack", "scene:multipipe_rack"],
         ["code-aster-review", "scene:code_aster_artifact_review"]
       ]) {
         await page.locator("[data-gallery-link]").click();
@@ -1577,7 +1598,7 @@ const scenarios = {
     }
   }
 };
-scenarios["pages-number-display"] = { ...scenarios["number-display"], path: "/viewer/" };
+scenarios["pages-number-display"] = { ...scenarios["number-display"], path: "/viewer/", bundle: "code-aster-review" };
 const selected = scenarios[scenario];
 
 if (!selected) {

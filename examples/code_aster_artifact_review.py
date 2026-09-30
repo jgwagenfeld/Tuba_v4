@@ -112,7 +112,7 @@ def run_example(
     )
     artifact_provenance = (
         "solved_in_this_run"
-        if run is not None
+        if run is not None and artifact_dir is None
         else "provided_real_code_aster_artifacts"
         if artifact_dir is not None
         else "committed_real_code_aster_artifacts"

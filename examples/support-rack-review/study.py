@@ -1,4 +1,4 @@
-"""Solve (or import) the operating case and review the rack's load paths."""
+"""Solve (or import) the load path through idealized frictionless rack shoes."""
 
 from pathlib import Path
 
@@ -13,7 +13,7 @@ VOLUME_EXPORT = None
 
 
 def _add_rack_labels(scene):
-    add_scene_label(scene, "Rest shoe on rack beam (μ = 0.3)", [0.0, 0.0, 3.55], label_id="label-shoe-left", height=0.18)
+    add_scene_label(scene, "Frictionless rest shoe (μ = 0)", [0.0, 0.0, 3.55], label_id="label-shoe-left", height=0.18)
     add_scene_label(scene, "Rack Crossbeam (IPE100)", [0.0, -0.6, 3.20], label_id="label-crossbeam", height=0.18)
 
 

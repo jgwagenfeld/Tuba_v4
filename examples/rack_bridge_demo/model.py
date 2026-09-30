@@ -1,8 +1,9 @@
-"""Street-crossing pipe rack bridge — authored procedurally.
+"""Elevated pipe-rack reference — authored procedurally.
 
-An ASME B31.3 piping system on ground sleepers that rises to cross
-an 8-meter roadway over a 4-bay overhead structural steel pipe rack bridge,
-supported by midpoint friction shoe rests, then drops back to ground elevation.
+A line rises from ground elevation onto four regular 3 m rack bays, rests on
+friction shoes and drops back to grade. Columns occur at each rack station;
+this model does not establish an 8 m clear roadway. The declared standard is
+an authoring input, not a verified piping-code verdict.
 """
 
 from tuba import Model
@@ -12,7 +13,6 @@ from tuba.patches import ModelTransaction
 # -----------------------------------------------------------------------------
 # 1. Project Parameters & Standards
 # -----------------------------------------------------------------------------
-ROAD_WIDTH = 8.0          # 8.0 m clear roadway
 SLEEPER_ELEVATION = 0.5   # Ground pipe centerline [m]
 BRIDGE_CLEARANCE = 5.5    # Overhead bridge pipe centerline [m]
 RACK_BEAM_LEVEL = 5.25    # Overhead steel beam top level [m] (0.25 m shoe offset)
@@ -53,7 +53,7 @@ with model.pipe(section="DN150_SCH40", material="P265GH") as p:
     p.bend(radius=0.5, angle=90.0, plane="XZ")    # bend into +X overhead span
     bridge_station_nodes.append(p.last_node_id)   # station 0 (x=0.0)
 
-    # Overhead bridge span (4 bays of 3.0 m across the 8 m road)
+    # Elevated rack span: four regular 3.0 m bays, with columns at each station.
     for _ in range(4):
         p.run(3.0)                                # stations 1-4 (x=3.0, 6.0, 9.0, 12.0)
         bridge_station_nodes.append(p.last_node_id)
