@@ -5533,7 +5533,7 @@ const openProfileLibrary = initProfileLibrary(dom.profileLibrary, {
       const source = !studio.reviewStale && deriveBundleSource(scene, currentBundle?.review);
       code = source ? await fetchBundleText(currentBundleUrl, source.scriptUri).catch(() => null) : null;
     }
-    if (generation === profileSourceGeneration) profileSourceCode = code;
+    if (generation === profileSourceGeneration) profileSourceCode = typeof code === "string" ? code.replace(/\r\n?/g, "\n") : null;
     return { ...catalog, used };
   },
   canInsert: () => isBuildMode() && (studio.available || sourceView.available) && !dom.codeText.readOnly,

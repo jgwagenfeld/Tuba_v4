@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { chromium, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const [galleryUrl, studioUrl, outputPath] = process.argv.slice(2);
+const [galleryUrl, studioUrl, outputPath, solvedStudioUrl] = process.argv.slice(2);
 if (!galleryUrl || !studioUrl) throw new Error("Pass a gallery viewer URL and a disposable Studio URL.");
 const output = resolve(outputPath ?? "../.build/shared-profiles/browser");
 mkdirSync(output, { recursive: true });
@@ -121,6 +121,52 @@ async function externalStudioReload(page, name) {
   assert.equal(await editor.evaluate(node => node.selectionStart), offset + 1);
 }
 
+async function nativeReviewSnapshot(url) {
+  const page = await newPage(url);
+  const editor = page.locator("[data-code-text]");
+  await expect(editor).toHaveValue(/with model\.pipe/);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await expect(page.locator('button[data-mode="review"]')).toHaveAttribute("aria-pressed", "true");
+  const resultSnapshot = () => page.evaluate(() => {
+    const state = window.__tubaViewer.state;
+    return JSON.stringify({ objects: state.objects, resultFields: state.resultFields, resultStates: state.resultStates, overlays: state.overlays, review: state.review });
+  });
+  const solved = await resultSnapshot();
+  assert.ok(await page.evaluate(() => window.__tubaViewer.state.resultFields.length > 0));
+  const drawer = await openProfiles(page);
+  const diameter = drawer.locator("[data-profiles-properties] tr").filter({ hasText: "outer diameter" }).locator("td");
+  await drawer.getByRole("button", { name: "Used in this model" }).click();
+  await drawer.locator('[data-profile-name="DN100"]').click();
+  await expect(diameter).toHaveText("114.3 mm");
+  await expect(drawer.locator("[data-profiles-reveal]")).toBeEnabled();
+  await drawer.locator("[data-profiles-close]").click();
+  await page.getByRole("button", { name: "Build", exact: true }).click();
+  const original = await editor.inputValue();
+  const draft = original.replace("OD=0.1143", "OD=0.15");
+  assert.notEqual(draft, original, "The disposable solved model needs the assigned DN100 section.");
+  await editor.fill(draft);
+  await page.locator("[data-code-run]").click();
+  await expect(page.locator("[data-code-foot]")).toContainText("Saved to model.py", { timeout: 30_000 });
+  await openProfiles(page);
+  await drawer.getByRole("button", { name: "Used in this model" }).click();
+  await drawer.locator('[data-profile-name="DN100"]').click();
+  await expect(diameter).toHaveText("150 mm");
+  await expect(drawer.locator("[data-profiles-reveal]")).toBeEnabled();
+  await drawer.locator("[data-profiles-close]").click();
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await expect(page.locator('button[data-mode="review"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-status-chip] [data-status]")).toHaveAttribute("data-status", "stale");
+  await expect.poll(async () => (await resultSnapshot()) === solved, {
+    message: "Native Build must preserve the genuine solved review."
+  }).toBe(true);
+  await openProfiles(page);
+  await drawer.getByRole("button", { name: "Used in this model" }).click();
+  await drawer.locator('[data-profile-name="DN100"]').click();
+  await expect(diameter).toHaveText("114.3 mm");
+  await expect(drawer.locator("[data-profiles-reveal]")).toBeDisabled();
+  await page.screenshot({ path: resolve(output, "studio-review-section-snapshot.png") });
+}
+
 try {
   const gallery = await newPage(galleryUrl);
   await expect(gallery.locator("[data-gallery-card]").first()).toBeVisible();
@@ -130,7 +176,8 @@ try {
   await gallery.setViewportSize({ width: 390, height: 844 });
   assert.ok(await landingDrawer.evaluate(node => node.scrollWidth <= node.clientWidth + 1));
   await gallery.screenshot({ path: resolve(output, "gallery-profiles-mobile.png") });
-  await gallery.keyboard.press("Escape");
+  await landingDrawer.locator("[data-profiles-close]").click();
+  await expect(landingDrawer).not.toBeVisible();
   await gallery.setViewportSize({ width: 1440, height: 1000 });
   const reviewUrl = new URL(galleryUrl);
   reviewUrl.searchParams.set("bundle", "code-aster-review");
@@ -144,23 +191,32 @@ try {
   const reviewDrawer = await openProfiles(gallery);
   await expect(reviewDrawer.locator("[data-profiles-insert-form]")).toBeHidden();
   assert.deepEqual(await catalogSnapshot(gallery, reviewDrawer), landing);
-  await gallery.keyboard.press("Escape");
-  await insertAndRun(gallery, false);
+  await reviewDrawer.locator("[data-profiles-close]").click();
+  await expect(reviewDrawer).not.toBeVisible();
+  const gallerySectionName = await insertAndRun(gallery, false);
   await gallery.getByRole("button", { name: "Review", exact: true }).click();
   assert.equal(await gallery.evaluate(() => {
     const state = window.__tubaViewer.state;
     return JSON.stringify({ objects: state.objects, resultFields: state.resultFields, resultStates: state.resultStates, overlays: state.overlays, review: state.review });
   }), published, "Editing and previewing must preserve the published solved snapshot.");
   await expect(gallery.locator("[data-status-chip] [data-status]")).toHaveAttribute("data-status", "stale");
+  await openProfiles(gallery);
+  await reviewDrawer.getByRole("button", { name: "Used in this model" }).click();
+  await expect(reviewDrawer.locator("[data-profiles-list] button").filter({ hasText: gallerySectionName })).toHaveCount(0);
+  await reviewDrawer.locator('[data-profile-name="DN100"]').click();
+  await expect(reviewDrawer.locator("[data-profiles-reveal]")).toBeDisabled();
+  await reviewDrawer.locator("[data-profiles-close]").click();
 
   const studio = await newPage(studioUrl);
   await expect(studio.locator("[data-code-text]")).toBeEditable();
   const studioDrawer = await openProfiles(studio);
   assert.deepEqual(await catalogSnapshot(studio, studioDrawer), landing);
-  await studio.keyboard.press("Escape");
+  await studioDrawer.locator("[data-profiles-close]").click();
+  await expect(studioDrawer).not.toBeVisible();
   await externalStudioReload(studio, await insertAndRun(studio, true));
+  if (solvedStudioUrl) await nativeReviewSnapshot(solvedStudioUrl);
   assert.deepEqual(errors, []);
-  writeFileSync(resolve(output, "evidence.json"), JSON.stringify({ catalog: 400, pipes: 226, parity: true, landingBrowseOnly: true, mobile: true, axeViolations: 0, galleryInsertion: true, studioInsertion: true, unusedSection: true, sourceNavigation: true, externalStudioReload: true, publishedResultsPreserved: true, previewUnsolved: true, pageErrors: errors }, null, 2));
+  writeFileSync(resolve(output, "evidence.json"), JSON.stringify({ catalog: 400, pipes: 226, parity: true, landingBrowseOnly: true, mobile: true, axeViolations: 0, galleryInsertion: true, studioInsertion: true, unusedSection: true, sourceNavigation: true, externalStudioReload: true, publishedResultsPreserved: true, reviewSectionsPreserved: true, nativeReviewSectionsPreserved: Boolean(solvedStudioUrl), previewUnsolved: true, pageErrors: errors }, null, 2));
   console.log("Profiles parity: gallery, published review, Studio, insertion, source navigation, external reload, unsolved preview, preserved results, mobile and Axe passed.");
 } finally {
   await browser.close();
