@@ -2,6 +2,8 @@
 
 Tuba is split by ownership: model authoring, Code_Aster export/execution/import, solver evidence, reporting, and the two result-display paths. Put changes at the lowest shared boundary that owns the behavior.
 
+Viewer and Pages development uses Node 24 LTS; run `npm ci` in `viewer/` before building or running browser checks. CI uses the same Node version. The self-hosted Code_Aster runner must use Actions Runner [2.327.1 or later](https://github.com/actions/checkout#checkout-v5) for the actions' Node 24 runtime.
+
 ## Module map
 
 | Module | Owns |

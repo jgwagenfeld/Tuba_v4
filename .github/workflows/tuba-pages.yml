@@ -24,13 +24,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: viewer/package-lock.json
       - name: Install Linux graphics runtime
@@ -61,19 +61,20 @@ jobs:
       # a maintenance run, so the images are published rather than committed by
       # the workflow - download them and commit them.
       - if: ${{ inputs.update_snapshots }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pages-snapshots-linux
           path: viewer/e2e/snapshots/pages-artifact.spec.js/linux
           if-no-files-found: error
       # Create the Pages site on the first run so no manual repository setting
       # is required; the workflow already holds the pages: write permission.
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+          include-hidden-files: true
 
   deploy:
     needs: build
@@ -84,4 +85,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
