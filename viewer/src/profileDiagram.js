@@ -171,9 +171,9 @@ function ibeamOutline(height, width, web, flange, radius) {
     [underside, -halfWidth],
     [underside, -(halfWeb + r)]
   ];
-  if (r > 0) points.push(...modelArc(underside - r, -(halfWeb + r), r, 180, 90));
+  if (r > 0) points.push(...modelArc(underside - r, -(halfWeb + r), r, 0, 90));
   points.push([underside - r, -halfWeb], [-underside + r, -halfWeb]);
-  if (r > 0) points.push(...modelArc(-underside + r, -(halfWeb + r), r, 90, 0));
+  if (r > 0) points.push(...modelArc(-underside + r, -(halfWeb + r), r, 90, 180));
   points.push([-underside, -halfWidth], [-halfDepth, -halfWidth], [-halfDepth, halfWidth]);
   points.push([-underside, halfWidth], [-underside, halfWeb + r]);
   if (r > 0) points.push(...modelArc(-underside + r, halfWeb + r, r, 180, 270));

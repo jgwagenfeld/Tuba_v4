@@ -169,6 +169,27 @@ test("an I-beam is drawn upright, with its depth vertical", () => {
   });
 });
 
+test("the IPE180 outline is symmetric about both centre lines", () => {
+  withDom(({ nodes }) => {
+    const svg = profileDiagram({
+      kind: "ibeam", height_m: 0.18, width_m: 0.091,
+      web_thickness_m: 0.0053, flange_thickness_m: 0.008, root_radius_m: 0.009
+    });
+    const path = nodes(svg, "path")[0].getAttribute("d");
+    const points = [...path.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)]
+      .map((match) => [Number(match[1]), Number(match[2])]);
+    const [, , width, height] = svg.getAttribute("viewBox").split(" ").map(Number);
+    for (const [x, y] of points) {
+      for (const [mirrorX, mirrorY] of [[width - x, y], [x, height - y]]) {
+        assert.ok(
+          points.some(([px, py]) => Math.abs(px - mirrorX) < 0.02 && Math.abs(py - mirrorY) < 0.02),
+          `outline point ${x}, ${y} has no mirror at ${mirrorX}, ${mirrorY}`
+        );
+      }
+    }
+  });
+});
+
 test("the root radius bulges into the void between the flanges", () => {
   // The fillet is a reflex-corner fillet: its centre lies across the corner in
   // the void, and the arc bulges away from the chord towards the void. A drawing
