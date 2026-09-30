@@ -2350,7 +2350,7 @@ function renderBalanceCheck() {
 
   const forceBalanced = isBalanced(balance.forceResidualRatio, balance.tolerance);
   const momentBalanced = isBalanced(balance.momentResidualRatio, balance.tolerance);
-  const balanced = forceBalanced && momentBalanced;
+  const balanced = balance.complete && forceBalanced && momentBalanced;
   const value = document.createElement("span");
   value.className = "check-value";
   value.textContent = [
@@ -2359,10 +2359,12 @@ function renderBalanceCheck() {
   ].join(" · ");
 
   const badge = document.createElement("span");
-  badge.className = `check-badge ${balanced ? "check-ok" : "check-warn"}`;
+  badge.className = `check-badge ${balance.complete ? (balanced ? "check-ok" : "check-warn") : ""}`;
   // The verdict states what was compared, because a number that reads "balanced"
   // against three of the five load terms is not a balance.
-  badge.textContent = balanced
+  badge.textContent = !balance.complete
+    ? "partial sums"
+    : balanced
     ? "closes over the terms present"
     : `residual ${formatPercent(Math.max(balance.forceResidualRatio ?? 0, balance.momentResidualRatio ?? 0))} of summed terms`;
 
@@ -2411,12 +2413,13 @@ function renderAnalysisSummary() {
   const balance = currentBalance();
   const forceBalanced = isBalanced(balance?.forceResidualRatio, balance?.tolerance ?? 0);
   const momentBalanced = isBalanced(balance?.momentResidualRatio, balance?.tolerance ?? 0);
-  if (balance && !(forceBalanced && momentBalanced)) {
+  if (balance?.complete && !(forceBalanced && momentBalanced)) {
     dom.analysisSummary.textContent = "Mesh & balance · warning";
     dom.analysisSummary.classList.add("mesh-warning");
     return;
   }
-  dom.analysisSummary.textContent = check && !check.within_tolerance ? "Mesh detail · warning" : "Mesh detail";
+  dom.analysisSummary.textContent = check && !check.within_tolerance ? "Mesh detail · warning"
+    : balance && !balance.complete ? "Mesh & balance · partial" : "Mesh detail";
   dom.analysisSummary.classList.toggle("mesh-warning", Boolean(check && !check.within_tolerance));
 }
 

@@ -60,7 +60,10 @@ export function getReactionConsistency(state, overlays) {
     ...applied.forces.map((entry) => cross(entry.position ?? ZERO, entry.components))
   ]);
   const summedReactionForce = addAll(reactionForce ? Object.values(reactionForce) : []);
-  const summedReactionMoment = addAll(reactionMoment ? Object.values(reactionMoment) : []);
+  const reactionForceMoments = Object.entries(reactionForce ?? {}).map(
+    ([nodeId, force]) => cross(nodePosition(state, nodeId) ?? ZERO, force)
+  );
+  const summedReactionMoment = addAll([...Object.values(reactionMoment ?? {}), ...reactionForceMoments]);
 
   // Both residuals are sums, not differences: at a held node the support
   // reaction and the applied load cancel, so the quantity that should be zero
@@ -75,7 +78,7 @@ export function getReactionConsistency(state, overlays) {
   const forceDenominator =
     magnitudeSum(Object.values(reactionForce ?? {})) + magnitudeSum(applied.forces.map((entry) => entry.components));
   const momentDenominator =
-    magnitudeSum(Object.values(reactionMoment ?? {})) +
+    magnitudeSum([...Object.values(reactionMoment ?? {}), ...reactionForceMoments]) +
     magnitudeSum([
       ...applied.moments.map((entry) => entry.components),
       ...applied.forces.map((entry) => cross(entry.position ?? ZERO, entry.components))
@@ -209,6 +212,13 @@ function nodePosition(state, nodeId) {
       }
     }
   }
+  for (const asset of state.geometryAssets ?? []) {
+    const config = asset.generation_config ?? {};
+    if (config.node_id === nodeId) {
+      const point = vector3(config.start);
+      if (point) return point;
+    }
+  }
   return null;
 }
 
@@ -266,7 +276,7 @@ function norm(vector) {
 }
 
 function ratio(residual, denominator) {
-  return denominator > 0 ? residual / denominator : null;
+  return denominator > 0 ? residual / denominator : residual === 0 ? 0 : null;
 }
 
 function firstString(...candidates) {

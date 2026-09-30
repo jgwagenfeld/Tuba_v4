@@ -208,3 +208,35 @@ test("a field with nothing to say returns null rather than a filler sentence", (
   assert.equal(getAveragingBasis({}, { overlay: { data: {} }, fieldId: "field:solver_result:internal_forces:Hot" }), "one value per element, as reported by the solver");
   assert.equal(getAveragingBasis({}, {}), null);
 });
+
+
+test("reaction forces use the same moment origin as the loads, including an unloaded component", () => {
+  for (const origin of [0, 10]) {
+    const balance = consistency({
+      reactions: { N2: [0, 0, -100] },
+      reactionMoments: { N2: [0, 0, 0] },
+      applied: [{ node_id: "N2", vector_kind: "force", components: [0, 0, 100] }],
+      nodePositions: { N2: [origin + 2, 0, 0] }
+    });
+    assert.deepEqual(balance.reactionMoment, [0, 100 * (origin + 2), 0]);
+    assert.equal(balance.momentResidual, 0);
+    assert.equal(isBalanced(balance.momentResidualRatio, balance.tolerance), true);
+  }
+  const fallback = solvedState({
+    reactions: { N1: [0, 0, -100] },
+    reactionMoments: { N1: [0, 200, 0] },
+    applied: [{ node_id: "N2", vector_kind: "force", components: [0, 0, 100] }],
+    nodePositions: { N1: [0, 0, 0] }
+  });
+  fallback.geometryAssets = [{ generation_config: { node_id: "N2", start: [2, 0, 0] } }];
+  const balance = getReactionConsistency(fallback, {
+    reactionForce: fallback.overlays[0].data.values,
+    reactionMoment: fallback.overlays[1].data.values,
+    loadCase: "Hot", loadCaseDefinition: fallback.loadCase
+  });
+  assert.equal(balance.momentResidual, 0);
+  assert.equal(isBalanced(balance.momentResidualRatio, balance.tolerance), true);
+  const unloaded = consistency({ reactions: { N1: [0, 0, 0] } });
+  assert.equal(isBalanced(unloaded.forceResidualRatio, unloaded.tolerance), true);
+  assert.equal(isBalanced(unloaded.momentResidualRatio, unloaded.tolerance), true);
+});
