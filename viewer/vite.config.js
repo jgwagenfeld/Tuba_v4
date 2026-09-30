@@ -125,7 +125,9 @@ function bundleManifest() {
       return html.replace(/\r\n/g, "\n");
     },
     configureServer(server) {
-      const profileCatalog = profilePayload();
+      // Browsing uses the built catalogue in every host. Regenerate it with
+      // npm run build when the Python section tables change.
+      const profileCatalog = readFileSync(join(REPO_ROOT, "tuba", "visualization", "_viewer", "profiles.json"));
       server.middlewares.use("/profiles.json", (_request, response) => {
         response.setHeader("content-type", "application/json");
         response.end(profileCatalog);
