@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -17,16 +18,65 @@ class IBeamProfile:
     properties: dict[str, float]
 
 
+@dataclass(frozen=True)
+class PipeProfile:
+    """Nominal pipe size with explicit outside diameter and wall in metres."""
+
+    name: str
+    dn: int
+    nps: str
+    schedule: str
+    OD: float
+    WT: float
+
+
 class SectionCatalog:
     """Deep module for section profile lookup."""
 
     def __init__(self, data_dir: Path):
         self.data_dir = Path(data_dir)
         self._ibeam_profiles: dict[str, IBeamProfile] | None = None
+        self._pipe_profiles: dict[str, PipeProfile] | None = None
 
     @classmethod
     def default(cls) -> "SectionCatalog":
         return cls(Path(__file__).parent / "data")
+
+    def list_ibeam_profiles(self) -> tuple[IBeamProfile, ...]:
+        """All available profiles in the catalog's engineering size order."""
+        return tuple(self._load_ibeam_profiles().values())
+
+    def list_pipe_profiles(self) -> tuple[PipeProfile, ...]:
+        """ASME B36.10 dimensions from InfraBuild's October 2022 chart, page 3.
+
+        Blank schedule cells are unavailable; STD and XS stay distinct from
+        Sch 40 and Sch 80 because they diverge at larger nominal sizes.
+        https://www.infrabuild.com/wp-content/uploads/sites/8/2019/05/IBSC_Pipe-Fittings-Data-Charts_A4_Oct22_24pp.pdf
+        """
+        if self._pipe_profiles is None:
+            profiles = {}
+            with (self.data_dir / "Pipe.input").open(encoding="utf-8") as stream:
+                for row in csv.DictReader(stream):
+                    dn, od = int(row["DN"]), round(float(row["OD"]) / 1000, 8)
+                    for schedule, value in row.items():
+                        if schedule in {"DN", "NPS", "OD"} or not value:
+                            continue
+                        wt = round(float(value) / 1000, 8)
+                        name = f"DN{dn}_{'SCH' if schedule.isdigit() else ''}{schedule}"
+                        if not (dn > 0 and math.isfinite(od) and math.isfinite(wt) and 0 < 2 * wt < od):
+                            raise ValueError(f"Invalid pipe dimensions for {name}: expected finite OD > 2 * WT > 0.")
+                        if name in profiles:
+                            raise ValueError(f"Duplicate pipe profile {name} in section catalog.")
+                        profiles[name] = PipeProfile(name, dn, row["NPS"], schedule, od, wt)
+            self._pipe_profiles = profiles
+        return tuple(self._pipe_profiles.values())
+
+    def get_pipe_profile(self, profile_name: str) -> PipeProfile:
+        self.list_pipe_profiles()
+        try:
+            return self._pipe_profiles[profile_name]
+        except KeyError as exc:
+            raise ValueError(f"Pipe profile {profile_name!r} not found in section catalog.") from exc
 
     def get_ibeam_profile(self, profile_name: str) -> IBeamProfile:
         profiles = self._load_ibeam_profiles()

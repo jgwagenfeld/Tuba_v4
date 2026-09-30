@@ -80,6 +80,32 @@ class TestStudioServer(unittest.TestCase):
         self.assertEqual(payload["elements"], 3)
         self.assertEqual(server.script_path.read_text(encoding="utf-8"), _BUILDER_SCRIPT)
 
+    def test_profile_library_uses_catalog_and_all_authored_sections(self):
+        root = Path(self.enterContext(TemporaryDirectory()))
+        script = _SMALL_SCRIPT + '\nmodel.add_ibeam_section("UnusedBeam", profile_name="IPE160")\n'
+        server = self._start_studio(root, script=script)
+        with urlopen(server.base_url + "api/profiles", timeout=10) as response:
+            payload = json.loads(response.read())
+        self.assertTrue(payload["ok"])
+        self.assertEqual(len(payload["catalog"]), 400)
+        pipe = next(row for row in payload["catalog"] if row["name"] == "DN100_SCH40")
+        self.assertEqual((pipe["family"], pipe["dn"], pipe["nps"], pipe["schedule"]), ("Pipe", 100, "4", "40"))
+        self.assertAlmostEqual(pipe["profile"]["outer_diameter_m"], 0.1143)
+        self.assertAlmostEqual(pipe["profile"]["wall_thickness_m"], 0.00602)
+        self.assertGreater(pipe["profile"]["properties"]["area_m2"], 0)
+        self.assertIn("InfraBuild", pipe["source"])
+        self.assertTrue(pipe["source_url"].startswith("https://"))
+        ipe = next(row for row in payload["catalog"] if row["name"] == "IPE160")
+        self.assertEqual(ipe["family"], "IPE")
+        self.assertAlmostEqual(ipe["profile"]["height_m"], 0.16)
+        self.assertGreater(ipe["profile"]["properties"]["area_m2"], 0)
+        used = {row["name"]: row for row in payload["used"]}
+        self.assertEqual(set(used), {"DN100", "UnusedBeam"})
+        self.assertEqual(used["UnusedBeam"]["profile_name"], "IPE160")
+        self.assertEqual(used["UnusedBeam"]["source_line"], len(script.splitlines()))
+        self.assertEqual(used["DN100"]["profile"]["kind"], "pipe")
+        self.assertNotIn("solver_results", payload)
+
     def _start_studio(self, root: Path, script: str = _SMALL_SCRIPT, **kwargs):
         from tuba.visualization.preview.server import ProjectStudioServer
 
@@ -159,6 +185,8 @@ class TestStudioServer(unittest.TestCase):
         refused = {"ok": False, "error": "cross-origin request refused"}
         status, _headers, body = request("api/script", Origin="http://evil.example")
         self.assertEqual((status, json.loads(body)), (403, refused))
+        self.assertEqual(request("api/profiles", Origin="http://evil.example")[0], 403)
+        self.assertEqual(request("api/profiles", Host=f"evil.example:{server.port}")[0], 403)
         # DNS rebinding: a foreign host name that resolves to 127.0.0.1.
         self.assertEqual(request("api/script", Host=f"evil.example:{server.port}")[0], 403)
         self.assertEqual(request("api/script", "OPTIONS", Origin="http://evil.example")[0], 403)

@@ -48,10 +48,14 @@ def _profile_metadata(model: TubaModel, elem: Element) -> dict[str, Any]:
     one that says why, and the geometry is still drawn from ``dimensions`` either
     way.
     """
-    section = model.sections[elem.section]
+    return _section_profile_metadata(model.sections[elem.section])
+
+
+def _section_profile_metadata(section) -> dict[str, Any]:
+    """The same section record for the model inspector and Studio library."""
     profile = profile_for_section(section)
     data: dict[str, Any] = {
-        "section": elem.section,
+        "section": section.name,
         "kind": profile.kind,
         "area_m2": profile.area_m2,
         "collision_radius_m": profile.collision_radius_m,

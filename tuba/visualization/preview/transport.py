@@ -109,6 +109,7 @@ class PreviewServer:
             script_post_handler=getattr(self, "execute_python_code", None),
             solve_handler=getattr(self, "start_solve", None),
             project_handler=getattr(self, "project_info", None),
+            profiles_handler=getattr(self, "profile_library", None),
             ifc_handler=getattr(self, "ifc_request", None),
             project_name=getattr(getattr(self, "project", None), "name", None),
             comm_handler=getattr(self, "code_aster_commands", None),
@@ -196,6 +197,7 @@ def _handler_factory(
     project_name: str | None = None,
     comm_handler: Any = None,
     bound_host: str = "127.0.0.1",
+    profiles_handler: Any = None,
 ):
     # Host names a request may address; the Host check stops DNS rebinding.
     local_hosts = {"127.0.0.1", "localhost", "::1", bound_host.lower()}
@@ -233,9 +235,16 @@ def _handler_factory(
             if parsed.path == "/preview/ws":
                 self._handle_websocket()
                 return
-            if parsed.path == "/api/project" and project_handler is not None:
-                data = json.dumps(project_handler()).encode("utf-8")
-                self.send_response(200)
+            if ((parsed.path == "/api/project" and project_handler is not None) or
+                    (parsed.path == "/api/profiles" and profiles_handler is not None)):
+                handler = profiles_handler if parsed.path == "/api/profiles" else project_handler
+                try:
+                    data = json.dumps(handler()).encode("utf-8")
+                    status = 200
+                except Exception as exc:
+                    data = json.dumps({"ok": False, "error": str(exc)}).encode("utf-8")
+                    status = 500
+                self.send_response(status)
                 self._response_headers()
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Cache-Control", "no-store")

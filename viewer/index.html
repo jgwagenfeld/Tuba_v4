@@ -109,6 +109,7 @@
               </svg>
               Mesh
             </button>
+            <button type="button" class="code-profiles" data-profiles-open aria-haspopup="dialog" aria-controls="profile-library" hidden>Profiles</button>
             <span class="code-state" data-code-state role="status" aria-live="polite"></span>
             <button type="button" class="code-run" data-code-run title="Run model.py (Ctrl+Enter)">
               <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M1 1l7 4-7 4z" fill="currentColor" /></svg>
@@ -382,6 +383,41 @@
       <p data-ifc-status role="status" aria-live="polite"></p>
       </section>
       <p class="exchange-note">Engineering results require a Code_Aster solve and review in Tuba. Downloading or importing geometry does not perform an analysis.</p>
+    </dialog>
+    <dialog id="profile-library" class="exchange-dialog profile-library" data-profile-library aria-labelledby="profile-library-title">
+      <div class="exchange-head">
+        <h2 id="profile-library-title">Profiles</h2>
+        <button type="button" data-profiles-close aria-label="Close profiles">Close</button>
+      </div>
+      <p class="exchange-note">Choose a section and insert its definition into model.py. Run updates geometry; Solve evaluates the model with Code_Aster.</p>
+      <div class="profile-library-tabs" role="group" aria-label="Profile collections">
+        <button type="button" data-profiles-tab="catalog" aria-pressed="true">Profile catalog</button>
+        <button type="button" data-profiles-tab="used" aria-pressed="false">Used in this model</button>
+      </div>
+      <div class="profile-library-filters">
+        <label>Search <input type="search" data-profiles-search placeholder="DN100, Sch40, IPE160" autocomplete="off"></label>
+        <label>Family <select data-profiles-family><option value="">All families</option></select></label>
+        <label>Min. height / OD (mm) <input type="number" data-profiles-min min="0" step="any"></label>
+        <label>Max. height / OD (mm) <input type="number" data-profiles-max min="0" step="any"></label>
+      </div>
+      <p data-profiles-status role="status" aria-live="polite"></p>
+      <div class="profile-library-content">
+        <div class="profile-library-list" data-profiles-list role="group" aria-label="Available profiles"></div>
+        <section class="profile-library-preview" data-profiles-preview aria-label="Selected profile" hidden>
+          <h3 data-profiles-name></h3>
+          <figure class="profile-figure" data-profiles-figure></figure>
+          <table class="property-table profile-properties"><tbody data-profiles-properties></tbody></table>
+          <p class="exchange-note" data-profiles-source></p>
+          <p class="exchange-note">Properties are derived from section dimensions. Torsion estimates are labeled; these are not model analysis results.</p>
+          <form data-profiles-insert-form>
+            <label>Section name <input data-profiles-section-name required></label>
+            <pre class="profile-library-code" data-profiles-code></pre>
+            <button type="submit">Insert into Python</button>
+          </form>
+          <button type="button" data-profiles-reveal hidden>Show definition in model.py</button>
+          <p data-profiles-definition-note class="exchange-note"></p>
+        </section>
+      </div>
     </dialog>
     <script type="module" src="/src/main.js"></script>
   </body>

@@ -130,6 +130,7 @@ import { cockpitStatusViewModel, solverProvenanceLabel } from "./reviewTables.js
 import { categorizeLayers, createViewerState, loadSceneBundleFromUrl, resolveBundleId } from "./sceneLoader.js";
 import { distance, getPropertySections } from "./selection.js";
 import { profileDiagram, profilePropertyRows } from "./profileDiagram.js";
+import { initProfileLibrary, profileInsertion } from "./profileLibrary.js";
 import { browserSceneBundle, runBrowserModel } from "./browserPreview.js";
 import { getSelectionSummary } from "./selectionSummary.js";
 import { download, initExchange, renderPublishedDownloads } from "./exchange.js";
@@ -222,6 +223,8 @@ const dom = {
   modeSwitch: document.querySelector("[data-mode-switch]"),
   codePane: document.querySelector("[data-code-pane]"),
   codeTabs: document.querySelector("[data-code-tabs]"),
+  profilesOpen: document.querySelector("[data-profiles-open]"),
+  profileLibrary: document.querySelector("[data-profile-library]"),
   codeCase: document.querySelector("[data-code-case]"),
   codeCaseStatus: document.querySelector("[data-code-case-status]"),
   codeInputs: document.querySelector("[data-code-inputs]"),
@@ -3922,6 +3925,14 @@ function renderEvidenceSection(section) {
   wrapper.className = "property-section";
   const heading = document.createElement("h3");
   heading.textContent = section.title;
+  if (section.id === "profile" && studio.available && section.profile) {
+    const browse = document.createElement("button");
+    browse.type = "button";
+    browse.className = "script-line-chip";
+    browse.textContent = "Browse profiles";
+    browse.addEventListener("click", () => void openProfileLibrary(section.profile.section));
+    heading.append(browse);
+  }
   const headingChip = scriptLineChip(section.sourceLine);
   if (headingChip) heading.append(headingChip);
   wrapper.append(heading);
@@ -4851,6 +4862,7 @@ function renderMode() {
   }
   dom.codePane.hidden = !view.scriptVisible;
   dom.codeText.readOnly = !(studio.available || sourceView.available);
+  dom.profilesOpen.hidden = !studio.available;
   renderCodeTabs();
   renderCodeMeshToggle();
   renderSolveControls();
@@ -5508,6 +5520,32 @@ function scriptLineChip(line) {
   return chip;
 }
 
+const openProfileLibrary = initProfileLibrary(dom.profileLibrary, {
+  format: formatProfileQuantity,
+  sourceCurrent: () => dom.codeText.value === studio.ranCode,
+  reveal: (line) => {
+    if (dom.codeText.value !== studio.ranCode) return;
+    if (!isBuildMode()) dispatch({ type: "setStage", stage: "build" });
+    showCodeTab(null);
+    render();
+    revealLineInScript(line);
+  },
+  insert: (definition) => {
+    showCodeTab(null);
+    const text = dom.codeText;
+    const insertion = profileInsertion(text.value, text.selectionStart, definition);
+    text.focus({ preventScroll: true });
+    text.setSelectionRange(insertion.offset, insertion.offset);
+    if (!document.execCommand("insertText", false, insertion.text)) {
+      text.setRangeText(insertion.text, insertion.offset, insertion.offset, "end");
+      text.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    renderGutter();
+    renderCodeFoot();
+  }
+});
+dom.profilesOpen.addEventListener("click", () => void openProfileLibrary());
+
 for (const button of dom.modeSwitch.querySelectorAll("[data-mode]")) {
   button.addEventListener("click", () => void setMode(button.dataset.mode));
 }
@@ -5718,6 +5756,7 @@ function isTypingTarget(target) {
 }
 
 window.addEventListener("keydown", (event) => {
+  if (dom.profileLibrary.open) return;
   if (event.altKey && event.key.toLowerCase() === "m" && isBuildMode()) {
     event.preventDefault();
     dom.codeMeshToggle?.click();
