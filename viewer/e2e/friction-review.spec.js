@@ -68,8 +68,8 @@ async function openIncrement(page, state) {
 
 test("real contact history preserves forces through selection and display scaling", async ({ page }) => {
   // Three complete regime checks rebuild and trace the large scene repeatedly.
-  // Keep full failure traces; Linux recording exceeded the shared 120s budget.
-  test.setTimeout(180_000);
+  // Full failure traces of this 41 MB scene exceed three minutes on WSL.
+  test.setTimeout(300_000);
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/viewer/?bundle=native-friction-review");
