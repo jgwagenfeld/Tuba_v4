@@ -171,7 +171,7 @@ expansion_router = ExpansionAwareRouter(
 
 The current generator emits U-loop candidates only. `z_loop` and `offset_loop` are typed future families, not current generator output.
 
-`SolverAcceptanceCriteria` currently enforces expansion ratio, sustained ratio, and maximum anchor reaction when real solver results exist. Other typed fields are review or future scorer inputs, not active acceptance gates.
+`SolverAcceptanceCriteria` enforces the user evaluator's expansion and sustained ratios and the maximum stored translational reaction magnitude. Acceptance requires a true evaluator verdict, finite nonnegative ratios and limits, and finite force evidence for every supported node. Missing or non-finite evidence rejects the candidate; an actual zero remains valid. Reactions are not classified by support type. Nozzle, operating-displacement and operating-clearance limits remain review or future scorer inputs.
 
 ## Review outputs
 

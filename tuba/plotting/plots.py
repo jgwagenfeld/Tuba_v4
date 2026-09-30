@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
+from tuba.plotting.pipeline import _node_result_vector, _require_result_field
+
 if TYPE_CHECKING:
     from tuba.model import TubaModel
     from tuba.solver.base import FEAResults
@@ -260,6 +262,7 @@ def plot_deformed(
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
 
+    _require_result_field(mesh, "DEPL", complete=True)
     p = _make_plotter("Deformed Shape")
 
     # Draw supports
@@ -313,6 +316,7 @@ def plot_stress(
     scalar_key = "VMIS"  # the only stress field the mesh builder maps
     tubes = mesh
 
+    _require_result_field(mesh, "VMIS")
     p = _make_plotter("Stress Distribution")
 
     # Draw supports
@@ -324,7 +328,8 @@ def plot_stress(
         tubes,
         scalars=scalar_key if scalar_key in tubes.point_data else None,
         cmap=cmap,
-        scalar_bar_args={"title": "Von Mises Stress [Pa]", "color": _TEXT_COLOR},
+        scalar_bar_args={"title": "Von Mises Stress [Pa]", "color": _TEXT_COLOR, "nan_annotation": True},
+        nan_color="#64748b",
     )
     return p.show(**kwargs)
 
@@ -341,6 +346,7 @@ def plot_displacement_vectors(
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
 
+    displacement = _require_result_field(mesh, "DEPL")
     p = _make_plotter("Displacement Vectors")
 
     # Draw supports
@@ -352,7 +358,8 @@ def plot_displacement_vectors(
     p.add_mesh(tubes, color="#334455", opacity=0.5)
 
     if "DEPL" in mesh.point_data:
-        arrows = mesh.glyph(
+        points = mesh.extract_points(np.isfinite(displacement).all(axis=1), include_cells=False)
+        arrows = points.glyph(
             orient="DEPL",
             scale="DEPL_magnitude",
             factor=scale,
@@ -373,9 +380,9 @@ def _reaction_vector_points(results: "FEAResults", model: Optional["TubaModel"])
     for node_id, result in results.node_results.items():
         if result.reaction_force is None or node_id not in model.nodes:
             continue
-        vector = np.asarray(result.reaction_force[:3], dtype=float)
+        vector = _node_result_vector(results, node_id, "reaction_force")
         magnitude = float(np.linalg.norm(vector))
-        if magnitude <= 1e-6:
+        if not np.isfinite(magnitude) or magnitude <= 1e-6:
             continue
         points.append(model.nodes[node_id].coords)
         vectors.append(vector)
@@ -410,9 +417,15 @@ def plot_reactions(
     mesh = _get_mesh(results, model)
     radius = _get_pipe_radius(results, model)
 
+    mdl = model or getattr(results, "_model", None)
+    known_reaction = mdl is not None and any(
+        np.isfinite(_node_result_vector(results, node_id, "reaction_force")).all()
+        for node_id in results.node_results if node_id in mdl.nodes
+    )
+    if not known_reaction:
+        _require_result_field(mesh, "FORC_NODA")
     p = _make_plotter("Reaction Forces")
 
-    mdl = model or getattr(results, "_model", None)
     if show_supports and mdl is not None:
         _add_supports_to_plotter(p, mdl, radius * 1.5)
 
@@ -433,9 +446,9 @@ def plot_reactions(
         p.add_mesh(arrows, color="red", label="Reactions")
     elif "FORC_NODA" in mesh.point_data:
         magnitudes = mesh.point_data["FORC_magnitude"]
-        mask = magnitudes > 1e-6
+        mask = np.isfinite(mesh.point_data["FORC_NODA"]).all(axis=1) & (magnitudes > 1e-6)
         if mask.any():
-            support_pts = mesh.extract_points(mask)
+            support_pts = mesh.extract_points(mask, include_cells=False)
             arrows = support_pts.glyph(
                 orient="FORC_NODA",
                 scale="FORC_magnitude",
@@ -512,6 +525,8 @@ def plot_deformed_stress(
 
     mesh = _get_mesh(results, model)
 
+    _require_result_field(mesh, "DEPL", complete=True)
+    _require_result_field(mesh, "VMIS")
     # Warp by displacement
     if "DEPL" in mesh.point_data:
         warped = mesh.warp_by_vector("DEPL", factor=deform_scale)
@@ -528,7 +543,8 @@ def plot_deformed_stress(
         tubes,
         scalars=scalar_key,
         cmap=cmap,
-        scalar_bar_args={"title": "Von Mises [Pa]", "color": _TEXT_COLOR},
+        scalar_bar_args={"title": "Von Mises [Pa]", "color": _TEXT_COLOR, "nan_annotation": True},
+        nan_color="#64748b",
     )
 
     # Optionally show undeformed ghost

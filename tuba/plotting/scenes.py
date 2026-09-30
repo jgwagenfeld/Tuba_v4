@@ -19,12 +19,16 @@ def build_model_scene(
     """Return a PyVista plotter without showing it."""
     import pyvista as pv
 
-    from tuba.plotting.pipeline import build_3d_mesh_from_model
+    from tuba.plotting.pipeline import build_3d_mesh_from_model, _require_result_field
 
+    mesh = build_3d_mesh_from_model(model, results)
+    if results is not None and deform_scale is not None:
+        _require_result_field(mesh, "DEPL", complete=True)
+    if results is not None:
+        _require_result_field(mesh, "VMIS")
     plotter = pv.Plotter(off_screen=off_screen)
     plotter.set_background("#111827")
 
-    mesh = build_3d_mesh_from_model(model, results)
     if deform_scale is not None and "DEPL" in mesh.point_data:
         plotter.add_mesh(
             mesh,
@@ -44,6 +48,8 @@ def build_model_scene(
                 tubes,
                 scalars=scalar_key,
                 cmap="turbo",
+                nan_color="#64748b",
+                scalar_bar_args={"nan_annotation": True},
                 show_edges=True,
                 edge_color="#0f172a",
             )

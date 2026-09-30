@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -60,6 +61,18 @@ class CapturingRuntimeSolver(PassingSolver):
         super().__init__(work_dir)
         self.kwargs = kwargs
         self.instances.append(self)
+
+
+class ReactionEvidenceSolver(PassingSolver):
+    def __init__(self, work_dir, reaction):
+        super().__init__(work_dir)
+        self.reaction = reaction
+
+    def solve(self, model, load_case):
+        results = super().solve(model, load_case)
+        for node in results.node_results.values():
+            node.reaction_force = self.reaction
+        return results
 
 
 class CapturingModelSolver(PassingSolver):
@@ -415,7 +428,7 @@ class TestSolverLoop(unittest.TestCase):
                 for diagnostic in candidate.diagnostics
                 if diagnostic.startswith("Solver acceptance failed:")
             ]
-            self.assertEqual(rejection_diagnostics, ["Solver acceptance failed: expansion_ratio"])
+            self.assertEqual(rejection_diagnostics, ["Solver acceptance failed: compliance_failed, expansion_ratio"])
             self.assertFalse(candidate.is_valid)
 
             SolverLoopScorer(
@@ -658,6 +671,102 @@ class TestSolverLoop(unittest.TestCase):
         self.assertTrue(ranked[0].metadata["solver_acceptance"]["accepted"])
         self.assertEqual(ranked[0].metadata["solver_acceptance"]["max_reaction_n"], 3.0)
         self.assertNotIn("anchor_reaction", ranked[0].metadata["solver_acceptance"]["failed_checks"])
+
+    def test_solver_acceptance_rejects_false_missing_and_nonfinite_evidence(self):
+        cases = [
+            ({"overall_pass": False}, np.ones(6), {}, "compliance_failed"),
+            ({"overall_pass": 1}, np.ones(6), {}, "compliance_failed"),
+            ({"overall_pass": None}, np.ones(6), {}, "compliance_unavailable"),
+            ({}, None, {}, "anchor_reaction_unavailable"),
+            ({}, np.ones(2), {}, "anchor_reaction_unavailable"),
+            ({}, np.array([float("nan"), 0, 0]), {}, "anchor_reaction_unavailable"),
+            ({}, np.array([float("inf"), 0, 0]), {}, "anchor_reaction_unavailable"),
+            ({}, np.full(3, 1.7e308), {}, "anchor_reaction_unavailable"),
+        ]
+        for check in ("expansion_ratio", "sustained_ratio"):
+            for invalid in (None, float("nan"), float("inf"), -0.1, False):
+                cases.append(({f"worst_{check}": invalid}, np.ones(6), {}, f"{check}_unavailable"))
+        for check in ("expansion_ratio", "sustained_ratio", "anchor_reaction_n"):
+            failure = check.removesuffix("_n") + "_invalid_limit"
+            for invalid in (None, float("nan"), float("inf"), -1, True, 10 ** 400):
+                cases.append(({}, np.ones(6), {f"max_{check}": invalid}, failure))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for changes, reaction, limits, expected in cases:
+                with self.subTest(changes=changes, reaction=reaction, limits=limits):
+                    model, request, candidate = _solver_loop_fixture()
+                    report = SimpleNamespace(
+                        overall_pass=True, worst_expansion_ratio=0.1, worst_sustained_ratio=0.1, results=[]
+                    )
+                    for name, value in changes.items():
+                        if value is None:
+                            delattr(report, name)
+                        else:
+                            setattr(report, name, value)
+                    SolverLoopScorer(
+                        solver_factory=lambda work_dir: ReactionEvidenceSolver(work_dir, reaction),
+                        compliance_evaluator=SequencedComplianceEvaluator([report]),
+                    ).score_candidates(
+                        model, replace(request, solver_acceptance=SolverAcceptanceCriteria(**limits)), [candidate],
+                        SolverLoopConfig(run_solver=True, work_root=tmpdir, load_case="Hot", strict=True),
+                    )
+                    acceptance = candidate.metadata["solver_acceptance"]
+                    self.assertFalse(acceptance["accepted"])
+                    self.assertFalse(candidate.is_valid)
+                    self.assertIn(expected, acceptance["failed_checks"])
+                    if expected == "anchor_reaction_unavailable":
+                        self.assertIsNone(acceptance["max_reaction_n"])
+
+    def test_zero_reaction_and_unavailable_moments_preserve_original_validity_on_rescore(self):
+        for original_valid in (True, False):
+            with self.subTest(original_valid=original_valid), tempfile.TemporaryDirectory() as tmpdir:
+                model, request, candidate = _solver_loop_fixture()
+                candidate.is_valid = original_valid
+                request = replace(request, solver_acceptance=SolverAcceptanceCriteria(max_anchor_reaction_n=0.0))
+                scorer = SolverLoopScorer(
+                    solver_factory=lambda work_dir: ReactionEvidenceSolver(work_dir, np.array([0, 0, 0, np.nan, np.nan, np.nan])),
+                    compliance_evaluator=SequencedComplianceEvaluator([RejectingComplianceReport(), PassingComplianceReport()]),
+                )
+                config = SolverLoopConfig(run_solver=True, work_root=tmpdir, load_case="Hot", strict=True)
+                scorer.score_candidates(model, request, [candidate], config)
+                self.assertFalse(candidate.metadata["solver_acceptance"]["accepted"])
+                scorer.score_candidates(model, request, [candidate], config)
+                self.assertTrue(candidate.metadata["solver_acceptance"]["accepted"])
+                self.assertEqual(candidate.metadata["solver_acceptance"]["max_reaction_n"], 0.0)
+                self.assertEqual(candidate.is_valid, original_valid)
+                self.assertFalse(any(item.startswith("Solver acceptance failed:") for item in candidate.diagnostics))
+
+    def test_acceptance_requires_every_support_reaction_and_ignores_missing_free_node_reactions(self):
+        for missing_kind in ("node", "attached_to", "free"):
+            with self.subTest(missing_kind=missing_kind), tempfile.TemporaryDirectory() as tmpdir:
+                model, request, candidate = _solver_loop_fixture()
+                start = model.add_node((0, 0, 0))
+                end = model.add_node((2, 0, 0))
+                attachment = model.add_node((2, 0, -1))
+                free = model.add_node((10, 0, 0))
+                model.add_support(start, "anchor")
+                model.add_support(end, "anchor", attached_to=attachment)
+                missing = {"node": end, "attached_to": attachment, "free": free}[missing_kind]
+
+                class PartialSupportSolver(PassingSolver):
+                    def solve(self, model, load_case):
+                        results = super().solve(model, load_case)
+                        results.node_results[missing].reaction_force = None
+                        return results
+
+                SolverLoopScorer(
+                    solver_factory=PartialSupportSolver, compliance_evaluator=PassingComplianceEvaluator(),
+                ).score_candidates(
+                    model, replace(request, solver_acceptance=SolverAcceptanceCriteria()), [candidate],
+                    SolverLoopConfig(run_solver=True, work_root=tmpdir, load_case="Hot", strict=True),
+                )
+                acceptance = candidate.metadata["solver_acceptance"]
+                self.assertEqual(acceptance["accepted"], missing_kind == "free")
+                self.assertEqual(candidate.is_valid, missing_kind == "free")
+                if missing_kind != "free":
+                    self.assertIsNone(candidate.metadata["reactions"][missing])
+                    self.assertIsNone(acceptance["max_reaction_n"])
+                    self.assertIn("anchor_reaction_unavailable", acceptance["failed_checks"])
 
     def test_cheap_score_penalizes_long_unsupported_spans(self):
         model, request, _candidate = _solver_loop_fixture()

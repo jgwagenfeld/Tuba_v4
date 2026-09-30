@@ -1,6 +1,6 @@
 # Expansion-aware autorouting
 
-Scope reviewed 2026-09-30 against commit `2d1a028`. See the
+Scope reviewed 2026-09-30 on the cleanup branch based on `ac00d69`. See the
 [current autorouting manual](../content/autorouting.md) for runnable usage and
 the [library review](library-architecture-review.md) for outstanding issues.
 
@@ -29,10 +29,11 @@ clearance claim requires a completed Code_Aster run and imported evidence.
 | Nozzle reaction, operating displacement, operating clearance | Declared acceptance fields without scorer enforcement |
 | Slope, waypoints, preferred/forbidden zones and some cost weights | Declared records without implemented routing enforcement |
 
-The acceptance label currently has known defects: a false evaluator verdict and
-non-finite values can pass. Until those are fixed, it cannot replace inspection
-of the actual evaluator output and solver records. See
-`tuba/routing/solver_loop.py:_attach_solver_acceptance`.
+Acceptance requires a true evaluator verdict, present finite nonnegative ratios
+and limits, and finite translational reaction evidence for every supported node.
+Missing or non-finite evidence rejects the candidate. Genuine zero forces remain
+valid; rotational components are outside the force-magnitude gate. The acceptance
+label covers only the enforced checks above.
 
 ## Review outputs
 

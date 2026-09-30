@@ -1,6 +1,6 @@
 # Tuba v4 library architecture and capability scope
 
-Reviewed 2026-09-30 against commit `2d1a028`. This page replaces the July
+Reviewed 2026-09-30 on the cleanup branch based on `ac00d69`. This page replaces the July
 inventory, which described several APIs and standards helpers that have since
 been retired. The public manual owns current usage; the links below lead there.
 
@@ -78,17 +78,23 @@ Undocumented deep imports of removed helpers are outside the retained facade.
 
 ## Findings to address before expanding features
 
+The two high-priority correctness findings have been fixed. Routing acceptance
+requires a true evaluator verdict and finite, present enforced evidence; missing
+support reactions cannot hide behind another valid reaction. Plotting preserves
+unavailable result fields as `NaN`; exports that require complete fields reject
+incomplete evidence before writing. Raw RMED plots retain annotated helper-node
+stress gaps. Genuine solver zero values remain available. PLY exports now write
+their computed stress colors into the file.
+
 | Priority | Finding | Evidence and next action |
 | --- | --- | --- |
-| High | Routing acceptance can return success for a failed evaluator verdict or non-finite ratios/reactions. | `tuba/routing/solver_loop.py:_attach_solver_acceptance` checks for an absent verdict rather than requiring a true one. Direct metadata probes reproduced both cases. Require a true verdict and finite enforced values, with regression coverage. |
-| High | Missing PyVista/Blender result records can become displayed zero values. | `tuba/plotting/pipeline.py:_map_element_surface_data` and `tuba/plotting/export.py:export_blender_script` default missing displacement/stress records to zero. Keep missing fields unavailable or reject incomplete result display. |
 | Medium | Several routing inputs are exposed without enforcement. | Nozzle, displacement and operating-clearance acceptance limits; slope, waypoints and named zones; some cost weights and thermal preferences are not consumed. Reject unsupported requests or explicitly report the checked scope. |
 | Medium | Resolved local temperatures do not reach every result consumer. | The PyVista surface mapper publishes case-default `TEMP`; web reference ratios explicitly refuse spatial temperature fields. Carry the resolved engineering field into the existing review contract. |
 | Medium | Study eligibility is not fully inspectable before export. | Some volume restrictions are checked after creating the output directory. Move those checks into the existing pure study-input/compiler owner. |
 
-These findings are recorded for follow-up; the cleanup leaves their behavior
-unchanged. Synthetic metadata probes establish acceptance logic only, not
-Code_Aster numerical qualification.
+The remaining findings are recorded for follow-up. Synthetic regression cases
+establish acceptance and availability behavior; numerical qualification requires
+real Code_Aster evidence.
 
 ## Next engineering features
 
@@ -130,3 +136,22 @@ The full Python suite and full solver-reference qualification were not rerun.
 The shared developer environment lost dependency files during validation; the
 affected checks passed in the isolated environment. Its cause was not established,
 and this cleanup did not repair the shared environment.
+
+The follow-up correctness checks used the same isolated locked environment:
+
+- Routing regressions passed, including failed verdicts, invalid limits,
+  non-finite values, partial support coverage, genuine zeros and rescoring.
+- Plotting availability, scenes, reactions, RMED and notebook-backend checks
+  covered missing fields, unknown spans, member-local stress, annotated RMED
+  gaps and PLY color readback.
+- 22 documentation checks passed; three generated-HTML checks skipped.
+- Three browser-runtime/package checks passed, including the production build.
+  After the final PLY fix, the shipped browser ZIP was refreshed and compared
+  byte-for-byte with the runtime generated from the final Python source.
+- Both real WSL Code_Aster smoke/reference tests passed without skips; evidence
+  is retained at `.build/correctness/real-code-aster.xml`.
+- A separate attested loaded-pipe solve verified line, surface and RMED mapping,
+  rendered stress and deformed-stress PNGs, and exported Blender/PLY results.
+  Removing records from a copy preserved missing-data masks and blocked
+  incomplete exports. Its raw artifacts and readback evidence remain under
+  `.build/correctness/`.
