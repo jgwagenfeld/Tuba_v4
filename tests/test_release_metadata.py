@@ -95,7 +95,7 @@ def test_ci_and_release_workflows_cover_local_release_gates():
         assert "twine check" in workflow
         assert "scripts/verify_release_wheel.py dist" in workflow
 
-    assert 'python-version: ["3.11", "3.12"]' in ci
+    assert 'python-version: ["3.11", "3.12", "3.13", "3.14"]' in ci
     assert "uv sync --group docs --extra course --extra dev --locked" in ci
     python_steps = ci_jobs["python"]["steps"]
     assert any(step.get("uses") == "actions/setup-node@v4" for step in python_steps)
@@ -123,7 +123,7 @@ def test_windows_ifc_job_fails_closed_on_the_locked_runtime():
     assert job["runs-on"] == "windows-latest"
     assert any(
         step.get("uses") == "astral-sh/setup-uv@v6"
-        and step.get("with", {}).get("python-version") == "3.12"
+        and step.get("with", {}).get("python-version") == "3.14"
         for step in job["steps"]
     )
     assert "uv sync --extra dev --extra ifc --locked" in commands
@@ -241,7 +241,7 @@ def test_pages_deploys_only_the_verified_single_owner_artifact():
     )
     assert any(
         step.get("uses") == "astral-sh/setup-uv@v6"
-        and step.get("with", {}).get("python-version") == "3.12"
+        and step.get("with", {}).get("python-version") == "3.14"
         for step in steps
     )
     assert any(

@@ -1,23 +1,119 @@
 # Setup
 
-Tuba authoring and Code_Aster solving are separate installations:
+The recommended installation runs Tuba and Code_Aster in one conda environment
+on Linux x86_64. On Windows, run both inside Ubuntu WSL2 and open Studio in your
+Windows browser:
 
 ```text
 Tuba model -> Code_Aster solve -> imported result artifacts -> result display
 ```
 
-**pip installs Tuba, not Code_Aster.** Code_Aster is required for production stress, displacement, reaction, compliance, operating-state clash, and result visualization workflows.
+Code_Aster is required for production stress, displacement, reaction,
+compliance, operating-state clash, and result visualization workflows.
+
+## Recommended: one environment
+
+### Windows: install Ubuntu
+
+Run this in an administrator PowerShell, restart if requested, then launch
+Ubuntu once to create a Linux user:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+Run all remaining commands in the **Ubuntu terminal**, including Tuba commands.
+On native Linux x86_64, start below.
+
+### Install Miniforge
+
+Skip the Miniforge download if it is already installed. Ubuntu also needs the
+graphics libraries used by Gmsh and the notebook renderer:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git curl libglu1-mesa libxft2 libgomp1
+curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
+  https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash /tmp/Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda init bash
+```
+
+### Create the environment
+
+Clone into your Linux home directory. Building from a Windows-mounted drive
+such as `/mnt/c` can make installation much slower:
+
+```bash
+cd ~
+git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
+cd Tuba_v4
+conda env create -f environment.yml
+conda activate tuba
+python -m tuba.solver.code_aster_doctor --check
+```
+
+The recipe installs Python 3.14, the non-MPI Code_Aster 18.0.12 solver, Tuba,
+notebooks, IFC exchange and MCP support. It selects Tuba's Python bridge on
+activation; Code_Aster still executes in a separate process. NumPy is pinned
+to 2.4.6 to satisfy the solver's NumPy <2.5 requirement and preserve model
+fingerprints. The viewer is already packaged with Tuba.
+
+The doctor must report `python_bridge: ready`. If it reports `blocked`, stop
+and fix the reported dependency before solving or displaying new results.
+
+### Solve and display your first model
+
+Copy the authored example into your own working project, solve it afresh, then
+display the processed results:
+
+```bash
+mkdir -p .build
+cp -r examples/code-aster-review .build/first-pipe
+python -m tuba.project .build/first-pipe --output .build/first-review --force
+tuba-viewer .build/first-review/review_scene --open
+```
+
+`--force` runs Code_Aster even if the example has existing evidence. The viewer
+shows stress, displacement and reactions from that solve. If WSL cannot open
+the browser automatically, open the printed localhost URL in your Windows
+browser. Press Ctrl+C to stop the viewer.
+
+For further edits and solves, start Studio from the same activated environment:
+
+```bash
+python -m tuba.cli_studio .build/first-pipe
+```
+
+Choose **Solve**, then **Review**. Notebooks also run in this environment with
+`jupyter lab`. In a new Ubuntu terminal, run `conda activate tuba` before
+starting Tuba.
+
+To update the source installation, pull the desired revision and recreate the
+environment from its recipe. Avoid mixing this environment with `uv sync` or
+a Windows `.venv`.
+
+## Developer alternative: Windows Tuba and WSL solver
+
+The following setup keeps Tuba on Windows and Code_Aster in a separate Linux
+environment. **uv installs Tuba, not Code_Aster.**
 
 ## Prerequisites
 
 | Requirement | Detail |
 | --- | --- |
-| Tuba Python | 3.11 or 3.12 (`requires-python = ">=3.11,<3.13"`); conda selects Python separately for the solver |
+| Tuba Python | 3.14 recommended; 3.11-3.14 supported (`requires-python = ">=3.11,<3.15"`); the shared environment uses 3.14 |
 | Git | Required to install the source checkout |
 | Operating system | Tuba is OS-independent; the tested solver path is native Linux or Windows with WSL2 Ubuntu |
 | Code_Aster | Required for solving; authoring, export inspection, and preserved-artifact review can run without it |
 
 ## Install Tuba from source
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) first.
+`uv sync` downloads the Python version selected by `.python-version` and creates
+a normal project `.venv`; Tuba does not need conda. Keep Code_Aster in its
+separate conda environment, which supplies its compiled solver dependencies.
 
 These instructions install the current development branch, which evolves with
 the gallery and this manual. Record `git rev-parse HEAD` to identify your checkout.
@@ -25,15 +121,13 @@ the gallery and this manual. Record `git rev-parse HEAD` to identify your checko
 ```powershell
 git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
 cd Tuba_v4
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install ".[course]"
+uv sync --extra course --locked
 ```
 
-`python -m pip install .` installs Tuba; it does not install Code_Aster. The `code-aster-rmed` extra installs the RMED/MED reader, not the solver:
+`uv sync` installs Tuba; it does not install Code_Aster. The `code-aster-rmed` extra installs the RMED/MED reader, not the solver:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install ".[code-aster-rmed]"
+uv sync --extra course --extra code-aster-rmed --locked
 ```
 
 There is no supported ordinary PyPI installation of the compiled Code_Aster solver.
@@ -46,7 +140,7 @@ conda create -y -n tuba-code-aster -c conda-forge code-aster
 
 Run this in Linux (Ubuntu WSL on Windows) after installing Miniforge as described
 below. This is the command used for the verified installation: Code_Aster 18.0.12
-with Python 3.14.6. Tuba's Python 3.11/3.12 requirement applies to Tuba's own
+with Python 3.14.6. Tuba's Python 3.11-3.14 support range applies to Tuba's own
 environment, not to this external solver environment.
 
 A fresh installation may select a newer solver. To request the tested solver
@@ -139,10 +233,8 @@ Keep Tuba in its virtual environment and Code_Aster in a separate conda environm
 ```bash
 sudo apt-get update
 sudo apt-get install -y libglu1-mesa libxft2 libgomp1
-python3 -m venv .venv
+uv sync --extra course --locked
 . .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install ".[course]"
 
 curl -fsSLo /tmp/Miniforge3-Linux-x86_64.sh \
   https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
@@ -196,6 +288,15 @@ Browser edits are kept while switching examples in the tab, not after a reload.
 
 ## Open the notebooks
 
+In the shared Linux environment:
+
+```bash
+jupyter lab notebooks/04_visualization_gallery.ipynb
+jupyter lab notebooks/07_bim_data_exchange.ipynb
+```
+
+In the Windows `.venv` developer alternative:
+
 ```powershell
 .\.venv\Scripts\jupyter.exe lab notebooks\04_visualization_gallery.ipynb
 .\.venv\Scripts\jupyter.exe lab notebooks\07_bim_data_exchange.ipynb
@@ -215,11 +316,11 @@ Both load preserved Code_Aster artifacts by default. Set a notebook to solve onl
 ## Optional surfaces
 
 
-Install only the optional surfaces you use:
+For the Windows developer alternative, add review and exchange extras to the
+source installation. The shared conda environment already includes them:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install ".[viz]"       # PyVista quick-look and RMED reading
-.\.venv\Scripts\python.exe -m pip install ".[ifc]"       # IFC exchange
+uv sync --extra course --extra viz --extra code-aster-rmed --extra ifc --locked
 ```
 
 The installed package includes the built Three.js review application. Its asset
@@ -235,6 +336,8 @@ bundle, and prints the exact local URL. `.\.venv\Scripts\tuba-viewer.exe` is the
 equivalent installed Windows console command.
 
 ## Installing Tuba beside the solver
+
+These notes apply to the developer alternative.
 
 This installs Tuba from the checkout; it does not install Code_Aster. The
 solver is a separate Linux runtime. On Windows, install it in WSL2 Ubuntu

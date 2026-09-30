@@ -1,0 +1,19 @@
+# Run from the checkout in Linux x86_64 (Ubuntu WSL on Windows).
+name: tuba
+channels:
+  - conda-forge
+dependencies:
+  - python=3.14
+  - "code-aster=18.0.12=*nompi*"
+  # Code_Aster requires NumPy <2.5; this also preserves Tuba mesh identities.
+  - numpy=2.4.6
+  - pip
+  - pip:
+      - gmsh==4.15.2
+      - h5py==3.16.0
+      - pyvista==0.48.4
+      - vtk==9.6.2
+      - ".[course,mcp]"
+variables:
+  TUBA_CODE_ASTER_EXEC_METHOD: python_bridge
+  TUBA_CODE_ASTER_PYTHON: python

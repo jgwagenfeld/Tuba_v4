@@ -93,16 +93,16 @@ python -m tuba.skills --target ~/.config/opencode/skills                     # A
 
 ## Getting started
 
-Install the current development branch with Python 3.11 or 3.12:
+Install [Miniforge](https://github.com/conda-forge/miniforge) in Linux x86_64 (Ubuntu WSL2 on Windows), then create the shared Tuba and Code_Aster environment:
 
 ```bash
 git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git
 cd Tuba_v4
-python -m venv .venv
-.venv/bin/python -m pip install .        # Windows: .\.venv\Scripts\python.exe
+conda env create -f environment.yml
+conda activate tuba
 ```
 
-Analysis requires [Code_Aster](https://code-aster.org), installed in a separate conda environment with its own Python dependencies. Modeling, geometric routing, and viewing existing results do not require a local solver installation. On Windows, use WSL2 Ubuntu; follow the [setup walkthrough](docs/content/setup.md#windows-install-code_aster-in-wsl2-ubuntu) to install and verify the solver.
+The environment installs Python 3.14, Code_Aster 18.0.12, Tuba, notebooks, IFC exchange and MCP support. Follow the [setup walkthrough](docs/content/setup.md) to check the solver and launch Studio in your browser. Choose **Solve**, then **Review** to inspect the results. The Windows `.venv` developer setup remains available there.
 
 **[Setup →](https://jgwagenfeld.github.io/Tuba_v4/setup.html)** ·
 **[Tutorial →](https://jgwagenfeld.github.io/Tuba_v4/tutorial.html)** ·

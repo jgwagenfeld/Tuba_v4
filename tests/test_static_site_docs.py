@@ -88,7 +88,7 @@ class TestStaticSiteDocs(unittest.TestCase):
 
     def test_canonical_manual_pages_own_the_public_topics(self):
         required = {
-            "setup.md": ["pip installs Tuba, not Code_Aster", "code_aster_doctor", "Run the real solver smoke test"],
+            "setup.md": ["conda env create -f environment.yml", "code_aster_doctor", "Solve and display your first model"],
             "tutorial.md": ["Build and solve a first pipe", "Expected files", "Completion criteria"],
             "modeling.md": ["Cross-sections", "Local coordinate systems", "Schemas and serialized models", "How errors work"],
             "workflow.md": ["model.pipe", "export_analysis_study", "write_scene_bundle"],
@@ -109,7 +109,7 @@ class TestStaticSiteDocs(unittest.TestCase):
             "git clone --branch main --depth 1 https://github.com/jgwagenfeld/Tuba_v4.git",
             text,
         )
-        self.assertIn("python -m pip install .", text)
+        self.assertIn("conda activate tuba", text)
         self.assertIn("sudo apt-get install -y libglu1-mesa libxft2 libgomp1", text)
         self.assertIn(".\\.venv\\Scripts\\jupyter.exe lab", text)
         self.assertNotIn("your-tuba-v4-repo-url", text)

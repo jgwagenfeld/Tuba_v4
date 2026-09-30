@@ -166,7 +166,9 @@ def test_heavy_geometry_readers_are_optional():
 def test_supported_python_and_ifc_versions_are_explicit():
     project = _project()
 
-    assert project["requires-python"] == ">=3.11,<3.13"
+    assert project["requires-python"] == ">=3.11,<3.15"
+    assert (ROOT / ".python-version").read_text().strip() == "3.14"
+    assert "Programming Language :: Python :: 3.14" in project["classifiers"]
     for extra in ("ifc", "course"):
         assert "ifcopenshell==0.8.4.post1" in project["optional-dependencies"][extra]
     assert "pytest>=8.2" in project["optional-dependencies"]["dev"]

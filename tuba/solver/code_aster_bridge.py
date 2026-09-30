@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -21,11 +22,23 @@ def run_export(export_path: Path, workdir: Path | None = None) -> int:
 
 
 def _run_export_with_python_api(export_path: Path, workdir: Path) -> int:
+    # Conda puts run_aster in site-packages; its relative root misses the prefix.
+    prefix = Path(os.environ.get("RUNASTER_ROOT", sys.prefix))
+    if any((prefix / "share" / "aster" / name).is_file() for name in ("config.yaml", "config.json")):
+        os.environ.setdefault("RUNASTER_ROOT", str(prefix))
+        for name, relative in {
+            "ASTER_LIBDIR": "lib",
+            "ASTER_ELEMENTSDIR": "lib",
+            "ASTER_DATADIR": "share/aster",
+            "ASTER_LOCALEDIR": "share/locale/aster",
+        }.items():
+            os.environ.setdefault(name, str(prefix / relative))
     from run_aster.export import Export
     from run_aster.run import RunAster
 
     export = Export(filename=str(export_path), check=True)
-    runner = RunAster.factory(export, tee=True, output=str(workdir / "stdout.run_aster_api.log"))
+    # The default fort.6 output is copied to the export's required study.mess.
+    runner = RunAster.factory(export, tee=True)
     status = runner.execute(str(workdir))
     if status is None:
         return 0

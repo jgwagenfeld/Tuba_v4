@@ -2,14 +2,29 @@ import json
 import unittest
 from pathlib import Path
 
+import yaml
+
 
 class TestCodeAsterDocs(unittest.TestCase):
+    def test_shared_environment_selects_the_installed_python_bridge(self):
+        recipe = yaml.safe_load(Path("environment.yml").read_text(encoding="utf-8"))
+        text = Path("docs/content/setup.md").read_text(encoding="utf-8")
+        dependencies = recipe["dependencies"]
+        self.assertIn("code-aster=18.0.12=*nompi*", dependencies)
+        self.assertIn("numpy=2.4.6", dependencies)
+        self.assertEqual(recipe["variables"]["TUBA_CODE_ASTER_EXEC_METHOD"], "python_bridge")
+        self.assertEqual(recipe["variables"]["TUBA_CODE_ASTER_PYTHON"], "python")
+        self.assertIn("conda env create -f environment.yml", text)
+        self.assertIn("conda activate tuba", text)
+        self.assertIn("--output .build/first-review --force", text)
+        self.assertIn("tuba-viewer .build/first-review/review_scene --open", text)
+
     def test_installation_walkthrough_documents_wsl_conda_runtime(self):
         text = Path("docs/content/setup.md").read_text(encoding="utf-8")
 
-        self.assertIn("`python -m pip install .` installs Tuba", text)
+        self.assertIn("`uv sync` installs Tuba", text)
         self.assertIn("does not install Code_Aster", text)
-        self.assertIn('.\\.venv\\Scripts\\python.exe -m pip install ".[code-aster-rmed]"', text)
+        self.assertIn("uv sync --extra course --extra code-aster-rmed --locked", text)
         self.assertIn("conda create -y -n tuba-code-aster", text)
         self.assertIn("code-aster=18.0.12", text)
         self.assertIn("run_aster --version", text)
@@ -24,15 +39,15 @@ class TestCodeAsterDocs(unittest.TestCase):
     def test_public_setup_includes_the_tested_solver_install_path(self):
         text = Path("docs/content/setup.md").read_text(encoding="utf-8")
 
-        self.assertIn("pip installs Tuba, not Code_Aster", text)
+        self.assertIn("uv installs Tuba, not Code_Aster", text)
         self.assertIn("Miniforge3-Linux-x86_64.sh", text)
         self.assertIn("conda create -y -n tuba-code-aster", text)
         self.assertIn("code-aster=18.0.12", text)
         self.assertIn("Native Linux", text)
         self.assertIn("sudo apt-get install -y libglu1-mesa", text)
-        self.assertIn("python3 -m venv .venv", text)
+        self.assertIn("uv sync --extra course --locked", text)
         self.assertIn("https://github.com/jgwagenfeld/Tuba_v4.git", text)
-        self.assertIn("python -m pip install .", text)
+        self.assertIn("Tuba does not need conda", text)
         self.assertNotIn("/opt/aster/bin/run_aster", text)
         self.assertNotIn("simvia/code_aster:stable", text)
         self.assertNotIn("your-tuba-v4-repo-url", text)

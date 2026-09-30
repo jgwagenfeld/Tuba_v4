@@ -1,3 +1,4 @@
+import os
 import sys
 import types
 import unittest
@@ -15,6 +16,8 @@ class TestCodeAsterBridge(unittest.TestCase):
 
         class FakeExport:
             def __init__(self, filename=None, check=True):
+                calls["runtime_root"] = os.environ.get("RUNASTER_ROOT")
+                calls["elements_dir"] = os.environ.get("ASTER_ELEMENTSDIR")
                 calls["export_filename"] = filename
                 calls["export_check"] = check
 
@@ -40,20 +43,30 @@ class TestCodeAsterBridge(unittest.TestCase):
             root = Path(tmpdir)
             export_file = root / "study.export"
             export_file.write_text("", encoding="utf-8")
-            with patch.dict(
-                sys.modules,
-                {
-                    "run_aster": fake_run_aster,
-                    "run_aster.export": fake_export_mod,
-                    "run_aster.run": fake_run_mod,
-                },
+            config = root / "share" / "aster" / "config.json"
+            config.parent.mkdir(parents=True)
+            config.write_text("{}", encoding="utf-8")
+            with (
+                patch("tuba.solver.code_aster_bridge.sys.prefix", str(root)),
+                patch.dict(os.environ, {}, clear=True),
+                patch.dict(
+                    sys.modules,
+                    {
+                        "run_aster": fake_run_aster,
+                        "run_aster.export": fake_export_mod,
+                        "run_aster.run": fake_run_mod,
+                    },
+                ),
             ):
                 exitcode = code_aster_bridge.run_export(export_file, root)
 
         self.assertEqual(exitcode, 0)
+        self.assertEqual(calls["runtime_root"], str(root))
+        self.assertEqual(calls["elements_dir"], str(root / "lib"))
         self.assertEqual(calls["export_filename"], str(export_file.resolve()))
         self.assertTrue(calls["export_check"])
         self.assertTrue(calls["factory_tee"])
+        self.assertIsNone(calls["factory_output"])
         self.assertEqual(calls["workdir"], str(root.resolve()))
 
     def test_run_export_falls_back_to_run_aster_cli(self):
