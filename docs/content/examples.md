@@ -131,7 +131,7 @@ A DN150 process line rises from ground sleepers over an 8 m roadway on a four-ba
 
 [![Portal frame stability review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review)
 
-A seven-bay steel portal-frame industrial hall solved for gravity and wind in Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. The review shows displacements, reactions, member-end section forces, and the critical load factors that say how far the frame is from a buckling mode. Von Mises is absent by design: a pipe-free frame has no equivalent-stress field.
+A steel industrial hall with seven portal frames and six bays, solved for gravity and wind in Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. The review shows displacements, reactions, member-end section forces, and the critical load factors that say how far the frame is from a buckling mode. Von Mises is absent by design: a pipe-free frame has no equivalent-stress field.
 
 [Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review) &middot; Evidence: **Results** (2 load cases)
 

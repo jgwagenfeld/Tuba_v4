@@ -458,7 +458,7 @@ OFFICIAL_GALLERIES = (
         elements=("POU_D_T",),
         question="How far is this frame from buckling, and where does it deflect?",
         summary=(
-            "A seven-bay steel portal-frame industrial hall solved for gravity and wind in "
+            "A steel industrial hall with seven portal frames and six bays, solved for gravity and wind in "
             "Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. "
             "The review shows displacements, reactions, member-end section forces, and the "
             "critical load factors that say how far the frame is from a buckling mode. "
