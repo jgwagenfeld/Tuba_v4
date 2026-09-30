@@ -118,15 +118,6 @@ def _is_sliding(contact: ContactResult) -> bool:
     return contact.status == "sliding"
 
 
-def _frictionless(contact: ContactResult) -> bool:
-    """A closed shoe with no cone has no stick/slip classification at all.
-
-    The native reader reports this as ``indeterminate``, which reads like a
-    solver failure but is the correct description of a mu = 0 support.
-    """
-    return contact.friction_limit <= 0.0 and contact.status in {"indeterminate", "open"}
-
-
 def _shoe_is_frictionless(history: list[ContactSample]) -> bool:
     """Whether a shoe has no Coulomb cone anywhere in its history.
 

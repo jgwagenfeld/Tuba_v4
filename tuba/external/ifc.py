@@ -155,9 +155,10 @@ class IfcExporter:
                     # Dynamic profile definition matching Tuba section type
                     from tuba.model import IBeamSection, RectangularSection, BarSection, CableSection
                     if isinstance(sec, IBeamSection):
-                        from tuba.plotting.pipeline import get_ibeam_dimensions
+                        from tuba.geometry.profiles import profile_for_section
 
-                        h, b, tw, tf = get_ibeam_dimensions(sec)
+                        dimensions = profile_for_section(sec).dimensions
+                        h, b, tw, tf = (float(dimensions[key]) for key in ("H", "B", "Tw", "Tf"))
                         r = sec.properties.get("R", 0.0)
                         profile = ifc_file.create_entity(
                             "IfcIShapeProfileDef",

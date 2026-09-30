@@ -14,7 +14,6 @@ from tuba.solver.aster_sidecar import load_and_attest_artifact_chain
 from tuba.solver.code_aster_runtime import (
     execution_trust,
 )
-from tuba.analysis.provenance import SolverInputIdentity
 
 
 def import_code_aster_artifacts(

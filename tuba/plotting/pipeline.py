@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from tuba.geometry.profiles import profile_for_section
 from tuba.geometry.section_mesh import beam_local_frame, section_loops, straight_section_surface_mesh
 
 if TYPE_CHECKING:
@@ -423,12 +422,6 @@ def build_mesh_from_model(
 # ---------------------------------------------------------------------------
 # True 3D Cross-Sectional Geometry Extrusion
 # ---------------------------------------------------------------------------
-
-
-def get_ibeam_dimensions(sec) -> tuple[float, float, float, float]:
-    """Retrieve H, B, Tw, Tf (in meters) for an IBeamSection."""
-    dimensions = profile_for_section(sec).dimensions
-    return tuple(float(dimensions[key]) for key in ("H", "B", "Tw", "Tf"))
 
 
 def _get_profile_2d_loops(sec, n_sides: int = 16) -> list[np.ndarray]:

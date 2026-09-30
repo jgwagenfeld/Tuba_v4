@@ -131,30 +131,6 @@ def _get_element_local_frame(model: "TubaModel", elem: "Element") -> tuple[np.nd
     return lx, ly, lz
 
 
-def add_local_axes_to_plotter(plotter: "pv.Plotter", model: "TubaModel", scale: float = 0.15):
-    """Draw local coordinate system triads (X=red, Y=green, Z=blue) at each element midpoint."""
-    axis_colors = {
-        "x": "#ff3b30",
-        "y": "#7ed321",
-        "z": "#2f80ff",
-    }
-    for elem in model.elements:
-        p1 = model.nodes[elem.n1].coords
-        p2 = model.nodes[elem.n2].coords
-        midpoint = (p1 + p2) / 2.0
-        
-        lx, ly, lz = _get_element_local_frame(model, elem)
-        
-        # Keep axis glyphs readable on dark engineering plots.
-        arrow_x = pv.Arrow(start=midpoint, direction=lx, scale=scale, tip_radius=0.1, shaft_radius=0.04)
-        arrow_y = pv.Arrow(start=midpoint, direction=ly, scale=scale, tip_radius=0.1, shaft_radius=0.04)
-        arrow_z = pv.Arrow(start=midpoint, direction=lz, scale=scale, tip_radius=0.1, shaft_radius=0.04)
-        
-        plotter.add_mesh(arrow_x, color=axis_colors["x"], lighting=False)
-        plotter.add_mesh(arrow_y, color=axis_colors["y"], lighting=False)
-        plotter.add_mesh(arrow_z, color=axis_colors["z"], lighting=False)
-
-
 def _get_node_frame(model: "TubaModel", node_id: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Find the local coordinate frame (lx, ly, lz) at a node based on connected elements."""
     for elem in model.elements:

@@ -10,7 +10,7 @@ import hashlib
 import logging
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Callable, Dict, List, NamedTuple, Tuple
 
 import numpy as np
 

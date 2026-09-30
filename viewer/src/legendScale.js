@@ -38,10 +38,6 @@ const NICE_STEPS = Object.freeze([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]);
 
 export const BAND_COUNT_CHOICES = Object.freeze([CONTINUOUS, 4, 6, 8, 9, 12, 16]);
 
-export function isContinuous(legend) {
-  return bandCountFor(legend) === CONTINUOUS;
-}
-
 export function niceStep(raw) {
   if (!Number.isFinite(raw) || raw <= 0) {
     return 0;

@@ -356,15 +356,6 @@ function valueTicks(min, max) {
   return ticks.length > 0 ? ticks : [min, max];
 }
 
-// Which station belongs to one end of one element, for callers that hold only
-// the axis and an element id.
-export function stationIndexFor(axis, elementId, endIndex) {
-  const index = endIndex === 0
-    ? axis?.elementStartStations?.[elementId]
-    : axis?.elementEndStations?.[elementId];
-  return index === undefined ? 0 : index;
-}
-
 function centrelineOf(state, element) {
   const asset = (state.geometryAssets ?? []).find((candidate) => candidate.id === element?.geometry_asset_id);
   const points = asset?.generation_config?.points;
