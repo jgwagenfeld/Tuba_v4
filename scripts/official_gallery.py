@@ -79,6 +79,8 @@ class OfficialGallery:
     #: ``None`` for a geometry-only example, which is what tells the viewer to say
     #: so on the card instead of implying an analysis exists.
     case_count: int | None = field(default=None, kw_only=True)
+    #: Reading order for the public gallery's introductory examples.
+    featured_order: int | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         """Reject a card that cannot introduce its review.
@@ -121,6 +123,10 @@ class OfficialGallery:
         # compliance claim on a published page and the failure mode is a grid
         # that implies thirteen solved reviews where two are geometry only.
         solved = PROFILE_SOLVED[self.profile]
+        if self.featured_order is not None and (
+            type(self.featured_order) is not int or self.featured_order < 1 or not solved
+        ):
+            raise ValueError(f"{self.id}: a featured review needs a positive integer order and solver results")
         if solved and not self.case_count:
             raise ValueError(
                 f"{self.id}: profile {self.profile!r} is a solved review but "
@@ -168,6 +174,8 @@ class OfficialGallery:
             entry["evidence"] = PROFILE_UNSOLVED_LABEL[self.profile]
         if self.project is not None:
             entry["project"] = self.project
+        if self.featured_order is not None:
+            entry["featured_order"] = self.featured_order
         return entry
 
 
@@ -235,6 +243,7 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "autorouted-expansion-loop",
         title="Thermal expansion",
+        featured_order=4,
         elements=("TUYAU_3M", "DIS_T"),
         question="Where does a hot line move, and what does it reach?",
         summary=(
@@ -263,6 +272,7 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "code-aster-review",
         title="Pipe bends",
+        featured_order=1,
         elements=("TUYAU_3M", "DIS_T"),
         question="What happens to a pressurised line held at both ends?",
         summary=(
@@ -272,7 +282,7 @@ OFFICIAL_GALLERIES = (
     ),
     _project_gallery(
         "elements-supports-review",
-        frozenset({"dev", "pages"}),
+        frozenset({"dev"}),
         "engineering-review",
         "elements-supports-review",
         title="Elements and supports",
@@ -305,12 +315,12 @@ OFFICIAL_GALLERIES = (
         "beam-engineering-review",
         "guyed-mast-review",
         title="Cable",
-        question="Which guys hold a mast in the wind, and which one goes slack?",
+        question="How do the guys redistribute a mast's lateral load?",
         elements=("POU_D_T", "CABLE"),
         summary=(
             "A 12 m tubular mast held by three pretensioned guy cables under a 3 kN side load. "
-            "The leeward cable goes slack and the two windward ones carry it, which is the "
-            "redistribution a tension-only member exists to show."
+            "The leeward cable unloads and sags while retaining positive tension, and the "
+            "two windward cables carry most of the load. The review shows nonlinear cable-force redistribution."
         ),
     ),
     _project_gallery(
@@ -323,8 +333,9 @@ OFFICIAL_GALLERIES = (
         question="How do two process lines and their rack fit together on a hydrogen plant site?",
         summary=(
             "A green-hydrogen facility in plan: an electrolyzer hall, a compressor station, storage bullets "
-            "and a four-bay pipe rack, with the LP and HP hydrogen lines routed between them under pressure and thermal load. "
-            "The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster."
+            "and a four-bay pipe rack. Two process lines share the illustrative 3 MPa, 65 C operating state. "
+            "The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster; "
+            "it does not establish hydrogen-service suitability."
         ),
     ),
     _project_gallery(
@@ -336,13 +347,13 @@ OFFICIAL_GALLERIES = (
         elements=("TUYAU_3M",),
         question="How does a supplied component join an authored line?",
         summary=(
-            "A STEP/STL component placed beside Tuba pipework, showing connection ports, "
+            "An STL component placed beside Tuba pipework, showing connection ports, "
             "local frames and coupling. This example contains geometry only, with no solver results."
         ),
     ),
     _project_gallery(
         "line-load-studio",
-        frozenset({"dev", "pages"}),
+        frozenset({"dev"}),
         "engineering-review",
         "line-load-studio",
         title="Line loads",
@@ -360,6 +371,7 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "load-case-preparation",
         title="Load-case preparation",
+        featured_order=2,
         elements=("TUYAU_3M",),
         question="How do sustained, thermal, occasional and pressure loads change the same pipe?",
         summary=(
@@ -374,6 +386,7 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "multipipe-rack",
         title="Multipipe rack",
+        featured_order=6,
         elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
         question="How do three lines at different temperatures load one shared rack?",
         summary=(
@@ -389,6 +402,7 @@ OFFICIAL_GALLERIES = (
         "contact-engineering-review",
         "native-friction-review",
         title="Nonlinear friction",
+        featured_order=5,
         elements=("POU_D_T", "DIS_T"),
         question="How does friction change the same pipe and load path?",
         summary=(
@@ -402,13 +416,14 @@ OFFICIAL_GALLERIES = (
         "volume-engineering-review",
         "pipe-tee-volume-review",
         title="3D solid",
+        featured_order=8,
         elements=("3D", "TUYAU_3M"),
         question="How does 1D beam pipework transition into a 3D solid tee junction?",
         summary=(
             "A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. "
             "Under internal pressure, gravity and a 4 kN out-of-plane load at the free branch end, "
-            "the review shows kinematic shell-to-solid coupling, the stress hot spot where the branch "
-            "meets the junction, and the branch deflection."
+            "the review shows 1D pipe-to-3D solid coupling (3D_TUYAU), the stress hot spot where the branch "
+            "meets the junction, and the branch deflection. FE von Mises is not piping-code stress."
         ),
     ),
     _project_gallery(
@@ -417,6 +432,7 @@ OFFICIAL_GALLERIES = (
         "beam-engineering-review",
         "profile-orientation-review",
         title="Beam orientation",
+        featured_order=7,
         elements=("POU_D_T",),
         question="How does a rolled I-section change the response to the same tip force?",
         summary=(
@@ -427,16 +443,16 @@ OFFICIAL_GALLERIES = (
     ),
     _project_gallery(
         "rack_bridge_demo",
-        frozenset({"dev", "pages"}),
+        frozenset({"dev"}),
         "engineering-review",
         "rack_bridge_demo",
-        title="Road crossing",
+        title="Elevated rack reference",
         elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
-        question="How does a line cross an 8 m roadway on a shoe-supported rack bridge?",
+        question="How does a line rise onto a shoe-supported elevated rack?",
         summary=(
-            "A DN150 process line rises from ground sleepers over an 8 m roadway on a four-bay steel rack bridge, "
-            "then drops back to grade. Friction shoes carry it at every bay midpoint. The review shows thermal "
-            "displacement, wall stress and support reactions from Code_Aster."
+            "A DN150 line rises onto four regular 3 m rack bays, then drops back to grade. "
+            "The solved reference shows thermal displacement, wall stress and shoe reactions. "
+            "It does not model or verify an 8 m clear roadway."
         ),
     ),
     _project_gallery(
@@ -456,12 +472,13 @@ OFFICIAL_GALLERIES = (
         "steel-portal-frame",
         title="Portal frame stability",
         elements=("POU_D_T",),
-        question="How far is this frame from buckling, and where does it deflect?",
+        question="Which linear buckling modes does an ideal frame show under gravity?",
         summary=(
             "A steel industrial hall with seven portal frames and six bays, solved for gravity and wind in "
             "Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. "
             "The review shows displacements, reactions, member-end section forces, and the "
-            "critical load factors that say how far the frame is from a buckling mode. "
+            "linear buckling factors for the ideal frame under gravity. First-order, imperfection-free "
+            "reference factors are not a design safety margin or member-adequacy verdict. "
             "Von Mises is absent by design: a pipe-free frame has no equivalent-stress field."
         ),
     ),
@@ -471,11 +488,13 @@ OFFICIAL_GALLERIES = (
         "engineering-review",
         "support-rack-review",
         title="Load transfer",
+        featured_order=3,
         elements=("TUYAU_3M", "POU_D_T", "DIS_T"),
         question="What do the supports and the steel underneath actually carry?",
         summary=(
-            "A DN100 line centered in an I-beam rack under distributed line loading, internal pressure "
-            "and thermal expansion. The review shows ground and element rest shoe reactions, steel deflection, and support spacing."
+            "A DN100 line on one I-beam rack bay carries distributed pipe and crossbeam loads, a point force "
+            "and moment, pressure and thermal expansion. The review follows the loads through the attached "
+            "frictionless sliding shoes and steel to the ground reactions, with deflection and support spacing beside them."
         ),
     ),
 

@@ -11,10 +11,10 @@ Source folder: `evidence/Operating`
 | Project | SupportRackReview |
 | Model revision | 0 |
 | Analysis mesh | analysis_mesh:Operating |
-| Mesh size | 92 nodes, 87 elements |
+| Mesh size | 94 nodes, 88 elements |
 | Solver | Code_Aster 18.0.12 |
 | Execution | wsl |
-| Solved at | 2026-09-20T06:43:51.927222Z |
+| Solved at | 2026-09-30T11:51:27.598475Z |
 | Evidence | **verified** — the attestation is intact and the run was verified. |
 
 ## Code_Aster commands in the generated .comm
@@ -22,7 +22,7 @@ Source folder: `evidence/Operating`
 | Command | Calls |
 | --- | --- |
 | `AFFE_CARA_ELEM` | 1 |
-| `AFFE_CHAR_MECA` | 14 |
+| `AFFE_CHAR_MECA` | 15 |
 | `AFFE_MATERIAU` | 2 |
 | `AFFE_MODELE` | 1 |
 | `CALC_CHAMP` | 1 |
@@ -60,18 +60,18 @@ A unit the command file writes but the export omits is silently lost with the ru
 
 | File | Size | SHA-256 |
 | --- | --- | --- |
-| `study.comm` | 13.5 kB | `847d6028e4bd33b9…` |
+| `study.comm` | 14.1 kB | `86d0db13c7c28110…` |
 | `study.export` | 377 B | `49d368425faa339a…` |
-| `study.mail` | 13.3 kB | `47495ee9121a2f89…` |
-| `study.mess` | 94.8 kB | `2951033e8872972a…` |
-| `study.rmed` | 370.6 kB | `3297dd4db99b3d36…` |
-| `study_contact.json` | 499 B | `009c5bfaec9d2715…` |
-| `study_depl.csv` | 29.8 kB | `e6f850c847e082b1…` |
-| `study_effo.csv` | 63.5 kB | `9c59c4af7e64b980…` |
-| `study_manifest.json` | 68.9 kB | `d1a97dd7d98a6fd7…` |
-| `study_reac.csv` | 29.8 kB | `391365f6c2573cd8…` |
-| `study_sieq.csv` | 633.7 kB | `7bbc8c99c21518a0…` |
-| `study_tuba_fem.json` | 10.7 kB | `2d17d3451351dd35…` |
+| `study.mail` | 13.6 kB | `c46068a044c73381…` |
+| `study.mess` | 96.5 kB | `dbfef0f401abd91e…` |
+| `study.rmed` | 434.3 kB | `dcc1fb8d84e623ba…` |
+| `study_contact.json` | 396 B | `3a7a90523cc86c2b…` |
+| `study_depl.csv` | 30.4 kB | `f5294ddd6e04d016…` |
+| `study_effo.csv` | 64.6 kB | `b60ec0bf0189d80b…` |
+| `study_manifest.json` | 69.9 kB | `c13a54ab3fc3449e…` |
+| `study_reac.csv` | 30.4 kB | `d66206bc81edd3cb…` |
+| `study_sieq.csv` | 792.1 kB | `c7c912369adaa4f7…` |
+| `study_tuba_fem.json` | 10.8 kB | `c0f288635ed54225…` |
 
 These hashes are what the solve attested. The evidence verdict above is taken by re-checking them against the files on disk.
 

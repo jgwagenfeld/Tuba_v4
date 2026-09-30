@@ -333,14 +333,8 @@ export function renderGallery(container, catalog) {
     "Open one to inspect the geometry, the deformed shape, the stresses and the support loads.";
   container.append(intro);
 
-  // Grouped, because thirteen undifferentiated cards is the page's one decision
-  // point offering thirteen equal options with no way to narrow it. The grouping
-  // is derived from what each review actually solved, which the catalog already
-  // declares - so a reader looking for a pipe review sees the pipe reviews, and
-  // the one decision inside a group is which engineering question to open.
-  //
-  // The first group is open and the rest are behind a disclosure with their
-  // counts, which also gives a 3400px monotonic scroll a mid-point.
+  // The catalog leads with the learning path, then groups the remaining studies
+  // by what they solved. Solved reviews stay visible regardless of group size.
   for (const group of groupEntries(entries)) {
     container.append(galleryGroup(group));
   }
@@ -384,7 +378,11 @@ const GROUPS = [
 const CLAIM_ORDER = Object.freeze(["geometry", "solids", "pipe", "beams"]);
 
 export function groupEntries(entries) {
-  const claimed = new Set();
+  const featured = entries
+    .filter((entry) => entry.solved === true
+      && Number.isInteger(entry.featured_order) && entry.featured_order >= 0)
+    .sort((a, b) => a.featured_order - b.featured_order);
+  const claimed = new Set(featured.map((entry) => entry.id));
   const groups = [];
   // The order cards are CLAIMED in is not the order they are DISPLAYED in, and
   // conflating the two is what put a hydrogen plant layout on a shelf labelled
@@ -411,9 +409,17 @@ export function groupEntries(entries) {
   }
   const rest = entries.filter((entry) => !claimed.has(entry.id));
   if (rest.length) groups.unshift({ id: "other", label: "Other", note: "", members: rest });
-  // The largest group leads: it is above the fold, so the page opens on whatever
-  // most of the set actually is rather than on whichever group sorted first.
-  groups.sort((a, b) => b.members.length - a.members.length);
+  // Keep geometry-only models separate from the solved reviews.
+  groups.sort((a, b) => Number(a.id === "geometry") - Number(b.id === "geometry")
+    || b.members.length - a.members.length);
+  if (featured.length) {
+    groups.unshift({
+      id: "featured",
+      label: "Start here",
+      note: "Follow these solved reviews from pipe basics to load cases, supports and specialist analyses.",
+      members: featured
+    });
+  }
   return groups;
 }
 
@@ -421,11 +427,6 @@ function galleryGroup(group) {
   const section = document.createElement("section");
   section.className = "gallery-group";
   section.dataset.galleryGroup = group.id;
-  // A group of six or more is open; a smaller one is behind its count. The
-  // consequence is that at most one group is ever open, because only one can
-  // reach six in a set of thirteen - and the disclosure in front of every card
-  // is exactly the friction the grouping was meant to remove.
-  const open = group.members.length >= 6;
   const heading = document.createElement("h2");
   heading.className = "gallery-group-heading";
   heading.textContent = group.label;
@@ -447,7 +448,7 @@ function galleryGroup(group) {
   for (const entry of group.members) {
     grid.append(card(entry));
   }
-  if (open) {
+  if (group.id !== "geometry") {
     section.append(grid);
   } else {
     const details = document.createElement("details");

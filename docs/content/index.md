@@ -10,69 +10,37 @@ Every review opens in your browser, no install needed. All except *Imported comp
 
 <div class="grid cards" markdown>
 
--   [![Thermal expansion review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop)
+-   [![Pipe bends in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
-    **Thermal expansion** — Where does a hot line move, and what does it reach?
-
--   [![Load transfer review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
-
-    **Load transfer** — What do the supports and the steel underneath actually carry?
-
--   [![Beam orientation review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
-
-    **Beam orientation** — How does a rolled I-section change the response to the same tip force?
-
--   [![Pipe bends review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
-
-    **Pipe bends** — What happens to a pressurised line held at both ends?
-
--   [![Cable review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/guyed-mast-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review)
-
-    **Cable** — Which guys hold a mast in the wind, and which one goes slack?
-
--   [![Nonlinear friction review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review)
-
-    **Nonlinear friction** — How does friction change the same pipe and load path?
-
--   [![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
-
-    **3D solid** — How does 1D beam pipework transition into a 3D solid tee junction?
-
--   [![Elements and supports review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review)
-
-    **Elements and supports** — Do bars, cables and spring supports survive the trip to the solver?
-
--   [![Imported components model review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo)
-
-    **Imported components** — How does a supplied component join an authored line?
-
--   [![Plant layout review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
-
-    **Plant layout** — How do two process lines and their rack fit together on a hydrogen plant site?
-
--   [![Line loads review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio)
-
-    **Line loads** — Where does a distributed line load go once the line is restrained?
-
--   [![Road crossing review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo)
-
-    **Road crossing** — How does a line cross an 8 m roadway on a shoe-supported rack bridge?
+    **Pipe bends** - What happens to a pressurised line held at both ends?
 
 -   [![Load-case preparation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation)
 
-    **Load-case preparation** — How do sustained, thermal, occasional and pressure loads change the same pipe?
+    **Load-case preparation** - How do sustained, thermal, occasional and pressure loads change the same pipe?
 
--   [![Portal frame stability review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review)
+-   [![Load transfer in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
 
-    **Portal frame stability** — How far is this frame from buckling, and where does it deflect?
+    **Load transfer** - What do the supports and the steel underneath actually carry?
 
--   [![Braced rack split review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/braced-rack-thermal-split.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split)
+-   [![Thermal expansion in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop)
 
-    **Braced rack split** — Where does one hot line's growth go on a rack that is growing too?
+    **Thermal expansion** - Where does a hot line move, and what does it reach?
 
--   [![Multipipe rack review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack)
+-   [![Nonlinear friction in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review)
 
-    **Multipipe rack** — How do three lines at different temperatures load one shared rack?
+    **Nonlinear friction** - How does friction change the same pipe and load path?
+
+-   [![Multipipe rack in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack)
+
+    **Multipipe rack** - How do three lines at different temperatures load one shared rack?
+
+-   [![Beam orientation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
+
+    **Beam orientation** - How does a rolled I-section change the response to the same tip force?
+
+-   [![3D solid in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
+
+    **3D solid** - How does 1D beam pipework transition into a 3D solid tee junction?
 
 </div>
 

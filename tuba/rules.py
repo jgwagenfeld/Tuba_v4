@@ -71,19 +71,46 @@ class SupportSpacingRule:
 
     def evaluate(self, model: TubaModel) -> list[RuleResult]:
         results: list[RuleResult] = []
-        for elem in model.elements:
-            if elem.type not in ("pipe_straight", "pipe_bend"):
+        pipes = sorted((elem for elem in model.elements
+                        if elem.type in ("pipe_straight", "pipe_bend")), key=lambda elem: elem.id)
+        connected = {}
+        for elem in pipes:
+            for node in (elem.n1, elem.n2):
+                connected.setdefault(node, []).append(elem)
+        boundaries = {support.node for support in model.supports}
+        # ponytail: junctions bound this topology screen; branched load paths need a structural span check.
+        boundaries.update(node for node, members in connected.items() if len(members) != 2)
+        visited = set()
+        for elem in pipes:
+            if elem.id in visited:
                 continue
-            length = element_length(model, elem)
+            members = [elem]
+            visited.add(elem.id)
+            # A load or mesh split is not a support. Walk both ends of the seed
+            # element to actual supports, branches or endpoints; visited edges
+            # also terminate closed loops without a declared support.
+            for node in (elem.n1, elem.n2):
+                while node not in boundaries:
+                    next_elem = next((candidate for candidate in connected[node]
+                                      if candidate.id not in visited), None)
+                    if next_elem is None:
+                        break
+                    members.append(next_elem)
+                    visited.add(next_elem.id)
+                    node = next_elem.n2 if next_elem.n1 == node else next_elem.n1
+            members.sort(key=lambda member: member.id)
+            length = sum(element_length(model, member) for member in members)
             if length <= self.max_span_m:
                 continue
+            subject = (f"Element {members[0].id!r}" if len(members) == 1
+                       else f"Pipe elements {[member.id for member in members]!r}")
             results.append(
                 RuleResult(
                     rule_id=self.rule_id,
                     passed=False,
                     severity="warning",
-                    message=f"Element {elem.id!r} span {length:.6g} m exceeds max {self.max_span_m:.6g} m.",
-                    refs=[EntityRef("element", elem.id)],
+                    message=f"{subject} span {length:.6g} m exceeds max {self.max_span_m:.6g} m.",
+                    refs=[EntityRef("element", member.id) for member in members],
                     data={"span_m": length, "max_span_m": self.max_span_m},
                 )
             )

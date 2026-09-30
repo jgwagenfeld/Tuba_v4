@@ -1,157 +1,133 @@
 # Examples
 
-The examples below show piping geometry and Code_Aster analyses. Each entry
-states whether it contains solver results or model geometry only.
+Follow the piping workflow: author Python, solve with Code_Aster, then inspect the processed results. The first eight examples form a learning path; the later studies cover specialized applications.
 
 [Example gallery](https://jgwagenfeld.github.io/Tuba_v4/viewer/)
 
-To try changes, choose **Build**, edit `model.py`, and click **Update geometry**.
-This creates an unsolved preview in your browser; see [browser editing](setup.md#try-a-model-in-the-browser)
-for controls, draft lifetime and native-package limits.
+To try changes, choose **Build**, edit `model.py`, and click **Update geometry**. That preview is unsolved; engineering results require a new Code_Aster solve. See [browser editing](setup.md#try-a-model-in-the-browser).
 
-Piping-code evaluations, clearance checks, and project-specific design rules
-are included only where stated.
+## Start here
 
-## Thermal expansion
+### Pipe bends
 
-[![Thermal expansion review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop)
-
-A 180 C line routed around equipment with an automatically selected expansion loop. The review shows thermal displacement and clearance violations around a cable tray.
-
-The reported gap decreases from 150.0 mm cold to 131.3 mm in the operating
-state. The clearance check reports a 13.2 mm violation of the configured 100 mm
-clearance band, flagged `introduced_by_deformation`. The tray and clearance
-band are model inputs; displacement comes from imported Code_Aster results.
-The router's reserved corridor also includes the declared insulation.
-
-Piping-standard checks are the responsibility of the user.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop) &middot; Evidence: **Results**
-
-## Pipe bends
-
-[![Pipe bends review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
+[![Pipe bends in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/code-aster-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review)
 
 A pressurised line with two anchors and two bends. The review shows displacement, pipe-wall stress, and anchor reactions from one Code_Aster run.
 
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review) &middot; Evidence: **Results**
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=code-aster-review) - **Code_Aster results, 1 load case(s)**
 
-## Elements and supports
+### Load-case preparation
 
-[![Elements and supports review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/elements-supports-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review)
+[![Load-case preparation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation)
 
-Pipe, beam, bar, cable and rectangular members in one model, with spring, rest, anchor and partly released supports. The review shows the element and support definitions alongside the imported Code_Aster results.
+Two restrained pipe lines solved in four states: Sustained, OperatingHot, Occasional and PressureOnly. Compare Code_Aster results and export signed expansion differences for user-owned checks; no standard or utilization verdict is assigned.
 
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=elements-supports-review) &middot; Evidence: **Results**
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation) - **Code_Aster results, 4 load case(s)**
 
-## Cable
+### Load transfer
 
-[![Cable review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/guyed-mast-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review)
+[![Load transfer in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
 
-A 12 m tubular mast held by three pretensioned guy cables under a 3 kN side load. The leeward cable goes slack and the two windward ones carry it, which is the redistribution a tension-only member exists to show.
+A DN100 line on one I-beam rack bay carries distributed pipe and crossbeam loads, a point force and moment, pressure and thermal expansion. The review follows the loads through the attached frictionless sliding shoes and steel to the ground reactions, with deflection and support spacing beside them.
 
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review) &middot; Evidence: **Results**
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review) - **Code_Aster results, 1 load case(s)**
 
-## Imported components
+### Thermal expansion
 
-[![Imported components model review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo)
+[![Thermal expansion in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/autorouted-expansion-loop.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop)
 
-A STEP/STL component placed beside Tuba pipework, showing connection ports, local frames and coupling. This example contains geometry only, with no solver results.
+A 180 C line routed around equipment with an automatically selected expansion loop. The review shows thermal displacement and clearance violations around a cable tray.
 
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo) &middot; Evidence: **Model only - no results**
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=autorouted-expansion-loop) - **Code_Aster results, 1 load case(s)**
 
-## 3D solid
+### Nonlinear friction
 
-[![3D solid review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
-
-A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. Under internal pressure, gravity and a 4 kN out-of-plane load at the free branch end, the review shows kinematic shell-to-solid coupling, the stress hot spot where the branch meets the junction, and the branch deflection.
-
-FE von Mises is not piping-code stress. The design tubes, analysis skin,
-displacement, terminal resultants and stress field stay separately inspectable.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review) &middot; Evidence: **Results**
-
-## Load transfer
-
-[![Load transfer review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/support-rack-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review)
-
-A DN100 line centered in an I-beam rack under distributed line loading, internal pressure and thermal expansion. The review shows ground and element rest shoe reactions, steel deflection, and support spacing.
-
-An engineer-authored 3.5 m support-spacing rule flags the 4 m rack span.
-This project rule annotates the solver evidence; it does not establish
-compliance with a piping or structural standard.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=support-rack-review) &middot; Evidence: **Results**
-
-## Nonlinear friction
-
-[![Nonlinear friction review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review)
+[![Nonlinear friction in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/native-friction-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review)
 
 Two disconnected, identical pipes share one nonlinear Code_Aster run and load history. The review compares friction coefficients of 0 and 0.3 through heating, cooling, lift-off and reseating.
 
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review) &middot; Evidence: **Results**
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=native-friction-review) - **Code_Aster results, 1 load case(s)**
 
-See the [native friction example](examples/native-friction.md) for the contact law, load stages and validation.
+### Multipipe rack
 
-## Beam orientation
-
-[![Beam orientation review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
-
-Three identical I-section cantilevers at 0, 45 and 90 degrees in one model, each loaded by the same 500 N tip force in global -Z. The review compares deformed profiles and section rotations relative to the original local axes, so the difference on screen is the section orientation alone.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) &middot; Evidence: **Results**
-
-See the [profile-orientation example](examples/profile-orientation.md) for the section-roll convention and numerical reference checks.
-
-## Plant layout
-
-[![Plant layout review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
-
-A green-hydrogen facility in plan: an electrolyzer hall, a compressor station, storage bullets and a four-bay pipe rack, with the LP and HP hydrogen lines routed between them under pressure and thermal load. The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout) &middot; Evidence: **Results**
-
-## Line loads
-
-[![Line loads review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/line-load-studio.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio)
-
-A DN100 line on an I-beam crossbeam carries a 350 N/m downward line load, a 500 N/m lateral load on the beam, and a 3.5 kN force with a moment at its elbow. The review shows the deflection, stresses and support reaction from Code_Aster.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=line-load-studio) &middot; Evidence: **Results**
-
-## Road crossing
-
-[![Road crossing review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/rack_bridge_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo)
-
-A DN150 process line rises from ground sleepers over an 8 m roadway on a four-bay steel rack bridge, then drops back to grade. Friction shoes carry it at every bay midpoint. The review shows thermal displacement, wall stress and support reactions from Code_Aster.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=rack_bridge_demo) &middot; Evidence: **Results**
-
-## Portal frame stability
-
-[![Portal frame stability review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review)
-
-A steel industrial hall with seven portal frames and six bays, solved for gravity and wind in Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. The review shows displacements, reactions, member-end section forces, and the critical load factors that say how far the frame is from a buckling mode. Von Mises is absent by design: a pipe-free frame has no equivalent-stress field.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review) &middot; Evidence: **Results** (2 load cases)
-
-## Braced rack split
-
-[![Braced rack split review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/braced-rack-thermal-split.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split)
-
-A DN250 line on a four-bay braced steel rack, anchored once at mid-run. One pipe at 400 C grows at four times the rate of the steel beneath it, so the shoes slide and the end bays take the whole expansion. The review shows displacement, wall stress, the support reactions and the load path the sliding shoes actually carry.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split) &middot; Evidence: **Results** (1 load case)
-
-## Multipipe rack
-
-[![Multipipe rack review in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack)
+[![Multipipe rack in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/multipipe-rack.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack)
 
 Three DN100, DN150 and DN200 lines share a four-bay steel rack. Each has a mid-run fixed shoe and sliding friction shoes, with temperatures of 100, 200 and 300 C and pressures of 1, 2 and 3 MPa. Code_Aster results show pipe-wall stress, displacement and the combined support load path.
 
-The crossbeams are split at each lane, so all three lines transfer their loads into the same frame. This example uses fixed column feet and a rigid moment frame; it does not evaluate wind, foundations or piping-code compliance.
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack) - **Code_Aster results, 1 load case(s)**
 
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=multipipe-rack) &middot; Evidence: **Results** (1 load case)
+### Beam orientation
+
+[![Beam orientation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/profile-orientation-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review)
+
+Three identical I-section cantilevers at 0, 45 and 90 degrees in one model, each loaded by the same 500 N tip force in global -Z. The review compares deformed profiles and section rotations relative to the original local axes, so the difference on screen is the section orientation alone.
+
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=profile-orientation-review) - **Code_Aster results, 1 load case(s)**
+
+### 3D solid
+
+[![3D solid in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/pipe-tee-volume-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review)
+
+A 3D solid quadratic hexahedral tee coupled to 1D TUYAU_3M pipe beam extensions. Under internal pressure, gravity and a 4 kN out-of-plane load at the free branch end, the review shows 1D pipe-to-3D solid coupling (3D_TUYAU), the stress hot spot where the branch meets the junction, and the branch deflection. FE von Mises is not piping-code stress.
+
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=pipe-tee-volume-review) - **Code_Aster results, 1 load case(s)**
+
+Line loads and Load transfer share one public lesson: distributed pipe and crossbeam loads, a concentrated force and moment, and the complete load path to ground. The original `examples/line-load-studio` project remains a developer reference.
+
+The thermal-expansion example selects a route geometrically, then reviews its solved operating clearance; it does not rank competing routes by solver results.
+
+## Advanced solved studies
+
+### Braced rack split
+
+[![Braced rack split in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/braced-rack-thermal-split.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split)
+
+A DN250 line on a four-bay braced steel rack, anchored once at mid-run. One pipe at 400 C grows at four times the rate of the steel beneath it, so the shoes slide and the end bays take the whole expansion. The review shows displacement, wall stress, the support reactions and the load path the sliding shoes actually carry.
+
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=braced-rack-thermal-split) - **Code_Aster results, 1 load case(s)**
+
+### Cable
+
+[![Cable in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/guyed-mast-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review)
+
+A 12 m tubular mast held by three pretensioned guy cables under a 3 kN side load. The leeward cable unloads and sags while retaining positive tension, and the two windward cables carry most of the load. The review shows nonlinear cable-force redistribution.
+
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=guyed-mast-review) - **Code_Aster results, 1 load case(s)**
+
+### Plant layout
+
+[![Plant layout in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/hydrogen-plant-layout.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout)
+
+A green-hydrogen facility in plan: an electrolyzer hall, a compressor station, storage bullets and a four-bay pipe rack. Two process lines share the illustrative 3 MPa, 65 C operating state. The review shows displacement, pipe-wall stress and friction shoe reactions from Code_Aster; it does not establish hydrogen-service suitability.
+
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=hydrogen-plant-layout) - **Code_Aster results, 1 load case(s)**
+
+### Portal frame stability
+
+[![Portal frame stability in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/steel-portal-frame-review.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review)
+
+A steel industrial hall with seven portal frames and six bays, solved for gravity and wind in Code_Aster, with the linear buckling eigenvalue analysis of the gravity case. The review shows displacements, reactions, member-end section forces, and the linear buckling factors for the ideal frame under gravity. First-order, imperfection-free reference factors are not a design safety margin or member-adequacy verdict. Von Mises is absent by design: a pipe-free frame has no equivalent-stress field.
+
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=steel-portal-frame-review) - **Code_Aster results, 2 load case(s)**
+
+## Geometry and authoring
+
+### Imported components
+
+[![Imported components in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/imported_component_mixed_demo.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo)
+
+An STL component placed beside Tuba pipework, showing connection ports, local frames and coupling. This example contains geometry only, with no solver results.
+
+[Open this example](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=imported_component_mixed_demo) - **Model only - no solver results**
+
+## Developer references
+
+- `examples/elements-supports-review`: mixed-element and support translation coverage.
+- `examples/line-load-studio`: the original distributed and concentrated load example.
+- `examples/rack_bridge_demo`: an elevated rack with regular 3 m bays; it does not establish an 8 m clear roadway.
+- `examples/pipe-tee-volume-review/mesh_study.py`: an unsolved mesh diagnostic.
+
+These projects and their solver evidence remain available locally.
 
 ## Local examples
 
@@ -190,7 +166,7 @@ No script in this table launches Code_Aster. Rows labelled **STUDY HANDOFF** wri
 
 ## Gallery projects
 
-Each published review is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review`, `steel-portal-frame`, `support-rack-review`, `braced-rack-thermal-split`, `hydrogen-plant-layout`, `line-load-studio`, `load-case-preparation` and `rack_bridge_demo`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
+Each review or developer reference is a folder under `examples/` holding `model.py`, which builds the model at module level, and `study.py`, which says how it is solved and reviewed: `autorouted-expansion-loop`, `code-aster-review`, `elements-supports-review`, `guyed-mast-review`, `imported_component_mixed_demo`, `native-friction-review`, `pipe-tee-volume-review` (whose `mesh_study.py` also produces the unsolved Gmsh mesh review), `profile-orientation-review`, `steel-portal-frame`, `support-rack-review`, `braced-rack-thermal-split`, `hydrogen-plant-layout`, `line-load-studio`, `load-case-preparation` and `rack_bridge_demo`. The gallery build, the solver refresh and the studio all load these same files, so there is no second copy of any model.
 
 Gallery cards offer a project ZIP when one was built. Extract it and run Studio from the archive root; the ZIP includes the example's shared Python helpers and local assets. It does not contain solver evidence. Some cards also offer a geometry-only IFC file when the exporter can represent the whole native model geometry. Imported CAD, volume meshes and unsupported elements have no IFC link. A downloaded IFC contains no stress or operating-state results.
 
@@ -221,12 +197,6 @@ A project can also commit **reference figures**: a `reference_series.py` next to
 Both are finite-element comparisons. A card and a figure describe what the solver was given and returned; neither is a code check, a utilization or an acceptance verdict, and Tuba evaluates no standard.
 
 ## Load-case preparation
-
-[![Load-case preparation in the Tuba viewer](https://jgwagenfeld.github.io/Tuba_v4/viewer/gallery/load-case-preparation.png)](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation)
-
-Two restrained pipe lines solved in four states: Sustained, OperatingHot, Occasional and PressureOnly. Compare Code_Aster results and export signed expansion differences for user-owned checks; no standard or utilization verdict is assigned.
-
-[Open this review](https://jgwagenfeld.github.io/Tuba_v4/viewer/?bundle=load-case-preparation) &middot; Evidence: **Results**
 
 `examples/load-case-preparation` solves **Sustained**, **OperatingHot**,
 **Occasional** and **PressureOnly** with Code_Aster. Its review includes all four

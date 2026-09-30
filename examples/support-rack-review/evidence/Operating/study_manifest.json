@@ -57,6 +57,14 @@
           "kind": "element"
         }
       },
+      "pipe_str_4": {
+        "element_id": "pipe_str_4",
+        "role": "native_element",
+        "source_ref": {
+          "id": "pipe_str_4",
+          "kind": "element"
+        }
+      },
       "rack_A_beam_0_s0": {
         "element_id": "rack_A_beam_0_s0",
         "role": "straight_segment",
@@ -785,11 +793,11 @@
       ],
       "CONTACT_7": [
         "GROUND_7",
-        "N13"
+        "N14"
       ],
       "CONTACT_8": [
         "GROUND_8",
-        "N14"
+        "N15"
       ],
       "pipe_str_0": [
         "N10",
@@ -806,6 +814,10 @@
       "pipe_str_3": [
         "N13",
         "N14"
+      ],
+      "pipe_str_4": [
+        "N14",
+        "N15"
       ],
       "rack_A_beam_0_s0": [
         "N0",
@@ -1136,7 +1148,8 @@
         "pipe_str_0",
         "pipe_str_1",
         "pipe_str_2",
-        "pipe_str_3"
+        "pipe_str_3",
+        "pipe_str_4"
       ],
       "AllSupports": [
         "N0",
@@ -1146,8 +1159,8 @@
         "N10",
         "N11",
         "N12",
-        "N13",
-        "N14"
+        "N14",
+        "N15"
       ],
       "CONTACT_6": [
         "CONTACT_6"
@@ -1178,6 +1191,9 @@
       ],
       "GN_N14": [
         "N14"
+      ],
+      "GN_N15": [
+        "N15"
       ],
       "GN_N2": [
         "N2"
@@ -1287,6 +1303,7 @@
         "pipe_str_1",
         "pipe_str_2",
         "pipe_str_3",
+        "pipe_str_4",
         "rack_A_beam_0_s0",
         "rack_A_beam_0_s1",
         "rack_A_beam_0_s2",
@@ -1375,13 +1392,15 @@
         "pipe_str_0",
         "pipe_str_1",
         "pipe_str_2",
-        "pipe_str_3"
+        "pipe_str_3",
+        "pipe_str_4"
       ],
       "SEC_DN100": [
         "pipe_str_0",
         "pipe_str_1",
         "pipe_str_2",
-        "pipe_str_3"
+        "pipe_str_3",
+        "pipe_str_4"
       ],
       "SEC_RackColumnIPE": [
         "rack_A_beam_0_s0",
@@ -1480,6 +1499,9 @@
       ],
       "pipe_str_3": [
         "pipe_str_3"
+      ],
+      "pipe_str_4": [
+        "pipe_str_4"
       ],
       "rack_A_beam_0": [
         "rack_A_beam_0_s0",
@@ -1672,6 +1694,14 @@
           "kind": "node"
         }
       },
+      "N15": {
+        "node_id": "N15",
+        "role": "native_node",
+        "source_ref": {
+          "id": "N15",
+          "kind": "node"
+        }
+      },
       "N2": {
         "node_id": "N2",
         "role": "native_node",
@@ -1773,6 +1803,16 @@
         "segment_index": 0,
         "source_ref": {
           "id": "pipe_str_3",
+          "kind": "element"
+        }
+      },
+      "pipe_str_4_mid": {
+        "node_id": "pipe_str_4_mid",
+        "parametric_t": 0.5,
+        "role": "generated_pipe_mid_node",
+        "segment_index": 0,
+        "source_ref": {
+          "id": "pipe_str_4",
           "kind": "element"
         }
       },
@@ -2519,11 +2559,16 @@
         3.25
       ],
       "N13": [
-        4.0,
+        2.0,
         0.0,
         3.25
       ],
       "N14": [
+        4.0,
+        0.0,
+        3.25
+      ],
+      "N15": [
         6.0,
         0.0,
         3.25
@@ -2579,11 +2624,16 @@
         3.25
       ],
       "pipe_str_2_mid": [
-        2.0,
+        1.0,
         0.0,
         3.25
       ],
       "pipe_str_3_mid": [
+        3.0,
+        0.0,
+        3.25
+      ],
+      "pipe_str_4_mid": [
         5.0,
         0.0,
         3.25
@@ -2941,7 +2991,7 @@
     },
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f93c01a14e985ca4845b10eff9d3778d86574d8ec79561533b2e18b5bf81b210",
+      "fingerprint": "a389ae91c9aa614b8c165ee142e3fe9232290856c9e446f488ef1f572840950e",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },
@@ -2978,7 +3028,7 @@
     "model_revision": 0,
     "solver_input_identity": {
       "compiler_id": "tuba.code_aster.v2",
-      "fingerprint": "f93c01a14e985ca4845b10eff9d3778d86574d8ec79561533b2e18b5bf81b210",
+      "fingerprint": "a389ae91c9aa614b8c165ee142e3fe9232290856c9e446f488ef1f572840950e",
       "load_case": "Operating",
       "schema_id": "tuba.model.v4"
     },

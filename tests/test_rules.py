@@ -24,6 +24,45 @@ class TestRules(unittest.TestCase):
         self.assertEqual(str(report.results[0].refs[0]), "element:pipe_0")
         self.assertIn("4", report.results[0].message)
 
+    def test_support_spacing_does_not_count_an_unsupported_split_as_a_support(self):
+        model = self._model()
+        first = model.elements[0]
+        end = first.n2
+        middle = model.add_node([2.0, 0.0, 0.0])
+        first.n2 = middle
+        model.add_element(id="pipe_1", type="pipe_straight", n1=middle, n2=end,
+                          section="PipeSec", material="Steel")
+        model.add_support(first.n1, "rest")
+        model.add_support(end, "rest")
+        rule = SupportSpacingRule(max_span_m=3.5)
+
+        result, = rule.evaluate(model)
+        self.assertEqual(result.data, {"span_m": 4.0, "max_span_m": 3.5})
+        self.assertEqual([str(ref) for ref in result.refs], ["element:pipe_0", "element:pipe_1"])
+        model.add_support(middle, "rest")
+        self.assertEqual(rule.evaluate(model), [])
+
+    def test_support_spacing_stops_at_branches_and_terminates_closed_loops(self):
+        model = self._model()
+        first = model.elements[0]
+        end = first.n2
+        middle = model.add_node([2.0, 0.0, 0.0])
+        first.n2 = middle
+        model.add_element(id="pipe_1", type="pipe_straight", n1=middle, n2=end,
+                          section="PipeSec", material="Steel")
+        branch = model.add_node([2.0, 2.0, 0.0])
+        model.add_element(id="pipe_2", type="pipe_straight", n1=middle, n2=branch,
+                          section="PipeSec", material="Steel")
+        rule = SupportSpacingRule(max_span_m=3.5)
+        self.assertEqual(rule.evaluate(model), [])
+
+        # Close a three-edge loop without supports; it must be checked once.
+        model.elements[-1].n1 = end
+        model.elements[-1].n2 = first.n1
+        result, = rule.evaluate(model)
+        self.assertEqual(result.data["span_m"], 8.0)
+        self.assertEqual([ref.id for ref in result.refs], ["pipe_0", "pipe_1", "pipe_2"])
+
     def test_clash_free_rule_reports_structured_clash(self):
         model = self._model()
         model.add_obstacle("box", "cuboid", min_point=[1.0, -0.1, -0.1], max_point=[2.0, 0.1, 0.1])
