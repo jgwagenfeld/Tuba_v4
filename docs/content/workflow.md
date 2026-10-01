@@ -73,6 +73,27 @@ write_engineering_review(review, "runs/demo_hot/review")
 
 FE stress remains labelled `FE Von Mises (not piping-code stress)`.
 
+The printable report starts with governing values across the published cases,
+including the winning case, entity and element end. Its model overview shows
+undeformed authored centerlines with short drawing keys mapped to the exact
+element, node and support IDs; canonical bend geometry is retained. Dimensioned
+SVG section plates use each scheduled section's actual geometry, including
+bores and rolled I-section fillets. Profile dimensions are labelled in mm.
+
+The offline report uses Tuba's graphite/teal palette and bundled fonts. Detailed
+tables can be expanded on screen and are all included when printing. JSON and
+CSV retain full study and result-state lineage.
+
+Equilibrium checks compare calculated applied loads with imported Code_Aster
+reactions in global axes, with moments about `(0, 0, 0)` metres. Each of the six
+components states its residual and numerical tolerance. Nodal loads, gravity
+(including insulation, contents and support masses), and uniform line loads are
+covered for linear 1D studies. Loaded bends require the authoritative analysis
+mesh. Pressure, wind, contact/load-path, cable, spring/attached-support and
+volume/mixed studies state why balance is **not evaluated** until complete
+load/reaction recovery is available. A numerical balance is not a design-code
+check. The `equilibrium.csv` download retains study and result-state lineage.
+
 ## Exactly two visualization paths
 
 Both paths consume real imported results. Choose one path per notebook or example.

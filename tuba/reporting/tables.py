@@ -31,6 +31,7 @@ from tuba.reporting.model import (
     ReportTable,
     ReviewDiagnostic,
 )
+from tuba.reporting.equilibrium import build_equilibrium_table
 
 
 SOLVER_COLUMNS = (
@@ -452,6 +453,8 @@ def build_result_tables(
     studies: Iterable[AnalysisStudy],
     result_states: Iterable[ResultState],
     contact_states: Iterable[ResultState] | None = None,
+    *,
+    analysis_meshes=(),
 ) -> tuple[ReportTable, ...]:
     """Build Code_Aster-derived tables after the caller validates lineage.
 
@@ -474,6 +477,7 @@ def build_result_tables(
             study_by_id,
             states,
         ),
+        build_equilibrium_table(model, study_by_id, states, analysis_meshes),
         build_displacements_table(study_by_id, states),
         build_reactions_table(model, study_by_id, states),
         build_element_forces_table(model, study_by_id, states),

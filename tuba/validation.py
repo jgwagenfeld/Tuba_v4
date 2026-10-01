@@ -41,10 +41,17 @@ def validate_model(model: TubaModel) -> None:
             _number(case.ref_temperature, f"{label} ref_temperature", errors)
             _number(case.internal_pressure, f"{label} internal_pressure", errors, lower=0)
 
+    valid_node_coords = {}
     for node_id, node in model.nodes.items():
-        coords = np.asarray(node.coords, dtype=float)
+        try:
+            coords = np.asarray(node.coords, dtype=float)
+        except (TypeError, ValueError, OverflowError):
+            errors.append(f"Node {node_id!r} has invalid coordinates.")
+            continue
         if coords.shape != (3,) or not np.all(np.isfinite(coords)):
             errors.append(f"Node {node_id!r} has invalid coordinates.")
+        else:
+            valid_node_coords[node_id] = coords
 
     element_ids = [elem.id for elem in model.elements]
     for elem_id, count in Counter(element_ids).items():
@@ -52,6 +59,9 @@ def validate_model(model: TubaModel) -> None:
             errors.append(f"Duplicate element id {elem_id!r}.")
 
     for elem in model.elements:
+        if elem.type not in ("pipe_straight", "pipe_bend", "beam", "bar", "cable"):
+            errors.append(f"Element {elem.id!r} has unsupported type {elem.type!r}.")
+        _number(elem.twist_angle, f"Element {elem.id!r} twist_angle", errors)
         if elem.n1 not in model.nodes:
             errors.append(f"Element {elem.id!r} references missing node {elem.n1!r}.")
         if elem.n2 not in model.nodes:
@@ -62,6 +72,12 @@ def validate_model(model: TubaModel) -> None:
             errors.append(f"Element {elem.id!r} references missing material {elem.material!r}.")
         if elem.n1 == elem.n2:
             errors.append(f"Element {elem.id!r} has identical start and end nodes.")
+        elif elem.n1 in valid_node_coords and elem.n2 in valid_node_coords:
+            length = math.dist(valid_node_coords[elem.n1], valid_node_coords[elem.n2])
+            if not math.isfinite(length):
+                errors.append(f"Element {elem.id!r} has non-finite length.")
+            elif length < 1e-9:
+                errors.append(f"Element {elem.id!r} has zero length between coincident endpoints.")
         _validate_element_station(elem, errors)
         _validate_bend_geometry_record(elem, errors)
 

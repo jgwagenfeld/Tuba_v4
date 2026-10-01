@@ -90,6 +90,7 @@ def build_engineering_review(
                 study_records,
                 state_records,
                 contact_states=history_records,
+                analysis_meshes=mesh_records,
             )
         )
     tables.append(

@@ -78,9 +78,7 @@ structure as disconnected.
 Resolve nodes by coordinate instead, so a joint has exactly one node id:
 
 ```python
-def resolve_node(model, point):
-    found = model.find_node_by_point(point, tol=1e-9)
-    return found if found is not None else model.add_node(point)
+node_id = model.get_or_create_node(point, tolerance=1e-9)
 ```
 
 ## Bracing a real frame needs

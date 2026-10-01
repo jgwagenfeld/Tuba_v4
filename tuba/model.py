@@ -15,6 +15,7 @@ import math
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from numbers import Real
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
@@ -990,6 +991,37 @@ class TubaModel:
             if float(np.linalg.norm(node.coords - target)) <= tol_val:
                 return nid
         return None
+
+    def get_or_create_node(
+        self,
+        coords: Sequence[float] | np.ndarray,
+        *,
+        tolerance: float = DEFAULT_SNAPPING_TOLERANCE,
+    ) -> str:
+        """Reuse a node within *tolerance* [m], or create one at finite [x, y, z]."""
+        point = np.asarray(coords, dtype=object)
+        if point.shape != (3,) or any(
+            not isinstance(value, Real) or isinstance(value, (bool, np.bool_)) for value in point
+        ):
+            raise ValueError("Node coordinates must be a finite numeric 3-vector.")
+        if not isinstance(tolerance, Real) or isinstance(tolerance, (bool, np.bool_)):
+            raise ValueError("Node tolerance must be a positive finite number.")
+        try:
+            point = point.astype(float)
+            tolerance = float(tolerance)
+        except (ValueError, OverflowError) as exc:
+            raise ValueError("Node coordinates and tolerance must be finite numbers.") from exc
+        if not np.all(np.isfinite(point)):
+            raise ValueError("Node coordinates must be a finite numeric 3-vector.")
+        if not math.isfinite(tolerance) or tolerance <= 0.0:
+            raise ValueError("Node tolerance must be a positive finite number.")
+        try:
+            _point_index_key(point, tolerance)
+            _point_index_key(point)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("Node coordinates cannot be indexed at the requested or default tolerance.") from exc
+        existing = self.find_node_by_point(point, tol=tolerance)
+        return existing if existing is not None else self.add_node(point)
 
     # -- Elements ------------------------------------------------------------
 

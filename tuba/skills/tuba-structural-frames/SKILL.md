@@ -109,21 +109,14 @@ node at the far end, so two members meeting at a joint end up on two coincident
 nodes. The clash gate reports those as duplicate nodes and the solver reads the
 structure as disconnected.
 
-Author a frame by resolving nodes yourself - one node id per coordinate:
+Author a frame with shared endpoint nodes, then validate the completed model:
 
 ```python
-def resolve_node(model, point):
-    found = model.find_node_by_point(point, tol=1e-9)
-    return found if found is not None else model.add_node(point)
-
-def add_member(model, n1, n2, section, material, *, member_id, twist_angle=0.0):
-    p1, p2 = model.nodes[n1].coords, model.nodes[n2].coords
-    length = float(np.linalg.norm(p2 - p1))
-    if length < 1e-9:
-        raise ValueError(f"{member_id} is zero length")
-    model.add_element(id=member_id, type="beam", n1=n1, n2=n2,
-                      section=section, material=material,
-                      twist_angle=twist_angle)
+n1 = model.get_or_create_node((0.0, 0.0, 0.0), tolerance=1e-9)
+n2 = model.get_or_create_node((3.0, 0.0, 0.0), tolerance=1e-9)
+model.add_element(id="beam_0", type="beam", n1=n1, n2=n2,
+                  section=section, material=material, twist_angle=90.0)
+model.validate()
 ```
 
 ## Cross-section orientation is load-bearing, not cosmetic

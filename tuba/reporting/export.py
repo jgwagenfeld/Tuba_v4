@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import base64
 import csv
 import json
+import re
 import stat
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from html import escape
 from io import StringIO
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
+
+from tuba.model import BendGeometry, sample_bend_geometry
+from tuba.reporting.isometry import project_point
+from tuba.reporting.profile_svg import section_svg
 
 from tuba.reporting.model import (
     EngineeringReviewError,
@@ -31,6 +37,180 @@ _SCENE_METADATA_URIS = (
     "metadata/route_reviews.json",
     "geometry/geometry_assets.json",
 )
+
+
+_REPORT_CSS = """
+:root {
+  color-scheme: light;
+  --graphite: #151c22; --text: #172127; --muted: #4c5b63;
+  --accent: #5ed8e5; --accent-ink: #075b66; --line: #d4dfe2;
+  --mono: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+  font-family: "Roboto Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+body { color: var(--text); background: #edf1f2; margin: 0; line-height: 1.45; }
+main { max-width: 96rem; margin: auto; background: white; }
+a { color: var(--accent-ink); text-underline-offset: .2em; }
+:focus-visible { outline: 2px solid #0b7684; outline-offset: 3px; }
+.report-header { padding: 2rem 3rem; background: var(--graphite); color: #f3f5f5; border-top: 4px solid var(--accent); }
+.brand-line { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.4rem; }
+.brand { font-size: 1.8rem; font-weight: 600; letter-spacing: .18em; color: var(--accent); }
+.eyebrow { font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; }
+.report-header .eyebrow { color: #b9c5c9; }
+h1 { max-width: 50ch; font-size: clamp(1.8rem, 3vw, 2.65rem); line-height: 1.12; margin: 0 0 .75rem; font-weight: 600; }
+.meta { color: #b9c5c9; margin: 0; font-size: .9rem; }
+.report-nav { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 1.2rem; padding: .9rem 3rem; background: #fff; border-bottom: 1px solid var(--line); }
+.report-nav a { font-size: .9rem; text-decoration: none; }
+.report-nav a:hover { text-decoration: underline; }
+.report-nav .viewer-link { margin-left: auto; }
+.report-content { padding: 2rem 3rem; }
+h2 { font-size: 1.7rem; font-weight: 600; margin: 0 0 .4rem; line-height: 1.2; }
+h3 { font-size: 1.15rem; margin: 1.4rem 0 .5rem; font-weight: 600; }
+h1, h2, h3, h4 { break-after: avoid; }
+p { max-width: 80ch; }
+.units, .section-intro { color: var(--muted); font-size: .9rem; margin: .4rem 0 1.2rem; }
+.summary-sheet { padding: 1.6rem; border: 1px solid var(--line); border-top: 3px solid #0b7684; margin: 0 0 2rem; background: #f8fafb; }
+.summary-sheet h2 { font-size: 1.1rem; }
+.summary-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 2rem; margin: 1.2rem 0 0; }
+.summary-facts > div { min-width: 0; }
+.summary-facts dt { color: var(--muted); font-size: .78rem; margin-bottom: .15rem; }
+.summary-facts dd { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.summary-facts .summary-result { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: .8rem; display: grid; grid-template-columns: 13rem 1fr; gap: 1rem; }
+.summary-result dt { font-weight: 600; color: var(--text); font-size: .95rem; }
+.summary-result dd { color: var(--accent-ink); font-family: var(--mono); font-size: .83rem; }
+.report-section { margin: 2.5rem 0; padding-top: 1.5rem; border-top: 2px solid var(--graphite); }
+.report-section:first-of-type { margin-top: 0; }
+.report-notes { color: var(--muted); margin: 1.5rem 0; font-size: .85rem; }
+summary { cursor: pointer; }
+summary:focus-visible { outline: 2px solid #0b7684; }
+.detail-block { margin: .65rem 0; border: 1px solid var(--line); }
+.detail-block > summary { padding: .8rem 1rem; font-weight: 600; background: #f5f8f9; }
+.detail-block > summary span { float: right; font-family: var(--mono); font-size: .72rem; font-weight: 400; color: var(--muted); }
+.detail-block article { padding: .3rem 1rem; }
+.detail-block article > h3 { display: none; }
+.unavailable { border-left: .25rem solid #6c4c00; padding: .5rem .75rem; background: #fff8e6; color: #6c4c00; }
+.csv-link { font-size: .78rem; margin: 0 0 .5rem; }
+.table-wrap { margin: .4rem 0 1.5rem; overflow-x: auto; }
+.table-wrap:focus-visible { outline: 2px solid #0b7684; outline-offset: 2px; }
+table { border-collapse: collapse; font-size: .82rem; width: auto; max-width: 100%; }
+th, td { border-bottom: 1px solid var(--line); padding: .55rem .6rem; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #eaf0f2; color: #243b43; font-weight: 600; border-top: 1px solid var(--line); }
+tbody tr:nth-child(even) { background: #f8fafb; }
+th.num, td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.num { white-space: nowrap; }
+th.num { font-family: inherit; }
+td.nested { min-width: 9rem; max-width: 22rem; }
+.balance-status { display: inline-block; padding: .15rem .4rem; border: 1px solid currentColor; font-size: .73rem; white-space: nowrap; }
+.within_tolerance { color: #17613f; background: #dff4e8; }
+.outside_tolerance { color: #8f241d; background: #fde9e7; }
+.not_evaluated { color: #6c4c00; background: #fff1c2; }
+.kv { list-style: none; margin: 0; padding: 0; font-size: .92em; }
+.kv li { display: flex; gap: .5rem; justify-content: space-between; padding-block: .05rem; }
+.kv .k { color: var(--muted); white-space: nowrap; }
+.kv li > span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.model-overview { margin: 1.5rem 0 2rem; }
+.model-overview figure { margin: 1rem 0 1.5rem; border: 1px solid var(--line); }
+.model-overview figcaption { background: #f0f5f6; padding: .65rem 1rem; font-weight: 600; font-size: .9rem; }
+.model-overview svg { display: block; width: 100%; height: auto; }
+.drawing-key { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem 1rem; padding: .8rem 1rem; margin: 0; list-style: none; border-top: 1px solid var(--line); }
+.drawing-key li { display: flex; gap: .5rem; font-size: .73rem; min-width: 0; overflow-wrap: anywhere; }
+.drawing-key b { color: var(--accent-ink); font-family: var(--mono); font-weight: 600; flex-shrink: 0; }
+.section-catalogue { margin: 2rem 0; }
+.profile-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.profile-card { border: 1px solid var(--line); padding: 1.2rem; display: grid; grid-template-columns: 240px 1fr; gap: 1.2rem; align-items: center; break-inside: avoid; }
+.profile-card h4 { font-size: 1.3rem; margin: 0 0 .25rem; }
+.profile-card p { color: var(--muted); font-size: .85rem; margin: .3rem 0; }
+.profile-card dl { margin: .8rem 0 0; display: grid; grid-template-columns: auto 1fr; gap: .4rem 1rem; font-size: .83rem; }
+.profile-card dd { margin: 0; font-family: var(--mono); }
+.profile-diagram { width: 240px; max-width: 100%; height: auto; display: block; }
+.profile-object { fill: none; stroke: #172127; stroke-width: 2.3; stroke-linejoin: round; }
+.profile-bore { fill: none; stroke: #4c5b63; stroke-width: 1.6; }
+.profile-hatch { stroke: #9aa7ad; stroke-width: .8; }
+.profile-centreline { fill: none; stroke: #0b7684; stroke-width: .85; stroke-dasharray: 16 4 3 4; }
+.profile-extension { fill: none; stroke: #0b7684; stroke-width: .85; }
+.profile-dimension { fill: none; stroke: #0b7684; stroke-width: 1.05; }
+.profile-dimension-label { fill: #172127; font-family: var(--mono); font-size: 10px; }
+.profile-dimension-note { fill: #075b66; font-family: var(--mono); font-size: 10px; }
+.back { border-top: 1px solid var(--line); padding-top: 1rem; font-size: .9rem; }
+@media (max-width: 65rem) {
+  .profile-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 44rem) {
+  .report-header, .report-content { padding: 1.25rem; }
+  .report-nav { padding: .75rem 1.25rem; gap: .8rem; }
+  .summary-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary-facts .summary-result { display: block; }
+  .drawing-key { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-card { grid-template-columns: 1fr; }
+}
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  html { scroll-behavior: auto; }
+  body { margin: 0; max-width: none; padding: 0; background: white; font-size: 10pt; }
+  main { max-width: none; }
+  .report-header { padding: 4mm 5mm; background: #151c22; print-color-adjust: exact; }
+  .brand-line { margin-bottom: 2mm; }
+  .brand { font-size: 18pt; }
+  h1 { font-size: 22pt; }
+  .report-content { padding: 5mm 0 0; }
+  .report-nav, .back { display: none; }
+  .summary-sheet { padding: 4mm; }
+  .summary-facts { gap: 2mm 5mm; }
+  .summary-facts dd { font-size: 9pt; }
+  .summary-result dd { font-size: 8pt; }
+  .summary-facts .summary-result { padding-top: 2mm; }
+  .summary-sheet-page { break-after: page; }
+  .report-section { margin: 5mm 0; padding-top: 3mm; }
+  h3 { margin: 3mm 0 1.5mm; }
+  .balance-status { font-size: 7.5pt; line-height: 1.25; padding: 0 1mm; }
+  .balance-table { break-inside: avoid; }
+  .model-section { break-before: page; }
+  .model-overview figure { break-inside: avoid; }
+  .model-overview .model-diagram { max-height: 65mm; }
+  .drawing-key { gap: 1mm 3mm; padding: 2mm 3mm; }
+  .drawing-key li { font-size: 7.5pt; }
+  .section-catalogue { break-before: page; }
+  .profile-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-card { padding: 3mm; grid-template-columns: 45mm 1fr; gap: 3mm; }
+  .profile-card .profile-diagram { width: 45mm; }
+  .detail-block { border: 0; }
+  .detail-block > summary { list-style: none; background: white; padding: 0; margin: 4mm 0 2mm; }
+  .detail-block > summary span { display: none; }
+  .detail-block::details-content { content-visibility: visible; display: block; }
+  .detail-block > :not(summary) { display: block !important; }
+  .detail-block article { padding: 0; }
+  .report-notes::details-content { content-visibility: visible; display: block; }
+  a { color: inherit; text-decoration: none; }
+  .csv-link a::after { content: " (" attr(href) ")"; color: #4c5b63; }
+  .table-wrap { overflow: visible; }
+  table { font-size: 7.5pt; }
+  th, td { padding: .7mm 1mm; }
+  th { print-color-adjust: exact; }
+  td.nested { min-width: 8rem; max-width: 12rem; }
+  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+}
+"""
+
+
+def _report_fonts() -> str:
+    """Embed the existing bundled Tuba faces so an offline report keeps its type."""
+    viewer = Path(__file__).parents[1] / 'visualization' / '_viewer'
+    rules = []
+    for family, prefix, weight in (('Roboto Condensed', 'roboto-condensed', 400),
+                                    ('Roboto Condensed', 'roboto-condensed', 600),
+                                    ('IBM Plex Mono', 'ibm-plex-mono', 400)):
+        paths = sorted((viewer / 'assets').glob(f'{prefix}-latin-{weight}-normal-*.woff2'))
+        if paths:
+            data = base64.b64encode(paths[0].read_bytes()).decode('ascii')
+            rules.append(f'@font-face {{font-family:"{family}";font-style:normal;font-weight:{weight};src:url(data:font/woff2;base64,{data}) format("woff2");}}')
+    if rules:
+        for filename in ('font-notices.txt', 'OFL-1.1.txt'):
+            path = viewer / 'licenses' / filename
+            if path.is_file():
+                rules.append('/* ' + path.read_text(encoding='utf-8').replace('*/', '* /') + ' */')
+    return '\n'.join(rules)
 
 
 @dataclass(frozen=True)
@@ -260,116 +440,21 @@ def _render_html(
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{escape(page_title)}</title>",
         "<style>",
-        # No web font: this document has to open from a zip in ten years with no
-        # network. The faces are stacks, but the roles are chosen - a sans for
-        # prose, a tabular mono for the columns you read down.
-        ":root { color-scheme: light;",
-        '  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;',
-        '  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace; }',
-        "body { color: #18202a; margin: 2rem auto; max-width: 110rem; padding: 0 1rem;",
-        "  line-height: 1.5; }",
-        # Tables want the full width; sentences do not. Prose was set to 110rem
-        # along with everything else, which is a line nobody can track back from.
-        "h1, h2, h3, p { max-width: 68ch; }",
-        "h1 { font-size: 1.75rem; letter-spacing: -.01em; margin: 0 0 .25rem; }",
-        "h2 { font-size: 1.25rem; margin: 2.25rem 0 .5rem; }",
-        "h3 { font-size: 1rem; margin: 1.5rem 0 .35rem; }",
-        "h1, h2, h3 { break-after: avoid; line-height: 1.25; }",
-        ".meta { color: #44505f; margin: 0 0 .35rem; }",
-        ".units { color: #44505f; font-size: .85rem; margin: 0 0 1.75rem; }",
-        # The summary sheet, on screen. It prints to exactly one page; here it is
-        # a bordered block at the top that the detail below is reached by
-        # scrolling past, which is the same tiering with a different gesture.
-        ".summary-sheet { border: 1px solid #d7dde4; border-radius: .35rem; padding: 1rem 1.15rem; margin: 0 0 1.75rem; }",
-        ".summary-sheet h2 { margin-top: 0; }",
-        ".summary-sheet .units { margin-bottom: .75rem; }",
-        ".summary-facts { display: grid; grid-template-columns: 11rem 1fr; gap: .1rem .75rem; margin: 0; }",
-        ".summary-facts dt { font-weight: 650; }",
-        ".summary-facts dd { margin: 0; }",
-        ".back { margin: 2.5rem 0 0; font-size: .9rem; }",
-        ".back a { text-decoration: underline; text-underline-offset: .15em; }",
-        # Shared with the viewer and the docs site: the warning and focus values
-        # below are the review app's --warning and --focus-on-light, so a reader
-        # crossing from the model to this page does not change product. Kept in
-        # step by tests/test_brand_tokens.py.
-        ".unavailable { border-left: .25rem solid #6c4c00; padding: .5rem .75rem; }",
-        ".csv-link { font-size: .85rem; margin: 0 0 .4rem; }",
-        ".table-wrap { margin: .4rem 0 2rem; overflow-x: auto; }",
-        # The region is focusable so its off-screen columns are reachable from
-        # the keyboard; a focusable thing must show that it has focus.
-        ".table-wrap:focus-visible { outline: 2px solid #0b7684; outline-offset: 2px; }",
-        # width:auto, not 100%: a four-column node table forced to full width
-        # spread three coordinates across the page, which put every value an
-        # inch from the row it belongs to. Capped instead, so narrow tables stay
-        # compact and wide ones still compress to fit rather than overflow.
-        "table { border-collapse: collapse; font-size: .85rem;",
-        "  width: auto; max-width: 100%; }",
-        "th, td { border: 1px solid #aeb7c2; padding: .35rem .45rem; text-align: left;",
-        # Long identifiers and nested-value blobs are what made these tables
-        # three times the width of a page. They break now instead.
-        "  vertical-align: top; overflow-wrap: anywhere; }",
-        "th { background: #eef1f5; }",
-        # A column of magnitudes is read down, not across: mono, tabular, and
-        # right-aligned so the decimal points line up.
-        "th.num, td.num { text-align: right; font-family: var(--mono);",
-        "  font-variant-numeric: tabular-nums; }",
-        # Values must not break across lines; headings are prose and should.
-        # "Corrosion allowance [m]" held on one line was 182px of a 1047px page.
-        "td.num { white-space: nowrap; }",
-        "th.num { font-family: inherit; }",
-        # A floor as well as a cap: auto layout squeezed this column to 74px,
-        # which broke the key names themselves down the middle - IYR2 over two
-        # lines. Neither half of an entry may break.
-        "td.nested { min-width: 9rem; max-width: 22rem; }",
-        # One named quantity per line, name and value in their own columns, so a
-        # twenty-key section mapping reads like the schedule it is.
-        ".kv { list-style: none; margin: 0; padding: 0; font-size: .92em; }",
-        ".kv li { display: flex; gap: .5rem; justify-content: space-between; }",
-        # No rule between entries: at twenty rows in a 145px cell the hairlines
-        # were noise, and text sat flush against every one of them. The two-column
-        # alignment is what makes the list scannable.
-        ".kv li { padding-block: .05rem; }",
-        ".kv .k { color: #44505f; white-space: nowrap; }",
-        ".kv li > span:last-child { font-family: var(--mono);",
-        "  font-variant-numeric: tabular-nums; text-align: right;",
-        "  white-space: nowrap; overflow-wrap: normal; }",
-        "@media print {",
-        # Landscape, because these are 10-to-17-column result tables. Portrait
-        # dropped 41 of 147 columns off the right-hand edge of the page - every
-        # displacement component, every moment - with nothing on the paper to
-        # say anything was missing.
-        "  @page { size: A4 landscape; margin: 10mm; }",
-        "  body { margin: 0; max-width: none; padding: 0; }",
-        "  a { color: inherit; text-decoration: none; }",
-        # The return link is a screen affordance. On paper "back to the viewer"
-        # is a sentence about software the reader is not using.
-        "  .back { display: none; }",
-        # The scroll container cannot scroll on paper. Visible is right only
-        # because the table now fits the page; it is what hid the loss before.
-        "  .table-wrap { overflow: visible; }",
-        # A link is dead on paper, so print where the file actually is.",
-        '  .csv-link a::after { content: " (" attr(href) ")"; color: #44505f; }',
-        "  th, td { padding: .2rem .25rem; }",
-        "  td.nested { min-width: 8.5rem; max-width: 12rem; }",
-        "  table { font-size: 7.5pt; }",
-        "  tr { break-inside: avoid; }",
-        "  thead { display: table-header-group; }",
-        # The tier is defined by its size, so the size is enforced rather than
-        # hoped for: the sheet is followed by a page break in print, and a
-        # one-line definition list keeps it on one page on screen.
-        "  .summary-sheet-page { break-after: page; }",
-        "}",
+        _report_fonts(),
+        _REPORT_CSS,
         "</style>",
         "</head>",
         "<body>",
         "<main>",
-        f"<h1>{escape(page_title)}</h1>",
-        f'<p class="meta">Project: {escape(review.project_name)} | Status: {escape(review.analysis_status)}</p>',
-        # Said once, at the top, because this page is rounded and the viewer that
-        # links to it converts. Neither was stated anywhere before, so the same
-        # quantity appeared in two unit systems across two surfaces of one
-        # product with nothing to reconcile them.
-        f'<p class="units">{escape(_units_note(review))}</p>',
+        '<header class="report-header">',
+        '<div class="brand-line"><span class="brand">TUBA</span><span class="eyebrow">Engineering review / v4</span></div>',
+        f"<h1>{escape(title or review.project_name or 'Engineering review')}</h1>",
+        f'<p class="meta">Model revision {review.model_revision} · {escape(review.analysis_status.replace("_", " "))} · {escape(review.created_at[:10])}</p>',
+        '</header>',
+        '<nav class="report-nav" aria-label="Report sections">',
+        *(f'<a href="#section-{name.lower().replace(" ", "-")}">{name}</a>' for name in _SECTION_TITLES),
+        f'<a class="viewer-link" href="{escape(back_uri, quote=True)}">Back to the review viewer →</a>',
+        '</nav><div class="report-content">',
     ]
 
     reports = manifest["reports"]
@@ -381,16 +466,35 @@ def _render_html(
     content.extend(_summary_sheet(review))
     content.append("</div>")
     for section_title in _SECTION_TITLES:
-        content.append(f"<section><h2>{section_title}</h2>")
+        section_class = "report-section model-section" if section_title == "Model" else "report-section"
+        content.append(f'<section class="{section_class}" id="section-{section_title.lower().replace(" ", "-")}"><h2>{section_title}</h2>')
+        descriptions = {
+            "Summary": "Governing values by load case and a check of the global load balance.",
+            "Model": "Authored geometry, section profiles and model schedules.",
+            "Load Cases": "Applied loads and the Code_Aster studies included in this review.",
+            "Results": "Detailed Code_Aster output. Full study and result-state identities are retained in the CSV files.",
+            "Diagnostics": "Warnings, unavailable data and evidence that needs attention.",
+        }
+        content.append(f'<p class="section-intro">{descriptions[section_title]}</p>')
+        if section_title == "Model":
+            content.extend(_model_overview(review))
+            content.extend(_section_catalogue(review))
         section_tables = sections[section_title]
         if not section_tables:
             unavailable = _unavailable_message(review, section_title)
             if unavailable:
                 content.append(f'<p class="unavailable">{escape(unavailable)}</p>')
         for table in section_tables:
+            detailed = section_title in {"Model", "Load Cases", "Results"} or table.id == "project_summary"
+            if detailed:
+                content.append(f'<details class="detail-block"><summary>{escape(table.title)}<span>{len(table.rows)} records</span></summary>')
             content.extend(_render_table(table, csv_uri=reports.get(table.id)))
+            if detailed:
+                content.append('</details>')
         content.append("</section>")
 
+    content.append('<details class="report-notes"><summary>Units and display precision</summary>')
+    content.append(f'<p>{escape(_units_note(review))} Section-profile dimensions are labelled in millimetres.</p></details>')
     content.extend(
         (
             # The way out. This page used to end at </main> with no anchor to
@@ -399,7 +503,7 @@ def _render_html(
             # sharpest dead end in the product.
             f'<p class="back"><a href="{escape(back_uri, quote=True)}">'
             "&#8592; Back to the review viewer</a></p>",
-            "</main>",
+            "</div></main>",
             "</body>",
             "</html>",
             "",
@@ -408,38 +512,147 @@ def _render_html(
     return "\n".join(content)
 
 
+def _model_overview(review: EngineeringReviewPackage) -> list[str]:
+    """Short drawing keys map to the full native IDs in the accompanying legend."""
+    tables = review.tables_by_id
+    if "nodes" not in tables or "line_list" not in tables or not tables["line_list"].rows:
+        return []
+    nodes = {str(row["node_id"]): (row["x_m"], row["y_m"], row["z_m"])
+             for row in tables["nodes"].rows}
+    def native_order(value):
+        return tuple((part.isdigit(), int(part) if part.isdigit() else part)
+                     for part in re.split(r'(\d+)', value))
+    nodes = dict(sorted(nodes.items(), key=lambda item: native_order(item[0])))
+    lines = []
+    for row in tables["line_list"].rows:
+        try:
+            points = [nodes[str(row["start_node"])], nodes[str(row["end_node"])]]
+        except KeyError as exc:
+            raise EngineeringReviewError("Model overview references a node absent from the node schedule.") from exc
+        if row.get("element_type") == "pipe_bend":
+            if not row.get("bend_geometry"):
+                raise EngineeringReviewError(f"Model overview bend {row['element_id']!r} has no canonical geometry.")
+            points = sample_bend_geometry(points[0], BendGeometry.from_dict(row["bend_geometry"]), n_segments=32)
+        lines.append((str(row["element_id"]), [project_point(point) for point in points]))
+    lines.sort(key=lambda item: native_order(item[0]))
+    projected_nodes = {key: project_point(point) for key, point in nodes.items()}
+    all_points = [point for _, points in lines for point in points] + list(projected_nodes.values())
+    xmin, ymin = (min(point[index] for point in all_points) for index in (0, 1))
+    xmax, ymax = (max(point[index] for point in all_points) for index in (0, 1))
+    scale = min(820 / max(xmax - xmin, 1e-9), 220 / max(ymax - ymin, 1e-9))
+    xoffset = (1000 - (xmax - xmin) * scale) / 2
+
+    def screen(point):
+        return (xoffset + (point[0] - xmin) * scale, 55 + (point[1] - ymin) * scale)
+
+    content = ['<div class="model-overview"><h3>Model drawings</h3>',
+               '<p class="units">Authored, undeformed centerlines. Short drawing keys are matched '
+               'to exact model IDs below each sheet. Dimensions and sections are in the schedules.</p>']
+    supports = tables.get("supports")
+    for kind, title in (("elements", "Elements and supports"), ("nodes", "Node numbering")):
+        title_id = f"model-{kind}-title"
+        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" class="model-diagram" viewBox="0 0 1000 340" role="img" aria-labelledby="{title_id}">',
+               f'<title id="{title_id}">{title}</title>',
+               '<g fill="none" stroke="#075b66" stroke-width="2.5">']
+        for element_id, points in lines:
+            coordinates = " ".join(f"{x:.3f},{y:.3f}" for x, y in map(screen, points))
+            svg.append(f'<polyline data-element="{escape(element_id, quote=True)}" points="{coordinates}"/>')
+        svg.append('</g><g font-family="Roboto Condensed, sans-serif" font-size="14" fill="#172127">')
+        occupied, legend = [(0, 250, 95, 340)], []
+
+        def label(key, entity_id, point):
+            x, y = screen(point)
+            width = len(key) * 9 + 6
+            # ponytail: bounded greedy lanes; use dedicated route sheets for dense models.
+            candidates = [(min(max(x - width / 2 + shift, 4), 996 - width),
+                           min(max(y + offset, 18), 324))
+                          for offset in (-12, 24, -36, 48, -60, 72, -84, 96)
+                          for shift in (0, -width, width, -2*width, 2*width)]
+            def score(candidate):
+                cx, cy = candidate
+                overlap = sum(cx < right and cx + width > left and cy - 16 < bottom and cy + 4 > top
+                              for left, top, right, bottom in occupied)
+                return overlap, (cx + width/2 - x)**2 + (cy - y)**2
+            lx, ly = min(candidates, key=score)
+            occupied.append((lx, ly - 16, lx + width, ly + 4))
+            if abs(ly - y) > 24 or abs(lx + width/2 - x) > 24:
+                svg.append(f'<path d="M{x:.3f},{y:.3f} L{lx + width/2:.3f},{ly - 6:.3f}" stroke="#9aa7ad" fill="none"/>')
+            svg.append(f'<text class="drawing-label" data-ref="{escape(entity_id, quote=True)}" x="{lx:.3f}" y="{ly:.3f}" stroke="white" stroke-width="4" paint-order="stroke">{key}</text>')
+            legend.append(f'<li><b>{key}</b><span>{escape(entity_id)}</span></li>')
+
+        if kind == "elements":
+            for index, (element_id, points) in enumerate(lines, 1):
+                first, last = points[0], points[-1]
+                middle = tuple((a + b)/2 for a, b in zip(first, last)) if len(points) == 2 else points[len(points)//2]
+                label(f"E{index}", element_id, middle)
+        else:
+            for index, (node_id, point) in enumerate(projected_nodes.items(), 1):
+                x, y = screen(point)
+                svg.append(f'<circle cx="{x:.3f}" cy="{y:.3f}" r="3"/>')
+                label(f"N{index}", node_id, point)
+        if supports is not None:
+            for index, row in enumerate(supports.rows, 1):
+                node_id = str(row["node"])
+                if node_id not in projected_nodes:
+                    raise EngineeringReviewError("Model overview support references an absent node.")
+                x, y = screen(projected_nodes[node_id])
+                svg.append(f'<path d="M{x:.3f},{y:.3f} l-6,10 h12 z" fill="#172127"/>')
+                if kind == "elements":
+                    label(f"S{index}", str(row.get('support_id') or node_id), projected_nodes[node_id])
+        svg.append('</g><g stroke="#4c5b63" fill="#4c5b63" font-family="Roboto Condensed, sans-serif" font-size="12">'
+                   '<path d="M40,295 l22,11 M40,295 l-22,11 M40,295 v-25" fill="none"/>'
+                   '<text x="65" y="312" stroke="none">X</text><text x="6" y="312" stroke="none">Y</text>'
+                   '<text x="36" y="262" stroke="none">Z</text></g></svg>')
+        content.append(f'<figure><figcaption>{title} · isometric view</figcaption>{"".join(svg)}<ul class="drawing-key" aria-label="{title} drawing key">{"".join(legend)}</ul></figure>')
+    content.append('</div>')
+    return content
+
+
+def _section_catalogue(review: EngineeringReviewPackage) -> list[str]:
+    table = review.tables_by_id.get("section_schedule")
+    if table is None or not table.rows:
+        return []
+    content = ['<div class="section-catalogue"><h3>Section profiles</h3>',
+               '<p class="units">Actual section geometry, with the same dimensioned drafting style as the Tuba inspector. Dimensions in mm; profiles are individually scaled for legibility.</p>',
+               '<div class="profile-cards">']
+    for index, row in enumerate(table.rows, 1):
+        try:
+            drawing = section_svg(row, index)
+        except (KeyError, TypeError, ValueError) as exc:
+            drawing = f'<p class="unavailable">Diagram unavailable: {escape(str(exc))}</p>'
+        content.append(f'<article class="profile-card">{drawing}<div><h4>{escape(str(row["section"]))}</h4>')
+        kind = {"ibeam": "I-section", "pipe": "Pipe section", "bar": "Bar section",
+                "rectangular": "Rectangular section", "cable": "Cable section"}.get(row["section_type"], row["section_type"])
+        profile_name = row.get("profile_name")
+        subtitle = f'{kind} · {profile_name}' if profile_name and profile_name != row["section"] else kind
+        content.append(f'<p>{escape(str(subtitle))}</p><dl>')
+        for key, label, unit in (("element_count", "Members", ""), ("total_length_m", "Length", "m"), ("total_mass_kg", "Mass", "kg")):
+            content.append(f'<dt>{label}</dt><dd>{escape(_display_value(row.get(key)))} {unit}</dd>')
+        content.append('</dl></div></article>')
+    content.append('</div></div>')
+    return content
+
+
 def _summary_sheet(review: EngineeringReviewPackage) -> list[str]:
-    """The one-page tier: what was analysed, by what, and what came back.
-
-    SCIA, CSI and MIDAS all print three levels - brief, summary, detailed - and
-    the middle one is defined by a size, not by content: it "fits no more than a
-    half of an A4 page and shows all important results of the check". That is the
-    useful discipline here, because a thirteen-table report with no tier above it
-    answers none of the three questions a reviewer opens a review to ask: what is
-    this, was it actually solved, and where is the worst number.
-
-    Everything on this page is already computed by the review model - identity,
-    provenance, governing locations, diagnostic counts. Nothing is summarised by
-    averaging, and nothing is added, because a one-page sheet is exactly where a
-    fabricated aggregate would go unnoticed.
-
-    The FE stress row carries its basis in the text. `result_summary` already
-    publishes `result_basis` per row, and a sheet that printed "64.2" beside
-    "Von Mises" with no basis would be the one page of this document a reader
-    could mistake for a code check.
-    """
+    """One-page identity, evidence and governing values, with the FE stress basis."""
     rows = _summary_rows(review)
     content = [
         '<section class="summary-sheet" aria-label="One-page summary">',
         "<h2>Summary sheet</h2>",
-        '<p class="units">Everything on this page is stated as the review holds it. '
-        "No quantity here is a code check, a utilization or a pass/fail verdict: "
-        "Tuba performs no standards evaluation, and the stress values below are "
-        "finite-element output.</p>",
+        '<p class="units">Largest available values across the published cases. Finite-element output; '
+        'Tuba performs no standards evaluation.</p>',
         '<dl class="summary-facts">',
     ]
+    result_labels = {
+        "translation magnitude": "Maximum displacement",
+        "reaction force magnitude": "Maximum support force",
+        "element force magnitude": "Maximum element force",
+        "fe von mises": "FE von Mises stress",
+    }
     for label, value in rows:
-        content.append(f"<dt>{escape(label)}</dt><dd>{escape(value)}</dd>")
+        result = label in result_labels
+        css = "summary-result" if result else "summary-fact"
+        content.append(f'<div class="{css}"><dt>{escape(result_labels.get(label, label))}</dt><dd>{escape(value)}</dd></div>')
     content.extend(("</dl>", "</section>"))
     return content
 
@@ -494,17 +707,27 @@ def _summary_rows(review: EngineeringReviewPackage) -> list[tuple[str, str]]:
             ))
 
     result_summary = by_id.get("result_summary")
+    governing = {}
     for row in (result_summary.rows if result_summary is not None else ()):
+        key = row.get("result_type")
+        previous = governing.get(key)
+        if previous is None or (row.get("maximum_value") is not None and
+                (previous.get("maximum_value") is None or row["maximum_value"] > previous["maximum_value"])):
+            governing[key] = row
+    for row in governing.values():
         quantity = str(row.get("result_type", "")).replace("_", " ")
         value = row.get("maximum_value")
         unit = str(row.get("unit", "") or "")
         basis = str(row.get("result_basis", "") or "")
-        location = str(row.get("governing_location", "") or row.get("governing_entity_ref", "") or "")
+        entity = str(row.get("governing_entity_ref", "") or "")
+        location = str(row.get("governing_location", "") or "")
         text = "unavailable" if value is None else f"{_display_number(value)} {unit}".strip()
-        if basis:
+        if basis and not basis.startswith("Code_Aster "):
             text += f" - {basis}"
-        if location:
-            text += f" - at {location}"
+        if row.get("load_case"):
+            text += f" - load case {row['load_case']}"
+        if entity or location:
+            text += f" - at {entity}" + (f" / {location}" if location and location not in {entity, entity.removeprefix("node:")} else "")
         rows.append((quantity or "result", text))
 
     diagnostics = by_id.get("diagnostics")
@@ -546,7 +769,7 @@ def _units_note(review: EngineeringReviewPackage) -> str:
 
 
 def _section_for_table(table: ReportTable) -> str:
-    if table.id in {"project_summary", "result_summary"}:
+    if table.id in {"project_summary", "result_summary", "equilibrium"}:
         return "Summary"
     if table.id in {"load_cases", "studies"}:
         return "Load Cases"
@@ -619,11 +842,38 @@ def _render_cell_html(value: Any) -> str:
 
 
 def _render_table(table: ReportTable, *, csv_uri: str | None) -> list[str]:
+    if table.id == "project_summary":
+        table = replace(table, columns=tuple(column for column in table.columns
+                        if column.id not in {"project_name", "model_standard", "model_revision", "analysis_status"}))
+    elif table.id == "studies":
+        table = replace(table, columns=tuple(column for column in table.columns
+                        if column.id in {"study_id", "solver_name", "load_case", "model_revision"}))
+    elif table.id == "section_schedule":
+        table = replace(table, columns=tuple(column for column in table.columns
+                        if any(row.get(column.id) is not None for row in table.rows)))
+    if table.source == "result_state":
+        # Full lineage stays in JSON/CSV; repeat the engineering quantities here.
+        hidden = {"solver_name", "study_id", "result_state_id"}
+        if any(column.id in {"node", "element", "support_id"} for column in table.columns):
+            hidden.add("entity_ref")
+        table = replace(table, columns=tuple(column for column in table.columns
+                        if column.id not in hidden))
     # The heading names the table, the scroll region and the table itself, so a
     # screen reader entering any of the three is told which one it is - and the
     # visible text is written once.
     heading_id = f"table-{table.id}"
     content = [f'<article><h3 id="{heading_id}">{escape(table.title)}</h3>']
+    if table.id == "equilibrium":
+        content.append('<p class="units">Global axes; moments about (0, 0, 0) m. '
+                       'Calculated applied loads + Code_Aster reactions = residual. '
+                       'Tolerance is 0.001 N or N*m plus 1e-5 times the larger sum of absolute '
+                       'applied or reaction components. This checks numerical balance, not a design standard.</p>')
+        for row in table.rows:
+            if row.get("status") == "not_evaluated":
+                content.append(f'<p class="unavailable">{escape(str(row.get("load_case", "")))}: '
+                               f'not evaluated - {escape(str(row.get("note", "")))}</p>')
+        visible = {"load_case", "component", "applied", "reaction", "residual", "tolerance", "unit", "status"}
+        table = replace(table, columns=tuple(column for column in table.columns if column.id in visible))
     if table.unavailable_reason:
         content.append(f'<p class="unavailable">{escape(table.unavailable_reason)}</p>')
     if table.rows:
@@ -637,7 +887,7 @@ def _render_table(table: ReportTable, *, csv_uri: str | None) -> list[str]:
         # tabindex, because the region scrolls: without it the columns past the
         # right edge could not be reached by keyboard at all.
         content.extend((
-            f'<div class="table-wrap" role="region" tabindex="0"'
+            f'<div class="table-wrap{" balance-table" if table.id == "equilibrium" else ""}" role="region" tabindex="0"'
             f' aria-labelledby="{heading_id}">',
             f'<table aria-labelledby="{heading_id}">',
             "<thead><tr>",
@@ -664,7 +914,14 @@ def _render_table(table: ReportTable, *, csv_uri: str | None) -> list[str]:
                     css = ' class="num"'
                 else:
                     css = ""
-                content.append(f"<td{css}>{_render_cell_html(value)}</td>")
+                if table.id == "equilibrium" and column.id == "status":
+                    status = str(value)
+                    rendered = f'<span class="balance-status {escape(status, quote=True)}">{escape(status.replace("_", " "))}</span>'
+                elif column.id in {"result_type", "location_kind"}:
+                    rendered = escape(str(value).replace("_", " "))
+                else:
+                    rendered = _render_cell_html(value)
+                content.append(f"<td{css}>{rendered}</td>")
             content.append("</tr>")
         content.extend(("</tbody>", "</table>", "</div>"))
     content.append("</article>")

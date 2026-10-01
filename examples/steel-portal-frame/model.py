@@ -163,19 +163,6 @@ def camber_height(
     return _finite("springing", springing) + _finite("rise", rise) * (1.0 - ratio * ratio)
 
 
-def resolve_node(model: Model, point: Sequence[float]) -> str:
-    """Return the one node id at *point*, creating it only if the model has none.
-
-    Every member endpoint goes through here, which is what makes members meeting
-    at a joint share a single node instead of sitting on coincident duplicates.
-    """
-    coords = tuple(_finite(f"point[{axis}]", value) for axis, value in enumerate(point))
-    if len(coords) != 3:
-        raise ValueError(f"point needs three coordinates, got {len(coords)}.")
-    existing = model.find_node_by_point(coords, tol=1e-9)
-    return existing if existing is not None else model.add_node(coords)
-
-
 def add_member(
     model: Model,
     n1: str,
@@ -194,18 +181,10 @@ def add_member(
     an I-section's two inertias resists which bending, and with it which
     component the reported shear and moment appear under.
     """
-    p1 = model.nodes[n1].coords
-    p2 = model.nodes[n2].coords
-    length = math.sqrt(sum((p2[axis] - p1[axis]) ** 2 for axis in range(3)))
-    if length < 1e-9:
-        raise ValueError(
-            f"{kind} member {member_id!r} is zero length between {n1!r} and {n2!r}."
-        )
-    model.add_element(
+    return model.add_element(
         id=member_id, type=kind, n1=n1, n2=n2, section=section, material=material,
         twist_angle=twist_angle,
-    )
-    return member_id
+    ).id
 
 
 def column_levels(eave_height: float, girt_levels: Sequence[float]) -> List[float]:
@@ -261,18 +240,20 @@ def truss_frame(
     bottom: Dict[int, str] = {}
     for index in range(panels + 1):
         x = span_value * index / panels
-        top[index] = resolve_node(model, (x, y, camber_height(x, span_value, springing, rise)))
-        bottom[index] = resolve_node(model, (x, y, eave))
+        top[index] = model.get_or_create_node(
+            (x, y, camber_height(x, span_value, springing, rise)), tolerance=1e-9
+        )
+        bottom[index] = model.get_or_create_node((x, y, eave), tolerance=1e-9)
 
     for side, x in (("start", 0.0), ("end", span_value)):
-        previous = resolve_node(model, (x, y, levels[0]))
+        previous = model.get_or_create_node((x, y, levels[0]), tolerance=1e-9)
         model.add_support(node=previous, type="anchor")
         for segment, height in enumerate(levels[1:]):
             # The top segment lands on the truss springing node itself, so the
             # column and the truss share a joint with no extra member between.
             current = (
                 bottom[0 if side == "start" else panels] if height == eave
-                else resolve_node(model, (x, y, height))
+                else model.get_or_create_node((x, y, height), tolerance=1e-9)
             )
             add_member(
                 model, previous, current, column_section, material,
@@ -333,70 +314,38 @@ def frame_row(
     ]
 
 
-def roof_purlins(
+def longitudinal_members(
     model: Model,
     frames: Sequence[Dict[str, Dict[int, str]]],
     material: str,
     section: str,
     strong_axis_twist: float = 0.0,
+    *,
+    chord: str,
+    id_prefix: str,
 ) -> List[str]:
-    """Run a purlin on every top-chord panel point, tying the frames together.
+    """Tie matching panel points on *chord* along the frames with *id_prefix* ids.
 
-    These are the members the roof cladding actually bears on, so they are also
-    the ones the wind line load is applied to.
+    Top-chord purlins carry the roof cladding and its wind line load. Bottom-chord
+    ties reach every panel point, not just the two springings: an intermediate tie
+    node with no longitudinal member has no stiffness out of plane, and Code_Aster
+    reports a singular matrix on exactly that degree of freedom.
     """
     ids: List[str] = []
-    for panel in sorted(frames[0]["top"]):
+    for panel in sorted(frames[0][chord]):
         for bay in range(len(frames) - 1):
             ids.append(
                 add_member(
                     model,
-                    frames[bay]["top"][panel],
-                    frames[bay + 1]["top"][panel],
+                    frames[bay][chord][panel],
+                    frames[bay + 1][chord][panel],
                     section,
                     material,
-                    member_id=f"purlin_p{panel}_b{bay}",
+                    member_id=f"{id_prefix}_p{panel}_b{bay}",
                     twist_angle=strong_axis_twist,
                 )
             )
     return ids
-
-
-def bottom_chord_ties(
-    model: Model,
-    frames: Sequence[Dict[str, Dict[int, str]]],
-    material: str,
-    section: str,
-    strong_axis_twist: float = 0.0,
-) -> List[str]:
-    """Run a longitudinal tie along every bottom-chord panel point.
-
-    These are the eaves and the tie line between them, and they are what makes the
-    frames one structure rather than seven parallel trusses. They must reach every
-    panel point, not just the two springings: an intermediate tie node with no
-    member running along the building has no stiffness out of plane at all, and
-    Code_Aster reports a singular matrix on exactly that degree of freedom.
-    """
-    ids: List[str] = []
-    for panel in sorted(frames[0]["bottom"]):
-        for bay in range(len(frames) - 1):
-            ids.append(
-                add_member(
-                    model,
-                    frames[bay]["bottom"][panel],
-                    frames[bay + 1]["bottom"][panel],
-                    section,
-                    material,
-                    member_id=f"tie_p{panel}_b{bay}",
-                    twist_angle=strong_axis_twist,
-                )
-            )
-    return ids
-
-
-def _last_panel(frames: Sequence[Dict[str, Dict[int, str]]]) -> int:
-    """Index of the far-side springing panel of a frame."""
-    return max(frames[0]["top"])
 
 
 def wall_girts(
@@ -426,14 +375,17 @@ def wall_girts(
     return ids
 
 
-def tie_level_plan_bracing(
+def plan_bracing(
     model: Model,
     frames: Sequence[Dict[str, Dict[int, str]]],
     material: str,
     section: str,
     braced_bays: Sequence[int],
+    *,
+    chord: str,
+    id_prefix: str,
 ) -> List[str]:
-    """Brace the bottom-chord plane over the given bays, one diagonal per panel.
+    """Brace *chord* over the given bays, one diagonal per panel with *id_prefix* ids.
 
     This is the member that makes the frame solvable, and it is not decoration.
     A portal frame is a *planar* truss: its web lies wholly in the transverse
@@ -446,9 +398,13 @@ def tie_level_plan_bracing(
     above. These diagonals triangulate the bottom chord against the next frame in
     the horizontal plane, which is the restraint that chord actually needs. They
     run panel to adjacent panel so none crosses a tie.
+
+    Roof diagonals likewise run panel to adjacent panel so none crosses a purlin.
+    Crossing two diagonals inside one panel would need a centre node with no
+    rotational stiffness, and a single diagonal triangulates the bay against racking.
     """
     ids: List[str] = []
-    last_panel = _last_panel(frames)
+    last_panel = max(frames[0][chord])
     for bay in braced_bays:
         if not 0 <= bay < len(frames) - 1:
             raise ValueError(
@@ -458,11 +414,11 @@ def tie_level_plan_bracing(
             ids.append(
                 add_member(
                     model,
-                    frames[bay]["bottom"][panel],
-                    frames[bay + 1]["bottom"][panel + 1],
+                    frames[bay][chord][panel],
+                    frames[bay + 1][chord][panel + 1],
                     section,
                     material,
-                    member_id=f"tiebrace_b{bay}_p{panel}",
+                    member_id=f"{id_prefix}_b{bay}_p{panel}",
                 )
             )
     return ids
@@ -486,41 +442,7 @@ def girt_node(
         raise ValueError(f"side must be 'start' or 'end', got {side!r}.")
     springing = frames[bay]["bottom"][0 if side == "start" else max(frames[bay]["bottom"])]
     x, y, _ = model.nodes[springing].coords
-    return resolve_node(model, (x, y, _finite("height", height)))
-
-
-def roof_plan_bracing(
-    model: Model,
-    frames: Sequence[Dict[str, Dict[int, str]]],
-    material: str,
-    section: str,
-    braced_bays: Sequence[int],
-) -> List[str]:
-    """Brace the roof plane over the given bays, one diagonal per panel.
-
-    Diagonals run panel to adjacent panel so none crosses a purlin. Crossing two
-    diagonals inside one panel would need a centre node with no rotational
-    stiffness, and a single diagonal already triangulates the bay against racking.
-    """
-    ids: List[str] = []
-    last_panel = _last_panel(frames)
-    for bay in braced_bays:
-        if not 0 <= bay < len(frames) - 1:
-            raise ValueError(
-                f"braced bay {bay} is outside the {len(frames) - 1} bays of this building."
-            )
-        for panel in range(last_panel):
-            ids.append(
-                add_member(
-                    model,
-                    frames[bay]["top"][panel],
-                    frames[bay + 1]["top"][panel + 1],
-                    section,
-                    material,
-                    member_id=f"roofbrace_b{bay}_p{panel}",
-                )
-            )
-    return ids
+    return model.get_or_create_node((x, y, _finite("height", height)), tolerance=1e-9)
 
 
 def wall_bracing(
@@ -615,23 +537,27 @@ FRAMES = frame_row(
     strong_axis_twist=STRONG_AXIS_TWIST_DEG,
 )
 
-PURLIN_IDS = roof_purlins(
+PURLIN_IDS = longitudinal_members(
     model, FRAMES, "S355", STRUCTURAL_SECTIONS["purlin"],
     strong_axis_twist=STRONG_AXIS_TWIST_DEG,
+    chord="top", id_prefix="purlin",
 )
-TIE_IDS = bottom_chord_ties(
+TIE_IDS = longitudinal_members(
     model, FRAMES, "S355", STRUCTURAL_SECTIONS["eave"],
     strong_axis_twist=STRONG_AXIS_TWIST_DEG,
+    chord="bottom", id_prefix="tie",
 )
 GIRT_IDS = wall_girts(
     model, FRAMES, "S355", STRUCTURAL_SECTIONS["girt"], GIRT_LEVELS_M,
     strong_axis_twist=STRONG_AXIS_TWIST_DEG,
 )
-ROOF_BRACE_IDS = roof_plan_bracing(
-    model, FRAMES, "S355", STRUCTURAL_SECTIONS["brace"], BRACED_BAYS
+ROOF_BRACE_IDS = plan_bracing(
+    model, FRAMES, "S355", STRUCTURAL_SECTIONS["brace"], BRACED_BAYS,
+    chord="top", id_prefix="roofbrace",
 )
-TIE_BRACE_IDS = tie_level_plan_bracing(
-    model, FRAMES, "S355", STRUCTURAL_SECTIONS["brace"], BRACED_BAYS
+TIE_BRACE_IDS = plan_bracing(
+    model, FRAMES, "S355", STRUCTURAL_SECTIONS["brace"], BRACED_BAYS,
+    chord="bottom", id_prefix="tiebrace",
 )
 WALL_BRACE_IDS = wall_bracing(
     model, FRAMES, "S355", STRUCTURAL_SECTIONS["brace"], BRACED_BAYS, GIRT_LEVELS_M

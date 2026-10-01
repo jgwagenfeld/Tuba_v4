@@ -227,9 +227,7 @@ class ModelTransaction:
 
     def _apply_add_node(self, target: TubaModel, operation: AddNode) -> str:
         if operation.reuse_existing:
-            existing = _node_for_point(target, operation.coords, operation.tolerance)
-            if existing is not None:
-                return existing
+            return target.get_or_create_node(operation.coords, tolerance=operation.tolerance)
         return target.add_node(operation.coords)
 
     def _apply_add_element(self, target: TubaModel, operation: AddElement, node_ids: dict[str, str]) -> str:
@@ -343,10 +341,6 @@ def _prefix_for_element_type(element_type: str) -> str:
     if element_type == "cable":
         return "cable"
     raise ValueError(f"Unknown element type {element_type!r}.")
-
-
-def _node_for_point(model: TubaModel, coords: Sequence[float], tol: float) -> str | None:
-    return model.find_node_by_point(coords, tol=tol)
 
 
 def _operation_to_dict(operation: PatchOperation) -> dict[str, Any]:
